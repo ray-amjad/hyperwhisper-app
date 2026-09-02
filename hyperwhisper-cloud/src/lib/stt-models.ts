@@ -24,7 +24,8 @@ export type SttProviderId =
   | 'gemini-transcribe'
   | 'assemblyai'
   | 'mistral'
-  | 'soniox';
+  | 'soniox'
+  | 'meta';
 
 export interface SttModelDef {
   /** Upstream model id. Empty string for single-model providers (grok). */
@@ -171,6 +172,15 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     fallbackChain: ['google-chirp'],
     async: true,
     models: [{ id: 'chirp_3', supportsVocabulary: false, estimatedUsdPerMinute: 0.016 }],
+  },
+  meta: {
+    id: 'meta',
+    defaultModel: 'muse-voice-transcribe-1.0',
+    fallbackChain: ['meta'],
+    async: false,
+    models: [
+      { id: 'muse-voice-transcribe-1.0', supportsVocabulary: true, estimatedUsdPerMinute: 0.003 },
+    ],
   },
 
   // ── New synchronous proxy providers ──

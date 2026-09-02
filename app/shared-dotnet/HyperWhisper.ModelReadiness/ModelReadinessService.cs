@@ -52,6 +52,14 @@ public sealed class ModelReadinessService
             credential = new ProviderCredential(string.Empty);
         }
 
+        // Meta documents no content-free key validation endpoint. A saved key
+        // is configured, but only the first user-requested transcription can
+        // validate it. Never upload hidden audio or call the inference route
+        // from a readiness screen.
+        if (capability.ProviderId.Equals("meta", StringComparison.OrdinalIgnoreCase))
+            return Publish(capability.Key, ReadinessState.Healthy,
+                "Key saved; validated on first transcription.");
+
         Publish(capability.Key, ReadinessState.Checking);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_timeout);

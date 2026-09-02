@@ -11,6 +11,7 @@ export type TranscriptionSource =
   | 'assemblyai'
   | 'mistral'
   | 'soniox'
+  | 'meta'
   | 'no_speech';
 
 export interface TranscriptionResult {

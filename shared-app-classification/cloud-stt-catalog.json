@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
-  "version": 8,
-  "updated": "2026-08-27",
+  "version": 10,
+  "updated": "2026-09-02",
   "providers": [
     {
       "id": "groqWhisper",
@@ -457,6 +457,55 @@
       "sources": [
         "https://ai.google.dev/gemini-api/docs/audio",
         "https://cloud.google.com/blog/products/ai-machine-learning/lower-costs-more-languages-for-gemini-on-vertex"
+      ]
+    },
+
+    {
+      "id": "metaMuse",
+      "displayName": "Meta Muse Voice Transcribe",
+      "displayModel": "muse-voice-transcribe-1.0",
+      "vendor": "meta",
+      "vendorDisplayName": "Meta",
+      "sttProvider": "meta",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "muse-voice-transcribe-1.0", "displayName": "Muse Voice Transcribe 1.0", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": false }
+      ],
+      "cloudTier": { "accuracy": "high", "creditsPerMinute": 3.0 },
+      "migrateFrom": ["meta", "metamuse", "muse", "musevoicetranscribe"],
+      "legacyCloudProviderAliases": [],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "keywords",
+        "maxPhrases": "unverified",
+        "caveats": "HyperWhisper Cloud and direct BYOK requests forward vocabulary as the Meta Model API keywords field. HyperWhisper keeps at most 100 non-empty terms of 80 characters. The API reference does not publish a phrase-count limit."
+      },
+      "languages": {
+        "count": "unverified",
+        "autoDetect": true,
+        "codeFormat": "unverified",
+        "codes": "unverified",
+        "notes": "Meta reports 25+ evaluated languages and native multilingual input, but the Model API reference does not enumerate the language codes."
+      },
+      "acceptedFormats": ["wav"],
+      "acceptedFormatsCaveat": "HyperWhisper sends mono 16-bit PCM WAV at 16 kHz or 24 kHz. Other containers are normalized before upload.",
+      "maxFileSizeMb": 32,
+      "maxDurationMinutes": 10,
+      "features": {
+        "wordTimestamps": false,
+        "diarization": true,
+        "streaming": true,
+        "codeSwitching": true,
+        "endpointing": true,
+        "contextBias": true,
+        "languageBias": true,
+        "turnTimestamps": true
+      },
+      "featuresCaveat": "Streaming is an upstream Muse capability. The model-level streaming flag remains false because HyperWhisper Cloud does not expose a Meta WebSocket relay. The batch API returns turn timestamps, not word timestamps.",
+      "previewStatus": false,
+      "sources": [
+        "https://x.com/finkd/status/2094836602681938385",
+        "https://api.meta.ai/v1/asr/transcribe"
       ]
     }
   ]

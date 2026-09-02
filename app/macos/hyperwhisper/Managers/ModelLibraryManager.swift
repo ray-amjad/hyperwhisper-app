@@ -215,7 +215,7 @@ final class ModelLibraryManager: ObservableObject {
         let hasKey = apiKeys?.hasAPIKey(for: provider) ?? false
 
         switch health {
-        case .healthy:
+        case .healthy, .configured:
             return .enabled
         case .unauthorized:
             return .error("Key invalid")
@@ -508,7 +508,7 @@ final class ModelLibraryManager: ObservableObject {
         let hasKey = apiKeys?.hasPostProcessingAPIKey(for: provider) ?? false
 
         switch health {
-        case .healthy:
+        case .healthy, .configured:
             return .enabled
         case .unauthorized:
             return .error("Key invalid")

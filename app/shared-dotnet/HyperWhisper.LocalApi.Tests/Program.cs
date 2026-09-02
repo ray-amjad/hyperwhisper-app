@@ -613,6 +613,15 @@ static async Task ApplicationBackendModeRouting()
     Assert(transcriber.Request?.SelectedMode is { ProviderType: "local", LocalEngine: "parakeet", LocalParakeetModel: "parakeet-v3" },
         "engine/model did not construct a transient Windows-compatible mode");
     Assert(transcriber.Request?.ApplicationContext?.AppType == "terminal", "transcription applicationContext did not reach the workflow");
+    _ = await backend.TranscribeAsync(new AudioUpload(
+        "meta.wav", "audio/wav", new byte[] { 2 }, null,
+        "MeTa", null, "en"), CancellationToken.None);
+    Assert(transcriber.Request?.SelectedMode is
+        {
+            ProviderType: "cloud",
+            CloudProvider: "meta",
+            CloudTranscriptionModel: "muse-voice-transcribe-1.0",
+        }, "case-insensitive Meta Local API routing lost the exact direct model default");
     var stagedBeforeInvalid = Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count();
     await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
     Assert(Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count() == stagedBeforeInvalid, "invalid mode retained an orphaned upload");
@@ -649,7 +658,7 @@ static async Task ApplicationBackendModeValidation()
     // Both Gemini ids: `gemini` (multimodal) and `geminiTranscribe` (BYOK Gemini
     // 3.5 Transcribe). The camelCase spelling is what Windows persists, so the
     // allow-list must accept it as well as the lowercase one macOS writes.
-    string[] providers = ["openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral", "soniox", "hyperwhisper", "gemini", "geminiTranscribe", "geminitranscribe", "grok", "microsoftAzureSpeech", "googleSpeech"];
+    string[] providers = ["openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral", "soniox", "hyperwhisper", "gemini", "geminiTranscribe", "geminitranscribe", "grok", "microsoftAzureSpeech", "googleSpeech", "meta"];
     // Mode names are unique case-insensitively, so index them: two spellings of
     // the same provider id are a legitimate pair of cases to accept.
     for (var index = 0; index < providers.Length; index++)

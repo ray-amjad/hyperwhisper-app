@@ -37,7 +37,10 @@ public enum TranscriptionApiKeyType
     /// post-processing key but a SEPARATE slot — the two are different APIs and
     /// users may hold different keys for them.
     /// </summary>
-    GeminiTranscribe
+    GeminiTranscribe,
+
+    /// <summary>Meta Model API key for Muse Voice Transcribe.</summary>
+    Meta
 }
 
 /// <summary>
@@ -59,6 +62,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Soniox => "SonioxApiKey",
         TranscriptionApiKeyType.Grok => "GrokApiKey",
         TranscriptionApiKeyType.GeminiTranscribe => "GeminiTranscribeApiKey",
+        TranscriptionApiKeyType.Meta => "MetaApiKey",
         _ => ""
     };
 
@@ -75,6 +79,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Soniox => "Soniox",
         TranscriptionApiKeyType.Grok => "Grok",
         TranscriptionApiKeyType.GeminiTranscribe => "Gemini 3.5 Transcribe",
+        TranscriptionApiKeyType.Meta => "Meta",
         _ => type.ToString()
     };
 
@@ -105,6 +110,7 @@ public static class TranscriptionApiKeyTypeExtensions
         // Matches ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini):
         // "AIza" + length >= 30. Same key shape, so keep the same rule.
         TranscriptionApiKeyType.GeminiTranscribe => 30,
+        TranscriptionApiKeyType.Meta => 10,
         _ => 10
     };
 
@@ -121,6 +127,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Soniox => "https://console.soniox.com",
         TranscriptionApiKeyType.Grok => "https://console.x.ai/",
         TranscriptionApiKeyType.GeminiTranscribe => "https://aistudio.google.com/apikey",
+        TranscriptionApiKeyType.Meta => "https://dev.meta.ai/docs/speech-to-text/",
         _ => ""
     };
 
@@ -136,6 +143,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Mistral,
         TranscriptionApiKeyType.Soniox,
         TranscriptionApiKeyType.Grok,
-        TranscriptionApiKeyType.GeminiTranscribe
+        TranscriptionApiKeyType.GeminiTranscribe,
+        TranscriptionApiKeyType.Meta
     };
 }

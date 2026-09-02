@@ -135,9 +135,16 @@ static async Task OnboardingModeReadiness()
         "cloud/stt/openai/whisper-1", "OpenAI", "openai", "whisper-1",
         ModelDeployment.Cloud, ModelWorkload.Voice, ModelSurface.BatchTranscription,
         true, true, [], false, CredentialAccount: "OpenAIApiKey");
-    var credentials = new OnboardingCredentials(("OpenAIApiKey", "private-test-key"), ("LicenseKey", "private-license"));
+    var metaCapability = new ModelCapability(
+        "cloud/stt/metaMuse/muse-voice-transcribe-1.0", "Meta Muse", "meta",
+        "muse-voice-transcribe-1.0", ModelDeployment.Cloud, ModelWorkload.Voice,
+        ModelSurface.BatchTranscription, true, false, [], false,
+        CloudTierEligible: true, ByokEligible: true, CredentialAccount: "MetaApiKey");
+    var credentials = new OnboardingCredentials(("OpenAIApiKey", "private-test-key"),
+        ("LicenseKey", "private-license"), ("MetaApiKey", "private-meta-key"));
     var localModels = new OnboardingLocalModels("base");
-    var readiness = new LinuxOnboardingModeReadiness(credentials, localModels, [localCapability, cloudCapability]);
+    var readiness = new LinuxOnboardingModeReadiness(credentials, localModels,
+        [localCapability, cloudCapability, metaCapability]);
 
     Assert(await readiness.IsReadyAsync(new Mode
     {
@@ -159,6 +166,11 @@ static async Task OnboardingModeReadiness()
     {
         ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudTranscriptionModel = "scribe_v2",
     }), "credentialed HyperWhisper mode was rejected");
+    Assert(await readiness.IsReadyAsync(new Mode
+    {
+        ProviderType = "cloud", CloudProvider = "meta",
+        CloudTranscriptionModel = "muse-voice-transcribe-1.0",
+    }), "explicit internal Meta composition could not read the isolated secure key");
     Assert(!await new LinuxOnboardingModeReadiness(
         new OnboardingCredentials(), localModels, [localCapability, cloudCapability]).IsReadyAsync(new Mode
         {

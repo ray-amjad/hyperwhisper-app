@@ -131,6 +131,85 @@ struct CloudSttTierParityTests {
         )
     }
 
+    @Test("Meta Muse tier, provider, model, persistence, and capabilities stay aligned")
+    func metaMuseTierParity() {
+        let tier = CloudAccuracyTier.fromStorageValue("  METAMUSE  ")
+        #expect(tier == .metaMuse)
+        #expect(tier.rawValue == "metaMuse")
+        #expect(tier.sttProvider == "meta")
+        #expect(tier.defaultModelId == "muse-voice-transcribe-1.0")
+        #expect(CloudAccuracyTier.defaultTier(forVendorKey: "meta") == .metaMuse)
+        #expect(!CloudAccuracyTier.streamingEligibleTiers.contains(.metaMuse))
+
+        #expect(CloudProvider.parse("meta") == .meta)
+        #expect(CloudProvider.allCases.map(\.rawValue).contains("meta"))
+        #expect(
+            CloudTranscriptionModels.model(
+                withId: "muse-voice-transcribe-1.0", provider: .meta
+            )?.provider == .meta
+        )
+        #expect(HealthEndpoint.transcriptionProviders.map(\.rawValue).contains("meta"))
+
+        let shared = SharedModelsCatalog.entry(
+            provider: "meta", kind: .voice, id: "muse-voice-transcribe-1.0")
+        #expect(shared?.availableViaHyperWhisperCloud == true)
+        #expect(shared?.supportsCustomVocabulary == true)
+        #expect(shared?.voiceCapabilities?.codeSwitching == true)
+        #expect(shared?.voiceCapabilities?.turnTimestamps == true)
+        #expect(shared?.voiceCapabilities?.wordTimestamps == false)
+    }
+
+    @MainActor
+    @Test("Local API meta shorthand selects direct Meta BYOK")
+    func localApiMetaShorthandSelectsDirectMuse() {
+        let persistence = PersistenceController(inMemory: true)
+        let mode = Mode(context: persistence.container.viewContext)
+
+        TranscribeEndpoint.applyEngineModel(to: mode, engine: "meta", model: nil)
+
+        #expect(mode.model == "cloud")
+        #expect(mode.cloudProvider == CloudProvider.meta.rawValue)
+        #expect(mode.cloudAccuracyTier == nil)
+        #expect(mode.cloudTranscriptionModel == "muse-voice-transcribe-1.0")
+    }
+
+    @Test("Upload duration limits apply only to the active HyperWhisper Cloud tier")
+    func uploadDurationLimitUsesActiveProvider() {
+        let activeMuse = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "hyperwhisper",
+            accuracyTier: "metaMuse"
+        )
+        #expect(activeMuse?.maximumSeconds == 600)
+        #expect(activeMuse?.providerName == "Meta Muse Voice Transcribe")
+
+        let staleTierOnOpenAI = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "openai",
+            accuracyTier: "metaMuse"
+        )
+        #expect(staleTierOnOpenAI == nil)
+
+        let nonMuseCloudTier = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "hyperwhisper",
+            accuracyTier: "deepgramNova3"
+        )
+        #expect(nonMuseCloudTier == nil)
+    }
+
+    @Test("Muse validates the post-VAD upload duration")
+    func museAcceptsSourceTrimmedBelowLimit() {
+        let constraint = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "hyperwhisper",
+            accuracyTier: "metaMuse"
+        )
+
+        #expect(constraint?.isExceeded(by: 12 * 60) == true)
+        #expect(constraint?.isExceeded(by: 9 * 60) == false)
+    }
+
     /// Catalog v8 retired `googleChirp3` and put `geminiTranscribe` in its array
     /// slot as Google's cloud tier. Every persisted Chirp value in the wild has
     /// to land there — and the failure mode is silent: `fromStorageValue`'s

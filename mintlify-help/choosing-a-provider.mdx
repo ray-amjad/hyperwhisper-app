@@ -16,7 +16,7 @@ Each provider has an accuracy rating of **Highest**, **High**, or **Medium**. Th
 </Tip>
 
 <Note>
-  These four providers are the featured providers. If one provider fails, HyperWhisper Cloud sends the request to a backup provider. The full HyperWhisper Cloud picker gives all 11 supported engines with no key. The list includes Soniox, Azure MAI-Transcribe, and Google Gemini 3.5 Transcribe. The Provider row of the picker shows ten companies, because Gemini 3.5 Transcribe and Gemini are both Google and share one row — read [Transcription Modes](/transcription-modes). Providers outside the featured four do not get automatic failover. The [Provider Health](/provider-health) page describes the failover chains.
+  These four providers are the featured providers. If one provider fails, HyperWhisper Cloud sends the request to a backup provider. The full HyperWhisper Cloud picker gives all 12 supported engines with no key. The list includes Meta Muse Voice Transcribe, Soniox, Azure MAI-Transcribe, and Google Gemini 3.5 Transcribe. The Provider row of the picker shows 11 companies, because Gemini 3.5 Transcribe and Gemini are both Google and share one row — read [Transcription Modes](/transcription-modes). Providers outside the featured four do not get automatic failover. The [Provider Health](/provider-health) page describes the failover chains.
 </Note>
 
 <Card title="Highest — ElevenLabs Scribe v2" icon="sparkles" horizontal>
@@ -84,6 +84,32 @@ The page gives the best match first, then the full ranked list. For a Cloud mode
 <Tip>
   The **Closest region** menu selects which measurements the ranking uses. The page finds your closest region for you. The measured column gives the median time for one dictation clip of less than 10 seconds, from the last 90 days. This is not a figure for each minute. A cell needs the same minimum of 3 attempts that the latency page needs. If a model is too new to have its own measurements, the page uses the measurements of its provider.
 </Tip>
+
+### Meta Muse Voice Transcribe
+
+Meta Muse Voice Transcribe 1.0 is available through HyperWhisper Cloud or with your own Meta Model API key. The Cloud route costs **3 credits per audio minute**, or **$0.003 per minute**. This is **$0.18 per audio hour**. The direct route uses your Meta account and does not use HyperWhisper credits.
+
+For direct use, add the key in **Model Library → API Keys**, then select **Your Provider → Meta → Muse Voice Transcribe 1.0**. The app stores the key in the operating system's secure credential store. Your device sends the audio directly to `api.meta.ai`; the request does not reach HyperWhisper servers.
+
+Meta has extensively evaluated 25 languages. Meta does not publish the closed language-code list in the Model API reference. HyperWhisper therefore does not claim a language code until it can map that code to Meta's API.
+
+The shared catalog decodes this capability record for Muse:
+
+| Capability | Catalog value |
+| --- | --- |
+| Code switching | Yes |
+| Endpointing | Yes |
+| Context bias | Yes |
+| Language bias | Yes |
+| Turn-level timestamps | Yes |
+| Speaker diarization | Yes |
+| Word-level timestamps | No |
+
+These values describe the upstream model. HyperWhisper currently uses Meta's pre-recorded push-to-talk API. HyperWhisper returns the transcript text, but it does not expose all turn metadata in the app.
+
+Meta also provides a real-time Muse API. HyperWhisper does not have a Meta WebSocket relay, so Muse is not available in **HyperWhisper Live**. The **Live streaming** filter correctly removes this model. Do not use Meta's streaming benchmark as a batch WER or speed result.
+
+For the primary sources, read Meta's [Muse launch article](https://research.meta.ai/blog/introducing-muse-voice-transcribe) and [speech-to-text API reference](https://dev.meta.ai/docs/speech-to-text/).
 
 ## You pay only for speech
 

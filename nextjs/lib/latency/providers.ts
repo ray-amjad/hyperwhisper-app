@@ -149,6 +149,14 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
       { id: "gemini-3.1-pro-preview", displayName: "Gemini 3.1 Pro" },
     ],
   },
+  {
+    sttProvider: "meta",
+    vendor: "meta",
+    vendorDisplayName: "Meta",
+    models: [
+      { id: "muse-voice-transcribe-1.0", displayName: "Muse Voice Transcribe 1.0", isDefault: true },
+    ],
+  },
 ];
 
 const ENTRY_BY_PROVIDER = new Map(STT_CATALOG.map((entry) => [entry.sttProvider, entry]));

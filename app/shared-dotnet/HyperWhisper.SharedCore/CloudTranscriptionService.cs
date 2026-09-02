@@ -1,4 +1,5 @@
 using System.Net;
+using System.Buffers.Binary;
 using System.Text;
 using uniffi.hyperwhisper_core;
 
@@ -37,6 +38,7 @@ public sealed class CloudTranscriptionService : IDisposable
             [CloudTranscriptionProvider.AzureMai] = 300L * 1024 * 1024,
             [CloudTranscriptionProvider.GoogleChirp] = 9_500_000L,
             [CloudTranscriptionProvider.HyperWhisperCloud] = 2L * 1024 * 1024 * 1024,
+            [CloudTranscriptionProvider.Meta] = 32L * 1024 * 1024,
         };
 
     private static readonly CloudProviderDescriptor[] ProviderCatalog =
@@ -54,6 +56,7 @@ public sealed class CloudTranscriptionService : IDisposable
         new(CloudTranscriptionProvider.Gemini, "gemini", "Google Gemini", true, true),
         new(CloudTranscriptionProvider.GeminiTranscribe, "geminiTranscribe", "Gemini 3.5 Transcribe", false, true),
         new(CloudTranscriptionProvider.HyperWhisperCloud, "hyperwhisperCloud", "HyperWhisper Cloud", false, true),
+        new(CloudTranscriptionProvider.Meta, "metaMuse", "Meta Muse", false, true),
     ];
 
     private readonly HttpClient _client;
@@ -206,14 +209,94 @@ public sealed class CloudTranscriptionService : IDisposable
                 "The audio file is empty.",
                 request.Provider));
         }
-        if (MaximumFileBytes.TryGetValue(request.Provider, out var maximumBytes) && length > maximumBytes)
+        var museTarget = request.Provider == CloudTranscriptionProvider.Meta
+            || request.Provider == CloudTranscriptionProvider.HyperWhisperCloud
+                && string.Equals(request.RoutedProvider, "meta", StringComparison.OrdinalIgnoreCase);
+        var maximumBytes = museTarget
+            ? 32L * 1024 * 1024
+            : MaximumFileBytes.GetValueOrDefault(request.Provider, long.MaxValue);
+        if (length > maximumBytes)
         {
             throw new CloudFailureException(new CloudTranscriptionFailure(
                 CloudTranscriptionErrorCode.FileTooLarge,
                 "The audio file exceeds the selected provider's upload limit.",
                 request.Provider));
         }
+        if (museTarget) ValidateMuseWave(request);
     }
+
+    /// <summary>
+    /// Re-opens the final artifact immediately before the Rust request builder.
+    /// Import preflight runs earlier, but this transport gate closes the race
+    /// where an owned normalized file changes before upload. It reads RIFF
+    /// metadata only; audio data remains streamed from disk by the HTTP layer.
+    /// </summary>
+    private static void ValidateMuseWave(CloudTranscriptionRequest request)
+    {
+        try
+        {
+            using var stream = new FileStream(request.AudioPath, FileMode.Open, FileAccess.Read,
+                FileShare.Read, 4096, FileOptions.SequentialScan);
+            Span<byte> header = stackalloc byte[12];
+            stream.ReadExactly(header);
+            if (!header[..4].SequenceEqual("RIFF"u8)
+                || !header[8..].SequenceEqual("WAVE"u8))
+                throw InvalidMuseWave(request.Provider);
+
+            ushort? encoding = null, channels = null, blockAlign = null, bits = null;
+            uint? sampleRate = null, byteRate = null;
+            uint? dataBytes = null;
+            Span<byte> chunk = stackalloc byte[8];
+            Span<byte> format = stackalloc byte[16];
+            for (var count = 0; count < 256 && stream.Position + 8 <= stream.Length; count++)
+            {
+                stream.ReadExactly(chunk);
+                var size = BinaryPrimitives.ReadUInt32LittleEndian(chunk[4..]);
+                var payloadStart = stream.Position;
+                var payloadEnd = checked(payloadStart + size);
+                if (payloadEnd > stream.Length) throw InvalidMuseWave(request.Provider);
+                if (chunk[..4].SequenceEqual("fmt "u8))
+                {
+                    if (size < 16) throw InvalidMuseWave(request.Provider);
+                    stream.ReadExactly(format);
+                    encoding = BinaryPrimitives.ReadUInt16LittleEndian(format);
+                    channels = BinaryPrimitives.ReadUInt16LittleEndian(format[2..]);
+                    sampleRate = BinaryPrimitives.ReadUInt32LittleEndian(format[4..]);
+                    byteRate = BinaryPrimitives.ReadUInt32LittleEndian(format[8..]);
+                    blockAlign = BinaryPrimitives.ReadUInt16LittleEndian(format[12..]);
+                    bits = BinaryPrimitives.ReadUInt16LittleEndian(format[14..]);
+                }
+                else if (chunk[..4].SequenceEqual("data"u8))
+                {
+                    dataBytes = size;
+                }
+                stream.Position = payloadEnd + (size & 1);
+                if (stream.Position > stream.Length) throw InvalidMuseWave(request.Provider);
+                if (encoding.HasValue && dataBytes.HasValue) break;
+            }
+
+            if (encoding != 1 || channels != 1 || bits != 16 || blockAlign != 2
+                || sampleRate is not (16_000 or 24_000) || byteRate != sampleRate * 2
+                || dataBytes is not > 0)
+                throw InvalidMuseWave(request.Provider);
+            var durationSeconds = dataBytes.Value / (sampleRate.Value * 2d);
+            if (!double.IsFinite(durationSeconds) || durationSeconds > 600d)
+                throw new CloudFailureException(new CloudTranscriptionFailure(
+                    CloudTranscriptionErrorCode.InvalidRequest,
+                    "The audio exceeds Meta Muse's duration limit.", request.Provider));
+        }
+        catch (CloudFailureException) { throw; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or OverflowException or ArgumentOutOfRangeException)
+        {
+            throw InvalidMuseWave(request.Provider);
+        }
+    }
+
+    private static CloudFailureException InvalidMuseWave(CloudTranscriptionProvider provider) =>
+        new(new CloudTranscriptionFailure(
+            CloudTranscriptionErrorCode.InvalidRequest,
+            "Meta Muse requires a mono PCM16 WAV at 16 kHz or 24 kHz.", provider));
 
     /// <summary>
     /// Build the core <see cref="TranscribeParams"/> for one request.
@@ -567,6 +650,7 @@ public sealed class CloudTranscriptionService : IDisposable
         // takes the audio inline, so there is no upload/poll dance.
         CloudTranscriptionProvider.GeminiTranscribe => HyperwhisperCoreMethods.GeminiTranscribeBuildTranscribeRequest(parameters),
         CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.Meta => HyperwhisperCoreMethods.MetaBuildTranscribeRequest(parameters),
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };
 
@@ -582,6 +666,7 @@ public sealed class CloudTranscriptionService : IDisposable
         CloudTranscriptionProvider.GoogleChirp => HyperwhisperCoreMethods.GoogleChirpParseTranscribeResponse(response),
         CloudTranscriptionProvider.GeminiTranscribe => HyperwhisperCoreMethods.GeminiTranscribeParseTranscribeResponse(response),
         CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudParseTranscribeResponse(response),
+        CloudTranscriptionProvider.Meta => HyperwhisperCoreMethods.MetaParseTranscribeResponse(response),
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };
 

@@ -395,6 +395,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     case mistralVoxtral = "mistralVoxtral"
     case soniox = "soniox"
     case gemini = "gemini"
+    case metaMuse = "metaMuse"
 
     var id: String { rawValue }
 
@@ -538,7 +539,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
             return "modes.cloudAccuracy.azureMaiTranscribe.description".localized
         case .geminiTranscribe:
             return "modes.cloudAccuracy.geminiTranscribe.description".localized
-        case .openaiWhisper, .assemblyAI, .mistralVoxtral, .soniox, .gemini:
+        case .openaiWhisper, .assemblyAI, .mistralVoxtral, .soniox, .gemini, .metaMuse:
             // No localized description string for the catalog-v6 additions —
             // fall back to the provider display name.
             return displayName
@@ -575,6 +576,8 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
             return "soniox"
         case .gemini:
             return "gemini"
+        case .metaMuse:
+            return "meta"
         }
     }
 

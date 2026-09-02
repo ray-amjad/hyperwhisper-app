@@ -240,7 +240,8 @@ class BackupManager: ObservableObject {
                 elevenlabs: emptyToNil(keychainManager.getAPIKey(for: .elevenLabs)),
                 mistral: emptyToNil(keychainManager.getAPIKey(for: .mistral)),
                 grok: emptyToNil(keychainManager.getAPIKey(for: .grok)),
-                geminitranscribe: emptyToNil(keychainManager.getAPIKey(for: .geminiTranscribe))
+                geminitranscribe: emptyToNil(keychainManager.getAPIKey(for: .geminiTranscribe)),
+                meta: emptyToNil(keychainManager.getAPIKey(for: .meta))
             )
         }
 
@@ -1122,6 +1123,7 @@ class BackupManager: ObservableObject {
         // Literal rather than `geminiTranscribeBackupKey` so this table has no
         // ordering dependency on another static; the test pins the two equal.
         ("geminitranscribe", .geminiTranscribe),
+        ("meta", .meta),
     ]
 
     /// Build the exported `apiKeys` object. `read` returns the stored key for a
@@ -1455,6 +1457,9 @@ class BackupManager: ObservableObject {
         }
         if let key = apiKeys.geminitranscribe, !key.isEmpty {
             try? keychainManager.saveAPIKey(key, for: .geminiTranscribe)
+        }
+        if let key = apiKeys.meta, !key.isEmpty {
+            try? keychainManager.saveAPIKey(key, for: .meta)
         }
     }
 

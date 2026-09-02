@@ -166,6 +166,14 @@ class APIKeySettingsManager: ObservableObject {
         }
     }
 
+    /// Meta Model API key. Keychain is the only persistent store.
+    @Published var metaAPIKey: String = "" {
+        didSet {
+            guard !isLoadingFromKeychain else { return }
+            saveAPIKeyToKeychain(metaAPIKey, for: .meta)
+        }
+    }
+
     /// Whether to use OpenAI for transcription
     /// Stored in UserDefaults (not sensitive)
     @AppStorage("useOpenAITranscription") var useOpenAITranscription: Bool = false
@@ -219,6 +227,8 @@ class APIKeySettingsManager: ObservableObject {
             return ""  // HyperWhisper Cloud only — no BYOK in v1
         case .geminiTranscribe:
             return geminiTranscribeAPIKey
+        case .meta:
+            return metaAPIKey
         }
     }
 
@@ -268,6 +278,8 @@ class APIKeySettingsManager: ObservableObject {
             break
         case .geminiTranscribe:
             geminiTranscribeAPIKey = key
+        case .meta:
+            metaAPIKey = key
         }
         return true
     }
@@ -473,6 +485,7 @@ class APIKeySettingsManager: ObservableObject {
         cerebrasAPIKey = KeychainManager.shared.getAPIKey(for: .cerebras)
         grokAPIKey = KeychainManager.shared.getAPIKey(for: .grok)
         geminiTranscribeAPIKey = KeychainManager.shared.getAPIKey(for: .geminiTranscribe)
+        metaAPIKey = KeychainManager.shared.getAPIKey(for: .meta)
 
         // Log configuration status (without exposing actual keys)
         let summary = KeychainManager.shared.getConfigurationSummary()
@@ -530,6 +543,8 @@ class APIKeySettingsManager: ObservableObject {
             return .grok
         case .geminiTranscribe:
             return .geminiTranscribe
+        case .meta:
+            return .meta
         }
     }
 }

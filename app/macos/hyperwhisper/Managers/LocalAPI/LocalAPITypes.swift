@@ -82,7 +82,7 @@ struct HealthProviderStatus: Codable, Sendable {
     let key_present: Bool
     /// Whether the most recent health probe succeeded.
     let reachable: Bool
-    /// Raw health status string (e.g. "healthy", "unauthorized", "unreachable", "unknown", "checking", "notInstalled").
+    /// Raw health status string (for example "healthy", "configured", "unauthorized", "unreachable", "unknown", "checking", or "notInstalled").
     let status: String
 }
 

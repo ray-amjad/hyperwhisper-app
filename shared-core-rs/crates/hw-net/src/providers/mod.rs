@@ -17,5 +17,6 @@ pub mod grok;
 pub mod hyperwhisper_cloud;
 pub mod llm;
 pub mod mistral;
+pub mod meta;
 pub mod openai;
 pub mod soniox;

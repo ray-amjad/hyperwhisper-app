@@ -128,7 +128,14 @@ fn endpoint(provider: Provider) -> Option<HealthEndpoint> {
             HealthAuth::GoogApiKeyHeader,
         ),
         // Routed / HW Cloud: no vendor endpoint — handled by the base-URL path.
-        Provider::HyperWhisperCloud | Provider::AzureMai | Provider::GoogleChirp => None,
+        // Meta deliberately has no probe. Its API documents transcription, not
+        // a content-free key-validation endpoint. Hosts report a present Meta
+        // key as configured and do not call this builder. The no-vendor arm
+        // guarantees this layer never uploads hidden audio or invents an API.
+        Provider::HyperWhisperCloud
+        | Provider::AzureMai
+        | Provider::GoogleChirp
+        | Provider::Meta => None,
     }
 }
 
@@ -365,6 +372,14 @@ mod tests {
             assert_eq!(header(&req, "Authorization"), None);
             assert_eq!(header(&req, "xi-api-key"), None);
         }
+    }
+
+    #[test]
+    fn meta_has_no_vendor_health_probe_and_never_carries_the_key() {
+        let req = build_health_request(Provider::Meta, "must-not-leave-process");
+        assert_eq!(req.url, HW_CLOUD_HEALTH_DEFAULT);
+        assert_eq!(header(&req, "Authorization"), None);
+        assert!(!req.url.contains("meta.ai"));
     }
 
     #[test]

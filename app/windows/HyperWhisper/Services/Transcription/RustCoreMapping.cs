@@ -234,6 +234,7 @@ internal static class RustCoreMapping
         // Gemini 3.5 Transcribe is its own core provider — mapping it onto
         // HwProvider.Gemini would probe/route the generateContent API instead.
         CloudTranscriptionProvider.GeminiTranscribe => HwProvider.GeminiTranscribe,
+        CloudTranscriptionProvider.Meta => HwProvider.Meta,
         CloudTranscriptionProvider.Grok => HwProvider.Grok,
         CloudTranscriptionProvider.MicrosoftAzureSpeech => HwProvider.AzureMai,
         CloudTranscriptionProvider.GoogleSpeech => HwProvider.GoogleChirp,

@@ -262,6 +262,11 @@ pub struct SttFeatures {
     pub word_timestamps: bool,
     pub diarization: bool,
     pub streaming: bool,
+    pub code_switching: bool,
+    pub endpointing: bool,
+    pub context_bias: bool,
+    pub language_bias: bool,
+    pub turn_timestamps: bool,
 }
 
 /// The provider's `languages` metadata — WITHOUT the code list.
@@ -334,6 +339,11 @@ impl From<&hw_catalog::SttEntry> for SttEntry {
                 word_timestamps: e.features.word_timestamps,
                 diarization: e.features.diarization,
                 streaming: e.features.streaming,
+                code_switching: e.features.code_switching,
+                endpointing: e.features.endpointing,
+                context_bias: e.features.context_bias,
+                language_bias: e.features.language_bias,
+                turn_timestamps: e.features.turn_timestamps,
             },
             custom_vocabulary: e.custom_vocabulary.as_ref().map(SttCustomVocabulary::from),
             languages: SttLanguages {
@@ -428,6 +438,19 @@ pub struct ModelsEntry {
     pub supported_languages: Vec<String>,
     pub is_english_only: Option<bool>,
     pub supports_all_languages: Option<bool>,
+    pub voice_capabilities: Option<ModelsVoiceCapabilities>,
+}
+
+/// Structured voice-model capabilities from `models-catalog.json`.
+#[derive(uniffi::Record)]
+pub struct ModelsVoiceCapabilities {
+    pub code_switching: bool,
+    pub endpointing: bool,
+    pub context_bias: bool,
+    pub language_bias: bool,
+    pub turn_timestamps: bool,
+    pub diarization: bool,
+    pub word_timestamps: bool,
 }
 
 impl From<&hw_catalog::Entry> for ModelsEntry {
@@ -444,6 +467,15 @@ impl From<&hw_catalog::Entry> for ModelsEntry {
             supported_languages: e.supported_languages.clone().unwrap_or_default(),
             is_english_only: e.is_english_only,
             supports_all_languages: e.supports_all_languages,
+            voice_capabilities: e.voice_capabilities.map(|c| ModelsVoiceCapabilities {
+                code_switching: c.code_switching,
+                endpointing: c.endpointing,
+                context_bias: c.context_bias,
+                language_bias: c.language_bias,
+                turn_timestamps: c.turn_timestamps,
+                diarization: c.diarization,
+                word_timestamps: c.word_timestamps,
+            }),
         }
     }
 }

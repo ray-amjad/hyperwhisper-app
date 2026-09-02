@@ -32,6 +32,7 @@ import { transcribeWithGeminiTranscribe } from './gemini-transcribe';
 import { transcribeWithAssemblyAI } from './assemblyai';
 import { transcribeWithMistral } from './mistral';
 import { transcribeWithSoniox } from './soniox';
+import { transcribeWithMeta } from './meta';
 
 /** The one shape every STT adapter in this folder implements. */
 export type TranscribeFn = (
@@ -55,6 +56,7 @@ const PROVIDER_FN: Record<SttProviderId, TranscribeFn> = {
   assemblyai: transcribeWithAssemblyAI,
   mistral: transcribeWithMistral,
   soniox: transcribeWithSoniox,
+  meta: transcribeWithMeta,
 };
 
 /**

@@ -95,6 +95,14 @@ internal static class RustHttpTransport
                     TrySetContentType(fileContent, file.@mime);
                     content.Add(fileContent, file.@field, file.@filename);
                     break;
+                case HwPart.InlineFile inline:
+                    var inlineContent = new ByteArrayContent(inline.@data);
+                    TrySetContentType(inlineContent, inline.@mime);
+                    content.Add(inlineContent, inline.@field, inline.@filename);
+                    break;
+                default:
+                    throw new NotSupportedException(
+                        $"Unhandled Rust multipart part variant: {part.GetType().Name}");
             }
         }
         return content;

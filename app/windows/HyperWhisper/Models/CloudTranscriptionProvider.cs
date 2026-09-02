@@ -70,7 +70,10 @@ public enum CloudTranscriptionProvider
     /// endpoint. Same vendor as <see cref="Gemini"/> but a different API and its
     /// OWN key slot; the two are never interchangeable.
     /// </summary>
-    GeminiTranscribe = 14
+    GeminiTranscribe = 14,
+
+    /// <summary>Meta Muse Voice Transcribe 1.0 batch transcription.</summary>
+    Meta = 15
 }
 
 /// <summary>
@@ -96,6 +99,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.MicrosoftAzureSpeech => Loc.S("provider.microsoftAzureSpeech"),
         CloudTranscriptionProvider.GoogleSpeech => Loc.S("provider.googleSpeech"),
         CloudTranscriptionProvider.GeminiTranscribe => Loc.S("provider.geminiTranscribe"),
+        CloudTranscriptionProvider.Meta => Loc.S("provider.meta"),
         _ => Loc.S("provider.none")
     };
 
@@ -105,7 +109,9 @@ public static class CloudTranscriptionProviderExtensions
     /// ModelLibraryManager builds LibraryModel.ProviderAssetName from it, and the
     /// onboarding Configure step draws the same marks on its provider chips.
     /// GeminiTranscribe is the same vendor as Gemini and deliberately reuses the
-    /// Gemini logo rather than shipping a duplicate PNG.
+    /// Gemini logo rather than shipping a duplicate PNG. "providerMeta" is a
+    /// sentinel with no PNG behind it: LibraryModel draws a monogram for it
+    /// instead, so nothing may build an image path from it unguarded.
     /// </summary>
     public static string GetAssetName(this CloudTranscriptionProvider provider) => provider switch
     {
@@ -118,6 +124,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.Soniox => "providerSoniox",
         CloudTranscriptionProvider.Gemini => "providerGemini",
         CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
+        CloudTranscriptionProvider.Meta => "providerMeta",
         CloudTranscriptionProvider.Grok => "providerGrok",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
         CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
@@ -143,6 +150,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "microsoftAzureSpeech",
         CloudTranscriptionProvider.GoogleSpeech => "googleSpeech",
         CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        CloudTranscriptionProvider.Meta => "meta",
         _ => ""
     };
 
@@ -166,6 +174,7 @@ public static class CloudTranscriptionProviderExtensions
         // Lower-cased form of the "geminiTranscribe" identifier — the switch runs
         // on ToLowerInvariant(), so the camelCase spelling would never match.
         "geminitranscribe" => CloudTranscriptionProvider.GeminiTranscribe,
+        "meta" => CloudTranscriptionProvider.Meta,
         _ => CloudTranscriptionProvider.None
     };
 
@@ -220,6 +229,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.Grok => "https://console.x.ai/",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "",
         CloudTranscriptionProvider.GoogleSpeech => "",
+        CloudTranscriptionProvider.Meta => "https://dev.meta.ai/docs/speech-to-text/",
         _ => ""
     };
 
@@ -243,6 +253,7 @@ public static class CloudTranscriptionProviderExtensions
         // Google Speech V2 inline `content` caps near 10 MB. Matches the
         // backend's 9.5 MB AudioTooLargeError guard.
         CloudTranscriptionProvider.GoogleSpeech => 9_500_000L,
+        CloudTranscriptionProvider.Meta => 32L * 1024 * 1024,
         _ => 25L * 1024 * 1024 // 25 MB (OpenAI, Groq)
     };
 

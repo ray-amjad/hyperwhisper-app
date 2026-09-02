@@ -38,6 +38,8 @@ import Foundation
 
 enum RustRetry {
 
+    typealias Executor = (HttpRequest, URLSession) async throws -> HttpResponse
+
     /// Drive `buildRequest()`'s output through the executor + core retry loop.
     ///
     /// - On a 2xx response, returns the captured `HttpResponse`.
@@ -82,7 +84,10 @@ enum RustRetry {
         buildRequest: () throws -> HttpRequest,
         parseError: (HttpResponse) -> TranscriptionError,
         onTransportError: ((URLError) async -> Void)? = nil,
-        budgetMs: UInt64 = retryDefaultBudgetMs()
+        budgetMs: UInt64 = retryDefaultBudgetMs(),
+        execute: @escaping Executor = { request, session in
+            try await RustHTTPExecutor.execute(request, session: session)
+        }
     ) async throws -> HttpResponse {
         var attempt: UInt32 = 0
         // One-shot-per-sequence gate for the recovery hook (matches the original
@@ -103,7 +108,7 @@ enum RustRetry {
             // a URLSession transport error (no HTTP response).
             let response: HttpResponse
             do {
-                response = try await RustHTTPExecutor.execute(request, session: session)
+                response = try await execute(request, session)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
@@ -412,6 +417,7 @@ enum RustCoreMapping {
         // auth. `.geminiTranscribeLive` is the Phase-5 streaming model and has
         // no `CloudProvider` case, so it is unreachable from here.
         case .geminiTranscribe: return .geminiTranscribe
+        case .meta: return .meta
         }
     }
 

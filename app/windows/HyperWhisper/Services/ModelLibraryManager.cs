@@ -64,7 +64,7 @@ public sealed class ModelLibraryManager
                 Id = $"cloud-tx-{model.Provider.GetIdentifier()}-{model.Id}",
                 DisplayName = model.DisplayName,
                 ProviderName = model.Provider.GetDisplayName(),
-                ProviderAssetName = ProviderAssetName(model.Provider),
+                ProviderAssetName = CloudProviderAssetName(model.Provider),
                 Kind = LibraryModelKind.Voice,
                 LocationKind = LibraryModelLocationKind.Cloud,
                 StatusKind = StatusForCloud(model.Provider, out var message),
@@ -417,6 +417,7 @@ public sealed class ModelLibraryManager
             CloudTranscriptionProvider.Mistral => _apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => _apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
             CloudTranscriptionProvider.GeminiTranscribe => _apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+            CloudTranscriptionProvider.Meta => _apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
             _ => false
         };
     }
@@ -424,8 +425,9 @@ public sealed class ModelLibraryManager
     // Single-sourced on CloudTranscriptionProviderExtensions.GetAssetName so the
     // model library and the onboarding provider chips can never disagree about
     // which logo a provider gets. ApiKeysSettingsPage.xaml names the same files
-    // literally; keep the three in step.
-    private static string ProviderAssetName(CloudTranscriptionProvider provider) =>
+    // literally; keep the three in step. Kept `internal` under this name because
+    // HyperWhisper.SmokeTests pins it directly.
+    internal static string CloudProviderAssetName(CloudTranscriptionProvider provider) =>
         provider.GetAssetName();
 
     private static string ProviderAssetName(PostProcessingProvider provider) => provider switch

@@ -2189,6 +2189,18 @@ Puede volver a descargarlo más tarde.</value>
   <data name="app.cloud.cta.title" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
+  <data name="provider.meta" xml:space="preserve">
+    <value>Meta</value>
+  </data>
+  <data name="settings.api.provider.meta.description" xml:space="preserve">
+    <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
+  </data>
+  <data name="settings.api.invalidKey.meta" xml:space="preserve">
+    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
+  </data>
+  <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
+    <value>Use your own Meta Model API key for Muse batch transcription</value>
+  </data>
   <data name="onboarding.window.title" xml:space="preserve">
     <value>Set up HyperWhisper</value>
   </data>

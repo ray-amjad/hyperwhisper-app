@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-08-21",
+  "lastUpdated": "2026-09-01",
   "models": [
     {
       "provider": "appleSpeech",
@@ -530,6 +530,24 @@
       "platforms": ["macos", "windows"],
       "supportedLanguages": ["af", "am", "ar", "as", "az", "bg", "bn", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "uz", "vi", "yo", "yue", "zh"],
       "notes": "Retired: Google Cloud Speech-to-Text V2 Chirp 3. Was the Google HyperWhisper Cloud tier until catalog v8 (2026-08-27), when geminiTranscribe replaced it; the googleChirp3 entry no longer exists in shared-app-classification/cloud-stt-catalog.json, so no client can select this tier and availableViaHyperWhisperCloud is false. hyperwhisper-cloud still answers X-STT-Provider: google-chirp so already-shipped clients keep working, and saved modes migrate onto geminiTranscribe via that entry's migrateFrom list. The language list is the frozen snapshot of the removed googleChirp3 entry, vendor codes aliased (cmn->zh, fil->tl, iw->he, jv->jw) and base-normalized; kept so a mode still pinned to chirp_3 resolves its languages."
+    },
+    {
+      "provider": "meta",
+      "id": "muse-voice-transcribe-1.0",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows", "linux"],
+      "voiceCapabilities": {
+        "codeSwitching": true,
+        "endpointing": true,
+        "contextBias": true,
+        "languageBias": true,
+        "turnTimestamps": true,
+        "diarization": true,
+        "wordTimestamps": false
+      },
+      "notes": "Meta Muse Voice Transcribe 1.0 through HyperWhisper Cloud or a direct Meta Model API key. The 25 evaluated languages are not enumerated in the Model API reference, so no closed language list is claimed here."
     }
   ]
 }

@@ -1811,6 +1811,7 @@ public partial class ModeEditorWindow : Window
             CloudTranscriptionProvider.Mistral => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Soniox),
             CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+            CloudTranscriptionProvider.Meta => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Meta),
 
             _ => false
         };

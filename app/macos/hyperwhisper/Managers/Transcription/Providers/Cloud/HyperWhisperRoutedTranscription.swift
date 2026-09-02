@@ -190,6 +190,9 @@ enum HyperWhisperRoutedTranscription {
         // .m4a recording (the storage default) fails outright.
         let response = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
             sourceURL: audioURL,
+            maximumReencodedBytes: providerHeader == "meta"
+                ? CloudAudioFormatRecovery.metaMuseMaxReencodedUploadBytes
+                : CloudAudioFormatRecovery.maxReencodedUploadBytes,
             reencode: { source, destination in
                 try await CloudAudioFormatRecovery.reencodeToWAV(source: source, destination: destination)
             },

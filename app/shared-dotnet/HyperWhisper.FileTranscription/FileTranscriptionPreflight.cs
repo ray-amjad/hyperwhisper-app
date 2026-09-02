@@ -14,12 +14,55 @@ public sealed record FileTranscriptionTarget(
     CloudTranscriptionProvider? CloudProvider = null,
     string? CloudCatalogTier = null);
 
-public sealed record FileAudioMetadata(long LengthBytes, TimeSpan? Duration);
+public sealed record FileAudioMetadata(
+    long LengthBytes,
+    TimeSpan? Duration,
+    ushort? WaveEncoding = null,
+    ushort? Channels = null,
+    uint? SampleRate = null,
+    ushort? BitsPerSample = null)
+{
+    public bool IsMuseCompatibleWave => MetaMuseAudioContract.IsCanonicalWave(this);
+}
+
+public enum MetaMuseAudioProblem { None, InvalidFormat, FileTooLarge, DurationTooLong }
+
+/// <summary>
+/// Canonical Meta Muse batch-audio rules shared by portable preflight and the
+/// Windows transport. Hosts can import other containers only after normalizing
+/// them to this exact network contract.
+/// </summary>
+public static class MetaMuseAudioContract
+{
+    public const long MaximumUploadBytes = 32L * 1024 * 1024;
+    public const long MaximumSourceBytes = 64L * 1024 * 1024;
+    public static readonly TimeSpan MaximumDuration = TimeSpan.FromMinutes(10);
+
+    public static bool IsCanonicalWave(FileAudioMetadata metadata) =>
+        metadata.WaveEncoding == 1
+        && metadata.Channels == 1
+        && metadata.BitsPerSample == 16
+        && metadata.SampleRate is 16_000 or 24_000
+        && metadata.Duration is { } duration
+        && duration > TimeSpan.Zero
+        && !double.IsNaN(duration.TotalSeconds)
+        && !double.IsInfinity(duration.TotalSeconds);
+
+    public static MetaMuseAudioProblem ValidateCanonical(FileAudioMetadata? metadata)
+    {
+        if (metadata is null || !IsCanonicalWave(metadata)) return MetaMuseAudioProblem.InvalidFormat;
+        if (metadata.LengthBytes > MaximumUploadBytes) return MetaMuseAudioProblem.FileTooLarge;
+        if (metadata.Duration > MaximumDuration) return MetaMuseAudioProblem.DurationTooLong;
+        return MetaMuseAudioProblem.None;
+    }
+}
 
 public sealed record FileTranscriptionConstraints(
     long? MaximumBytes,
     TimeSpan? MaximumDuration,
-    IReadOnlySet<string> SupportedExtensions);
+    IReadOnlySet<string> SupportedExtensions,
+    bool RequiresMuseWave = false,
+    long? MaximumSourceBytes = null);
 
 public enum FileTranscriptionPreflightError
 {
@@ -50,15 +93,20 @@ public sealed record FileTranscriptionPreflightResult(
     FileAudioMetadata? Metadata,
     FileTranscriptionConstraints? Constraints,
     string? ResolvedModel,
+    bool RequiresNormalization,
     FileTranscriptionPreflightFailure? Failure)
 {
     public bool IsSuccess => Failure is null && Metadata is not null;
     public static FileTranscriptionPreflightResult Success(
         FileAudioMetadata metadata, FileTranscriptionConstraints constraints, string model) =>
-        new(metadata, constraints, model, null);
+        new(metadata, constraints, model, false, null);
+    public static FileTranscriptionPreflightResult Success(
+        FileAudioMetadata metadata, FileTranscriptionConstraints constraints, string model,
+        bool requiresNormalization) =>
+        new(metadata, constraints, model, requiresNormalization, null);
     public static FileTranscriptionPreflightResult Failed(
         FileTranscriptionPreflightError error, string code, string message) =>
-        new(null, null, null, new(error, code, message));
+        new(null, null, null, false, new(error, code, message));
 }
 
 public interface IFileAudioMetadataSource
@@ -136,23 +184,33 @@ public sealed class PortableFileTranscriptionPreflight
             if (metadata.LengthBytes <= 0) return Failure(
                 FileTranscriptionPreflightError.FileEmpty, "file_preflight.file_empty",
                 "The selected audio file is empty.");
-            if (resolved.Constraints.MaximumBytes is long bytes && metadata.LengthBytes > bytes) return Failure(
+            var requiresNormalization = resolved.Constraints.RequiresMuseWave
+                && !metadata.IsMuseCompatibleWave;
+            if (requiresNormalization
+                && resolved.Constraints.MaximumSourceBytes is long sourceBytes
+                && metadata.LengthBytes > sourceBytes) return Failure(
+                    FileTranscriptionPreflightError.FileTooLarge, "file_preflight.file_too_large",
+                    "The audio file exceeds the selected provider's source limit.");
+            if (!requiresNormalization && resolved.Constraints.MaximumBytes is long bytes && metadata.LengthBytes > bytes) return Failure(
                 FileTranscriptionPreflightError.FileTooLarge, "file_preflight.file_too_large",
                 "The audio file exceeds the selected provider's upload limit.");
             if (metadata.Duration is { } duration &&
                 (duration <= TimeSpan.Zero || double.IsNaN(duration.TotalSeconds) || double.IsInfinity(duration.TotalSeconds)))
                 return Failure(FileTranscriptionPreflightError.DurationInvalid, "file_preflight.duration_invalid",
                     "The audio duration is invalid.");
+            // Conversion changes encoding and byte size, never duration. Reject a
+            // known overlength Muse source before paying the conversion cost.
             if (resolved.Constraints.MaximumDuration is { } maximumDuration)
             {
-                if (metadata.Duration is null) return Failure(
+                if (metadata.Duration is null && !requiresNormalization) return Failure(
                     FileTranscriptionPreflightError.DurationUnavailable, "file_preflight.duration_unavailable",
                     "The audio duration could not be established for this provider.");
-                if (metadata.Duration > maximumDuration) return Failure(
+                if (metadata.Duration is { } knownDuration && knownDuration > maximumDuration) return Failure(
                     FileTranscriptionPreflightError.DurationTooLong, "file_preflight.duration_too_long",
                     "The audio exceeds the selected provider's duration limit.");
             }
-            return FileTranscriptionPreflightResult.Success(metadata, resolved.Constraints, resolved.Model!);
+            return FileTranscriptionPreflightResult.Success(
+                metadata, resolved.Constraints, resolved.Model!, requiresNormalization);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -205,6 +263,19 @@ public sealed class PortableFileTranscriptionPreflight
             if (modelId.Length == 0)
                 return TargetFailure(FileTranscriptionPreflightError.ModelUnsupported,
                     "file_preflight.model_unsupported", "The selected transcription model is not supported by this provider.");
+            if (string.Equals(tier, "metaMuse", StringComparison.OrdinalIgnoreCase)
+                && SharedCoreBridge.CloudSttFileLimits(tier) is { } tierLimits)
+            {
+                descriptor = descriptor with
+                {
+                    Constraints = new FileTranscriptionConstraints(
+                        tierLimits.MaximumBytes,
+                        tierLimits.MaximumDuration,
+                        PortableImportExtensions,
+                        RequiresMuseWave: true,
+                        MaximumSourceBytes: MetaMuseAudioContract.MaximumSourceBytes)
+                };
+            }
         }
         else
         {
@@ -285,6 +356,15 @@ public sealed class PortableFileTranscriptionPreflight
             [CloudTranscriptionProvider.GeminiTranscribe] = Cloud(14L * 1024 * 1024, "gemini-3.5-transcribe",
                 ["gemini-3.5-transcribe"]),
             [CloudTranscriptionProvider.HyperWhisperCloud] = Cloud(2L * 1024 * 1024 * 1024, "default", ["default"], account: true),
+            [CloudTranscriptionProvider.Meta] = new(
+                "muse-voice-transcribe-1.0",
+                new HashSet<string>(["muse-voice-transcribe-1.0"], StringComparer.Ordinal),
+                new FileTranscriptionConstraints(
+                    MetaMuseAudioContract.MaximumUploadBytes,
+                    MetaMuseAudioContract.MaximumDuration,
+                    PortableImportExtensions,
+                    RequiresMuseWave: true,
+                    MaximumSourceBytes: MetaMuseAudioContract.MaximumSourceBytes)),
         };
 }
 
@@ -315,6 +395,10 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
 
         uint? bytesPerSecond = null;
         uint? dataBytes = null;
+        ushort? waveEncoding = null;
+        ushort? channels = null;
+        uint? sampleRate = null;
+        ushort? bitsPerSample = null;
         var chunkHeader = new byte[8];
         for (var count = 0; count < MaximumChunks && stream.Position + 8 <= length; count++)
         {
@@ -327,6 +411,10 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
                 var format = new byte[16];
                 if (!await TryReadExactlyAsync(stream, format, cancellationToken).ConfigureAwait(false)) break;
                 bytesPerSecond = BinaryPrimitives.ReadUInt32LittleEndian(format.AsSpan(8));
+                waveEncoding = BinaryPrimitives.ReadUInt16LittleEndian(format);
+                channels = BinaryPrimitives.ReadUInt16LittleEndian(format.AsSpan(2));
+                sampleRate = BinaryPrimitives.ReadUInt32LittleEndian(format.AsSpan(4));
+                bitsPerSample = BinaryPrimitives.ReadUInt16LittleEndian(format.AsSpan(14));
                 stream.Seek(size - 16, SeekOrigin.Current);
             }
             else if (chunkHeader.AsSpan(0, 4).SequenceEqual("data"u8))
@@ -340,7 +428,7 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
         }
         TimeSpan? duration = bytesPerSecond is > 0 && dataBytes is { } data
             ? TimeSpan.FromSeconds((double)data / bytesPerSecond.Value) : null;
-        return new(length, duration);
+        return new(length, duration, waveEncoding, channels, sampleRate, bitsPerSample);
     }
 
     private static async ValueTask<bool> TryReadExactlyAsync(

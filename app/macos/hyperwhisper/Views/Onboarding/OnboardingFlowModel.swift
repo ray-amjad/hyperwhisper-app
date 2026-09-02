@@ -599,13 +599,13 @@ final class OnboardingFlowModel: ObservableObject {
                 return
             }
             var persisted = false
-            if health == .healthy {
+            if health.isHealthy {
                 // Snapshot whatever this provider had BEFORE overwriting it, so
                 // Set Up Later can put the user's original key back (bug 1).
                 self.captureProviderKeyRestorePoint(for: provider)
                 persisted = self.providerKeys.persist(key, for: provider)
             }
-            if health == .healthy && !persisted {
+            if health.isHealthy && !persisted {
                 self.providerTestHealth = nil
                 self.providerErrorMessage = self.providerKeys.validationError
                     ?? "onboarding.setup.provider.saveFailed".localized
@@ -613,7 +613,7 @@ final class OnboardingFlowModel: ObservableObject {
             } else {
                 self.providerTestHealth = health
                 self.providerErrorMessage = nil
-                self.keyValidated = health == .healthy && persisted
+                self.keyValidated = health.isHealthy && persisted
                 if self.keyValidated {
                     self.validatedProviders.insert(provider)
                 }
