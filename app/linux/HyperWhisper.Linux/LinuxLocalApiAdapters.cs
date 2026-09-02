@@ -56,6 +56,7 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
     {
         whisper = PortableModelCatalog.Whisper.Select(Status).ToArray(),
         parakeet = PortableModelCatalog.Parakeet.Select(Status).ToArray(),
+        nemotron = PortableModelCatalog.Parakeet.Where(model => model.Id.StartsWith("nemotron", StringComparison.Ordinal)).Select(Status).ToArray(),
         qwen3_asr = PortableModelCatalog.Parakeet.Where(model => model.Id.StartsWith("qwen3", StringComparison.Ordinal)).Select(Status).ToArray(),
         apple_speech = Array.Empty<object>(),
         local_llm = PortableModelCatalog.LocalLlm.Select(Status).ToArray(),
