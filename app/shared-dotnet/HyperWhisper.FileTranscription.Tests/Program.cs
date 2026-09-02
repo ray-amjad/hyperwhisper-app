@@ -13,6 +13,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
     ("Meta Muse converts portable non-WAV and incompatible WAV inputs", MetaMuseNormalization),
     ("Meta Muse enforces limits on the normalized WAV", MetaMuseNormalizedLimits),
+    ("non-Muse cloud tiers keep the existing portable import policy", NonMuseCloudTierLimits),
     ("local backend model and install state fail before metadata", LocalReadinessPrecedesMetadata),
     ("local import has no provider byte or duration cap", LocalHasNoProviderLimit),
     ("unsupported format and missing file are stable", FileValidation),
@@ -120,6 +121,7 @@ static async Task MetaMuseCanonicalWave()
                 MaximumBytes: 32L * ByteSizes.MiB,
                 MaximumDuration: var duration,
                 RequiresMuseWave: true,
+                MaximumSourceBytes: 64L * ByteSizes.MiB,
             }
             && duration == TimeSpan.FromMinutes(10),
             $"Meta Muse rejected canonical {sampleRate} Hz PCM WAV");
@@ -143,6 +145,21 @@ static async Task MetaMuseNormalization()
 
     foreach (var target in MetaMuseTargets())
     {
+    var sourceAtLimit = await Service(new FakeMetadata
+    {
+        Value = new(64L * ByteSizes.MiB, null),
+    }, account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
+        .ValidateAsync("source-at-limit.mp3", target);
+    Assert(sourceAtLimit.IsSuccess && sourceAtLimit.RequiresNormalization,
+        "Meta Muse rejected a source at the 64 MiB normalization bound");
+
+    var sourceOverLimit = await Service(new FakeMetadata
+    {
+        Value = new(64L * ByteSizes.MiB + 1, null),
+    }, account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
+        .ValidateAsync("source-over-limit.mp3", target);
+    AssertCode(sourceOverLimit, "file_preflight.file_too_large");
+
     var overlength = await Service(new FakeMetadata
     {
         Value = new(40L * ByteSizes.MiB, TimeSpan.FromMinutes(10) + TimeSpan.FromMilliseconds(1)),
@@ -162,6 +179,18 @@ static async Task MetaMuseNormalization()
             "Meta Muse did not normalize an incompatible WAV");
     }
     }
+}
+
+static async Task NonMuseCloudTierLimits()
+{
+    var metadata = new FakeMetadata { Value = new(30L * ByteSizes.MiB, TimeSpan.FromMinutes(20)) };
+    var result = await Service(metadata, account: true).ValidateAsync(
+        "recording.m4a",
+        new(FileTranscriptionRoute.Cloud, "", CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
+            CloudCatalogTier: "gemini"));
+    Assert(result.IsSuccess && result.Constraints is
+        { MaximumBytes: 2L * ByteSizes.GiB, MaximumDuration: null, RequiresMuseWave: false },
+        "a non-Muse cloud tier inherited catalog file limits");
 }
 
 static async Task MetaMuseNormalizedLimits()

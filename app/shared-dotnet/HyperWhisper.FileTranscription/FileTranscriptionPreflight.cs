@@ -30,7 +30,8 @@ public sealed record FileTranscriptionConstraints(
     long? MaximumBytes,
     TimeSpan? MaximumDuration,
     IReadOnlySet<string> SupportedExtensions,
-    bool RequiresMuseWave = false);
+    bool RequiresMuseWave = false,
+    long? MaximumSourceBytes = null);
 
 public enum FileTranscriptionPreflightError
 {
@@ -154,6 +155,11 @@ public sealed class PortableFileTranscriptionPreflight
                 "The selected audio file is empty.");
             var requiresNormalization = resolved.Constraints.RequiresMuseWave
                 && !metadata.IsMuseCompatibleWave;
+            if (requiresNormalization
+                && resolved.Constraints.MaximumSourceBytes is long sourceBytes
+                && metadata.LengthBytes > sourceBytes) return Failure(
+                    FileTranscriptionPreflightError.FileTooLarge, "file_preflight.file_too_large",
+                    "The audio file exceeds the selected provider's source limit.");
             if (!requiresNormalization && resolved.Constraints.MaximumBytes is long bytes && metadata.LengthBytes > bytes) return Failure(
                 FileTranscriptionPreflightError.FileTooLarge, "file_preflight.file_too_large",
                 "The audio file exceeds the selected provider's upload limit.");
@@ -226,19 +232,17 @@ public sealed class PortableFileTranscriptionPreflight
             if (modelId.Length == 0)
                 return TargetFailure(FileTranscriptionPreflightError.ModelUnsupported,
                     "file_preflight.model_unsupported", "The selected transcription model is not supported by this provider.");
-            var tierLimits = SharedCoreBridge.CloudSttFileLimits(tier);
-            if (tierLimits is not null)
+            if (string.Equals(tier, "metaMuse", StringComparison.OrdinalIgnoreCase)
+                && SharedCoreBridge.CloudSttFileLimits(tier) is { } tierLimits)
             {
-                var supported = string.Equals(tier, "metaMuse", StringComparison.OrdinalIgnoreCase)
-                    ? PortableImportExtensions
-                    : new HashSet<string>(tierLimits.AcceptedFormats, StringComparer.OrdinalIgnoreCase);
                 descriptor = descriptor with
                 {
                     Constraints = new FileTranscriptionConstraints(
                         tierLimits.MaximumBytes,
                         tierLimits.MaximumDuration,
-                        supported,
-                        RequiresMuseWave: string.Equals(tier, "metaMuse", StringComparison.OrdinalIgnoreCase))
+                        PortableImportExtensions,
+                        RequiresMuseWave: true,
+                        MaximumSourceBytes: 64L * 1024 * 1024)
                 };
             }
         }
@@ -328,7 +332,8 @@ public sealed class PortableFileTranscriptionPreflight
                     32L * 1024 * 1024,
                     TimeSpan.FromMinutes(10),
                     PortableImportExtensions,
-                    RequiresMuseWave: true)),
+                    RequiresMuseWave: true,
+                    MaximumSourceBytes: 64L * 1024 * 1024)),
         };
 }
 

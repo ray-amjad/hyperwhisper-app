@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 
-// Well-funded licensed user so auth + credit checks pass in-memory.
+// Well-funded licensed user by default; individual tests can lower the balance.
+let cachedCredits = 1000;
 mock.module('../lib/redis', () => ({
   redis: {}, // satisfies static `import { redis }` in google-auth (via google-chirp)
   isIPBlocked: async () => false,
-  getCachedLicense: async () => ({ isValid: true, credits: 1000, cachedAt: 'cached' }),
+  getCachedLicense: async () => ({ isValid: true, credits: cachedCredits, cachedAt: 'cached' }),
   cacheLicense: async () => {},
 }));
 
@@ -63,7 +64,10 @@ function metaWavRequest(seconds: number, query = '', sampleRate = 16_000, channe
 }
 
 describe('Meta Muse batch routing and billing', () => {
-  beforeEach(() => { process.env.META_MODEL_API_KEY = 'test-meta-key'; });
+  beforeEach(() => {
+    cachedCredits = 1000;
+    process.env.META_MODEL_API_KEY = 'test-meta-key';
+  });
   afterEach(() => {
     globalThis.fetch = originalFetch;
     if (originalMetaModelApiKey === undefined) delete process.env.META_MODEL_API_KEY;
@@ -140,6 +144,17 @@ describe('Meta Muse batch routing and billing', () => {
     expect(response.status).toBe(200);
     expect(body.text).toBe('24 kHz works');
     expect(body.cost.credits).toBe(3);
+  });
+
+  test('rejects a definitely insufficient balance before buffering or parsing Meta audio', async () => {
+    cachedCredits = 1;
+    const request = metaWavRequest(60);
+    Object.defineProperty(request, 'arrayBuffer', {
+      value: () => { throw new Error('Meta body was buffered before the credit gate'); },
+    });
+
+    const response = await buildApp().fetch(request);
+    expect(response.status).toBe(402);
   });
 
   test('rejects malformed WAV before an upstream request or credit deduction', async () => {

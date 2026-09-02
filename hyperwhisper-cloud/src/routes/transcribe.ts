@@ -409,6 +409,33 @@ export async function transcribeRoute(c: Context) {
     return body;
   };
 
+  // Meta needs the buffered WAV to calculate an exact reservation. Before that
+  // allocation, reserve the lowest possible cost for this byte count: accepted
+  // 24 kHz mono PCM16 has the highest byte rate, so any canonical Muse WAV of
+  // this size is at least this long. The exact duration check below still owns
+  // the final amount and increases it for 16 kHz audio.
+  if (provider === 'meta') {
+    const minimumAudioSeconds = Math.max(0, contentLength - 44) / (24_000 * 2);
+    const minimumEstimatedCredits = estimateCreditsForProviderFallbacks(
+      contentLength, provider, model, medical, initialPrompt, language, minimumAudioSeconds,
+    );
+    const minimumCreditCheck = await validateCredits(
+      authResult.value, minimumEstimatedCredits, clientIP,
+    );
+    if (!minimumCreditCheck.ok) {
+      logEvent(requestId, startTime, 'transcribe.request_rejected', {
+        reason: 'credits_failed_before_buffer',
+        flyRequestId,
+        status: minimumCreditCheck.response.status,
+        estimatedCredits: minimumEstimatedCredits,
+      });
+      return minimumCreditCheck.response;
+    }
+    logEvent(requestId, startTime, 'transcribe.credits_minimum_done', {
+      estimatedCredits: minimumEstimatedCredits,
+    });
+  }
+
   // Meta billing is duration-based while its two accepted PCM sample rates
   // have different byte rates. Read this finite-capped body and parse the WAV
   // before reservation; Content-Length cannot distinguish a 60-second 24 kHz

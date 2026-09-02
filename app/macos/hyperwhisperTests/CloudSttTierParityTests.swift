@@ -141,10 +141,14 @@ struct CloudSttTierParityTests {
         #expect(CloudAccuracyTier.defaultTier(forVendorKey: "meta") == .metaMuse)
         #expect(!CloudAccuracyTier.streamingEligibleTiers.contains(.metaMuse))
 
-        #expect(CloudProvider.parse("meta") == nil)
-        #expect(!CloudProvider.allCases.map(\.rawValue).contains("meta"))
-        #expect(CloudTranscriptionModels.model(withId: "muse-voice-transcribe-1.0") == nil)
-        #expect(!HealthEndpoint.transcriptionProviders.map(\.rawValue).contains("meta"))
+        #expect(CloudProvider.parse("meta") == .meta)
+        #expect(CloudProvider.allCases.map(\.rawValue).contains("meta"))
+        #expect(
+            CloudTranscriptionModels.model(
+                withId: "muse-voice-transcribe-1.0", provider: .meta
+            )?.provider == .meta
+        )
+        #expect(HealthEndpoint.transcriptionProviders.map(\.rawValue).contains("meta"))
 
         let shared = SharedModelsCatalog.entry(
             provider: "meta", kind: .voice, id: "muse-voice-transcribe-1.0")
@@ -156,16 +160,16 @@ struct CloudSttTierParityTests {
     }
 
     @MainActor
-    @Test("Local API meta shorthand selects the Muse cloud tier without a direct provider")
-    func localApiMetaShorthandSelectsMuse() {
+    @Test("Local API meta shorthand selects direct Meta BYOK")
+    func localApiMetaShorthandSelectsDirectMuse() {
         let persistence = PersistenceController(inMemory: true)
         let mode = Mode(context: persistence.container.viewContext)
 
         TranscribeEndpoint.applyEngineModel(to: mode, engine: "meta", model: nil)
 
         #expect(mode.model == "cloud")
-        #expect(mode.cloudProvider == CloudProvider.hyperwhisper.rawValue)
-        #expect(mode.cloudAccuracyTier == CloudAccuracyTier.metaMuse.rawValue)
+        #expect(mode.cloudProvider == CloudProvider.meta.rawValue)
+        #expect(mode.cloudAccuracyTier == nil)
         #expect(mode.cloudTranscriptionModel == "muse-voice-transcribe-1.0")
     }
 
@@ -185,6 +189,13 @@ struct CloudSttTierParityTests {
             accuracyTier: "metaMuse"
         )
         #expect(staleTierOnOpenAI == nil)
+
+        let nonMuseCloudTier = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "hyperwhisper",
+            accuracyTier: "deepgramNova3"
+        )
+        #expect(nonMuseCloudTier == nil)
     }
 
     @Test("Muse validates the post-VAD upload duration")

@@ -4819,6 +4819,12 @@ internal static class Program
                         && transient.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
                     "Local API engine=meta did not select direct Muse");
 
+                var overridden = new Mode { CloudTranscriptionModel = "stale-other-provider-model" };
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    overridden, "meta", model: null);
+                Assert(overridden.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
+                    "Local API engine=meta retained a baseline provider model");
+
                 var cloud = new Mode
                 {
                     ProviderType = "cloud",
@@ -4835,6 +4841,29 @@ internal static class Program
                 Assert(caps is { CodeSwitching: true, Endpointing: true, ContextBias: true,
                     LanguageBias: true, TurnTimestamps: true, Diarization: true, WordTimestamps: false },
                     "Meta Muse shared-model capabilities drifted");
+            });
+
+            Run("Meta Muse maps malformed NAudio input to a typed format error", () =>
+            {
+                var path = Path.Combine(Path.GetTempPath(), $"meta-malformed-{Guid.NewGuid():N}.wav");
+                try
+                {
+                    File.WriteAllText(path, "not a wave file");
+                    try
+                    {
+                        MetaMuseService.ValidateFinalWave(path, 32L * 1024 * 1024);
+                        throw new InvalidOperationException("malformed Meta audio was accepted");
+                    }
+                    catch (TranscriptionException ex)
+                    {
+                        Assert(ex.Code == TranscriptionErrorCode.UnsupportedFormat,
+                            "malformed Meta audio did not return the typed unsupported-format error");
+                    }
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
             });
 
             Run("Saving a canonical imported WAV preserves the user source", () =>
@@ -4857,6 +4886,16 @@ internal static class Program
                 {
                     Directory.Delete(root, recursive: true);
                 }
+            });
+
+            Run("Store-as-M4A includes canonical WAV imports only", () =>
+            {
+                Assert(MainViewModel.ShouldConvertImportedAudioToM4A(true, "canonical.wav"),
+                    "Store-as-M4A skipped a canonical WAV import");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(false, "canonical.wav"),
+                    "Store-as-M4A ignored the disabled setting");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(true, "provider-native.mp3"),
+                    "Store-as-M4A treated a provider-native non-WAV as WAV");
             });
 
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>

@@ -53,7 +53,7 @@ public sealed class MetaMuseService : ApiKeyTranscriptionServiceBase
             cancellationToken: cancellationToken);
     }
 
-    private static void ValidateFinalWave(string audioPath, long maxBytes)
+    internal static void ValidateFinalWave(string audioPath, long maxBytes)
     {
         try
         {
@@ -93,7 +93,7 @@ public sealed class MetaMuseService : ApiKeyTranscriptionServiceBase
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or FormatException)
         {
             throw new TranscriptionException(
                 TranscriptionErrorCode.UnsupportedFormat,

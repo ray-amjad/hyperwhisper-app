@@ -198,6 +198,12 @@ struct ProviderKeySheet: View {
     private var statusBanner: some View {
         let status = lastTestResult ?? (hasStagedKeyChange ? .unknown : currentHealth)
         switch status {
+        case .configured:
+            statusBannerView(
+                symbol: "checkmark.circle.fill",
+                color: .green,
+                text: "Key saved; validated on first transcription."
+            )
         case .healthy:
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
@@ -300,7 +306,7 @@ struct ProviderKeySheet: View {
         let cloudProvider = target.cloudProvider
         let postProvider = target.postProcessingProvider
         if cloudProvider == .meta {
-            lastTestResult = .healthy
+            lastTestResult = .configured
             isTesting = false
             return
         }
@@ -320,7 +326,7 @@ struct ProviderKeySheet: View {
 
             // Surface the worst probe so users see the failing surface.
             let result: ProviderHealth = {
-                if let c = cloud, c != .healthy { return c }
+                if let c = cloud, !c.isHealthy { return c }
                 if let p = post { return p }
                 return cloud ?? .unknown
             }()

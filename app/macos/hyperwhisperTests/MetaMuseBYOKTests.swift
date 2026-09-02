@@ -14,6 +14,17 @@ struct MetaMuseBYOKTests {
         #expect(CloudTranscriptionModels.defaultModel(for: .meta) == MetaMuseProvider.modelID)
     }
 
+    @MainActor
+    @Test("A saved Meta key is configured but not reported as validated")
+    func configuredHealthIsNotValidated() async {
+        let manager = CloudProviderHealthManager()
+        let status = await manager.probe(.meta, apiKey: "fixture-not-a-secret")
+        #expect(status == .configured)
+        #expect(status.isHealthy)
+        #expect(CloudProviderHealthManager.healthRawString(status) == "configured")
+        #expect(status != .healthy)
+    }
+
     @Test("Production catalog exposes Meta BYOK after all clients are ready")
     func productionGateIsOn() {
         #expect(

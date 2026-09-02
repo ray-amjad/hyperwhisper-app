@@ -795,7 +795,7 @@ class TranscriptionProviderRouter {
             return .modelNotDownloaded
         case .checking, .unknown:
             return .providerNotAvailable(provider: providerDisplayName, reason: "Provider health check failed")
-        case .healthy:
+        case .healthy, .configured:
             // Defensive fallback – should never happen
             return .providerNotAvailable(provider: providerDisplayName, reason: "Unexpected health status")
         }

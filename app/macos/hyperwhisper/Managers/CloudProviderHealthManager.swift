@@ -39,6 +39,8 @@ struct URLSessionHealthCheckClient: HealthCheckHTTPClient {
 enum ProviderHealth: Equatable {
     case unknown
     case checking
+    /// A credential is present, but the provider has no safe content-free probe.
+    case configured
     case healthy
     case unauthorized
     case unreachable
@@ -46,8 +48,7 @@ enum ProviderHealth: Equatable {
 
     /// Whether this status represents a state that allows cloud operations.
     var isHealthy: Bool {
-        if case .healthy = self { return true }
-        return false
+        self == .healthy || self == .configured
     }
 
     /// Human-readable text for UI badges.
@@ -57,6 +58,8 @@ enum ProviderHealth: Equatable {
             return "provider.status.unknown".localized
         case .checking:
             return "provider.status.checking".localized
+        case .configured:
+            return "Configured"
         case .healthy:
             return "provider.status.healthy".localized
         case .unauthorized:
@@ -71,7 +74,7 @@ enum ProviderHealth: Equatable {
     /// Whether this status should block starting a transcription.
     var shouldBlockTranscription: Bool {
         switch self {
-        case .healthy:
+        case .healthy, .configured:
             return false
         case .checking:
             // UX IMPROVEMENT: permit users to initiate recording while we finish probing. The
@@ -224,6 +227,7 @@ final class CloudProviderHealthManager: ObservableObject {
         switch status {
         case .unknown: return "unknown"
         case .checking: return "checking"
+        case .configured: return "configured"
         case .healthy: return "healthy"
         case .unauthorized: return "unauthorized"
         case .unreachable: return "unreachable"
@@ -460,7 +464,8 @@ final class CloudProviderHealthManager: ObservableObject {
             attempt += 1
             lastStatus = await operation()
 
-            if lastStatus == .healthy || lastStatus == .unauthorized || lastStatus == .unknown {
+            if lastStatus == .healthy || lastStatus == .configured
+                || lastStatus == .unauthorized || lastStatus == .unknown {
                 return lastStatus
             }
 
@@ -490,7 +495,7 @@ final class CloudProviderHealthManager: ObservableObject {
 
         // Meta documents no content-free key validation endpoint. A saved key
         // is configured and is validated by the first real transcription.
-        if provider == .meta { return .healthy }
+        if provider == .meta { return .configured }
 
         return await runHealthCheckWithRetry(force: force) {
             // RUST SHARED CORE (Wave 3 / M3-B.4): every STT provider's probe URL,
@@ -515,7 +520,7 @@ final class CloudProviderHealthManager: ObservableObject {
         let apiKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !apiKey.isEmpty else { return .unknown }
 
-        if provider == .meta { return .healthy }
+        if provider == .meta { return .configured }
 
         return await runHealthCheckWithRetry(force: true) {
             await self.performRustHealthCheck(for: provider, apiKey: apiKey)

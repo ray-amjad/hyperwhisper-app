@@ -454,6 +454,14 @@ struct OnboardingConfigureView: View {
             }
         } else if let health = flow.providerTestHealth {
             switch health {
+            case .configured:
+                OnboardingCardDivider()
+                OnboardingCardRow {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.green)
+                    OnboardingRowText(title: "Configured; the key validates on first transcription.")
+                }
             case .healthy:
                 OnboardingCardDivider()
                 OnboardingCardRow {

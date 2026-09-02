@@ -7,6 +7,10 @@
   "required": ["schemaVersion", "models"],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Relative path to this schema for editor and CI validation."
+    },
     "schemaVersion": {
       "type": "integer",
       "const": 1,
@@ -80,7 +84,7 @@
         "platforms": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "enum": ["macos", "windows", "ios"] },
+          "items": { "type": "string", "enum": ["macos", "windows", "linux", "ios"] },
           "description": "Platforms where this model is exposed in the Model Library. A model can sit in the catalog before any given app ships it — just omit that platform from the list and the app filters it out at load time."
         },
         "supportedLanguages": {

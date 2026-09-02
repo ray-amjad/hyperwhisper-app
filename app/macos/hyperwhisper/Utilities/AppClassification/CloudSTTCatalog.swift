@@ -181,6 +181,7 @@ struct CloudSTTCatalog {
         guard resolvedProvider == .hyperwhisper else { return nil }
 
         let tier = CloudAccuracyTier.fromStorageValue(accuracyTier)
+        guard tier == .metaMuse else { return nil }
         guard let entry = entry(byId: tier.rawValue),
               let maximumMinutes = entry.maxDurationMinutes,
               maximumMinutes > 0 else {

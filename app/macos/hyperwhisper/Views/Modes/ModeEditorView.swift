@@ -320,7 +320,7 @@ struct ModeEditorView: View {
             }
             if !provider.requiresAPIKey { return true }
             if provider == current { return true }
-            return cloudHealth.status(for: provider) == .healthy
+            return cloudHealth.status(for: provider).isHealthy
         }
     }
 
@@ -411,7 +411,7 @@ struct ModeEditorView: View {
     private var currentProviderNeedsAttention: Bool {
         let provider = currentCloudProvider
         guard provider.requiresAPIKey else { return false }
-        return cloudHealth.status(for: provider) != .healthy
+        return !cloudHealth.status(for: provider).isHealthy
     }
 
     private var cloudTranscriptionModelsForPicker: [CloudTranscriptionModel] {

@@ -868,7 +868,7 @@ internal static class TranscribeEndpoints
             {
                 mode.CloudTranscriptionModel = model;
             }
-            else if (string.IsNullOrEmpty(mode.CloudTranscriptionModel))
+            else
             {
                 mode.CloudTranscriptionModel = CloudTranscriptionModels.GetDefault(cloudProvider)?.Id ?? "";
             }

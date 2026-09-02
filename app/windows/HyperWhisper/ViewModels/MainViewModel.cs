@@ -2844,7 +2844,8 @@ public partial class MainViewModel : ViewModelBase
             transcript.PostProcessingProvider = result.PostProcessingProvider;
 
             // STORAGE: Optionally compress to M4A for space savings (local mode saves WAV)
-            if (_storageService.StoreAsM4A && convertedTempPath != null)
+            if (ShouldConvertImportedAudioToM4A(
+                    _storageService.StoreAsM4A, pathForTranscription))
             {
                 var compressedPath = _storageService.TryConvertWavToM4A(permanentPath);
                 if (!string.IsNullOrEmpty(compressedPath))
@@ -2976,6 +2977,11 @@ public partial class MainViewModel : ViewModelBase
             transcriptionCts.Dispose();
         }
     }
+
+    internal static bool ShouldConvertImportedAudioToM4A(bool storeAsM4A, string pathForTranscription) =>
+        storeAsM4A
+        && string.Equals(
+            Path.GetExtension(pathForTranscription), ".wav", StringComparison.OrdinalIgnoreCase);
 
     private bool CanStartFileTranscription()
     {

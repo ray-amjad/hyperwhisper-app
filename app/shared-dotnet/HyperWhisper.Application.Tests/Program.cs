@@ -243,6 +243,8 @@ try
     Assert(reloadedSettings.Save().IsSuccess, "stale selected-mode test setting did not save");
     var modeSelection = new ModesViewModel(modes, reloadedSettings);
     await modeSelection.RefreshAsync();
+    Assert(modeSelection.CloudProviders.Contains("meta", StringComparer.Ordinal),
+        "the portable mode editor does not offer the enabled Meta BYOK provider");
     Assert(modeSelection.Selected?.Id == mode.Id,
         "missing selected mode did not prefer the default over sort order");
     modeSelection.Selected = modeSelection.Items.Single(item => item.Id == alternateMode.Id);
