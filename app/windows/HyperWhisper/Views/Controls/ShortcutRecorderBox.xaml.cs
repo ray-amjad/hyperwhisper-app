@@ -242,7 +242,13 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// left (the push-to-talk box now shows its reason like the other five), but the
     /// property stays, and this method is what stops it drifting apart again.
     /// </summary>
-    private void ShowError(string message)
+    /// <remarks>
+    /// internal, not private, so the smoke suite can assert the pairing directly.
+    /// Driving it through a real KeyDown needs a PresentationSource the control has
+    /// only once it is in a shown window, and the pairing - not the key handling -
+    /// is what came apart.
+    /// </remarks>
+    internal void ShowError(string message)
     {
         ErrorMessage = message;
 
@@ -262,7 +268,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
         Field.BorderThickness = new Thickness(2);
     }
 
-    private void ClearError()
+    internal void ClearError()
     {
         ErrorMessage = null;
         ErrorText.Text = string.Empty;

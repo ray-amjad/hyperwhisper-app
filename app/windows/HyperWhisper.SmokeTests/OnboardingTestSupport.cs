@@ -573,8 +573,22 @@ internal sealed class FakeOnboardingCommitter : IOnboardingSourceCommitter
         return new FakeOnboardingRestorePoint(ProductionState);
     }
 
+    /// <summary>
+    /// The database refuses the WRITE. ModeService.SaveMode rethrows
+    /// DbUpdateException, unlike DeleteMode, so the real committer's Apply can and
+    /// does escape - which is the whole of finding C4.
+    /// </summary>
+    public bool ApplyThrows { get; set; }
+
+    public int ApplyAttempts { get; private set; }
+
     public void Apply(OnboardingStagedSource staged)
     {
+        ApplyAttempts++;
+
+        if (ApplyThrows)
+            throw new InvalidOperationException("the Modes database is locked");
+
         Applied.Add(staged);
         ProductionState = $"{staged.Source.Identifier()}:{staged.Model}:{staged.CloudProvider ?? "-"}";
     }

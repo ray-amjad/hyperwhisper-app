@@ -418,14 +418,7 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
             Id = LibraryId(model),
             DisplayName = model.DisplayName,
             ProviderName = model.Kind == OnboardingModelKind.Whisper ? "Whisper" : "NVIDIA",
-            // "providerParakeet", not "providerLocalParakeet". The second name has
-            // no PNG behind it - ParakeetModelInfo.ProviderAssetName has always
-            // said "providerParakeet" - so the row this builds drew nothing where
-            // the Model Library draws the NVIDIA mark. Both names are asserted
-            // against Assets/Providers by the smoke suite now.
-            ProviderAssetName = model.Kind == OnboardingModelKind.Whisper
-                ? "providerLocalWhisper"
-                : "providerParakeet",
+            ProviderAssetName = ProviderAssetNameFor(model.Kind),
             Kind = LibraryModelKind.Voice,
             LocationKind = LibraryModelLocationKind.Offline,
             StatusKind = LibraryModelStatusKind.Downloadable,
@@ -438,6 +431,19 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
             Payload = payload
         };
     }
+
+    /// <summary>
+    /// The Assets/Providers logo for a local engine.
+    ///
+    /// "providerParakeet", not "providerLocalParakeet". The second name has no PNG
+    /// behind it - ParakeetModelInfo.ProviderAssetName has always said
+    /// "providerParakeet" - so the row this builds drew nothing where the Model
+    /// Library draws the NVIDIA mark. Named and internal so the smoke suite can
+    /// assert both names against ProviderAssets.ShippedNames rather than trusting a
+    /// literal buried in an object initialiser.
+    /// </summary>
+    internal static string ProviderAssetNameFor(OnboardingModelKind kind) =>
+        kind == OnboardingModelKind.Whisper ? "providerLocalWhisper" : "providerParakeet";
 
     private static WhisperModelInfo? WhisperInfo(string id) =>
         WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == id);
@@ -1018,7 +1024,9 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
                 // method ModeService's reason codes. Dropping the answer
                 // altogether reported a clean deferral over a Mode the flow had
                 // created and could not remove, with the restore point discarded.
-                if (!_modes.DeleteMode(restore.ModeId) && _modes.GetMode(restore.ModeId) is not null)
+                if (!DeleteLeftNothingBehind(
+                        _modes.DeleteMode(restore.ModeId),
+                        () => _modes.GetMode(restore.ModeId) is not null))
                 {
                     LoggingService.Error(
                         "LiveOnboardingSourceCommitter: restore could not delete the Mode onboarding "
@@ -1064,6 +1072,24 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
             return false;
         }
     }
+
+    /// <summary>
+    /// Did the delete leave the Mode gone? The rollback's question, and NOT
+    /// "did DeleteMode return true".
+    ///
+    /// ModeService.DeleteMode answers false for three unrelated reasons: the row
+    /// was already gone (goal met), it is the last remaining Mode (a deliberate
+    /// refusal, but the onboarding Mode is still production state), and
+    /// DbUpdateException (a real failure). Only the first is a pass, and the row's
+    /// presence is what separates it - so this method needs none of ModeService's
+    /// reason codes.
+    /// </summary>
+    /// <param name="stillPresent">
+    /// Deferred: it is a database read, and it is only worth doing on the false
+    /// path.
+    /// </param>
+    internal static bool DeleteLeftNothingBehind(bool deleted, Func<bool> stillPresent) =>
+        deleted || !stillPresent();
 
     public void MarkOnboardingCompleted() => _settings.OnboardingPending = false;
 

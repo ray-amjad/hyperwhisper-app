@@ -478,9 +478,16 @@ public partial class MainViewModel : ViewModelBase
     /// application-modal window is unreachable anyway. A deliberate refusal is not
     /// a failure to report.
     /// </summary>
+    /// <summary>
+    /// The rule, split out so the smoke suite can pin it without building a whole
+    /// MainViewModel: report a delivery failure unless the delivery was refused on
+    /// purpose.
+    /// </summary>
+    internal static bool ShouldReportUndeliveredTranscript() => !TextDeliveryGate.IsSuppressed;
+
     private void ReportUndeliveredTranscript()
     {
-        if (TextDeliveryGate.IsSuppressed)
+        if (!ShouldReportUndeliveredTranscript())
             return;
 
         var message = Loc.S("errors.textNotDelivered");

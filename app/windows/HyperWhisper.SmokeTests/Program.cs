@@ -7693,6 +7693,324 @@ internal static class Program
                 Assert(!license.IsParked, "nothing is parked once both have been released");
             });
 
+            // =================================================================
+            // ONBOARDING — REVIEW ROUND 3
+            // =================================================================
+
+            Run("onboarding: a staged-source write that throws keeps the user on the step", () =>
+            {
+                // C4. ModeService.SaveMode RETHROWS DbUpdateException and the path
+                // from the footer button had no try/catch on it, so a locked SQLite
+                // file surfaced as the app's raw unhandled-exception box on top of
+                // first run - and left the user on a Try It page whose recorder was
+                // never armed, over a possibly half-applied Mode.
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.Microphone);
+                h.Committer.ApplyThrows = true;
+
+                Assert(!h.Flow.Advance(), "a refused production write must refuse the transition");
+                Assert(h.Flow.Step == OnboardingStep.Microphone,
+                    $"the user stays on the step they can see, not on {h.Flow.Step}");
+                Assert(h.Committer.ApplyAttempts == 1, "the write was attempted exactly once");
+                Assert(h.Flow.SourceApplyFailed, "the failure is reported, not swallowed");
+                Assert(h.Flow.HasPendingProductionWrite,
+                    "the restore point is kept, because a throw can still leave half a Mode behind");
+
+                // And it recovers: the same Continue works once the database does.
+                h.Committer.ApplyThrows = false;
+                Assert(h.Flow.Advance(), "the step advances once the write succeeds");
+                Assert(h.Flow.Step == OnboardingStep.TryIt, "and lands on Try It");
+                Assert(!h.Flow.SourceApplyFailed, "a successful write clears the flag");
+            });
+
+            Run("onboarding: a failed final write does not mark first run complete", () =>
+            {
+                // C4, the Complete() half. Discarding the restore points is what
+                // makes completion irreversible, so it may only happen over a write
+                // that actually landed.
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.Done);
+                h.Committer.ApplyThrows = true;
+
+                Assert(!h.Flow.Complete(), "Complete must report that it did not complete");
+                Assert(h.Committer.MarkCompletedCount == 0,
+                    "first run must be re-offered, not closed over a setup that was never written");
+                Assert(h.Committer.ReturnHomeCount == 0, "and the window must not be sent home");
+                Assert(h.Flow.SourceApplyFailed, "the window needs to know why to report it");
+                Assert(h.Flow.HasPendingProductionWrite, "Set Up Later must still have something to undo");
+
+                // Pressing Done again, with the database back, completes normally.
+                h.Committer.ApplyThrows = false;
+                Assert(h.Flow.Complete(), "the retry completes");
+                Assert(h.Committer.MarkCompletedCount == 1, "exactly once");
+                Assert(!h.Flow.HasPendingProductionWrite, "and there is nothing left to roll back");
+            });
+
+            Run("onboarding: back into Try It is also gated on the write", () =>
+            {
+                // Done -> Back re-enters Try It, which re-applies. It has to refuse
+                // on the same terms as Advance, or the one guarded direction is a
+                // guard with a hole in it.
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.Done);
+                h.Committer.ApplyThrows = true;
+
+                Assert(!h.Flow.Back(), "Back into Try It must refuse a write it cannot make");
+                Assert(h.Flow.Step == OnboardingStep.Done, "and must not move the step");
+                Assert(h.Flow.SourceApplyFailed, "for the same reported reason");
+            });
+
+            Run("onboarding: a Mode rollback is judged on the row, not on DeleteMode's answer", () =>
+            {
+                // Codex P1. DeleteMode returns false for three unrelated reasons and
+                // only one of them is a successful rollback.
+                Assert(LiveOnboardingSourceCommitter.DeleteLeftNothingBehind(true, () => false),
+                    "a clean delete is a restored rollback");
+
+                Assert(LiveOnboardingSourceCommitter.DeleteLeftNothingBehind(false, () => false),
+                    "'the row was already gone' answers false and IS a restored rollback");
+
+                Assert(!LiveOnboardingSourceCommitter.DeleteLeftNothingBehind(false, () => true),
+                    "a row that is still there is production state the flow created and could not remove");
+
+                // The read is deferred: it is a database round trip and is only
+                // worth doing on the false path.
+                var reads = 0;
+                LiveOnboardingSourceCommitter.DeleteLeftNothingBehind(true, () => { reads++; return true; });
+                Assert(reads == 0, "a successful delete must not cost a second query");
+            });
+
+            Run("onboarding: plugging a microphone in re-arms the level meter", () =>
+            {
+                // C5. OnDevicesChanged only ever turned the meter OFF, so a machine
+                // that reached the step with no capture device kept a dead meter
+                // under a prompt that had already gone back to "Say something.
+                // Watch the bars."
+                var h = new OnboardingHarness();
+                h.Audio.Availability = OnboardingDeviceAvailability.NoDevices;
+                h.Flow.BeginMicrophoneStep();
+
+                Assert(!h.Flow.IsLevelMeterActive, "precondition: nothing to meter");
+                var startsBefore = h.Audio.PreviewStarts;
+
+                h.Audio.PublishAvailability(OnboardingDeviceAvailability.Available);
+
+                Assert(h.Flow.IsLevelMeterActive,
+                    "a device arriving while the step is open must light the meter");
+                Assert(h.Audio.PreviewStarts > startsBefore, "and must actually open a capture stream");
+                Assert(h.Flow.ShowsMicrophonePrompt,
+                    "precondition for the defect: the prompt is back, so the bars must be too");
+
+                // The unplug direction still holds, and does not leave a stream open.
+                var stopsBefore = h.Audio.PreviewStops;
+                h.Audio.PublishAvailability(OnboardingDeviceAvailability.NoDevices);
+                Assert(!h.Flow.IsLevelMeterActive, "unplugging still darkens the meter");
+                Assert(h.Audio.PreviewStops > stopsBefore, "and releases the endpoint");
+            });
+
+            Run("onboarding: a device arriving off the microphone step arms nothing", () =>
+            {
+                // The other half of the one arming rule: availability is
+                // step-independent (the Done summary reads it), the METER is not.
+                var h = new OnboardingHarness();
+                h.Audio.Availability = OnboardingDeviceAvailability.NoDevices;
+                var startsBefore = h.Audio.PreviewStarts;
+
+                h.Audio.PublishAvailability(OnboardingDeviceAvailability.Available);
+
+                Assert(h.Flow.DeviceAvailability == OnboardingDeviceAvailability.Available,
+                    "availability is still tracked everywhere");
+                Assert(!h.Flow.IsLevelMeterActive, "but no step is showing bars");
+                Assert(h.Audio.PreviewStarts == startsBefore, "so no capture stream is opened");
+
+                // And leaving the step disarms it for good.
+                h.Flow.BeginMicrophoneStep();
+                Assert(h.Flow.IsLevelMeterActive, "precondition: the step arms it");
+                h.Flow.EndMicrophoneStep();
+                h.Audio.PublishAvailability(OnboardingDeviceAvailability.NoDevices);
+                h.Audio.PublishAvailability(OnboardingDeviceAvailability.Available);
+                Assert(!h.Flow.IsLevelMeterActive, "a closed step never re-arms itself");
+            });
+
+            Run("onboarding: deferring falls back when the captured device is gone", () =>
+            {
+                // C6. On MainViewModel null is not "system default", it is "no
+                // microphone": StartRecordingAsync refuses and raises
+                // errors.noMicrophone. Restoring null for a device that has since
+                // been unplugged left the app unable to record for the rest of the
+                // session, with the rollback reporting a clean deferral.
+                var h = new OnboardingHarness();
+                h.Audio.SelectedDeviceId = "builtin";
+                h.Audio.StoredDeviceId = "builtin";
+                h.Flow.BeginMicrophoneStep();
+                h.Flow.SelectDevice("usb");
+
+                // The user's own microphone goes away mid-flow.
+                h.Audio.Publish(new[] { FakeOnboardingAudio.ConnectedDevices[1] });
+
+                h.Flow.DeferSetup();
+
+                Assert(h.Audio.StoredDeviceId == "builtin",
+                    "the PREFERENCE still names the device the user chose; it may come back");
+                Assert(h.Audio.SelectedDeviceId is not null,
+                    "but the app must be left with something it can actually open");
+                Assert(h.Audio.SelectedDeviceId == "usb",
+                    "and it is the first connected device, which is what MainViewModel picks for itself");
+
+                // A captured null is still restored as null: that is a faithful
+                // restore of a view model that genuinely had nothing selected.
+                var none = new OnboardingHarness();
+                none.Flow.BeginMicrophoneStep();
+                none.Flow.SelectDevice("usb");
+                none.Flow.DeferSetup();
+                Assert(none.Audio.SelectedDeviceId is null,
+                    "null is a real captured value, not 'the device went away'");
+            });
+
+            RunAsync("onboarding: a vendor that cannot be probed still saves its key", async () =>
+            {
+                // C1. CloudProviderHealthService answers Unknown for Meta MuseSTT
+                // unconditionally - it documents no content-free validation
+                // endpoint - so waiting for Healthy meant the key was never written,
+                // Continue was disabled for good, and NOTHING appeared on screen,
+                // because every pill needs an exact enum match.
+                Assert(!CloudTranscriptionProvider.Meta.SupportsKeyHealthProbe(),
+                    "precondition: Meta is the vendor with no validation endpoint");
+
+                var h = new OnboardingHarness();
+                h.ProviderKeys.Providers = new[] { CloudTranscriptionProvider.Meta };
+                h.ProviderKeys.Health = ProviderHealth.Unknown;
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.Flow.SelectProvider(CloudTranscriptionProvider.Meta);
+                h.Flow.ApiKeyInput = "meta-key";
+                h.Flow.TestProviderKey();
+                await h.LastTask;
+
+                Assert(h.ProviderKeys.CurrentKey(CloudTranscriptionProvider.Meta) == "meta-key",
+                    "an unverifiable vendor's key is still written; that is the only way to use it");
+                Assert(h.Flow.ShowsProviderTestUnverified,
+                    "and the user is told it was SAVED rather than validated");
+                Assert(!h.Flow.ShowsProviderTestUnreachable,
+                    "it is not a failed probe");
+                Assert(!h.Flow.ShowsProviderTestError, "and it is not an error");
+                Assert(h.Flow.CanContinue, "the gate opens, or the flow is a dead end");
+
+                // The SAME Unknown from a vendor that CAN be probed means the
+                // opposite, and must not be accepted.
+                var probeable = new OnboardingHarness();
+                probeable.ProviderKeys.Health = ProviderHealth.Unknown;
+                probeable.GrantMicrophone();
+                probeable.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                probeable.Flow.SelectProvider(CloudTranscriptionProvider.OpenAI);
+                probeable.Flow.ApiKeyInput = "sk-live";
+                probeable.Flow.TestProviderKey();
+                await probeable.LastTask;
+
+                Assert(!probeable.ProviderKeys.HasKey(CloudTranscriptionProvider.OpenAI),
+                    "a probeable vendor that answered nothing has not validated anything");
+                Assert(probeable.Flow.ShowsProviderTestUnreachable,
+                    "and reads as unreachable, which is what it is");
+                Assert(!probeable.Flow.ShowsProviderTestUnverified,
+                    "the 'saved, cannot be checked' pill belongs to the other case only");
+            });
+
+            Run("onboarding: every offered vendor draws a mark, never a blank gap", () =>
+            {
+                // C7. Two screens built "/Assets/Providers/{name}.png" by
+                // concatenation; "providerMeta" is a sentinel with no PNG behind it.
+                // One screen guarded it, the other did not, and an earlier review
+                // ruled the unguarded one safe BECAUSE Meta was not on the chip
+                // strip - which round 2 then changed.
+                foreach (var provider in Enum.GetValues<CloudTranscriptionProvider>())
+                {
+                    var name = provider.GetAssetName();
+                    Assert(!string.IsNullOrEmpty(name), $"{provider} has no asset name at all");
+
+                    // The sentinel is the ONE documented exception. Any other vendor
+                    // whose logo does not ship fails here rather than rendering an
+                    // empty 14x14 square in first run.
+                    if (name == "providerMeta") continue;
+
+                    Assert(ProviderAssets.Exists(name),
+                        $"{provider} maps to '{name}', which is not a PNG in Assets/Providers");
+                }
+
+                // And the row a missing logo produces is renderable.
+                var h = new OnboardingHarness();
+                h.ProviderKeys.Providers = LiveOnboardingProviderKeys.ByokProviders;
+                foreach (var row in h.Flow.ProviderOptions)
+                {
+                    Assert(row.HasAsset ^ row.ShowsMonogram,
+                        $"{row.Provider}: exactly one of the logo and the monogram is shown");
+                    Assert(row.HasAsset || row.Monogram.Length > 0,
+                        $"{row.Provider} has neither a logo nor a monogram, so its chip is a blank gap");
+                    Assert(!row.HasAsset || ProviderAssets.Exists(row.AssetPath
+                        .Replace("/Assets/Providers/", string.Empty)
+                        .Replace(".png", string.Empty)),
+                        $"{row.Provider} binds an image path with no file behind it");
+                }
+
+                // The local engines go through the same set. "providerLocalParakeet"
+                // was in the tree for two rounds and has never been a file.
+                foreach (var kind in new[] { OnboardingModelKind.Whisper, OnboardingModelKind.Parakeet })
+                {
+                    var name = LiveOnboardingModelCatalog.ProviderAssetNameFor(kind);
+                    Assert(ProviderAssets.Exists(name),
+                        $"the onboarding {kind} row uses '{name}', which is not a PNG in Assets/Providers");
+                }
+            });
+
+            Run("onboarding: the shortlist only offers engines this platform can run", () =>
+            {
+                // Codex P1. ModelLibraryManager and ModeService both already refuse
+                // an unsupported engine; first run offered the whole shortlist and
+                // RECOMMENDED Parakeet, so an ARM64 machine with no native daemon
+                // could download, select and COMMIT a Mode that fails on the very
+                // next screen.
+                var supported = LiveOnboardingModelCatalog.SupportedModels;
+
+                foreach (var model in supported)
+                {
+                    var ok = model.Kind switch
+                    {
+                        OnboardingModelKind.Whisper => PlatformHelper.SupportsWhisperTranscription,
+                        OnboardingModelKind.Parakeet => PlatformHelper.SupportsParakeetTranscription,
+                        _ => false
+                    };
+                    Assert(ok, $"{model.Id} ({model.Kind}) is offered but unsupported on this platform");
+                }
+
+                Assert(supported.Count <= LiveOnboardingModelCatalog.CuratedModels.Count,
+                    "the supported list is a subset of the shortlist");
+
+                if (PlatformHelper.SupportsLocalTranscription)
+                {
+                    Assert(supported.Count > 0,
+                        "a platform that runs a local engine must be offered at least one model");
+                    Assert(supported.Count(m => m.IsRecommended) == 1,
+                        "exactly one model carries the recommendation, whichever survived the filter");
+                }
+            });
+
+            Run("onboarding: an empty on-device shortlist says why instead of going quiet", () =>
+            {
+                // The dead end the filter above could otherwise create: no rows, no
+                // selection, Continue disabled, nothing on screen.
+                var h = new OnboardingHarness();
+                h.Catalog.Catalog.Clear();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.OnDevice);
+                h.AdvanceTo(OnboardingStep.Setup);
+
+                Assert(!string.IsNullOrWhiteSpace(h.Flow.SetupErrorMessage),
+                    "a machine with no local engine has to be told, not left staring at an empty list");
+                Assert(!h.Flow.CanContinue, "and the gate stays shut, because nothing is set up");
+            });
+
             SynchronizationContext.SetSynchronizationContext(onboardingPreviousContext);
 
             // =================================================================
@@ -8943,6 +9261,115 @@ internal static class Program
                             $"{page.GetType().Name} ({step}) renders the unresolved key '{text}'");
                     }
                 }
+            });
+
+            Run("single instance: a second profile boots, but never takes the global keyboard", () =>
+            {
+                // C10. Making the mutex per-profile was deliberate and is what lets
+                // a scratch-profile instance run beside the user's own app, which is
+                // what every dev box GUI test depends on. It also removed the only
+                // barrier to two processes fighting over machine-global input:
+                // WH_KEYBOARD_LL is per PROCESS and non-exclusive, so one press of
+                // the default Ctrl+Alt toggle started a recording in BOTH, and
+                // RegisterHotKey failed with 1409 against the app's own registration.
+                //
+                // The two facts are now separate. This suite runs with the app-data
+                // root overridden, so it IS a secondary instance.
+                Assert(AppPaths.IsAppDataRootOverridden,
+                    "precondition: the smoke suite runs on an overridden app-data root");
+
+                Assert(SingleInstanceGuard.MutexName != "HyperWhisper_SingleInstance_Mutex",
+                    "the mutex must stay per profile, or the scratch-profile GUI test route dies");
+                Assert(SingleInstanceGuard.MutexName.Contains(AppPaths.AppDataRootHash, StringComparison.Ordinal),
+                    "and must be keyed on the one profile hash this head already uses");
+
+                Assert(!SingleInstanceGuard.OwnsGlobalInput,
+                    "a secondary instance must not install hooks or register hotkeys by default");
+
+                // The escape hatch, for testing hotkeys from a scratch profile with
+                // everything else closed. Parsed here so the test never has to write
+                // to the environment of whoever runs it.
+                foreach (var yes in new[] { "1", "true", "TRUE", "Yes", " 1 " })
+                {
+                    Assert(SingleInstanceGuard.EvaluateGlobalInputOverride(yes),
+                        $"'{yes}' must opt back in");
+                }
+
+                foreach (var no in new string?[] { null, "", "   ", "0", "no", "false", "maybe" })
+                {
+                    Assert(!SingleInstanceGuard.EvaluateGlobalInputOverride(no),
+                        $"'{no ?? "<null>"}' must not opt back in - an empty value is how PowerShell unsets");
+                }
+            });
+
+            Run("delivery: a refused clipboard write is reported unless the gate refused it", () =>
+            {
+                // C3. Honouring CopyToClipboard's return value was right, and it
+                // mapped the PRE-EXISTING clipboard failures - a clipboard manager,
+                // an RDP monitor, Excel holding the Win32 clipboard - onto
+                // SmartPasteResult.Failed, which has an empty arm in one switch and
+                // no arm at all in the other. A wrong "Copied" overlay became total
+                // silence over a transcript that reached nothing.
+                var previous = TextDeliveryGate.IsSuppressed;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    Assert(MainViewModel.ShouldReportUndeliveredTranscript(),
+                        "a clipboard failure with no onboarding window open has to be reported");
+
+                    // And the round-1 rule this must not undo: while first run is
+                    // open the gate refuses delivery ON PURPOSE, the Try It panel
+                    // shows the transcript itself, and a toast behind an
+                    // application-modal window is unreachable anyway.
+                    TextDeliveryGate.SetSuppressed(true);
+                    Assert(!MainViewModel.ShouldReportUndeliveredTranscript(),
+                        "a deliberate refusal is not a failure to report");
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previous);
+                }
+            });
+
+            Run("shortcuts: the recorder's red border never appears without its reason", () =>
+            {
+                // C8. ShowError gated only the TEXT on ShowsInlineError and painted
+                // the border unconditionally, so the one box declared
+                // ShowsInlineError="False" turned red with nothing saying why. The
+                // page it was lifted from drew neither for that role.
+                var box = new ShortcutRecorderBox();
+                Assert(box.ShowsInlineError,
+                    "the default is to explain a rejected chord, and every host now takes it");
+
+                // The chord the finding names is still rejected; the recorder's own
+                // rule for that has not moved.
+                Assert(new KeyboardShortcut { Control = true }.IsSingleBareModifier,
+                    "precondition: a bare Ctrl is what the push-to-talk box rejected");
+
+                box.ShowError("Single modifier shortcuts are not supported.");
+
+                Assert(!string.IsNullOrWhiteSpace(box.ErrorMessage), "the verdict is recorded");
+                Assert(box.ErrorText.Visibility == Visibility.Visible,
+                    "and the reason is on screen beside the border");
+                Assert(box.Field.BorderThickness.Left > 1,
+                    "precondition: the border is what the user actually sees change");
+
+                // No host may take the border without the line again. The one that
+                // did produced a field that turned red with nothing explaining it.
+                var silent = new ShortcutRecorderBox { ShowsInlineError = false };
+                silent.ShowError("rejected");
+                Assert(silent.ErrorText.Visibility != Visibility.Visible,
+                    "precondition: this host wants no line");
+                Assert(silent.Field.BorderThickness.Left <= 1,
+                    "so it must get no border either - the two are one thing");
+
+                // Nothing cleared it before: ClearError had one caller, there was no
+                // focus handler, and the settings page's reset writes DisplayText
+                // and nothing else.
+                box.DisplayText = "Ctrl+Shift+F9";
+                Assert(box.ErrorMessage is null, "re-seeding the field clears the last verdict");
+                Assert(box.ErrorText.Visibility != Visibility.Visible, "text and border go together");
+                Assert(box.Field.BorderThickness.Left <= 1, "including the border");
             });
 
             Console.WriteLine(_failures == 0
