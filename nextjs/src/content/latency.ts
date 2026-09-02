@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/src/db";
 import { sttLatencySamples } from "@/src/db/schema/stt-latency-samples";
@@ -15,6 +15,7 @@ import {
   type LatencyVendorRow,
 } from "@/lib/latency/types";
 import {
+  RETIRED_PROVIDERS,
   STT_CATALOG,
   isDefaultModel,
   modelDisplayName,
@@ -174,6 +175,17 @@ async function queryLatencyMatrix(bucket: DurationBucket): Promise<LatencyMatrix
       and(
         gte(sttLatencySamples.createdAt, since),
         eq(sttLatencySamples.durationBucket, bucket),
+        // Dropped at the scan, not after the aggregate. `google-chirp` falls
+        // through VENDOR_EXPR's else arm to a vendor row of its own, so today
+        // dropping it later would work — but a provider retired while still
+        // mapped to a live vendor would already have moved that vendor's
+        // percentile, and percentiles do not come apart again. Filtering at the
+        // source is correct for both, and keeps the scan on the same index.
+        // `notInArray` is guarded because drizzle renders an empty one as a
+        // contradiction, which would blank the whole page.
+        ...(RETIRED_PROVIDERS.length > 0
+          ? [notInArray(sttLatencySamples.provider, [...RETIRED_PROVIDERS])]
+          : []),
       ),
     )
     .as("attempt");
