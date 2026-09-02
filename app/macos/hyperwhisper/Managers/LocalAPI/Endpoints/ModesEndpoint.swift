@@ -117,16 +117,21 @@ enum ModesEndpoint {
         guard let id = idParameter(from: request) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Missing :id path parameter")
         }
-        // Do not retain a view-context Mode across a suspension point. A count
-        // fetch gives missing IDs their normal precedence while a DELETE racing
-        // the await is still handled by the isolated re-fetch below.
+        // Precedence, and nothing else: an unknown id is answered as
+        // MODE_NOT_FOUND even when the body is *also* unparseable, which is the
+        // order `GET` and `DELETE` on this resource give and the order this
+        // endpoint gave before #375. Without it a client PATCHing a mode
+        // somebody deleted, with a body that is slightly off, is told to fix the
+        // body and chases the wrong fault.
         //
-        // This check used to sit *before* the body read. It now runs after it,
-        // because the read moved up to the router. That is safe — nothing here
-        // is retained across the read, the fetch returns a `Bool` — and the one
-        // observable change is that an over-cap PATCH to an unknown id is now
-        // refused for its size rather than for its id. Both are HTTP 200
-        // business failures.
+        // Its original justification is gone and this comment used to still
+        // claim it. The read moved up to the router in this change, so `patch`
+        // now has no `await` in it at all: there is no suspension point to keep
+        // a view-context `Mode` off the far side of, and no DELETE can race one.
+        // What is left is a duplicate store round-trip bought for that ordering
+        // — a count fetch with `fetchLimit = 1` and no property values — and the
+        // authoritative answer is still the isolated re-fetch below, which is
+        // what runs in the context this handler mutates.
         guard Self.modeExists(withId: id, in: PersistenceController.shared.container.viewContext) else {
             return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
         }
@@ -171,9 +176,10 @@ enum ModesEndpoint {
             normalizedName = nil
         }
 
-        // Fetch only after the request body await, in a context that owns only
-        // this API mutation. Its save or rollback cannot commit or discard
-        // unrelated pending UI edits in the shared view context.
+        // Fetch into a context that owns only this API mutation. Its save or
+        // rollback cannot commit or discard unrelated pending UI edits in the
+        // shared view context — and because this is a different context from
+        // the existence check above, this fetch, not that one, is the answer.
         let context = Self.mutationContext(for: PersistenceController.shared)
         guard let mode = Self.fetchMode(withId: id, in: context) else {
             return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
