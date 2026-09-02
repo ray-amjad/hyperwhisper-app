@@ -42,6 +42,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("host options validate eagerly", HostOptionsValidation)
     ,("application backend resolves modes and vocabulary", ApplicationBackendModeRouting)
     ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
+    ,("size limits and rejection messages match the shared core", SharedSizeLimits)
 };
 foreach (var test in tests)
 {
@@ -155,6 +156,86 @@ static Task ErrorCodeParity()
             $"{outside} decoded as a closed-set code");
     }
     return Task.CompletedTask;
+}
+
+/// <summary>
+/// The two size caps and the two rejection messages are the shared core's, not
+/// this head's (issue #375). macOS reads them from `hw-localapi` directly; this
+/// head cannot, because `PortableLocalApiOptions` is a positional record and a
+/// C# optional-parameter default must be a compile-time constant — and
+/// `LocalApiMaxRequestBytes()` is a method call. So the literals stay literal
+/// and this test is what pins them.
+///
+/// Every value asserted below is read out of PRODUCTION: the record's own
+/// defaults, the host constructor's defaults as the compiler recorded them, and
+/// the messages taken off the wire from the real server. Retyping a number or a
+/// string into this file would pin nothing — the copy would agree with Rust
+/// while `PortableLocalApi.cs` quietly drifted.
+/// </summary>
+static async Task SharedSizeLimits()
+{
+    var maxRequest = (long)uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiMaxRequestBytes();
+    var maxUpload = (long)uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiMaxUploadBytes();
+    Assert(maxUpload <= maxRequest, $"the shared upload cap {maxUpload} is above the request cap {maxRequest}");
+
+    // 1. The options record's own defaults (PortableLocalApi.cs:18-19).
+    //    Constructing the record is how those two literals get read.
+    var defaults = new PortableLocalApiOptions(Fixture.Token);
+    Assert(defaults.MaxRequestBytes == maxRequest,
+        $"PortableLocalApiOptions.MaxRequestBytes is {defaults.MaxRequestBytes}, the shared core says {maxRequest}");
+    Assert(defaults.MaxUploadBytes == maxUpload,
+        $"PortableLocalApiOptions.MaxUploadBytes is {defaults.MaxUploadBytes}, the shared core says {maxUpload}");
+
+    // 2. The second copy of both numbers, at LocalApiHost.cs:59-60. They are
+    //    optional-parameter defaults with no property behind them, so read them
+    //    back off the metadata where the compiler put them.
+    var hostDefaults = typeof(PortableLocalApiHost).GetConstructors().Single().GetParameters()
+        .ToDictionary(parameter => parameter.Name!, StringComparer.Ordinal);
+    var hostRequestBytes = (long)hostDefaults["maxRequestBytes"].DefaultValue!;
+    var hostUploadBytes = (int)hostDefaults["maxUploadBytes"].DefaultValue!;
+    Assert(hostRequestBytes == maxRequest,
+        $"PortableLocalApiHost's maxRequestBytes default is {hostRequestBytes}, the shared core says {maxRequest}");
+    Assert(hostUploadBytes == maxUpload,
+        $"PortableLocalApiHost's maxUploadBytes default is {hostUploadBytes}, the shared core says {maxUpload}");
+
+    // 3. The two message strings. They are literals inside PortableLocalApi.cs
+    //    with no symbol to import, so the only honest way to read them is to
+    //    make the production server say them. The fixture caps the request at
+    //    4096 bytes and the upload at 4, which makes both rejections cheap.
+    var requestTooLarge = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiRequestTooLargeFailure();
+    var uploadTooLarge = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiUploadTooLargeFailure();
+    await using var fixture = await Fixture.Create(maxUpload: 4);
+    fixture.Authenticate();
+
+    // Over MaxRequestBytes: PortableLocalApi.cs:185 answers from Content-Length
+    // alone. There is no Kestrel under TestServer, so the explicit check runs
+    // rather than being pre-empted by server.Limits.MaxRequestBodySize.
+    using var oversizedRequest = JsonContent(
+        $$"""{"audio_base64":{{JsonSerializer.Serialize(new string('A', 8192))}},"engine":"whisper","model":"base"}""");
+    using var requestResponse = await fixture.Client.PostAsync("/transcribe", oversizedRequest);
+    var requestMessage = await FailureMessage(requestResponse);
+    await AssertBusinessFailure(requestResponse, LocalApiErrorCodes.InvalidRequest, "oversized request body");
+    Assert(requestMessage == requestTooLarge.message,
+        $"the request-limit message is \"{requestMessage}\", the shared core says \"{requestTooLarge.message}\"");
+
+    // Over MaxUploadBytes on the multipart part: PortableLocalApi.cs:193.
+    using var oversizedUpload = new MultipartFormDataContent();
+    oversizedUpload.Add(new ByteArrayContent([1, 2, 3, 4, 5]), "audio", "clip.wav");
+    using var uploadResponse = await fixture.Client.PostAsync("/transcribe", oversizedUpload);
+    var uploadMessage = await FailureMessage(uploadResponse);
+    await AssertBusinessFailure(uploadResponse, LocalApiErrorCodes.InvalidRequest, "oversized multipart upload");
+    Assert(uploadMessage == uploadTooLarge.message,
+        $"the multipart upload-limit message is \"{uploadMessage}\", the shared core says \"{uploadTooLarge.message}\"");
+
+    // Over the base64 expansion of MaxUploadBytes: PortableLocalApi.cs:245.
+    // Twelve encoded characters against a ceiling of (4 + 2) / 3 * 4 == 8.
+    using var oversizedBase64 = JsonContent(
+        $$"""{"audio_base64":{{JsonSerializer.Serialize(Convert.ToBase64String(new byte[9]))}},"engine":"whisper","model":"base"}""");
+    using var base64Response = await fixture.Client.PostAsync("/transcribe", oversizedBase64);
+    var base64Message = await FailureMessage(base64Response);
+    await AssertBusinessFailure(base64Response, LocalApiErrorCodes.InvalidRequest, "oversized base64 upload");
+    Assert(base64Message == uploadTooLarge.message,
+        $"the base64 upload-limit message is \"{base64Message}\", the shared core says \"{uploadTooLarge.message}\"");
 }
 
 static async Task Multipart()
@@ -740,6 +821,20 @@ static async Task<bool> HasFailureEnvelope(HttpResponseMessage response)
 {
     using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
     return document.RootElement.TryGetProperty("ok", out var ok) && !ok.GetBoolean() && document.RootElement.TryGetProperty("error", out _);
+}
+
+/// <summary>
+/// The `error.message` of a failure envelope. `AssertBusinessFailure` checks the
+/// status and the code only, so a message that drifted from the shared core's
+/// would go unnoticed — the gap `SharedSizeLimits` closes (issue #375).
+///
+/// Reads the buffered string rather than the content stream, so it composes
+/// with `AssertBusinessFailure` on the same response.
+/// </summary>
+static async Task<string?> FailureMessage(HttpResponseMessage response)
+{
+    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    return document.RootElement.GetProperty("error").GetProperty("message").GetString();
 }
 
 /// <summary>

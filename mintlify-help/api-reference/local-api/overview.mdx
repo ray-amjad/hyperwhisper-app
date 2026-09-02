@@ -75,6 +75,42 @@ All other errors arrive as `ok:false` with a machine-readable code, and with
 HTTP 200. Examples are a transcription engine error, a missing API key, and a
 file that the server cannot find. Read the `code`, not the status.
 
+## Request limits
+
+The server refuses a request that is too large:
+
+| Limit | Value |
+| --- | --- |
+| Request body | 50 MiB (52,428,800 bytes) |
+| Audio | 48 MiB (50,331,648 bytes) |
+
+The audio limit applies to the decoded bytes of `audio_base64`, and to a
+multipart `audio` part. These are the two shapes that the server holds in
+memory. A `file` path is different: the server reads it from disk in small
+pieces, and the audio limit does not apply to it.
+
+A refusal is a business failure, not a protocol failure. The server returns
+**HTTP 200** with this envelope:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Request exceeds the configured limit."
+  }
+}
+```
+
+The message is `Audio exceeds the configured upload limit.` when the audio
+limit is the one that the request passed.
+
+The server does not return **413**. `PAYLOAD_TOO_LARGE` is not one of the
+codes in the closed set, and a client that shares the macOS decoder cannot read
+an envelope that contains it. Read the `code`, not the status.
+
+These two limits apply on macOS. The Windows server does not apply them yet.
+
 ## Endpoints
 
 | Method | Path | Purpose |
