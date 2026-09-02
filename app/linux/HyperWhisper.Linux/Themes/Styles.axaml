@@ -1,0 +1,173 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Shared look for the Linux shell. The Fluent defaults give square, high-contrast
+       controls that do not match the Windows and macOS apps, so the rounding, spacing
+       and type scale here follow app/windows/HyperWhisper/Themes. -->
+
+  <!-- Type scale -->
+  <Style Selector="TextBlock.pageTitle">
+    <Setter Property="FontSize" Value="28"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.sectionTitle">
+    <Setter Property="FontSize" Value="17"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.fieldLabel">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style Selector="TextBlock.metricValue">
+    <Setter Property="FontSize" Value="26"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+
+  <!-- Cards -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="18"/>
+  </Style>
+  <Style Selector="Border.metricCard">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="18"/>
+  </Style>
+  <Style Selector="Border.notice">
+    <Setter Property="Background" Value="{DynamicResource HwWarningBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwWarningBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12"/>
+  </Style>
+  <Style Selector="Border.notice TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource HwWarningForegroundBrush}"/>
+  </Style>
+
+  <!-- Sidebar navigation -->
+  <Style Selector="ListBox.nav">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem">
+    <Setter Property="Padding" Value="12,9"/>
+    <Setter Property="Margin" Value="0,1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentHoverBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+
+  <!-- List surfaces inside a page -->
+  <Style Selector="ListBox.plain">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="4"/>
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem">
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="10,8"/>
+    <Setter Property="Margin" Value="0,1"/>
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="CornerRadius" Value="6"/>
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+  </Style>
+
+  <!-- Buttons -->
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="14,7"/>
+    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+  <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+  </Style>
+  <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+  </Style>
+  <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+  <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentHoverBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentHoverBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+
+  <!-- Inputs -->
+  <Style Selector="TextBox">
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="Padding" Value="10,6"/>
+  </Style>
+  <Style Selector="TextBox /template/ Border#PART_BorderElement">
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="Padding" Value="10,5"/>
+  </Style>
+  <Style Selector="ComboBox /template/ Border#Background">
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+  </Style>
+  <Style Selector="NumericUpDown">
+    <Setter Property="MinHeight" Value="34"/>
+  </Style>
+
+  <!-- Separator: a hairline, not a control-sized gap -->
+  <Style Selector="Separator">
+    <Setter Property="Background" Value="{DynamicResource HwSubtleBorderBrush}"/>
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Margin" Value="0,6"/>
+  </Style>
+
+  <Style Selector="CheckBox">
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="8,0,0,0"/>
+  </Style>
+</Styles>

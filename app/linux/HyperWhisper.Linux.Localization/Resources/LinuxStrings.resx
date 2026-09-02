@@ -54,6 +54,7 @@
   <data name="linux.onboarding.test.succeeded" xml:space="preserve"><value>Test dictation succeeded and was saved to History.</value></data>
   <data name="linux.onboarding.test.failed" xml:space="preserve"><value>The test could not complete. Review the selected mode, credential, model, and microphone in Settings.</value></data>
   <data name="linux.onboarding.test.privacy" xml:space="preserve"><value>The test follows the selected mode's normal local or cloud processing path and your existing storage settings.</value></data>
+  <data name="linux.onboarding.back" xml:space="preserve"><value>Back</value></data>
   <data name="linux.onboarding.skip" xml:space="preserve"><value>Skip setup</value></data>
   <data name="linux.onboarding.continue" xml:space="preserve"><value>Continue / Finish</value></data>
   <data name="linux.onboarding.save_failed" xml:space="preserve"><value>Setup could not be saved securely.</value></data>

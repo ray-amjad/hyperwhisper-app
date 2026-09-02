@@ -1,0 +1,69 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- HyperWhisper palette, ported from app/windows/HyperWhisper/Themes/{Light,Dark}Colors.xaml.
+       The Windows values carry an alpha channel because WPF composites them over the window
+       chrome. Avalonia paints these brushes directly onto opaque page surfaces, so every
+       surface colour here is fully opaque. A translucent card reads as a rendering fault. -->
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+      <Color x:Key="HwAccent">#007AFF</Color>
+      <Color x:Key="HwAccentHover">#0A84FF</Color>
+      <Color x:Key="HwAccentPressed">#0066D6</Color>
+      <Color x:Key="HwOnAccent">#FFFFFF</Color>
+
+      <Color x:Key="HwSidebarBackground">#EDEEF1</Color>
+      <Color x:Key="HwContentBackground">#F5F5F7</Color>
+      <Color x:Key="HwCardBackground">#FCFCFD</Color>
+      <Color x:Key="HwInputBackground">#FFFFFF</Color>
+      <Color x:Key="HwHoverBackground">#E4E6EA</Color>
+      <Color x:Key="HwSelectedBackground">#D9E9FF</Color>
+      <Color x:Key="HwBorder">#D8DAE0</Color>
+      <Color x:Key="HwSubtleBorder">#E6E8EC</Color>
+
+      <Color x:Key="HwTextPrimary">#1D1D1F</Color>
+      <Color x:Key="HwTextSecondary">#6E6E73</Color>
+      <Color x:Key="HwTextTertiary">#A1A1A6</Color>
+
+      <Color x:Key="HwSuccess">#34C759</Color>
+      <Color x:Key="HwWarning">#FF9500</Color>
+      <Color x:Key="HwError">#FF3B30</Color>
+      <Color x:Key="HwWarningBackground">#FFF3CD</Color>
+      <Color x:Key="HwWarningForeground">#856404</Color>
+      <Color x:Key="HwWarningBorder">#FFEEBA</Color>
+      <Color x:Key="HwErrorBackground">#F8D7DA</Color>
+      <Color x:Key="HwErrorForeground">#721C24</Color>
+      <Color x:Key="HwScrim">#66000000</Color>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <Color x:Key="HwAccent">#0A84FF</Color>
+      <Color x:Key="HwAccentHover">#2997FF</Color>
+      <Color x:Key="HwAccentPressed">#0066D6</Color>
+      <Color x:Key="HwOnAccent">#FFFFFF</Color>
+
+      <Color x:Key="HwSidebarBackground">#222326</Color>
+      <Color x:Key="HwContentBackground">#151517</Color>
+      <Color x:Key="HwCardBackground">#1D1D20</Color>
+      <Color x:Key="HwInputBackground">#242428</Color>
+      <Color x:Key="HwHoverBackground">#303035</Color>
+      <Color x:Key="HwSelectedBackground">#183D66</Color>
+      <Color x:Key="HwBorder">#34343A</Color>
+      <Color x:Key="HwSubtleBorder">#2A2A2F</Color>
+
+      <Color x:Key="HwTextPrimary">#F5F5F7</Color>
+      <Color x:Key="HwTextSecondary">#A1A1A6</Color>
+      <Color x:Key="HwTextTertiary">#6E6E73</Color>
+
+      <Color x:Key="HwSuccess">#30D158</Color>
+      <Color x:Key="HwWarning">#FF9F0A</Color>
+      <Color x:Key="HwError">#FF453A</Color>
+      <Color x:Key="HwWarningBackground">#4D3800</Color>
+      <Color x:Key="HwWarningForeground">#FFD666</Color>
+      <Color x:Key="HwWarningBorder">#665200</Color>
+      <Color x:Key="HwErrorBackground">#4D1F24</Color>
+      <Color x:Key="HwErrorForeground">#FF8A8A</Color>
+      <Color x:Key="HwScrim">#99000000</Color>
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

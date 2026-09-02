@@ -2,7 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="HyperWhisper.Linux.App"
              RequestedThemeVariant="Default">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://HyperWhisper/Themes/Colors.axaml"/>
+        <ResourceInclude Source="avares://HyperWhisper/Themes/Brushes.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://HyperWhisper/Themes/Styles.axaml"/>
   </Application.Styles>
 </Application>

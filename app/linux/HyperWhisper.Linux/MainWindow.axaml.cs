@@ -427,7 +427,14 @@ public partial class MainWindow : Window
     private async Task InitializeOnboardingAsync()
     {
         if (Program.IsSmokeTest || !_isFreshProfile || _settings.Get("onboarding.completed", false)
-                            || _settings.Get("onboarding.skipped", false)) return;
+                            || _settings.Get("onboarding.skipped", false))
+        {
+            // No view model is assigned on this path, so the overlay keeps whatever IsVisible
+            // the binding could not supply. Close it here as well as in XAML, because a
+            // visible overlay covers every page and blocks all input.
+            OnboardingOverlay.IsVisible = false;
+            return;
+        }
         var audio = (_platformServices.AudioRecorder as PulseAudioRecorder)?.GetCapabilities();
         var injection = (_platformServices.TextInjection as LinuxTextInjectionService)?.GetCapabilities();
         var shortcuts = (_platformServices.GlobalShortcuts as LinuxGlobalShortcutService)?.GetCapabilities();

@@ -1,0 +1,42 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Brushes over the palette in Colors.axaml. Each brush tracks the theme variant,
+       because its colour is a DynamicResource. -->
+
+  <SolidColorBrush x:Key="HwAccentBrush" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="HwAccentHoverBrush" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="HwAccentPressedBrush" Color="{DynamicResource HwAccentPressed}"/>
+  <SolidColorBrush x:Key="HwOnAccentBrush" Color="{DynamicResource HwOnAccent}"/>
+
+  <SolidColorBrush x:Key="HwSidebarBackgroundBrush" Color="{DynamicResource HwSidebarBackground}"/>
+  <SolidColorBrush x:Key="HwContentBackgroundBrush" Color="{DynamicResource HwContentBackground}"/>
+  <SolidColorBrush x:Key="HwCardBackgroundBrush" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="HwInputBackgroundBrush" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="HwHoverBackgroundBrush" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="HwSelectedBackgroundBrush" Color="{DynamicResource HwSelectedBackground}"/>
+  <SolidColorBrush x:Key="HwBorderBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="HwSubtleBorderBrush" Color="{DynamicResource HwSubtleBorder}"/>
+
+  <SolidColorBrush x:Key="HwTextPrimaryBrush" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="HwTextSecondaryBrush" Color="{DynamicResource HwTextSecondary}"/>
+  <SolidColorBrush x:Key="HwTextTertiaryBrush" Color="{DynamicResource HwTextTertiary}"/>
+
+  <SolidColorBrush x:Key="HwSuccessBrush" Color="{DynamicResource HwSuccess}"/>
+  <SolidColorBrush x:Key="HwWarningBrush" Color="{DynamicResource HwWarning}"/>
+  <SolidColorBrush x:Key="HwErrorBrush" Color="{DynamicResource HwError}"/>
+  <SolidColorBrush x:Key="HwWarningBackgroundBrush" Color="{DynamicResource HwWarningBackground}"/>
+  <SolidColorBrush x:Key="HwWarningForegroundBrush" Color="{DynamicResource HwWarningForeground}"/>
+  <SolidColorBrush x:Key="HwWarningBorderBrush" Color="{DynamicResource HwWarningBorder}"/>
+  <SolidColorBrush x:Key="HwErrorBackgroundBrush" Color="{DynamicResource HwErrorBackground}"/>
+  <SolidColorBrush x:Key="HwErrorForegroundBrush" Color="{DynamicResource HwErrorForeground}"/>
+  <SolidColorBrush x:Key="HwScrimBrush" Color="{DynamicResource HwScrim}"/>
+
+  <!-- The page markup was written against WinUI card keys that the plain Avalonia
+       Fluent theme does not define, so every card painted with no colour at all and
+       the page beneath showed through. Define them here over the HyperWhisper
+       palette so an unconverted control still gets an opaque surface. -->
+  <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{DynamicResource HwSidebarBackground}"/>
+  <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{DynamicResource HwBorder}"/>
+</ResourceDictionary>
