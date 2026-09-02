@@ -37,6 +37,13 @@ import FlyingFox
 ///   a chunked body has `bodySequence.count == nil` — a `Content-Length`-only
 ///   guard would be blind to it. A declared length can also simply lie.
 ///
+/// # Nothing is sized by the caller's claim, including the buffer
+///
+/// `Content-Length` decides only whether to start reading. It does **not** size
+/// the accumulating buffer: that grows against bytes actually received, from a
+/// 64 KiB floor, so a request that declares the whole cap and then stalls has
+/// committed 64 KiB rather than 50 MiB. See `reservation(declared:received:)`.
+///
 /// # Consequence: an aborted read breaks keep-alive on that connection
 ///
 /// Stopping mid-body leaves the unread remainder on the socket, so the *next*
@@ -140,13 +147,7 @@ enum LocalAPIBodyLimit {
         }
 
         var body = Data()
-        if let count, count > 0 {
-            // Bounded by the pre-check above: anything over the cap has already
-            // returned, so this reserves at most `limit` bytes. A lying length
-            // that is *under* the cap only over-reserves by less than the cap.
-            body.reserveCapacity(count)
-        }
-
+        var reserved: UInt64 = 0
         var received: UInt64 = 0
         do {
             for try await chunk in chunks {
@@ -155,6 +156,13 @@ enum LocalAPIBodyLimit {
                     // Stop here. The remainder stays on the socket — see the type
                     // doc on why we do not drain it.
                     return .tooLarge
+                }
+                // Grow the buffer against bytes that have *arrived*, never
+                // against the caller's claim on its own. See `reservation`.
+                if total > reserved {
+                    let target = Self.reservation(declared: declaredLength, received: total)
+                    reserved = UInt64(target)
+                    body.reserveCapacity(target)
                 }
                 received = total
                 body.append(chunk)
@@ -166,5 +174,60 @@ enum LocalAPIBodyLimit {
             return .unreadable
         }
         return .body(body)
+    }
+
+    /// The floor on a body buffer reservation, in bytes: 64 KiB.
+    ///
+    /// Small enough that a request which *claims* 50 MiB and delivers nothing
+    /// has bought 64 KiB; large enough that every realistic Local API JSON body
+    /// — a `ModePatchDTO`, a post-processing prompt — is reserved once and
+    /// never grown.
+    static let reservationFloor: UInt64 = 64 * 1024
+
+    /// How large `drain`'s buffer should be once `received` bytes have actually
+    /// arrived on a body whose caller declared `declared`.
+    ///
+    /// # Why this is not just `reserveCapacity(count)`
+    ///
+    /// `Content-Length` is a claim by whoever opened the socket, and the
+    /// pre-check above only bounds that claim by `limit`. So a ~200-byte
+    /// request that says `Content-Length: 52428800` and then dribbles one byte
+    /// used to commit a 50 MiB buffer for as long as FlyingFox's timeout — a
+    /// far better amplification ratio than the 200 MB → 205 MB of #375 itself.
+    /// The reservation is now proportional to what the caller has *proved* it
+    /// will send.
+    ///
+    /// # Why the doubling, rather than a flat clamp
+    ///
+    /// A flat `min(count, 64 KiB)` leaves the growth policy to `Data`, and a
+    /// 40 MiB upload arriving in FlyingFox's small socket chunks is thousands
+    /// of appends. Doubling from the floor makes the amortisation a property of
+    /// *this* function — O(log n) reservations, about ten for a 40 MiB body —
+    /// instead of an assumption about Foundation's internals that cannot be
+    /// measured without a Mac.
+    ///
+    /// - Parameters:
+    ///   - declared: the caller's `Content-Length`, normalised; `nil` when
+    ///     chunked.
+    ///   - received: bytes actually read off the socket so far, including the
+    ///     chunk about to be appended. Always bounded by `limit`.
+    /// - Returns: a byte count that is never below `received`, so the caller can
+    ///   use it as the buffer size directly.
+    ///
+    /// A declared length is honoured only as a *ceiling*, and only while it is
+    /// still credible (`declared >= received`). That is what makes the last
+    /// growth step of a legitimate upload land exactly on the real body size.
+    /// Once a caller has shipped more than it declared the number is a proven
+    /// lie, so it stops capping anything — clamping to it there would reserve
+    /// exactly `received` on every chunk, which is a realloc-and-copy per chunk
+    /// and a worse denial of service than the one being fixed.
+    static func reservation(declared: UInt64?, received: UInt64) -> Int {
+        let doubled = received.multipliedReportingOverflow(by: 2)
+        var target = doubled.overflow ? UInt64.max : doubled.partialValue
+        target = max(target, Self.reservationFloor)
+        if let declared, declared >= received {
+            target = min(target, declared)
+        }
+        return Int(min(target, UInt64(Int.max)))
     }
 }

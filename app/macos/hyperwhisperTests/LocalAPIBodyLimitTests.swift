@@ -163,6 +163,106 @@ struct LocalAPIBodyLimitTests {
         #expect(outcome != .tooLarge)
     }
 
+    // MARK: - The buffer reservation
+
+    // `aLyingContentLengthDoesNotDefeatTheCounter` proves the *counter* ignores
+    // the caller's claim. It says nothing about the *allocation*, and until
+    // review round 2 the allocation still believed it: `reserveCapacity(count)`
+    // sized the buffer from `Content-Length` before a byte was read. These tests
+    // pin the replacement. They call `reservation(declared:received:)` rather
+    // than measuring `drain`'s memory, because a buffer's capacity is not
+    // observable from a test — so the policy is a pure function, and the last
+    // test in this section checks the loop actually consults it.
+
+    /// The hostile shape, at the allocation layer.
+    ///
+    /// `POST /transcribe`, `Content-Length: 52428800` — exactly the cap, so the
+    /// `>` pre-check waves it through — then one byte, or none at all, until
+    /// FlyingFox's timeout. Sizing the buffer from that header turns ~200 bytes
+    /// of request into a 50 MiB commitment, and N keep-alive connections into
+    /// N of them: a **better** amplification ratio than the 200 MB → 205 MB
+    /// #375 was filed for, reintroduced by the fix for #375.
+    @Test func aDeclaredLengthDoesNotBuyAnAllocation() {
+        let requestCap: UInt64 = 52_428_800
+
+        #expect(LocalAPIBodyLimit.reservation(declared: requestCap, received: 1) == 65_536)
+        #expect(LocalAPIBodyLimit.reservation(declared: requestCap, received: 1024) == 65_536)
+        #expect(LocalAPIBodyLimit.reservation(declared: requestCap, received: 32_768) == 65_536)
+
+        // Said as a ratio, because the ratio is the finding: a stalled
+        // connection costs the floor, not a fraction of what it claimed.
+        #expect(LocalAPIBodyLimit.reservation(declared: requestCap, received: 1) < Int(requestCap) / 500)
+    }
+
+    /// A credible declared length is still a *ceiling*, so the last growth step
+    /// of a real upload lands exactly on the body rather than on twice it.
+    @Test func aCredibleDeclaredLengthCapsTheReservation() {
+        let declared: UInt64 = 40 * 1024 * 1024
+
+        #expect(LocalAPIBodyLimit.reservation(declared: declared, received: declared) == Int(declared))
+        #expect(LocalAPIBodyLimit.reservation(declared: declared, received: declared - 1) == Int(declared))
+
+        for received: UInt64 in [1, 4096, 65_536, 1_000_000, 20_000_000] {
+            let reserved = LocalAPIBodyLimit.reservation(declared: declared, received: received)
+            #expect(UInt64(reserved) <= declared, "a reservation must never exceed a credible claim")
+            #expect(UInt64(reserved) >= received, "a reservation must hold the bytes already read")
+        }
+    }
+
+    /// The cost the round-1 fixer was right to name — "repeated realloc-and-copy
+    /// on every legitimate large upload" — bounded here rather than assumed
+    /// away by trusting `Data`'s internal growth policy, which cannot be
+    /// measured without a Mac.
+    ///
+    /// A 40 MiB upload arriving in 4 KiB socket chunks is 10,240 appends. It
+    /// must cost a handful of reservations, not one per chunk.
+    @Test func theReservationGrowsGeometrically() {
+        let declared: UInt64 = 40 * 1024 * 1024
+        let chunk: UInt64 = 4096
+
+        // The exact shape of `drain`'s loop, over the pure policy function.
+        var reserved: UInt64 = 0
+        var received: UInt64 = 0
+        var growths = 0
+        while received < declared {
+            received = min(received + chunk, declared)
+            if received > reserved {
+                reserved = UInt64(LocalAPIBodyLimit.reservation(declared: declared, received: received))
+                growths += 1
+            }
+        }
+
+        #expect(growths <= 12, "\(growths) reservations for a 40 MiB body is not geometric growth")
+        #expect(growths < Int(declared / chunk) / 100, "must be far below one reservation per chunk")
+        #expect(reserved == declared, "the final buffer must be the body, not a power of two above it")
+    }
+
+    /// A `Content-Length` that lies *low* must stop capping once it is disproved.
+    ///
+    /// Clamping to it after the body has passed it would reserve exactly
+    /// `received` on every single chunk — a realloc-and-copy per chunk, which is
+    /// the same denial of service with the cost moved into `memcpy`.
+    @Test func aContentLengthThatLiesLowStopsCapping() {
+        #expect(LocalAPIBodyLimit.reservation(declared: 1, received: 3) == 65_536)
+        #expect(LocalAPIBodyLimit.reservation(declared: 1, received: 1_000_000) == 2_000_000)
+        #expect(LocalAPIBodyLimit.reservation(declared: nil, received: 1_000_000) == 2_000_000)
+    }
+
+    /// The policy is total on every `UInt64`, and never returns less than what
+    /// has to fit.
+    ///
+    /// `drain` bounds `received` by `limit` before it asks, but a Swift
+    /// arithmetic trap on a network-facing path is a process abort — the same
+    /// reasoning `hw-localapi::limits` gives for saturating, and the reason the
+    /// running counter uses `addingReportingOverflow`.
+    @Test func theReservationIsTotalAndAlwaysBigEnough() {
+        #expect(LocalAPIBodyLimit.reservation(declared: 0, received: 0) == 0)
+        #expect(LocalAPIBodyLimit.reservation(declared: nil, received: 0) == 65_536)
+        #expect(LocalAPIBodyLimit.reservation(declared: UInt64.max, received: UInt64.max) == Int.max)
+        #expect(LocalAPIBodyLimit.reservation(declared: nil, received: UInt64.max) == Int.max)
+        #expect(LocalAPIBodyLimit.reservation(declared: nil, received: UInt64(Int.max)) == Int.max)
+    }
+
     // MARK: - The wiring the tests above cannot reach
 
     // Everything above injects its own `limit:` into `drain`. That is the only
@@ -216,6 +316,25 @@ struct LocalAPIBodyLimitTests {
         let unreadableArm = try Self.arm(named: "case .unreadable:", in: read)
         #expect(unreadableArm.contains("Could not read request body"),
                 "a dropped socket keeps the 400 all four call sites already sent")
+    }
+
+    /// `drain` actually consults the reservation policy.
+    ///
+    /// The five tests above call `reservation(declared:received:)` directly,
+    /// which says nothing about whether the loop uses it. Put
+    /// `body.reserveCapacity(count)` — the line review round 2 removed — back at
+    /// the top of `drain` and all five stay green while the amplification is
+    /// back. So read the production loop, exactly as
+    /// `theProductionReadUsesTheRequestCap` reads `read`.
+    @Test func theDrainLoopSizesItsBufferFromTheReservationPolicy() throws {
+        let drain = try Self.drainFunctionBody()
+
+        #expect(drain.contains("Self.reservation(declared:"),
+                "drain must size its buffer through reservation(declared:received:)")
+        #expect(!drain.contains("reserveCapacity(count)"), """
+            The caller's Content-Length must not size the buffer. A ~200-byte request declaring \
+            the cap would commit 50 MiB before a byte is read — the amplification #375 exists to close.
+            """)
     }
 
     /// Nothing in the Local API reads a body except the bounded reader.
@@ -305,10 +424,21 @@ extension LocalAPIBodyLimitTests {
     }
 
     /// The body of `LocalAPIBodyLimit.read(_:)`, comment lines removed.
+    fileprivate static func readFunctionBody() throws -> String {
+        try declaration(from: "static func read(", to: "static func drain")
+    }
+
+    /// The body of `LocalAPIBodyLimit.drain(count:limit:chunks:)`, comment lines
+    /// removed. Ends at the next declaration, `reservationFloor`.
+    fileprivate static func drainFunctionBody() throws -> String {
+        try declaration(from: "static func drain", to: "static let reservationFloor")
+    }
+
+    /// The production source between two anchors, comment lines removed.
     ///
     /// Comments go first so a doc comment that *describes* the production wiring
     /// cannot stand in for the wiring — the whole point is to read the code.
-    fileprivate static func readFunctionBody() throws -> String {
+    private static func declaration(from opening: String, to closing: String) throws -> String {
         let path = "app/macos/hyperwhisper/Managers/LocalAPI/LocalAPIBodyLimit.swift"
         let source = try contents(of: repoRoot.appendingPathComponent(path))
         let code = source
@@ -316,12 +446,12 @@ extension LocalAPIBodyLimitTests {
             .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
             .joined(separator: "\n")
 
-        guard let start = code.range(of: "static func read(") else {
-            throw ProductionSourceError.anchorNotFound("static func read(")
+        guard let start = code.range(of: opening) else {
+            throw ProductionSourceError.anchorNotFound(opening)
         }
         let rest = code[start.upperBound...]
-        guard let end = rest.range(of: "static func drain") else {
-            throw ProductionSourceError.anchorNotFound("static func drain")
+        guard let end = rest.range(of: closing) else {
+            throw ProductionSourceError.anchorNotFound(closing)
         }
         return String(rest[..<end.lowerBound])
     }
