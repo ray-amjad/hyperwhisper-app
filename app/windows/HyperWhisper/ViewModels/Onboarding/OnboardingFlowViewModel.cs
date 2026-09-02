@@ -729,6 +729,13 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         if (!_isLive || SelectedSource == source)
             return;
 
+        // The card is not on the Source step when this is false (see
+        // SourceOptions), so this is the same rule stated where it is enforceable:
+        // a machine with no local engine cannot stage the on-device branch, whether
+        // the ask comes from the UI or from a test.
+        if (source == OnboardingSourceKind.OnDevice && !IsOnDeviceAvailable)
+            return;
+
         SelectedSource = source;
 
         // The thing being validated has just changed underneath any check that is
@@ -1344,12 +1351,6 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     {
         SetupErrorMessage = SelectedSource switch
         {
-            // A catalog with no rows is not "nothing selected yet", it is a machine
-            // this build ships no local engine for (ARM64 Windows 10, or ARM64 with
-            // no native Parakeet daemon). Saying so beats an empty list under a
-            // permanently disabled Continue.
-            OnboardingSourceKind.OnDevice when _catalog.Models.Count == 0 =>
-                Loc.S("onboarding.setup.model.unsupported"),
             OnboardingSourceKind.OnDevice =>
                 SelectedModel is null ? null : _downloadErrors.Message(SelectedModel.Kind),
             OnboardingSourceKind.HyperWhisperCloud => _activationErrorMessage,

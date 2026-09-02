@@ -7997,19 +7997,33 @@ internal static class Program
                 }
             });
 
-            Run("onboarding: an empty on-device shortlist says why instead of going quiet", () =>
+            Run("onboarding: an empty on-device shortlist is never offered as a choice", () =>
             {
-                // The dead end the filter above could otherwise create: no rows, no
-                // selection, Continue disabled, nothing on screen.
-                var h = new OnboardingHarness();
-                h.Catalog.Catalog.Clear();
-                h.GrantMicrophone();
-                h.Flow.SelectSource(OnboardingSourceKind.OnDevice);
-                h.AdvanceTo(OnboardingStep.Setup);
+                // The dead end the platform filter could otherwise create. The
+                // Configure step for the on-device branch has NO error surface of
+                // its own - the two on that page belong to the licence and the BYOK
+                // probe - so an empty model list there is a gate that can never open
+                // with nothing on screen explaining it. The honest place to say no
+                // is the step that offers the choice, which is what ModesPage and
+                // MainViewModel already do for the same predicate.
+                var empty = new OnboardingHarness();
+                empty.Catalog.Catalog.Clear();
 
-                Assert(!string.IsNullOrWhiteSpace(h.Flow.SetupErrorMessage),
-                    "a machine with no local engine has to be told, not left staring at an empty list");
-                Assert(!h.Flow.CanContinue, "and the gate stays shut, because nothing is set up");
+                Assert(!empty.Flow.IsOnDeviceAvailable, "precondition: no local engine on this machine");
+                Assert(empty.Flow.SourceOptions.All(r => r.Kind != OnboardingSourceKind.OnDevice),
+                    "the on-device card must not be offered where no model can be installed");
+                Assert(empty.Flow.SourceOptions.Count == 2, "the other two branches are unaffected");
+
+                empty.Flow.SelectSource(OnboardingSourceKind.OnDevice);
+                Assert(empty.Flow.SelectedSource != OnboardingSourceKind.OnDevice,
+                    "and it cannot be staged by any other route either");
+
+                // The normal machine still gets all three.
+                var normal = new OnboardingHarness();
+                Assert(normal.Flow.IsOnDeviceAvailable, "precondition: the fake catalog has models");
+                Assert(normal.Flow.SourceOptions.Count == 3, "every branch is offered where it works");
+                Assert(normal.Flow.SourceOptions.Any(r => r.Kind == OnboardingSourceKind.OnDevice),
+                    "including on-device");
             });
 
             SynchronizationContext.SetSynchronizationContext(onboardingPreviousContext);

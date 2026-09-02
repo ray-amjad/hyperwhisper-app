@@ -920,7 +920,184 @@ if (Test-Path -LiteralPath $GuardPath) {
 }
 
 # ===========================================================================
-Write-Section "5. Build and smoke suite"
+Write-Section "5. Review round 3"
+#
+# Checks that need the repo on disk rather than a running flow: an asset
+# directory, a source file's wiring, a locale table. Everything here that CAN be
+# expressed as behaviour is ALSO a smoke case; these are the ones that cannot.
+# ===========================================================================
+
+# --- C7: the provider-logo set must match the directory ------------------
+#
+# The Meta chip rendered a blank 14x14 gap because two screens concatenated
+# "/Assets/Providers/{name}.png" and one of the names is a sentinel with no file.
+# ProviderAssets.ShippedNames is now the single list callers check against, and
+# it is only worth anything if it is true.
+$ProviderAssetsPath = Join-Path $ProjectRoot "Models\ProviderAssets.cs"
+$ProviderAssetsDir = Join-Path $ProjectRoot "Assets\Providers"
+
+if ((Test-Path -LiteralPath $ProviderAssetsPath) -and (Test-Path -LiteralPath $ProviderAssetsDir)) {
+    $assetSource = Read-Text $ProviderAssetsPath
+    $declared = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($m in [regex]::Matches($assetSource, '"(provider[A-Za-z0-9]+)"')) {
+        $declared.Add($m.Groups[1].Value) | Out-Null
+    }
+
+    $onDisk = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($png in Get-ChildItem -LiteralPath $ProviderAssetsDir -Filter "*.png") {
+        $onDisk.Add([System.IO.Path]::GetFileNameWithoutExtension($png.Name)) | Out-Null
+    }
+
+    $missingFile = @($declared | Where-Object { -not $onDisk.Contains($_) })
+    $missingEntry = @($onDisk | Where-Object { -not $declared.Contains($_) })
+
+    if ($missingFile.Count -gt 0) {
+        Write-Fail ("ProviderAssets.ShippedNames lists logos that do not exist: " + ($missingFile -join ", "))
+    } elseif ($missingEntry.Count -gt 0) {
+        Write-Fail ("Assets\Providers has PNGs ProviderAssets.ShippedNames does not list: " + ($missingEntry -join ", "))
+    } else {
+        Write-Pass "ProviderAssets.ShippedNames is exactly the $($onDisk.Count) PNGs in Assets\Providers"
+    }
+
+    # And nothing may go back to building the path by hand. The smoke suite
+    # asserts the mapping; this asserts that the mapping is the only route.
+    $concatenators = @()
+    foreach ($file in Get-ChildItem -LiteralPath $ProjectRoot -Recurse -Include "*.cs" -File) {
+        if ($file.FullName -eq $ProviderAssetsPath) { continue }
+        $text = Read-Text $file.FullName
+        if ($text -match '\$"/Assets/Providers/\{') {
+            $concatenators += (Get-RelativePath $file.FullName)
+        }
+    }
+
+    if ($concatenators.Count -gt 0) {
+        Write-Fail ("a provider logo path is built by interpolation instead of ProviderAssets.PathFor: " + ($concatenators -join ", "))
+    } else {
+        Write-Pass "every provider logo path goes through ProviderAssets, which checks the name"
+    }
+} else {
+    Write-Fail "ProviderAssets.cs or Assets\Providers not found"
+}
+
+# --- C9: the LocationChanged clamp is debounced ---------------------------
+#
+# LocationChanged fires per pixel of a caption drag. Clamping on every one of
+# them made the window snap back before it could accumulate enough overlap with
+# the next display for Screen.FromHandle to switch, so it could not be dragged to
+# a second monitor at all. app/windows/AGENTS.md requires the debounce.
+if (Test-Path -LiteralPath $OnboardingWindowCode) {
+    $windowCode = Read-Text $OnboardingWindowCode
+
+    if ($windowCode -match 'LocationChanged\s*\+=\s*\(_,\s*_\)\s*=>\s*ClampToWorkArea\(\)') {
+        Write-Fail "LocationChanged clamps synchronously; AGENTS.md requires a ~250 ms debounce on a per-pixel event"
+    } else {
+        Write-Pass "LocationChanged does not clamp synchronously"
+    }
+
+    Assert-Wired $windowCode "LocationChanged += (_, _) => ScheduleClamp();" `
+        "the per-pixel LocationChanged goes through the debounce"
+    Assert-Wired $windowCode "DispatcherTimer" `
+        "and the debounce is a UI-thread timer, because the handler writes Left/Top/Width/Height"
+    Assert-Wired $windowCode "DpiChanged += (_, _) => ClampToWorkArea();" `
+        "while DpiChanged, which fires once, still clamps inline"
+    Assert-Wired $windowCode "ReportFailedSourceApply" `
+        "a staged-source write the database refused is reported rather than closing over it"
+}
+
+# --- C10: input ownership is separate from the per-profile mutex ----------
+if (Test-Path -LiteralPath $GuardPath) {
+    $guardSource = Read-Text $GuardPath
+    Assert-Wired $guardSource "OwnsGlobalInput" `
+        "the guard answers 'may this process take machine-global input' separately from the mutex"
+    Assert-Wired $guardSource "HYPERWHISPER_WINDOWS_GLOBAL_INPUT" `
+        "and the opt-in that restores it for a deliberate hotkey test is named"
+
+    foreach ($hookFile in @("Services\KeyboardShortcutService.cs", "Services\PushToTalkMonitor.cs")) {
+        $hookPath = Join-Path $ProjectRoot $hookFile
+        if (Test-Path -LiteralPath $hookPath) {
+            Assert-Wired (Read-Text $hookPath) "SingleInstanceGuard.OwnsGlobalInput" `
+                "$hookFile asks before installing a machine-global keyboard hook"
+        } else {
+            Write-Fail "$hookFile not found"
+        }
+    }
+}
+
+# --- C8: the recorder's border and its reason are one thing --------------
+$RecorderCode = Join-Path $ProjectRoot "Views\Controls\ShortcutRecorderBox.xaml.cs"
+if (Test-Path -LiteralPath $RecorderCode) {
+    $recorderSource = Read-Text $RecorderCode
+    Assert-Wired $recorderSource "if (!ShowsInlineError)" `
+        "ShowError returns before the border when the host wants no inline line"
+    Assert-Wired $recorderSource "box.ClearError();" `
+        "re-seeding DisplayText clears the last verdict, which nothing used to do"
+} else {
+    Write-Fail "ShortcutRecorderBox.xaml.cs not found"
+}
+
+$inlineErrorOff = @()
+foreach ($xaml in Get-ChildItem -LiteralPath (Join-Path $ProjectRoot "Views") -Recurse -Include "*.xaml" -File) {
+    if ((Read-Text $xaml.FullName) -match 'ShowsInlineError\s*=\s*"False"') {
+        $inlineErrorOff += (Get-RelativePath $xaml.FullName)
+    }
+}
+
+if ($inlineErrorOff.Count -gt 0) {
+    Write-Fail ("a recorder is declared ShowsInlineError=False, which used to mean a red border with no reason: " + ($inlineErrorOff -join ", "))
+} else {
+    Write-Pass "no recorder is declared ShowsInlineError=False"
+}
+
+# --- C3: an undelivered transcript is reported ---------------------------
+if (Test-Path -LiteralPath $MainViewModelPath) {
+    $mainVm = Read-Text $MainViewModelPath
+    $reportCalls = ([regex]::Matches($mainVm, 'ReportUndeliveredTranscript\(\);')).Count
+    if ($reportCalls -ge 3) {
+        Write-Pass "all $reportCalls clipboard-only delivery sites report a refused write"
+    } else {
+        Write-Fail "only $reportCalls of the 3 clipboard-only delivery sites report a refused write"
+    }
+
+    Assert-Wired $mainVm "TextDeliveryGate.IsSuppressed" `
+        "and a delivery the onboarding gate refused ON PURPOSE is still silent (round 1's rule)"
+}
+
+# --- C2: a cancelled activation is not a verdict --------------------------
+$LicenseManagerPath = Join-Path $ProjectRoot "Services\LicenseManager.cs"
+if (Test-Path -LiteralPath $LicenseManagerPath) {
+    Assert-Wired (Read-Text $LicenseManagerPath) "cancellationToken.IsCancellationRequested && !result.IsValid" `
+        "a cancelled activation does not write LicenseStatus.Invalid into the process-wide manager"
+} else {
+    Write-Fail "LicenseManager.cs not found"
+}
+
+# --- C1 / Codex P1: single-sourced facts ---------------------------------
+$ProviderEnumPath = Join-Path $ProjectRoot "Models\CloudTranscriptionProvider.cs"
+$HealthPath = Join-Path $ProjectRoot "Services\CloudProviderHealthService.cs"
+if ((Test-Path -LiteralPath $ProviderEnumPath) -and (Test-Path -LiteralPath $HealthPath)) {
+    Assert-Wired (Read-Text $ProviderEnumPath) "SupportsKeyHealthProbe" `
+        "'this vendor cannot be probed' is a predicate on the enum, not a literal in two files"
+    Assert-Wired (Read-Text $HealthPath) "provider.SupportsKeyHealthProbe()" `
+        "and the health service reads it rather than hard-coding Meta a second time"
+}
+
+$CatalogAdapter = Join-Path $AdaptersDir "OnboardingLiveDependencies.cs"
+if (Test-Path -LiteralPath $CatalogAdapter) {
+    $adapterSource = Read-Text $CatalogAdapter
+    Assert-Wired $adapterSource "PlatformHelper.SupportsParakeetTranscription" `
+        "the on-device shortlist is filtered by the same predicate ModeService and ModelLibraryManager use"
+    Assert-Wired $adapterSource "DeleteLeftNothingBehind" `
+        "the Mode rollback is judged on whether the row is gone, not on DeleteMode's three-way false"
+
+    if ($adapterSource.Contains("providerLocalParakeet")) {
+        Write-Fail "the onboarding local-model row still uses providerLocalParakeet, which is not a file"
+    } else {
+        Write-Pass "the onboarding local-model row no longer names a logo that does not exist"
+    }
+}
+
+# ===========================================================================
+Write-Section "6. Build and smoke suite"
 # ===========================================================================
 
 if ($StaticOnly) {

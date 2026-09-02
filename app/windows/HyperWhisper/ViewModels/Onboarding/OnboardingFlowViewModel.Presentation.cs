@@ -154,27 +154,52 @@ public sealed partial class OnboardingFlowViewModel
     /// The three doors, in macOS's order: HyperWhisper Cloud first, because it is
     /// the fastest path to a working first recording.
     /// </summary>
-    public IReadOnlyList<OnboardingSourceRow> SourceOptions => new[]
+    public IReadOnlyList<OnboardingSourceRow> SourceOptions
     {
-        new OnboardingSourceRow(
-            OnboardingSourceKind.HyperWhisperCloud,
-            "\uE753",
-            Loc.S("onboarding.source.cloud.title"),
-            Loc.S("onboarding.source.cloud.description"),
-            IsCloudSelected),
-        new OnboardingSourceRow(
-            OnboardingSourceKind.OnDevice,
-            "\uE977",
-            Loc.S("onboarding.source.onDevice.title"),
-            Loc.S("onboarding.source.onDevice.description"),
-            IsOnDeviceSelected),
-        new OnboardingSourceRow(
-            OnboardingSourceKind.YourProvider,
-            "\uE72E",
-            Loc.S("onboarding.source.provider.title"),
-            Loc.S("onboarding.source.provider.description"),
-            IsProviderSelected)
-    };
+        get
+        {
+            var rows = new List<OnboardingSourceRow>(3)
+            {
+                new(
+                    OnboardingSourceKind.HyperWhisperCloud,
+                    "\uE753",
+                    Loc.S("onboarding.source.cloud.title"),
+                    Loc.S("onboarding.source.cloud.description"),
+                    IsCloudSelected)
+            };
+
+            // The on-device branch is offered only where a local engine actually
+            // runs. The catalog is already filtered by PlatformHelper, so an empty
+            // one means this build ships no engine for this machine (ARM64 Windows
+            // 10, or ARM64 with no native sherpa-onnx daemon). Offering the card
+            // anyway led to a Configure step with an empty model list, a gate that
+            // could never open, and no error surface on that step to say why -
+            // which is a dead end, not a choice.
+            if (IsOnDeviceAvailable)
+            {
+                rows.Add(new OnboardingSourceRow(
+                    OnboardingSourceKind.OnDevice,
+                    "\uE977",
+                    Loc.S("onboarding.source.onDevice.title"),
+                    Loc.S("onboarding.source.onDevice.description"),
+                    IsOnDeviceSelected));
+            }
+
+            rows.Add(new OnboardingSourceRow(
+                OnboardingSourceKind.YourProvider,
+                "\uE72E",
+                Loc.S("onboarding.source.provider.title"),
+                Loc.S("onboarding.source.provider.description"),
+                IsProviderSelected));
+
+            return rows;
+        }
+    }
+
+    /// <summary>
+    /// Whether this machine has any on-device model to offer at all.
+    /// </summary>
+    public bool IsOnDeviceAvailable => _catalog.Models.Count > 0;
 
     // =========================================================================
     // FOOTER
