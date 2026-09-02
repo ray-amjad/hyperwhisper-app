@@ -792,7 +792,10 @@ enum TranscribeEndpoint {
             mode.model = model ?? "base"
         case "parakeet":
             mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
-        case "nemotron", "nemotronlocal", "nemotron-local", "nemotron-asr":
+        // Shared spelling list — see `Constants.engineAliases`. Must stay the
+        // same set `TranscriptionProviderRouter.resolveProvider` matches on,
+        // which is why it is a constant and not a second literal copy.
+        case _ where NemotronModelManager.Constants.engineAliases.contains(normalizedEngine):
             let requestedNemotronModel = model?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if requestedNemotronModel.isEmpty {
                 // No explicit model. Same reasoning as the cloud branch's

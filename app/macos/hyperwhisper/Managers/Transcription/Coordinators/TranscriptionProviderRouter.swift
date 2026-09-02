@@ -497,7 +497,10 @@ class TranscriptionProviderRouter {
                 )
             }
             modelString = canonicalModelId
-        case "nemotron", "nemotronlocal", "nemotron-local", "nemotron-asr":
+        // Shared spelling list — see `Constants.engineAliases`. The literal
+        // copy that used to live here and the one in
+        // `TranscribeEndpoint.applyEngineModel` could drift apart silently.
+        case _ where NemotronModelManager.Constants.engineAliases.contains(normalizedEngine):
             let requestedModelId = NemotronModelManager.Constants.modelIdForSelection(model)
             guard let canonicalModelId = NemotronModelManager.Constants.canonicalModelId(for: requestedModelId) else {
                 throw TranscriptionError.providerNotAvailable(

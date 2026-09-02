@@ -13,18 +13,23 @@
 //  So there are two properties worth pinning here, and they are different:
 //
 //  1. The engine ALIASES have to keep landing a canonical Nemotron id on the
-//     Mode. `resolveProvider` and `applyEngineModel` are two hand-copied
-//     switches over the same spellings, and drifting them is exactly the bug
-//     class this file exists for.
+//     Mode. `resolveProvider` and `applyEngineModel` were two hand-copied
+//     switches over the same spellings; they now match the one
+//     `NemotronModelManager.Constants.engineAliases` set, so they cannot
+//     drift, and `theSharedEngineAliasSetIsPinned` guards the set itself.
 //  2. `engineLabel(forMode:)` has to keep saying "nemotron", including on the
 //     `mode_id` path that never goes near an `engine=` string. That path is
 //     the issue's first comment, where a saved Nemotron mode reported
 //     `"engine": "whisperLocal"`.
+//  3. The mixed `mode_id` + `engine` form must not swap the variant the
+//     caller saved — review round 1's regression, where re-asserting
+//     `engine=nemotron` on a Latin mode silently selected multilingual.
 //
 //  `resolveProvider` and `HealthEndpoint.handle` are NOT tested here: both are
 //  `@MainActor` and want live providers / `Bundle.main`, and no test in this
-//  target stands up that fixture. The router arm is covered by inspection
-//  against the `parakeet` arm it copies.
+//  target stands up that fixture. The router arm's model handling is covered
+//  by inspection against the `parakeet` arm it copies; its alias handling is
+//  covered structurally, by reading the same constant this file pins.
 //
 
 import Foundation
@@ -129,18 +134,59 @@ struct NemotronLocalAPIEngineTests {
         #expect(NemotronModelManager.Constants.modelIdForSelection("  typo  ") == "typo")
     }
 
+    // MARK: - Constants.engineAliases
+
+    /// Review round 1. `resolveProvider` and `applyEngineModel` used to hold
+    /// literal copies of these four spellings, and only `applyEngineModel` is
+    /// reachable from this target — deleting `"nemotron-asr"` from the router
+    /// left every test green while `POST /transcribe {"engine":"nemotron-asr"}`
+    /// started answering `Unknown engine`. Both switches now match this one
+    /// set, so they cannot drift; this test pins the set itself, which is the
+    /// only thing left that can change silently.
+    @Test func theSharedEngineAliasSetIsPinned() {
+        #expect(
+            NemotronModelManager.Constants.engineAliases == [
+                "nemotron",
+                "nemotronlocal",
+                "nemotron-local",
+                "nemotron-asr",
+            ],
+            "an engine spelling was added or removed — the OpenAPI contract's `engine` description must match"
+        )
+
+        // Both switches lowercase before matching, so an entry that is not
+        // already lowercase is dead and would silently accept nothing.
+        for alias in NemotronModelManager.Constants.engineAliases {
+            #expect(alias == alias.lowercased(), "'\(alias)' can never be matched")
+        }
+
+        // The label `/transcribe` reports back must itself be an accepted
+        // spelling, so a client can feed a response's `engine` straight into
+        // the next request.
+        let persistence = PersistenceController(inMemory: true)
+        let mode = Mode(context: persistence.container.viewContext)
+        mode.model = NemotronModelManager.Constants.multilingualModelId
+        let label = TranscribeEndpoint.engineLabel(forMode: mode)
+        #expect(
+            NemotronModelManager.Constants.engineAliases.contains(label.lowercased()),
+            "the response label '\(label)' is not an engine spelling the API accepts back"
+        )
+    }
+
     // MARK: - TranscribeEndpoint.applyEngineModel(to:engine:model:)
 
     /// Every accepted spelling of `engine=`, including the mixed case the
     /// switch normalizes away. `"nemotron"` and `"nemotronLocal"` are the two
-    /// the issue's repro actually sent.
+    /// the issue's repro actually sent. Driven off `Constants.engineAliases`
+    /// so a spelling added to the shared list is exercised here without
+    /// anyone remembering to widen this array.
     @Test func everyNemotronEngineAliasSelectsTheDefaultVariant() {
         let persistence = PersistenceController(inMemory: true)
-        let aliases = [
-            "nemotron", "Nemotron", "NEMOTRON",
-            "nemotronlocal", "nemotronLocal",
-            "nemotron-local", "Nemotron-Local",
-            "nemotron-asr", "NEMOTRON-ASR",
+        let aliases = Array(NemotronModelManager.Constants.engineAliases) + [
+            "Nemotron", "NEMOTRON",
+            "nemotronLocal",
+            "Nemotron-Local",
+            "NEMOTRON-ASR",
         ]
 
         for alias in aliases {

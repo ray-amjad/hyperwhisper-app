@@ -93,6 +93,27 @@ final class NemotronModelManager: ObservableObject {
         // cache-reuse probe in downloadVariant.
         static let metadataFileName = "metadata.json"
 
+        /// Engine spellings the Local API accepts for `engine=`. Both call
+        /// sites lowercase the caller's string first, so every entry here is
+        /// lowercase.
+        ///
+        /// This is ONE list matched by two independently maintained switches —
+        /// `TranscriptionProviderRouter.resolveProvider` and
+        /// `TranscribeEndpoint.applyEngineModel`. They were literal copies of
+        /// each other, and the router's arm cannot be unit-tested in this
+        /// target (it needs live providers and `Bundle.main`), so deleting a
+        /// spelling from one and not the other would have turned a working
+        /// `engine=` into `Unknown engine` with every test still green.
+        /// Sharing the list makes that drift impossible rather than merely
+        /// observable; `NemotronLocalAPIEngineTests` pins the contents so the
+        /// spellings themselves cannot change unnoticed.
+        static let engineAliases: Set<String> = [
+            "nemotron",
+            "nemotronlocal",
+            "nemotron-local",
+            "nemotron-asr"
+        ]
+
         /// Resolve supported persisted aliases to the exact identifiers used
         /// by the model library. Keep this list explicit: coercing an unknown
         /// identifier to a real variant would make a typo select a real model.
