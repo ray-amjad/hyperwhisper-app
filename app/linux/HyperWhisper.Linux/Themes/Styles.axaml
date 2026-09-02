@@ -170,4 +170,35 @@
     <Setter Property="MinHeight" Value="0"/>
     <Setter Property="Padding" Value="8,0,0,0"/>
   </Style>
+
+  <!-- A disabled action should recede, not read as a filled button. -->
+  <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwSubtleBorderBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextTertiaryBrush}"/>
+  </Style>
+
+  <!-- The default scroll bar draws as a heavy dark bar against a card. -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ScrollBar:vertical">
+    <Setter Property="Width" Value="10"/>
+  </Style>
+  <Style Selector="ScrollBar:horizontal">
+    <Setter Property="Height" Value="10"/>
+  </Style>
+  <Style Selector="ScrollBar /template/ Thumb">
+    <Setter Property="Background" Value="{DynamicResource HwTextTertiaryBrush}"/>
+    <Setter Property="Opacity" Value="0.45"/>
+    <Setter Property="CornerRadius" Value="5"/>
+  </Style>
+  <Style Selector="ScrollBar:pointerover /template/ Thumb">
+    <Setter Property="Opacity" Value="0.75"/>
+  </Style>
+
+  <!-- Page bodies breathe better with a consistent gap between sections. -->
+  <Style Selector="ScrollViewer.page">
+    <Setter Property="Padding" Value="0,0,10,0"/>
+  </Style>
 </Styles>
