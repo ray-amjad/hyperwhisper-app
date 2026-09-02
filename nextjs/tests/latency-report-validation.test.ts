@@ -118,6 +118,38 @@ test("accepts every provider the page can display", async () => {
   }
 });
 
+test("a retired provider is never also a live one", async () => {
+  const { KNOWN_PROVIDERS, RETIRED_PROVIDERS } = await loadProviders();
+
+  // RETIRED_PROVIDERS is applied as a NOT IN against the whole scan, so an id
+  // that appears in both lists would silently blank a provider the apps still
+  // offer — the page would draw nothing for it and say nothing about why. The
+  // two lists are maintained by hand at opposite ends of a provider's life, so
+  // this is the only thing stopping a retirement being written against the
+  // wrong id.
+  for (const provider of RETIRED_PROVIDERS) {
+    assert.ok(
+      !KNOWN_PROVIDERS.includes(provider),
+      `${provider} is retired but still in the catalog mirror`,
+    );
+  }
+});
+
+test("chirp_3 is retired, so ingest refuses it and the page hides its history", async () => {
+  const { validateSample } = await load();
+  const { RETIRED_PROVIDERS } = await loadProviders();
+
+  // Chirp 3 stopped being selectable at catalog v8 (2026-08-27), but the sweep
+  // that filled this page ran before that, so the 90-day window still holds its
+  // rows. Both halves have to hold: no new rows arrive, and the old ones are
+  // not drawn.
+  assert.ok(RETIRED_PROVIDERS.includes("google-chirp"));
+  assert.deepEqual(
+    validateSample(goodSample({ provider: "google-chirp" })),
+    { reason: "unknown provider" },
+  );
+});
+
 type CatalogFile = {
   providers: {
     sttProvider: string;

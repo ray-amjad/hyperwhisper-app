@@ -179,6 +179,30 @@ export const KNOWN_PROVIDERS: readonly string[] = STT_CATALOG.map(
   (entry) => entry.sttProvider,
 );
 
+/**
+ * Providers the page no longer draws, even though the window still holds their
+ * rows.
+ *
+ * This is NOT the same as "absent from STT_CATALOG". An unmapped provider
+ * renders under its raw backend id on purpose — that is how something added to
+ * the edge service shows up here immediately, looking unfinished rather than
+ * being silently dropped (see the file header). A RETIRED provider is the
+ * opposite case: the apps dropped it, no client can select it any more, and its
+ * stored rows are history. Drawing it invites a visitor to shop for a provider
+ * their app does not offer, and a raw id like `google-chirp` reads as a row
+ * someone forgot to finish rather than one deliberately left behind.
+ *
+ * Nothing is deleted. The rows stay for the retention the privacy page states,
+ * WINDOW_DAYS ages them out of the aggregate on its own, and this list only
+ * stops them being drawn in the meantime. Ingest already refuses new rows for
+ * them, because KNOWN_PROVIDERS is derived from the catalog above.
+ *
+ *  - `google-chirp` — Google Cloud Speech-to-Text V2 Chirp 3. Replaced by
+ *    geminiTranscribe as the Google HyperWhisper Cloud tier at catalog v8
+ *    (2026-08-27); the app's picker has not offered it since.
+ */
+export const RETIRED_PROVIDERS: readonly string[] = ["google-chirp"];
+
 /** The name the app's Provider dropdown shows for a vendor key. */
 export function vendorDisplayName(vendorKey: string): string {
   const entry = STT_CATALOG.find((candidate) => candidate.vendor === vendorKey);
