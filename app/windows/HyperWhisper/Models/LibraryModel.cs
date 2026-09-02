@@ -122,7 +122,6 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
         ? Visibility.Collapsed : Visibility.Visible;
     public Visibility ProviderMonogramVisibility => Model.ProviderAssetName == "providerMeta"
         ? Visibility.Visible : Visibility.Collapsed;
-    public string TypeText => Model.Kind == LibraryModelKind.Voice ? "Voice" : "Language";
     public string TagText => Model.Tag ?? "";
     public Visibility TagVisibility => string.IsNullOrWhiteSpace(Model.Tag) ? Visibility.Collapsed : Visibility.Visible;
     public string RuntimeBadgeText => Model.RuntimeBadge ?? "";

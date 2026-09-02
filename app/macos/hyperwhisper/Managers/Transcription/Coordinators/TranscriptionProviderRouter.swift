@@ -166,6 +166,21 @@ class TranscriptionProviderRouter {
 
     // MARK: - Provider Selection
 
+    /// A resolved provider together with the cloud identity it was resolved
+    /// FROM, when there was one.
+    ///
+    /// Exists so a transcription call site can report the attempt's outcome back
+    /// to `CloudProviderHealthManager.recordTranscriptionOutcome(for:credentialGeneration:error:)`
+    /// (issue #379) without re-deriving the provider identity from the Mode — the
+    /// derivation here is a BILLING decision (`CloudProvider.parse(...) ??
+    /// .hyperwhisper`, see below) and must have exactly one implementation.
+    ///
+    /// `cloudProviderType` is nil for local engines, which have no health record.
+    struct ProviderSelection {
+        let provider: any TranscriptionProvider
+        let cloudProviderType: CloudProvider?
+    }
+
     /// Select the appropriate provider for the given mode
     /// PROVIDER SELECTION FLOW:
     /// 1. Determine if cloud transcription is needed based on model string
@@ -179,9 +194,10 @@ class TranscriptionProviderRouter {
     /// - Parameters:
     ///   - mode: Transcription mode containing provider preferences
     ///   - vocabulary: Custom vocabulary for local transcription
-    /// - Returns: Configured and ready transcription provider
+    /// - Returns: The configured, ready provider plus the cloud identity it was
+    ///   resolved from (nil for local engines) — see `ProviderSelection`.
     /// - Throws: TranscriptionError if provider unavailable or misconfigured
-    func selectProvider(for mode: Mode?, vocabulary: [Vocabulary]) async throws -> TranscriptionProvider {
+    func selectProvider(for mode: Mode?, vocabulary: [Vocabulary]) async throws -> ProviderSelection {
         let rawModel = (mode?.model ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         // Empty model id (legacy/imported modes) is treated as cloud — matches prepareModel's behaviour
         let modelString = rawModel.isEmpty ? "cloud" : rawModel
@@ -196,7 +212,8 @@ class TranscriptionProviderRouter {
             // "apple-speech-analyzer"), so a non-canonically-cased id from a
             // hand-edited / cross-platform backup would otherwise be prepared by
             // the coordinator yet rejected here as "Unknown local model".
-            return try await selectLocalProvider(modelId: modelString.lowercased(), language: language)
+            let local = try await selectLocalProvider(modelId: modelString.lowercased(), language: language)
+            return ProviderSelection(provider: local, cloudProviderType: nil)
         }
 
         // CLOUD PROVIDER SELECTION
@@ -345,7 +362,7 @@ class TranscriptionProviderRouter {
             throw TranscriptionError.transientNetwork(details: "No internet connection")
         }
 
-        return provider
+        return ProviderSelection(provider: provider, cloudProviderType: cloudProviderType)
     }
 
     /// Check post-processing provider health
@@ -441,7 +458,9 @@ class TranscriptionProviderRouter {
     ///     For Apple Speech and Qwen3 ASR the model arg is ignored — those
     ///     engines have a single model.
     ///   - language: BCP-47 language code, or "auto"/nil for auto-detect.
-    func resolveProvider(engine: String, model: String?, language: String?) async throws -> TranscriptionProvider {
+    /// - Returns: The configured provider plus the cloud identity the engine
+    ///   string resolved to (nil for local engines) — see `ProviderSelection`.
+    func resolveProvider(engine: String, model: String?, language: String?) async throws -> ProviderSelection {
         let normalizedEngine = engine.lowercased()
         let resolvedLanguage: String? = (language?.lowercased() == "auto") ? nil : language
 
@@ -456,7 +475,8 @@ class TranscriptionProviderRouter {
             cloudType = CloudProvider.parse(normalized.provider)
         }
         if let cloudType {
-            return try await selectCloudProviderForLocalAPI(cloudProviderType: cloudType)
+            let cloud = try await selectCloudProviderForLocalAPI(cloudProviderType: cloudType)
+            return ProviderSelection(provider: cloud, cloudProviderType: cloudType)
         }
 
         // Local engine? Map to a model id understood by `selectLocalProvider`.
@@ -484,7 +504,8 @@ class TranscriptionProviderRouter {
             throw TranscriptionError.providerNotAvailable(provider: engine, reason: "Unknown engine '\(engine)'")
         }
 
-        return try await selectLocalProvider(modelId: modelString, language: resolvedLanguage)
+        let local = try await selectLocalProvider(modelId: modelString, language: resolvedLanguage)
+        return ProviderSelection(provider: local, cloudProviderType: nil)
     }
 
     /// Cloud-side counterpart used by `resolveProvider`. Mirrors the cloud

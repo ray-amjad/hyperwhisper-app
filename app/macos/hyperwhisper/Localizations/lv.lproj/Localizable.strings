@@ -422,10 +422,6 @@
 "license.button.activate" = "Aktivizēt";
 "license.button.activating" = "Aktivizējams...";
 "license.status.label" = "Statuss: %@";
-"license.status.trial.title" = "Pārbaude";
-"license.status.active.title" = "Aktīvs";
-"license.status.expired.title" = "Beidzies";
-"license.status.invalid.title" = "Nepareizs";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencēts – Pilna piekļuve";
 "license.status.expired.description" = "Licence beidzusies";
@@ -1055,7 +1051,6 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "settings.backup.import.confirm.button" = "Importēt";
 "settings.backup.conflict.skip" = "Izlaist esošos";
 "settings.backup.conflict.replace" = "Aizstāt esošos";
-"settings.backup.conflict.keepBoth" = "Saglabāt abas";
 "settings.backup.security.warning" = "Brīdinājums: Eksportētais fails satur sensitīvus datus. Saglabājiet to drošā vietā un nedalieties ar to.";
 "settings.backup.info.note" = "Rezerves kopijas ietver iestatījumus, režīmus un vārdu krājumu. Ieraksti un transkripti netiek iekļauti.";
 "settings.backup.result.success.title" = "Sekmīgi";
@@ -1090,9 +1085,6 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcribe.file.error.video.noAudio" = "Šajā video failā nav audio ceļa. Lūdzu atlasiet video ar audio vai audio failu.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Sagatavošana...";
-"file.transcription.transcribing" = "Transkribēšana...";
-"file.transcription.finishing" = "Pabeigšana...";
 "file.transcription.cancel" = "Atcelt";
 
 // MARK: - Auto-Delete Recordings

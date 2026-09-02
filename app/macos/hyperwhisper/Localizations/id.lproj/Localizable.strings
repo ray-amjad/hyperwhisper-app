@@ -422,10 +422,6 @@
 "license.button.activate" = "Aktifkan";
 "license.button.activating" = "Mengaktifkan...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Uji Coba";
-"license.status.active.title" = "Aktif";
-"license.status.expired.title" = "Kedaluwarsa";
-"license.status.invalid.title" = "Tidak Valid";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Berlisensi – Akses Penuh";
 "license.status.expired.description" = "Lisensi Kedaluwarsa";
@@ -1055,7 +1051,6 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "settings.backup.import.confirm.button" = "Impor";
 "settings.backup.conflict.skip" = "Lewati yang ada";
 "settings.backup.conflict.replace" = "Ganti yang ada";
-"settings.backup.conflict.keepBoth" = "Simpan keduanya";
 "settings.backup.security.warning" = "Peringatan: File yang diekspor akan berisi data sensitif. Jaga keamanannya dan jangan dibagikan.";
 "settings.backup.info.note" = "Cadangan mencakup pengaturan, mode, dan kosakata. Rekaman dan transkrip tidak disertakan.";
 "settings.backup.result.success.title" = "Berhasil";
@@ -1090,9 +1085,6 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcribe.file.error.video.noAudio" = "File video ini tidak berisi trek audio. Silakan pilih video dengan audio atau file audio.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Mempersiapkan...";
-"file.transcription.transcribing" = "Metranskripsi...";
-"file.transcription.finishing" = "Menyelesaikan...";
 "file.transcription.cancel" = "Batal";
 
 // MARK: - Auto-Delete Recordings

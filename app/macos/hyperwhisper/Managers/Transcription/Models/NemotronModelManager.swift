@@ -34,10 +34,6 @@ struct NemotronModel: Identifiable, Equatable {
     let isNew: Bool
     var isDownloaded: Bool
     var localURL: URL?
-
-    var isMultilingual: Bool {
-        supportedLanguages.count > 1
-    }
 }
 
 @available(macOS 14.0, *)

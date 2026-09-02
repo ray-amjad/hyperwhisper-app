@@ -422,10 +422,6 @@
 "license.button.activate" = "Aktiviraj";
 "license.button.activating" = "Aktiviranje...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Probno";
-"license.status.active.title" = "Aktivno";
-"license.status.expired.title" = "Isteklo";
-"license.status.invalid.title" = "Nevažeće";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencirano – potpuni pristup";
 "license.status.expired.description" = "Licenca istekla";
@@ -1055,7 +1051,6 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "settings.backup.import.confirm.button" = "Uvezi";
 "settings.backup.conflict.skip" = "Preskoči postojeće";
 "settings.backup.conflict.replace" = "Zamijeni postojeće";
-"settings.backup.conflict.keepBoth" = "Zadrži oboje";
 "settings.backup.security.warning" = "Upozorenje: Izvezena datoteka će sadržavati osjetljive podatke. Čuvajte je sigurno i nemojte je dijeliti.";
 "settings.backup.info.note" = "Sigurnosne kopije uključuju postavke, načine i rječnik. Snimanja i transkripcije nisu uključene.";
 "settings.backup.result.success.title" = "Uspjeh";
@@ -1090,9 +1085,6 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "transcribe.file.error.video.noAudio" = "Ova video datoteka ne sadrži audio zapis. Molimo odaberite video sa zvukom ili audio datoteku.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Priprema...";
-"file.transcription.transcribing" = "Transkripcija...";
-"file.transcription.finishing" = "Završavanje...";
 "file.transcription.cancel" = "Odustani";
 
 // MARK: - Auto-Delete Recordings

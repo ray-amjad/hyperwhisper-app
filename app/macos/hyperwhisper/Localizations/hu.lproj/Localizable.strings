@@ -422,10 +422,6 @@
 "license.button.activate" = "Aktiválás";
 "license.button.activating" = "Aktiválás...";
 "license.status.label" = "Állapot: %@";
-"license.status.trial.title" = "Próba";
-"license.status.active.title" = "Aktív";
-"license.status.expired.title" = "Lejárt";
-"license.status.invalid.title" = "Érvénytelen";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencelt – Teljes hozzáférés";
 "license.status.expired.description" = "Licenc lejárt";
@@ -1055,7 +1051,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.confirm.button" = "Importálás";
 "settings.backup.conflict.skip" = "Meglévők kihagyása";
 "settings.backup.conflict.replace" = "Meglévők cseréje";
-"settings.backup.conflict.keepBoth" = "Mindkettő megtartása";
 "settings.backup.security.warning" = "Figyelmeztetés: Az exportált fájl érzékeny adatokat fog tartalmazni. Tartsd biztonságban és ne oszd meg.";
 "settings.backup.info.note" = "A biztonsági mentések beállításokat, módokat és szókincset tartalmaznak. Felvételek és átírások nem kerülnek bele.";
 "settings.backup.result.success.title" = "Sikeres";
@@ -1090,9 +1085,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcribe.file.error.video.noAudio" = "Ez a videó fájl nem tartalmaz audio sávot. Kérlek válassz audio sávval rendelkező videót vagy audio fájlt.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Előkészítés...";
-"file.transcription.transcribing" = "Átírás...";
-"file.transcription.finishing" = "Befejezés...";
 "file.transcription.cancel" = "Mégsem";
 
 // MARK: - Auto-Delete Recordings

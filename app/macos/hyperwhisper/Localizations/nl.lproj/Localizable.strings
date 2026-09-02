@@ -422,10 +422,6 @@
 "license.button.activate" = "Activeren";
 "license.button.activating" = "Activeren...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Proefversie";
-"license.status.active.title" = "Actief";
-"license.status.expired.title" = "Verlopen";
-"license.status.invalid.title" = "Ongeldig";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Gelicentieerd – Volledige toegang";
 "license.status.expired.description" = "Licentie verlopen";
@@ -1055,7 +1051,6 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.backup.import.confirm.button" = "Importeren";
 "settings.backup.conflict.skip" = "Bestaande overslaan";
 "settings.backup.conflict.replace" = "Bestaande vervangen";
-"settings.backup.conflict.keepBoth" = "Beiden behouden";
 "settings.backup.security.warning" = "Waarschuwing: Het geëxporteerde bestand bevat gevoelige gegevens. Bewaar het veilig en deel het niet.";
 "settings.backup.info.note" = "Back-ups bevatten instellingen, modi en woordenlijst. Opnamen en transcripties zijn niet inbegrepen.";
 "settings.backup.result.success.title" = "Succes";
@@ -1090,9 +1085,6 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcribe.file.error.video.noAudio" = "Dit videobestand bevat geen audiopunt. Selecteer een video met audio of een audiobestand.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Voorbereiden...";
-"file.transcription.transcribing" = "Transcriberen...";
-"file.transcription.finishing" = "Voltooien...";
 "file.transcription.cancel" = "Annuleren";
 
 // MARK: - Auto-Delete Recordings

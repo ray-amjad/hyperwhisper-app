@@ -543,11 +543,6 @@ pub fn build_live_setup_frame(
     frame.to_string()
 }
 
-/// Build a live **audio** frame from raw PCM (16 kHz, mono, signed 16-bit LE).
-pub fn build_live_audio_frame(pcm: &[u8]) -> String {
-    build_live_audio_frame_base64(&base64_encode(pcm))
-}
-
 /// Build a live **audio** frame from audio the caller has already base64-encoded
 /// (the native streaming strategies encode as they read from the capture ring,
 /// so they hold the string, not the bytes).
@@ -1145,8 +1140,10 @@ mod tests {
 
     #[test]
     fn live_audio_frame_shape() {
-        let frame: serde_json::Value =
-            serde_json::from_str(&build_live_audio_frame(&[0x41, 0x42, 0x43])).unwrap();
+        let frame: serde_json::Value = serde_json::from_str(&build_live_audio_frame_base64(
+            &base64_encode(&[0x41, 0x42, 0x43]),
+        ))
+        .unwrap();
         assert_eq!(frame["realtime_input"]["audio"]["data"], "QUJD");
         assert_eq!(
             frame["realtime_input"]["audio"]["mime_type"],

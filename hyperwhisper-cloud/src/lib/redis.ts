@@ -1,10 +1,16 @@
 // UPSTASH REDIS CLIENT
 // Serverless Redis for IP blocking and license caching
 // Works globally with Fly.io's anycast routing
+//
+// This module is the I/O edge only: it builds the client. The logic the three
+// functions below carry out lives in `./redis-core`, where the client arrives
+// as a parameter — see the note at the top of that file for why a test cannot
+// reach it through this module.
 
 import { Redis } from '@upstash/redis';
-import { LICENSE_CACHE_TTL_SECONDS } from './constants';
-import { isRecord } from './utils';
+import * as core from './redis-core';
+
+export type { CachedLicense, RedisStore, RedisStoreFactory } from './redis-core';
 
 // Initialize Redis client (lazy initialization for testing without Redis)
 let _redis: Redis | null = null;
@@ -33,54 +39,17 @@ export const redis = {
 // ============================================================================
 
 export async function isIPBlocked(ip: string): Promise<boolean> {
-  try {
-    const blockKey = `ip_blocked:${ip}`;
-    const blocked = await getRedis().get(blockKey);
-    return blocked === 'true';
-  } catch {
-    return false;
-  }
+  return core.isIPBlocked(getRedis, ip);
 }
 
 // ============================================================================
 // LICENSE CACHE (1 hour TTL for valid + invalid)
 // ============================================================================
 
-export interface CachedLicense {
-  isValid: boolean;
-  credits: number;
-  cachedAt: string;
+export async function getCachedLicense(licenseKey: string): Promise<core.CachedLicense | null> {
+  return core.getCachedLicense(getRedis, licenseKey);
 }
 
-function isCachedLicense(value: unknown): value is CachedLicense {
-  if (!isRecord(value)) return false;
-  return typeof value.isValid === 'boolean'
-    && typeof value.credits === 'number'
-    && typeof value.cachedAt === 'string';
-}
-
-export async function getCachedLicense(licenseKey: string): Promise<CachedLicense | null> {
-  try {
-    const cached = await getRedis().get<CachedLicense>(`license:${licenseKey}`);
-    if (!cached) return null;
-
-    // Validate the shape instead of asserting it. An entry written by an older
-    // schema (or a truncated string) used to come back with `isValid`
-    // undefined, which auth.ts reads as "license invalid" and locks a paying
-    // user out for the full TTL. Treat anything unrecognised as a cache MISS
-    // so the next request revalidates against the license API.
-    const parsed: unknown = typeof cached === 'string' ? JSON.parse(cached) : cached;
-    return isCachedLicense(parsed) ? parsed : null;
-  } catch (error) {
-    console.error('Failed to get cached license:', error);
-    return null;
-  }
-}
-
-export async function cacheLicense(licenseKey: string, license: CachedLicense): Promise<void> {
-  try {
-    await getRedis().set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS });
-  } catch (error) {
-    console.error('Failed to cache license:', error);
-  }
+export async function cacheLicense(licenseKey: string, license: core.CachedLicense): Promise<void> {
+  return core.cacheLicense(getRedis, licenseKey, license);
 }

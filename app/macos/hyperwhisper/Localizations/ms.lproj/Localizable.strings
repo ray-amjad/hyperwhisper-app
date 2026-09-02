@@ -422,10 +422,6 @@
 "license.button.activate" = "Aktifkan";
 "license.button.activating" = "Mengaktifkan...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Percubaan";
-"license.status.active.title" = "Aktif";
-"license.status.expired.title" = "Tamat Tempoh";
-"license.status.invalid.title" = "Tidak Sah";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Berlesen – Akses Penuh";
 "license.status.expired.description" = "Lesen Tamat Tempoh";
@@ -1055,7 +1051,6 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "settings.backup.import.confirm.button" = "Import";
 "settings.backup.conflict.skip" = "Langkau yang sedia ada";
 "settings.backup.conflict.replace" = "Ganti yang sedia ada";
-"settings.backup.conflict.keepBoth" = "Simpan kedua-duanya";
 "settings.backup.security.warning" = "Amaran: Fail yang dieksport akan mengandungi data sensitif. Simpan dengan selamat dan jangan kongsikannya.";
 "settings.backup.info.note" = "Sandaran termasuk tetapan, mod, dan perbendaharaan kata. Rakaman dan transkrip tidak disertakan.";
 "settings.backup.result.success.title" = "Berjaya";
@@ -1090,9 +1085,6 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcribe.file.error.video.noAudio" = "Fail video ini tidak mengandungi trek audio. Sila pilih video dengan audio atau fail audio.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Menyediakan...";
-"file.transcription.transcribing" = "Mentranskrip...";
-"file.transcription.finishing" = "Menyelesaikan...";
 "file.transcription.cancel" = "Batal";
 
 // MARK: - Auto-Delete Recordings

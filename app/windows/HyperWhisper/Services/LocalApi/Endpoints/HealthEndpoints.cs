@@ -49,7 +49,7 @@ internal static class HealthEndpoints
         foreach (var provider in TranscriptionProviders)
         {
             var keyPresent = HasKeyForTranscriptionProvider(apiKeys, provider);
-            var status = health?.GetStatus(provider) ?? ProviderHealth.Unknown;
+            var status = health?.GetHealthStatus(provider) ?? ProviderHealth.Unknown;
             var statusText = StatusString(provider, keyPresent, status);
 
             list.Add(new HealthProviderStatus

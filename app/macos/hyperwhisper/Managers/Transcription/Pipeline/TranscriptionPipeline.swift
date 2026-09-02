@@ -134,9 +134,6 @@ class TranscriptionPipeline: ObservableObject {
     /// API key for OpenAI.
     @AppStorage("openAIAPIKey") var openAIAPIKey: String = ""
 
-    /// API key for Groq.
-    @AppStorage("groqAPIKey") var groqAPIKey: String = ""
-
     /// Whether to use OpenAI for transcription.
     @AppStorage("useOpenAITranscription") var useOpenAITranscription: Bool = false
 

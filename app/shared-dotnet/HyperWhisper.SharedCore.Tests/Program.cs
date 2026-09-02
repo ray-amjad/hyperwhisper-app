@@ -204,6 +204,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("multi-step providers execute upload poll parse and cleanup flows", TestMultiStepProvidersAsync),
     ("observer diagnostics redact credentials and request bodies", TestObserverRedactionAsync),
     ("retry policy retries transient responses deterministically", TestRetryAsync),
+    ("the retry backoff budget stops a hard-down provider early", TestRetryBudgetAsync),
     ("unauthorized responses are classified without leaking provider bodies", TestUnauthorizedAsync),
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
     ("Meta transport rechecks WAV limits retry auth and diagnostics", TestMetaTransportGuardsAsync),
@@ -822,6 +823,97 @@ static async Task TestRetryAsync()
         Assert.Equal(2, result.Attempts);
         Assert.Equal(1, delay.Delays.Count);
         Assert.True(delay.Delays[0] > TimeSpan.Zero);
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+// Issue #379: an always-503 provider used to burn all 8 core attempts, which is
+// 1+2+4+8+16+32+64 = 127s of sleep and a ~150s user-visible hang. The budget cuts
+// the sequence at the attempt whose next sleep would push the RUNNING TOTAL of
+// backoff past it.
+static async Task TestRetryBudgetAsync()
+{
+    var audio = TempAudio();
+    try
+    {
+        // A 5s budget. The delays ACCUMULATE: 1s (total 1s) and 2s (total 3s)
+        // both fit, and the third would take the total to 7s, so exactly 3
+        // requests go out and 2 delays are taken.
+        //
+        // This is the assertion that pins accumulation. If the running total were
+        // reset each iteration — or were a wall clock that an ImmediateDelay
+        // never advances — every individual delay up to 4s would fit on its own
+        // and the sequence would run to 4 sends / 3 delays instead.
+        var budgeted = new ImmediateDelay();
+        var budgetedSends = 0;
+        var budgetedHandler = new RecordingHandler((_, _) =>
+        {
+            budgetedSends++;
+            return Json("{\"error\":\"provider down\"}", HttpStatusCode.ServiceUnavailable);
+        });
+        using (var service = new CloudTranscriptionService(
+            budgetedHandler, new StaticCredentials(), Sharing, budgeted, observer: null, retryBudgetMs: 5_000))
+        {
+            var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Groq, audio, "whisper-large-v3"));
+            Assert.False(result.IsSuccess);
+            Assert.Equal(3, budgetedSends);
+            Assert.Equal(3, result.Attempts);
+            Assert.Equal(2, budgeted.Delays.Count);
+            // And the delays really were the core's series, not a single long one.
+            Assert.Equal(TimeSpan.FromMilliseconds(1_000), budgeted.Delays[0]);
+            Assert.Equal(TimeSpan.FromMilliseconds(2_000), budgeted.Delays[1]);
+        }
+
+        // budgetMs 0 is unbounded — the pre-#379 behaviour, all 8 core attempts.
+        // This is the proof the parameter reaches the core rather than being
+        // clamped somewhere on the way.
+        var unbounded = new ImmediateDelay();
+        var unboundedSends = 0;
+        var unboundedHandler = new RecordingHandler((_, _) =>
+        {
+            unboundedSends++;
+            return Json("{\"error\":\"provider down\"}", HttpStatusCode.ServiceUnavailable);
+        });
+        using (var service = new CloudTranscriptionService(
+            unboundedHandler, new StaticCredentials(), Sharing, unbounded, observer: null, retryBudgetMs: 0))
+        {
+            var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Groq, audio, "whisper-large-v3"));
+            Assert.False(result.IsSuccess);
+            Assert.Equal((int)uniffi.hyperwhisper_core.HyperwhisperCoreMethods.RetryMaxAttempts(), unboundedSends);
+            Assert.Equal(7, unbounded.Delays.Count);
+        }
+
+        // REGRESSION GUARD (review round 1, finding A1): the budget counts the
+        // BACKOFF, never the requests' own duration. A slow attempt must not cost
+        // the sequence a retry — otherwise a large file import, whose every
+        // attempt legitimately runs for minutes, would get none at all.
+        //
+        // A 1.5s budget: the 1s sleep fits, the 2s one does not, so 2 requests go
+        // out however long each takes. The handler burns a full second per
+        // attempt, which under a wall-clock budget would have given up after ONE
+        // request (1 000ms spent + a 1 000ms sleep = 2 000ms > 1 500ms).
+        var slow = new ImmediateDelay();
+        var slowSends = 0;
+        var slowHandler = new RecordingHandler(async (_, token) =>
+        {
+            slowSends++;
+            await Task.Delay(TimeSpan.FromMilliseconds(1_000), token);
+            return Json("{\"error\":\"provider down\"}", HttpStatusCode.ServiceUnavailable);
+        });
+        using (var service = new CloudTranscriptionService(
+            slowHandler, new StaticCredentials(), Sharing, slow, observer: null, retryBudgetMs: 1_500))
+        {
+            var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Groq, audio, "whisper-large-v3"));
+            Assert.False(result.IsSuccess);
+            Assert.Equal(2, slowSends);
+            Assert.Equal(1, slow.Delays.Count);
+        }
     }
     finally
     {

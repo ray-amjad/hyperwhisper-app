@@ -422,10 +422,6 @@
 "license.button.activate" = "Activar";
 "license.button.activating" = "Activando...";
 "license.status.label" = "Estado: %@";
-"license.status.trial.title" = "Prueba";
-"license.status.active.title" = "Activa";
-"license.status.expired.title" = "Caducada";
-"license.status.invalid.title" = "No válida";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Con licencia: acceso completo";
 "license.status.expired.description" = "Licencia caducada";
@@ -1056,7 +1052,6 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "settings.backup.import.confirm.button" = "Importar";
 "settings.backup.conflict.skip" = "Omitir existentes";
 "settings.backup.conflict.replace" = "Reemplazar existentes";
-"settings.backup.conflict.keepBoth" = "Conservar ambos";
 "settings.backup.security.warning" = "Advertencia: El archivo exportado contendrá datos sensibles. Guárdalo de forma segura y no lo compartas.";
 "settings.backup.info.note" = "Las copias incluyen ajustes, modos y vocabulario. Las grabaciones y transcripciones no se incluyen.";
 "settings.backup.result.success.title" = "Éxito";
@@ -1091,9 +1086,6 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "transcribe.file.error.video.noAudio" = "Este archivo de video no contiene pista de audio. Selecciona un video con audio o un archivo de audio.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Preparando...";
-"file.transcription.transcribing" = "Transcribiendo...";
-"file.transcription.finishing" = "Finalizando...";
 "file.transcription.cancel" = "Cancelar";
 
 // MARK: - Auto-Delete Recordings
