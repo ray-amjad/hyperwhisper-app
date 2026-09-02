@@ -50,6 +50,10 @@ const INLINE_AUDIO_MAX_SECONDS = 55;
 // being generous. Mirrors the explicit budgets already used for batch polling
 // and GCS upload; only the inline call was left on the bare default.
 const SYNC_RECOGNIZE_TIMEOUT_MS = 45_000;
+// Submitting a long-running batch operation can have the same upstream startup
+// variance as sync recognize. Pin its budget so this self-only provider never
+// inherits the shared 15 s default and turns that variance into a hard 502.
+const BATCH_SUBMIT_TIMEOUT_MS = 45_000;
 const MAX_PHRASES = 1000;
 const MAX_PHRASE_LEN = 100;
 // batchRecognize polling. Real-world observed: a 90 s audio file on the
@@ -540,7 +544,7 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
       // hours. We want immediate fulfilment for interactive transcription;
       // omitting the field is the correct way to opt in.
     }),
-  }, context);
+  }, context, BATCH_SUBMIT_TIMEOUT_MS);
 
   let submitResponse = await submit(config);
   let submitErrorText: string | undefined;
