@@ -10,7 +10,7 @@
 //!
 //! # What is here, and what is not
 //!
-//! Four things, and only four:
+//! Five things, and only five:
 //!
 //! * [`check_origin`] — the DNS-rebind guard, which **only macOS shipped**. Two
 //!   of three platforms served every route, including the unauthenticated
@@ -23,13 +23,19 @@
 //!   rule that a business failure carries HTTP 200. Linux emitted four codes
 //!   outside the enum and returned 404/413/503/408, which is precisely the
 //!   failure the HTTP-200 rule exists to prevent.
+//! * [`MAX_REQUEST_BYTES`] / [`MAX_UPLOAD_BYTES`] and their predicates — the
+//!   request-size caps **only the Linux head shipped** (#375). macOS built its
+//!   `HTTPServer` with a timeout and nothing else, so a caller chose the app's
+//!   peak resident memory. The numbers are `PortableLocalApiOptions`', moved
+//!   rather than invented.
 //!
-//! Deliberately NOT here: routing, JSON body parsing, file reads, the 50 MB
-//! `audio_base64` buffer, `map_transcription_error`'s message table, engine
-//! aliases, `validate_mode`, pagination. Issue #289 lists them; the follow-up
-//! issue carries them. Everything above is pure string and byte logic over
-//! header-sized inputs, which is what makes the `panic = "abort"` risk
-//! acceptable — see below.
+//! Deliberately NOT here: routing, JSON body parsing, file reads, the
+//! `audio_base64` buffer itself and its decode, `map_transcription_error`'s
+//! message table, engine aliases, `validate_mode`, pagination. Issue #289
+//! lists them; the follow-up issue carries them. `limits.rs` contributes the
+//! numbers and the comparisons, not the buffering — everything above is still
+//! pure integer, string and byte logic over header-sized inputs, which is what
+//! makes the `panic = "abort"` risk acceptable — see below.
 //!
 //! # Panic-free by construction
 //!
@@ -67,6 +73,7 @@
 
 mod auth;
 mod failure;
+mod limits;
 mod origin;
 mod sha256;
 mod token;
@@ -74,6 +81,11 @@ mod token;
 pub use auth::{authorize, bearer_token, AUTHORIZATION_HEADER};
 pub use failure::{
     forbidden_origin, unauthorized, Failure, FailureKind, LocalApiErrorCode, ALL_ERROR_CODES,
+};
+pub use limits::{
+    exceeds_base64_upload_limit, exceeds_request_limit, exceeds_upload_limit,
+    max_base64_length_for_upload, request_too_large, upload_too_large, MAX_REQUEST_BYTES,
+    MAX_UPLOAD_BYTES,
 };
 pub use origin::{check_origin, OriginDecision, OriginHeaders};
 pub use token::{
