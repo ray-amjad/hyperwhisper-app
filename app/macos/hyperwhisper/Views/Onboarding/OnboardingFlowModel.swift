@@ -330,8 +330,42 @@ final class OnboardingFlowModel: ObservableObject {
     ///
     /// ANDed with the gate rather than cleared by hand, so fixing the source
     /// takes the note away and the note can never outlive the failure it names.
+    /// `!isRepairingSelectedSource` extends the same idea to the repair itself:
+    /// the note asks for one action, so it goes quiet for exactly as long as
+    /// that action is running and comes straight back if it does not land.
     var selectedSourceStoppedWorking: Bool {
-        wasSentBackToSetup && step == .setup && !isSelectedSourceUsable
+        wasSentBackToSetup
+            && step == .setup
+            && !isSelectedSourceUsable
+            && !isRepairingSelectedSource
+    }
+
+    /// #315: true while the user is part way through the exact action the bounce
+    /// note asks for. A 474 MB re-download leaves the gate shut for minutes, so
+    /// without this the card renders a progress bar and, under it, a red note
+    /// telling the user to start the download they are visibly already running.
+    ///
+    /// Derived from live state rather than latched off the button press, so the
+    /// note is suppressed and not spent: a download that fails or is cancelled,
+    /// or an activation the server refuses, puts the source back in the state
+    /// the note describes and the note reappears with it. Latching would have
+    /// dropped the user back into the silent dead end this whole change exists
+    /// to remove.
+    ///
+    /// `.yourProvider` has no in-flight state to wait on: the setup card's only
+    /// button is `saveProviderKey()`, which writes the Keychain and republishes
+    /// its own error synchronously, so the gate has already re-read by the time
+    /// the next frame draws. (`isTestingKey` belongs to `.configure`, a step the
+    /// bounce note is never rendered on.)
+    private var isRepairingSelectedSource: Bool {
+        switch selectedSource {
+        case .onDevice:
+            return isSelectedModelDownloading()
+        case .hyperwhisperCloud:
+            return isActivatingLicense
+        case .yourProvider, nil:
+            return false
+        }
     }
 
     // MARK: Microphone
