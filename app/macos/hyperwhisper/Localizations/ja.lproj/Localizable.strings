@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "有効化に失敗しました: %@";
 "onboarding.setup.provider.error" = "キーを保存できませんでした: %@";
 "onboarding.setup.provider.saveFailed" = "キーをキーチェーンに書き込めませんでした。";
+"onboarding.setup.stopped.onDevice" = "セットアップを完了できませんでした: %@ はこのMacにインストールされていません。続けるにはもう一度ダウンロードしてください。";
+"onboarding.setup.stopped.cloud" = "セットアップを完了できませんでした: このMacはHyperWhisper Cloudで有効化されていません。下でもう一度有効化するか、1つ前に戻ってアクセスキーを入力してください。";
+"onboarding.setup.stopped.provider" = "セットアップを完了できませんでした: %@ のキーはこのMacに保存されていません。続けるにはもう一度保存してください。";
 "onboarding.setup.provider.check.validated" = "%@ に対してキーを確認しました";
 "onboarding.setup.provider.check.written" = "ログインキーチェーンに書き込みました";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ APIキー";

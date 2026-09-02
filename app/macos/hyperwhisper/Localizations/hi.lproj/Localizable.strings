@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "सक्रियण विफल: %@";
 "onboarding.setup.provider.error" = "आपकी कुंजी सेव नहीं की जा सकी: %@";
 "onboarding.setup.provider.saveFailed" = "कुंजी आपकी Keychain में नहीं लिखी जा सकी।";
+"onboarding.setup.stopped.onDevice" = "सेटअप पूरा नहीं हो सका: %@ अब इस Mac पर इंस्टॉल नहीं है। जारी रखने के लिए इसे फिर से डाउनलोड करें।";
+"onboarding.setup.stopped.cloud" = "सेटअप पूरा नहीं हो सका: यह Mac अब HyperWhisper Cloud के लिए सक्रिय नहीं है। इसे नीचे फिर से सक्रिय करें, या अपनी एक्सेस कुंजी दर्ज करने के लिए एक कदम पीछे जाएँ।";
+"onboarding.setup.stopped.provider" = "सेटअप पूरा नहीं हो सका: आपकी %@ कुंजी अब इस Mac पर सेव नहीं है। जारी रखने के लिए इसे फिर से सेव करें।";
 "onboarding.setup.provider.check.validated" = "कुंजी %@ के विरुद्ध सत्यापित";
 "onboarding.setup.provider.check.written" = "लॉगिन कीचेन में लिखी गई";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API कुंजी";

@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Kích hoạt thất bại: %@";
 "onboarding.setup.provider.error" = "Không thể lưu key của bạn: %@";
 "onboarding.setup.provider.saveFailed" = "Không thể ghi key vào Keychain của bạn.";
+"onboarding.setup.stopped.onDevice" = "Không thể hoàn tất thiết lập: %@ không còn được cài đặt trên Mac này. Hãy tải lại để tiếp tục.";
+"onboarding.setup.stopped.cloud" = "Không thể hoàn tất thiết lập: Mac này không còn được kích hoạt cho HyperWhisper Cloud. Hãy kích hoạt lại bên dưới, hoặc quay lại một bước để nhập access key của bạn.";
+"onboarding.setup.stopped.provider" = "Không thể hoàn tất thiết lập: key %@ của bạn không còn được lưu trên Mac này. Hãy lưu lại để tiếp tục.";
 "onboarding.setup.provider.check.validated" = "Key đã được xác thực với %@";
 "onboarding.setup.provider.check.written" = "Đã ghi vào keychain đăng nhập";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · API key %@";

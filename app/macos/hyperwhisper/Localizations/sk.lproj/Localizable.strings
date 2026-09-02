@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktivácia zlyhala: %@";
 "onboarding.setup.provider.error" = "Váš kľúč sa nepodarilo uložiť: %@";
 "onboarding.setup.provider.saveFailed" = "Kľúč sa nepodarilo zapísať do vašej Kľúčenky.";
+"onboarding.setup.stopped.onDevice" = "Nastavenie sa nepodarilo dokončiť: %@ už nie je nainštalovaný v tomto Macu. Stiahnite ho znova a môžete pokračovať.";
+"onboarding.setup.stopped.cloud" = "Nastavenie sa nepodarilo dokončiť: tento Mac už nie je aktivovaný pre HyperWhisper Cloud. Aktivujte ho znova nižšie alebo sa vráťte o krok späť a zadajte svoj prístupový kľúč.";
+"onboarding.setup.stopped.provider" = "Nastavenie sa nepodarilo dokončiť: váš kľúč %@ už nie je uložený v tomto Macu. Uložte ho znova a môžete pokračovať.";
 "onboarding.setup.provider.check.validated" = "Kľúč overený voči %@";
 "onboarding.setup.provider.check.written" = "Zapísaný do prihlasovacej kľúčenky";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · API kľúč %@";

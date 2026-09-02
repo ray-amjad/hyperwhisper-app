@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Η ενεργοποίηση απέτυχε: %@";
 "onboarding.setup.provider.error" = "Δεν ήταν δυνατή η αποθήκευση του κλειδιού σου: %@";
 "onboarding.setup.provider.saveFailed" = "Το κλειδί δεν ήταν δυνατό να γραφτεί στην Κλειδοθήκη σου.";
+"onboarding.setup.stopped.onDevice" = "Η ρύθμιση δεν ολοκληρώθηκε: το %@ δεν είναι πλέον εγκατεστημένο σε αυτό το Mac. Κατέβασέ το ξανά για να συνεχίσεις.";
+"onboarding.setup.stopped.cloud" = "Η ρύθμιση δεν ολοκληρώθηκε: αυτό το Mac δεν είναι πλέον ενεργοποιημένο για το HyperWhisper Cloud. Ενεργοποίησέ το ξανά παρακάτω ή γύρνα ένα βήμα πίσω για να εισαγάγεις το κλειδί πρόσβασής σου.";
+"onboarding.setup.stopped.provider" = "Η ρύθμιση δεν ολοκληρώθηκε: το κλειδί %@ δεν είναι πλέον αποθηκευμένο σε αυτό το Mac. Αποθήκευσέ το ξανά για να συνεχίσεις.";
 "onboarding.setup.provider.check.validated" = "Το κλειδί επικυρώθηκε στο %@";
 "onboarding.setup.provider.check.written" = "Γράφτηκε στην κλειδοθήκη σύνδεσης";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · κλειδί API %@";

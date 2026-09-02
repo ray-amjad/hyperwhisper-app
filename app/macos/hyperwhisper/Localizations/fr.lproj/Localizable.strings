@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Échec de l'activation : %@";
 "onboarding.setup.provider.error" = "Impossible d'enregistrer votre clé : %@";
 "onboarding.setup.provider.saveFailed" = "La clé n'a pas pu être écrite dans votre trousseau.";
+"onboarding.setup.stopped.onDevice" = "La configuration n'a pas pu aboutir : %@ n'est plus installé sur ce Mac. Téléchargez-le à nouveau pour continuer.";
+"onboarding.setup.stopped.cloud" = "La configuration n'a pas pu aboutir : ce Mac n'est plus activé pour HyperWhisper Cloud. Réactivez-le ci-dessous ou revenez d'une étape pour saisir votre clé d'accès.";
+"onboarding.setup.stopped.provider" = "La configuration n'a pas pu aboutir : votre clé %@ n'est plus enregistrée sur ce Mac. Enregistrez-la à nouveau pour continuer.";
 "onboarding.setup.provider.check.validated" = "Clé validée auprès de %@";
 "onboarding.setup.provider.check.written" = "Écrite dans le trousseau de connexion";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · Clé API %@";

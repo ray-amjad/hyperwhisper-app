@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "활성화 실패: %@";
 "onboarding.setup.provider.error" = "키를 저장할 수 없습니다: %@";
 "onboarding.setup.provider.saveFailed" = "키를 키체인에 저장할 수 없었습니다.";
+"onboarding.setup.stopped.onDevice" = "설정을 완료할 수 없습니다: %@이(가) 이 Mac에 더 이상 설치되어 있지 않습니다. 계속하려면 다시 다운로드하세요.";
+"onboarding.setup.stopped.cloud" = "설정을 완료할 수 없습니다: 이 Mac은 더 이상 HyperWhisper Cloud로 활성화되어 있지 않습니다. 아래에서 다시 활성화하거나, 한 단계 뒤로 돌아가 액세스 키를 입력하세요.";
+"onboarding.setup.stopped.provider" = "설정을 완료할 수 없습니다: %@ 키가 이 Mac에 더 이상 저장되어 있지 않습니다. 계속하려면 다시 저장하세요.";
 "onboarding.setup.provider.check.validated" = "%@에서 키가 확인됨";
 "onboarding.setup.provider.check.written" = "로그인 키체인에 기록됨";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API 키";

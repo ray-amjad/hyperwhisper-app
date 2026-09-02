@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktivacija ni uspela: %@";
 "onboarding.setup.provider.error" = "Tvojega ključa ni bilo mogoče shraniti: %@";
 "onboarding.setup.provider.saveFailed" = "Ključa ni bilo mogoče zapisati v tvojo Zbirko ključev.";
+"onboarding.setup.stopped.onDevice" = "Nastavitve ni bilo mogoče dokončati: %@ ni več nameščen v tem Macu. Znova ga prenesi, da lahko nadaljuješ.";
+"onboarding.setup.stopped.cloud" = "Nastavitve ni bilo mogoče dokončati: ta Mac ni več aktiviran za HyperWhisper Cloud. Znova ga aktiviraj spodaj ali se vrni korak nazaj in vnesi svoj dostopni ključ.";
+"onboarding.setup.stopped.provider" = "Nastavitve ni bilo mogoče dokončati: tvoj ključ %@ ni več shranjen v tem Macu. Znova ga shrani, da lahko nadaljuješ.";
 "onboarding.setup.provider.check.validated" = "Ključ potrjen pri %@";
 "onboarding.setup.provider.check.written" = "Zapisan v prijavno zbirko ključev";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · API-ključ %@";

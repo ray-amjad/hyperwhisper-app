@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Virkjun mistókst: %@";
 "onboarding.setup.provider.error" = "Ekki tókst að vista lykilinn þinn: %@";
 "onboarding.setup.provider.saveFailed" = "Ekki tókst að skrifa lykilinn í lyklakippuna þína.";
+"onboarding.setup.stopped.onDevice" = "Ekki tókst að ljúka uppsetningu: %@ er ekki lengur uppsett á þessari Mac-tölvu. Sæktu það aftur til að halda áfram.";
+"onboarding.setup.stopped.cloud" = "Ekki tókst að ljúka uppsetningu: þessi Mac-tölva er ekki lengur virkjuð fyrir HyperWhisper Cloud. Virkjaðu hana aftur hér fyrir neðan, eða farðu eitt skref til baka til að slá inn aðgangslykilinn þinn.";
+"onboarding.setup.stopped.provider" = "Ekki tókst að ljúka uppsetningu: %@ lykillinn þinn er ekki lengur vistaður á þessari Mac-tölvu. Vistaðu hann aftur til að halda áfram.";
 "onboarding.setup.provider.check.validated" = "Lykill staðfestur hjá %@";
 "onboarding.setup.provider.check.written" = "Skrifað í innskráningarlyklakippuna";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API lykill";

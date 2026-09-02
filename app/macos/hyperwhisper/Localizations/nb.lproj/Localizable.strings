@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktivering mislyktes: %@";
 "onboarding.setup.provider.error" = "Kunne ikke lagre nøkkelen din: %@";
 "onboarding.setup.provider.saveFailed" = "Nøkkelen kunne ikke skrives til nøkkelringen din.";
+"onboarding.setup.stopped.onDevice" = "Oppsettet kunne ikke fullføres: %@ er ikke lenger installert på denne Mac-en. Last den ned på nytt for å fortsette.";
+"onboarding.setup.stopped.cloud" = "Oppsettet kunne ikke fullføres: denne Mac-en er ikke lenger aktivert for HyperWhisper Cloud. Aktiver den på nytt nedenfor, eller gå ett steg tilbake for å skrive inn tilgangsnøkkelen din.";
+"onboarding.setup.stopped.provider" = "Oppsettet kunne ikke fullføres: %@-nøkkelen din er ikke lenger lagret på denne Mac-en. Lagre den på nytt for å fortsette.";
 "onboarding.setup.provider.check.validated" = "Nøkkel validert mot %@";
 "onboarding.setup.provider.check.written" = "Skrevet til innloggingsnøkkelringen";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API-nøkkel";

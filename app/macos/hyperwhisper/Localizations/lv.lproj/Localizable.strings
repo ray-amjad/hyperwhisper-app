@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktivizācija neizdevās: %@";
 "onboarding.setup.provider.error" = "Neizdevās saglabāt jūsu atslēgu: %@";
 "onboarding.setup.provider.saveFailed" = "Neizdevās ierakstīt atslēgu jūsu atslēgu saišķī.";
+"onboarding.setup.stopped.onDevice" = "Neizdevās pabeigt iestatīšanu: %@ vairs nav instalēts šajā Mac datorā. Lejupielādējiet to vēlreiz, lai turpinātu.";
+"onboarding.setup.stopped.cloud" = "Neizdevās pabeigt iestatīšanu: šis Mac dators vairs nav aktivizēts HyperWhisper Cloud lietošanai. Aktivizējiet to vēlreiz zemāk vai atgriezieties vienu soli atpakaļ, lai ievadītu savu piekļuves atslēgu.";
+"onboarding.setup.stopped.provider" = "Neizdevās pabeigt iestatīšanu: jūsu %@ atslēga vairs nav saglabāta šajā Mac datorā. Saglabājiet to vēlreiz, lai turpinātu.";
 "onboarding.setup.provider.check.validated" = "Atslēga apstiprināta ar %@";
 "onboarding.setup.provider.check.written" = "Ierakstīts pieteikšanās atslēgu saišķī";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API atslēga";

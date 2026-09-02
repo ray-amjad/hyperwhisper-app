@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Активирането се провали: %@";
 "onboarding.setup.provider.error" = "Ключът не можа да бъде запазен: %@";
 "onboarding.setup.provider.saveFailed" = "Ключът не можа да бъде записан в Ключодържателя ти.";
+"onboarding.setup.stopped.onDevice" = "Настройката не можа да завърши: %@ вече не е инсталиран на този Mac. Изтегли го отново, за да продължиш.";
+"onboarding.setup.stopped.cloud" = "Настройката не можа да завърши: този Mac вече не е активиран за HyperWhisper Cloud. Активирай го отново по-долу или се върни една стъпка назад, за да въведеш ключа си за достъп.";
+"onboarding.setup.stopped.provider" = "Настройката не можа да завърши: ключът ти за %@ вече не е запазен на този Mac. Запази го отново, за да продължиш.";
 "onboarding.setup.provider.check.validated" = "Ключът е потвърден спрямо %@";
 "onboarding.setup.provider.check.written" = "Записан в ключодържателя за вход";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · API ключ за %@";

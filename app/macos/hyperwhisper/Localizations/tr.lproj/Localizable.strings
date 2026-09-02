@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Etkinleştirme başarısız oldu: %@";
 "onboarding.setup.provider.error" = "Anahtarınız kaydedilemedi: %@";
 "onboarding.setup.provider.saveFailed" = "Anahtar Anahtar Zinciri'nize yazılamadı.";
+"onboarding.setup.stopped.onDevice" = "Kurulum tamamlanamadı: %@ artık bu Mac'te yüklü değil. Devam etmek için yeniden indirin.";
+"onboarding.setup.stopped.cloud" = "Kurulum tamamlanamadı: bu Mac artık HyperWhisper Cloud için etkinleştirilmiş değil. Aşağıdan yeniden etkinleştirin veya erişim anahtarınızı girmek için bir adım geri dönün.";
+"onboarding.setup.stopped.provider" = "Kurulum tamamlanamadı: %@ anahtarınız artık bu Mac'te kayıtlı değil. Devam etmek için yeniden kaydedin.";
 "onboarding.setup.provider.check.validated" = "Anahtar %@ ile doğrulandı";
 "onboarding.setup.provider.check.written" = "Oturum açma anahtarlığına yazıldı";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API anahtarı";

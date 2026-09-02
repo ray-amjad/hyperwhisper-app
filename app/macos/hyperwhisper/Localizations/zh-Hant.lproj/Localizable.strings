@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "啟用失敗：%@";
 "onboarding.setup.provider.error" = "無法儲存您的金鑰：%@";
 "onboarding.setup.provider.saveFailed" = "無法將金鑰寫入您的鑰匙圈。";
+"onboarding.setup.stopped.onDevice" = "設定無法完成：%@ 已不在這台 Mac 上安裝。請重新下載以繼續。";
+"onboarding.setup.stopped.cloud" = "設定無法完成：這台 Mac 已不再為 HyperWhisper Cloud 啟用。請在下方重新啟用，或返回上一步輸入您的存取金鑰。";
+"onboarding.setup.stopped.provider" = "設定無法完成：您的 %@ 金鑰已不在這台 Mac 上儲存。請重新儲存以繼續。";
 "onboarding.setup.provider.check.validated" = "金鑰已透過 %@ 驗證";
 "onboarding.setup.provider.check.written" = "已寫入登入鑰匙圈";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API 金鑰";

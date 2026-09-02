@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktiveerimine ebaõnnestus: %@";
 "onboarding.setup.provider.error" = "Sinu võtit ei õnnestunud salvestada: %@";
 "onboarding.setup.provider.saveFailed" = "Võtit ei õnnestunud sinu Võtmehoidjasse kirjutada.";
+"onboarding.setup.stopped.onDevice" = "Seadistust ei õnnestunud lõpetada: %@ pole enam sellesse Maci installitud. Laadi see uuesti alla, et jätkata.";
+"onboarding.setup.stopped.cloud" = "Seadistust ei õnnestunud lõpetada: see Mac pole enam HyperWhisper Cloudi jaoks aktiveeritud. Aktiveeri see allpool uuesti või mine üks samm tagasi ja sisesta oma pääsuvõti.";
+"onboarding.setup.stopped.provider" = "Seadistust ei õnnestunud lõpetada: sinu %@ võti pole enam sellesse Maci salvestatud. Salvesta see uuesti, et jätkata.";
 "onboarding.setup.provider.check.validated" = "Võti kinnitatud teenusega %@";
 "onboarding.setup.provider.check.written" = "Kirjutatud sisselogimise võtmehoidjasse";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API võti";

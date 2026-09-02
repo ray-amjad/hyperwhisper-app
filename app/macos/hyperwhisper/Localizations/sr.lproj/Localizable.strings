@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Активација није успела: %@";
 "onboarding.setup.provider.error" = "Твој кључ није могао да се сачува: %@";
 "onboarding.setup.provider.saveFailed" = "Кључ није могао да се упише у твој Привезак за кључеве.";
+"onboarding.setup.stopped.onDevice" = "Подешавање није могло да се заврши: %@ више није инсталиран на овом Mac-у. Преузми га поново да наставиш.";
+"onboarding.setup.stopped.cloud" = "Подешавање није могло да се заврши: овај Mac више није активиран за HyperWhisper Cloud. Активирај га поново испод или се врати корак назад да унесеш свој приступни кључ.";
+"onboarding.setup.stopped.provider" = "Подешавање није могло да се заврши: твој %@ кључ више није сачуван на овом Mac-у. Сачувај га поново да наставиш.";
 "onboarding.setup.provider.check.validated" = "Кључ потврђен код %@";
 "onboarding.setup.provider.check.written" = "Уписан у привезак за пријаву";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · API кључ %@";
