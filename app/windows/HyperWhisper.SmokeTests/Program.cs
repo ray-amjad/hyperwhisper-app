@@ -7358,6 +7358,305 @@ internal static class Program
                     "it must not claim the system default is in use");
             });
 
+            // ----- Fuzz round regressions (F1-F6) ------------------------------
+            // Six defects found by 4,000 step-gated model walks and 12 GUI walks
+            // over the flow. Each case is the fuzzer's own minimal reproduction,
+            // made permanent: a fuzz finding with no committed test comes back.
+            //
+            // F1/F5 and half of F3 were ONE defect - an async validation result
+            // applied without being scoped to the thing it tested - so they are
+            // fixed by one mechanism (ValidationScope) and pinned by four cases
+            // rather than by three staleness checks that disagree.
+
+            RunAsync("onboarding F1: a licence probe landing after a source change cannot open the BYOK gate", async () =>
+            {
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.Flow.Advance();                                   // -> Configure (cloud)
+
+                h.Flow.LicenseKeyInput = "HW-CLOUD-KEY-0001";
+                h.License.GateProbe = true;
+                h.Flow.TestAccessKey();                             // parked: a slow network
+                var task = h.LastTask;
+
+                // The user backs out and picks the OTHER cloud branch while the
+                // probe is still in the air.
+                Assert(h.Flow.Back(), "back to source must work");
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                Assert(h.Flow.Advance(), "configure must be reachable for BYOK");
+
+                h.License.Release();
+                await task;
+
+                Assert(!h.Flow.KeyValidated, "a licence pass is not a BYOK pass");
+                Assert(!h.Flow.CanContinue,
+                    "the BYOK gate must stay shut with an empty API key field, whatever the licence probe said");
+                Assert(h.Flow.ApiKeyInput.Length == 0, "precondition: nothing was typed for the provider");
+                Assert(h.Flow.ProviderTestHealth is null, "no provider was ever probed");
+                Assert(!h.Flow.IsTestingKey, "the spinner must not be left running");
+            });
+
+            RunAsync("onboarding F1: a provider probe landing after a source change cannot open the Cloud gate", async () =>
+            {
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.Flow.Advance();                                   // -> Configure (BYOK)
+
+                h.Flow.ApiKeyInput = "sk-byok-0001";
+                h.ProviderKeys.GateProbe = true;
+                h.Flow.TestProviderKey();
+                var task = h.LastTask;
+
+                Assert(h.Flow.Back(), "back to source must work");
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                Assert(h.Flow.Advance(), "configure must be reachable for cloud");
+
+                h.ProviderKeys.Release();
+                await task;
+
+                Assert(!h.Flow.KeyValidated, "a BYOK pass is not a licence pass");
+                Assert(!h.Flow.CanContinue,
+                    "the Cloud gate must stay shut with an empty licence field");
+                Assert(h.ProviderKeys.Stored.Count == 0,
+                    "a probe abandoned by a source change must never write the credential store");
+                Assert(!h.Flow.HasPendingProductionWrite, "and must never set a restore point");
+            });
+
+            Run("onboarding F2: Advance and Back do nothing once the flow has finished", () =>
+            {
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.Microphone);
+
+                h.Flow.DeferSetup();                                // rolls back, marks complete
+                var stateAfterRollback = h.Committer.ProductionState;
+                var appliesAfterRollback = h.Committer.Applied.Count;
+                Assert(!h.Flow.IsLiveForTesting, "precondition: deferral closed the commit boundary");
+
+                // Stepping INTO Try It writes the default Mode. On a finished flow
+                // that silently undid the rollback MarkOnboardingCompleted() had
+                // just been paired with.
+                Assert(!h.Flow.Advance(), "a finished flow must refuse to advance");
+                Assert(h.Flow.Step == OnboardingStep.Microphone, "a refused advance must not move the step");
+                Assert(!h.Flow.Back(), "a finished flow must refuse to go back");
+                Assert(h.Flow.Step == OnboardingStep.Microphone, "a refused back must not move the step");
+
+                Assert(h.Committer.ProductionState == stateAfterRollback,
+                    $"navigation on a dead flow rewrote production state: {h.Committer.ProductionState}");
+                Assert(h.Committer.Applied.Count == appliesAfterRollback,
+                    "navigation on a dead flow re-applied the staged source");
+                Assert(h.Committer.MarkCompletedCount == 1, "and must not mark completion twice");
+            });
+
+            RunAsync("onboarding F3: Save API key on the Setup step probes before it writes", async () =>
+            {
+                // The dead end: it captured a restore point and persisted with NO
+                // probe, recorded nothing in the per-session table, and so could
+                // never make IsSelectedSourceUsable true - while having already
+                // overwritten the user's real Credential Manager entry. The button
+                // renders exactly when that property is false.
+                var h = new OnboardingHarness();
+                h.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] = "PRE-EXISTING-KEY";
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.ProviderKeys.Health = ProviderHealth.Unauthorized;
+
+                h.Flow.ApiKeyInput = "sk-never-probed";
+                h.Flow.SaveProviderKey();
+                await h.LastTask;
+
+                Assert(h.ProviderKeys.CurrentKey(CloudTranscriptionProvider.OpenAI) == "PRE-EXISTING-KEY",
+                    "a rejected key must never overwrite the stored credential");
+                Assert(!h.Flow.IsSelectedSourceUsable, "a rejected key is not a usable source");
+                Assert(h.Flow.HasSetupError, "and the step must say why, rather than failing in silence");
+
+                // And the other half: when the probe passes, Save is no longer a
+                // dead end - it opens the very gate its button is shown for.
+                var h2 = new OnboardingHarness();
+                h2.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] = "PRE-EXISTING-KEY";
+                h2.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h2.ProviderKeys.Health = ProviderHealth.Healthy;
+
+                h2.Flow.ApiKeyInput = "sk-probed";
+                h2.Flow.SaveProviderKey();
+                await h2.LastTask;
+
+                Assert(h2.ProviderKeys.CurrentKey(CloudTranscriptionProvider.OpenAI) == "sk-probed",
+                    "a key that passed must be written");
+                Assert(h2.Flow.IsSelectedSourceUsable, "and must open the gate the Save button is shown for");
+                Assert(h2.Flow.HasPendingProductionWrite,
+                    "the overwrite is reversible, so it has to be recorded as pending");
+            });
+
+            Run("onboarding F3: Save API key writes nothing once the flow has finished", () =>
+            {
+                var h = new OnboardingHarness();
+                h.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] = "PRE-EXISTING-KEY";
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.Flow.ApiKeyInput = "sk-late";
+                h.Flow.AbandonSetup();
+
+                h.Flow.SaveProviderKey();
+
+                Assert(h.ProviderKeys.CurrentKey(CloudTranscriptionProvider.OpenAI) == "PRE-EXISTING-KEY",
+                    "a dead flow must not touch the credential store");
+                Assert(!h.Flow.HasInFlightWorkForTesting, "and must not start a probe");
+            });
+
+            RunAsync("onboarding F4: a throwing activation clears the spinner and stays retryable", async () =>
+            {
+                var thrower = new OnboardingHarness();
+                var flow = new OnboardingFlowViewModel(
+                    thrower.Permissions,
+                    thrower.Catalog,
+                    new ThrowingOnboardingLicense(thrower.License, probeThrows: false, activateThrows: true),
+                    thrower.Credits,
+                    thrower.ProviderKeys,
+                    thrower.Audio,
+                    thrower.Committer,
+                    OnboardingHarness.SystemDefaultName);
+
+                thrower.Permissions.MicrophoneAuthorization = OnboardingMicrophoneAuthorization.Authorized;
+                flow.RefreshPermissions();
+                Assert(flow.Advance() && flow.Advance(), "welcome and permissions must pass");
+                flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                Assert(flow.Advance(), "configure must be reachable");
+                flow.LicenseKeyInput = "HW-KEY";
+                flow.TestAccessKey();
+                await flow.LastAsyncTaskForTesting!;
+                Assert(flow.Advance(), "setup must be reachable once the key probes clean");
+
+                flow.ActivateCloudLicense();
+                await flow.LastAsyncTaskForTesting!;
+
+                // ActivateCloudLicenseCoreAsync caught only OperationCanceledException,
+                // so anything else escaped the un-awaited task and left the button
+                // reading "Activating…" and disabled for good - with Continue gated
+                // on an activation that could never be retried.
+                Assert(!flow.IsActivatingLicense, "a throwing activation must not strand the spinner");
+                Assert(flow.CanActivateLicense, "the button must be pressable again");
+                Assert(flow.HasSetupError, "and the failure must be visible rather than swallowed");
+            });
+
+            RunAsync("onboarding F4: a throwing provider probe clears the spinner", async () =>
+            {
+                // The sibling. It was already recoverable by leaving and re-entering
+                // the Configure step; it is now cleared where it is raised, on the
+                // same terms as the activation spinner.
+                var h = new OnboardingHarness();
+                var flow = new OnboardingFlowViewModel(
+                    h.Permissions,
+                    h.Catalog,
+                    h.License,
+                    h.Credits,
+                    new ThrowingOnboardingProviderKeys(h.ProviderKeys),
+                    h.Audio,
+                    h.Committer,
+                    OnboardingHarness.SystemDefaultName);
+
+                flow.SelectSource(OnboardingSourceKind.YourProvider);
+                flow.ApiKeyInput = "sk-throws";
+                flow.TestProviderKey();
+                await flow.LastAsyncTaskForTesting!;
+
+                Assert(!flow.IsTestingKey, "a throwing probe must not strand the spinner");
+                Assert(flow.CanTestProviderKey, "the button must be pressable again");
+                Assert(!flow.KeyValidated, "a throw is not a pass");
+                Assert(h.ProviderKeys.Stored.Count == 0, "and must never reach the persist");
+            });
+
+            RunAsync("onboarding F5: an activation result is never shown under a superseded key", async () =>
+            {
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                Assert(h.Flow.Advance(), "configure must be reachable");
+
+                h.Flow.LicenseKeyInput = "KEY-A";
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.Advance(), "setup must be reachable");
+
+                h.License.GateActivation = true;
+                h.License.ActivateOutcome = OnboardingLicenseOutcome.Failure("Activation limit reached.");
+                h.Flow.ActivateCloudLicense();                      // parked, activating KEY-A
+                var task = h.LastTask;
+
+                h.Flow.LicenseKeyInput = "KEY-B";                   // the user retypes
+                h.License.ReleaseActivation();
+                await task;
+
+                Assert(h.License.ActivatedKeys.Count == 1 && h.License.ActivatedKeys[0] == "KEY-A",
+                    "exactly one activation, for the key that was on screen when it started");
+                Assert(!h.Flow.HasSetupError,
+                    $"KEY-A's failure must not be shown under KEY-B: '{h.Flow.SetupErrorMessage}'");
+                Assert(!h.Flow.IsActivatingLicense, "the spinner must still stop");
+            });
+
+            Run("onboarding F6: the masked API key never splits a surrogate pair", () =>
+            {
+                var h = new OnboardingHarness();
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+
+                // Astral characters sit exactly on both slice boundaries: key[..8]
+                // used to cut the first one in half and key[^4..] the second, so the
+                // row rendered lone surrogates as replacement glyphs.
+                h.Flow.ApiKeyInput = "sk-abcd\U0001F600efghijkl\U0001F600mno";
+
+                var masked = h.Flow.MaskedApiKey;
+                for (var i = 0; i < masked.Length; i++)
+                {
+                    if (char.IsHighSurrogate(masked[i]))
+                    {
+                        Assert(i + 1 < masked.Length && char.IsLowSurrogate(masked[i + 1]),
+                            $"a high surrogate at {i} with no low surrogate after it: '{masked}'");
+                    }
+                    else if (char.IsLowSurrogate(masked[i]))
+                    {
+                        Assert(i > 0 && char.IsHighSurrogate(masked[i - 1]),
+                            $"a low surrogate at {i} with no high surrogate before it: '{masked}'");
+                    }
+                }
+
+                Assert(masked.Contains('…'), "a key of this length must still be masked, not hidden");
+                Assert(!masked.Contains('�'), "and must never render a replacement character");
+
+                // The short-key branch is unchanged, and is counted in the same unit:
+                // eight emoji are eight characters to a reader, not sixteen.
+                h.Flow.ApiKeyInput = string.Concat(Enumerable.Repeat("\U0001F600", 8));
+                Assert(h.Flow.MaskedApiKey == HyperWhisper.Localization.Loc.S("onboarding.setup.provider.keyHidden"),
+                    "eight characters is short enough to hide outright, however wide they encode");
+            });
+
+            RunAsync("onboarding: the licence fake parks a probe and an activation independently", async () =>
+            {
+                // Not a product defect - a defect in the test double, which produced
+                // roughly 800 false positives in one fuzz round. One shared gate
+                // field meant parking a probe after an activation orphaned the
+                // activation's TaskCompletionSource forever, and Release() nulling
+                // the field made IsParked read false while a call was still parked.
+                var license = new FakeOnboardingLicense { GateProbe = true, GateActivation = true };
+
+                var activation = license.ActivateAsync("KEY", CancellationToken.None);
+                var probe = license.ProbeAsync("KEY", CancellationToken.None);
+
+                Assert(license.IsActivationParked && license.IsProbeParked, "both calls are parked");
+                Assert(!activation.IsCompleted && !probe.IsCompleted, "and neither has landed");
+
+                license.ReleaseProbe();
+                await probe;
+                Assert(!activation.IsCompleted, "releasing the probe must not land the activation");
+                Assert(license.IsActivationParked, "and must not forget that the activation is still parked");
+
+                license.ReleaseActivation();
+                await activation;
+                Assert(!license.IsParked, "nothing is parked once both have been released");
+            });
+
             SynchronizationContext.SetSynchronizationContext(onboardingPreviousContext);
 
             // =================================================================

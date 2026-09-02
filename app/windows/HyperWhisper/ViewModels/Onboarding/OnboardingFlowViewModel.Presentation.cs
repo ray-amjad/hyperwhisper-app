@@ -20,6 +20,7 @@
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
@@ -321,7 +322,11 @@ public sealed partial class OnboardingFlowViewModel
 
     public bool CanActivateLicense => !IsActivatingLicense && TrimmedLicenseKey.Length > 0;
 
-    public bool CanSaveProviderKey => TrimmedApiKey.Length > 0;
+    /// <summary>
+    /// "Save API key" now probes before it writes, so it shares IsTestingKey with
+    /// "Test API key" and must be disabled while a check is running.
+    /// </summary>
+    public bool CanSaveProviderKey => !IsTestingKey && TrimmedApiKey.Length > 0;
 
     /// <summary>
     /// macOS ticks "credits confirmed" only once the licence is genuinely active AND
@@ -378,14 +383,28 @@ public sealed partial class OnboardingFlowViewModel
     /// <summary>
     /// Never renders the whole key, even on the machine that just typed it. Mirrors
     /// OnboardingSourceViews.swift:759-763.
+    ///
+    /// Sliced on TEXT ELEMENTS, not on UTF-16 code units. <c>key[..8]</c> cut an
+    /// astral character in half and rendered a lone surrogate, which draws as the
+    /// replacement glyph; a combining mark or a flag emoji split the same way. Text
+    /// elements are the smallest unit a user would call "a character", so both the
+    /// length test and the two slices count the same thing the reader does.
     /// </summary>
     public string MaskedApiKey
     {
         get
         {
             var key = TrimmedApiKey;
-            return key.Length > 12
-                ? $"{key[..8]}…{key[^4..]}"
+
+            // The start index of every text element, so a slice can only ever land
+            // on a boundary. Cheap: a key long enough to mask is still short.
+            var starts = new List<int>();
+            var elements = StringInfo.GetTextElementEnumerator(key);
+            while (elements.MoveNext())
+                starts.Add(elements.ElementIndex);
+
+            return starts.Count > 12
+                ? $"{key[..starts[8]]}…{key[starts[^4]..]}"
                 : Loc.S("onboarding.setup.provider.keyHidden");
         }
     }
@@ -662,7 +681,8 @@ public sealed partial class OnboardingFlowViewModel
             },
             [nameof(IsTestingKey)] = new[]
             {
-                nameof(CanTestAccessKey), nameof(CanTestProviderKey), nameof(ShowsLicenseTestPassed),
+                nameof(CanTestAccessKey), nameof(CanTestProviderKey), nameof(CanSaveProviderKey),
+                nameof(ShowsLicenseTestPassed),
                 nameof(ShowsLicenseTestFailed), nameof(ShowsProviderTestHealthy),
                 nameof(ShowsProviderTestUnauthorized), nameof(ShowsProviderTestUnreachable),
                 nameof(ShowsProviderTestError)

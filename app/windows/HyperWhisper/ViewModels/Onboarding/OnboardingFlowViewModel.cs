@@ -254,6 +254,11 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                     // still holds the exact key that passed earlier this session
                     // (Back navigation clears KeyValidated, not the fact that the key
                     // was verified).
+                    //
+                    // KeyValidated is now SCOPED (see ValidationScope): it can only
+                    // read true for a pass recorded against this source and this
+                    // licence text, so a probe that lands after the user switched
+                    // source cannot open this branch's half of the gate.
                     var key = LicenseKeyInput.Trim();
                     return _license.IsActive
                         || KeyValidated
@@ -335,10 +340,23 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Move to the next step if the gate is open. Returns false when it is not.</summary>
+    /// <summary>
+    /// Move to the next step if the gate is open. Returns false when it is not, and
+    /// on a flow that has already finished.
+    /// </summary>
+    /// <remarks>
+    /// The liveness guard is the same one Complete(), DeferSetup() and AbandonSetup()
+    /// carry, applied to the two methods that were missing it. Stepping INTO Try It
+    /// calls ApplyStagedSourceReversibly(), which writes the default Mode - so an
+    /// Advance() after the flow finished silently undid the rollback that Set Up
+    /// Later had just performed, on a flow whose MarkOnboardingCompleted() had
+    /// already fired. Every exit currently Close()s the window synchronously, so
+    /// nothing reaches this today; the invariant is that a dead flow writes nothing,
+    /// and it belongs on every entry point rather than on three of five.
+    /// </remarks>
     public bool Advance()
     {
-        if (!CanContinue)
+        if (!_isLive || !CanContinue)
             return false;
 
         var next = (int)Step + 1;
@@ -351,9 +369,15 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         return true;
     }
 
-    /// <summary>Move to the previous step. Returns false at the first step.</summary>
+    /// <summary>
+    /// Move to the previous step. Returns false at the first step, and on a flow that
+    /// has already finished.
+    /// </summary>
     public bool Back()
     {
+        if (!_isLive)
+            return false;
+
         var previous = (int)Step - 1;
         if (previous < (int)OnboardingSteps.First)
             return false;
@@ -372,6 +396,15 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     {
         switch (step)
         {
+            // Leaving the step that started a credential check ends it. The result
+            // would be about a screen the user is no longer on, and leaving it
+            // running is what let the two spinners strand: IsTestingKey until the
+            // next Configure entry cleared it, IsActivatingLicense for good.
+            case OnboardingStep.Configure:
+            case OnboardingStep.Setup:
+                CancelCredentialValidation();
+                break;
+
             case OnboardingStep.Microphone:
                 EndMicrophoneStep();
                 break;
@@ -493,6 +526,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// </summary>
     public void RefreshPermissions()
     {
+        if (!_isLive)
+            return;
+
         MicrophoneAuthorization = _permissions.MicrophoneAuthorization;
         HasMicrophoneAccess = MicrophoneAuthorization == OnboardingMicrophoneAuthorization.Authorized;
         // Keep the audio gateway's own preview guard from holding stale state after
@@ -508,6 +544,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// </summary>
     public void RefreshShortcutRegistration()
     {
+        if (!_isLive)
+            return;
+
         _permissions.RefreshShortcutRegistration();
         ApplyShortcutState();
     }
@@ -527,6 +566,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void HandleMicrophoneAction()
     {
+        if (!_isLive)
+            return;
+
         if (_permissions.MicrophoneAuthorization == OnboardingMicrophoneAuthorization.Undetermined)
         {
             RequestMicrophoneAccess();
@@ -539,12 +581,31 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// <summary>Ask for microphone access. Kept for shape parity with macOS.</summary>
     public void RequestMicrophoneAccess()
     {
+        if (!_isLive)
+            return;
+
         RunTracked(OnboardingTaskKeys.MicrophonePermission, RequestMicrophoneAccessCoreAsync);
     }
 
     private async Task RequestMicrophoneAccessCoreAsync(CancellationToken cancellationToken)
     {
-        var granted = await _permissions.RequestMicrophoneAccessAsync();
+        bool granted;
+        try
+        {
+            granted = await _permissions.RequestMicrophoneAccessAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception)
+        {
+            // A throwing consent probe is a refusal, not a crash. Same rule as the
+            // two credential checks: no seam may leave the step in a state the user
+            // cannot get out of.
+            granted = false;
+        }
+
         if (cancellationToken.IsCancellationRequested || !_isLive)
             return;
 
@@ -573,7 +634,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// <returns>false if the seam refused it; the recorder has already validated it.</returns>
     public bool ApplyToggleShortcut(string persistedShortcut)
     {
-        if (string.IsNullOrWhiteSpace(persistedShortcut))
+        if (!_isLive || string.IsNullOrWhiteSpace(persistedShortcut))
             return false;
 
         var stored = _permissions.SetToggleShortcut(persistedShortcut);
@@ -647,11 +708,17 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void SelectSource(OnboardingSourceKind source)
     {
-        if (SelectedSource == source)
+        if (!_isLive || SelectedSource == source)
             return;
 
         SelectedSource = source;
-        KeyValidated = false;
+
+        // The thing being validated has just changed underneath any check that is
+        // still in flight. Stop it and put the spinners back; the scope check in
+        // each continuation is what makes a result that still lands harmless.
+        CancelCredentialValidation();
+
+        ClearValidationPass();
         LicenseTestPassed = null;
         ProviderTestHealth = null;
         _activationErrorMessage = null;
@@ -669,7 +736,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void SelectModel(OnboardingModelSelection model)
     {
-        if (SelectedModel == model)
+        if (!_isLive || SelectedModel == model)
             return;
 
         SelectedModel = model;
@@ -679,21 +746,28 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void SelectProvider(CloudTranscriptionProvider provider)
     {
-        if (SelectedProvider == provider)
+        if (!_isLive || SelectedProvider == provider)
             return;
 
         SelectedProvider = provider;
+
+        // Same rule as a source change: a probe in flight was about the OLD
+        // provider, so stop it rather than let it land under the new one.
+        CancelCredentialValidation();
+
         // A masked key typed for one provider must never be saved under another.
         ApiKeyInput = string.Empty;
         InvalidateProviderValidation();
     }
 
+    // KeyValidated is derived from the scope comparison, so editing either field or
+    // changing provider closes it with no help from these two. They exist to clear
+    // the inline RESULT surface (the tick, the health pill, the error line), which is
+    // display state and genuinely stored.
     private void InvalidateLicenseValidation()
     {
         LicenseTestPassed = null;
         _activationErrorMessage = null;
-        if (SelectedSource == OnboardingSourceKind.HyperWhisperCloud)
-            KeyValidated = false;
         RefreshSetupError();
     }
 
@@ -701,8 +775,6 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     {
         ProviderTestHealth = null;
         _providerErrorMessage = null;
-        if (SelectedSource == OnboardingSourceKind.YourProvider)
-            KeyValidated = false;
         RefreshSetupError();
     }
 
@@ -714,12 +786,15 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// </summary>
     public void ResetConfigureTestResults()
     {
+        if (!_isLive)
+            return;
+
         IsTestingKey = false;
         LicenseTestPassed = null;
         ProviderTestHealth = null;
         _activationErrorMessage = null;
         _providerErrorMessage = null;
-        KeyValidated = false;
+        ClearValidationPass();
         RefreshSetupError();
     }
 
@@ -727,20 +802,103 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     // VALIDATION
     // =========================================================================
 
-    private bool _keyValidated;
+    /// <summary>
+    /// What a credential check was ABOUT: the source branch it belongs to, the
+    /// provider it named, and the exact trimmed credential it tested.
+    ///
+    /// A single "the key validated" bool was read by BOTH branches of
+    /// <see cref="ConfigureGateIsOpen"/>, so a licence probe that landed after the
+    /// user changed source opened the BYOK gate with an empty API-key field (and
+    /// the mirror direction did the same). Each continuation checked one half of
+    /// its own identity - the licence path re-read the licence text, the provider
+    /// path re-read the provider and the key - and neither re-read the source.
+    ///
+    /// Scoping the recorded fact removes the whole class: a pass is only ever a
+    /// pass FOR a scope, and <see cref="KeyValidated"/> compares it against what is
+    /// on screen now rather than trusting that nothing moved.
+    /// </summary>
+    private readonly record struct ValidationScope(
+        OnboardingSourceKind Source,
+        CloudTranscriptionProvider Provider,
+        string Credential);
+
+    /// <summary>The scope whose inline check last passed, or null.</summary>
+    private ValidationScope? _passedValidation;
 
     /// <summary>
-    /// True only while the inline test has a passing result for the CURRENT key and
-    /// provider. Cleared by every edit so a stale pass cannot open the gate.
+    /// What an inline check started NOW would be about, or null on a source that
+    /// has no credential (on-device, or nothing selected yet).
     /// </summary>
-    public bool KeyValidated
+    private ValidationScope? CurrentValidationScope => SelectedSource switch
     {
-        get => _keyValidated;
-        private set
-        {
-            if (SetProperty(ref _keyValidated, value))
-                RaiseGateChanged();
-        }
+        OnboardingSourceKind.HyperWhisperCloud => new ValidationScope(
+            OnboardingSourceKind.HyperWhisperCloud,
+            // The licence is not a per-provider credential; pin the provider field
+            // so a provider change can never invalidate a licence pass.
+            CloudTranscriptionProvider.OpenAI,
+            LicenseKeyInput.Trim()),
+
+        OnboardingSourceKind.YourProvider => new ValidationScope(
+            OnboardingSourceKind.YourProvider,
+            SelectedProvider,
+            ApiKeyInput.Trim()),
+
+        _ => null
+    };
+
+    /// <summary>
+    /// True only while the inline test has a passing result for the CURRENT source,
+    /// provider and credential. Derived, not stored: an edit, a provider change or a
+    /// source change closes it by making the scopes differ, and a late continuation
+    /// can only ever record a pass against the scope it actually tested.
+    /// </summary>
+    public bool KeyValidated =>
+        _passedValidation is { } passed
+        && CurrentValidationScope is { } current
+        && passed == current;
+
+    /// <summary>
+    /// Record the outcome of a check that was about <paramref name="scope"/>. A pass
+    /// is remembered as belonging to that scope; a failure only forgets a pass that
+    /// was about the same scope, so a licence failure cannot erase a BYOK pass.
+    /// </summary>
+    private void RecordValidationOutcome(ValidationScope scope, bool passed)
+    {
+        if (passed)
+            _passedValidation = scope;
+        else if (_passedValidation == scope)
+            _passedValidation = null;
+
+        RaiseGateChanged();
+    }
+
+    /// <summary>Forget any inline pass, whatever it was about.</summary>
+    private void ClearValidationPass()
+    {
+        if (_passedValidation is null)
+            return;
+
+        _passedValidation = null;
+        RaiseGateChanged();
+    }
+
+    /// <summary>
+    /// Cancel any credential check that is still in flight and put the two spinners
+    /// back. Called whenever the thing being validated changes underneath the check -
+    /// a source change, a provider change, or leaving the step that started it - so a
+    /// result can never arrive describing something the user has moved on from.
+    ///
+    /// The scope check in each continuation makes this belt AND braces: cancellation
+    /// stops the wasted work and the stale spinner, the scope check is what makes a
+    /// result that still lands harmless.
+    /// </summary>
+    private void CancelCredentialValidation()
+    {
+        _taskBox.Cancel(OnboardingTaskKeys.LicenseTest);
+        _taskBox.Cancel(OnboardingTaskKeys.ProviderTest);
+        _taskBox.Cancel(OnboardingTaskKeys.Activation);
+        IsTestingKey = false;
+        IsActivatingLicense = false;
     }
 
     private bool _isTestingKey;
@@ -771,17 +929,28 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void TestAccessKey()
     {
+        if (!_isLive)
+            return;
+
         var key = LicenseKeyInput.Trim();
         if (key.Length == 0)
             return;
 
+        // What this check is ABOUT, captured before the await. Everything the
+        // continuation writes is guarded on this still describing the screen.
+        var scope = new ValidationScope(
+            OnboardingSourceKind.HyperWhisperCloud, CloudTranscriptionProvider.OpenAI, key);
+
         IsTestingKey = true;
         LicenseTestPassed = null;
         _activationErrorMessage = null;
-        RunTracked(OnboardingTaskKeys.LicenseTest, ct => TestAccessKeyCoreAsync(key, ct));
+        RunTracked(OnboardingTaskKeys.LicenseTest, ct => TestAccessKeyCoreAsync(scope, key, ct));
     }
 
-    private async Task TestAccessKeyCoreAsync(string key, CancellationToken cancellationToken)
+    private async Task TestAccessKeyCoreAsync(
+        ValidationScope scope,
+        string key,
+        CancellationToken cancellationToken)
     {
         OnboardingLicenseOutcome outcome;
         try
@@ -792,12 +961,30 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         {
             return;
         }
+        catch (Exception ex)
+        {
+            // Anything the gateway lets escape - an HttpRequestException, a JSON
+            // fault - has to leave the step usable. The spinner is cleared on the
+            // same terms as a landed result, so the button can be pressed again.
+            if (cancellationToken.IsCancellationRequested || !_isLive || CurrentValidationScope != scope)
+                return;
+
+            LicenseTestPassed = false;
+            _activationErrorMessage = ex.Message;
+            RecordValidationOutcome(scope, false);
+            IsTestingKey = false;
+            RefreshSetupError();
+            _taskBox.Clear(OnboardingTaskKeys.LicenseTest);
+            return;
+        }
 
         if (cancellationToken.IsCancellationRequested || !_isLive)
             return;
 
-        // Drop a result that arrived for a key the user has since edited.
-        if (LicenseKeyInput.Trim() != key)
+        // Drop a result that no longer describes what is on screen: the licence text
+        // was edited, OR the user switched to another source. The second half is the
+        // one that used to be missing, and it let this result open the BYOK gate.
+        if (CurrentValidationScope != scope)
         {
             IsTestingKey = false;
             _taskBox.Clear(OnboardingTaskKeys.LicenseTest);
@@ -806,7 +993,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
         LicenseTestPassed = outcome.IsValid;
         _activationErrorMessage = outcome.IsValid ? null : outcome.ErrorMessage;
-        KeyValidated = outcome.IsValid;
+        RecordValidationOutcome(scope, outcome.IsValid);
 
         if (outcome.IsValid)
         {
@@ -828,20 +1015,33 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// confirms the write. A passing network round trip on its own is not a pass.
     /// </summary>
     [RelayCommand]
-    public void TestProviderKey()
+    public void TestProviderKey() => ProbeAndPersistProviderKey();
+
+    /// <summary>
+    /// The one probe-then-persist path. Both the Configure step's "Test API key" and
+    /// the Setup step's "Save API key" come here: a credential is only ever written
+    /// after a passing probe, and a write is only ever recorded as a pass.
+    /// </summary>
+    private void ProbeAndPersistProviderKey()
     {
+        if (!_isLive)
+            return;
+
         var key = ApiKeyInput.Trim();
-        if (key.Length == 0)
+        if (key.Length == 0 || IsTestingKey)
             return;
 
         var provider = SelectedProvider;
+        var scope = new ValidationScope(OnboardingSourceKind.YourProvider, provider, key);
+
         IsTestingKey = true;
         ProviderTestHealth = null;
         _providerErrorMessage = null;
-        RunTracked(OnboardingTaskKeys.ProviderTest, ct => TestProviderKeyCoreAsync(provider, key, ct));
+        RunTracked(OnboardingTaskKeys.ProviderTest, ct => TestProviderKeyCoreAsync(scope, provider, key, ct));
     }
 
     private async Task TestProviderKeyCoreAsync(
+        ValidationScope scope,
         CloudTranscriptionProvider provider,
         string key,
         CancellationToken cancellationToken)
@@ -855,14 +1055,31 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         {
             return;
         }
+        catch (Exception ex)
+        {
+            // A throwing health seam must not strand the spinner, and must never
+            // reach the persist below with no answer.
+            if (cancellationToken.IsCancellationRequested || !_isLive || CurrentValidationScope != scope)
+                return;
+
+            ProviderTestHealth = null;
+            _providerErrorMessage = ex.Message;
+            RecordValidationOutcome(scope, false);
+            IsTestingKey = false;
+            RefreshSetupError();
+            _taskBox.Clear(OnboardingTaskKeys.ProviderTest);
+            return;
+        }
 
         if (cancellationToken.IsCancellationRequested || !_isLive)
             return;
 
         // Drop a result the user has since superseded BEFORE the persist: a stale
         // probe must never write the credential store or set a restore point (which
-        // would also wrongly flag a pending production write).
-        if (SelectedProvider != provider || ApiKeyInput.Trim() != key)
+        // would also wrongly flag a pending production write). The scope covers the
+        // provider, the key AND the source - the last of which used to be missing,
+        // and let this result open the HyperWhisper Cloud gate.
+        if (CurrentValidationScope != scope)
         {
             IsTestingKey = false;
             _taskBox.Clear(OnboardingTaskKeys.ProviderTest);
@@ -883,7 +1100,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             ProviderTestHealth = null;
             _providerErrorMessage = _providerKeys.ValidationError
                 ?? Loc.S("onboarding.setup.provider.saveFailed");
-            KeyValidated = false;
+            RecordValidationOutcome(scope, false);
             // A key that failed its write must not stay remembered as validated,
             // exactly as a revoked licence key does not (see TestAccessKeyCoreAsync).
             _validatedProviderKeys.Remove(provider);
@@ -891,9 +1108,21 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         else
         {
             ProviderTestHealth = health;
-            _providerErrorMessage = null;
-            KeyValidated = health == ProviderHealth.Healthy && persisted;
-            if (KeyValidated)
+            // A rejected or unreachable provider now gets a REASON on the single
+            // error funnel as well as the health pill. The Configure step renders
+            // the pill and is unchanged (ShowsProviderTestError needs a null
+            // health); the Setup step has only the funnel, so without this its
+            // "Save API key" button failed in silence.
+            _providerErrorMessage = health switch
+            {
+                ProviderHealth.Healthy => null,
+                ProviderHealth.Unauthorized => Loc.S("onboarding.configure.test.unauthorized"),
+                _ => Loc.S("onboarding.configure.test.unreachable")
+            };
+
+            var passed = health == ProviderHealth.Healthy && persisted;
+            RecordValidationOutcome(scope, passed);
+            if (passed)
                 _validatedProviderKeys[provider] = key;
         }
 
@@ -961,7 +1190,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void StartSelectedModelDownload()
     {
-        if (SelectedModel is not { } model)
+        if (!_isLive || SelectedModel is not { } model)
             return;
 
         _catalog.StartDownload(model);
@@ -978,16 +1207,25 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void ActivateCloudLicense()
     {
+        if (!_isLive)
+            return;
+
         var key = LicenseKeyInput.Trim();
         if (key.Length == 0 || IsActivatingLicense)
             return;
 
+        var scope = new ValidationScope(
+            OnboardingSourceKind.HyperWhisperCloud, CloudTranscriptionProvider.OpenAI, key);
+
         IsActivatingLicense = true;
         _activationErrorMessage = null;
-        RunTracked(OnboardingTaskKeys.Activation, ct => ActivateCloudLicenseCoreAsync(key, ct));
+        RunTracked(OnboardingTaskKeys.Activation, ct => ActivateCloudLicenseCoreAsync(scope, key, ct));
     }
 
-    private async Task ActivateCloudLicenseCoreAsync(string key, CancellationToken cancellationToken)
+    private async Task ActivateCloudLicenseCoreAsync(
+        ValidationScope scope,
+        string key,
+        CancellationToken cancellationToken)
     {
         OnboardingLicenseOutcome outcome;
         try
@@ -998,33 +1236,64 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         {
             return;
         }
+        catch (Exception ex)
+        {
+            // The sibling spinner, IsTestingKey, was already recoverable because
+            // every entry to the Configure step clears it. This one was not: a
+            // throwing ActivateAsync left the button reading "Activating…" and
+            // disabled for good, with Continue gated on an activation that could
+            // never be retried. Both are now cleared on the same terms.
+            if (cancellationToken.IsCancellationRequested || !_isLive || CurrentValidationScope != scope)
+                return;
+
+            IsActivatingLicense = false;
+            _activationErrorMessage = ex.Message;
+            RefreshSetupError();
+            _taskBox.Clear(OnboardingTaskKeys.Activation);
+            return;
+        }
 
         if (cancellationToken.IsCancellationRequested || !_isLive)
             return;
 
+        // KEY-A's "Activation limit reached." must not be shown under KEY-B. The
+        // licence TEST continuation has always dropped a superseded result; this one
+        // did not, so the error line was misattributed to whatever the field held
+        // when it landed. Note the activation itself is NOT undone - it reached the
+        // server for KEY-A and _license.IsActive is the honest record of that.
+        if (CurrentValidationScope != scope)
+        {
+            IsActivatingLicense = false;
+            _taskBox.Clear(OnboardingTaskKeys.Activation);
+            return;
+        }
+
         IsActivatingLicense = false;
         _activationErrorMessage = outcome.IsValid ? null : outcome.ErrorMessage;
         if (outcome.IsValid)
-            KeyValidated = true;
+            RecordValidationOutcome(scope, true);
 
         RefreshSetupError();
         _taskBox.Clear(OnboardingTaskKeys.Activation);
     }
 
+    /// <summary>
+    /// The Setup step's "Save API key".
+    ///
+    /// It used to capture a restore point and persist WITHOUT probing, and recorded
+    /// nothing in the per-session validation table - so it overwrote the user's real
+    /// Credential Manager entry with an unverified key and still could not make
+    /// <see cref="IsSelectedSourceUsable"/> true. The button renders exactly when
+    /// that property is false, so pressing it was a dead end that cost the user their
+    /// stored credential.
+    ///
+    /// It is now the same probe-then-persist action as "Test API key": the write only
+    /// happens once the provider has accepted the key, and when it happens it opens
+    /// the gate. A rejected or unreachable provider leaves the stored key untouched
+    /// and puts the reason on the step's error line.
+    /// </summary>
     [RelayCommand]
-    public void SaveProviderKey()
-    {
-        var key = ApiKeyInput.Trim();
-        if (key.Length == 0)
-            return;
-
-        CaptureProviderKeyRestorePoint(SelectedProvider);
-        var persisted = _providerKeys.Persist(key, SelectedProvider);
-        _providerErrorMessage = persisted
-            ? null
-            : (_providerKeys.ValidationError ?? Loc.S("onboarding.setup.provider.saveFailed"));
-        RefreshSetupError();
-    }
+    public void SaveProviderKey() => ProbeAndPersistProviderKey();
 
     /// <summary>
     /// One error property for the setup step, per selected source. The on-device
@@ -1086,6 +1355,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// <summary>Kick a balance refresh. Failures are swallowed into "unknown".</summary>
     public void RefreshCredits(bool force)
     {
+        if (!_isLive)
+            return;
+
         RunTracked(OnboardingTaskKeys.CreditsRefresh, ct => RefreshCreditsCoreAsync(force, ct));
     }
 
@@ -1217,6 +1489,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
     public void BeginMicrophoneStep()
     {
+        if (!_isLive)
+            return;
+
         _audio.RefreshDevices();
         _audio.RefreshMicrophoneAuthorization();
         DeviceAvailability = _audio.Availability;
@@ -1237,7 +1512,13 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         IsLevelMeterActive = false;
     }
 
-    public void RefreshDeviceOptions() => ApplyDeviceList(_audio.Devices);
+    public void RefreshDeviceOptions()
+    {
+        if (!_isLive)
+            return;
+
+        ApplyDeviceList(_audio.Devices);
+    }
 
     private void ApplyDeviceList(IReadOnlyList<OnboardingInputDevice> devices)
     {
@@ -1258,6 +1539,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void SelectDevice(string id)
     {
+        if (!_isLive)
+            return;
+
         id ??= string.Empty;
 
         // Nothing to select, and nothing may be written: with no usable device the
@@ -1403,6 +1687,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
     public void BeginTryItStep()
     {
+        if (!_isLive)
+            return;
+
         TryItMode = DeviceAvailability != OnboardingDeviceAvailability.Available && _audio.HasSampleClip
             ? OnboardingTryItMode.Sample
             : OnboardingTryItMode.Record;
@@ -1446,7 +1733,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     public void ToggleTestRecording()
     {
         // Re-entrancy: no second capture while the last one is still transcribing.
-        if (IsTranscribingTestRecording || IsTranscribingSample)
+        if (!_isLive || IsTranscribingTestRecording || IsTranscribingSample)
             return;
 
         TranscriptCameFromSample = false;
@@ -1493,7 +1780,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void TranscribeSampleClip()
     {
-        if (!_audio.HasSampleClip || IsTranscribingSample || IsTranscribingTestRecording)
+        if (!_isLive || !_audio.HasSampleClip || IsTranscribingSample || IsTranscribingTestRecording)
             return;
 
         IsTranscribingSample = true;
@@ -1857,6 +2144,10 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSelectedSourceUsable));
         OnPropertyChanged(nameof(StagedSource));
         OnPropertyChanged(nameof(HasPendingProductionWrite));
+        // KeyValidated is derived from the recorded scope AND the live one, so every
+        // input that can move either - both key fields, the provider, the source -
+        // has to re-raise it. All of them already come through here.
+        OnPropertyChanged(nameof(KeyValidated));
     }
 
     /// <summary>

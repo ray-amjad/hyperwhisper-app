@@ -140,14 +140,25 @@ internal sealed class FakeOnboardingLicense : IOnboardingLicenseGateway
     /// <summary>When true, the next activation parks until <see cref="Release"/>.</summary>
     public bool GateActivation { get; set; }
 
-    private TaskCompletionSource<bool>? _gate;
+    // ONE FIELD PER CALL, deliberately.
+    //
+    // A single shared _gate made this fake LIE in two ways, and a fuzz round paid
+    // for it: parking a probe after an activation overwrote the activation's
+    // TaskCompletionSource, so Release() completed only the probe and the
+    // activation's continuation was orphaned forever - the flow looked stuck on a
+    // state no production code could produce. And Release() nulled the field, so
+    // IsParked read false while a call was still parked, which turned a real
+    // "landed after the window closed" case into a silent pass.
+    private TaskCompletionSource<bool>? _probeGate;
+    private TaskCompletionSource<bool>? _activationGate;
 
     public async Task<OnboardingLicenseOutcome> ProbeAsync(string key, CancellationToken cancellationToken)
     {
         if (GateProbe)
         {
-            _gate = new TaskCompletionSource<bool>();
-            await _gate.Task;
+            var gate = new TaskCompletionSource<bool>();
+            _probeGate = gate;
+            await gate.Task;
         }
 
         ProbedKeys.Add(key);
@@ -158,8 +169,9 @@ internal sealed class FakeOnboardingLicense : IOnboardingLicenseGateway
     {
         if (GateActivation)
         {
-            _gate = new TaskCompletionSource<bool>();
-            await _gate.Task;
+            var gate = new TaskCompletionSource<bool>();
+            _activationGate = gate;
+            await gate.Task;
         }
 
         ActivatedKeys.Add(key);
@@ -168,15 +180,36 @@ internal sealed class FakeOnboardingLicense : IOnboardingLicenseGateway
         return ActivateOutcome;
     }
 
-    /// <summary>Let a parked call land, long after the window may have closed.</summary>
+    /// <summary>
+    /// Let every parked call land, long after the window may have closed. Releasing
+    /// both is what the old single-gate version pretended to do; a caller that needs
+    /// one at a time has <see cref="ReleaseProbe"/> and <see cref="ReleaseActivation"/>.
+    /// </summary>
     public void Release()
     {
-        var gate = _gate;
-        _gate = null;
+        ReleaseProbe();
+        ReleaseActivation();
+    }
+
+    public void ReleaseProbe()
+    {
+        var gate = _probeGate;
+        _probeGate = null;
         gate?.TrySetResult(true);
     }
 
-    public bool IsParked => _gate is not null;
+    public void ReleaseActivation()
+    {
+        var gate = _activationGate;
+        _activationGate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public bool IsParked => _probeGate is not null || _activationGate is not null;
+
+    public bool IsProbeParked => _probeGate is not null;
+
+    public bool IsActivationParked => _activationGate is not null;
 }
 
 // =============================================================================
@@ -556,6 +589,71 @@ internal sealed class FakeOnboardingCommitter : IOnboardingSourceCommitter
 }
 
 // =============================================================================
+// Seams that THROW
+//
+// Thin delegating wrappers around the fakes above, each changing exactly one
+// behaviour the fake cannot express: a seam that raises instead of answering,
+// which is what a real HttpRequestException out of the licence or health service
+// does. A gateway that can only return is what let a throwing ActivateAsync strand
+// IsActivatingLicense with no coverage.
+// =============================================================================
+
+internal sealed class ThrowingOnboardingLicense : IOnboardingLicenseGateway
+{
+    private readonly FakeOnboardingLicense _inner;
+    private readonly bool _probeThrows;
+    private readonly bool _activateThrows;
+
+    public ThrowingOnboardingLicense(FakeOnboardingLicense inner, bool probeThrows, bool activateThrows)
+    {
+        _inner = inner;
+        _probeThrows = probeThrows;
+        _activateThrows = activateThrows;
+    }
+
+    public bool IsActive => _inner.IsActive;
+
+    public async Task<OnboardingLicenseOutcome> ProbeAsync(string key, CancellationToken cancellationToken)
+    {
+        var outcome = await _inner.ProbeAsync(key, cancellationToken);
+        if (_probeThrows)
+            throw new InvalidOperationException("licence probe blew up");
+        return outcome;
+    }
+
+    public async Task<OnboardingLicenseOutcome> ActivateAsync(string key, CancellationToken cancellationToken)
+    {
+        var outcome = await _inner.ActivateAsync(key, cancellationToken);
+        if (_activateThrows)
+            throw new InvalidOperationException("activation blew up");
+        return outcome;
+    }
+}
+
+internal sealed class ThrowingOnboardingProviderKeys : IOnboardingProviderKeyGateway
+{
+    private readonly FakeOnboardingProviderKeys _inner;
+
+    public ThrowingOnboardingProviderKeys(FakeOnboardingProviderKeys inner) => _inner = inner;
+
+    public IReadOnlyList<CloudTranscriptionProvider> Providers => _inner.Providers;
+
+    public string? ValidationError => _inner.ValidationError;
+
+    public Task<ProviderHealth> ProbeAsync(
+        CloudTranscriptionProvider provider,
+        string apiKey,
+        CancellationToken cancellationToken)
+        => Task.FromException<ProviderHealth>(new InvalidOperationException("health endpoint unreachable"));
+
+    public bool Persist(string key, CloudTranscriptionProvider provider) => _inner.Persist(key, provider);
+
+    public bool HasKey(CloudTranscriptionProvider provider) => _inner.HasKey(provider);
+
+    public string CurrentKey(CloudTranscriptionProvider provider) => _inner.CurrentKey(provider);
+}
+
+// =============================================================================
 // Harness
 // =============================================================================
 
@@ -572,14 +670,21 @@ internal sealed class OnboardingHarness
     public FakeOnboardingCommitter Committer { get; } = new();
     public OnboardingFlowViewModel Flow { get; }
 
-    public OnboardingHarness()
+    /// <param name="license">
+    /// Substituted for <see cref="License"/> in the flow only. The fake stays
+    /// reachable through the property so a case can still drive and assert on it.
+    /// </param>
+    /// <param name="providerKeys">The same, for <see cref="ProviderKeys"/>.</param>
+    public OnboardingHarness(
+        IOnboardingLicenseGateway? license = null,
+        IOnboardingProviderKeyGateway? providerKeys = null)
     {
         Flow = new OnboardingFlowViewModel(
             Permissions,
             Catalog,
-            License,
+            license ?? License,
             Credits,
-            ProviderKeys,
+            providerKeys ?? ProviderKeys,
             Audio,
             Committer,
             SystemDefaultName);
