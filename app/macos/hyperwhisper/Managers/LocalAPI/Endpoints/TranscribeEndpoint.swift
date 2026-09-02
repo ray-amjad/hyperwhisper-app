@@ -270,14 +270,41 @@ enum TranscribeEndpoint {
                 fileIdentity: fileIdentity
             )
             // SIZE (issue #375): the `file` path is deliberately NOT capped at
-            // `localApiMaxUploadBytes()`, unlike the `audio_base64` branch below
-            // and unlike `PortableLocalApi.ReadAllowedFileAsync`. `stageValidatedAudioFile`
-            // copies through a 1 MiB window into a temp file and never holds the
-            // recording in memory, so a cap here would buy no memory back — it
-            // would only stop the user transcribing a long recording they already
-            // have on disk. The amplification #375 reports is the buffered
-            // base64 payload, not this. Revisit under the cross-head parity work
-            // in #356 if the three heads should agree on `file` too.
+            // `localApiMaxUploadBytes()`, unlike the `audio_base64` branch below.
+            //
+            // Be clear about what that is: a per-head DIVERGENCE on a documented
+            // field, and one this change introduces. The .NET head does cap it —
+            // `PortableLocalApi.ReadAllowedFileAsync` at :340-341 answers
+            // `Failure(200, INVALID_REQUEST, "Audio exceeds the configured upload
+            // limit.")` when `input.Length > options.MaxUploadBytes`, and that is
+            // the head the two numbers were copied from. So for the same request,
+            // a 60 MiB local recording, macOS transcribes and Linux refuses. It is
+            // called out per-head in the "Request limits" section of
+            // `mintlify-help/api-reference/local-api/overview.mdx`, so a client
+            // integrator can at least see it; it is not hidden, but it is not
+            // parity either. `hw-localapi::limits`'s own module doc names exactly
+            // this shape of outcome — one head's number, another head's answer —
+            // as the failure it exists to prevent.
+            //
+            // The case for leaving it uncapped: `stageValidatedAudioFile` copies
+            // through a 1 MiB window into a temp file and never holds the
+            // recording in memory, so a cap here buys no memory back. It would
+            // only stop a user transcribing a long recording they already have on
+            // disk. The amplification #375 reports is the buffered base64 payload,
+            // not this. The .NET head's cap is not gratuitous either, for the
+            // mirror-image reason: its `file` path DOES buffer whole
+            // (`new MemoryStream((int)input.Length)`, `PortableLocalApi.cs:342`),
+            // so there the cap is the memory guard it is everywhere else. The two
+            // heads diverge because their implementations do.
+            //
+            // The case against: parity is the point of the change, and "which
+            // head am I talking to" is not a question a documented field should
+            // make a caller ask.
+            //
+            // Unresolved on purpose — it is a product call, not a code call. It
+            // is written up as an open question in the implementation notes for
+            // this change: cap macOS to match .NET, or lift the .NET cap? Either
+            // answer is a wire change on one of the two heads.
             let stagedFile: StagedAudioFile
             do {
                 stagedFile = try Self.stageValidatedAudioFile(
