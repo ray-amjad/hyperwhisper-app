@@ -1,0 +1,43 @@
+<!--
+    THE SHORTCUT RECORDER
+
+    A read-only field that captures the next key chord pressed into it, rejects the
+    ones this app cannot register, and reports what it captured. It writes nothing:
+    the host decides where the shortcut goes, which is the only reason it can serve
+    both the Shortcuts settings page (five of them, straight into SettingsService)
+    and the onboarding Permissions step (one, through the flow model's seam so the
+    registration row refreshes and the flow-model suite stays WPF-free).
+
+    Extracted, not written. Every line of the capture and the validation came off
+    ShortcutsSettingsPage.xaml.cs, which was where the ONLY recorder in this app
+    lived: a bare TextBox plus two PreviewKey handlers, wired to five named boxes by
+    a Tag string and five named error TextBlocks. That is not reusable in place, and
+    copying it for onboarding would have made two recorders that could drift on what
+    counts as a legal shortcut. There is still exactly one.
+
+    The field is IsReadOnly and swallows KeyUp as well as KeyDown, so a Win-key
+    release never leaks into WPF text input while the global hook is live.
+-->
+<UserControl x:Class="HyperWhisper.Views.Controls.ShortcutRecorderBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBox x:Name="Field"
+                 Padding="10,6"
+                 Background="{DynamicResource InputBackgroundBrush}"
+                 Foreground="{DynamicResource TextPrimaryBrush}"
+                 BorderBrush="{DynamicResource BorderBrush}"
+                 IsReadOnly="True"
+                 VerticalAlignment="Center"
+                 PreviewKeyDown="Field_PreviewKeyDown"
+                 PreviewKeyUp="Field_PreviewKeyUp"/>
+
+        <TextBlock x:Name="ErrorText"
+                   Text=""
+                   Foreground="{DynamicResource ErrorForegroundBrush}"
+                   FontSize="11"
+                   Margin="0,4,0,0"
+                   Visibility="Collapsed"
+                   TextWrapping="Wrap"/>
+    </StackPanel>
+</UserControl>

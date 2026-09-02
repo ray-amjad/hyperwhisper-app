@@ -18,6 +18,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:loc="clr-namespace:HyperWhisper.Localization"
       xmlns:onboarding="clr-namespace:HyperWhisper.Views.Controls.Onboarding"
+      xmlns:controls="clr-namespace:HyperWhisper.Views.Controls"
       Title="{loc:Loc onboarding.permissions.title}"
       Background="Transparent">
     <Page.Resources>
@@ -134,26 +135,44 @@
                     </StackPanel>
 
                     <!-- Failed: the sentence comes back from ShortcutValidationService
-                         verbatim rather than being forked into a second copy in .resx -->
+                         verbatim rather than being forked into a second copy in .resx.
+
+                         The way out is recorded HERE. It used to be a button that
+                         deep-linked the Shortcuts settings section, which could not
+                         work: this window is application modal, so it raised a page
+                         the user could look at and not type into. The recorder is the
+                         same control the Shortcuts page itself uses, so the two
+                         screens cannot disagree about what a legal shortcut is. -->
                     <StackPanel Visibility="{Binding IsShortcutFailed, Converter={StaticResource OnboardingBoolToVisibility}}">
                         <Border Style="{StaticResource OnboardingDividerStyle}"/>
                         <Border Style="{StaticResource OnboardingCardBlockStyle}">
                             <Border Style="{StaticResource OnboardingWarningBoxStyle}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0"
-                                               Style="{StaticResource OnboardingWarningTextStyle}"
-                                               Text="{Binding ShortcutFailureText}"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,12,0"/>
-                                    <Button Grid.Column="1"
-                                            Style="{StaticResource OnboardingButtonStyle}"
-                                            Content="{loc:Loc onboarding.permissions.shortcut.change}"
-                                            Command="{Binding ChooseDifferentShortcutCommand}"/>
-                                </Grid>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource OnboardingWarningTextStyle}"
+                                               Text="{Binding ShortcutFailureText}"/>
+
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Style="{StaticResource OnboardingWarningTextStyle}"
+                                                   Text="{loc:Loc onboarding.permissions.shortcut.change}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,12,0"/>
+
+                                        <controls:ShortcutRecorderBox Grid.Column="1"
+                                                                      x:Name="ShortcutRecorder"
+                                                                      Role="Toggle"
+                                                                      Width="180"
+                                                                      VerticalAlignment="Center"
+                                                                      DisplayText="{Binding ShortcutDisplay, Mode=OneWay}"
+                                                                      ShortcutCaptured="ShortcutRecorder_Captured"
+                                                                      AutomationProperties.Name="{loc:Loc onboarding.permissions.shortcut.change}"/>
+                                    </Grid>
+                                </StackPanel>
                             </Border>
                         </Border>
                     </StackPanel>

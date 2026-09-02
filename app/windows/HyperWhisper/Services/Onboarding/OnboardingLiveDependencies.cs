@@ -57,11 +57,17 @@ public sealed class LiveOnboardingPermissions : IOnboardingPermissions
     /// </summary>
     private const string ToggleShortcutName = "toggle";
 
-    private readonly Action _openShortcutSettings;
+    private readonly Action<KeyboardShortcut> _persistToggleShortcut;
 
-    public LiveOnboardingPermissions(Action openShortcutSettings)
+    /// <summary>
+    /// The write is injected rather than reaching <c>SettingsService.Instance</c>
+    /// here, for the same reason the device seam takes two delegates: this adapter
+    /// is the seam between the flow and the app, and a singleton read inside it is a
+    /// dependency the composition point cannot see.
+    /// </summary>
+    public LiveOnboardingPermissions(Action<KeyboardShortcut> persistToggleShortcut)
     {
-        _openShortcutSettings = openShortcutSettings;
+        _persistToggleShortcut = persistToggleShortcut;
     }
 
     /// <summary>
@@ -90,15 +96,37 @@ public sealed class LiveOnboardingPermissions : IOnboardingPermissions
 
     public void OpenMicrophonePrivacySettings() => MicrophonePrivacyService.OpenPrivacySettings();
 
-    public void OpenShortcutSettings()
+    /// <summary>
+    /// Store a shortcut the user recorded on the Permissions step. See the seam's
+    /// doc comment for why this is a write and not a deep link, and why it is the
+    /// one thing the flow does that "Set Up Later" does not roll back.
+    ///
+    /// It deliberately does not register the hotkey itself.
+    /// <c>MainViewModel.OnSettingsChanged</c> re-registers every shortcut whenever a
+    /// setting changes, and <c>NotifySettingsChanged</c> raises that inline when the
+    /// caller is already on the UI thread - which a key handler always is. So by the
+    /// time this returns, the attempt has been made and recorded, and the flow's
+    /// RefreshShortcutRegistration() reads the NEW outcome rather than the old one.
+    /// </summary>
+    public bool SetToggleShortcut(string persistedShortcut)
     {
         try
         {
-            _openShortcutSettings();
+            var shortcut = KeyboardShortcut.FromPersistedString(persistedShortcut);
+            if (shortcut.IsEmpty)
+            {
+                LoggingService.Warn(
+                    $"LiveOnboardingPermissions: refused an empty toggle shortcut ('{persistedShortcut}')");
+                return false;
+            }
+
+            _persistToggleShortcut(shortcut);
+            return true;
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"LiveOnboardingPermissions: Could not open the shortcut editor: {ex.Message}");
+            LoggingService.Warn($"LiveOnboardingPermissions: Could not store the toggle shortcut: {ex.Message}");
+            return false;
         }
     }
 
@@ -1005,13 +1033,13 @@ public static class OnboardingLiveDependencies
     }
 
     public static LiveOnboarding CreateLive(
-        Action? openShortcutSettings = null,
+        Action<KeyboardShortcut>? persistToggleShortcut = null,
         Action? returnToHome = null)
     {
         var mainViewModel = WpfApplication.Current?.MainWindow?.DataContext as MainViewModel;
 
         var permissions = new LiveOnboardingPermissions(
-            openShortcutSettings ?? (() => NavigateMainShell(MainViewModel.NavigationPage.Settings)));
+            persistToggleShortcut ?? (shortcut => SettingsService.Instance.ToggleShortcut = shortcut));
 
         // One pair for the whole window: the Setup step's catalog reads them to
         // decide what is installed, and the Try It step's gateway reads them to

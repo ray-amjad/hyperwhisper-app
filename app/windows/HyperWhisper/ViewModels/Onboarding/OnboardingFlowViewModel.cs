@@ -560,14 +560,28 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Open the shortcut editor and re-check when we come back. The row never gates
-    /// Continue, so this is an offer, not a requirement.
+    /// Store a shortcut the user recorded inline on the Permissions step, then
+    /// re-check. The row never gates Continue, so this is an offer, not a
+    /// requirement - but it is now an offer that works: it used to deep-link the
+    /// Shortcuts settings section, and this window is application modal, so the page
+    /// it raised could be looked at and not typed into.
+    ///
+    /// The argument is the persisted string rather than a WPF key, so this file and
+    /// its whole suite stay WPF-free. See the seam for why this one write is
+    /// deliberately not rolled back by "Set Up Later".
     /// </summary>
-    [RelayCommand]
-    public void ChooseDifferentShortcut()
+    /// <returns>false if the seam refused it; the recorder has already validated it.</returns>
+    public bool ApplyToggleShortcut(string persistedShortcut)
     {
-        _permissions.OpenShortcutSettings();
+        if (string.IsNullOrWhiteSpace(persistedShortcut))
+            return false;
+
+        var stored = _permissions.SetToggleShortcut(persistedShortcut);
+
+        // Refresh either way. A refused write still has to leave the row showing
+        // what is actually configured rather than what the user just typed.
         RefreshShortcutRegistration();
+        return stored;
     }
 
     // =========================================================================

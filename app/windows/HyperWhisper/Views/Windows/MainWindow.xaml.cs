@@ -516,15 +516,15 @@ public partial class MainWindow : Window
         try
         {
             live = OnboardingLiveDependencies.CreateLive(
-                // Deep-link to the Shortcuts section rather than to Settings in
-                // general, so the row the user pressed the button about is the one
-                // waiting for them. KNOWN LIMIT: this window is application modal,
-                // so the shell behind it cannot be typed into until the flow ends.
-                // The permissions row never gates Continue, and the shortcut is
-                // re-read on every Activated, so the flow stays completable either
-                // way.
-                openShortcutSettings: () => Dispatcher.Invoke(() =>
-                    NavigateToSettingsSection("Shortcuts")),
+                // The Permissions step records a replacement shortcut inline and
+                // hands it here. It used to deep-link the Shortcuts settings section
+                // instead, which could not work: this window is application modal,
+                // so the page it raised behind the modal could be looked at and not
+                // typed into. Writing the setting re-registers every hotkey
+                // synchronously through MainViewModel.OnSettingsChanged, so the
+                // step's own status row is correct as soon as the user lets go.
+                persistToggleShortcut: shortcut => Dispatcher.Invoke(() =>
+                    SettingsService.Instance.ToggleShortcut = shortcut),
                 returnToHome: () => Dispatcher.Invoke(() =>
                 {
                     _viewModel.CurrentPage = MainViewModel.NavigationPage.Home;

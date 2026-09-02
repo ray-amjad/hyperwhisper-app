@@ -253,8 +253,28 @@ public interface IOnboardingPermissions
 
     void OpenMicrophonePrivacySettings();
 
-    /// <summary>Open the app's own shortcut editor, so a conflict can be resolved.</summary>
-    void OpenShortcutSettings();
+    /// <summary>
+    /// Persist a new toggle shortcut, chosen on the Permissions step itself.
+    ///
+    /// This replaces a deep link into the Shortcuts settings section. The onboarding
+    /// window is application-modal, so the shell behind it cannot be typed into
+    /// until the flow ends: the link raised a page the user could look at and not
+    /// use, which is worse than no offer at all. macOS has the same button and the
+    /// same problem, and no answer for it, because its sheet is modal too.
+    ///
+    /// The parameter is the PERSISTED string, not a WPF <c>Key</c>, so the seam and
+    /// the flow model stay free of WPF - the flow-model suite runs with no
+    /// Application at all. <c>KeyboardShortcut.FromPersistedString</c> round-trips it.
+    ///
+    /// DELIBERATELY NOT REVERSIBLE, unlike every other write the flow makes. The
+    /// user only reaches this control because their configured shortcut FAILED to
+    /// register, and "Set Up Later" putting the broken one back would undo the one
+    /// thing they came here to fix. It is also not first-run state: it is a setting,
+    /// and it outlives the flow the same way it would if they had changed it in
+    /// Settings a minute later.
+    /// </summary>
+    /// <returns>true if it was stored.</returns>
+    bool SetToggleShortcut(string persistedShortcut);
 
     /// <summary>
     /// Re-run the registration check and raise <see cref="ShortcutChanged"/>.

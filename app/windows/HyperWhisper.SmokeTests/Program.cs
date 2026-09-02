@@ -7147,9 +7147,39 @@ internal static class Program
                 Assert(h.Flow.ShortcutFailureReason == "This shortcut is already in use by another app.",
                     "the adapter's sentence must be shown verbatim, not re-worded");
 
-                h.Flow.ChooseDifferentShortcut();
-                Assert(h.Permissions.OpenedShortcutSettings == 1, "the offer must open the shortcut editor");
-                Assert(h.Permissions.ShortcutRefreshes >= 1, "coming back must re-check the registration");
+                // The way out of a conflict is recorded ON this step, not deep-linked
+                // into a settings page behind an application-modal window.
+                Assert(h.Flow.ApplyToggleShortcut("Ctrl+Alt+J"),
+                    "the seam accepted the chord, so the flow must report it stored");
+                Assert(h.Permissions.StoredToggleShortcuts.Count == 1
+                       && h.Permissions.StoredToggleShortcuts[0] == "Ctrl+Alt+J",
+                    "the recorded chord must reach the seam verbatim");
+                Assert(h.Permissions.ShortcutRefreshes >= 1,
+                    "storing it must re-check the registration, or the row still shows the failure");
+                Assert(h.Flow.ShortcutStatus == OnboardingShortcutStatus.Registered,
+                    "the row has to follow the new shortcut, not stay on the old failure");
+                Assert(h.Flow.ShortcutDisplay == "Ctrl+Alt+J",
+                    $"the row must show the new chord; showed '{h.Flow.ShortcutDisplay}'");
+            });
+
+            Run("onboarding: a refused shortcut write still leaves the row honest", () =>
+            {
+                var h = new OnboardingHarness();
+                h.Permissions.Publish(new OnboardingShortcutState(
+                    "Ctrl+Shift+Space", OnboardingShortcutStatus.Failed, "in use by another app"));
+                h.Permissions.RefuseShortcutWrite = true;
+
+                Assert(!h.Flow.ApplyToggleShortcut("Ctrl+Alt+J"),
+                    "a refused write must be reported as refused, not swallowed");
+                Assert(h.Permissions.StoredToggleShortcuts.Count == 0, "nothing was stored");
+                Assert(h.Permissions.ShortcutRefreshes >= 1,
+                    "refresh anyway: the row must show what IS configured, not what was typed");
+                Assert(h.Flow.ShortcutDisplay == "Ctrl+Shift+Space",
+                    "a refused write must leave the old shortcut on screen");
+
+                // Empty never reaches the seam at all.
+                Assert(!h.Flow.ApplyToggleShortcut("   "), "blank is not a shortcut");
+                Assert(h.Permissions.StoredToggleShortcuts.Count == 0, "blank must not reach the seam");
             });
 
             Run("onboarding: an unknown shortcut registration is not a failure", () =>

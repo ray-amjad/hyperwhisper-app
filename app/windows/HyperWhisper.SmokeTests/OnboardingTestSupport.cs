@@ -35,7 +35,11 @@ internal sealed class FakeOnboardingPermissions : IOnboardingPermissions
     public bool RequestResult { get; set; } = true;
     public int RequestCount { get; private set; }
     public int OpenedMicrophoneSettings { get; private set; }
-    public int OpenedShortcutSettings { get; private set; }
+    /// <summary>Every shortcut the flow asked to store, in order.</summary>
+    public List<string> StoredToggleShortcuts { get; } = new();
+
+    /// <summary>Make the next SetToggleShortcut refuse, as a full credential store would.</summary>
+    public bool RefuseShortcutWrite { get; set; }
     public int ShortcutRefreshes { get; private set; }
 
     public event EventHandler? ShortcutChanged;
@@ -50,7 +54,15 @@ internal sealed class FakeOnboardingPermissions : IOnboardingPermissions
 
     public void OpenMicrophonePrivacySettings() => OpenedMicrophoneSettings++;
 
-    public void OpenShortcutSettings() => OpenedShortcutSettings++;
+    public bool SetToggleShortcut(string persistedShortcut)
+    {
+        if (RefuseShortcutWrite) return false;
+        StoredToggleShortcuts.Add(persistedShortcut);
+        // The live adapter's write goes through SettingsService, which re-registers
+        // every hotkey inline; the state the flow then re-reads is the NEW one.
+        Shortcut = new OnboardingShortcutState(persistedShortcut, OnboardingShortcutStatus.Registered, null);
+        return true;
+    }
 
     public void RefreshShortcutRegistration()
     {

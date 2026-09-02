@@ -387,6 +387,47 @@ if (Test-Path -LiteralPath $OnboardingWindowXaml) {
     Write-Fail "OnboardingWindow.xaml not found at $(Get-RelativePath $OnboardingWindowXaml)"
 }
 
+# --- the shortcut is re-recorded IN the flow, never behind the modal -------
+# The window is application modal (ShowDialog with an Owner), so anything that
+# navigates the shell behind it renders a page the user can look at and cannot
+# type into. A shortcut conflict has to be resolvable on the step itself.
+$permissionsStepXaml = Join-Path $StepPagesDir "PermissionsStepPage.xaml"
+$shortcutRecorderXaml = Join-Path $ProjectRoot "Views\Controls\ShortcutRecorderBox.xaml"
+if (Test-Path -LiteralPath $permissionsStepXaml) {
+    $permXaml = Read-Text $permissionsStepXaml
+
+    if ($permXaml -match "ShortcutRecorderBox") {
+        Write-Pass "the Permissions step records a replacement shortcut inline"
+    } else {
+        Write-Fail "the Permissions step has no inline ShortcutRecorderBox; a conflict cannot be cleared without leaving the modal flow"
+    }
+
+    if ($permXaml -match "NavigateToSettings|ChooseDifferentShortcut|OpenShortcutSettings") {
+        Write-Fail "the Permissions step deep-links the Shortcuts settings section; the onboarding window is modal, so that page cannot be typed into"
+    } else {
+        Write-Pass "the Permissions step never deep-links settings from behind the modal"
+    }
+} else {
+    Write-Fail "PermissionsStepPage.xaml not found at $(Get-RelativePath $permissionsStepXaml)"
+}
+
+# One recorder, not two. The onboarding step and the Shortcuts settings page
+# have to agree about what a legal chord is, which they only do while they are
+# literally the same control.
+if (Test-Path -LiteralPath $shortcutRecorderXaml) {
+    $shortcutsPageXaml = Join-Path $ProjectRoot "Views\Pages\Settings\ShortcutsSettingsPage.xaml"
+    if (Test-Path -LiteralPath $shortcutsPageXaml) {
+        $settingsXaml = Read-Text $shortcutsPageXaml
+        if ($settingsXaml -match "ShortcutRecorderBox") {
+            Write-Pass "the Shortcuts settings page uses the same ShortcutRecorderBox the onboarding step does"
+        } else {
+            Write-Fail "ShortcutsSettingsPage.xaml no longer uses ShortcutRecorderBox; onboarding and settings would validate shortcuts differently"
+        }
+    }
+} else {
+    Write-Fail "ShortcutRecorderBox.xaml not found at $(Get-RelativePath $shortcutRecorderXaml)"
+}
+
 # --- all 8 steps present, rendered, and reachable --------------------------
 $stepEnumPath = Join-Path $FlowDir "OnboardingStep.cs"
 if (Test-Path -LiteralPath $stepEnumPath) {
