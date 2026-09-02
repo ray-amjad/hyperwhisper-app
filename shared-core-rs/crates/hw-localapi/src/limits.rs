@@ -24,6 +24,31 @@
 //! are not new policy — moving them here is what makes them shared. Changing
 //! either one changes what every head accepts.
 //!
+//! # What is deliberately *not* here: the comparison
+//!
+//! An earlier revision also exported `exceeds_request_limit(len)`,
+//! `exceeds_upload_limit(len)` and `exceeds_base64_upload_limit(encoded_len)`.
+//! They were deleted in review because no head can call them, and a predicate
+//! no head calls is a decision nothing enforces:
+//!
+//! - macOS compares a running byte counter against a `limit` **parameter** —
+//!   `LocalAPIBodyLimit.drain(count:limit:chunks:)` takes the cap as an argument
+//!   so its tests can use a 10-byte one. A predicate hard-wired to
+//!   [`MAX_REQUEST_BYTES`] cannot be that comparison without deleting the
+//!   testability that split the reader in two.
+//! - The .NET head compares against `options.MaxRequestBytes` /
+//!   `options.MaxUploadBytes`, which a host overrides (`PortableLocalApiOptions`,
+//!   and its own test fixture passes `4096`/`1024`). A predicate against the
+//!   constant would be the wrong comparison there, not merely a redundant one.
+//!
+//! So the caps are shared and the comparison is each head's. It is `>` and not
+//! `>=` on every head — a body of exactly the cap is accepted — and each head
+//! pins that boundary in its own tests, because each head is where the
+//! comparison actually is: `exactlyTheCapIsAccepted` in
+//! `LocalAPIBodyLimitTests.swift`, and `SharedSizeLimits` in
+//! `HyperWhisper.LocalApi.Tests/Program.cs`, which drives a real oversized
+//! request through the production server.
+//!
 //! # The failures are business failures: HTTP 200, `INVALID_REQUEST`
 //!
 //! Not `413`, and not a `PAYLOAD_TOO_LARGE` code. `PAYLOAD_TOO_LARGE` is one of
@@ -96,36 +121,6 @@ const fn base64_encoded_length(decoded_len: u64) -> u64 {
     (decoded_len.saturating_add(2) / 3).saturating_mul(4)
 }
 
-/// Whether a request body of `len` bytes is over [`MAX_REQUEST_BYTES`].
-///
-/// Strictly greater, so a body of exactly the cap is accepted — the same
-/// comparison `PortableLocalApi.cs:185` makes. Call it twice on a streaming
-/// read: once on the declared `Content-Length` (reject before allocating
-/// anything) and again on the running counter (a chunked body declares no
-/// length, and a declared one can lie).
-#[must_use]
-pub const fn exceeds_request_limit(len: u64) -> bool {
-    len > MAX_REQUEST_BYTES
-}
-
-/// Whether a piece of audio of `len` bytes is over [`MAX_UPLOAD_BYTES`].
-///
-/// Strictly greater, matching `PortableLocalApi.cs:193`/`:251`.
-#[must_use]
-pub const fn exceeds_upload_limit(len: u64) -> bool {
-    len > MAX_UPLOAD_BYTES
-}
-
-/// Whether a base64 string of `encoded_len` characters is over what
-/// [`MAX_UPLOAD_BYTES`] permits.
-///
-/// The pre-decode check. `encoded_len` is the length of the **trimmed** string,
-/// as `PortableLocalApi.cs:243-244` measures it.
-#[must_use]
-pub const fn exceeds_base64_upload_limit(encoded_len: u64) -> bool {
-    encoded_len > max_base64_length_for_upload()
-}
-
 /// The response an over-sized request body gets, byte for byte what the Linux
 /// head already sends (`PortableLocalApi.cs:185`).
 ///
@@ -156,8 +151,7 @@ pub fn upload_too_large() -> Failure {
 #[cfg(test)]
 mod tests {
     use super::{
-        base64_encoded_length, exceeds_base64_upload_limit, exceeds_request_limit,
-        exceeds_upload_limit, max_base64_length_for_upload, request_too_large, upload_too_large,
+        base64_encoded_length, max_base64_length_for_upload, request_too_large, upload_too_large,
         MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES,
     };
     use crate::failure::LocalApiErrorCode;
@@ -182,34 +176,14 @@ mod tests {
     /// cap above the request cap would be unreachable, and every oversized
     /// upload would be reported as an oversized *request* instead.
     ///
-    /// Phrased through the predicates rather than as `MAX_UPLOAD_BYTES <=
-    /// MAX_REQUEST_BYTES`: clippy's `assertions_on_constants` rejects an
-    /// `assert!` over two consts, and "an upload at the cap is an acceptable
-    /// request" is the property a head actually depends on anyway.
+    /// Phrased as `min` rather than as `assert!(MAX_UPLOAD_BYTES <=
+    /// MAX_REQUEST_BYTES)` because clippy's `assertions_on_constants` rejects an
+    /// `assert!` whose condition const-folds.
     #[test]
     fn the_upload_cap_fits_inside_the_request_cap() {
-        assert!(!exceeds_request_limit(MAX_UPLOAD_BYTES));
+        assert_eq!(MAX_UPLOAD_BYTES.min(MAX_REQUEST_BYTES), MAX_UPLOAD_BYTES);
         assert_ne!(MAX_UPLOAD_BYTES, 0);
         assert_ne!(MAX_REQUEST_BYTES, 0);
-    }
-
-    /// The cap is inclusive on both predicates: `>` , not `>=`. Both .NET
-    /// comparisons are `>` (`:185`, `:193`), so a body of exactly the cap is
-    /// accepted, and an off-by-one here is a body one head takes and another
-    /// refuses.
-    #[test]
-    fn the_boundaries_are_exclusive_at_the_cap() {
-        assert!(!exceeds_request_limit(0));
-        assert!(!exceeds_request_limit(MAX_REQUEST_BYTES - 1));
-        assert!(!exceeds_request_limit(MAX_REQUEST_BYTES));
-        assert!(exceeds_request_limit(MAX_REQUEST_BYTES + 1));
-        assert!(exceeds_request_limit(u64::MAX));
-
-        assert!(!exceeds_upload_limit(0));
-        assert!(!exceeds_upload_limit(MAX_UPLOAD_BYTES - 1));
-        assert!(!exceeds_upload_limit(MAX_UPLOAD_BYTES));
-        assert!(exceeds_upload_limit(MAX_UPLOAD_BYTES + 1));
-        assert!(exceeds_upload_limit(u64::MAX));
     }
 
     /// The expansion is `((long)MaxUploadBytes + 2) / 3 * 4`, evaluated exactly
@@ -261,31 +235,26 @@ mod tests {
         assert_eq!(base64_encoded_length(first_saturating), u64::MAX);
         assert!(base64_encoded_length(first_saturating - 1) < u64::MAX);
 
-        // And everything over the cap is still reported as over the cap after
-        // saturating, which is the property that matters on the wire.
-        assert!(exceeds_base64_upload_limit(base64_encoded_length(u64::MAX)));
+        // And a saturated expansion still lands above the threshold a head
+        // compares against, which is the property that matters on the wire: a
+        // `u64::MAX` claim is refused, not wrapped into an acceptable number.
+        assert!(base64_encoded_length(u64::MAX) > max_base64_length_for_upload());
     }
 
-    /// The base64 predicate's own boundary, and the property that ties it to
-    /// the decoded cap: a string at the threshold decodes to at most
-    /// `MAX_UPLOAD_BYTES`, so the pre-check never rejects a payload the
-    /// post-decode check would have accepted.
+    /// The property that ties the exported threshold to the decoded cap: a
+    /// string at the threshold decodes to at most `MAX_UPLOAD_BYTES`, so a
+    /// head's pre-decode check never rejects a payload its post-decode check
+    /// would have accepted.
     #[test]
-    fn the_base64_predicate_brackets_the_upload_cap() {
+    fn the_base64_threshold_brackets_the_upload_cap() {
         let threshold = max_base64_length_for_upload();
-        assert!(!exceeds_base64_upload_limit(0));
-        assert!(!exceeds_base64_upload_limit(threshold - 1));
-        assert!(!exceeds_base64_upload_limit(threshold));
-        assert!(exceeds_base64_upload_limit(threshold + 1));
-        assert!(exceeds_base64_upload_limit(u64::MAX));
 
         // 4 base64 characters carry at most 3 bytes, so the threshold admits
         // no more than the upload cap once decoded.
         assert!(threshold / 4 * 3 <= MAX_UPLOAD_BYTES);
-        // And it is not needlessly tight: the cap itself still fits.
-        assert!(!exceeds_base64_upload_limit(base64_encoded_length(
-            MAX_UPLOAD_BYTES
-        )));
+        // And it is not needlessly tight: the cap itself still fits, so the
+        // largest legal upload is not refused before it is decoded.
+        assert_eq!(base64_encoded_length(MAX_UPLOAD_BYTES), threshold);
     }
 
     /// Both messages are the .NET head's, verbatim

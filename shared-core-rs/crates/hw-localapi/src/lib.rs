@@ -83,7 +83,6 @@ pub use failure::{
     forbidden_origin, unauthorized, Failure, FailureKind, LocalApiErrorCode, ALL_ERROR_CODES,
 };
 pub use limits::{
-    exceeds_base64_upload_limit, exceeds_request_limit, exceeds_upload_limit,
     max_base64_length_for_upload, request_too_large, upload_too_large, MAX_REQUEST_BYTES,
     MAX_UPLOAD_BYTES,
 };

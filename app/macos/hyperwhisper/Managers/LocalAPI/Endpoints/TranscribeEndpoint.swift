@@ -13,17 +13,12 @@ import Darwin
 
 enum TranscribeEndpoint {
 
+    /// Takes `body`, not an `HTTPRequest` (issue #375). The bytes have already
+    /// been read and bounded at the shared cap by `LocalAPIServer.bodied`, the
+    /// router-level wrapper that sits beside the origin and bearer guards. This
+    /// endpoint is handed no request, so it has no unbounded body to read.
     @MainActor
-    static func handle(request: HTTPRequest, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
-        // Bounded read (issue #375): `request.bodyData` buffers whatever the
-        // caller sends. `LocalAPIBodyLimit` carries the "could not read" 400 this
-        // site used to build itself, plus the over-cap 200 + INVALID_REQUEST.
-        let body: Data
-        switch await LocalAPIBodyLimit.read(request) {
-        case .body(let data): body = data
-        case .rejected(let response): return response
-        }
-
+    static func handle(body: Data, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
         let req: TranscribeRequest
         do { req = try LocalAPIResponder.decoder.decode(TranscribeRequest.self, from: body) } catch {
             return LocalAPIResponder.badRequest(

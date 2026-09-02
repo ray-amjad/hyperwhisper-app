@@ -685,30 +685,35 @@ mod tests {
         );
     }
 
-    /// The boundary the heads compare against, at the exported values: the cap
-    /// itself is accepted and one byte more is not, on all three predicates.
-    /// Both .NET comparisons are `>` (`:185`, `:193`), so an off-by-one here is
-    /// a body one head takes and another refuses.
+    /// The three exported numbers are ordered the way every head's three
+    /// comparisons need them to be.
+    ///
+    /// This used to assert `exceeds_request_limit(cap)` /
+    /// `exceeds_request_limit(cap + 1)` against three `hw_localapi` predicates.
+    /// Those were deleted in review: no head could call them — macOS compares
+    /// against a `limit` parameter and the .NET head against a per-host
+    /// `options.MaxRequestBytes` — so they pinned a comparison that shipped
+    /// nowhere. The boundary itself is now pinned where the comparison lives:
+    /// `exactlyTheCapIsAccepted` in `LocalAPIBodyLimitTests.swift` and
+    /// `SharedSizeLimits` in `HyperWhisper.LocalApi.Tests/Program.cs`. What is
+    /// still Rust's to guarantee is the *relationship* between the values a
+    /// head reads out, which is what this asserts.
     #[test]
-    fn the_caps_are_inclusive_at_the_exported_values() {
+    fn the_exported_values_are_ordered_for_the_heads() {
         let request = local_api_max_request_bytes();
-        assert!(!hw_localapi::exceeds_request_limit(request));
-        assert!(hw_localapi::exceeds_request_limit(request + 1));
-
         let upload = local_api_max_upload_bytes();
-        assert!(!hw_localapi::exceeds_upload_limit(upload));
-        assert!(hw_localapi::exceeds_upload_limit(upload + 1));
-
         let encoded = local_api_max_base64_length_for_upload();
-        assert!(!hw_localapi::exceeds_base64_upload_limit(encoded));
-        assert!(hw_localapi::exceeds_base64_upload_limit(encoded + 1));
 
-        // A caller-claimed `Content-Length` of `u64::MAX` is rejected, not an
-        // overflow. Under `panic = "abort"` an overflow here would take the
-        // process down from one header.
-        assert!(hw_localapi::exceeds_request_limit(u64::MAX));
-        assert!(hw_localapi::exceeds_upload_limit(u64::MAX));
-        assert!(hw_localapi::exceeds_base64_upload_limit(u64::MAX));
+        // An upload at its cap is always an acceptable request, so an oversized
+        // upload is never reported as an oversized request instead.
+        assert!(upload <= request);
+        // The pre-decode ceiling is above the decoded cap, so the cheap check
+        // never refuses a payload the expensive one would have taken.
+        assert!(encoded > upload);
+        // None of them is zero, which would refuse every request ever sent.
+        assert_ne!(request, 0);
+        assert_ne!(upload, 0);
+        assert_ne!(encoded, 0);
     }
 
     #[test]

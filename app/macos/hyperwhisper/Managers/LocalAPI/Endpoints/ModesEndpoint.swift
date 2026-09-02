@@ -35,15 +35,10 @@ enum ModesEndpoint {
 
     // MARK: - Create
 
+    /// Takes `body`, not an `HTTPRequest` (issue #375) — already read and
+    /// bounded at the shared cap by `LocalAPIServer.bodied`.
     @MainActor
-    static func create(request: HTTPRequest) async -> HTTPResponse {
-        // Bounded read (issue #375) — see `LocalAPIBodyLimit`.
-        let body: Data
-        switch await LocalAPIBodyLimit.read(request) {
-        case .body(let data): body = data
-        case .rejected(let response): return response
-        }
-
+    static func create(body: Data) async -> HTTPResponse {
         let dto: ModeDTO
         do { dto = try LocalAPIResponder.decoder.decode(ModeDTO.self, from: body) } catch {
             return LocalAPIResponder.badRequest(
@@ -113,24 +108,27 @@ enum ModesEndpoint {
 
     // MARK: - Patch
 
+    /// Still takes the `HTTPRequest`, for its `:id` path parameter only. The
+    /// `body` has already been read and bounded at the shared cap by
+    /// `LocalAPIServer.bodied` (issue #375), so this is the one body-reading
+    /// endpoint that keeps a request, and it does not read from it.
     @MainActor
-    static func patch(request: HTTPRequest) async -> HTTPResponse {
+    static func patch(request: HTTPRequest, body: Data) async -> HTTPResponse {
         guard let id = idParameter(from: request) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Missing :id path parameter")
         }
-        // Do not retain a view-context Mode across the body-data suspension point.
-        // A count fetch gives missing IDs their normal precedence while a DELETE
-        // racing the await is still handled by the isolated re-fetch below.
+        // Do not retain a view-context Mode across a suspension point. A count
+        // fetch gives missing IDs their normal precedence while a DELETE racing
+        // the await is still handled by the isolated re-fetch below.
+        //
+        // This check used to sit *before* the body read. It now runs after it,
+        // because the read moved up to the router. That is safe — nothing here
+        // is retained across the read, the fetch returns a `Bool` — and the one
+        // observable change is that an over-cap PATCH to an unknown id is now
+        // refused for its size rather than for its id. Both are HTTP 200
+        // business failures.
         guard Self.modeExists(withId: id, in: PersistenceController.shared.container.viewContext) else {
             return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
-        }
-        // Bounded read (issue #375) — see `LocalAPIBodyLimit`. Deliberately still
-        // the same point in the sequence: the existence check above must stay
-        // before the suspension point, and the read must stay after it.
-        let body: Data
-        switch await LocalAPIBodyLimit.read(request) {
-        case .body(let data): body = data
-        case .rejected(let response): return response
         }
         let patch: ModePatchDTO
         do { patch = try LocalAPIResponder.decoder.decode(ModePatchDTO.self, from: body) } catch {

@@ -85,9 +85,15 @@ enum LocalAPIBodyLimit {
 
     /// Read `request`'s body, or return the response to send instead.
     ///
-    /// The FlyingFox adapter over `drain`. The `.unreadable` message is the one
-    /// all four call sites already sent for a failed `bodyData`, so folding it in
-    /// here changes no bytes on the wire.
+    /// The FlyingFox adapter over `drain`, and the single line in this app that
+    /// touches a request body. Its one caller is `LocalAPIServer.bodied(_:_:)`,
+    /// the router-level wrapper that sits beside `guarded` and `authorized`; no
+    /// endpoint calls it directly, and `LocalAPIBodyLimitTests` fails the build
+    /// if one ever reaches for `bodyData`/`bodySequence` instead.
+    ///
+    /// The `.unreadable` message is the one all four endpoints already sent for
+    /// a failed `bodyData` before #375, so folding it in here changes no bytes
+    /// on the wire.
     static func read(_ request: HTTPRequest) async -> Outcome {
         let chunks = request.bodySequence
         switch await drain(count: chunks.count, limit: localApiMaxRequestBytes(), chunks: chunks) {
