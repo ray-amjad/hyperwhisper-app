@@ -2,8 +2,8 @@
 //
 // None of this was reachable from a test before `redis-core` took a store
 // factory. The three functions each called a module-level `getRedis()` that
-// built a real `@upstash/redis` client out of `UPSTASH_REDIS_URL` /
-// `UPSTASH_REDIS_TOKEN`, memoised it for the life of the process, and talked to
+// built a real `@upstash/redis` client out of `UPSTASH_REDIS_CLOUD_URL` /
+// `UPSTASH_REDIS_CLOUD_TOKEN`, memoised it for the life of the process, and talked to
 // Upstash over the network. So `lib/redis.ts` had no test file at all, and the
 // ten suites that touch it all replace it with `mock.module` — which asserts
 // the STUB, never this code.
@@ -54,7 +54,7 @@ function recordingStore(stored: unknown = null): RecordingStore {
  * throws before any command runs. Every function is meant to fail open on it.
  */
 const unconfiguredStore: RedisStoreFactory = () => {
-  throw new Error('UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN are required');
+  throw new Error('UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required');
 };
 
 /** A store that connects but fails the command itself. */
