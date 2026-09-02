@@ -631,7 +631,10 @@ class FileTranscriptionFlow {
     /// - Returns: URL of the copied file in the recordings folder
     /// - Throws: FileTranscriptionError if copy fails
     private func copyFileToRecordingsFolder(_ sourceURL: URL) throws -> URL {
-        let recordingsDirectory = getRecordingsDirectory()
+        // Use the shared resolver for the configured folder or ~/Documents/Recordings.
+        let recordingsDirectory = RecordingsDirectory.resolve(
+            configuredPath: settingsManager?.recordingsFolder
+        )
 
         // Ensure recordings directory exists
         try FileManager.default.createDirectory(
@@ -652,18 +655,6 @@ class FileTranscriptionFlow {
 
         AppLogger.transcription.info("📁 Copied file to: \(destinationURL.lastPathComponent)")
         return destinationURL
-    }
-
-    /// Gets the recordings directory from settings or default location
-    ///
-    /// - Returns: URL of the recordings directory
-    private func getRecordingsDirectory() -> URL {
-        if let path = settingsManager?.recordingsFolder, !path.isEmpty {
-            return URL(fileURLWithPath: path, isDirectory: true)
-        }
-
-        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Recordings", isDirectory: true)
     }
 
     private func cleanupCopiedFile(reason: String) {
