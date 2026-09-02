@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using HyperWhisper.Localization;
+using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.ViewModels.Onboarding;
 using HyperWhisper.Views.Pages.Onboarding;
@@ -158,29 +160,59 @@ public partial class OnboardingWindow : Window
     private void CloseButton_Click(object sender, RoutedEventArgs e) => DeferAndClose();
 
     /// <summary>
-    /// Anything already written is rolled back first, so the app is left exactly as
-    /// it was before the window opened. OnboardingPending is deliberately NOT
-    /// cleared: an interrupted first run has to be re-offered on the next launch.
+    /// The two EXPLICIT exits: the footer's "Set Up Later" and the caption X. The
+    /// user has decided not to set up now, so anything already written is rolled
+    /// back and first run is closed for good — which is what macOS's
+    /// <c>deferSetup()</c> does (it reaches the same <c>markOnboardingCompleted()</c>
+    /// as <c>complete()</c>, clearing both of its flags).
+    ///
+    /// A close that is NOT a decision goes through <see cref="OnWindowClosing"/> to
+    /// <c>AbandonSetup()</c> instead, which leaves OnboardingPending set.
     /// </summary>
     private void DeferAndClose()
     {
         _flow.DeferSetup();
         _flowResolved = true;
+        ReportUnrestoredProviderKeys();
         Close();
     }
 
     private void OnWindowClosing(object? sender, CancelEventArgs e)
     {
-        // Alt+F4, the taskbar, or a shutdown all land here. Treat any of them as
-        // "Set Up Later" rather than as a silent completion: DeferSetup is
-        // idempotent, so a second call after the footer already ran does nothing.
+        // Alt+F4, the taskbar, tray Quit and an OS shutdown all land here without
+        // the user having chosen anything. Roll back exactly as "Set Up Later"
+        // does, but do NOT mark first run complete: an interrupted first run has to
+        // be re-offered on the next launch, and a PC that restarts for an update
+        // mid-flow must not drop a brand-new user into an unconfigured app forever.
+        //
+        // No dialog on this path: it can run while the OS is ending the session,
+        // where a modal message box would block shutdown. The failure is logged.
         if (!_flowResolved)
         {
-            _flow.DeferSetup();
+            _flow.AbandonSetup();
             _flowResolved = true;
         }
 
         _flow.Cleanup();
+    }
+
+    /// <summary>
+    /// A key the flow overwrote and then could not put back is a real credential
+    /// loss. Say so, with the provider named, instead of closing over the top of it.
+    /// </summary>
+    private void ReportUnrestoredProviderKeys()
+    {
+        var lost = _flow.UnrestoredProviderKeys;
+        if (lost.Count == 0)
+            return;
+
+        var providers = string.Join(", ", lost.Select(p => p.GetDisplayName()));
+        MessageBox.Show(
+            this,
+            $"{Loc.S("onboarding.setup.provider.saveFailed")}\n\n{providers}",
+            Loc.S("errors.unhandled.title"),
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
     }
 
     // =========================================================================

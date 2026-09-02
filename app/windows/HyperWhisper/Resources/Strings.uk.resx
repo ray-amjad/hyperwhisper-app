@@ -2721,4 +2721,7 @@ You can re-download it later.</value>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
     <value>Run setup again</value>
   </data>
+  <data name="app.unknown.error" xml:space="preserve">
+    <value>Сталася невідома помилка</value>
+  </data>
 </root>

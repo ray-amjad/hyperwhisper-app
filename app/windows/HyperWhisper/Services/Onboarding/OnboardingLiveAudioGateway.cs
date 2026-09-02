@@ -76,9 +76,24 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     private float _previewLevel;
     private readonly object _previewLock = new();
 
+    /// <summary>
+    /// The NAudio device index the preview suspended keep-warm on, so stopping can
+    /// resume it on the SAME device. -1 is the system-default sentinel, not "none".
+    /// </summary>
+    private int _previewDeviceNumber = -1;
+
     private string _transcript = string.Empty;
+    private string? _transcriptWarning;
     private bool _isRecording;
     private bool _disposed;
+
+    /// <summary>
+    /// The orchestrator's post-processing warning handler, held so it can be
+    /// detached on Dispose. TranscriptionRuntime.Orchestrator is a process-lifetime
+    /// singleton, so a subscription that outlived this gateway would keep the whole
+    /// onboarding graph alive.
+    /// </summary>
+    private readonly EventHandler<ErrorToastEventArgs> _warningHandler;
 
     public LiveOnboardingAudioGateway(
         AudioDeviceService devices,
@@ -101,6 +116,21 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         _writeOpenDevice = writeOpenDevice ?? (value => _localOpenDevice = value);
 
         _devices.DevicesChanged += OnHardwareDevicesChanged;
+
+        // MainViewModel deliberately drops this event for the Onboarding call site
+        // (a toast behind a modal is unreachable). Onboarding is therefore the only
+        // thing that can surface it, and the CallSite tag makes the filter exact: a
+        // concurrent Local API or GUI transcription is tagged differently and is
+        // never attributed to the Try It panel.
+        _warningHandler = (_, args) =>
+        {
+            if (args is OrchestratorPostProcessingWarningEventArgs tagged
+                && tagged.CallSite == TranscriptionCallSite.Onboarding)
+            {
+                PublishWarning(tagged.Message);
+            }
+        };
+        TranscriptionRuntime.Orchestrator.PostProcessingWarning += _warningHandler;
 
         RefreshDevices();
     }
@@ -273,15 +303,21 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     /// No-op unless a device is genuinely usable. On the blocked path an open
     /// would throw E_ACCESSDENIED; on the empty path there is nothing to open.
     /// </summary>
-    public void StartInputLevelPreview()
+    /// <returns>
+    /// True only when a capture stream is actually running afterwards. A device can
+    /// enumerate and still refuse to open (exclusive-mode hold, consent flipped
+    /// between the read and the open, driver fault), and the caller has to be able
+    /// to tell a live meter from a frozen one.
+    /// </returns>
+    public bool StartInputLevelPreview()
     {
-        if (_availability != OnboardingDeviceAvailability.Available) return;
-        if (_isRecording) return;
+        if (_availability != OnboardingDeviceAvailability.Available) return false;
+        if (_isRecording) return false;
 
         lock (_previewLock)
         {
-            if (_preview != null) return;
-            StartPreviewLocked(ResolveDeviceNumber(SelectedDeviceId));
+            if (_preview != null) return true;
+            return StartPreviewLocked(ResolveDeviceNumber(SelectedDeviceId));
         }
     }
 
@@ -295,9 +331,9 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         PublishLevel(0f);
     }
 
-    private void StartPreviewLocked(int deviceNumber)
+    private bool StartPreviewLocked(int deviceNumber)
     {
-        if (_disposed) return;
+        if (_disposed) return false;
 
         try
         {
@@ -314,17 +350,22 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             preview.DataAvailable += OnPreviewData;
             preview.StartRecording();
             _preview = preview;
+            _previewDeviceNumber = deviceNumber;
             LoggingService.Debug($"LiveOnboardingAudioGateway: level preview started on device #{deviceNumber}");
+            return true;
         }
         catch (Exception ex)
         {
             // A device that enumerates but will not open (privacy flipped between
             // the read and the open, exclusive-mode hold, driver fault) must leave
             // the meter explicitly inactive, not a dead flat bar that reads as a
-            // broken app.
+            // broken app. Reported through the return value, because a caught
+            // exception the caller never hears about is exactly what produced the
+            // frozen meter under a live "speak to see the level" hint.
             LoggingService.Warn($"LiveOnboardingAudioGateway: level preview unavailable: {ex.Message}");
             _preview = null;
-            _keepWarm.ResumeAfterRecording(deviceNumber < 0 ? null : deviceNumber);
+            ResumeKeepWarmLocked(deviceNumber);
+            return false;
         }
     }
 
@@ -333,7 +374,9 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         if (_preview is null) return;
 
         var preview = _preview;
+        var deviceNumber = _previewDeviceNumber;
         _preview = null;
+        _previewDeviceNumber = -1;
 
         try
         {
@@ -346,8 +389,28 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             LoggingService.Debug($"LiveOnboardingAudioGateway: level preview stop failed: {ex.Message}");
         }
 
-        _keepWarm.ResumeAfterRecording(null);
+        ResumeKeepWarmLocked(deviceNumber);
     }
+
+    /// <summary>
+    /// Hand the endpoint back to MicrophoneKeepWarmService.
+    ///
+    /// The device number MATTERS. Configure(enabled, null) takes its
+    /// !deviceNumber.HasValue branch and calls StopLocked, so resuming with null
+    /// does not resume at all: it tears the app's warm capture stream down and
+    /// leaves it down, and because MarkOnboardingCompleted is a no-op for a
+    /// returning user, nothing ever re-Configures it. The very first dictation
+    /// after setup then pays the full cold WASAPI activation the service exists to
+    /// eliminate.
+    ///
+    /// -1 is passed THROUGH rather than mapped to null. It is NAudio's "system
+    /// default device" sentinel, which WaveInEvent and therefore
+    /// MicrophoneKeepWarmService.StartLocked both understand; null means "there is
+    /// no device", which is a different thing and the only case that should stop
+    /// the stream.
+    /// </summary>
+    private void ResumeKeepWarmLocked(int deviceNumber) =>
+        _keepWarm.ResumeAfterRecording(deviceNumber);
 
     /// <summary>
     /// The identical RMS -> dB -> envelope maths AudioRecorderService.OnDataAvailable
@@ -400,18 +463,18 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
 
     public event EventHandler? TranscriptChanged;
 
-    public void ToggleTestRecording()
+    public string? TranscriptWarning => _transcriptWarning;
+
+    public event EventHandler? TranscriptWarningChanged;
+
+    public bool StartTestRecording()
     {
-        if (_isRecording)
-        {
-            StopAndTranscribe();
-            return;
-        }
+        if (_isRecording) return true;
 
         if (_availability != OnboardingDeviceAvailability.Available)
         {
             PublishTranscript(Error(Loc.S("errors.noMicrophone")));
-            return;
+            return false;
         }
 
         // The meter and the recorder both open the endpoint; the recorder wins.
@@ -422,12 +485,14 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             _recorder.StartRecording(ResolveDeviceNumber(SelectedDeviceId));
             PublishTranscript(string.Empty);
             SetRecording(true);
+            return true;
         }
         catch (Exception ex)
         {
             LoggingService.Error($"LiveOnboardingAudioGateway: could not start recording: {ex.Message}", ex);
             SetRecording(false);
             PublishTranscript(Error(Loc.S("errors.recordingStartFailed")));
+            return false;
         }
     }
 
@@ -455,9 +520,22 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         StopInputLevelPreview();
     }
 
-    public void ClearTranscript() => PublishTranscript(string.Empty);
+    public void ClearTranscript()
+    {
+        PublishTranscript(string.Empty);
+        PublishWarning(null);
+    }
 
-    private void StopAndTranscribe()
+    /// <summary>
+    /// Stop capture and transcribe what was captured. The returned Task is the
+    /// whole point: the first cut fired this as a discarded task with
+    /// CancellationToken.None, so the flow had no transcribing state (the step
+    /// showed "Nothing here yet" and a live Record button for the whole of a local
+    /// model's 20 s), no re-entrancy guard, and nothing for "Set Up Later" to
+    /// cancel — it disposed the gateway and the recorder while an orchestrator call
+    /// was still running and still billable.
+    /// </summary>
+    public async Task StopAndTranscribeAsync(CancellationToken cancellationToken)
     {
         SetRecording(false);
 
@@ -479,8 +557,7 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             return;
         }
 
-        var path = stopped.Value!;
-        _ = TranscribeAndPublishAsync(path, deleteWhenDone: true, CancellationToken.None);
+        await TranscribeAndPublishAsync(stopped.Value!, deleteWhenDone: true, cancellationToken);
     }
 
     // =========================================================================
@@ -512,6 +589,10 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     {
         var converted = audioPath;
 
+        // A warning belongs to the transcript it was raised for, so the previous
+        // attempt's must not survive into this one.
+        PublishWarning(null);
+
         try
         {
             // .wav is in SupportedExtensions and an already-16 kHz mono file comes
@@ -528,7 +609,9 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             var mode = _modes.GetSelectedMode();
             if (mode is null)
             {
-                PublishTranscript(Error(Loc.S("app.unknown.error")));
+                // The reason is known here, so name it. "An unknown error occurred"
+                // was a stand-in for a string that did not exist in any .resx.
+                PublishTranscript(Error(Loc.S("errors.noModeSelected")));
                 return;
             }
 
@@ -598,6 +681,13 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         TranscriptChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    private void PublishWarning(string? value)
+    {
+        if (_transcriptWarning == value) return;
+        _transcriptWarning = value;
+        TranscriptWarningChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     private void SetRecording(bool value)
     {
         if (_isRecording == value) return;
@@ -623,6 +713,7 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         _disposed = true;
 
         _devices.DevicesChanged -= OnHardwareDevicesChanged;
+        TranscriptionRuntime.Orchestrator.PostProcessingWarning -= _warningHandler;
 
         StopRecordingForExit();
         StopInputLevelPreview();

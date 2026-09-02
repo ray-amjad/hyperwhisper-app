@@ -97,6 +97,17 @@
                                     Command="{Binding ToggleTestRecordingCommand}"
                                     Visibility="{Binding ShowsStopButton, Converter={StaticResource OnboardingBoolToVisibility}}"/>
 
+                            <!-- Stop was pressed and the transcription is running.
+                                 Without this the row went straight back to an armed
+                                 Record button, which invited a second, overlapping
+                                 capture into the same transcript channel. -->
+                            <Border Grid.Column="2"
+                                    Style="{StaticResource OnboardingNeutralPillStyle}"
+                                    Visibility="{Binding ShowsTestRecordingTranscribing, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                <TextBlock Style="{StaticResource OnboardingNeutralPillTextStyle}"
+                                           Text="{loc:Loc recording.state.transcribing}"/>
+                            </Border>
+
                             <Border Grid.Column="2"
                                     Style="{StaticResource OnboardingGoodPillStyle}"
                                     Visibility="{Binding ShowsRecordedPill, Converter={StaticResource OnboardingBoolToVisibility}}">
@@ -193,6 +204,15 @@
                                        TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                        Text="{Binding TranscriptMeta}"
                                        Visibility="{Binding ShowsTranscriptMeta, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+
+                            <!-- Post-processing was SKIPPED and still returned text.
+                                 The GUI toast cannot be seen behind this modal, so
+                                 the warning renders here or it reaches nobody. -->
+                            <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                       Margin="0,6,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource WarningBrush}"
+                                       Text="{Binding TranscriptWarning}"
+                                       Visibility="{Binding ShowsTranscriptWarning, Converter={StaticResource OnboardingBoolToVisibility}}"/>
                         </StackPanel>
                     </Border>
 

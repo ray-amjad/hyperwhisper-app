@@ -2726,4 +2726,7 @@
   <data name="onboarding.menu.runAgain" xml:space="preserve">
     <value>Run setup again</value>
   </data>
+  <data name="app.unknown.error" xml:space="preserve">
+    <value>不明なエラーが発生しました</value>
+  </data>
 </root>

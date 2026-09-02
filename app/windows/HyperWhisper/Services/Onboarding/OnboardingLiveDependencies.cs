@@ -352,7 +352,7 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
         var model = CuratedModels.FirstOrDefault(m => LibraryId(m) == e.ModelId);
         if (model is null) return;
 
-        _progress[e.ModelId] = e.Progress;
+        _progress[e.ModelId] = ProgressFraction(e.Progress);
 
         if (e.IsCompleted)
         {
@@ -364,6 +364,19 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
 
         DownloadActivity?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// UNIT CONVERSION, not decoration.
+    ///
+    /// ModelDownloadService reports a PERCENTAGE: it computes
+    /// <c>Math.Clamp(p * 100, 0, 100)</c> and its notify gate only fires once a
+    /// full point has passed, so the first value onboarding ever sees is ~1.0. The
+    /// seam is a FRACTION: OnboardingProgressBar clamps Value to [0,1] and
+    /// SelectedModelProgressPercent multiplies by 100. Storing the percentage
+    /// verbatim painted the bar full and the pill "Downloading... 100%" at 1% of a
+    /// ~170 s Parakeet download, which reads as a hang.
+    /// </summary>
+    internal static double ProgressFraction(double percent) => Math.Clamp(percent / 100.0, 0, 1);
 
     private void PublishError(OnboardingModelKind kind, string? message)
     {
@@ -804,7 +817,32 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
 
             // DeleteMode may have re-pointed the selection; put the user's back
             // afterwards, including a null that means "never chose one".
-            _settings.SelectedModeId = restore.PreviousSelectedModeId;
+            //
+            // Through SetSelectedMode, NOT a raw settings write. Apply() changes the
+            // selection with SetSelectedMode, which raises ModeSelected, and
+            // MainViewModel caches the result in SelectedMode/CurrentMode. A restore
+            // that only wrote SettingsService.SelectedModeId raised nothing, so the
+            // running app kept dictating with the onboarding-staged Mode for the rest
+            // of the session and could re-persist it. The restore path has to be as
+            // loud as the apply path.
+            if (!string.IsNullOrEmpty(restore.PreviousSelectedModeId))
+            {
+                _modes.SetSelectedMode(restore.PreviousSelectedModeId!);
+
+                // SetSelectedMode is a no-op when the row is gone (the user's Mode
+                // was itself the one Apply created and Restore has just deleted).
+                // Fall back to the raw write so the setting is never left pointing
+                // at the staged selection.
+                if (_settings.SelectedModeId != restore.PreviousSelectedModeId)
+                    _settings.SelectedModeId = restore.PreviousSelectedModeId;
+            }
+            else
+            {
+                // Nothing was selected before. There is no "deselect" event to
+                // raise, so the raw write is the only option; ModeChanged from the
+                // save or delete above has already told the shell to re-read.
+                _settings.SelectedModeId = null;
+            }
         }
         catch (Exception ex)
         {

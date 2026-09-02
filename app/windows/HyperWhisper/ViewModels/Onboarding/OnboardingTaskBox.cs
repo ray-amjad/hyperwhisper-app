@@ -94,8 +94,9 @@ internal sealed class OnboardingTaskBox
 }
 
 /// <summary>
-/// Task-box keys. The first four mirror Swift's <c>TaskKey</c>; the last two are
-/// the Windows-only asynchronous actions (the credits fetch and the sample clip).
+/// Task-box keys. The first four mirror Swift's <c>TaskKey</c>; the rest are the
+/// Windows-only asynchronous actions (the credits fetch, the sample clip, and the
+/// Try It microphone transcription).
 /// </summary>
 internal static class OnboardingTaskKeys
 {
@@ -105,4 +106,11 @@ internal static class OnboardingTaskKeys
     public const string MicrophonePermission = "permission.microphone";
     public const string CreditsRefresh = "credits.refresh";
     public const string SampleClip = "tryIt.sample";
+
+    /// <summary>
+    /// The Try It microphone path. macOS has no equivalent because its audio
+    /// manager owns the recording; on Windows the flow owns it, and an untracked
+    /// one is what let a transcription outlive the window that started it.
+    /// </summary>
+    public const string TestRecording = "tryIt.record";
 }

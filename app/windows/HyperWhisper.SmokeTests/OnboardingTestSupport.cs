@@ -298,10 +298,26 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
     public int RefreshAuthorizationCalls { get; private set; }
     public int PreviewStarts { get; private set; }
     public int PreviewStops { get; private set; }
-    public int ToggleCalls { get; private set; }
+    public int StartRecordingCalls { get; private set; }
+    public int StopAndTranscribeCalls { get; private set; }
     public int StopForExitCalls { get; private set; }
     public int ClearTranscriptCalls { get; private set; }
     public int SampleTranscriptions { get; private set; }
+
+    /// <summary>
+    /// The live adapter's real failure mode: the device enumerates, the open
+    /// throws, and StartInputLevelPreview reports false. The old fake could not
+    /// fail, which is why the frozen-meter defect had no coverage.
+    /// </summary>
+    public bool PreviewOpenFails { get; set; }
+
+    /// <summary>When true, the next stop-and-transcribe parks until <see cref="Release"/>.</summary>
+    public bool GateStopAndTranscribe { get; set; }
+
+    private TaskCompletionSource<bool>? _stopGate;
+
+    /// <summary>What a completed microphone transcription publishes.</summary>
+    public string RecordedTranscript { get; set; } = "This is a live microphone transcript.";
 
     public bool HasSampleClip { get; set; } = true;
     public string SampleTranscript { get; set; } = "This is the bundled sample clip.";
@@ -310,11 +326,13 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
     public float InputLevel { get; private set; }
     public bool IsRecording { get; private set; }
     public string Transcript { get; private set; } = string.Empty;
+    public string? TranscriptWarning { get; private set; }
 
     public event EventHandler? DevicesChanged;
     public event EventHandler<float>? InputLevelChanged;
     public event EventHandler? IsRecordingChanged;
     public event EventHandler? TranscriptChanged;
+    public event EventHandler? TranscriptWarningChanged;
 
     public void RefreshDevices() => RefreshDeviceCalls++;
 
@@ -336,11 +354,51 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
         SelectedDeviceId = _devices.Any(d => d.Id == openId) ? openId : null;
     }
 
-    public void StartInputLevelPreview() => PreviewStarts++;
+    public bool StartInputLevelPreview()
+    {
+        PreviewStarts++;
+        return Availability == OnboardingDeviceAvailability.Available && !PreviewOpenFails;
+    }
 
     public void StopInputLevelPreview() => PreviewStops++;
 
-    public void ToggleTestRecording() => ToggleCalls++;
+    public bool StartTestRecording()
+    {
+        StartRecordingCalls++;
+        if (Availability != OnboardingDeviceAvailability.Available)
+        {
+            PublishTranscript("Error: no microphone");
+            return false;
+        }
+
+        PublishRecording(true);
+        return true;
+    }
+
+    public async Task StopAndTranscribeAsync(CancellationToken cancellationToken)
+    {
+        StopAndTranscribeCalls++;
+        PublishRecording(false);
+
+        if (GateStopAndTranscribe)
+        {
+            _stopGate = new TaskCompletionSource<bool>();
+            await _stopGate.Task;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        PublishTranscript(RecordedTranscript);
+    }
+
+    /// <summary>Let a parked stop-and-transcribe land, long after Stop was pressed.</summary>
+    public void Release()
+    {
+        var gate = _stopGate;
+        _stopGate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public bool IsParked => _stopGate is not null;
 
     public void StopRecordingForExit() => StopForExitCalls++;
 
@@ -348,6 +406,7 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
     {
         ClearTranscriptCalls++;
         PublishTranscript(string.Empty);
+        PublishWarning(null);
     }
 
     public Task TranscribeSampleClipAsync(CancellationToken cancellationToken)
@@ -381,6 +440,13 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
     {
         Transcript = text;
         TranscriptChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>The orchestrator raised a post-processing warning for this call site.</summary>
+    public void PublishWarning(string? warning)
+    {
+        TranscriptWarning = warning;
+        TranscriptWarningChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void PublishRecording(bool recording)

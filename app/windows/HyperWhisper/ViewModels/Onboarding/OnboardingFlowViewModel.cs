@@ -79,12 +79,28 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     private readonly Dictionary<CloudTranscriptionProvider, string> _providerKeyRestorePoints = new();
 
     /// <summary>
-    /// Providers whose key passed a probe AND a credential write THIS session.
-    /// Survives ResetConfigureTestResults() so Back navigation does not shut the gate
-    /// on a key that was just verified, while a pre-existing stored key that was
-    /// never probed here stays untrusted.
+    /// Providers whose pre-onboarding key could NOT be put back by the last
+    /// rollback. Empty on a clean one. The window reads it and tells the user, so
+    /// a credential the flow overwrote and then failed to restore is never reported
+    /// as a successful deferral.
     /// </summary>
-    private readonly HashSet<CloudTranscriptionProvider> _validatedProviders = new();
+    private readonly List<CloudTranscriptionProvider> _unrestoredProviderKeys = new();
+
+    /// <summary>
+    /// The exact trimmed key that passed a probe AND a credential write THIS
+    /// session, per provider.
+    ///
+    /// It is keyed on the KEY, not just the provider. A per-provider flag survived
+    /// an edit of the field, so validating key A and then typing key B left
+    /// Continue enabled and the Done step reporting B as saved while Credential
+    /// Manager still held A. Same semantics as the licence branch's
+    /// <see cref="_lastValidatedLicenseKey"/>.
+    ///
+    /// It survives ResetConfigureTestResults() so Back navigation does not shut the
+    /// gate on a key that was just verified, while a pre-existing stored key that
+    /// was never probed here stays untrusted.
+    /// </summary>
+    private readonly Dictionary<CloudTranscriptionProvider, string> _validatedProviderKeys = new();
 
     /// <summary>
     /// The exact trimmed key whose licence probe last passed this session. Editing
@@ -140,6 +156,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         _audio.DevicesChanged += OnDevicesChanged;
         _audio.IsRecordingChanged += OnIsRecordingChanged;
         _audio.TranscriptChanged += OnTranscriptChanged;
+        _audio.TranscriptWarningChanged += OnTranscriptWarningChanged;
         _audio.InputLevelChanged += OnInputLevelChanged;
 
         DeviceAvailability = _audio.Availability;
@@ -165,6 +182,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         _audio.DevicesChanged -= OnDevicesChanged;
         _audio.IsRecordingChanged -= OnIsRecordingChanged;
         _audio.TranscriptChanged -= OnTranscriptChanged;
+        _audio.TranscriptWarningChanged -= OnTranscriptWarningChanged;
         _audio.InputLevelChanged -= OnInputLevelChanged;
     }
 
@@ -237,8 +255,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                     // KeyValidated is cleared every time this step appears, so the
                     // per-session record keeps the gate open across Back navigation.
                     // A key that merely sits in the credential store but was never
-                    // probed this session does not count.
-                    return KeyValidated || _validatedProviders.Contains(SelectedProvider);
+                    // probed this session does not count, and neither does a key
+                    // that passed and has since been edited.
+                    return KeyValidated || SelectedProviderKeyIsValidated;
 
                 default:
                     return false;
@@ -265,13 +284,29 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                 // Activation, not a passing probe.
                 OnboardingSourceKind.HyperWhisperCloud => _license.IsActive,
 
-                // Stored AND verified this session: an unprobed pre-existing key must
-                // not read as "validated" on the setup checklist.
+                // Stored AND verified this session, for the key that is in the field
+                // NOW: an unprobed pre-existing key must not read as "validated" on
+                // the setup checklist, and neither must a superseded one.
                 OnboardingSourceKind.YourProvider =>
-                    _providerKeys.HasKey(SelectedProvider) && _validatedProviders.Contains(SelectedProvider),
+                    _providerKeys.HasKey(SelectedProvider) && SelectedProviderKeyIsValidated,
 
                 _ => false
             };
+        }
+    }
+
+    /// <summary>
+    /// True when the key currently in the field is the exact key that passed a
+    /// probe and a credential write for the selected provider this session.
+    /// </summary>
+    private bool SelectedProviderKeyIsValidated
+    {
+        get
+        {
+            if (!_validatedProviderKeys.TryGetValue(SelectedProvider, out var validated))
+                return false;
+
+            return validated.Length > 0 && validated == ApiKeyInput.Trim();
         }
     }
 
@@ -810,6 +845,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             _providerErrorMessage = _providerKeys.ValidationError
                 ?? Loc.S("onboarding.setup.provider.saveFailed");
             KeyValidated = false;
+            // A key that failed its write must not stay remembered as validated,
+            // exactly as a revoked licence key does not (see TestAccessKeyCoreAsync).
+            _validatedProviderKeys.Remove(provider);
         }
         else
         {
@@ -817,7 +855,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             _providerErrorMessage = null;
             KeyValidated = health == ProviderHealth.Healthy && persisted;
             if (KeyValidated)
-                _validatedProviders.Add(provider);
+                _validatedProviderKeys[provider] = key;
         }
 
         IsTestingKey = false;
@@ -1145,15 +1183,13 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         DeviceAvailability = _audio.Availability;
         RefreshDeviceOptions();
 
-        if (DeviceAvailability == OnboardingDeviceAvailability.Available)
-        {
-            _audio.StartInputLevelPreview();
-            IsLevelMeterActive = true;
-        }
-        else
-        {
-            IsLevelMeterActive = false;
-        }
+        // From the OPEN, not from availability. A device that enumerates can still
+        // refuse to open (another app holds it exclusively, consent flips between
+        // the read and the open, the driver faults), and lighting the meter on
+        // availability alone left 33 bars frozen under a live "speak to see the
+        // level" hint.
+        IsLevelMeterActive = DeviceAvailability == OnboardingDeviceAvailability.Available
+            && _audio.StartInputLevelPreview();
     }
 
     public void EndMicrophoneStep()
@@ -1214,9 +1250,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         SelectedDeviceId = id;
         _audio.SelectDevice(id.Length == 0 ? null : id);
 
-        // Re-point the metering session at the newly selected device.
-        _audio.StartInputLevelPreview();
-        IsLevelMeterActive = true;
+        // Re-point the metering session at the newly selected device. Same rule as
+        // BeginMicrophoneStep: the flag follows the open, not the availability.
+        IsLevelMeterActive = _audio.StartInputLevelPreview();
     }
 
     // =========================================================================
@@ -1288,6 +1324,42 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         private set => SetProperty(ref _isTranscribingSample, value);
     }
 
+    private bool _isTranscribingTestRecording;
+
+    /// <summary>
+    /// The microphone path's equivalent of <see cref="IsTranscribingSample"/>. Set
+    /// the moment Stop is pressed and cleared when the transcript lands, so the
+    /// step can say "transcribing" rather than showing "Nothing here yet" beside a
+    /// live Record button for the whole of a local model's run.
+    /// </summary>
+    public bool IsTranscribingTestRecording
+    {
+        get => _isTranscribingTestRecording;
+        private set => SetProperty(ref _isTranscribingTestRecording, value);
+    }
+
+    private string? _transcriptWarning;
+
+    /// <summary>
+    /// A non-fatal warning about the current transcript, or null. Post-processing
+    /// that was SKIPPED (a 401, a timeout) still returns text, and five of the six
+    /// seeded Modes post-process through a cloud LLM, so without this the user
+    /// reads a raw transcript under full success chrome and concludes the source
+    /// works. The GUI's toast handler deliberately drops the Onboarding call site,
+    /// because a toast behind a modal cannot be seen.
+    /// </summary>
+    public string? TranscriptWarning
+    {
+        get => _transcriptWarning;
+        private set
+        {
+            if (SetProperty(ref _transcriptWarning, value))
+                OnPropertyChanged(nameof(HasTranscriptWarning));
+        }
+    }
+
+    public bool HasTranscriptWarning => !string.IsNullOrEmpty(TranscriptWarning);
+
     public bool HasSampleClip => _audio.HasSampleClip;
 
     public void BeginTryItStep()
@@ -1301,16 +1373,67 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
     public void EndTryItStep()
     {
+        // Cancel the owned transcription before tearing the recorder down, so a
+        // running orchestrator call is not left billing against a disposed gateway.
+        _taskBox.Cancel(OnboardingTaskKeys.TestRecording);
         _audio.StopRecordingForExit();
         _audio.ClearTranscript();
         IsTranscribingSample = false;
+        IsTranscribingTestRecording = false;
     }
 
+    /// <summary>
+    /// Start the capture, or stop it and transcribe.
+    ///
+    /// The stop half runs under the SAME task box as the sample-clip path. The
+    /// first cut let the gateway fire it as a discarded task with
+    /// CancellationToken.None, which cost three things at once: the step showed
+    /// "Nothing here yet" beside a live Record button for the whole of a local
+    /// model's run, a second press started an overlapping capture into the same
+    /// transcript channel, and "Set Up Later" disposed the gateway and the recorder
+    /// out from under a running, billable orchestrator call.
+    /// </summary>
     [RelayCommand]
     public void ToggleTestRecording()
     {
+        // Re-entrancy: no second capture while the last one is still transcribing.
+        if (IsTranscribingTestRecording || IsTranscribingSample)
+            return;
+
         TranscriptCameFromSample = false;
-        _audio.ToggleTestRecording();
+
+        if (!IsRecording)
+        {
+            _audio.StartTestRecording();
+            return;
+        }
+
+        IsTranscribingTestRecording = true;
+        RunTracked(OnboardingTaskKeys.TestRecording, StopAndTranscribeCoreAsync);
+    }
+
+    private async Task StopAndTranscribeCoreAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _audio.StopAndTranscribeAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception)
+        {
+            // The gateway publishes its own failures on the transcript channel with
+            // the "Error:" sentinel. A throw that escapes it must still leave the
+            // step usable rather than tearing the flow down.
+        }
+
+        if (cancellationToken.IsCancellationRequested || !_isLive)
+            return;
+
+        IsTranscribingTestRecording = false;
+        _taskBox.Clear(OnboardingTaskKeys.TestRecording);
     }
 
     /// <summary>
@@ -1321,7 +1444,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void TranscribeSampleClip()
     {
-        if (!_audio.HasSampleClip || IsTranscribingSample)
+        if (!_audio.HasSampleClip || IsTranscribingSample || IsTranscribingTestRecording)
             return;
 
         IsTranscribingSample = true;
@@ -1407,6 +1530,13 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     public bool HasPendingProductionWrite =>
         _restorePoint is not null || _providerKeyRestorePoints.Count > 0 || _didCaptureDevice;
 
+    /// <summary>
+    /// Providers whose pre-onboarding API key the last rollback could not put back.
+    /// Empty unless the credential store refused the write twice. The window
+    /// surfaces this rather than closing silently over a lost key.
+    /// </summary>
+    public IReadOnlyList<CloudTranscriptionProvider> UnrestoredProviderKeys => _unrestoredProviderKeys;
+
     private void ApplyStagedSourceReversibly()
     {
         if (StagedSource is not { } staged)
@@ -1437,7 +1567,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         _didCaptureDevice = false;
         _previousDeviceId = null;
         _previousOpenDeviceId = null;
-        Finish();
+        Finish(markCompleted: true);
     }
 
     /// <summary>
@@ -1447,7 +1577,18 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// Downloaded models are deliberately kept (harmless, and the user paid the
     /// bytes), as is an activated HyperWhisper Cloud licence: activation is a
     /// server-side account action, not local state this flow can un-write.
+    ///
+    /// This is an EXPLICIT decision by the user, so it closes first run for good,
+    /// exactly as macOS's <c>deferSetup()</c> does (it reaches the same
+    /// <c>markOnboardingCompleted()</c> as <c>complete()</c>). A close that is NOT
+    /// a decision goes to <see cref="AbandonSetup"/> instead.
     /// </summary>
+    /// <remarks>
+    /// Read <see cref="UnrestoredProviderKeys"/> afterwards. A reversible write
+    /// that could not be put back has to be REPORTED: silently closing over a lost
+    /// credential is what that list exists to prevent. The method stays void
+    /// because [RelayCommand] only generates for void and Task.
+    /// </remarks>
     [RelayCommand]
     public void DeferSetup()
     {
@@ -1455,7 +1596,29 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             return;
 
         Rollback();
-        Finish();
+        Finish(markCompleted: true);
+    }
+
+    /// <summary>
+    /// The window went away without the user deciding anything: Alt+F4, the
+    /// taskbar, tray Quit, or the OS ending the session for an update.
+    ///
+    /// It rolls back exactly like <see cref="DeferSetup"/> but does NOT mark first
+    /// run complete, so <c>SettingsService.OnboardingPending</c> survives and the
+    /// interrupted run is re-offered on the next launch. That is macOS's behaviour
+    /// too: its sheet is <c>.interactiveDismissDisabled()</c> and has no close
+    /// button, so a process that dies mid-flow never reaches
+    /// <c>markOnboardingCompleted()</c> and both of its flags stay put. Windows has
+    /// an OS-supplied caption X and a real shutdown path, which macOS does not, so
+    /// the distinction has to be made in code rather than by the frame.
+    /// </summary>
+    public void AbandonSetup()
+    {
+        if (!_isLive)
+            return;
+
+        Rollback();
+        Finish(markCompleted: false);
     }
 
     /// <summary>
@@ -1476,7 +1639,16 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     [RelayCommand]
     public void GoBack() => Back();
 
-    private void Rollback()
+    /// <summary>
+    /// Put every reversible write back.
+    /// </summary>
+    /// <returns>
+    /// True when everything went back. The credential store is the one sink here
+    /// that can REFUSE a write (Windows Credential Manager returns a Win32 error;
+    /// <c>Persist</c> reports it as false), and a rollback that drops that answer
+    /// turns "your original key is gone" into a clean deferral.
+    /// </returns>
+    private bool Rollback()
     {
         if (_restorePoint is { } point)
         {
@@ -1487,12 +1659,37 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         // "Test API key" writes to the credential store before any commit boundary,
         // so deferral has to put the previous value back. "" is how the store encodes
         // "no key", so a provider that had nothing ends up with nothing.
+        _unrestoredProviderKeys.Clear();
+        var restoredProviders = new List<CloudTranscriptionProvider>();
+
         foreach (var entry in _providerKeyRestorePoints)
         {
-            _providerKeys.Persist(entry.Value, entry.Key);
+            // One retry: the common failure is a transient Credential Manager lock,
+            // and the alternative to a second attempt is losing the key outright.
+            var persisted = _providerKeys.Persist(entry.Value, entry.Key)
+                || _providerKeys.Persist(entry.Value, entry.Key);
+
+            if (persisted)
+            {
+                restoredProviders.Add(entry.Key);
+                continue;
+            }
+
+            _unrestoredProviderKeys.Add(entry.Key);
+            // Fully qualified: this file is presentation and deliberately imports no
+            // Services namespace, so the one place it needs the logger names it.
+            HyperWhisper.Services.LoggingService.Error(
+                "OnboardingFlowViewModel: could not restore the pre-onboarding API key for "
+                + $"{entry.Key.GetIdentifier()}: {_providerKeys.ValidationError ?? "no reason reported"}");
         }
 
-        _providerKeyRestorePoints.Clear();
+        // Only what actually went back is forgotten. A provider whose key could not
+        // be restored keeps its restore point, so HasPendingProductionWrite stays
+        // honest and a second attempt still has the value to write.
+        foreach (var provider in restoredProviders)
+        {
+            _providerKeyRestorePoints.Remove(provider);
+        }
 
         if (_didCaptureDevice)
         {
@@ -1503,9 +1700,15 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         }
 
         RaiseGateChanged();
+        return _unrestoredProviderKeys.Count == 0;
     }
 
-    private void Finish()
+    /// <param name="markCompleted">
+    /// True only when the user made an explicit decision (Done Onboarding, or Set
+    /// Up Later). False when the window merely went away, which must leave
+    /// OnboardingPending set so first run is re-offered.
+    /// </param>
+    private void Finish(bool markCompleted)
     {
         // Close the commit boundary FIRST so any in-flight continuation that is
         // already past its cancellation check still cannot write onboarding state.
@@ -1514,7 +1717,10 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         _audio.StopRecordingForExit();
         _audio.StopInputLevelPreview();
         IsLevelMeterActive = false;
-        _committer.MarkOnboardingCompleted();
+
+        if (markCompleted)
+            _committer.MarkOnboardingCompleted();
+
         _committer.ReturnToHome();
     }
 
@@ -1547,6 +1753,11 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         // Availability is step-independent: the Done step's summary reads it too.
         DeviceAvailability = _audio.Availability;
 
+        // Reconcile the meter with reality. Unplugging the microphone mid-step used
+        // to leave the flag true and the bars frozen at their last heights.
+        if (DeviceAvailability != OnboardingDeviceAvailability.Available)
+            IsLevelMeterActive = false;
+
         // The list itself only belongs to the microphone step, exactly as on macOS.
         if (Step == OnboardingStep.Microphone)
             ApplyDeviceList(_audio.Devices);
@@ -1555,6 +1766,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     private void OnIsRecordingChanged(object? sender, EventArgs e) => IsRecording = _audio.IsRecording;
 
     private void OnTranscriptChanged(object? sender, EventArgs e) => Transcript = _audio.Transcript;
+
+    private void OnTranscriptWarningChanged(object? sender, EventArgs e) =>
+        TranscriptWarning = _audio.TranscriptWarning;
 
     private void OnInputLevelChanged(object? sender, float level) => InputLevel = level;
 

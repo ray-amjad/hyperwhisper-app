@@ -44,6 +44,7 @@ $BaseResx = Join-Path $ResourcesDir "Strings.resx"
 
 $AppPath = Join-Path $ProjectRoot "App.xaml.cs"
 $MainWindowPath = Join-Path $ProjectRoot "Views\Windows\MainWindow.xaml.cs"
+$MainViewModelPath = Join-Path $ProjectRoot "ViewModels\MainViewModel.cs"
 $OnboardingWindowXaml = Join-Path $ProjectRoot "Views\Windows\OnboardingWindow.xaml"
 $OnboardingWindowCode = Join-Path $ProjectRoot "Views\Windows\OnboardingWindow.xaml.cs"
 $LaunchPolicyPath = Join-Path $ProjectRoot "Services\Onboarding\OnboardingLaunchPolicy.cs"
@@ -514,12 +515,14 @@ if (Test-Path -LiteralPath $MainWindowPath) {
     Assert-Wired $mainSource "new OnboardingWindow(live.Flow) { Owner = this }" "the onboarding window is owned by the main window"
     Assert-Wired $mainSource "OnboardingLiveDependencies.CreateLive(" "the flow is built at the single live composition point"
     Assert-Wired $mainSource "live?.DisposeResources();" "the seams' OS resources are released when the window closes"
-    Assert-Wired $mainSource "TextDeliveryGate.SetSuppressed(true);" "text delivery is suppressed while the flow is open"
-    Assert-Wired $mainSource "TextDeliveryGate.SetSuppressed(false);" "text delivery is restored when the flow closes"
+    Assert-Wired $mainSource "OnboardingSession.SetActive(true);" `
+        "the onboarding session (recording guard plus text delivery gate) is opened with the flow"
+    Assert-Wired $mainSource "OnboardingSession.SetActive(false);" `
+        "the onboarding session is closed again when the flow ends"
     Assert-Wired $mainSource 'Loc.S("onboarding.menu.runAgain")' "the tray carries a Run setup again entry"
     Assert-Wired $mainSource "SettingsService.Instance.LaunchMinimized && !App.ShouldShowOnboarding" `
         "the LaunchMinimized hide is gated on the first-run flow"
-    Assert-Wired $mainSource "_recordingMenu.Enabled = !_isOnboardingOpen" `
+    Assert-Wired $mainSource "_recordingMenu.Enabled = !IsOnboardingOpen" `
         "the tray cannot start a competing recording while the flow is open"
 
     # Ordering, not cosmetics. OnNavigatedToAsync is what populates AudioDevices
@@ -540,11 +543,79 @@ if (Test-Path -LiteralPath $MainWindowPath) {
     Write-Fail "MainWindow.xaml.cs not found at $(Get-RelativePath $MainWindowPath)"
 }
 
+# The global toggle shortcut is a process-wide low-level keyboard hook, so WPF
+# modality cannot stop it. The guard has to sit on the recording ENTRY POINTS in
+# the view model, not on the tray items, or the hotkey opens a second recorder
+# behind the modal and bills a Cloud transcription for it.
+if (Test-Path -LiteralPath $MainViewModelPath) {
+    $viewModelSource = Read-Text $MainViewModelPath
+    $guards = ([regex]::Matches($viewModelSource, [regex]::Escape("if (OnboardingSession.IsActive)"))).Count
+    if ($guards -ge 2) {
+        Write-Pass "both recording entry points refuse to start while the onboarding window is open ($guards guards)"
+    } else {
+        Write-Fail "MainViewModel has $guards onboarding guard(s); StartRecordingAsync and StartStreamingRecordingAsync both need one"
+    }
+
+    # CopyToClipboard REFUSES under TextDeliveryGate and says so in its return
+    # value. A call site that discards it and forces CopiedToClipboard shows the
+    # user a "Copied" overlay for text that reached no sink at all.
+    $discarded = @([regex]::Matches($viewModelSource, '(?m)^\s*_pasteService\?\.CopyToClipboard\('))
+    if ($discarded.Count -eq 0) {
+        Write-Pass "every clipboard copy in MainViewModel reads its result rather than assuming success"
+    } else {
+        Write-Fail "$($discarded.Count) CopyToClipboard call(s) in MainViewModel discard the return value"
+        Show-Hits $discarded 6
+    }
+} else {
+    Write-Fail "MainViewModel.cs not found at $(Get-RelativePath $MainViewModelPath)"
+}
+
+# MicrophoneKeepWarmService.Configure(enabled, null) takes its !HasValue branch and
+# STOPS. Resuming with null therefore tears the app's warm capture stream down and
+# leaves it down, and nothing re-Configures it for a returning user.
+$GatewayPath = Join-Path $AdaptersDir "OnboardingLiveAudioGateway.cs"
+if (Test-Path -LiteralPath $GatewayPath) {
+    $gatewaySource = Read-Text $GatewayPath
+    if ($gatewaySource.Contains("ResumeAfterRecording(null)")) {
+        Write-Fail "the audio gateway resumes keep-warm with a null device, which stops it instead of resuming it"
+    } else {
+        Write-Pass "keep-warm is always resumed on a real device number, never on null"
+    }
+} else {
+    Write-Fail "OnboardingLiveAudioGateway.cs not found at $(Get-RelativePath $GatewayPath)"
+}
+
+# Apply() changes the active Mode with SetSelectedMode, which raises ModeSelected
+# and updates MainViewModel's cached SelectedMode. A Restore() that only wrote
+# SettingsService.SelectedModeId raised nothing, so the running app kept dictating
+# with the onboarding-staged Mode for the rest of the session. The restore path has
+# to be as loud as the apply path.
+$CommitterPath = Join-Path $AdaptersDir "OnboardingLiveDependencies.cs"
+if (Test-Path -LiteralPath $CommitterPath) {
+    $committerSource = Read-Text $CommitterPath
+    $restoreIndex = $committerSource.IndexOf("public void Restore(IOnboardingRestorePoint point)")
+    $markIndex = $committerSource.IndexOf("public void MarkOnboardingCompleted()")
+    if ($restoreIndex -ge 0 -and $markIndex -gt $restoreIndex) {
+        $restoreBody = $committerSource.Substring($restoreIndex, $markIndex - $restoreIndex)
+        if ($restoreBody.Contains("_modes.SetSelectedMode(")) {
+            Write-Pass "Restore puts the mode selection back through SetSelectedMode, so ModeSelected still fires"
+        } else {
+            Write-Fail "Restore assigns SelectedModeId directly; the running app would keep the staged Mode"
+        }
+    } else {
+        Write-Fail "could not locate LiveOnboardingSourceCommitter.Restore in $(Get-RelativePath $CommitterPath)"
+    }
+} else {
+    Write-Fail "OnboardingLiveDependencies.cs not found at $(Get-RelativePath $CommitterPath)"
+}
+
 if (Test-Path -LiteralPath $OnboardingWindowCode) {
     $windowCode = Read-Text $OnboardingWindowCode
 
-    Assert-Wired $windowCode "_flow.DeferSetup();" "closing the window is treated as Set Up Later, so every staged write is rolled back"
-    Assert-Wired $windowCode "Closing += OnWindowClosing;" "Alt+F4 and the taskbar go through the same Set Up Later path"
+    Assert-Wired $windowCode "_flow.DeferSetup();" "Set Up Later and the caption X roll back every staged write and close first run"
+    Assert-Wired $windowCode "Closing += OnWindowClosing;" "Alt+F4 and the taskbar reach the flow rather than closing over it"
+    Assert-Wired $windowCode "_flow.AbandonSetup();" `
+        "Alt+F4, tray Quit and an OS shutdown roll back but leave OnboardingPending set, so first run is re-offered"
     Assert-Wired $windowCode "_flow.Complete();" "the last step commits the staged configuration"
     Assert-Wired $windowCode "e.Key == Key.Escape" "Escape cannot throw away a half-finished setup (macOS interactiveDismissDisabled)"
     Assert-Wired $windowCode "_flow.Cleanup();" "the flow detaches from its seams when the window closes"

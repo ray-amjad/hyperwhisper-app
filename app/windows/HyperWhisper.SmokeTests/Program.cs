@@ -7709,6 +7709,327 @@ internal static class Program
             // match, a converter that is not in scope. None of those show up in
             // `dotnet build`, and there is no other harness on this repo that
             // constructs an onboarding page. These three cases are that harness.
+            // ----- Review round 1 regressions ---------------------------------
+            // One case per finding whose defect a test can express. Each names the
+            // shape that was wrong, not just the shape that is right, so a
+            // reintroduction fails here rather than on someone's first run.
+
+            Run("onboarding: download progress crosses the seam as a fraction, not a percentage", () =>
+            {
+                // ModelDownloadService reports 0-100 (Math.Clamp(p * 100, 0, 100)),
+                // every onboarding consumer reads 0-1. Storing the percentage
+                // verbatim painted the bar full and the pill "100%" at 1% of a
+                // ~170 s download, so the user believed it had hung.
+                Assert(Math.Abs(LiveOnboardingModelCatalog.ProgressFraction(0) - 0.0) < 1e-9,
+                    "0% is 0.0");
+                Assert(Math.Abs(LiveOnboardingModelCatalog.ProgressFraction(1) - 0.01) < 1e-9,
+                    "the FIRST tick the service ever emits is ~1%, and it must not read as full");
+                Assert(Math.Abs(LiveOnboardingModelCatalog.ProgressFraction(42) - 0.42) < 1e-9,
+                    "42% is 0.42");
+                Assert(Math.Abs(LiveOnboardingModelCatalog.ProgressFraction(100) - 1.0) < 1e-9,
+                    "100% is 1.0");
+                Assert(LiveOnboardingModelCatalog.ProgressFraction(140) <= 1.0
+                    && LiveOnboardingModelCatalog.ProgressFraction(-5) >= 0.0,
+                    "the fraction stays inside [0,1] whatever the producer says");
+
+                // And the presentation still reads it as a fraction.
+                var h = new OnboardingHarness();
+                h.Flow.SelectSource(OnboardingSourceKind.OnDevice);
+                h.Flow.SelectModel(FakeOnboardingCatalog.Parakeet);
+                h.Catalog.Progresses[FakeOnboardingCatalog.Parakeet.Id] =
+                    LiveOnboardingModelCatalog.ProgressFraction(1);
+                h.Catalog.PublishActivity();
+                Assert(h.Flow.SelectedModelProgressPercent == 1,
+                    $"1% of a download must render as 1%, rendered {h.Flow.SelectedModelProgressPercent}%");
+            });
+
+            Run("onboarding: abandoning the window leaves first run to be re-offered", () =>
+            {
+                // macOS's deferSetup() DOES mark completion, and Set Up Later is the
+                // same explicit decision here. But Alt+F4, tray Quit and an OS
+                // shutdown are not decisions: macOS never reaches
+                // markOnboardingCompleted() when its process dies mid-sheet, and a
+                // PC that restarts for an update must not strand a brand-new user in
+                // an unconfigured app forever.
+                var explicitDefer = new OnboardingHarness();
+                explicitDefer.StageInstalledOnDeviceModel();
+                explicitDefer.AdvanceTo(OnboardingStep.TryIt);
+                explicitDefer.Flow.DeferSetup();
+                Assert(explicitDefer.Committer.MarkCompletedCount == 1,
+                    "Set Up Later is an explicit decision and closes first run, as on macOS");
+                Assert(explicitDefer.Committer.RestoreCount == 1, "and it still rolls back");
+
+                var abandoned = new OnboardingHarness();
+                abandoned.StageInstalledOnDeviceModel();
+                abandoned.AdvanceTo(OnboardingStep.TryIt);
+                Assert(abandoned.Committer.ProductionState != FakeOnboardingCommitter.Seed,
+                    "precondition: the staged source was applied");
+
+                abandoned.Flow.AbandonSetup();
+
+                Assert(abandoned.Committer.MarkCompletedCount == 0,
+                    "an abandoned run must NOT clear OnboardingPending, or it is never re-offered");
+                Assert(abandoned.Committer.RestoreCount == 1, "it must still roll back every staged write");
+                Assert(abandoned.Committer.ProductionState == FakeOnboardingCommitter.Seed,
+                    "the staged write must be undone");
+                Assert(abandoned.Committer.ReturnHomeCount == 1, "and the shell still goes home");
+                Assert(!abandoned.Flow.IsLiveForTesting, "the commit boundary still closes");
+            });
+
+            Run("onboarding: a rollback that cannot restore a key reports it rather than closing over it", () =>
+            {
+                // Test API key writes the candidate to Credential Manager before any
+                // commit boundary. If putting the ORIGINAL back fails, the user has
+                // lost a key they never asked to change, and reporting that as a
+                // clean deferral is the whole defect.
+                var h = new OnboardingHarness();
+                h.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] = "sk-original";
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.Flow.SelectProvider(CloudTranscriptionProvider.OpenAI);
+                h.Flow.ApiKeyInput = "sk-candidate";
+                h.Flow.TestProviderKey();
+                h.LastTask.GetAwaiter().GetResult();
+
+                Assert(h.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] == "sk-candidate",
+                    "precondition: the candidate overwrote the original");
+                Assert(h.Flow.HasPendingProductionWrite, "precondition: there is something to roll back");
+
+                h.ProviderKeys.PersistSucceeds = false;
+                h.Flow.DeferSetup();
+
+                Assert(h.Flow.UnrestoredProviderKeys.Count == 1
+                    && h.Flow.UnrestoredProviderKeys[0] == CloudTranscriptionProvider.OpenAI,
+                    "the provider whose key could not be put back must be named");
+                Assert(h.Flow.HasPendingProductionWrite,
+                    "a restore point that could not be spent must not be discarded");
+
+                // A clean rollback reports nothing and forgets the restore point.
+                var clean = new OnboardingHarness();
+                clean.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] = "sk-original";
+                clean.GrantMicrophone();
+                clean.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                clean.Flow.SelectProvider(CloudTranscriptionProvider.OpenAI);
+                clean.Flow.ApiKeyInput = "sk-candidate";
+                clean.Flow.TestProviderKey();
+                clean.LastTask.GetAwaiter().GetResult();
+                clean.Flow.DeferSetup();
+
+                Assert(clean.Flow.UnrestoredProviderKeys.Count == 0, "a clean rollback reports nothing");
+                Assert(clean.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] == "sk-original",
+                    "and the original key is back");
+                Assert(!clean.Flow.HasPendingProductionWrite, "nothing is left to roll back");
+            });
+
+            Run("onboarding: a validated provider key stops being validated once the field is edited", () =>
+            {
+                // The record used to track only the PROVIDER, so it survived a key
+                // edit: validate A, type B, and Continue stayed enabled while
+                // Credential Manager still held A.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.SelectProvider(CloudTranscriptionProvider.OpenAI);
+                h.Flow.ApiKeyInput = "sk-key-a";
+                h.Flow.TestProviderKey();
+                h.LastTask.GetAwaiter().GetResult();
+
+                Assert(h.Flow.KeyValidated, "precondition: key A passed");
+                Assert(h.Flow.CanContinue, "precondition: the Configure gate is open for key A");
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the setup checklist accepts key A");
+
+                h.Flow.ApiKeyInput = "sk-key-b";
+
+                Assert(!h.Flow.KeyValidated, "editing the field clears the inline pass");
+                Assert(!h.Flow.CanContinue, "and Continue must NOT stay enabled for an untested key");
+                Assert(!h.Flow.IsSelectedSourceUsable,
+                    "an untested key must not read as validated on the setup checklist");
+                Assert(h.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] == "sk-key-a",
+                    "and nothing wrote key B, so the gate would have been lying");
+
+                // Retyping the key that DID pass reopens the gate, exactly as the
+                // licence branch does. This is what has to survive Back navigation.
+                h.Flow.ApiKeyInput = "sk-key-a";
+                Assert(h.Flow.CanContinue, "the key that passed is still the key that passed");
+
+                h.Flow.ResetConfigureTestResults();
+                Assert(h.Flow.CanContinue,
+                    "Back navigation clears the inline result, not the fact that this key was verified");
+            });
+
+            Run("onboarding: the Try It microphone transcription is owned, guarded and cancellable", () =>
+            {
+                // It used to be a discarded task on CancellationToken.None: no
+                // transcribing state, no re-entrancy guard, and nothing for teardown
+                // to cancel, so Set Up Later disposed the recorder out from under a
+                // running, billable orchestrator call.
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.TryIt);
+
+                h.Flow.ToggleTestRecording();
+                Assert(h.Audio.StartRecordingCalls == 1, "the first press starts the capture");
+                Assert(h.Flow.IsRecording, "and the flow follows the gateway");
+
+                h.Audio.GateStopAndTranscribe = true;
+                h.Flow.ToggleTestRecording();
+
+                Assert(h.Audio.StopAndTranscribeCalls == 1, "the second press stops and transcribes");
+                Assert(h.Flow.IsTranscribingTestRecording, "the step must say it is transcribing");
+                Assert(h.Flow.HasInFlightWorkForTesting, "the transcription must be OWNED by the task box");
+                Assert(!h.Flow.ShowsRecordButton,
+                    "a live Record button beside 'Nothing here yet' is what invited a second capture");
+                Assert(!h.Flow.ShowsEmptyTranscriptHint, "and the empty hint must not claim nothing happened");
+                Assert(h.Flow.ShowsTestRecordingTranscribing, "the transcribing pill takes its place");
+
+                // Re-entrancy: pressing again while it runs must not start a second
+                // capture into the same transcript channel.
+                h.Flow.ToggleTestRecording();
+                Assert(h.Audio.StartRecordingCalls == 1, "no second capture may overlap the transcription");
+                Assert(h.Audio.StopAndTranscribeCalls == 1, "and no second transcription either");
+
+                // Teardown reaches it, which is the whole point of registering it.
+                h.Flow.DeferSetup();
+                Assert(!h.Flow.IsLiveForTesting, "the flow closed");
+                h.Audio.Release();
+                h.LastTask.GetAwaiter().GetResult();
+                Assert(h.Flow.Transcript.Length == 0,
+                    "a transcription that lands after the window closed must not write flow state");
+            });
+
+            Run("onboarding: the level meter reports the OPEN, not the availability", () =>
+            {
+                // A device can enumerate and still refuse to open: another app holds
+                // it in exclusive mode, consent flips between the read and the open,
+                // the driver faults. StartInputLevelPreview swallowed that and the
+                // flag was set from availability alone, so 33 bars froze under a live
+                // "speak to see the level" hint.
+                var h = new OnboardingHarness();
+                h.Audio.PreviewOpenFails = true;
+                h.Flow.BeginMicrophoneStep();
+
+                Assert(h.Audio.PreviewStarts == 1, "the open is still attempted");
+                Assert(!h.Flow.IsLevelMeterActive,
+                    "a preview that failed to open must leave the meter explicitly inactive");
+
+                h.Audio.PreviewOpenFails = false;
+                h.Flow.SelectDevice("usb");
+                Assert(h.Flow.IsLevelMeterActive, "a device that DOES open lights the meter");
+
+                // And unplugging it mid-step reconciles the flag rather than leaving
+                // the bars frozen at their last heights.
+                h.Audio.PublishAvailability(OnboardingDeviceAvailability.NoDevices);
+                Assert(!h.Flow.IsLevelMeterActive,
+                    "losing the device mid-step must turn the meter off");
+            });
+
+            Run("onboarding: a post-processing warning reaches the Try It panel", () =>
+            {
+                // MainViewModel deliberately drops the Onboarding call site (a toast
+                // behind a modal is unreachable) and TranscriptionResult carries no
+                // warning field, so without this channel a 401 on the post-processing
+                // LLM showed a raw transcript under full success chrome. Five of the
+                // six seeded Modes post-process through a cloud LLM.
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.TryIt);
+
+                h.Audio.PublishTranscript("the quick brown fox");
+                h.Audio.PublishWarning("Post-processing was skipped: the API key was rejected.");
+
+                Assert(h.Flow.HasTranscriptWarning, "the flow must hold the warning");
+                Assert(h.Flow.TranscriptWarning == "Post-processing was skipped: the API key was rejected.",
+                    "verbatim: the orchestrator's sentence is already localized");
+                Assert(h.Flow.ShowsTranscriptWarning, "and the panel must render it beside the transcript");
+
+                // An error transcript already reads as a failure; two failure
+                // surfaces at once is worse than one.
+                h.Audio.PublishTranscript("Error: something broke");
+                Assert(!h.Flow.ShowsTranscriptWarning, "no warning on top of an error transcript");
+
+                // A new attempt does not inherit the last one's warning.
+                h.Flow.BeginTryItStep();
+                Assert(!h.Flow.HasTranscriptWarning, "clearing the transcript clears its warning");
+            });
+
+            Run("onboarding: the session flag and the delivery gate cannot disagree", () =>
+            {
+                // Two flags for one fact is how the global hotkey came to have no
+                // guard at all: exclusivity was enforced on the tray items and on the
+                // paste sink, and the recording ENTRY POINTS were never told.
+                Assert(!OnboardingSession.IsActive, "precondition: no session");
+                Assert(!TextDeliveryGate.IsSuppressed, "precondition: delivery is allowed");
+
+                try
+                {
+                    OnboardingSession.SetActive(true);
+                    Assert(OnboardingSession.IsActive, "the session is open");
+                    Assert(TextDeliveryGate.IsSuppressed,
+                        "opening the session must raise the delivery gate in the same call");
+
+                    // The leaf sink still refuses, which is the backstop for anything
+                    // already in flight when the window opened.
+                    var paste = new SmartPasteService();
+                    Assert(!paste.CopyToClipboard("a test transcript"),
+                        "a suppressed clipboard copy must REPORT that it did nothing");
+                }
+                finally
+                {
+                    OnboardingSession.SetActive(false);
+                }
+
+                Assert(!OnboardingSession.IsActive, "the session closes");
+                Assert(!TextDeliveryGate.IsSuppressed, "and the gate comes down with it");
+            });
+
+            Run("onboarding: every string the flow resolves outside onboarding.* exists", () =>
+            {
+                // Loc.S returns the KEY on a miss and the visual-tree check only
+                // rejects keys starting with "onboarding.", so "app.unknown.error"
+                // was ported from the macOS catalog without its .resx entry and was
+                // shown to the user, literally, in all 40 languages.
+                string[] keys =
+                {
+                    "app.unknown.error",
+                    "errors.noMicrophone",
+                    "errors.noModeSelected",
+                    "errors.recordingStartFailed",
+                    "audio.error.stopRecordingFailed",
+                    "recording.state.transcribing",
+                    "errors.unhandled.title",
+                };
+
+                foreach (var key in keys)
+                {
+                    Assert(HyperWhisper.Localization.Loc.S(key) != key,
+                        $"'{key}' resolves to itself, so the user sees the raw key");
+                }
+
+                // And in every shipped culture, because a key added to Strings.resx
+                // alone is a key that is English in one language and raw in 39.
+                var cultures = new[] { "de", "ja", "fr", "ar", "zh-Hant", "pt", "tr" };
+                var original = HyperWhisper.Resources.Strings.Culture;
+                try
+                {
+                    foreach (var name in cultures)
+                    {
+                        HyperWhisper.Resources.Strings.Culture =
+                            new System.Globalization.CultureInfo(name);
+                        foreach (var key in keys)
+                        {
+                            Assert(HyperWhisper.Localization.Loc.S(key) != key,
+                                $"'{key}' is missing from Strings.{name}.resx");
+                        }
+                    }
+                }
+                finally
+                {
+                    HyperWhisper.Resources.Strings.Culture = original;
+                }
+            });
+
             //
             // Deliberately last: constructing WPF objects installs a Dispatcher
             // SynchronizationContext, which the flow-model cases above detach

@@ -1154,6 +1154,19 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public async Task StartRecordingAsync()
     {
+        // ONBOARDING EXCLUSIVITY. The global toggle shortcut is a process-wide
+        // WH_KEYBOARD_LL hook, so WPF modality cannot reach it: without this guard
+        // the hotkey opens a second recorder on the microphone the onboarding
+        // level meter already has open, spends Cloud credits and writes a History
+        // row against the half-staged Mode. The guard belongs HERE, at the single
+        // entry point every caller funnels through (toggle, push to talk, the tray
+        // item, a future hotkey variant), not on each caller.
+        if (OnboardingSession.IsActive)
+        {
+            LoggingService.Info("StartRecordingAsync: Ignored while the onboarding window is open");
+            return;
+        }
+
         if (IsStreamingActive())
         {
             LoggingService.Warn("StartRecordingAsync: Ignoring standard recording start while streaming is active");
@@ -1341,6 +1354,14 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task StartStreamingRecordingAsync()
     {
+        // The second capture entry point; see StartRecordingAsync for why the
+        // guard is here rather than on the shortcut handler.
+        if (OnboardingSession.IsActive)
+        {
+            LoggingService.Info("StartStreamingRecordingAsync: Ignored while the onboarding window is open");
+            return;
+        }
+
         if (_isStreamingStarting || _isStreamingSession)
             return;
 
@@ -1578,9 +1599,11 @@ public partial class MainViewModel : ViewModelBase
             if (!SettingsService.Instance.AutoPasteEnabled)
             {
                 var spacedText = TranscriptionTextProcessing.AppendTrailingSpace(textToProcess, _settingsService.StreamingLanguage);
-                _pasteService?.CopyToClipboard(spacedText);
-                pasteResult = SmartPasteResult.CopiedToClipboard;
-                LoggingService.Debug("MainViewModel: Auto-paste disabled, streaming text copied to clipboard only");
+                var copied = _pasteService?.CopyToClipboard(spacedText) ?? false;
+                pasteResult = copied ? SmartPasteResult.CopiedToClipboard : SmartPasteResult.Failed;
+                LoggingService.Debug(copied
+                    ? "MainViewModel: Auto-paste disabled, streaming text copied to clipboard only"
+                    : "MainViewModel: Auto-paste disabled and the clipboard copy was refused; streaming text was not delivered");
             }
             else if (!string.IsNullOrWhiteSpace(pendingFallbackText))
             {
@@ -1596,11 +1619,13 @@ public partial class MainViewModel : ViewModelBase
                 else
                 {
                     var spacedText = TranscriptionTextProcessing.AppendTrailingSpace(textToProcess, _settingsService.StreamingLanguage);
-                    _pasteService?.CopyToClipboard(spacedText);
+                    var copied = _pasteService?.CopyToClipboard(spacedText) ?? false;
                     if (pasteResult != SmartPasteResult.SecureFieldSkipped)
                     {
-                        pasteResult = SmartPasteResult.CopiedToClipboard;
-                        LoggingService.Warn("MainViewModel: Streaming pending final segment paste failed; copied full transcript to clipboard");
+                        pasteResult = copied ? SmartPasteResult.CopiedToClipboard : SmartPasteResult.Failed;
+                        LoggingService.Warn(copied
+                            ? "MainViewModel: Streaming pending final segment paste failed; copied full transcript to clipboard"
+                            : "MainViewModel: Streaming pending final segment paste failed and the clipboard copy was refused; text was not delivered");
                     }
                     else
                     {
@@ -2153,9 +2178,15 @@ public partial class MainViewModel : ViewModelBase
             }
             else
             {
-                _pasteService?.CopyToClipboard(spacedText);
-                pasteResult = SmartPasteResult.CopiedToClipboard;
-                LoggingService.Debug("MainViewModel: Auto-paste disabled, text copied to clipboard only");
+                // The return value decides the result. CopyToClipboard refuses
+                // while TextDeliveryGate is up, and reporting "Copied" for text
+                // that reached no sink at all is how a transcript gets lost with a
+                // success overlay on top of it.
+                var copied = _pasteService?.CopyToClipboard(spacedText) ?? false;
+                pasteResult = copied ? SmartPasteResult.CopiedToClipboard : SmartPasteResult.Failed;
+                LoggingService.Debug(copied
+                    ? "MainViewModel: Auto-paste disabled, text copied to clipboard only"
+                    : "MainViewModel: Auto-paste disabled and the clipboard copy was refused; text was not delivered");
             }
 
             // CLIPBOARD PRESERVATION - STEP 2: Schedule clipboard restoration.

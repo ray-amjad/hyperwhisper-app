@@ -275,6 +275,12 @@ public interface IOnboardingModelCatalog
 
     bool IsDownloading(OnboardingModelSelection model);
 
+    /// <summary>
+    /// Download progress as a FRACTION, 0 to 1, and 0 when nothing is running.
+    /// Every consumer treats it that way: OnboardingProgressBar clamps its Value to
+    /// [0,1] and the percent label multiplies by 100. An adapter over a service
+    /// that reports percentages converts.
+    /// </summary>
     double Progress(OnboardingModelSelection model);
 
     void StartDownload(OnboardingModelSelection model);
@@ -400,8 +406,12 @@ public interface IOnboardingAudioGateway
     /// </summary>
     void RestoreDevice(string? storedId, string? openId);
 
-    /// <summary>No-op unless <see cref="Availability"/> is Available.</summary>
-    void StartInputLevelPreview();
+    /// <summary>
+    /// No-op unless <see cref="Availability"/> is Available. Returns true only when
+    /// a capture stream is genuinely running afterwards: a device can enumerate and
+    /// still refuse to open, and the flow must not light the meter for one that did.
+    /// </summary>
+    bool StartInputLevelPreview();
 
     void StopInputLevelPreview();
 
@@ -409,7 +419,19 @@ public interface IOnboardingAudioGateway
 
     event EventHandler<float>? InputLevelChanged;
 
-    void ToggleTestRecording();
+    /// <summary>
+    /// Begin the Try It capture. False when nothing is recording afterwards, in
+    /// which case the reason has already been published on <see cref="Transcript"/>.
+    /// </summary>
+    bool StartTestRecording();
+
+    /// <summary>
+    /// Stop the Try It capture and transcribe it. The task is returned rather than
+    /// discarded so the flow can own it in its task box, exactly as it owns the
+    /// sample-clip path: without that there is no transcribing state, no
+    /// re-entrancy guard, and nothing for teardown to cancel.
+    /// </summary>
+    Task StopAndTranscribeAsync(CancellationToken cancellationToken);
 
     /// <summary>True when the bundled sample clip is present in this build.</summary>
     bool HasSampleClip { get; }
@@ -436,6 +458,21 @@ public interface IOnboardingAudioGateway
     string Transcript { get; }
 
     event EventHandler? TranscriptChanged;
+
+    /// <summary>
+    /// A non-fatal warning raised while producing the current transcript, or null.
+    ///
+    /// This exists because post-processing can be SKIPPED and still return text.
+    /// Five of the six seeded Modes post-process through a cloud LLM, so a 401 or a
+    /// timeout leaves the user looking at a raw, un-post-processed transcript under
+    /// full success chrome and concluding the source works. The GUI's toast is the
+    /// wrong surface behind a modal, and TranscriptionResult carries no warning
+    /// field, so the adapter forwards the orchestrator's own event on this channel
+    /// and the Try It panel renders it inline.
+    /// </summary>
+    string? TranscriptWarning { get; }
+
+    event EventHandler? TranscriptWarningChanged;
 }
 
 /// <summary>The one and only path from staged configuration to production state.</summary>

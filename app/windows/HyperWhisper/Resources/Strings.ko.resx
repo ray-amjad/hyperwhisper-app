@@ -2722,4 +2722,7 @@ You can re-download it later.</value>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
     <value>Run setup again</value>
   </data>
+  <data name="app.unknown.error" xml:space="preserve">
+    <value>알 수 없는 오류가 발생했습니다</value>
+  </data>
 </root>

@@ -483,6 +483,8 @@ public sealed partial class OnboardingFlowViewModel
                 return Loc.S("onboarding.test.status.speak");
             if (IsTranscribingSample)
                 return Loc.S("onboarding.tryIt.sample.transcribing");
+            if (IsTranscribingTestRecording)
+                return Loc.S("recording.state.transcribing");
             if (TranscriptIsError)
                 return Loc.S("common.error");
             return Loc.S("onboarding.try.transcript.heading");
@@ -513,7 +515,22 @@ public sealed partial class OnboardingFlowViewModel
 
     public bool ShowsTranscriptMeta => HasTranscript && !TranscriptIsError && !IsRecording;
 
-    public bool ShowsEmptyTranscriptHint => !HasTranscript && !IsRecording && !IsTranscribingSample;
+    public bool ShowsEmptyTranscriptHint =>
+        !HasTranscript && !IsRecording && !IsTranscribingSample && !IsTranscribingTestRecording;
+
+    /// <summary>
+    /// The microphone path's "transcribing" pill. Without it the step showed
+    /// "Nothing here yet" and an armed Record button for the whole of a local
+    /// model's run, which is what invited a second, overlapping capture.
+    /// </summary>
+    public bool ShowsTestRecordingTranscribing => IsTryItRecordMode && IsTranscribingTestRecording;
+
+    /// <summary>
+    /// A non-fatal warning about the transcript that IS on screen. Never shown for
+    /// an error transcript: that already reads as a failure, and two failure
+    /// surfaces at once is worse than one.
+    /// </summary>
+    public bool ShowsTranscriptWarning => HasTranscriptWarning && HasTranscript && !TranscriptIsError && !IsRecording;
 
     /// <summary>
     /// macOS writes this as if/else-if/else in the view. Windows cannot, so the
@@ -525,13 +542,15 @@ public sealed partial class OnboardingFlowViewModel
     public bool ShowsTranscriptFooterRow => HasTranscript && !IsRecording;
 
     /// <summary>The "Record again" row appears only once there is something to replace.</summary>
-    public bool ShowsRecordAgain => HasTranscript && !IsRecording && IsTryItRecordMode;
+    public bool ShowsRecordAgain =>
+        HasTranscript && !IsRecording && IsTryItRecordMode && !IsTranscribingTestRecording;
 
     /// <summary>The sample path's equivalent: run it again.</summary>
     public bool ShowsSampleAgain => HasTranscript && IsTryItSampleMode && !IsTranscribingSample;
 
     /// <summary>Record is offered only when a recording can actually be made.</summary>
-    public bool ShowsRecordButton => IsTryItRecordMode && !IsRecording && !HasTranscript;
+    public bool ShowsRecordButton =>
+        IsTryItRecordMode && !IsRecording && !HasTranscript && !IsTranscribingTestRecording;
 
     public bool ShowsStopButton => IsRecording;
 
@@ -667,26 +686,33 @@ public sealed partial class OnboardingFlowViewModel
             {
                 nameof(IsTryItRecordMode), nameof(IsTryItSampleMode), nameof(ShowsRecordButton),
                 nameof(ShowsRecordedPill), nameof(ShowsSampleButton), nameof(ShowsRecordAgain),
-                nameof(ShowsSampleAgain)
+                nameof(ShowsSampleAgain), nameof(ShowsTestRecordingTranscribing)
             },
             [nameof(IsRecording)] = new[]
             {
                 nameof(TranscriptHeading), nameof(ShowsRecordButton), nameof(ShowsStopButton),
                 nameof(ShowsRecordedPill), nameof(ShowsRecordAgain), nameof(ShowsTranscriptMeta),
                 nameof(ShowsEmptyTranscriptHint), nameof(ShowsTranscriptBody),
-                nameof(ShowsTranscriptFooterRow)
+                nameof(ShowsTranscriptFooterRow), nameof(ShowsTranscriptWarning)
             },
             [nameof(IsTranscribingSample)] = new[]
             {
                 nameof(TranscriptHeading), nameof(ShowsSampleButton), nameof(ShowsSampleAgain),
                 nameof(ShowsEmptyTranscriptHint)
             },
+            [nameof(IsTranscribingTestRecording)] = new[]
+            {
+                nameof(TranscriptHeading), nameof(ShowsEmptyTranscriptHint), nameof(ShowsRecordButton),
+                nameof(ShowsRecordAgain), nameof(ShowsTestRecordingTranscribing)
+            },
+            [nameof(TranscriptWarning)] = new[] { nameof(ShowsTranscriptWarning) },
             [nameof(Transcript)] = new[]
             {
                 nameof(TranscriptHeading), nameof(TranscriptMeta), nameof(ShowsTranscriptMeta),
                 nameof(ShowsEmptyTranscriptHint), nameof(ShowsRecordAgain), nameof(ShowsSampleAgain),
                 nameof(ShowsRecordButton), nameof(ShowsRecordedPill), nameof(ShowsSampleButton),
-                nameof(ShowsTranscriptBody), nameof(ShowsTranscriptFooterRow)
+                nameof(ShowsTranscriptBody), nameof(ShowsTranscriptFooterRow),
+                nameof(ShowsTranscriptWarning)
             },
             [nameof(TranscriptCameFromSample)] = new[] { nameof(TranscriptMeta) },
             [nameof(SelectedDeviceName)] = new[] { nameof(TranscriptMeta) }

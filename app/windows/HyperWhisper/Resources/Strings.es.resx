@@ -2726,4 +2726,7 @@ Puede volver a descargarlo más tarde.</value>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
     <value>Run setup again</value>
   </data>
+  <data name="app.unknown.error" xml:space="preserve">
+    <value>Ocurrió un error desconocido</value>
+  </data>
 </root>

@@ -42,10 +42,15 @@ public partial class MainWindow : Window
     /// <summary>
     /// True for exactly as long as the onboarding window is up. The tray is built
     /// in this constructor, i.e. BEFORE the modal ever opens, so its recording
-    /// items are clickable behind it; this flag is what keeps a competing
-    /// recording from being started from there.
+    /// items are clickable behind it; this is what keeps a competing recording
+    /// from being started from there.
+    ///
+    /// It READS <see cref="OnboardingSession"/> rather than keeping a field of its
+    /// own. The recording entry points in MainViewModel need the same fact, and a
+    /// window-private copy of it is exactly how the global hotkey path came to
+    /// have no guard at all.
     /// </summary>
-    private bool _isOnboardingOpen;
+    private static bool IsOnboardingOpen => OnboardingSession.IsActive;
 
     public MainWindow()
     {
@@ -480,7 +485,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void ShowOnboarding()
     {
-        if (_isOnboardingOpen)
+        if (IsOnboardingOpen)
             return;
 
         OnboardingLiveDependencies.LiveOnboarding? live = null;
@@ -505,8 +510,9 @@ public partial class MainWindow : Window
 
             var window = new OnboardingWindow(live.Flow) { Owner = this };
 
-            _isOnboardingOpen = true;
-            TextDeliveryGate.SetSuppressed(true);
+            // One call raises BOTH the recording guard the entry points read and
+            // the text delivery gate the paste sinks read.
+            OnboardingSession.SetActive(true);
             RefreshRecordingMenu();
             RefreshFileTranscriptionMenu();
 
@@ -523,8 +529,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            _isOnboardingOpen = false;
-            TextDeliveryGate.SetSuppressed(false);
+            OnboardingSession.SetActive(false);
 
             // The flow model's own Cleanup() runs from the window's Closing; these
             // are the OS resources behind the seams (a COM device-notification
@@ -631,7 +636,7 @@ public partial class MainWindow : Window
                 // Re-entering setup while it is already on screen would build a
                 // second flow model over the same Mode row.
                 if (_runSetupAgainMenu != null)
-                    _runSetupAgainMenu.Enabled = !_isOnboardingOpen;
+                    _runSetupAgainMenu.Enabled = !IsOnboardingOpen;
             };
 
             menu.Items.Add("-");
@@ -663,7 +668,7 @@ public partial class MainWindow : Window
         // While onboarding is open the tray sits behind a modal that owns its own
         // recorder and stages the Mode the tray would record with, so no recording
         // may be started (or stopped) from here.
-        _recordingMenu.Enabled = !_isOnboardingOpen &&
+        _recordingMenu.Enabled = !IsOnboardingOpen &&
             (_viewModel.IsRecording ||
             (!_viewModel.IsTranscribing &&
              !_viewModel.IsModelLoading &&
@@ -675,7 +680,7 @@ public partial class MainWindow : Window
     {
         // Belt and braces with RefreshRecordingMenu: a menu already open when the
         // onboarding window appeared still holds an enabled item.
-        if (_isOnboardingOpen)
+        if (IsOnboardingOpen)
             return;
 
         if (_viewModel.IsTranscribing || _viewModel.IsModelLoading)
@@ -909,7 +914,7 @@ public partial class MainWindow : Window
             var modeName = string.IsNullOrWhiteSpace(mode.Name) ? Loc.S("menu.mode.unnamed") : mode.Name;
             var modeItem = new System.Windows.Forms.ToolStripMenuItem(modeName)
             {
-                Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading && !_isOnboardingOpen,
+                Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading && !IsOnboardingOpen,
                 Tag = mode
             };
 
