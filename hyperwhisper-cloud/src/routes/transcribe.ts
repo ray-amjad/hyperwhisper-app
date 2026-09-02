@@ -3,10 +3,6 @@
 // Supports multiple STT providers with automatic fallback
 
 import type { Context } from 'hono';
-import {
-  hasExplicitLanguage as hasExplicitAssemblyAILanguage,
-  SYNC_ELIGIBLE_ESTIMATED_SECONDS as ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS,
-} from '../providers/assemblyai';
 import type { TranscriptionResult } from '../providers/types';
 import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
 // The providers layer's own answer to "which adapter runs this provider id", so
@@ -16,7 +12,6 @@ import { transcribeWithProvider } from '../providers/dispatch';
 import { parseMetaWav } from '../providers/meta';
 import { creditsForCost, estimatePromptInputReservationUsd, formatUsd } from '../lib/cost-calculator';
 import {
-  estimatedUsdPerMinute,
   fallbackChainFor,
   formatProviderName,
   getProviderDef,
@@ -24,7 +19,6 @@ import {
   resolveModel,
   servedNameFor,
   MEDICAL_DOMAIN,
-  ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
   type SttProviderId,
 } from '../lib/stt-models';
 import { readClientInfo } from '../lib/client-info';
@@ -44,6 +38,10 @@ import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork }
 // so the route never needs a provider's blocked-region list, its replay region,
 // or its id in a filter. See providers/geo-availability.ts.
 import { planGeoRouting, reachableFromRegion } from '../providers/geo-availability';
+// The providers layer's own answer to "what is the worst USD/min this request
+// could be billed at", so the route never needs a provider's add-on eligibility
+// or an adapter's internal routing gate. See providers/reservation.ts.
+import { maxReservationUsdPerMinute } from '../providers/reservation';
 import { rawQuery } from '../lib/query';
 import { isIPBlocked } from '../lib/redis';
 import { errorResponse } from '../lib/responses';
@@ -62,11 +60,16 @@ import {
 export type Provider = SttProviderId;
 
 /**
- * Preflight credit reservation. For the primary provider we estimate against
- * the chosen model (and medical add-on); for fallback siblings we estimate
- * against their default model. The reservation uses the most expensive member
- * of the chain so we never under-reserve. `model`/`medical` are optional to
- * keep the historical 2-arg call signature working.
+ * Preflight credit reservation: turn a declared Content-Length into the credits
+ * to hold before the body is read.
+ *
+ * Which providers the request could reach, what each of them would charge, and
+ * which of them has a routing tier priced above its own catalog are all
+ * `maxReservationUsdPerMinute`'s to answer. What is left here is the
+ * byte→seconds→credits arithmetic, plus the prompt-token allowance, which is
+ * still `lib/cost-calculator.ts`'s and is applied to the primary provider only
+ * — see the note in providers/reservation.ts for when that has to move.
+ * `model`/`medical` are optional to keep the historical 2-arg signature working.
  */
 export function estimateCreditsForProviderFallbacks(
   sizeBytes: number,
@@ -77,7 +80,6 @@ export function estimateCreditsForProviderFallbacks(
   language?: string,
   exactAudioSeconds?: number,
 ): number {
-  const chain = fallbackChainFor(provider);
   // Muse requests are canonical mono PCM16 WAV at 16 or 24 kHz. The route
   // supplies the parsed duration because Content-Length cannot identify which
   // accepted byte rate produced the file. Keep the 16 kHz size fallback for
@@ -86,41 +88,14 @@ export function estimateCreditsForProviderFallbacks(
   const estimatedSeconds = exactAudioSeconds ?? (provider === 'meta'
     ? Math.max(10, Math.max(0, sizeBytes - 44) / (16_000 * 2))
     : estimateAudioSecondsFromSize(sizeBytes));
-  const hasInitialPrompt = Boolean(initialPrompt);
-  const rates = chain.map((p) => estimatedUsdPerMinute(
-    p,
-    p === provider ? model : undefined,
-    p === provider ? medical : false,
-    // The keyterm surcharge is billed by ANY chain member that supports it
-    // (ElevenLabs scribe_v2 / AssemblyAI universal-3-5-pro) whenever an
-    // initial_prompt is present — not just the primary provider. A
-    // Deepgram→ElevenLabs fallback still forwards initial_prompt and bills the
-    // +20% surcharge, so reserve for it on every eligible sibling. Other
-    // providers ignore the flag (estimatedUsdPerMinute scopes the add-on), so
-    // this never over-reserves for, say, a Deepgram-only success path.
-    hasInitialPrompt && (p === 'elevenlabs' || p === 'assemblyai'),
-  ));
-  // AssemblyAI's sync fast path (<120s, non-medical, EXPLICIT-language clips)
-  // always runs universal-3-5-pro at its OWN higher published rate — not the
-  // async catalog rate for the requested model (universal-2 / universal-3-5-pro),
-  // which `estimatedUsdPerMinute` above reserves against. A short clip is
-  // exactly sync's target case, so without this a short, non-medical
-  // AssemblyAI request could be deducted for more than was reserved. This
-  // condition must exactly mirror `transcribeWithAssemblyAI`'s real
-  // eligibility gate (medical + duration + explicit language) — reusing
-  // `hasExplicitLanguage` rather than reimplementing it here, since an
-  // auto-language request never actually routes through sync (sync has no
-  // auto-detect) and over-reserving for it could wrongly reject a low-balance
-  // user at preflight for a request that will only ever go through the
-  // cheaper async path.
-  if (
-    provider === 'assemblyai' && !medical
-    && estimatedSeconds < ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS
-    && hasExplicitAssemblyAILanguage(language)
-  ) {
-    rates.push(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
-  }
-  const usdPerMinute = Math.max(...rates);
+  const usdPerMinute = maxReservationUsdPerMinute({
+    provider,
+    model,
+    medical,
+    hasInitialPrompt: Boolean(initialPrompt),
+    language,
+    estimatedSeconds,
+  });
   // Token-billed providers (Gemini, OpenAI gpt-4o*) charge the prompt text as
   // input tokens on top of the audio. Reserve that flat cost for the primary
   // provider (these are self-only chains) so a large vocabulary prompt on a
@@ -297,13 +272,6 @@ export async function transcribeRoute(c: Context) {
   }
   logEvent(requestId, startTime, 'transcribe.auth_done');
 
-  // Vocabulary surcharge: AssemblyAI charges a keyterms_prompt add-on (universal-3-5-pro)
-  // and ElevenLabs a +20% keyterm surcharge (scribe_v2) when an initial_prompt is supplied.
-  // We pass the raw hasInitialPrompt flag through to the reservation so it can reserve the
-  // surcharge for ANY eligible chain member — including ElevenLabs reached via a
-  // Deepgram/Groq/Grok fallback, which still forwards the prompt and bills the surcharge.
-  // estimatedUsdPerMinute scopes the add-on to universal-3-5-pro / scribe_v2, so passing it
-  // for every request is safe and never under-reserves.
   const readAudioBuffer = async (): Promise<ArrayBuffer> => {
     const uploadStart = performance.now();
     const body = await c.req.arrayBuffer();
@@ -368,6 +336,9 @@ export async function transcribeRoute(c: Context) {
     }
   }
 
+  // The raw request values go in as they arrived — the initial_prompt, the
+  // domain and the language are all things the reservation prices for itself.
+  // See providers/reservation.ts for which of them cost what, and why.
   const estimatedCredits = estimateCreditsForProviderFallbacks(
     contentLength, provider, model, medical, initialPrompt, language, exactAudioSeconds,
   );

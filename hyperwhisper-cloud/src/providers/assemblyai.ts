@@ -111,10 +111,9 @@ const SYNC_MAX_DURATION_SECONDS = 120;
 // 20s before the cap is treated as "too close to call" and skips sync
 // entirely rather than risk a wasted round-trip AssemblyAI rejects as too long.
 const SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS = 20;
-// Exported so the preflight credit reservation (estimateCreditsForProviderFallbacks
-// in routes/transcribe.ts) can gate on the SAME eligibility threshold this file
-// uses, instead of drifting out of sync with a duplicated magic number.
-export const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
+// Module-private. A caller that needs to know whether sync could run asks
+// `couldRouteThroughSync` below rather than holding this threshold itself.
+const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
 const SYNC_MAX_KEYTERMS_PROMPT_CHARS = 2048;
 // AssemblyAI's sync p50 latency is ~134ms, so even a much tighter budget than
 // an earlier 40s leaves enormous headroom for a genuinely-slow-but-successful
@@ -170,8 +169,40 @@ function trimExplicitLanguage(language: string | undefined): string | undefined 
 
 /** `true` when `language` is an explicit, non-"auto" language — the only case
  * sync is eligible for. See the module doc's "Language" note above. */
-export function hasExplicitLanguage(language: string | undefined): boolean {
+function hasExplicitLanguage(language: string | undefined): boolean {
   return trimExplicitLanguage(language) !== undefined;
+}
+
+/** The part of the sync fast-path gate a caller can evaluate BEFORE the audio
+ * body is read: no medical domain, an explicit language, and a byte-size
+ * duration estimate under the eligibility threshold.
+ *
+ * The real gate in `transcribeWithAssemblyAI` adds a WAV-container term, which
+ * this predicate deliberately leaves out — so on the container axis it is a
+ * SUPERSET of the real gate, and the preflight credit reservation
+ * (providers/reservation.ts) may reserve the higher sync rate for a non-WAV
+ * request that can only ever go async. That is the safe direction. Note the
+ * route DOES hold the Content-Type at preflight (it is a header, read long
+ * before the body), so narrowing this is possible; it would lower some
+ * reservations, so it is a behaviour change and not done here.
+ *
+ * `estimatedSeconds` is NOT a superset on the duration axis. The reservation
+ * derives it from the declared Content-Length and the adapter derives it from
+ * the delivered body; the route rejects a body larger than declared but allows
+ * a smaller one, so a request can be reserved as too long for sync and then
+ * run through sync anyway. That gap predates this module and is not closed by
+ * it — do not read the superset property as covering duration.
+ *
+ * Exists so a caller never needs this module's threshold or its language rule.
+ * The transcribe route imported both directly and re-derived the gate inline. */
+export function couldRouteThroughSync(input: {
+  medical: boolean;
+  language?: string;
+  estimatedSeconds: number;
+}): boolean {
+  return !input.medical
+    && hasExplicitLanguage(input.language)
+    && input.estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
 }
 
 /** `true` when `contentType` is a WAV container — the only container
@@ -426,10 +457,12 @@ export async function transcribeWithAssemblyAI(
   // language defaults to English server-side). Otherwise, gate on the
   // conservative byte-size duration estimate (see module doc for why: no real
   // duration is available here).
+  // `couldRouteThroughSync` owns the medical / language / duration terms — see
+  // its doc. The WAV-container term stays here because it is the one term a
+  // preflight caller cannot use (it would narrow the reservation, not widen it).
   const estimatedSeconds = estimateSecondsFromBytes(audio.byteLength);
-  const explicitLanguage = hasExplicitLanguage(language);
   const wavContainer = isWavContentType(contentType);
-  const syncEligible = !medical && explicitLanguage && wavContainer && estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
+  const syncEligible = couldRouteThroughSync({ medical, language, estimatedSeconds }) && wavContainer;
   if (syncEligible) {
     logProviderEvent(provider, 'sync_attempt', {
       estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
@@ -441,7 +474,8 @@ export async function transcribeWithAssemblyAI(
     logProviderEvent(provider, 'sync_fallback_to_async', {}, context);
   } else {
     logProviderEvent(provider, 'sync_skipped', {
-      medical, explicitLanguage, wavContainer, contentType, estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
+      medical, explicitLanguage: hasExplicitLanguage(language), wavContainer, contentType,
+      estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
     }, context);
   }
 

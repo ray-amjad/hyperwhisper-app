@@ -98,7 +98,7 @@ const ASSEMBLYAI_KEYTERMS_ADDON_USD_PER_MINUTE = 0.05 / 60;
 // modeled by a `models[]` entry (sync isn't a selectable model; it's a
 // routing decision the sync-eligibility gate makes for a request that could
 // have asked for either async model). Exported so the preflight reservation
-// (estimateCreditsForProviderFallbacks in routes/transcribe.ts) can reserve
+// (`maxReservationUsdPerMinute` in providers/reservation.ts) can reserve
 // against it for a request that could route through sync, instead of only
 // ever reserving the lower async catalog rate for the requested model — a
 // short clip (sync's target case) must not be able to deduct more than was

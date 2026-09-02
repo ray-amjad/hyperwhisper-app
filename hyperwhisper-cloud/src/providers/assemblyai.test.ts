@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { hasExplicitLanguage, SYNC_ELIGIBLE_ESTIMATED_SECONDS, transcribeWithAssemblyAI } from './assemblyai';
+import { couldRouteThroughSync, transcribeWithAssemblyAI } from './assemblyai';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
@@ -92,20 +92,29 @@ async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record
   return event[1] as Record<string, unknown>;
 }
 
-describe('hasExplicitLanguage', () => {
-  test('true for a real language code', () => {
-    expect(hasExplicitLanguage('fr-FR')).toBe(true);
+describe('couldRouteThroughSync', () => {
+  const eligible = { medical: false, language: 'en', estimatedSeconds: 6 };
+
+  test('true for a non-medical, explicit-language, short clip', () => {
+    expect(couldRouteThroughSync(eligible)).toBe(true);
+    expect(couldRouteThroughSync({ ...eligible, language: 'fr-FR' })).toBe(true);
   });
 
-  test('false for undefined, blank, and "auto" (case-insensitive)', () => {
-    expect(hasExplicitLanguage(undefined)).toBe(false);
-    expect(hasExplicitLanguage('   ')).toBe(false);
-    expect(hasExplicitLanguage('auto')).toBe(false);
-    expect(hasExplicitLanguage('AUTO')).toBe(false);
+  test('false without an explicit language — undefined, blank, or "auto" (case-insensitive)', () => {
+    expect(couldRouteThroughSync({ ...eligible, language: undefined })).toBe(false);
+    expect(couldRouteThroughSync({ ...eligible, language: '   ' })).toBe(false);
+    expect(couldRouteThroughSync({ ...eligible, language: 'auto' })).toBe(false);
+    expect(couldRouteThroughSync({ ...eligible, language: 'AUTO' })).toBe(false);
   });
 
-  test('the sync-eligible threshold is 20s below the 120s sync hard cap', () => {
-    expect(SYNC_ELIGIBLE_ESTIMATED_SECONDS).toBe(100);
+  test('false for the medical domain', () => {
+    expect(couldRouteThroughSync({ ...eligible, medical: true })).toBe(false);
+  });
+
+  test('the eligible threshold sits 20s below the 120s sync hard cap', () => {
+    expect(couldRouteThroughSync({ ...eligible, estimatedSeconds: 99.9 })).toBe(true);
+    expect(couldRouteThroughSync({ ...eligible, estimatedSeconds: 100 })).toBe(false);
+    expect(couldRouteThroughSync({ ...eligible, estimatedSeconds: 120 })).toBe(false);
   });
 });
 
