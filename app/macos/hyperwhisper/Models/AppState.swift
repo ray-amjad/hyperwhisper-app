@@ -196,7 +196,14 @@ class AppState: ObservableObject {
     @Published var selectedModeId: String = "00000000-0000-0000-0000-000000000001"
     
     /// Currently selected mode name (for display)
-    @Published var selectedModeName: String = "Default"
+    ///
+    /// The pre-load placeholder for `selectedModeId` above, which is the seeded
+    /// mode's id — so it has to read as the seeded mode's name. `"Hyper"` is
+    /// literal here on purpose: this is a `@Published` initial value on a
+    /// `@MainActor` type, and calling into the shared core to build it would run
+    /// the FFI during `AppState`'s stored-property initialisation. It is
+    /// overwritten by the real name on the first `selectMode`.
+    @Published var selectedModeName: String = "Hyper"
 
     /// Thread-safe snapshot of the selected Mode's properties.
     /// Fed by a background fetch on selectedModeId change or a filtered

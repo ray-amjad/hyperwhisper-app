@@ -197,7 +197,7 @@
         },
         "postProcessingProvider": {
           "type": ["string", "null"],
-          "description": "Post-processing provider (e.g. 'hyperwhisper', 'openai', 'anthropic', 'groq')."
+          "description": "Post-processing provider, for example 'hyperwhispercloud', 'openai', 'anthropic', or 'groq'. HyperWhisper Cloud is 'hyperwhispercloud' — the spelling every platform now derives and seeds. 'hyperwhisper' and 'hyperwhisper_cloud' are older spellings that still appear in existing backups and in values a client supplied over the Local API, and every reader folds all three onto the same provider. Free string, deliberately not an enum: a value a reader does not recognise falls back rather than failing the restore, and the 'custom:<uuid>' form (resolved through settings.customEndpoints) is carried here too."
         },
         "languageModel": {
           "type": ["string", "null"],

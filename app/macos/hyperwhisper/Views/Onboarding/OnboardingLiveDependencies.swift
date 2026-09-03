@@ -368,7 +368,11 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
         return LiveOnboardingRestorePoint(
             modeExisted: existing != nil,
             modeID: existing?.id ?? Self.defaultModeID,
-            name: existing?.name ?? "Default",
+            // The seeded mode's name, not a placeholder for an unnamed one:
+            // `restore` writes this back through `createOrUpdateMode`, so it has
+            // to be what the seeder wrote — `"Hyper"`, the shared name every
+            // head now uses (`hw-catalog::mode_seed`).
+            name: existing?.name ?? SeededModeValues.seededName,
             preset: existing?.preset ?? "hyper",
             language: existing?.language ?? "en",
             model: existing?.model ?? "base",
@@ -404,7 +408,11 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
         let existing = persistence.findDefaultMode()
         let updated = persistence.createOrUpdateMode(
             id: existing?.id ?? Self.defaultModeID,
-            name: existing?.name ?? "Default",
+            // `apply` CREATES the default mode when onboarding runs before the
+            // seeder has (or after the user deleted every mode), so this literal
+            // is a real seeded name, not a display placeholder. Same source as
+            // the seeder.
+            name: existing?.name ?? SeededModeValues.seededName,
             preset: existing?.preset ?? "hyper",
             language: existing?.language ?? "en",
             model: staged.model,

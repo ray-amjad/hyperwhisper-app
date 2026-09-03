@@ -207,6 +207,25 @@ Shared mode fields (top-level in the schema):
 | `geminiCustomPrompt` | `Mode.geminiCustomPrompt` | `Mode.GeminiCustomPrompt` |
 | `cloudPostProcessingModel` | `Mode.cloudPostProcessingModel` | `Mode.CloudPostProcessingModel` |
 
+**Two of those values cross as tokens, not as free text, and both fall back silently when they are
+wrong** — so read this before changing what either one stores.
+
+`postProcessingProvider` spells HyperWhisper Cloud **`hyperwhispercloud`**. That is what every
+platform now derives and what a fresh install seeds on all three
+(`shared-core-rs/crates/hw-catalog/src/mode_seed.rs`). Two older spellings, `hyperwhisper` and
+`hyperwhisper_cloud`, are still in existing backups and in values a client supplied over the Local API
+— that surface is *tolerant on read, verbatim on write* on every head, so a restored file can carry any
+of the three. Every reader folds all three onto the same provider (macOS
+`PostProcessingProvider.init?(rawValue:)`, Windows `PostProcessingProvider.FromString`, Linux
+`LinuxPostProcessingRouter`). Keep it that way: an unrecognised provider does not fail the restore, it
+makes post-processing a silent no-op. The `custom:<uuid>` form travels in this same field and resolves
+through `settings.customEndpoints`.
+
+`cloudPostProcessingModel` is `"<engineId>:<modelId>"` (e.g. `anthropic:claude-haiku-4-5`) on all
+three platforms. Do not drop the engine prefix — macOS' `CloudPostProcessingModel.fromStorageValue`
+falls back to **Grok** on a value it cannot split, so a bare model id restores as a different vendor
+with no error anywhere.
+
 Windows-only mode fields (go into `platformExtensions.windows`):
 
 | Field | Windows Property | Default on Import |
