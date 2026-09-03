@@ -32,7 +32,22 @@ HyperWhisper for Windows is a .NET 10 WPF app. The app stays in your system tray
 
 At the first start, HyperWhisper registers itself to **start with Windows**. The registration is in `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`. You can turn off this option later in **Settings → General**.
 
-The main window opens at the first start. When you close the main window, the app moves to the system tray. For more information, refer to [System tray behavior](#system-tray-behavior). The app continues to run in the background and stays ready to transcribe.
+The first-run setup opens over the main window. It takes you through these tasks:
+
+1. Grant microphone access. You can also check or change the recording shortcut.
+2. Choose HyperWhisper Cloud, an on-device model, or your own provider API key.
+3. Activate the Cloud key, download the local model, or check and save the provider key.
+4. Select a microphone and check its input level.
+5. Make a test recording. If no microphone is connected, you can transcribe the included sample clip instead.
+6. Review the setup and select **Done Onboarding**.
+
+The setup makes the selected source the default transcription mode. You can change every choice later in Settings.
+
+<Note>
+  You can select **Set Up Later** on any step except the final step. HyperWhisper does not keep the staged mode, provider key, or microphone change. It keeps a model that you downloaded and a HyperWhisper Cloud key that you activated. The **Run setup again** command in the system tray opens the setup again.
+</Note>
+
+When you close the main window after setup, the app moves to the system tray. For more information, refer to [System tray behavior](#system-tray-behavior). The app continues to run in the background and stays ready to transcribe.
 
 ## Your first recording
 
@@ -78,6 +93,7 @@ HyperWhisper runs in the background and shows an icon in the Windows system tray
 | **Start/Stop Recording** | Start or stop a recording. The main window stays closed |
 | **History...** | Open the main window on the History page |
 | **Settings...** | Open the main window on the Settings page |
+| **Run setup again** | Open the guided setup for the microphone, transcription source, and test recording |
 | **Microphone** | Switch your active input device |
 | **Select Mode** | Switch the active transcription mode |
 | **Transcribe File** | Open a file for transcription |
