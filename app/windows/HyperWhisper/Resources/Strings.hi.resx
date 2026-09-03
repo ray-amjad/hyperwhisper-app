@@ -2198,532 +2198,532 @@ You can re-download it later.</value>
     <value>Use your own Meta Model API key for Muse batch transcription</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
-    <value>Set up HyperWhisper</value>
+    <value>HyperWhisper सेट अप करें</value>
   </data>
   <data name="onboarding.welcome.title" xml:space="preserve">
-    <value>Write at the speed of thought</value>
+    <value>विचार की गति से लिखें</value>
   </data>
   <data name="onboarding.welcome.subtitle" xml:space="preserve">
-    <value>HyperWhisper turns your voice into text in any app on your PC. Three things, then you are typing with your voice.</value>
+    <value>HyperWhisper आपकी आवाज़ को इस PC पर किसी भी ऐप में टेक्स्ट में बदल देता है। तीन चीज़ें, और फिर आप आवाज़ से टाइप कर रहे होंगे।</value>
   </data>
   <data name="onboarding.welcome.getStarted" xml:space="preserve">
-    <value>Get started</value>
+    <value>शुरू करें</value>
   </data>
   <data name="onboarding.welcome.task1.title" xml:space="preserve">
-    <value>Choose how transcription runs</value>
+    <value>चुनें कि ट्रांसक्रिप्शन कैसे चलेगा</value>
   </data>
   <data name="onboarding.welcome.task1.caption" xml:space="preserve">
-    <value>In our cloud, on this PC, or through a provider account you already pay for.</value>
+    <value>हमारे क्लाउड में, इस PC पर, या किसी ऐसे प्रोवाइडर खाते से जिसके लिए आप पहले से भुगतान करते हैं।</value>
   </data>
   <data name="onboarding.welcome.task2.title" xml:space="preserve">
-    <value>Check your microphone</value>
+    <value>अपना माइक्रोफ़ोन जांचें</value>
   </data>
   <data name="onboarding.welcome.task2.caption" xml:space="preserve">
-    <value>Pick an input and watch the level move while you talk.</value>
+    <value>एक इनपुट चुनें और बोलते समय लेवल को हिलते हुए देखें।</value>
   </data>
   <data name="onboarding.welcome.task3.title" xml:space="preserve">
-    <value>Make one recording</value>
+    <value>एक रिकॉर्डिंग बनाएं</value>
   </data>
   <data name="onboarding.welcome.task3.caption" xml:space="preserve">
-    <value>Say a line, read the text back. That is the whole product.</value>
+    <value>एक लाइन बोलें, टेक्स्ट वापस पढ़ें। यही पूरा प्रोडक्ट है।</value>
   </data>
   <data name="onboarding.welcome.note" xml:space="preserve">
-    <value>HyperWhisper listens only while a recording is running. Nothing is captured in the background.</value>
+    <value>HyperWhisper केवल तभी सुनता है जब रिकॉर्डिंग चल रही हो। बैकग्राउंड में कुछ भी कैप्चर नहीं होता।</value>
   </data>
   <data name="onboarding.permissions.title" xml:space="preserve">
-    <value>Two quick checks</value>
+    <value>दो त्वरित जाँच</value>
   </data>
   <data name="onboarding.permissions.subtitle" xml:space="preserve">
-    <value>HyperWhisper needs these to hear your voice and drop finished text where you are typing.</value>
+    <value>HyperWhisper को आपकी आवाज़ सुनने और आप जहाँ टाइप कर रहे हैं वहाँ टेक्स्ट पेस्ट करने के लिए इनकी आवश्यकता है।</value>
   </data>
   <data name="onboarding.permissions.microphone.title" xml:space="preserve">
-    <value>Microphone</value>
+    <value>माइक्रोफ़ोन</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Required. Audio is captured only while a recording is active.</value>
+    <value>ताकि हम आपकी आवाज़ सुन सकें।</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
-    <value>Grant</value>
+    <value>अनुमति दें</value>
   </data>
   <data name="onboarding.permissions.granted" xml:space="preserve">
-    <value>Granted</value>
+    <value>अनुमति मिली</value>
   </data>
   <data name="onboarding.permissions.open" xml:space="preserve">
-    <value>Open Settings</value>
+    <value>सेटिंग्स खोलें</value>
   </data>
   <data name="onboarding.permissions.note" xml:space="preserve">
-    <value>The shortcut is optional. If another app already owns it, pick a different one now or later in Settings.</value>
+    <value>शॉर्टकट वैकल्पिक है। अगर कोई दूसरा ऐप इसे पहले से इस्तेमाल कर रहा है, तो अभी या बाद में सेटिंग्स में कोई दूसरा चुनें।</value>
   </data>
   <data name="onboarding.permissions.shortcut.title" xml:space="preserve">
-    <value>Your shortcut</value>
+    <value>आपका शॉर्टकट</value>
   </data>
   <data name="onboarding.permissions.shortcut.subtitle" xml:space="preserve">
-    <value>Optional. Press it in any app to start and stop a recording.</value>
+    <value>वैकल्पिक। रिकॉर्डिंग शुरू और बंद करने के लिए इसे किसी भी ऐप में दबाएँ।</value>
   </data>
   <data name="onboarding.permissions.shortcut.registered" xml:space="preserve">
-    <value>Shortcut registered</value>
+    <value>शॉर्टकट रजिस्टर हो गया</value>
   </data>
   <data name="onboarding.permissions.shortcut.checking" xml:space="preserve">
-    <value>Checking the shortcut…</value>
+    <value>शॉर्टकट जाँचा जा रहा है…</value>
   </data>
   <data name="onboarding.permissions.shortcut.conflict" xml:space="preserve">
-    <value>Shortcut not registered</value>
+    <value>शॉर्टकट रजिस्टर नहीं हुआ</value>
   </data>
   <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
-    <value>Choose a different shortcut</value>
+    <value>कोई दूसरा शॉर्टकट चुनें</value>
   </data>
   <data name="onboarding.source.title" xml:space="preserve">
-    <value>How do you want to transcribe?</value>
+    <value>आप कैसे ट्रांसक्राइब करना चाहते हैं?</value>
   </data>
   <data name="onboarding.source.subtitle" xml:space="preserve">
-    <value>All three put the same text in the same place. They differ on speed, privacy, and who you pay.</value>
+    <value>एक मोड आपकी फ़ॉर्मेटिंग प्राथमिकताओं के साथ एक ट्रांसक्रिप्शन स्रोत को जोड़ता है। शुरू करने के लिए एक स्रोत चुनें — आप बाद में और जोड़ सकते हैं।</value>
   </data>
   <data name="onboarding.source.cloud.title" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.source.cloud.description" xml:space="preserve">
-    <value>Fastest to set up, best accuracy. Prepaid credits, no subscription.</value>
+    <value>सबसे तेज़ और सबसे सटीक। प्रीपेड क्रेडिट, केंद्रीकृत बिलिंग — कोई लोकल मॉडल डाउनलोड करने की ज़रूरत नहीं।</value>
   </data>
   <data name="onboarding.source.onDevice.title" xml:space="preserve">
-    <value>On this PC</value>
+    <value>इस PC पर</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Private and free. Downloads a model once, then works with no network.</value>
+    <value>पूरी तरह से आपके Mac पर चलता है। मुफ़्त, निजी, ऑफ़लाइन भी काम करता है — कुछ भी आपके डिवाइस से बाहर नहीं जाता।</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
-    <value>Your API Key</value>
+    <value>आपकी API कुंजी</value>
   </data>
   <data name="onboarding.source.provider.description" xml:space="preserve">
-    <value>Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.</value>
+    <value>अपने खुद के OpenAI, Deepgram, या Groq खाते का उपयोग करें। कुंजी और बिलिंग पर आपका नियंत्रण होता है।</value>
   </data>
   <data name="onboarding.source.note" xml:space="preserve">
-    <value>Changing your mind later reruns this one step. Nothing else you set up is lost.</value>
+    <value>बाद में मन बदलने पर सिर्फ यही एक स्टेप दोबारा चलता है। आपकी बाकी सेटअप की गई कोई भी चीज़ नहीं खोती।</value>
   </data>
   <data name="onboarding.configure.cloud.title" xml:space="preserve">
-    <value>Activate HyperWhisper Cloud</value>
+    <value>HyperWhisper Cloud सक्रिय करें</value>
   </data>
   <data name="onboarding.configure.cloud.subtitle" xml:space="preserve">
-    <value>Enter your Cloud access key to connect this PC to your prepaid credits.</value>
+    <value>इस PC को अपने प्रीपेड क्रेडिट से जोड़ने के लिए अपनी Cloud एक्सेस कुंजी दर्ज करें।</value>
   </data>
   <data name="onboarding.configure.cloud.placeholder" xml:space="preserve">
-    <value>Paste your access key</value>
+    <value>अपनी एक्सेस कुंजी पेस्ट करें</value>
   </data>
   <data name="onboarding.configure.cloud.getCredits" xml:space="preserve">
-    <value>Don't have a key? Get credits at hyperwhisper.com</value>
+    <value>कुंजी नहीं है? hyperwhisper.com पर क्रेडिट प्राप्त करें</value>
   </data>
   <data name="onboarding.configure.cloud.creditsCaption" xml:space="preserve">
-    <value>credits available</value>
+    <value>क्रेडिट उपलब्ध</value>
   </data>
   <data name="onboarding.configure.cloud.note" xml:space="preserve">
-    <value>Credits are prepaid and shared across every PC signed in with this key. Idle time costs nothing.</value>
+    <value>क्रेडिट पहले से भुगतान किए गए हैं और इस कुंजी से साइन-इन हर PC के बीच साझा होते हैं। खाली समय का कोई शुल्क नहीं लगता।</value>
   </data>
   <data name="onboarding.configure.onDevice.title" xml:space="preserve">
-    <value>Choose a model</value>
+    <value>एक मॉडल चुनें</value>
   </data>
   <data name="onboarding.configure.onDevice.subtitle" xml:space="preserve">
-    <value>Larger models are more accurate and slower to download.</value>
+    <value>डाउनलोड करने के लिए एक वॉइस मॉडल चुनें। बड़े मॉडल अधिक सटीक होते हैं लेकिन अधिक जगह लेते हैं।</value>
   </data>
   <data name="onboarding.configure.onDevice.note" xml:space="preserve">
-    <value>Audio never leaves this PC. After the download it works on a plane.</value>
+    <value>ऑडियो कभी इस PC से बाहर नहीं जाता। डाउनलोड के बाद यह हवाई जहाज़ में भी काम करता है।</value>
   </data>
   <data name="onboarding.configure.provider.title" xml:space="preserve">
-    <value>Connect your provider</value>
+    <value>अपना प्रदाता कनेक्ट करें</value>
   </data>
   <data name="onboarding.configure.provider.subtitle" xml:space="preserve">
-    <value>Choose a provider and paste your API key. It is stored securely in Windows Credential Manager.</value>
+    <value>एक प्रदाता चुनें और अपनी API कुंजी पेस्ट करें। यह Windows क्रेडेंशियल मैनेजर में सुरक्षित रूप से संग्रहीत होती है।</value>
   </data>
   <data name="onboarding.configure.provider.keyPlaceholder" xml:space="preserve">
-    <value>Paste your API key</value>
+    <value>अपनी API कुंजी पेस्ट करें</value>
   </data>
   <data name="onboarding.configure.provider.keychainNote" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>Windows क्रेडेंशियल मैनेजर में सुरक्षित रूप से संग्रहीत।</value>
   </data>
   <data name="onboarding.configure.noSource.title" xml:space="preserve">
-    <value>Choose a transcription source first.</value>
+    <value>पहले एक ट्रांसक्रिप्शन सोर्स चुनें।</value>
   </data>
   <data name="onboarding.configure.noSource.caption" xml:space="preserve">
-    <value>Go back one step and pick where your speech should become text.</value>
+    <value>एक स्टेप पीछे जाएं और चुनें कि आपकी आवाज़ कहां टेक्स्ट बनेगी।</value>
   </data>
   <data name="onboarding.noSource.detail" xml:space="preserve">
-    <value>This step depends on the source you pick.</value>
+    <value>यह स्टेप आपके चुने गए सोर्स पर निर्भर करता है।</value>
   </data>
   <data name="onboarding.configure.cloud.testKey" xml:space="preserve">
-    <value>Test access key</value>
+    <value>एक्सेस कुंजी टेस्ट करें</value>
   </data>
   <data name="onboarding.configure.provider.testKey" xml:space="preserve">
-    <value>Test API key</value>
+    <value>API कुंजी टेस्ट करें</value>
   </data>
   <data name="onboarding.configure.test.testing" xml:space="preserve">
-    <value>Testing…</value>
+    <value>टेस्ट हो रहा है…</value>
   </data>
   <data name="onboarding.configure.test.valid" xml:space="preserve">
-    <value>Access key valid</value>
+    <value>एक्सेस कुंजी मान्य है</value>
   </data>
   <data name="onboarding.configure.test.healthy" xml:space="preserve">
-    <value>Connected</value>
+    <value>कनेक्ट हो गया</value>
   </data>
   <data name="onboarding.configure.test.unauthorized" xml:space="preserve">
-    <value>Provider rejected this key. Double-check it's still valid.</value>
+    <value>प्रदाता ने इस कुंजी को अस्वीकार कर दिया। जांच लें कि यह अभी भी मान्य है।</value>
   </data>
   <data name="onboarding.configure.test.unreachable" xml:space="preserve">
-    <value>Couldn't reach the provider. Check your internet, then test again.</value>
+    <value>प्रदाता से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जांचें, फिर से टेस्ट करें।</value>
   </data>
   <data name="onboarding.model.parakeetV2.subtitle" xml:space="preserve">
-    <value>English only. Fastest on this PC.</value>
+    <value>केवल अंग्रेज़ी। इस PC पर सबसे तेज़।</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingual. Same speed, larger download.</value>
+    <value>बहुभाषी · 25 भाषाएं</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
-    <value>Multilingual. Smallest download, lowest accuracy.</value>
+    <value>बहुभाषी · बहुत छोटा आकार</value>
   </data>
   <data name="onboarding.model.whisperTurbo.subtitle" xml:space="preserve">
-    <value>Multilingual. Most accurate offline option.</value>
+    <value>बहुभाषी · सबसे सटीक Whisper</value>
   </data>
   <data name="onboarding.model.downloaded" xml:space="preserve">
-    <value>Downloaded</value>
+    <value>डाउनलोड किया गया</value>
   </data>
   <data name="onboarding.setup.cloud.title" xml:space="preserve">
-    <value>Activate your key</value>
+    <value>अपनी कुंजी सक्रिय करें</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
-    <value>Key verified, credits confirmed. Recordings will go to HyperWhisper Cloud.</value>
+    <value>कुंजी सत्यापित, क्रेडिट पुष्ट। रिकॉर्डिंग HyperWhisper Cloud में जाएंगी।</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
-    <value>Activate Cloud</value>
+    <value>Cloud सक्रिय करें</value>
   </data>
   <data name="onboarding.setup.cloud.activating" xml:space="preserve">
-    <value>Activating…</value>
+    <value>सक्रिय हो रहा है…</value>
   </data>
   <data name="onboarding.setup.cloud.active" xml:space="preserve">
-    <value>Cloud key activated</value>
+    <value>Cloud कुंजी सक्रिय हो गई</value>
   </data>
   <data name="onboarding.setup.cloud.check.keyVerified" xml:space="preserve">
-    <value>Access key verified</value>
+    <value>एक्सेस कुंजी सत्यापित</value>
   </data>
   <data name="onboarding.setup.cloud.check.activated" xml:space="preserve">
-    <value>Account activated for this device</value>
+    <value>इस डिवाइस के लिए खाता सक्रिय</value>
   </data>
   <data name="onboarding.setup.cloud.check.creditsConfirmed" xml:space="preserve">
-    <value>Credits confirmed</value>
+    <value>क्रेडिट पुष्ट</value>
   </data>
   <data name="onboarding.setup.cloud.credits.caption" xml:space="preserve">
-    <value>credits, spent per minute of audio</value>
+    <value>क्रेडिट, प्रति मिनट ऑडियो पर खर्च</value>
   </data>
   <data name="onboarding.setup.cloud.note" xml:space="preserve">
-    <value>Run low and HyperWhisper tells you before a recording, not after.</value>
+    <value>क्रेडिट कम होने पर HyperWhisper आपको रिकॉर्डिंग से पहले बताता है, बाद में नहीं।</value>
   </data>
   <data name="onboarding.setup.onDevice.title" xml:space="preserve">
-    <value>Download your model</value>
+    <value>अपना मॉडल डाउनलोड करें</value>
   </data>
   <data name="onboarding.setup.onDevice.subtitle" xml:space="preserve">
-    <value>This happens once. Every recording after it runs offline.</value>
+    <value>यह सिर्फ एक बार होता है। इसके बाद हर रिकॉर्डिंग ऑफ़लाइन चलती है।</value>
   </data>
   <data name="onboarding.setup.onDevice.download" xml:space="preserve">
-    <value>Download {0}</value>
+    <value>{0} डाउनलोड करें</value>
   </data>
   <data name="onboarding.setup.onDevice.downloading" xml:space="preserve">
-    <value>Downloading… {0}%</value>
+    <value>डाउनलोड हो रहा है… {0}%</value>
   </data>
   <data name="onboarding.setup.onDevice.ready" xml:space="preserve">
-    <value>Model ready</value>
+    <value>मॉडल तैयार है</value>
   </data>
   <data name="onboarding.setup.onDevice.storedCaption" xml:space="preserve">
-    <value>stored on this PC</value>
+    <value>इस PC पर स्टोर</value>
   </data>
   <data name="onboarding.setup.onDevice.totalCaption" xml:space="preserve">
-    <value>total download</value>
+    <value>कुल डाउनलोड</value>
   </data>
   <data name="onboarding.setup.onDevice.note" xml:space="preserve">
-    <value>The model stays on this PC, so your audio is transcribed here and never uploaded.</value>
+    <value>मॉडल इसी PC पर रहता है, इसलिए आपका ऑडियो यहीं ट्रांसक्राइब होता है और कहीं अपलोड नहीं होता।</value>
   </data>
   <data name="onboarding.setup.provider.title" xml:space="preserve">
-    <value>Save your key</value>
+    <value>अपनी कुंजी सहेजें</value>
   </data>
   <data name="onboarding.setup.provider.subtitle" xml:space="preserve">
-    <value>Windows holds it. HyperWhisper asks for it only when a recording needs transcribing.</value>
+    <value>इसे Windows रखता है। HyperWhisper इसे तभी मांगता है जब किसी रिकॉर्डिंग को ट्रांसक्राइब करना हो।</value>
   </data>
   <data name="onboarding.setup.provider.save" xml:space="preserve">
-    <value>Save key</value>
+    <value>कुंजी सहेजें</value>
   </data>
   <data name="onboarding.setup.provider.saved" xml:space="preserve">
-    <value>API key saved</value>
+    <value>API कुंजी सहेजी गई</value>
   </data>
   <data name="onboarding.setup.provider.check.validated" xml:space="preserve">
-    <value>Key validated against {0}</value>
+    <value>कुंजी {0} के विरुद्ध सत्यापित</value>
   </data>
   <data name="onboarding.setup.provider.check.written" xml:space="preserve">
-    <value>Written to Windows Credential Manager</value>
+    <value>Windows क्रेडेंशियल मैनेजर में लिखी गई</value>
   </data>
   <data name="onboarding.setup.provider.keychainItem" xml:space="preserve">
-    <value>HyperWhisper · {0} API key</value>
+    <value>HyperWhisper · {0} API कुंजी</value>
   </data>
   <data name="onboarding.setup.provider.keyHidden" xml:space="preserve">
-    <value>Stored, never shown again</value>
+    <value>सेव की गई, फिर कभी नहीं दिखेगी</value>
   </data>
   <data name="onboarding.setup.provider.note" xml:space="preserve">
-    <value>Delete it from Settings, Transcription and HyperWhisper stops calling the provider immediately.</value>
+    <value>इसे सेटिंग्स, ट्रांसक्रिप्शन से डिलीट करें और HyperWhisper तुरंत प्रोवाइडर को कॉल करना बंद कर देगा।</value>
   </data>
   <data name="onboarding.setup.selectFirst" xml:space="preserve">
-    <value>Go back and make a selection first.</value>
+    <value>वापस जाएँ और पहले एक चयन करें।</value>
   </data>
   <data name="onboarding.setup.noSource.title" xml:space="preserve">
-    <value>Nothing to set up.</value>
+    <value>सेटअप करने के लिए कुछ नहीं है।</value>
   </data>
   <data name="onboarding.setup.noSource.caption" xml:space="preserve">
-    <value>Go back and choose a transcription source.</value>
+    <value>वापस जाएं और एक ट्रांसक्रिप्शन सोर्स चुनें।</value>
   </data>
   <data name="onboarding.setup.onDevice.error" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>डाउनलोड विफल: {0}</value>
   </data>
   <data name="onboarding.setup.cloud.error" xml:space="preserve">
-    <value>Activation failed: {0}</value>
+    <value>सक्रियण विफल: {0}</value>
   </data>
   <data name="onboarding.setup.provider.error" xml:space="preserve">
-    <value>Could not save your key: {0}</value>
+    <value>आपकी कुंजी सेव नहीं की जा सकी: {0}</value>
   </data>
   <data name="onboarding.setup.provider.saveFailed" xml:space="preserve">
-    <value>The key could not be written to Windows Credential Manager.</value>
+    <value>कुंजी Windows क्रेडेंशियल मैनेजर में नहीं लिखी जा सकी।</value>
   </data>
   <data name="onboarding.setup.model.notFound" xml:space="preserve">
-    <value>This model is not in the model library.</value>
+    <value>यह मॉडल मॉडल लाइब्रेरी में नहीं है।</value>
   </data>
   <data name="onboarding.setup.model.downloadFailed" xml:space="preserve">
-    <value>The download did not finish.</value>
+    <value>डाउनलोड पूरा नहीं हुआ।</value>
   </data>
   <data name="onboarding.mic.title" xml:space="preserve">
-    <value>Say something. Watch the bars.</value>
+    <value>अपना माइक्रोफ़ोन सेट करें</value>
   </data>
   <data name="onboarding.mic.title.unavailable" xml:space="preserve">
-    <value>Check your microphone.</value>
+    <value>अपना माइक्रोफ़ोन जाँचें।</value>
   </data>
   <data name="onboarding.mic.subtitle" xml:space="preserve">
-    <value>If the level moves when you talk, HyperWhisper can hear you.</value>
+    <value>अपना इनपुट चुनें और देखें कि जब आप बोलते हैं तो लेवल बार हिलता है।</value>
   </data>
   <data name="onboarding.mic.device.systemDefault" xml:space="preserve">
-    <value>System Default</value>
+    <value>सिस्टम डिफ़ॉल्ट</value>
   </data>
   <data name="onboarding.mic.device.followsSystem" xml:space="preserve">
-    <value>Follows Windows</value>
+    <value>Windows का अनुसरण करता है</value>
   </data>
   <data name="onboarding.mic.device.inUse" xml:space="preserve">
-    <value>In use</value>
+    <value>उपयोग में</value>
   </data>
   <data name="onboarding.mic.levelHint" xml:space="preserve">
-    <value>Levels too low, or the wrong device listed?</value>
+    <value>लेवल बहुत कम हैं, या गलत डिवाइस दिख रहा है?</value>
   </data>
   <data name="onboarding.mic.soundSettings" xml:space="preserve">
-    <value>Sound Settings</value>
+    <value>ध्वनि सेटिंग्स</value>
   </data>
   <data name="onboarding.mic.note" xml:space="preserve">
-    <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
+    <value>सिस्टम डिफ़ॉल्ट वही अनुसरण करता है जो Windows उपयोग कर रहा है, जिसमें बाद में लगाया गया हेडसेट भी शामिल है।</value>
   </data>
   <data name="onboarding.mic.blocked" xml:space="preserve">
-    <value>Microphone access is turned off for desktop apps. Turn it on in Windows Settings, then come back to this step.</value>
+    <value>डेस्कटॉप ऐप्स के लिए माइक्रोफ़ोन एक्सेस बंद है। इसे Windows सेटिंग्स में चालू करें, फिर इस चरण पर लौटें।</value>
   </data>
   <data name="onboarding.mic.none" xml:space="preserve">
-    <value>No microphone is connected. Plug one in and it shows up here on its own.</value>
+    <value>कोई माइक्रोफ़ोन कनेक्ट नहीं है। एक लगाएँ और वह यहाँ अपने आप दिख जाएगा।</value>
   </data>
   <data name="onboarding.mic.enumerationFailed" xml:space="preserve">
-    <value>Windows could not list your audio devices. Check Sound settings, then come back to this step.</value>
+    <value>Windows आपके ऑडियो डिवाइस सूचीबद्ध नहीं कर सका। साउंड सेटिंग्स जाँचें, फिर इस चरण पर लौटें।</value>
   </data>
   <data name="onboarding.mic.meter.inactive" xml:space="preserve">
-    <value>No level to show yet.</value>
+    <value>अभी दिखाने के लिए कोई स्तर नहीं है।</value>
   </data>
   <data name="onboarding.mic.privacySettings" xml:space="preserve">
-    <value>Open privacy settings</value>
+    <value>गोपनीयता सेटिंग्स खोलें</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Make one recording.</value>
+    <value>सब कुछ तैयार है, आइए अपनी पहली रिकॉर्डिंग शुरू करें</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
-    <value>Press the shortcut, say the line, press it again.</value>
+    <value>शॉर्टकट दबाएं, लाइन बोलें, फिर से दबाएं।</value>
   </data>
   <data name="onboarding.tryIt.shortcutHint" xml:space="preserve">
-    <value>Press once to start, once more to stop.</value>
+    <value>शुरू करने के लिए एक बार दबाएं, रोकने के लिए फिर से दबाएं।</value>
   </data>
   <data name="onboarding.tryIt.record" xml:space="preserve">
-    <value>Record</value>
+    <value>रिकॉर्ड करें</value>
   </data>
   <data name="onboarding.tryIt.recorded" xml:space="preserve">
-    <value>Recorded</value>
+    <value>रिकॉर्ड हो गया</value>
   </data>
   <data name="onboarding.tryIt.recordAgain" xml:space="preserve">
-    <value>Record again</value>
+    <value>फिर से रिकॉर्ड करें</value>
   </data>
   <data name="onboarding.test.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>रिकॉर्डिंग बंद करें</value>
   </data>
   <data name="onboarding.test.status.speak" xml:space="preserve">
-    <value>Speak now...</value>
+    <value>अब बोलें...</value>
   </data>
   <data name="onboarding.tryIt.trySaying" xml:space="preserve">
-    <value>Try saying</value>
+    <value>कहकर देखें</value>
   </data>
   <data name="onboarding.tryIt.sampleLine" xml:space="preserve">
-    <value>“HyperWhisper turns what I say into text, right where I am typing.”</value>
+    <value>“HyperWhisper जो मैं बोलता हूं उसे टेक्स्ट में बदल देता है, ठीक वहीं जहां मैं टाइप कर रहा हूं।”</value>
   </data>
   <data name="onboarding.try.transcript.heading" xml:space="preserve">
-    <value>What came back</value>
+    <value>आपने कहा</value>
   </data>
   <data name="onboarding.tryIt.listening" xml:space="preserve">
-    <value>Listening</value>
+    <value>सुन रहा है</value>
   </data>
   <data name="onboarding.tryIt.empty" xml:space="preserve">
-    <value>Nothing yet. Start a recording to see the text land here.</value>
+    <value>अभी तक कुछ नहीं। यहां टेक्स्ट आते देखने के लिए रिकॉर्डिंग शुरू करें।</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} words · {1}</value>
+    <value>{0} शब्द · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
-    <value>Shown here only, not pasted into other apps</value>
+    <value>यहाँ केवल दिखाया गया है — अन्य ऐप्स में पेस्ट नहीं किया गया</value>
   </data>
   <data name="onboarding.tryIt.note" xml:space="preserve">
-    <value>Turn on auto paste later and the text lands at your cursor instead.</value>
+    <value>बाद में ऑटो पेस्ट चालू करें और टेक्स्ट इसके बजाय आपके कर्सर पर आएगा।</value>
   </data>
   <data name="onboarding.tryIt.sample.button" xml:space="preserve">
-    <value>Transcribe a sample clip</value>
+    <value>एक नमूना क्लिप ट्रांसक्राइब करें</value>
   </data>
   <data name="onboarding.tryIt.sample.hint" xml:space="preserve">
-    <value>No microphone is connected, so HyperWhisper runs a short bundled clip through everything a real recording uses.</value>
+    <value>कोई माइक्रोफ़ोन कनेक्ट नहीं है, इसलिए HyperWhisper एक छोटी शामिल क्लिप को उसी हर चीज़ से गुज़ारता है जो असली रिकॉर्डिंग इस्तेमाल करती है।</value>
   </data>
   <data name="onboarding.tryIt.sample.result" xml:space="preserve">
-    <value>From the bundled sample clip</value>
+    <value>शामिल नमूना क्लिप से</value>
   </data>
   <data name="onboarding.tryIt.sample.transcribing" xml:space="preserve">
-    <value>Transcribing the sample…</value>
+    <value>नमूना ट्रांसक्राइब हो रहा है…</value>
   </data>
   <data name="onboarding.tryIt.sample.missing" xml:space="preserve">
-    <value>The sample clip is missing from this build.</value>
+    <value>इस बिल्ड में नमूना क्लिप मौजूद नहीं है।</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>You are ready to dictate.</value>
+    <value>आप पूर्ण हैं!</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
-    <value>Press the shortcut in any app and start talking.</value>
+    <value>किसी भी ऐप में शॉर्टकट दबाएं और बोलना शुरू करें।</value>
   </data>
   <data name="onboarding.done.summary.transcription" xml:space="preserve">
-    <value>Transcription</value>
+    <value>ट्रांसक्रिप्शन</value>
   </data>
   <data name="onboarding.done.summary.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>माइक्रोफ़ोन</value>
   </data>
   <data name="onboarding.done.summary.textDelivery" xml:space="preserve">
-    <value>Text delivery</value>
+    <value>टेक्स्ट डिलीवरी</value>
   </data>
   <data name="onboarding.done.summary.shortcut" xml:space="preserve">
-    <value>Shortcut</value>
+    <value>शॉर्टकट</value>
   </data>
   <data name="onboarding.done.summary.onDevice" xml:space="preserve">
-    <value>{0} · on this PC</value>
+    <value>{0} · इस PC पर</value>
   </data>
   <data name="onboarding.done.summary.cloud" xml:space="preserve">
-    <value>{0} · {1} credits</value>
+    <value>{0} · {1} क्रेडिट</value>
   </data>
   <data name="onboarding.done.summary.provider" xml:space="preserve">
-    <value>{0} · your own key</value>
+    <value>{0} · आपकी अपनी कुंजी</value>
   </data>
   <data name="onboarding.done.textDelivery.cursor" xml:space="preserve">
-    <value>Pastes at your cursor</value>
+    <value>आपके कर्सर पर पेस्ट होता है</value>
   </data>
   <data name="onboarding.done.textDelivery.clipboard" xml:space="preserve">
-    <value>Copied to clipboard</value>
+    <value>क्लिपबोर्ड पर कॉपी किया गया</value>
   </data>
   <data name="onboarding.done.menuBarNote" xml:space="preserve">
-    <value>HyperWhisper lives in the system tray. Click it for history, modes, and everything above.</value>
+    <value>HyperWhisper सिस्टम ट्रे में रहता है। हिस्ट्री, मोड्स और ऊपर बताई गई हर चीज़ के लिए इसे क्लिक करें।</value>
   </data>
   <data name="onboarding.done.button" xml:space="preserve">
-    <value>Done Onboarding</value>
+    <value>ऑनबोर्डिंग पूर्ण करें</value>
   </data>
   <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
-    <value>None connected</value>
+    <value>कोई कनेक्ट नहीं</value>
   </data>
   <data name="onboarding.footer.continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>जारी रखें</value>
   </data>
   <data name="onboarding.footer.back" xml:space="preserve">
-    <value>Back</value>
+    <value>वापस</value>
   </data>
   <data name="onboarding.footer.reassurance.welcome" xml:space="preserve">
-    <value>Every answer can be changed later in Settings.</value>
+    <value>हर जवाब बाद में सेटिंग्स में बदला जा सकता है।</value>
   </data>
   <data name="onboarding.footer.reassurance.permissions" xml:space="preserve">
-    <value>The shortcut can be changed later in Settings.</value>
+    <value>शॉर्टकट बाद में सेटिंग्स में बदला जा सकता है।</value>
   </data>
   <data name="onboarding.footer.reassurance.source" xml:space="preserve">
-    <value>You can switch sources later in Settings.</value>
+    <value>आप बाद में सेटिंग्स में सोर्स बदल सकते हैं।</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.cloud" xml:space="preserve">
-    <value>The key is stored in Windows Credential Manager.</value>
+    <value>कुंजी Windows क्रेडेंशियल मैनेजर में स्टोर होती है।</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.onDevice" xml:space="preserve">
-    <value>More models live in the Model Library.</value>
+    <value>और मॉडल Model Library में मिलते हैं।</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.provider" xml:space="preserve">
-    <value>You can change providers later in Settings.</value>
+    <value>आप बाद में सेटिंग्स में प्रोवाइडर बदल सकते हैं।</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.cloud" xml:space="preserve">
-    <value>Top up any time from your account.</value>
+    <value>अपने खाते से कभी भी टॉप अप करें।</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.onDevice" xml:space="preserve">
-    <value>Pausing the download will not lose progress.</value>
+    <value>डाउनलोड को रोकने से प्रगति नहीं खोएगी।</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.provider" xml:space="preserve">
-    <value>Remove the key any time in Settings.</value>
+    <value>कुंजी को कभी भी सेटिंग्स में हटाएं।</value>
   </data>
   <data name="onboarding.footer.reassurance.microphone" xml:space="preserve">
-    <value>Input device is switchable at any time.</value>
+    <value>इनपुट डिवाइस कभी भी बदला जा सकता है।</value>
   </data>
   <data name="onboarding.footer.reassurance.tryIt" xml:space="preserve">
-    <value>The audio is discarded once the text is ready.</value>
+    <value>टेक्स्ट तैयार होते ही ऑडियो हटा दिया जाता है।</value>
   </data>
   <data name="onboarding.footer.reassurance.done" xml:space="preserve">
-    <value>All of it is editable in Settings.</value>
+    <value>यह सब सेटिंग्स में संपादित किया जा सकता है।</value>
   </data>
   <data name="onboarding.footer.reassurance.pickSource" xml:space="preserve">
-    <value>Pick a source to continue.</value>
+    <value>जारी रखने के लिए एक सोर्स चुनें।</value>
   </data>
   <data name="onboarding.setupLater.button" xml:space="preserve">
-    <value>Set Up Later</value>
+    <value>बाद में सेट अप करें</value>
   </data>
   <data name="onboarding.progress.a11y" xml:space="preserve">
-    <value>Step {0} of {1}</value>
+    <value>स्टेप {0}, कुल {1} में से</value>
   </data>
   <data name="onboarding.a11y.percent" xml:space="preserve">
-    <value>{0} percent</value>
+    <value>{0} प्रतिशत</value>
   </data>
   <data name="onboarding.a11y.downloadProgress" xml:space="preserve">
-    <value>Download progress</value>
+    <value>डाउनलोड प्रगति</value>
   </data>
   <data name="onboarding.a11y.inputLevel" xml:space="preserve">
-    <value>Microphone input level</value>
+    <value>माइक्रोफ़ोन इनपुट लेवल</value>
   </data>
   <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
-    <value>Selected, {0}</value>
+    <value>चयनित, {0}</value>
   </data>
   <data name="onboarding.a11y.notSelectedDetail" xml:space="preserve">
-    <value>Not selected, {0}</value>
+    <value>अचयनित, {0}</value>
   </data>
   <data name="onboarding.a11y.selectedInput" xml:space="preserve">
-    <value>Selected input</value>
+    <value>चयनित इनपुट</value>
   </data>
   <data name="onboarding.error.microphone.denied" xml:space="preserve">
-    <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
+    <value>माइक्रोफ़ोन अनुमति अस्वीकृत। कृपया Windows सेटिंग्स में अनुमति दें।</value>
   </data>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
-    <value>Run setup again</value>
+    <value>सेटअप फिर से चलाएँ</value>
   </data>
   <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
-    <value>Finish the current dictation before running setup again.</value>
+    <value>सेटअप फिर से चलाने से पहले मौजूदा डिक्टेशन पूरा करें।</value>
   </data>
   <data name="onboarding.restore.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+    <value>HyperWhisper आपका पिछला डिफ़ॉल्ट मोड पुनर्स्थापित नहीं कर सका। इसकी सेटिंग्स जाँचने के लिए मोड्स खोलें।</value>
   </data>
   <data name="onboarding.apply.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+    <value>HyperWhisper आपका चयन सहेज नहीं सका। कुछ भी नहीं बदला गया। फिर से कोशिश करें, या बाद में सेट अप करें चुनें।</value>
   </data>
   <data name="onboarding.configure.test.unverified" xml:space="preserve">
-    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+    <value>API कुंजी सहेजी गई। इस प्रदाता के पास ट्रांसक्राइब किए बिना कुंजी जाँचने का कोई तरीका नहीं है, इसलिए पहली बार डिक्टेट करने पर इसकी पुष्टि होगी।</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>

@@ -7257,6 +7257,47 @@ internal static class Program
                 Assert(h.Flow.CanContinue, "a credits failure must never close the gate");
             });
 
+            RunAsync("onboarding: a successful activation refreshes the balance", async () =>
+            {
+                // StepDidChange fetches on entry to Configure and to Setup, and BOTH of
+                // those run while a first-run machine is still unlicensed - so every
+                // fetch came back unknown and nothing ever asked again. "Credits
+                // confirmed" stayed unticked on a good key.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+
+                h.Credits.NextCredits = new OnboardingCloudCredits(66950, 10627, "$66.95 remaining");
+                var before = h.Credits.RefreshCount;
+
+                h.Flow.ActivateCloudLicense();
+                var task = h.LastTask;
+                await task;
+
+                Assert(h.Credits.RefreshCount > before, "activation must ask for the balance again");
+                Assert(h.Flow.HasCredits, "and the balance must land on the flow");
+                Assert(h.Flow.AreCreditsConfirmed, "so the Credits confirmed row ticks");
+            });
+
+            Run("onboarding: the Done summary shows the credit count, not the balance line", () =>
+            {
+                // The format is "{0} · {1} credits", so {1} is a COUNT. Passing
+                // CreditsFormatted rendered "HyperWhisper Cloud · $66.95 remaining
+                // (~10627 minutes) credits".
+                var h = new OnboardingHarness();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.Credits.Publish(new OnboardingCloudCredits(66950, 10627, "$66.95 remaining (~10627 minutes)"));
+                h.Flow.RefreshCredits(force: false);
+
+                Assert(h.Flow.CreditsCountFormatted == 66950d.ToString("N0", CultureInfo.CurrentCulture),
+                    $"unexpected count rendering '{h.Flow.CreditsCountFormatted}'");
+                Assert(!h.Flow.SourceSummary.Contains("remaining"),
+                    $"the balance line must not reach the summary: '{h.Flow.SourceSummary}'");
+                Assert(h.Flow.SourceSummary.Contains(h.Flow.CreditsCountFormatted),
+                    $"the count must reach the summary: '{h.Flow.SourceSummary}'");
+            });
+
             // ----- Device availability (Windows-only) --------------------------
 
             Run("onboarding: a blocked microphone runs no preview and reports an inactive meter", () =>
