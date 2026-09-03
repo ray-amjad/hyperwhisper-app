@@ -146,16 +146,24 @@ struct PostProcessEndpointLabelTests {
     @Test func nothingRanUsesTheProcessingModesOwnDefaultProvider() {
         // `.cloud` defaults to `hyperwhisper` and `.off` has no default at all,
         // which is the only case that falls through to the historical constant.
-        #expect(PostProcessEndpoint.responseLabels(
-            storedProvider: nil, storedModel: nil,
+        let cloudDefault = PostProcessingMode.cloud.defaultProvider?.rawValue ?? ""
+        let cloudLabels = PostProcessEndpoint.responseLabels(
+            storedProvider: nil,
+            storedModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
-            resolvedProvider: nil, resolvedModel: nil
-        ).provider == PostProcessingMode.cloud.defaultProvider?.rawValue)
-        #expect(PostProcessEndpoint.responseLabels(
-            storedProvider: nil, storedModel: nil,
+            resolvedProvider: nil,
+            resolvedModel: nil
+        )
+        #expect(cloudLabels.provider == cloudDefault)
+
+        let offLabels = PostProcessEndpoint.responseLabels(
+            storedProvider: nil,
+            storedModel: nil,
             storedProcessingMode: PostProcessingMode.off.rawValue,
-            resolvedProvider: nil, resolvedModel: nil
-        ).provider == PostProcessingProvider.hyperwhisper.rawValue)
+            resolvedProvider: nil,
+            resolvedModel: nil
+        )
+        #expect(offLabels.provider == PostProcessingProvider.hyperwhisper.rawValue)
     }
 
     @Test func aRunThatHappenedStillWinsOverTheProcessingModeFallback() {
