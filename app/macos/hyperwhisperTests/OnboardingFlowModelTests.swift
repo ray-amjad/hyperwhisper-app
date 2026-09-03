@@ -1718,11 +1718,17 @@ struct OnboardingSessionValidationTests {
 
 // MARK: - Mutations after the flow finished (#321)
 
-/// `finish()` flips `isLive` false and both exits clear every restore point, so
-/// anything written after that point is permanent and un-rollbackable. These pin
-/// the five mutating entry points as no-ops once the sheet has gone, through BOTH
-/// exits, plus the positive control that the guards are not inverted and the one
-/// exit path that is deliberately NOT guarded.
+/// `finish()` flips `isLive` false, and by then `complete()` has cleared every
+/// restore point or `rollback()` has consumed them, so anything written after that
+/// point is permanent and un-rollbackable.
+///
+/// These are the per-method DIAGNOSTICS for the five entry points #321 named: each
+/// asserts the consequence specific to that method — the restore point `advance()`
+/// would re-capture, the input device `selectDevice(id:)` would repoint — so a
+/// failure says what broke rather than "something moved". The general invariant,
+/// swept over every guarded entry point and through BOTH exits, lives in
+/// `OnboardingPostFinishInvariantTests` at the end of this file; the exits are not
+/// re-tested per method here.
 @MainActor
 struct OnboardingPostFinishMutationTests {
     @Test func saveProviderKeyAfterDeferralWritesNothingToTheKeychain() {
@@ -1812,33 +1818,21 @@ struct OnboardingPostFinishMutationTests {
         let togglesBeforeExit = h.audio.toggleCalls
 
         h.flow.deferSetup()
+        #expect(!h.flow.isLiveForTesting, "the deferral did not close the flow")
+
         h.flow.toggleTestRecording()
 
         // A toggle here would START a recording with no sheet left to stop it.
         #expect(h.audio.toggleCalls == togglesBeforeExit)
-        // `finish()` moves this counter itself, so it is never asserted at zero.
-        #expect(h.audio.stopForExitCalls >= 1)
-    }
-
-    /// `finish()` is reached through both exits, so the refusal cannot be specific
-    /// to Set Up Later.
-    @Test func theSameRefusalHoldsAfterCompletionNotJustDeferral() {
-        let h = Harness()
-        h.stageInstalledOnDeviceModel()
-        h.advance(to: .microphone)
-
-        #expect(h.flow.complete())
-        #expect(!h.flow.isLiveForTesting)
-
-        h.flow.apiKeyInput = "sk-after-the-commit"
-        h.flow.saveProviderKey()
-
-        #expect(h.providerKeys.stored.isEmpty)
-        #expect(!h.flow.hasPendingProductionWrite)
     }
 
     /// The positive control. Every refusal above would still pass with the guard
-    /// inverted, which would break the whole flow instead of protecting it.
+    /// inverted, which would break the whole flow instead of protecting it. The nine
+    /// entry points guarded later in review round 1 need no equivalent here: they
+    /// are already driven live by the pre-existing suites above (`back()` at the
+    /// step-gating tests, `beginMicrophoneStep()` throughout the microphone tests,
+    /// `testProviderKey()`/`testAccessKey()` throughout the validation tests), all of
+    /// which fail immediately if a guard is inverted.
     @Test func theGuardsDoNotBlockAnythingWhileTheSheetIsLive() {
         let h = Harness()
         h.stageInstalledOnDeviceModel()
@@ -1860,22 +1854,6 @@ struct OnboardingPostFinishMutationTests {
 
         #expect(h.flow.advance())
         #expect(h.flow.step == .tryIt)
-    }
-
-    /// The deliberate non-guard. `.onDisappear` fires after the sheet is dismissed,
-    /// so the microphone release backstop has to keep working post-`finish()`;
-    /// gating it would strand an open recording.
-    @Test func leavingTheTryItStepStillReleasesTheMicrophoneAfterCompletion() {
-        let h = Harness()
-        h.stageInstalledOnDeviceModel()
-        h.advance(to: .tryIt)
-
-        #expect(h.flow.complete())
-        let stopsAfterCommit = h.audio.stopForExitCalls
-
-        h.flow.endTryItStep()
-
-        #expect(h.audio.stopForExitCalls == stopsAfterCommit + 1)
     }
 }
 
