@@ -190,7 +190,8 @@ struct StreamingProviderErrorPolicyTests {
     }
 
     @Test func elevenLabsAuthErrorWordingIsTerminal() {
-        // ElevenLabsStreamingStrategy's `auth_error` message, verbatim. It also
+        // The core's `auth_error` wording, verbatim (`hw_net::live::elevenlabs`
+        // AUTH_ERROR). It also
         // arrives before the session-started frame, which is the case that has
         // to fail startup rather than wait out the connection timeout.
         let outcome = StreamingProviderErrorPolicy.outcome(
@@ -201,7 +202,8 @@ struct StreamingProviderErrorPolicyTests {
     }
 
     @Test func elevenLabsQuotaExceededWordingIsTerminal() {
-        // ElevenLabsStreamingStrategy's `quota_exceeded` message, verbatim.
+        // The core's `quota_exceeded` wording, verbatim
+        // (`hw_net::live::elevenlabs` QUOTA_EXCEEDED).
         let outcome = StreamingProviderErrorPolicy.outcome(
             forProviderMessage: "ElevenLabs quota exceeded. Please check your account billing."
         )
@@ -210,7 +212,8 @@ struct StreamingProviderErrorPolicyTests {
     }
 
     @Test func elevenLabsRateLimitWordingIsTransient() {
-        // ElevenLabsStreamingStrategy's `rate_limited` message, verbatim — the
+        // The core's `rate_limited` wording, verbatim
+        // (`hw_net::live::elevenlabs` RATE_LIMITED) — the
         // live half of the rate-limit/quota asymmetry. Too many concurrent
         // sockets from one key clears by itself, so the reconnect must survive.
         let outcome = StreamingProviderErrorPolicy.outcome(
@@ -221,7 +224,7 @@ struct StreamingProviderErrorPolicyTests {
     }
 
     @Test func openAIStrategyFallbackWordingIsTransient() {
-        // OpenAIStreamingStrategy's fallback when the error frame carries no
+        // `hw_net::live::openai`'s fallback when the error frame carries no
         // message. It says nothing about the account, so it keeps its reconnect.
         // OpenAI's real quota wording is covered by exceededCurrentQuotaIsTerminal.
         let outcome = StreamingProviderErrorPolicy.outcome(
@@ -232,7 +235,7 @@ struct StreamingProviderErrorPolicyTests {
     }
 
     @Test func xaiStrategyFallbackWordingIsTransient() {
-        // XAIStreamingStrategy's fallback when the error frame carries no message.
+        // `hw_net::live::xai`'s fallback when the error frame carries no message.
         let outcome = StreamingProviderErrorPolicy.outcome(
             forProviderMessage: "SpaceXAI streaming transcription failed"
         )
@@ -241,7 +244,7 @@ struct StreamingProviderErrorPolicyTests {
     }
 
     @Test func geminiStrategyFallbackWordingIsTransient() {
-        // GeminiStreamingStrategy's fallback when the error frame carries no
+        // `hw_net::live::gemini`'s fallback when the error frame carries no
         // message. It names no account state, so it keeps its reconnect.
         let outcome = StreamingProviderErrorPolicy.outcome(
             forProviderMessage: "Gemini streaming transcription failed"
@@ -323,7 +326,7 @@ struct StreamingProviderErrorPolicyTests {
     }
 
     @Test func hyperWhisperCloudStrategyFallbackWordingIsTransient() {
-        // HyperWhisperCloudStrategy's fallback for an error frame with no
+        // `hw_net::live::hw_cloud`'s fallback for an error frame with no
         // message body.
         let outcome = StreamingProviderErrorPolicy.outcome(
             forProviderMessage: "Unknown server error"

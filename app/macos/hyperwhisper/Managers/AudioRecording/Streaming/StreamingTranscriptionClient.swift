@@ -65,7 +65,7 @@ import os
 ///
 /// USAGE:
 /// ```swift
-/// let strategy = HyperWhisperCloudStrategy()
+/// let strategy = RustLiveStreamingStrategy(provider: .hyperwhisperCloud)
 /// let service = StreamingTranscriptionClient(strategy: strategy)
 /// service.onTranscriptUpdate = { text, isFinal in
 ///     if isFinal {
@@ -858,7 +858,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// TAKES THE DOMAIN AND CODE, NOT THE ERROR. A `URLError` raised on this
     /// socket carries `NSURLErrorFailingURLStringErrorKey` in its `userInfo` —
     /// the whole `wss://` URL, whose query string is the licence key
-    /// (`HyperWhisperCloudStrategy.buildWebSocketURL`). Classifying at the call
+    /// (`hw_net::live::hw_cloud` builds it). Classifying at the call
     /// site and rebuilding a bare `NSError` here means the credential has no
     /// route into an event at all, and the two values that identify the fault
     /// are kept.

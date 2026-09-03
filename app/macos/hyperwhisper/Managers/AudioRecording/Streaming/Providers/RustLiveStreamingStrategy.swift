@@ -62,8 +62,8 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
 
     /// HyperWhisper Cloud only: the `cloud-stt-catalog.json` entry id the relay
     /// route is derived from. A constructor argument rather than a new field on
-    /// `StreamingSessionConfig`, exactly as `HyperWhisperCloudStrategy.init`
-    /// takes it today — widening the config struct would drag
+    /// `StreamingSessionConfig`, exactly as the deleted `HyperWhisperCloudStrategy`
+    /// took it — widening the config struct would drag
     /// `RecordingTranscriptionFlow+Streaming` and the client into the diff.
     private let cloudTier: String?
 

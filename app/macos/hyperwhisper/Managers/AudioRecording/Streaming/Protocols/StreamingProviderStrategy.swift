@@ -140,11 +140,14 @@ struct StreamingSessionConfig {
     /// Language code (e.g., "en", "ja"). nil = auto-detect
     let language: String?
 
-    /// Comma-separated vocabulary terms for boosting. Consumed by every strategy
-    /// whose `supportsVocabulary` is true (HW Cloud, Deepgram, xAI).
+    /// Comma-separated vocabulary terms for boosting. Consumed for every
+    /// provider the shared capability table answers `liveSupportsVocabulary`
+    /// for — HW Cloud, Deepgram, xAI and Gemini; not ElevenLabs or OpenAI.
+    /// The split, the sanitize, the de-dupe and the cap are the core's
+    /// (`hw_net::helpers::keyword_boost_terms`), not this struct's.
     let vocabulary: String?
 
-    /// API key for direct providers (Deepgram/ElevenLabs/xAI)
+    /// API key for direct providers (Deepgram/ElevenLabs/OpenAI/xAI/Gemini)
     let apiKey: String?
 
     /// Deepgram model ID (e.g., "nova-3-general", "nova-3-medical")
