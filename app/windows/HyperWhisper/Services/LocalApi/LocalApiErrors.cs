@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HyperWhisper.Models;
 using Microsoft.AspNetCore.Http;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.LocalApi;
 
@@ -37,6 +38,35 @@ internal static class LocalApiResponder
     }
 
     /// <summary>Genuine protocol failure (malformed JSON, bad path, etc.).</summary>
+    /// <summary>
+    /// A failure <c>hw-localapi</c> already decided — status, code, message and
+    /// hint all come from the crate (issue #356).
+    /// </summary>
+    /// <remarks>
+    /// The crate also encodes the whole envelope as JSON, but this head writes
+    /// its own <see cref="ApiFailureEnvelope"/> so the response goes out under
+    /// the same <see cref="JsonOptions"/> as every other response on this
+    /// server. The parts that must not drift — which of the closed fourteen,
+    /// which status, and the exact wording — are the crate's.
+    /// </remarks>
+    public static IResult Shared(HwLocalApiFailure failure)
+    {
+        ArgumentNullException.ThrowIfNull(failure);
+        var code = HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(failure.code);
+        return failure.httpStatus == 400
+            ? BadRequestWithCode(code, failure.message, failure.hint)
+            : Failure(code, failure.message, failure.hint);
+    }
+
+    private static IResult BadRequestWithCode(string code, string message, string? hint)
+    {
+        var envelope = new ApiFailureEnvelope
+        {
+            Error = new ApiError { Code = code, Message = message, Hint = hint }
+        };
+        return Results.Json(envelope, JsonOptions, contentType: "application/json; charset=utf-8", statusCode: 400);
+    }
+
     public static IResult BadRequest(string message, string? hint = null)
     {
         var envelope = new ApiFailureEnvelope

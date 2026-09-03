@@ -97,6 +97,18 @@ public static class PortableLocalApi
             {
                 await next(context);
             }
+            // FIRST, and deliberately (issue #356). Everything below maps a CLR
+            // exception TYPE onto one of two wire codes; this one carries the
+            // envelope `hw-localapi` already decided, so a backend can ask for
+            // any of the closed fourteen. `MODE_NAME_TAKEN` was declared on this
+            // head and never emitted until it existed.
+            catch (LocalApiFailureException failure)
+            {
+                if (context.Response.HasStarted) throw;
+                context.Response.StatusCode = failure.HttpStatus;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await context.Response.WriteAsync(failure.Json);
+            }
             catch (ArgumentException)
             {
                 if (context.Response.HasStarted) throw;

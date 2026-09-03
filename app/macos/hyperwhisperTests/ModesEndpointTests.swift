@@ -49,6 +49,91 @@ struct ModesEndpointTests {
         #expect(ModesEndpoint.int16Value(Int(Int16.max) + 1) == nil)
     }
 
+    /// Issue #356 Decision B. `ModeDTO` declares exactly seven properties
+    /// non-optional, so a create body missing one fails `decode` and never
+    /// reaches `validate_mode` — this head's decoder IS the required-key check,
+    /// which is why `ModesEndpoint.create` passes the shared list rather than a
+    /// parsed one. That only holds while the two lists are the same seven
+    /// strings, and this is what holds them together: Windows and the portable
+    /// head enforce the shared list at runtime, so a seven that drifts here is
+    /// a body accepted on macOS and refused on the other two.
+    @Test func theSharedRequiredModeKeysAreTheOnesModeDTORequires() {
+        #expect(
+            localApiRequiredModeKeys() == [
+                "name",
+                "preset",
+                "language",
+                "model",
+                "punctuation",
+                "capitalization",
+                "profanityFilter",
+            ],
+            "the shared required-key list no longer matches ModeDTO's non-optional properties"
+        )
+
+        // The hint `create` sends on a decode failure lists the same set, and a
+        // client reads that hint to fix its body.
+        for key in localApiRequiredModeKeys() {
+            #expect(
+                "Required: name, preset, language, model, punctuation, capitalization, profanityFilter. See /modes GET for the full shape."
+                    .contains(key),
+                "the decode-failure hint does not name the required key '\(key)'"
+            )
+        }
+    }
+
+    /// Issue #356 Decisions C and D, from the macOS side of the FFI. The
+    /// endpoint wiring cannot be exercised here — `create`/`patch` reach
+    /// `PersistenceController.shared` — so this pins the contract the wiring
+    /// hands over: the same range `int16Value` has always applied, and a
+    /// comparison key that still matches what `ModeNamePolicy.normalized`
+    /// produces.
+    @Test func theSharedModeContractMatchesThisHeadsOwnRules() {
+        let base = HwLocalApiModeValidationInput(
+            operation: .patch,
+            presentKeys: [],
+            name: nil,
+            language: nil,
+            preset: nil,
+            postProcessingMode: nil,
+            sortOrder: nil,
+            userSystemPrompt: nil,
+            geminiCustomPrompt: nil,
+            customVocabulary: nil
+        )
+        var atMax = base
+        atMax.sortOrder = Int64(Int16.max)
+        var overMax = base
+        overMax.sortOrder = Int64(Int16.max) + 1
+        var atMin = base
+        atMin.sortOrder = Int64(Int16.min)
+        var underMin = base
+        underMin.sortOrder = Int64(Int16.min) - 1
+        #expect(localApiValidateMode(input: atMax) == nil && localApiValidateMode(input: atMin) == nil)
+        #expect(localApiValidateMode(input: overMax) != nil && localApiValidateMode(input: underMin) != nil)
+        #expect(
+            localApiValidateMode(input: overMax)?.message
+                == "Mode 'sortOrder' must be between \(Int16.min) and \(Int16.max)",
+            "the shared sortOrder message drifted from the one this head shipped"
+        )
+
+        // The NFC pre-step runs FIRST and stays native; the shared key is what
+        // decides "the same name" after it.
+        let normalized = ModesEndpoint.normalizedName("  Cafe\u{301}  ")
+        #expect(normalized == "Café")
+        #expect(localApiModeNameConflict(candidate: normalized ?? "", otherNames: ["CAFÉ"]))
+        #expect(!localApiModeNameConflict(candidate: normalized ?? "", otherNames: ["Work"]))
+
+        let taken = localApiModeNameTakenFailure(name: "Work", operation: .create)
+        #expect(taken.code == .modeNameTaken && taken.httpStatus == 200)
+        #expect(taken.message == "A mode named 'Work' already exists")
+        #expect(taken.hint != nil)
+        #expect(
+            localApiModeNameTakenFailure(name: "Work", operation: .patch).hint == nil,
+            "the patch collision grew a hint this head has never sent"
+        )
+    }
+
     @Test func postProcessingModeAcceptsOnlyDefinedRawValues() {
         #expect(ModesEndpoint.postProcessingModeValue(0) == 0)
         #expect(ModesEndpoint.postProcessingModeValue(1) == 1)

@@ -5,6 +5,7 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.SharedCore;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.LocalApi;
 
@@ -105,11 +106,11 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     {
         var existing = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
         var mode = new Mode { Id = Guid.NewGuid(), IsDefault = existing.Count == 0, CreatedDate = DateTime.UtcNow, ModifiedDate = DateTime.UtcNow };
-        ApplyModeDocument(mode, document, allowIdentity: false);
+        var facts = ApplyModeDocument(mode, document, allowIdentity: false);
         if (existing.Count == 0) mode.IsDefault = true;
         NormalizeMode(mode);
-        ValidateMode(mode);
-        EnsureUniqueName(mode, existing);
+        ValidateMode(mode, facts, HwLocalApiModeOperation.Create);
+        EnsureUniqueName(mode, existing, HwLocalApiModeOperation.Create);
         if (mode.IsDefault)
             foreach (var previous in existing.Where(item => item.IsDefault)) { previous.IsDefault = false; await _modes.UpsertAsync(previous, cancellationToken).ConfigureAwait(false); }
         await _modes.UpsertAsync(mode, cancellationToken).ConfigureAwait(false);
@@ -122,11 +123,11 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         var mode = (await _modes.ListAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == modeId);
         if (mode is null) return null;
         var existing = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
-        ApplyModeDocument(mode, patch, allowIdentity: false);
+        var facts = ApplyModeDocument(mode, patch, allowIdentity: false);
         NormalizeMode(mode);
         mode.ModifiedDate = DateTime.UtcNow;
-        ValidateMode(mode);
-        EnsureUniqueName(mode, existing);
+        ValidateMode(mode, facts, HwLocalApiModeOperation.Patch);
+        EnsureUniqueName(mode, existing, HwLocalApiModeOperation.Patch);
         if (mode.IsDefault)
             foreach (var previous in existing.Where(item => item.Id != mode.Id && item.IsDefault)) { previous.IsDefault = false; await _modes.UpsertAsync(previous, cancellationToken).ConfigureAwait(false); }
         else if (existing.Count > 0 && existing.All(item => item.Id == mode.Id || !item.IsDefault))
@@ -279,10 +280,25 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         return item is null ? null : ToRecording(item);
     }
 
-    private static void EnsureUniqueName(Mode mode, IReadOnlyList<Mode> existing)
+    /// <summary>
+    /// "The same name" is now one rule, and a collision is now the code the
+    /// other two heads already send (issue #356 item 5).
+    /// </summary>
+    /// <remarks>
+    /// This head compared with <c>OrdinalIgnoreCase</c> and threw a plain
+    /// <see cref="ArgumentException"/>, which the middleware turned into HTTP
+    /// 400 <c>INVALID_REQUEST</c> — where macOS and Windows both answer HTTP 200
+    /// <c>MODE_NAME_TAKEN</c>. That code was declared here and never emitted.
+    /// The comparison key (trim, then <c>to_lowercase</c>) and the message now
+    /// come from <c>hw-localapi</c>; the "which record am I writing" filter
+    /// stays here, because only this head knows that.
+    /// </remarks>
+    private static void EnsureUniqueName(Mode mode, IReadOnlyList<Mode> existing, HwLocalApiModeOperation operation)
     {
-        if (existing.Any(item => item.Id != mode.Id && string.Equals(item.Name, mode.Name, StringComparison.OrdinalIgnoreCase)))
-            throw new ArgumentException("A mode with this name already exists.");
+        var others = existing.Where(item => item.Id != mode.Id).Select(item => item.Name).ToList();
+        if (HyperwhisperCoreMethods.LocalApiModeNameConflict(mode.Name, others))
+            throw LocalApiFailureException.From(
+                HyperwhisperCoreMethods.LocalApiModeNameTakenFailure(mode.Name, operation));
     }
 
     private async Task<TranscriptionWorkflowRequest> BuildRequestAsync(
@@ -378,30 +394,43 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             return;
         }
 
-        switch (normalizedEngine)
+        // ONE ALIAS TABLE, SHARED WITH macOS AND WINDOWS (issue #356 item 3).
+        // The local half of the documented `engine` field used to be a fourth
+        // hand-kept `switch`; it is now `resolve_engine_alias`, which normalises
+        // (trim, then lowercase) and answers a canonical id. `None` still means
+        // "not one of the five", which after the cloud fold above is the same
+        // unsupported-engine answer this head already gave — the wording is
+        // item 4's to reconcile, not this phase's.
+        var resolved = HyperwhisperCoreMethods.LocalApiResolveEngineAlias(normalizedEngine);
+        switch (resolved)
         {
-            case "whisper":
-            case "whisperlocal":
-            case "libwhisper":
+            case HwLocalApiEngineId.WhisperLocal:
                 if (normalizedModel is null) throw new ArgumentException("A Whisper model is required.");
                 mode.ProviderType = "local";
                 mode.LocalEngine = "whisper";
                 mode.ModelType = mode.Model = normalizedModel;
                 return;
-            case "parakeet":
+            case HwLocalApiEngineId.Parakeet:
                 mode.ProviderType = "local";
                 mode.LocalEngine = "parakeet";
                 mode.LocalParakeetModel = mode.Model = normalizedModel ?? "parakeet-v3";
                 return;
-            case "qwen3":
-            case "qwen3asr":
-            case "qwen3_asr":
-            case "qwen3-asr":
-            case "qwen":
+            case HwLocalApiEngineId.Qwen3Asr:
                 mode.ProviderType = "local";
                 mode.LocalEngine = "parakeet";
                 mode.LocalParakeetModel = mode.Model = normalizedModel ?? "qwen3-asr-0.6b";
                 return;
+            // Real engine ids this build cannot serve — macOS has them and the
+            // .NET heads do not. The resolver deliberately answers identity and
+            // not availability, so the capability verdict is made here, and it
+            // is `ENGINE_UNAVAILABLE`: the caller named an engine that exists,
+            // which is a different fault from naming one that does not.
+            case HwLocalApiEngineId.Nemotron:
+            case HwLocalApiEngineId.AppleSpeech:
+                throw LocalApiFailureException.From(HyperwhisperCoreMethods.LocalApiBusinessFailure(
+                    HwLocalApiErrorCode.EngineUnavailable,
+                    $"Engine '{HyperwhisperCoreMethods.LocalApiEngineWireLabel(resolved.Value)}' is not available on this platform.",
+                    null));
             default:
                 throw new ArgumentException("The requested transcription engine is unsupported.");
         }
@@ -440,16 +469,50 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         mode.CloudPostProcessingModel = string.IsNullOrWhiteSpace(mode.CloudPostProcessingModel) ? "anthropic:claude-haiku-4-5" : mode.CloudPostProcessingModel;
     }
 
-    private void ValidateMode(Mode mode)
+    /// <summary>
+    /// The wire-shape half comes from <c>hw-localapi</c>; the capability half
+    /// stays here (issue #356 items 2 and 5).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>validate_mode</c> owns the required-key set, every length bound and
+    /// both numeric ranges, so this head, macOS and Windows now refuse the same
+    /// bodies with the same messages. Two of those are new here and are a
+    /// client-visible tightening: a create body must carry the seven keys
+    /// <c>openapi.yaml</c> marks <c>required</c> (this head required none), and
+    /// <c>sortOrder</c> is bounded to the <c>Int16</c> range (this head had no
+    /// bound and crashed outside <c>Int32</c>).
+    /// </para>
+    /// <para>
+    /// Lengths are now counted in Unicode scalar values rather than UTF-16 code
+    /// units, which is the only count all three heads can compute identically.
+    /// A 60-emoji mode name was 120 units here and is 60 scalars now.
+    /// </para>
+    /// <para>
+    /// NOT shared, deliberately: the cross-field "an enabled
+    /// <c>postProcessingMode</c> requires a provider" rule and the catalog
+    /// membership checks below. Windows's version of the first reaches into
+    /// <c>CustomEndpointManager</c>, <c>LanguageModelInfo</c> and
+    /// <c>PlatformHelper</c>, and macOS has none — that is platform capability,
+    /// which is exactly what the crate keeps out.
+    /// </para>
+    /// </remarks>
+    private void ValidateMode(Mode mode, ModeDocumentFacts facts, HwLocalApiModeOperation operation)
     {
         mode.Name = mode.Name.Trim();
-        if (mode.Name.Length is < 1 or > 100) throw new ArgumentException("Mode name must contain 1 to 100 characters.");
-        if (mode.Language.Length is < 1 or > 32) throw new ArgumentException("Mode language is invalid.");
-        if (mode.Preset.Length is < 1 or > 64) throw new ArgumentException("Mode preset is invalid.");
-        if (mode.PostProcessingMode is < 0 or > 2) throw new ArgumentException("Post-processing mode is invalid.");
+        var failure = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+            operation,
+            facts.PresentKeys,
+            mode.Name,
+            mode.Language,
+            mode.Preset,
+            facts.PostProcessingMode ?? mode.PostProcessingMode,
+            facts.SortOrder ?? mode.SortOrder,
+            mode.UserSystemPrompt,
+            mode.GeminiCustomPrompt,
+            mode.CustomVocabulary?.ToList()));
+        if (failure is not null) throw LocalApiFailureException.From(failure);
         if (mode.PostProcessingMode != 0 && string.IsNullOrWhiteSpace(mode.PostProcessingProvider)) throw new ArgumentException("An enabled post-processing mode requires a provider.");
-        if (mode.UserSystemPrompt?.Length > 2000 || mode.GeminiCustomPrompt?.Length > 2000) throw new ArgumentException("Mode prompt exceeds 2000 characters.");
-        if (mode.CustomVocabulary?.Count > 1000 || mode.CustomVocabulary?.Any(term => term.Length > 200) == true) throw new ArgumentException("Custom vocabulary is invalid.");
         if (mode.ProviderType == "cloud")
         {
             if (string.IsNullOrWhiteSpace(mode.CloudProvider) || !CloudProviders.Contains(mode.CloudProvider))
@@ -469,14 +532,36 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         }
     }
 
-    private static void ApplyModeDocument(Mode mode, JsonElement document, bool allowIdentity)
+    /// <summary>
+    /// What the walk over a mode body observed and could not put on the entity:
+    /// the top-level key names, and the two numeric fields as written (issue
+    /// #356).
+    /// </summary>
+    /// <remarks>
+    /// The numbers are <c>long</c>, not <c>int</c>, so an out-of-range value
+    /// survives the crossing into <c>hw-localapi</c> instead of being
+    /// pre-truncated or throwing during the parse. That is what turns
+    /// <c>{"sortOrder": 99999999999}</c> — an unhandled
+    /// <see cref="FormatException"/> and a bare HTTP 500 before this change —
+    /// into an ordinary <c>INVALID_REQUEST</c> naming the bound.
+    /// </remarks>
+    private readonly record struct ModeDocumentFacts(
+        List<string> PresentKeys,
+        long? SortOrder,
+        long? PostProcessingMode);
+
+    private static ModeDocumentFacts ApplyModeDocument(Mode mode, JsonElement document, bool allowIdentity)
     {
         if (document.ValueKind != JsonValueKind.Object) throw new ArgumentException("Mode body must be a JSON object.");
+        var presentKeys = new List<string>();
+        long? sortOrder = null;
+        long? postProcessingMode = null;
         foreach (var property in document.EnumerateObject())
         {
+            presentKeys.Add(property.Name);
             switch (property.Name)
             {
-                case "id" when allowIdentity: mode.Id = property.Value.GetGuid(); break;
+                case "id" when allowIdentity: mode.Id = GuidValue(property); break;
                 case "id" or "createdDate" or "modifiedDate" or "isSystemProvided": break;
                 case "name": mode.Name = RequiredString(property); break;
                 case "preset": mode.Preset = RequiredString(property); break;
@@ -490,30 +575,111 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                 case "providerType": mode.ProviderType = OptionalString(property); break;
                 case "cloudAccuracyTier": mode.CloudAccuracyTier = RequiredString(property); break;
                 case "geminiCustomPrompt": mode.GeminiCustomPrompt = OptionalString(property); break;
-                case "punctuation": mode.Punctuation = property.Value.GetBoolean(); break;
-                case "capitalization": mode.Capitalization = property.Value.GetBoolean(); break;
-                case "profanityFilter": mode.ProfanityFilter = property.Value.GetBoolean(); break;
-                case "removeTrailingPeriod": mode.RemoveTrailingPeriod = property.Value.GetBoolean(); break;
+                case "punctuation": mode.Punctuation = BooleanValue(property); break;
+                case "capitalization": mode.Capitalization = BooleanValue(property); break;
+                case "profanityFilter": mode.ProfanityFilter = BooleanValue(property); break;
+                case "removeTrailingPeriod": mode.RemoveTrailingPeriod = BooleanValue(property); break;
                 case "englishSpelling": mode.EnglishSpelling = OptionalString(property); break;
-                case "postProcessingMode": mode.PostProcessingMode = property.Value.GetInt32(); break;
+                // Held as written and handed to the shared bound below. Storing
+                // it here would either truncate or throw before `validate_mode`
+                // ever sees the number the caller sent.
+                case "postProcessingMode":
+                    postProcessingMode = IntegerValue(property);
+                    if (postProcessingMode is >= int.MinValue and <= int.MaxValue)
+                        mode.PostProcessingMode = (int)postProcessingMode.Value;
+                    break;
                 case "postProcessingProvider": mode.PostProcessingProvider = OptionalString(property); break;
                 case "languageModel": mode.LanguageModel = OptionalString(property); break;
                 case "localPostProcessingModel": mode.LocalPostProcessingModel = OptionalString(property); break;
                 case "userSystemPrompt": mode.UserSystemPrompt = OptionalString(property); break;
                 case "customInstructions": mode.CustomInstructions = OptionalString(property); break;
-                case "enableScreenOCR": mode.EnableScreenOCR = property.Value.GetBoolean(); break;
+                case "enableScreenOCR": mode.EnableScreenOCR = BooleanValue(property); break;
                 case "cloudPostProcessingModel": mode.CloudPostProcessingModel = RequiredString(property); break;
-                case "customVocabulary": mode.CustomVocabulary = property.Value.ValueKind == JsonValueKind.Null ? null : property.Value.Deserialize<List<string>>(WebJson); break;
-                case "isDefault": mode.IsDefault = property.Value.GetBoolean(); break;
-                case "sortOrder": mode.SortOrder = property.Value.GetInt32(); break;
+                case "customVocabulary": mode.CustomVocabulary = StringArray(property); break;
+                case "isDefault": mode.IsDefault = BooleanValue(property); break;
+                case "sortOrder":
+                    sortOrder = IntegerValue(property);
+                    if (sortOrder is >= int.MinValue and <= int.MaxValue)
+                        mode.SortOrder = (int)sortOrder.Value;
+                    break;
                 case "useStreamingTranscription": break; // Legacy wire-only field; no EF storage exists.
-                default: throw new ArgumentException($"Unsupported mode field '{property.Name}'.");
+                // AN UNRECOGNISED KEY IS IGNORED, NOT REJECTED (issue #356
+                // item 2). `openapi.yaml` documents five keys as "Windows only.
+                // macOS ignores this key", so the published contract actively
+                // invites a cross-platform client to send keys a given head does
+                // not implement — and macOS and Windows both drop an unmapped
+                // key inside their JSON decoders. This head was the only one
+                // that threw. `mode_key_classification` is the authoritative
+                // union, and it is consulted rather than assumed so that a key
+                // this switch has not caught up with is distinguishable, in the
+                // log, from a client's typo.
+                default:
+                    LogIgnoredModeKey(property.Name);
+                    break;
             }
         }
+        return new ModeDocumentFacts(presentKeys, sortOrder, postProcessingMode);
     }
 
-    private static string RequiredString(JsonProperty property) => property.Value.GetString() ?? throw new ArgumentException($"'{property.Name}' must be a string.");
-    private static string? OptionalString(JsonProperty property) => property.Value.ValueKind == JsonValueKind.Null ? null : property.Value.GetString();
+    private static void LogIgnoredModeKey(string key)
+    {
+        var classification = HyperwhisperCoreMethods.LocalApiModeKeyClassification(key);
+        if (classification == HwLocalApiModeKeyClass.Unknown)
+            Debug.WriteLine($"Local API: ignoring unrecognised mode field '{key}'.");
+        else
+            Debug.WriteLine($"Local API: ignoring documented mode field '{key}' ({classification}) this head does not store.");
+    }
+
+    // A WRONG-TYPED VALUE IS `INVALID_REQUEST`, NOT A MISSING CAPABILITY
+    // (issue #356). `JsonElement.GetBoolean`/`GetString`/`GetGuid` throw
+    // `InvalidOperationException` when the value is of another JSON kind, and
+    // this head's middleware answers that with HTTP 200 `ENGINE_UNAVAILABLE` —
+    // so `{"punctuation":"yes"}` was reported as an absent app capability.
+    // `GetInt32` was worse: a number outside `Int32` raises `FormatException`,
+    // which NO catch in that middleware handles, so `{"sortOrder":99999999999}`
+    // was an unhandled HTTP 500 with no envelope at all. Every accessor here
+    // tests the kind first and raises `ArgumentException`, which is the body
+    // error the middleware already knows how to answer.
+    private static string RequiredString(JsonProperty property) => property.Value.ValueKind == JsonValueKind.String
+        ? property.Value.GetString() ?? throw new ArgumentException($"'{property.Name}' must be a string.")
+        : throw new ArgumentException($"'{property.Name}' must be a string.");
+
+    private static string? OptionalString(JsonProperty property) => property.Value.ValueKind switch
+    {
+        JsonValueKind.Null => null,
+        JsonValueKind.String => property.Value.GetString(),
+        _ => throw new ArgumentException($"'{property.Name}' must be a string or null."),
+    };
+
+    private static bool BooleanValue(JsonProperty property) => property.Value.ValueKind switch
+    {
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        _ => throw new ArgumentException($"'{property.Name}' must be true or false."),
+    };
+
+    private static Guid GuidValue(JsonProperty property) =>
+        property.Value.ValueKind == JsonValueKind.String && property.Value.TryGetGuid(out var value)
+            ? value
+            : throw new ArgumentException($"'{property.Name}' must be a UUID string.");
+
+    /// <summary>
+    /// A JSON integer, as written. Out-of-range is the shared bound's answer,
+    /// not a parse error — see <see cref="ModeDocumentFacts"/>.
+    /// </summary>
+    private static long IntegerValue(JsonProperty property) =>
+        property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt64(out var value)
+            ? value
+            : throw new ArgumentException($"'{property.Name}' must be a whole number.");
+
+    private static List<string>? StringArray(JsonProperty property)
+    {
+        if (property.Value.ValueKind == JsonValueKind.Null) return null;
+        if (property.Value.ValueKind != JsonValueKind.Array)
+            throw new ArgumentException($"'{property.Name}' must be an array of strings.");
+        try { return property.Value.Deserialize<List<string>>(WebJson); }
+        catch (JsonException) { throw new ArgumentException($"'{property.Name}' must be an array of strings."); }
+    }
 
     private static JsonElement ToModeJson(Mode mode) => JsonSerializer.SerializeToElement(new
     {

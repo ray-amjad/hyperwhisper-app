@@ -42,6 +42,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("host options validate eagerly", HostOptionsValidation)
     ,("application backend resolves modes and vocabulary", ApplicationBackendModeRouting)
     ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
+    ,("mode wire contract matches the shared core", ApplicationBackendModeContract)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
 };
 foreach (var test in tests)
@@ -754,15 +755,29 @@ static async Task ApplicationBackendErrors()
     using var invalid = new StringContent("{", Encoding.UTF8, "application/json");
     var invalidResponse = await fixture.Client.PostAsync("/modes", invalid);
     Assert(invalidResponse.StatusCode == HttpStatusCode.BadRequest && await HasFailureEnvelope(invalidResponse), "invalid JSON did not return LocalApiFailure");
-    using var unknownField = new StringContent("{\"name\":\"Bad\",\"notAField\":1}", Encoding.UTF8, "application/json");
+    // An unrecognised key is IGNORED, on every head (issue #356 item 2,
+    // Decision A). This assertion used to be its inverse — 400 + an envelope —
+    // and this head was the only one of the three that rejected. `openapi.yaml`
+    // documents five keys as "Windows only. macOS ignores this key", so a
+    // cross-platform client is invited to send keys a head does not implement.
+    using var unknownField = new StringContent(ModeBody("Bad", extra: "\"notAField\":1"), Encoding.UTF8, "application/json");
     var unknownResponse = await fixture.Client.PostAsync("/modes", unknownField);
-    Assert(unknownResponse.StatusCode == HttpStatusCode.BadRequest && await HasFailureEnvelope(unknownResponse), "unknown mode field did not return LocalApiFailure");
+    Assert(unknownResponse.StatusCode == HttpStatusCode.OK, "an unrecognised mode key was not ignored");
 
-    using var first = new StringContent("{\"name\":\"Only\"}", Encoding.UTF8, "application/json");
+    using var first = new StringContent(ModeBody("Only"), Encoding.UTF8, "application/json");
     Assert((await fixture.Client.PostAsync("/modes", first)).StatusCode == HttpStatusCode.OK, "first mode create failed");
-    using var duplicate = new StringContent("{\"name\":\"only\"}", Encoding.UTF8, "application/json");
+    // A collision is HTTP 200 `MODE_NAME_TAKEN`, which is what macOS and
+    // Windows send. This head threw a plain `ArgumentException` and answered
+    // 400 `INVALID_REQUEST`; `MODE_NAME_TAKEN` was declared here and never
+    // emitted (issue #356 item 5).
+    using var duplicate = new StringContent(ModeBody("only"), Encoding.UTF8, "application/json");
     var duplicateResponse = await fixture.Client.PostAsync("/modes", duplicate);
-    Assert(duplicateResponse.StatusCode == HttpStatusCode.BadRequest && await HasFailureEnvelope(duplicateResponse), "duplicate mode was not structured failure");
+    Assert(await FailureMessage(duplicateResponse) == "A mode named 'only' already exists", "duplicate mode did not carry the shared message");
+    await AssertBusinessFailure(duplicateResponse, LocalApiErrorCodes.ModeNameTaken, "duplicate mode name");
+    // The ignored-key create above left a second mode behind; drop it so the
+    // last-mode assertion below still describes the last mode.
+    var ignored = (await modes.ListAsync()).Single(item => item.Name == "Bad");
+    Assert((await fixture.Client.DeleteAsync($"/modes/{ignored.Id:D}")).StatusCode == HttpStatusCode.OK, "delete of the ignored-key mode failed");
     var mode = (await modes.ListAsync()).Single();
     var deleteResponse = await fixture.Client.DeleteAsync($"/modes/{mode.Id:D}");
     Assert(deleteResponse.StatusCode == HttpStatusCode.BadRequest && await HasFailureEnvelope(deleteResponse), "last-mode delete was not structured failure");
@@ -860,6 +875,42 @@ static async Task ApplicationBackendModeRouting()
             CloudProvider: "meta",
             CloudTranscriptionModel: "muse-voice-transcribe-1.0",
         }, "case-insensitive Meta Local API routing lost the exact direct model default");
+
+    // ONE ALIAS TABLE (issue #356 item 3). Every spelling below comes from the
+    // union `resolve_engine_alias` now owns, and every one of them is a
+    // spelling at least one other head accepted and this one did not — or the
+    // reverse. The normalisation is trim, THEN lowercase.
+    foreach (var spelling in new[] { "qwen3_asr", " QWEN3-ASR ", "qwen", "\tQwen3\n" })
+    {
+        _ = await backend.TranscribeAsync(new AudioUpload(
+            "alias.wav", "audio/wav", new byte[] { 2 }, null, spelling, null, "en"), CancellationToken.None);
+        Assert(transcriber.Request?.SelectedMode is { ProviderType: "local", LocalEngine: "parakeet", LocalParakeetModel: "qwen3-asr-0.6b" },
+            $"engine spelling {spelling.Replace("\t", "\\t", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal)} did not resolve through the shared alias table");
+    }
+    _ = await backend.TranscribeAsync(new AudioUpload(
+        "libwhisper.wav", "audio/wav", new byte[] { 2 }, null, " libWhisper ", "tiny.en", "en"), CancellationToken.None);
+    Assert(transcriber.Request?.SelectedMode is { ProviderType: "local", LocalEngine: "whisper", ModelType: "tiny.en" },
+        "the whisper aliases did not resolve through the shared alias table");
+
+    // A REAL ENGINE ID THIS BUILD CANNOT SERVE IS `ENGINE_UNAVAILABLE`, not an
+    // unknown-engine rejection. The resolver answers identity, never
+    // availability, so `nemotron` and `appleSpeech` — macOS-only engines —
+    // reach this head as recognised ids and are refused for the right reason.
+    foreach (var absent in new[] { "nemotron", "nemotron-local", "applespeech", "speech-analyzer" })
+    {
+        LocalApiFailureException? refusal = null;
+        try
+        {
+            _ = await backend.TranscribeAsync(new AudioUpload(
+                "absent.wav", "audio/wav", new byte[] { 2 }, null, absent, null, "en"), CancellationToken.None);
+        }
+        catch (LocalApiFailureException ex) { refusal = ex; }
+        Assert(refusal?.Code == LocalApiErrorCodes.EngineUnavailable, $"engine '{absent}' was not refused as {LocalApiErrorCodes.EngineUnavailable}");
+    }
+    // An engine that is neither cloud nor one of the five is unchanged: the
+    // wording of that refusal is item 4's table, not this phase's.
+    await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload(
+        "junk.wav", "audio/wav", new byte[] { 2 }, null, "vosk", null, "en"), CancellationToken.None).AsTask());
     var stagedBeforeInvalid = Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count();
     await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
     Assert(Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count() == stagedBeforeInvalid, "invalid mode retained an orphaned upload");
@@ -884,6 +935,104 @@ static async Task ApplicationBackendModeRouting()
     Assert(transcriber.Request!.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper", "Rustscript", "multi word"]) == true, "recording stop did not retain vocabulary captured at start");
 }
 
+/// <summary>
+/// The `/modes` write contract, over HTTP, against the shared core (issue #356
+/// items 2 and 5).
+///
+/// Every case here was a divergence or an outright bug before this change: an
+/// unknown key was rejected on this head alone, no key was required where the
+/// published contract requires seven, `sortOrder` had no bound at all, a
+/// wrong-typed boolean was reported as a missing app capability, an
+/// out-of-`Int32` `sortOrder` was an unhandled HTTP 500 with no envelope, and a
+/// name collision answered the wrong code at the wrong status.
+/// </summary>
+static async Task ApplicationBackendModeContract()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    async Task<HttpResponseMessage> Post(string body)
+    {
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        return await fixture.Client.PostAsync("/modes", content);
+    }
+    async Task<HttpResponseMessage> Patch(string id, string body)
+    {
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        return await fixture.Client.PatchAsync($"/modes/{id}", content);
+    }
+
+    // --- Decision B: the required seven, on create only. -------------------
+    // `{"name":"Only"}` created a mode here (and on Windows) before #356.
+    var partial = await Post("""{"name":"Only"}""");
+    Assert(partial.StatusCode == HttpStatusCode.BadRequest, $"a create body missing six required keys answered {(int)partial.StatusCode}");
+    Assert(await HasFailureEnvelope(partial), "the missing-required-keys refusal had no failure envelope");
+    var partialMessage = await FailureMessage(partial);
+    foreach (var key in new[] { "preset", "language", "model", "punctuation", "capitalization", "profanityFilter" })
+        Assert(partialMessage?.Contains(key, StringComparison.Ordinal) == true, $"the missing-key message does not name '{key}': {partialMessage}");
+    Assert(partialMessage?.Contains("name", StringComparison.Ordinal) == false, $"'name' WAS sent and is reported missing: {partialMessage}");
+    Assert(await FailureCode(partial) == LocalApiErrorCodes.InvalidRequest, "the missing-required-keys refusal used a code outside the closed set");
+    Assert((await modes.ListAsync()).Count == 0, "a refused create still wrote a mode");
+    // The same body is fine as a PATCH: `ModePatch` has no `required` list,
+    // because "any field omitted is left untouched" is what a patch means.
+
+    // --- Decision A: an unrecognised key is ignored. -----------------------
+    var withUnknown = await Post(ModeBody("Ignored", extra: "\"notAField\":1,\"anotherOne\":{\"deep\":true}"));
+    Assert(withUnknown.StatusCode == HttpStatusCode.OK, "an unrecognised mode key was rejected");
+    var created = (await modes.ListAsync()).Single();
+    Assert(created.Name == "Ignored", "the ignored-key create stored the wrong name");
+
+    // --- The wrong-typed boolean. -----------------------------------------
+    // `GetBoolean()` raised `InvalidOperationException`, which this head's
+    // middleware answers with HTTP 200 ENGINE_UNAVAILABLE — a caller who sent a
+    // string where a bool belongs was told the app had no capability.
+    var wrongType = await Post(ModeBody("Typed", extra: null).Replace("\"punctuation\":true", "\"punctuation\":\"yes\"", StringComparison.Ordinal));
+    Assert(wrongType.StatusCode == HttpStatusCode.BadRequest, $"a wrong-typed boolean answered {(int)wrongType.StatusCode}");
+    Assert(await FailureCode(wrongType) == LocalApiErrorCodes.InvalidRequest,
+        $"a wrong-typed boolean answered {await FailureCode(wrongType)}, not {LocalApiErrorCodes.InvalidRequest}");
+
+    // --- Decision C: `sortOrder` is bounded to the Int16 range. ------------
+    // Outside Int32 first: `GetInt32()` raised `FormatException`, which NO catch
+    // in the middleware handled, so this was a bare HTTP 500 with no envelope.
+    var huge = await Post(ModeBody("Huge", extra: "\"sortOrder\":99999999999"));
+    await AssertBusinessFailure(huge, LocalApiErrorCodes.InvalidRequest, "sortOrder outside Int32");
+    Assert(await FailureMessage(huge) == "Mode 'sortOrder' must be between -32768 and 32767",
+        $"the out-of-Int32 sortOrder message is \"{await FailureMessage(huge)}\"");
+    // And inside Int32 but outside Int16, which this head accepted and stored.
+    var big = await Post(ModeBody("Big", extra: "\"sortOrder\":99999"));
+    await AssertBusinessFailure(big, LocalApiErrorCodes.InvalidRequest, "sortOrder outside Int16");
+    // The boundary is inclusive, the same way macOS's `Int16(exactly:)` is.
+    Assert((await Post(ModeBody("Edge", extra: "\"sortOrder\":32767"))).StatusCode == HttpStatusCode.OK,
+        "sortOrder 32767 was refused; the bound is inclusive on every head");
+
+    var badMode = await Post(ModeBody("Bad post-processing", extra: "\"postProcessingMode\":7"));
+    await AssertBusinessFailure(badMode, LocalApiErrorCodes.InvalidRequest, "postProcessingMode out of range");
+    Assert(await FailureMessage(badMode) == "Mode 'postProcessingMode' must be 0, 1, or 2", "postProcessingMode message drifted from the shared core");
+
+    var blank = await Post(ModeBody("   "));
+    await AssertBusinessFailure(blank, LocalApiErrorCodes.InvalidRequest, "blank mode name");
+    Assert(await FailureMessage(blank) == "Mode 'name' cannot be empty", "the empty-name message is not macOS's and Windows's");
+
+    // --- Decision D: one collision rule, and the split hint. ---------------
+    var edge = (await modes.ListAsync()).Single(item => item.Name == "Edge");
+    var collide = await Post(ModeBody("  IGNORED  "));
+    await AssertBusinessFailure(collide, LocalApiErrorCodes.ModeNameTaken, "create colliding on the shared comparison key");
+    Assert(await FailureHint(collide) == "Choose a different name or PATCH the existing mode instead.", "the create collision lost its hint");
+    var collidePatch = await Patch(edge.Id.ToString("D"), """{"name":"ignored"}""");
+    await AssertBusinessFailure(collidePatch, LocalApiErrorCodes.ModeNameTaken, "patch colliding on the shared comparison key");
+    Assert(await FailureHint(collidePatch) is null, "the patch collision grew a hint macOS and Windows do not send");
+    // Renaming a mode to its own name is not a collision: the head filters its
+    // own record out before it asks.
+    Assert((await Patch(edge.Id.ToString("D"), """{"name":"EDGE"}""")).StatusCode == HttpStatusCode.OK, "a mode collided with itself");
+}
+
 static async Task ApplicationBackendModeValidation()
 {
     using var paths = new TempPaths();
@@ -899,16 +1048,25 @@ static async Task ApplicationBackendModeValidation()
     string[] providers = ["openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral", "soniox", "hyperwhisper", "gemini", "geminiTranscribe", "geminitranscribe", "grok", "microsoftAzureSpeech", "googleSpeech", "meta"];
     // Mode names are unique case-insensitively, so index them: two spellings of
     // the same provider id are a legitimate pair of cases to accept.
+    // Every body here carries the documented seven now (issue #356 Decision B).
+    // The catalog rules under test are unchanged; only the required-key floor
+    // moved, and it moved on this head from nothing to `openapi.yaml`'s list.
     for (var index = 0; index < providers.Length; index++)
         _ = await backend.CreateModeAsync(
-            Json($$"""{"name":"cloud-{{index}}-{{providers[index]}}","providerType":"cloud","cloudProvider":"{{providers[index]}}"}"""),
+            Json(ModeBody($"cloud-{index}-{providers[index]}", extra: $$"""
+                "providerType":"cloud","cloudProvider":{{JsonSerializer.Serialize(providers[index])}}
+                """)),
             CancellationToken.None);
-    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Unknown cloud","providerType":"cloud","cloudProvider":"azure"}"""), CancellationToken.None).AsTask());
-    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Unknown engine","providerType":"local","localEngine":"vosk","model":"base"}"""), CancellationToken.None).AsTask());
-    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Wrong whisper","providerType":"local","localEngine":"whisper","model":"parakeet-v3"}"""), CancellationToken.None).AsTask());
-    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Wrong parakeet","providerType":"local","localEngine":"parakeet","localParakeetModel":"base"}"""), CancellationToken.None).AsTask());
-    _ = await backend.CreateModeAsync(Json("""{"name":"Valid whisper","providerType":"local","localEngine":"whisper","model":"large-v3"}"""), CancellationToken.None);
-    _ = await backend.CreateModeAsync(Json("""{"name":"Valid parakeet","providerType":"local","localEngine":"parakeet","localParakeetModel":"parakeet-v3"}"""), CancellationToken.None);
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json(ModeBody("Unknown cloud", extra: """ "providerType":"cloud","cloudProvider":"azure" """)), CancellationToken.None).AsTask());
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json(ModeBody("Unknown engine", extra: """ "providerType":"local","localEngine":"vosk" """)), CancellationToken.None).AsTask());
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json(ModeBody("Wrong whisper", extra: """ "providerType":"local","localEngine":"whisper" """, model: "parakeet-v3")), CancellationToken.None).AsTask());
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json(ModeBody("Wrong parakeet", extra: """ "providerType":"local","localEngine":"parakeet","localParakeetModel":"base" """)), CancellationToken.None).AsTask());
+    _ = await backend.CreateModeAsync(Json(ModeBody("Valid whisper", extra: """ "providerType":"local","localEngine":"whisper" """, model: "large-v3")), CancellationToken.None);
+    _ = await backend.CreateModeAsync(Json(ModeBody("Valid parakeet", extra: """ "providerType":"local","localEngine":"parakeet","localParakeetModel":"parakeet-v3" """)), CancellationToken.None);
+    // The required-key floor is enforced on the create path itself, not only
+    // over HTTP: a body that would have created a mode called "Default" before
+    // #356 now fails, and fails as a request error rather than a catalog one.
+    await AssertThrowsAsync<LocalApiFailureException>(() => backend.CreateModeAsync(Json("{}"), CancellationToken.None).AsTask());
     Assert((await modes.ListAsync()).Count(item => item.IsDefault) == 1, "create operations did not preserve exactly one default mode");
 }
 
@@ -917,6 +1075,23 @@ static JsonElement Json(string value)
     using var document = JsonDocument.Parse(value);
     return document.RootElement.Clone();
 }
+
+/// <summary>
+/// A create body carrying the seven keys <c>openapi.yaml</c> marks
+/// <c>required</c> (issue #356 item 2, Decision B), plus whatever else the case
+/// under test needs.
+/// </summary>
+/// <remarks>
+/// This head required NO key before #356: <c>POST /modes {}</c> answered 200 and
+/// created a mode called "Default". Windows required only <c>name</c>. macOS has
+/// required all seven since it shipped, because its <c>ModeDTO</c> declares them
+/// non-optional, and that is the set the published contract carries — so two
+/// heads are catching up to the third rather than the doc being weakened.
+/// </remarks>
+static string ModeBody(string name, string? extra = null, string model = "base") =>
+    $$"""
+    {"name":{{JsonSerializer.Serialize(name)}},"preset":"hyper","language":"en","model":{{JsonSerializer.Serialize(model)}},"punctuation":true,"capitalization":true,"profanityFilter":false{{(extra is null ? "" : "," + extra)}}}
+    """;
 
 static async Task AssertThrowsAsync<T>(Func<Task> action) where T : Exception
 {
@@ -992,6 +1167,25 @@ static async Task<string?> FailureMessage(HttpResponseMessage response)
 {
     using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
     return document.RootElement.GetProperty("error").GetProperty("message").GetString();
+}
+
+/// <summary>The `error.code` of a failure envelope, whatever the status.</summary>
+static async Task<string?> FailureCode(HttpResponseMessage response)
+{
+    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    return document.RootElement.GetProperty("error").GetProperty("code").GetString();
+}
+
+/// <summary>
+/// The `error.hint` of a failure envelope, or null when it was OMITTED. A hint
+/// that is absent must not be written as `null` (issue #289), so this reads a
+/// missing member and a null member as the same answer on purpose — the
+/// assertion that matters is the presence split between create and patch.
+/// </summary>
+static async Task<string?> FailureHint(HttpResponseMessage response)
+{
+    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    return document.RootElement.GetProperty("error").TryGetProperty("hint", out var hint) ? hint.GetString() : null;
 }
 
 /// <summary>

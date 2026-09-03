@@ -959,15 +959,36 @@ enum TranscribeEndpoint {
             return
         }
 
-        switch normalizedEngine {
-        case "whisperlocal", "whisper", "libwhisper":
+        // ONE ALIAS TABLE, SHARED WITH WINDOWS AND THE PORTABLE HEAD (issue
+        // #356 item 3). This switch and `TranscriptionProviderRouter
+        // .resolveProvider` were two hand-synced copies on this platform alone,
+        // and two more lived on the .NET heads. `localApiResolveEngineAlias` is
+        // the union of all four: it normalises trim-then-lowercase and answers
+        // a canonical id. macOS gains `qwen3_asr` and `qwen` from it — the
+        // spellings the .NET heads EMIT as their `engine` label and this head
+        // did not accept back — and gains the trim.
+        //
+        // `nil` KEEPS THIS SWITCH'S OLD `default` ARM, VERBATIM. It silently
+        // accepts an unrecognised engine and patches only `model`, where every
+        // sibling — including this head's own `resolveProvider` — fails. That
+        // asymmetry is a real open question, but closing it is a client-visible
+        // behaviour change on the one head this change could not build locally,
+        // so #356 routes the RESOLUTION and leaves the verdict alone.
+        guard let resolvedEngine = localApiResolveEngineAlias(alias: engine) else {
+            if let m = model, !m.isEmpty { mode.model = m }
+            return
+        }
+
+        switch resolvedEngine {
+        case .whisperLocal:
             mode.model = model ?? "base"
-        case "parakeet":
+        case .parakeet:
             mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
-        // Shared spelling list — see `Constants.engineAliases`. Must stay the
-        // same set `TranscriptionProviderRouter.resolveProvider` matches on,
-        // which is why it is a constant and not a second literal copy.
-        case _ where NemotronModelManager.Constants.engineAliases.contains(normalizedEngine):
+        // The four `nemotron*` spellings are now `EngineId::Nemotron` in the
+        // shared table; `NemotronModelManager.Constants.engineAliases` stays as
+        // the pin that the two lists still agree
+        // (`NemotronLocalAPIEngineTests`).
+        case .nemotron:
             // `canonicalModelId` trims, lowercases, and answers nil for blank,
             // so this one test covers "no model", "  ", and "not a variant".
             if let explicitVariant = NemotronModelManager.Constants.canonicalModelId(for: model ?? "") {
@@ -1027,12 +1048,10 @@ enum TranscribeEndpoint {
                     mode.model = NemotronModelManager.Constants.modelIdForSelection(nil)
                 }
             }
-        case "qwen3asr", "qwen3", "qwen3-asr":
+        case .qwen3Asr:
             mode.model = Qwen3AsrModelManager.Constants.modelId
-        case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
+        case .appleSpeech:
             mode.model = "apple-speech-analyzer"
-        default:
-            if let m = model, !m.isEmpty { mode.model = m }
         }
     }
 

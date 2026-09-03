@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Win32.SafeHandles;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.LocalApi.Endpoints;
 
@@ -900,7 +901,7 @@ internal static class TranscribeEndpoints
     /// </summary>
     internal static void ApplyEngineModel(Mode mode, string engine, string? model)
     {
-        var normalized = engine.ToLowerInvariant();
+        var normalized = engine.Trim().ToLowerInvariant();
         var providerNormalization = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
             .NormalizeCloudProvider(normalized);
         CloudTranscriptionProvider cloudProvider;
@@ -938,11 +939,22 @@ internal static class TranscribeEndpoints
             return;
         }
 
-        switch (normalized)
+        // ONE ALIAS TABLE, SHARED WITH macOS AND THE PORTABLE HEAD (issue #356
+        // item 3). The local half of the documented `engine` field was a
+        // hand-kept `switch` here, another on the portable head and TWO on
+        // macOS; `resolve_engine_alias` is the union of all four. It normalises
+        // trim-then-lowercase, so ` parakeet` now works here as it always did
+        // on Linux.
+        //
+        // The resolver answers WHICH engine, never whether this build has it —
+        // macOS has Nemotron and Apple Speech and Windows does not, so a shared
+        // table that decided availability would be wrong on two platforms in
+        // opposite directions. The capability verdict is made below and it is
+        // ENGINE_UNAVAILABLE, which is already one of the closed fourteen.
+        var resolved = HyperwhisperCoreMethods.LocalApiResolveEngineAlias(normalized);
+        switch (resolved)
         {
-            case "whisperlocal":
-            case "whisper":
-            case "libwhisper":
+            case HwLocalApiEngineId.WhisperLocal:
                 if (string.IsNullOrWhiteSpace(model))
                 {
                     throw new ApiInputException(
@@ -955,22 +967,26 @@ internal static class TranscribeEndpoints
                 mode.ModelType = model;
                 mode.Model = mode.ModelType;
                 break;
-            case "parakeet":
+            case HwLocalApiEngineId.Parakeet:
                 mode.ProviderType = "local";
                 mode.LocalEngine = "parakeet";
                 mode.LocalParakeetModel = model ?? "parakeet-v3";
                 mode.Model = mode.LocalParakeetModel;
                 break;
-            case "qwen3":
-            case "qwen3asr":
-            case "qwen3_asr":
-            case "qwen3-asr":
-            case "qwen":
+            case HwLocalApiEngineId.Qwen3Asr:
                 mode.ProviderType = "local";
                 mode.LocalEngine = "parakeet";
                 mode.LocalParakeetModel = model ?? "qwen3-asr-0.6b";
                 mode.Model = mode.LocalParakeetModel;
                 break;
+            // Real engine ids this platform does not ship. They used to fall
+            // into `Unknown engine`, which told a caller their spelling was
+            // wrong when it was not.
+            case HwLocalApiEngineId.Nemotron:
+            case HwLocalApiEngineId.AppleSpeech:
+                throw new ApiInputException(
+                    LocalApiErrorCode.EngineUnavailable,
+                    $"Engine '{HyperwhisperCoreMethods.LocalApiEngineWireLabel(resolved.Value)}' is not available on Windows");
             default:
                 throw new ApiInputException(
                     LocalApiErrorCode.EngineUnavailable,

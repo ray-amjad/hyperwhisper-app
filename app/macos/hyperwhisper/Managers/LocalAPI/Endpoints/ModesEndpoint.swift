@@ -47,8 +47,40 @@ enum ModesEndpoint {
             )
         }
 
+        // `ModeNamePolicy.normalized` stays as the macOS PRE-STEP (issue #356
+        // Decision D): NFC plus a general-category boundary trim, neither of
+        // which `hw-localapi` can do without a Unicode dependency it refuses to
+        // take in front of a loopback socket. It runs in front of the shared
+        // comparison key, not instead of it.
         guard let normalizedName = Self.normalizedName(dto.name) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Mode 'name' cannot be empty")
+        }
+        // ONE MODE CONTRACT (issue #356 items 2 and 5). The bounds on `name`,
+        // `language`, `preset`, `postProcessingMode`, `sortOrder` and the two
+        // prompts are the shared ones now, so all three heads refuse the same
+        // bodies with the same messages.
+        //
+        // `presentKeys` is the required seven rather than a parsed key list, and
+        // that is deliberate: this head's decoder IS the required-key check —
+        // `ModeDTO` declares exactly those seven non-optional, so a body missing
+        // one failed `decode` above and never reached here. Adding a
+        // `JSONSerialization` pass purely to re-derive a set the decoder already
+        // enforced would be a decode-path change on the head that is hardest to
+        // regression-test. `hw-localapi`'s own unit test pins that the two sets
+        // are the same seven strings.
+        if let failure = localApiValidateMode(input: HwLocalApiModeValidationInput(
+            operation: .create,
+            presentKeys: localApiRequiredModeKeys(),
+            name: normalizedName,
+            language: dto.language,
+            preset: dto.preset,
+            postProcessingMode: dto.postProcessingMode.map(Int64.init),
+            sortOrder: dto.sortOrder.map(Int64.init),
+            userSystemPrompt: dto.userSystemPrompt,
+            geminiCustomPrompt: dto.geminiCustomPrompt,
+            customVocabulary: nil
+        )) {
+            return LocalAPIResponder.response(for: failure)
         }
         guard let postProcessingMode = Self.postProcessingModeValue(dto.postProcessingMode ?? 1) else {
             return LocalAPIResponder.failure(
@@ -58,12 +90,11 @@ enum ModesEndpoint {
         }
         let persistence = PersistenceController.shared
         let context = Self.mutationContext(for: persistence)
-        if Self.fetchMode(byName: normalizedName, in: context) != nil {
-            return LocalAPIResponder.failure(
-                code: .modeNameTaken,
-                message: "A mode named '\(normalizedName)' already exists",
-                hint: "Choose a different name or PATCH the existing mode instead."
-            )
+        if Self.modeNameIsTaken(normalizedName, excluding: nil, in: context) {
+            return LocalAPIResponder.response(for: localApiModeNameTakenFailure(
+                name: normalizedName,
+                operation: .create
+            ))
         }
 
         let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(dto.cloudProvider)
@@ -140,6 +171,27 @@ enum ModesEndpoint {
             return LocalAPIResponder.badRequest(message: "Invalid JSON body")
         }
 
+        // The same bounds as create, minus the required-key rule: `ModePatch`
+        // has no `required:` list, because "any field omitted is left
+        // untouched" is what a patch means (issue #356). The `sortOrder` range
+        // is unchanged — `Int16(exactly:)` is what this head always applied and
+        // what `openapi.yaml` published — it is now the range the other two
+        // heads apply as well, and the message comes from the same place.
+        if let failure = localApiValidateMode(input: HwLocalApiModeValidationInput(
+            operation: .patch,
+            presentKeys: [],
+            name: patch.name.flatMap(Self.normalizedName),
+            language: patch.language,
+            preset: patch.preset,
+            postProcessingMode: patch.postProcessingMode.map(Int64.init),
+            sortOrder: patch.sortOrder.map(Int64.init),
+            userSystemPrompt: patch.userSystemPrompt,
+            geminiCustomPrompt: patch.geminiCustomPrompt,
+            customVocabulary: nil
+        )) {
+            return LocalAPIResponder.response(for: failure)
+        }
+
         let sortOrder: Int16?
         if let value = patch.sortOrder {
             guard let converted = Self.int16Value(value) else {
@@ -188,12 +240,11 @@ enum ModesEndpoint {
         // Name uniqueness check — only when the caller is actually renaming.
         if let newName = normalizedName,
            newName != mode.name,
-           let clash = Self.fetchMode(byName: newName, in: context),
-           clash.id != mode.id {
-            return LocalAPIResponder.failure(
-                code: .modeNameTaken,
-                message: "A mode named '\(newName)' already exists"
-            )
+           Self.modeNameIsTaken(newName, excluding: mode.id, in: context) {
+            return LocalAPIResponder.response(for: localApiModeNameTakenFailure(
+                name: newName,
+                operation: .patch
+            ))
         }
 
         applyPatch(
@@ -290,12 +341,38 @@ enum ModesEndpoint {
         return try? context.fetch(request).first
     }
 
+    /// Whether `candidate` collides with a stored mode other than
+    /// `excludedId`, under the SHARED comparison key (issue #356 item 5).
+    ///
+    /// This used to be a store-side `name ==[c] %@` fetch with `fetchLimit = 1`.
+    /// Core Data's `==[c]` is one of three different answers to "the same name"
+    /// the three heads gave — Windows and Linux used .NET's
+    /// `OrdinalIgnoreCase`, which is simple case mapping and not the same
+    /// function — so the predicate had to come back into Swift for all three to
+    /// agree. `mode_name_comparison_key` (trim, then `to_lowercase`) is that one
+    /// definition now.
+    ///
+    /// The cost is a full mode fetch instead of a limited one. This endpoint
+    /// already does full mode fetches to list and to delete, and a Local API
+    /// user has a handful of modes, not thousands.
+    ///
+    /// `ModeNamePolicy.normalized` still runs in front of this on the candidate
+    /// — NFC and the general-category boundary trim are macOS's and stay
+    /// macOS's (Decision D). The stored names go in as they were stored.
     @MainActor
-    private static func fetchMode(byName name: String, in context: NSManagedObjectContext) -> Mode? {
+    private static func modeNameIsTaken(
+        _ candidate: String,
+        excluding excludedId: UUID?,
+        in context: NSManagedObjectContext
+    ) -> Bool {
         let request: NSFetchRequest<Mode> = Mode.fetchRequest()
-        request.predicate = NSPredicate(format: "name ==[c] %@", name)
-        request.fetchLimit = 1
-        return try? context.fetch(request).first
+        let stored = ((try? context.fetch(request)) ?? [])
+            .filter { mode in
+                guard let excludedId else { return true }
+                return mode.id != excludedId
+            }
+            .compactMap(\.name)
+        return localApiModeNameConflict(candidate: candidate, otherNames: stored)
     }
 
     /// Apply only the present keys of a `ModePatchDTO` onto an existing Mode.

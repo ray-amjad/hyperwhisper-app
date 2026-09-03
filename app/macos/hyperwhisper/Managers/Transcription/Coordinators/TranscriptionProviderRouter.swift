@@ -481,14 +481,30 @@ class TranscriptionProviderRouter {
         }
 
         // Local engine? Map to a model id understood by `selectLocalProvider`.
+        //
+        // ONE ALIAS TABLE (issue #356 item 3). This switch and
+        // `TranscribeEndpoint.applyEngineModel` were two hand-synced copies on
+        // this platform alone — the in-file comments below already admitted it —
+        // and Windows and the portable head kept two more. Both macOS switches
+        // now go through `localApiResolveEngineAlias`, or the drift the issue
+        // closes would simply have moved inside one platform.
+        //
+        // The resolver normalises trim-then-lowercase and answers WHICH engine,
+        // never whether this build has it: the .NET heads resolve `nemotron`
+        // and `appleSpeech` too and then answer ENGINE_UNAVAILABLE, because a
+        // shared table that decided availability would be wrong on two
+        // platforms in opposite directions.
+        guard let resolvedEngine = localApiResolveEngineAlias(alias: engine) else {
+            throw TranscriptionError.providerNotAvailable(provider: engine, reason: "Unknown engine '\(engine)'")
+        }
         let modelString: String
-        switch normalizedEngine {
-        case "whisperlocal", "whisper", "libwhisper":
+        switch resolvedEngine {
+        case .whisperLocal:
             guard let m = model?.trimmingCharacters(in: .whitespacesAndNewlines), !m.isEmpty else {
                 throw TranscriptionError.providerNotAvailable(provider: "Whisper", reason: "Missing 'model' for whisperLocal engine")
             }
             modelString = m
-        case "parakeet":
+        case .parakeet:
             let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
             guard let canonicalModelId = ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) else {
                 throw TranscriptionError.providerNotAvailable(
@@ -497,10 +513,10 @@ class TranscriptionProviderRouter {
                 )
             }
             modelString = canonicalModelId
-        // Shared spelling list — see `Constants.engineAliases`. The literal
-        // copy that used to live here and the one in
-        // `TranscribeEndpoint.applyEngineModel` could drift apart silently.
-        case _ where NemotronModelManager.Constants.engineAliases.contains(normalizedEngine):
+        // The four `nemotron*` spellings live in the shared table now;
+        // `NemotronModelManager.Constants.engineAliases` stays as the pin that
+        // the two lists still agree (`NemotronLocalAPIEngineTests`).
+        case .nemotron:
             let requestedModelId = NemotronModelManager.Constants.modelIdForSelection(model)
             guard let canonicalModelId = NemotronModelManager.Constants.canonicalModelId(for: requestedModelId) else {
                 throw TranscriptionError.providerNotAvailable(
@@ -509,12 +525,10 @@ class TranscriptionProviderRouter {
                 )
             }
             modelString = canonicalModelId
-        case "qwen3asr", "qwen3", "qwen3-asr":
+        case .qwen3Asr:
             modelString = Qwen3AsrModelManager.Constants.modelId
-        case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
+        case .appleSpeech:
             modelString = "apple-speech-analyzer"
-        default:
-            throw TranscriptionError.providerNotAvailable(provider: engine, reason: "Unknown engine '\(engine)'")
         }
 
         let local = try await selectLocalProvider(modelId: modelString, language: resolvedLanguage)

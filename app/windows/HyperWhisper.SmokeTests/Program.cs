@@ -6083,6 +6083,120 @@ internal static class Program
                 };
             });
 
+            RunAsync("the mode wire contract comes from the shared core", async () =>
+            {
+                // WHY A KEY READER EXISTS HERE AT ALL (issue #356). This head
+                // cannot infer which keys a caller sent from `ModeDto`:
+                // `Punctuation`, `Capitalization` and `ProfanityFilter` are
+                // non-nullable `bool`, so an absent key and an explicit `false`
+                // deserialise to the same value. That is the whole reason
+                // `ReadJsonBodyWithKeysAsync` had to be added beside the
+                // existing reader instead of reusing it.
+                static Microsoft.AspNetCore.Http.HttpContext BodyContext(string json)
+                {
+                    var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+                    var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+                    ctx.Request.Body = new MemoryStream(bytes);
+                    ctx.Request.ContentLength = bytes.Length;
+                    ctx.Request.ContentType = "application/json";
+                    return ctx;
+                }
+
+                var (full, fullKeys, fullFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"Seven","preset":"hyper","language":"en","model":"base","punctuation":false,"capitalization":false,"profanityFilter":false}"""));
+                Assert(fullFailure == null && full != null, "a well-formed create body was refused");
+                Assert(fullKeys.Count == 7 && fullKeys.Contains("profanityFilter"),
+                    $"the key reader lost keys: [{string.Join(", ", fullKeys)}]");
+                Assert(!full!.Punctuation,
+                    "an explicit false did not survive the second parse; the reader must deserialise from the same document");
+
+                var (partial, partialKeys, partialFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"Only"}"""));
+                Assert(partialFailure == null && partial != null && partialKeys.Count == 1,
+                    "a one-key body did not read back as one key");
+                // An explicit `false` and an absent key are the SAME `ModeDto`
+                // here — which is exactly why the key list, not the DTO, is what
+                // the required check reads.
+                Assert(!partial!.Punctuation && !full.Punctuation,
+                    "the DTO stopped conflating an absent boolean with an explicit false; the key reader may no longer be needed");
+
+                var (_, brokenKeys, brokenFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name": """));
+                Assert(brokenFailure != null && brokenKeys.Count == 0,
+                    "malformed JSON did not answer the same 400 the existing reader answers");
+
+                // DECISION B — the required seven, create only. `{"name":"Only"}`
+                // created a mode on this head before #356; `openapi.yaml` has
+                // required all seven since it was written, and macOS has
+                // enforced them by construction since it shipped.
+                var required = HyperwhisperCoreMethods.LocalApiRequiredModeKeys();
+                Assert(required.Count == 7 && required[0] == "name",
+                    "the shared required-key list changed shape");
+                var missing = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                    HwLocalApiModeOperation.Create, partialKeys.ToList(), "Only", null, null, null, null, null, null, null));
+                Assert(missing != null && missing.httpStatus == 400,
+                    "a create body missing six required keys was accepted");
+                var patchOk = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                    HwLocalApiModeOperation.Patch, partialKeys.ToList(), "Only", null, null, null, null, null, null, null));
+                Assert(patchOk == null,
+                    "the required-key rule leaked onto PATCH, where openapi.yaml has no required list");
+
+                // DECISION C — `sortOrder` is bounded to the Int16 range its
+                // storage column has always had. This head had no bound at all.
+                var overflow = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                    HwLocalApiModeOperation.Patch, [], null, null, null, null, 99999L, null, null, null));
+                Assert(overflow != null
+                        && overflow.httpStatus == 200
+                        && HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(overflow.code) == LocalApiErrorCode.InvalidRequest,
+                    "an out-of-Int16 sortOrder was accepted, or refused outside the closed fourteen");
+                Assert(HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                        HwLocalApiModeOperation.Patch, [], null, null, null, null, 32767L, null, null, null)) == null,
+                    "sortOrder 32767 was refused; the bound is inclusive on every head");
+
+                // DECISION D — one comparison key. `OrdinalIgnoreCase` was one
+                // of three different answers to "the same name".
+                Assert(HyperwhisperCoreMethods.LocalApiModeNameConflict("  WORK  ", ["Personal", "work"]),
+                    "the shared collision rule stopped matching the name this head would have matched");
+                var taken = HyperwhisperCoreMethods.LocalApiModeNameTakenFailure("Work", HwLocalApiModeOperation.Create);
+                Assert(HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(taken.code) == LocalApiErrorCode.ModeNameTaken
+                        && taken.message == "A mode named 'Work' already exists"
+                        && taken.hint != null,
+                    "the shared collision failure drifted from this head's wording");
+                Assert(HyperwhisperCoreMethods.LocalApiModeNameTakenFailure("Work", HwLocalApiModeOperation.Patch).hint == null,
+                    "the patch collision grew a hint this head has never sent");
+
+                // ITEM 3 — one alias table. `qwen3_asr` is this head's own
+                // response label; the trim is new here and could only ever
+                // accept a spelling this head refused.
+                foreach (var spelling in new[] { "qwen3_asr", " QWEN3-ASR ", "qwen", "Qwen3" })
+                {
+                    var transient = new Mode();
+                    HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                        transient, spelling, model: null);
+                    Assert(transient is { ProviderType: "local", LocalEngine: "parakeet", LocalParakeetModel: "qwen3-asr-0.6b" },
+                        $"engine spelling '{spelling}' did not resolve through the shared alias table");
+                }
+
+                // A REAL ENGINE ID WINDOWS DOES NOT SHIP is ENGINE_UNAVAILABLE,
+                // not `Unknown engine` — the resolver answers identity, and the
+                // capability verdict is this head's.
+                foreach (var absent in new[] { "nemotron", "nemotron-local", "applespeech", "speech-analyzer" })
+                {
+                    var caught = false;
+                    try
+                    {
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                            new Mode(), absent, model: null);
+                    }
+                    catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+                    {
+                        caught = ex.Code == LocalApiErrorCode.EngineUnavailable
+                            && !ex.Message.StartsWith("Unknown engine", StringComparison.Ordinal);
+                    }
+                    Assert(caught, $"engine '{absent}' was not refused as a known-but-unavailable engine");
+                }
+            });
+
             SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             Run("the audio_base64 guards refuse an oversized clip before decoding it", () =>
