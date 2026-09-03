@@ -191,7 +191,9 @@ static void ProductionXamlHasNoLocalizableLiterals()
     var directory = Path.Combine(AppContext.BaseDirectory, "LocalizationSurface");
     var allowedOpaqueValues = new HashSet<string>(StringComparer.Ordinal)
     {
-        "!", "✨", "×", "WAV, MP3, M4A, FLAC, OGG, or WebM", "/path/to/vocabulary.tsv",
+        // "H" is the brand mark on the About page and "·" separates the two halves of a history
+        // row, the same way Windows writes Text=" · ". Neither is copy, so neither is translated.
+        "!", "✨", "×", "·", "H", "WAV, MP3, M4A, FLAC, OGG, or WebM", "/path/to/vocabulary.tsv",
         "gpt-4.1-mini", "anthropic:claude-haiku-4-5", "gemma-4-E2B-it-Q4_K_M.gguf",
         "https://host/v1/chat/completions", "auto",
     };
@@ -229,7 +231,9 @@ static void WordTimestampSettingIsLocalizedAndBound()
         "LocalizationSurface", "MainWindow.axaml"));
     True(source.Contains("x:Name=\"SettingsStoreWordTimestamps\"", StringComparison.Ordinal),
         "word timestamp checkbox is missing");
-    True(source.Contains("IsChecked=\"{Binding StoreWordTimestamps, Mode=TwoWay}\"", StringComparison.Ordinal),
+    // The path prefix is not fixed: the settings pane is ten section view models now, and each one
+    // re-presents the same SettingsViewModel. What has to hold is the property and the direction.
+    True(source.Contains("StoreWordTimestamps, Mode=TwoWay}\"", StringComparison.Ordinal),
         "word timestamp setting is not two-way bound");
     True(source.Contains("[linux.timestamps.title]", StringComparison.Ordinal)
          && source.Contains("[linux.timestamps.subtitle]", StringComparison.Ordinal),
