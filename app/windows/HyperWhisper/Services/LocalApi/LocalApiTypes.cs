@@ -368,9 +368,14 @@ internal sealed class LocalApiApplicationContext
 }
 
 /// <summary>
-/// Success body for `POST /post-process`. `provider`, `model`, `preset` are
-/// projected from the resolved working Mode so callers see the labels that
-/// actually drove the dispatch.
+/// Success body for `POST /post-process`. `provider` and `model` name what
+/// ACTUALLY RAN — the values <see cref="PostProcessingService"/> hands back on
+/// <see cref="PostProcessingResult"/> after every fallback it applies (unknown
+/// or retired model id, provider default, the cloud route's own `X-LLM-Model`,
+/// a repaired custom-endpoint model) — falling back to the working Mode's
+/// stored values only when no LLM ran. They used to be projected straight off
+/// the Mode, which named a model that never saw the caller's text (issue #314).
+/// `preset` is never remapped and still comes off the Mode.
 /// </summary>
 internal sealed class PostProcessResponse
 {

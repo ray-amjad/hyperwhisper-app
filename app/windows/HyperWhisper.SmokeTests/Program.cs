@@ -576,6 +576,100 @@ internal static class Program
                     "new OpenAI modes should default to GPT-5.6 Luna");
             });
 
+            // Issue #314: `/post-process` used to project `provider` and `model`
+            // straight off the working Mode, so every fallback inside
+            // PostProcessingService (retired-id migration, provider default, the
+            // cloud route's own X-LLM-Model, a repaired custom-endpoint model)
+            // landed after the label was decided and the caller was told, silently,
+            // a model that never saw its text.
+            Run("Local API /post-process labels name what actually ran", () =>
+            {
+                static (string Provider, string Model) Labels(
+                    string? storedProvider, string? storedModel,
+                    string? resolvedProvider, string? resolvedModel)
+                    => HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.ResponseLabels(
+                        storedProvider, storedModel, resolvedProvider, resolvedModel);
+
+                // The reported case: the Mode names a model that belongs to
+                // another provider, the service falls back to the provider
+                // default, and the response used to name the dead id.
+                var fellBack = Labels("anthropic", "gpt-4.1-nano", "anthropic", "claude-haiku-4-5");
+                Assert(fellBack.Provider == "anthropic" && fellBack.Model == "claude-haiku-4-5",
+                    "/post-process still reports the Mode's model instead of the one that ran");
+
+                // A real provider substitution DOES move the provider field.
+                var swapped = Labels("openai", "gpt-4.1-nano", "local_llm", "gemma-4-31b");
+                Assert(swapped.Provider == "local_llm" && swapped.Model == "gemma-4-31b",
+                    "/post-process does not report a genuine provider substitution");
+
+                // PROVIDER SPELLING IS PRESERVED — the rule that keeps this fix
+                // from rewriting every ordinary cloud response. Windows resolves
+                // HyperWhisper Cloud as "hyperwhispercloud"; a Mode synced from
+                // macOS stores "hyperwhisper", and both name the same provider.
+                Assert(PostProcessingProvider.HyperWhisperCloud.ToStringValue() == "hyperwhispercloud"
+                        && PostProcessingProviderExtensions.FromString("hyperwhisper")
+                            == PostProcessingProvider.HyperWhisperCloud,
+                    "the HyperWhisper Cloud provider spellings this rule reconciles have drifted");
+                var macSpelling = Labels("hyperwhisper", "gpt-4.1-nano", "hyperwhispercloud", "claude-haiku-4-5");
+                Assert(macSpelling.Provider == "hyperwhisper" && macSpelling.Model == "claude-haiku-4-5",
+                    "/post-process rewrote the caller's provider spelling when the provider did not change");
+                var winSpelling = Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", "claude-haiku-4-5");
+                Assert(winSpelling.Provider == "hyperwhispercloud",
+                    "/post-process changed the Windows-native cloud provider spelling");
+                Assert(Labels("OpenAI", "x", "openai", "x").Provider == "OpenAI",
+                    "/post-process did not echo the caller's provider casing");
+
+                // Custom endpoints: the `custom:<guid>` string IS the resolved
+                // provider. Two DIFFERENT endpoints both parse to `None`, so a
+                // parse-only comparison would wrongly preserve the stale one.
+                const string EndpointA = "custom:0f5f6b1e-4b4a-4e0b-9c2e-6f8c3f2a1d77";
+                const string EndpointB = "custom:11111111-2222-3333-4444-555555555555";
+                var custom = Labels(EndpointA, "ignored-by-custom-endpoints", EndpointA, "llama3.2");
+                Assert(custom.Provider == EndpointA && custom.Model == "llama3.2",
+                    "/post-process did not report the custom endpoint's own provider string and model");
+                Assert(Labels(EndpointA, "m", EndpointB, "m").Provider == EndpointB,
+                    "/post-process confused two different custom endpoints for each other");
+
+                // Nothing ran: fall back to the Mode, and never invent a value.
+                var noRun = Labels("openai", "gpt-4.1-nano", null, null);
+                Assert(noRun.Provider == "openai" && noRun.Model == "gpt-4.1-nano",
+                    "/post-process did not fall back to the stored labels when nothing ran");
+                var noRunNoMode = Labels(null, null, null, null);
+                Assert(noRunNoMode.Provider == "hyperwhisper" && noRunNoMode.Model.Length == 0,
+                    "/post-process invented a label when nothing ran and nothing was stored");
+                // An empty resolved value is "no answer", not an answer.
+                var blank = Labels("openai", "gpt-4.1-nano", "   ", "");
+                Assert(blank.Provider == "openai" && blank.Model == "gpt-4.1-nano",
+                    "/post-process treated a blank resolved label as an answer");
+                Assert(Labels("  ", null, "anthropic", "claude-haiku-4-5").Provider == "anthropic",
+                    "/post-process kept a blank stored provider over the one that ran");
+
+                // The contract the endpoint leans on: only Applied carries the
+                // pair, so a non-null resolved value already means "an LLM ran"
+                // and a run that picks a model then fails leaves no stale label.
+                var applied = PostProcessingResult.Applied("out", "anthropic", "claude-haiku-4-5");
+                Assert(applied.WasApplied
+                        && applied.ResolvedProvider == "anthropic"
+                        && applied.ResolvedModel == "claude-haiku-4-5",
+                    "PostProcessingResult.Applied does not carry the resolved provider/model");
+                var skipped = PostProcessingResult.Skipped("in");
+                Assert(!skipped.WasApplied
+                        && skipped.ResolvedProvider == null
+                        && skipped.ResolvedModel == null,
+                    "PostProcessingResult.Skipped leaked a resolved provider/model");
+
+                // The cloud branch labels the model from `CloudPostProcessingModel`
+                // (the X-LLM-Model value it really sends), NOT `Mode.LanguageModel`
+                // — which that branch never reads, so the old response reported an
+                // unrelated field rather than merely a stale one.
+                var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-4-5");
+                var cloudLabel = cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId;
+                Assert(cloudLabel.Length > 0 && cloudLabel != "gpt-4.1-nano",
+                    "the cloud post-processing model no longer yields an X-LLM-Model label");
+                Assert(Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", cloudLabel).Model == cloudLabel,
+                    "/post-process does not report the cloud model it actually sent");
+            });
+
             Run("Retired cloud models resolve to selectable canonical models", () =>
             {
                 var cases = new (string OldId, CloudTranscriptionProvider Provider, string Replacement)[]

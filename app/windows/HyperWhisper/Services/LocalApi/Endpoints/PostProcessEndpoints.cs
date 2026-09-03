@@ -147,7 +147,10 @@ internal static class PostProcessEndpoints
                     // Post-processing silently skipped (PostProcessingMode == 0
                     // slipped past BuildWorkingMode, or empty system prompt).
                     // Treat as no-op success — return the input text labelled
-                    // `provider: "none"` so callers can distinguish.
+                    // `provider: "none"` so callers can distinguish. Nothing ran,
+                    // so the stored `LanguageModel` is the only label there is and
+                    // is not a claim about a run (#314) — it can legitimately be
+                    // `""`, and `provider: "none"` is what tells the caller.
                     return LocalApiResponder.Ok(new PostProcessResponse
                     {
                         Text = result.Text,
@@ -158,11 +161,21 @@ internal static class PostProcessEndpoints
                     });
                 }
 
+                // Report the provider and model that ACTUALLY ran (issue #314),
+                // not the ones stored on the Mode — every fallback inside
+                // PostProcessingService happens after the Mode was read. `preset`
+                // is not remapped anywhere, so it still comes off the Mode.
+                var labels = ResponseLabels(
+                    workingMode.PostProcessingProvider,
+                    workingMode.LanguageModel,
+                    result.ResolvedProvider,
+                    result.ResolvedModel);
+
                 return LocalApiResponder.Ok(new PostProcessResponse
                 {
                     Text = result.Text,
-                    Provider = workingMode.PostProcessingProvider ?? "hyperwhisper",
-                    Model = workingMode.LanguageModel ?? "",
+                    Provider = labels.Provider,
+                    Model = labels.Model,
                     Preset = workingMode.Preset ?? "hyper",
                     LatencyMs = latencyMs
                 });
@@ -172,6 +185,91 @@ internal static class PostProcessEndpoints
                 svc.WarningOccurred -= warningHandler;
             }
         });
+    }
+
+    // =========================================================================
+    // Response labels
+    // =========================================================================
+
+    /// <summary>
+    /// Decide the `provider` and `model` fields of the success body: what
+    /// actually ran, falling back to the working Mode's stored values only when
+    /// nothing ran (issue #314).
+    /// <para>
+    /// <see cref="PostProcessingService"/> fills
+    /// <see cref="PostProcessingResult.ResolvedProvider"/> /
+    /// <see cref="PostProcessingResult.ResolvedModel"/> only on
+    /// <see cref="PostProcessingResult.Applied"/>, so a non-null resolved value
+    /// already means "an LLM produced this text". No separate
+    /// <see cref="PostProcessingResult.WasApplied"/> cross-check is needed here,
+    /// and a run that picked a model and then failed cannot leave a stale label.
+    /// </para>
+    /// <para>
+    /// PROVIDER SPELLING IS PRESERVED. When the caller's stored provider NAMES
+    /// the provider that ran, the caller's own spelling is echoed back verbatim,
+    /// so this field changes ONLY in the cases that are the bug — a genuine
+    /// provider substitution. This is load-bearing on Windows: the resolved
+    /// HyperWhisper Cloud value is <c>"hyperwhispercloud"</c> while a mode synced
+    /// from macOS stores <c>"hyperwhisper"</c>, and both name the same provider —
+    /// emitting the resolved spelling would change the wire value for every
+    /// ordinary cloud request. Hence the comparison parses both sides
+    /// (<see cref="PostProcessingProviderExtensions.FromString"/>) instead of
+    /// comparing strings, with a plain string match first so a
+    /// <c>custom:&lt;guid&gt;</c> string — which parses to
+    /// <see cref="PostProcessingProvider.None"/>, as does every OTHER custom
+    /// endpoint — is preserved only when it is genuinely the same one.
+    /// </para>
+    /// <para>
+    /// An empty resolved model is treated as absent: <c>""</c> is "no answer",
+    /// not an answer. When nothing ran at all, `model` can still be <c>""</c> —
+    /// that is honest, and this method is not reached on the skipped path.
+    /// </para>
+    /// </summary>
+    internal static (string Provider, string Model) ResponseLabels(
+        string? storedProvider,
+        string? storedModel,
+        string? resolvedProvider,
+        string? resolvedModel)
+    {
+        var stored = storedProvider?.Trim() ?? "";
+        var resolved = resolvedProvider?.Trim() ?? "";
+
+        string provider;
+        if (resolved.Length == 0)
+        {
+            provider = stored.Length == 0 ? "hyperwhisper" : stored;
+        }
+        else if (stored.Length > 0 && NamesTheSameProvider(stored, resolved))
+        {
+            provider = stored;
+        }
+        else
+        {
+            provider = resolved;
+        }
+
+        var resolvedModelValue = resolvedModel?.Trim() ?? "";
+        var model = resolvedModelValue.Length == 0 ? (storedModel ?? "") : resolvedModelValue;
+
+        return (provider, model);
+    }
+
+    /// <summary>
+    /// True when two provider strings name the same provider. Exact (ignoring
+    /// case) counts, which covers custom-endpoint ids; otherwise both must parse
+    /// to the same non-<see cref="PostProcessingProvider.None"/> enum case, so
+    /// two DIFFERENT custom endpoints — both of which parse to `None` — are not
+    /// mistaken for each other.
+    /// </summary>
+    private static bool NamesTheSameProvider(string stored, string resolved)
+    {
+        if (string.Equals(stored, resolved, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        var storedParsed = PostProcessingProviderExtensions.FromString(stored);
+        return storedParsed != PostProcessingProvider.None
+            && storedParsed == PostProcessingProviderExtensions.FromString(resolved);
     }
 
     // =========================================================================
