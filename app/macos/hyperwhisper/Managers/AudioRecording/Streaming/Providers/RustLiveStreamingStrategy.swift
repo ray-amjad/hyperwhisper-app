@@ -87,6 +87,18 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
     private var session: HwLiveSession
     private var connect: HwLiveConnect?
 
+    /// True when this object was built for a provider the shared core has no
+    /// live protocol for — today, only the two on-device engines, which route
+    /// to their own clients and never reach this class.
+    ///
+    /// It exists so that arriving here anyway is a refusal rather than a
+    /// silently substituted provider. `buildWebSocketURL` reads it and answers
+    /// `nil`, which `startSession` turns into `StreamingError.invalidURL`
+    /// before any socket, any credential and any billable session exists.
+    /// A trap would be louder still, but it would be a crash on a path a user
+    /// could reach by picking an on-device engine.
+    private let hasNoLiveProtocol: Bool
+
     // MARK: - Init
 
     /// - Parameters:
@@ -104,7 +116,12 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
         nowMs: (() -> UInt64)? = nil
     ) {
         let core = RustLiveStreamingStrategy.coreProvider(provider)
-        self.provider = core
+        // The substitution is for the STORED PROPERTY only, so the capability
+        // reads have something to answer with; `hasNoLiveProtocol` is what stops
+        // it ever reaching a socket. See `coreProvider`.
+        let resolved = core ?? .hyperWhisperCloud
+        self.provider = resolved
+        self.hasNoLiveProtocol = core == nil
         self.baseURL = baseURL
         self.cloudTier = cloudTier
         if let nowMs {
@@ -124,7 +141,7 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
         // which is what the test suite exercises.
         self.session = HwLiveSession(
             config: RustLiveStreamingStrategy.liveConfig(
-                provider: core,
+                provider: resolved,
                 config: nil,
                 baseURL: baseURL,
                 cloudTier: cloudTier
@@ -134,27 +151,37 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
 
     // MARK: - Provider Mapping
 
-    /// This app's provider enum onto the shared core's.
+    /// This app's provider enum onto the shared core's, or `nil` for a provider
+    /// the core has no live protocol for.
     ///
-    /// The two differ in one name: macOS spells the vendor `.xai`, the core and
-    /// the batch contract spell it `.grok` (the same trap as
+    /// The two enums differ in one name: macOS spells the vendor `.xai`, the
+    /// core and the batch contract spell it `.grok` (the same trap as
     /// `LiveProtocolStreamingStrategy.cs:439-447`). macOS's raw value for
     /// Gemini is already `geminiTranscribe`, so that one is a straight rename.
     ///
     /// EXHAUSTIVE on purpose, where the C# precedent takes a `_ =>` default. A
     /// remote provider added later must fail this build rather than silently
-    /// open a HyperWhisper Cloud socket carrying the user's BYOK key. The two
-    /// on-device arms have no `HwLiveProvider` and never reach this class —
-    /// they route to `LocalParakeetStreamingClient` /
-    /// `LocalNemotronStreamingClient`, which are not websocket protocols.
-    static func coreProvider(_ provider: StreamingTranscriptionProvider) -> HwLiveProvider {
+    /// open a HyperWhisper Cloud socket carrying the user's BYOK key.
+    ///
+    /// AND THE TWO ON-DEVICE ENGINES ANSWER `nil` RATHER THAN CLOUD. They have
+    /// no `HwLiveProvider`, no websocket protocol and no business here — they
+    /// route to `LocalParakeetStreamingClient` / `LocalNemotronStreamingClient`,
+    /// so neither arm is reachable today. Grouping them with
+    /// `.hyperwhisperCloud` was the one shape that contradicted the paragraph
+    /// above it: a later edit that routed either through this class would have
+    /// opened a HyperWhisper Cloud session against the user's licence key and
+    /// billed cloud credits for the transcription they chose *because* it runs
+    /// offline. `nil` makes that edit fail at the first connect, loudly and with
+    /// no socket, instead of quietly.
+    static func coreProvider(_ provider: StreamingTranscriptionProvider) -> HwLiveProvider? {
         switch provider {
         case .deepgram: return .deepgram
         case .elevenLabs: return .elevenLabs
         case .openAI: return .openAi
         case .xai: return .grok
         case .gemini: return .geminiTranscribe
-        case .hyperwhisperCloud, .parakeetLocal, .nemotronLocal: return .hyperWhisperCloud
+        case .hyperwhisperCloud: return .hyperWhisperCloud
+        case .parakeetLocal, .nemotronLocal: return nil
         }
     }
 
@@ -233,9 +260,17 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
     /// place for the core's `connect()`, which also resets the per-connection
     /// state (OpenAI's pending-byte counter and commit clock, xAI's and
     /// OpenAI's committed transcripts, Deepgram's keepalive mark). The six
-    /// deleted strategies reset that state in `startMessages` instead; both run
-    /// before any audio for a given socket, and this one also covers the
-    /// providers that send no start message at all.
+    /// deleted strategies reset that state in `startMessages` instead; this one
+    /// also covers the providers that send no start message at all.
+    ///
+    /// THE CALLER OWES THIS METHOD A DETACHED AUDIO CALLBACK. The reset is what
+    /// makes the ordering load-bearing: a capture callback that reaches
+    /// `encodeAudioChunk` while this call is in flight reports its bytes to the
+    /// session being installed here while sending them on the socket being
+    /// replaced, and OpenAI's next commit then claims audio the new server never
+    /// received. `startSession` wires the callback only after this returns, and
+    /// `handleUnexpectedDisconnect` clears it before calling this — see the
+    /// ordering rule written out at that call site.
     ///
     /// The caller's config is re-read rather than the constructor's being
     /// reused: the protocol says the caller supplies the config, and a strategy
@@ -246,6 +281,17 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
     /// `startSession` reads it as `StreamingError.invalidURL` and never opens a
     /// socket.
     func buildWebSocketURL(config: StreamingSessionConfig) -> URL? {
+        // The refusal from `coreProvider`. Unreachable today — the two
+        // on-device engines route to their own clients — and it stays a refusal
+        // rather than a trap precisely because the provider behind it is one a
+        // user can pick in Settings.
+        guard !hasNoLiveProtocol else {
+            logger.error(
+                "Refusing to open a live socket: this provider transcribes on-device and has no wire protocol in the shared core"
+            )
+            return nil
+        }
+
         let fresh = HwLiveSession(
             config: Self.liveConfig(
                 provider: provider,

@@ -386,12 +386,15 @@ extension RecordingTranscriptionFlow {
             // build - it silently starts a billed Cloud session. Adding a case
             // above is the whole checklist; THIS switch will not remind you.
             //
-            // Since issue #326 there is one backstop, and it is not here:
+            // Since issue #326 there are two backstops, and neither is here:
             // `RustLiveStreamingStrategy.coreProvider` switches exhaustively, so
-            // a new remote provider fails to compile THERE. That is deliberate —
-            // failing in the mapping is what stops a BYOK key being carried into
-            // a Cloud socket — but it is a different file, and it does not fire
-            // for a provider that has no `HwLiveProvider` at all.
+            // a new remote provider fails to compile THERE — failing in the
+            // mapping is what stops a BYOK key being carried into a Cloud
+            // socket. And a provider with no `HwLiveProvider` at all (the two
+            // on-device engines) maps to nil there, so reaching this arm with
+            // one opens no socket rather than a billed Cloud one. Both live in
+            // a different file, and neither turns this `default:` into a
+            // checklist.
             //
             // The cloud tier is a path selector passed into the ONE cloud
             // strategy, deliberately not its own StreamingTranscriptionProvider

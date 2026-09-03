@@ -1338,18 +1338,38 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 self.onTranscriptUpdate?(text, true)
             }
 
-        // NOT gated by `completeEndsSessionBeforeStop`, deliberately, and the
-        // same way round as Windows. This arm exists for providers whose final
-        // flush and completion arrive in ONE frame, which is a shape only a
-        // post-stop flush produces; Gemini — the only provider that answers
-        // `false` — reaches it nowhere else. Gating it would also mean deciding
-        // what to do with the text half of a frame whose completion half was
-        // suppressed, and the answer to that is "the same as `.finalTranscript`",
-        // which is what a provider emitting a mid-session boundary sends anyway.
+        // ONE FRAME, TWO HALVES, AND THE SAME TURN-BOUNDARY RULE AS `.sessionComplete`.
+        //
+        // Gemini answers `audio_stream_end` with a single `serverContent`
+        // carrying the last committed segment AND `generationComplete`, and the
+        // core reports both halves (`live/gemini.rs`). That is the frame the
+        // stop's `waitForSessionComplete` is blocked on — dropping the
+        // completion is what made an ordinary Gemini dictation sit out its full
+        // 5 s budget and then report a stop failure to Sentry.
+        //
+        // The completion half is measured against `stopRequested` exactly as the
+        // standalone one is below, because it is the same boundary and the same
+        // question. When the gate refuses it, the TEXT half is still committed —
+        // a turn's committed segment belongs in the document whether or not the
+        // turn was the last one — so this degrades to `.finalTranscript` rather
+        // than being dropped. That is character-for-character what the deleted
+        // `GeminiStreamingStrategy` did with its own `clientRequestedStop` flag
+        // (`preStopCombinedFrameOnlyCommitsText` /
+        // `postStopCombinedFrameReportsTextAndCompletion`).
+        //
+        // Inert for the other five providers: they answer `true`, so the gate
+        // never fires and this arm behaves exactly as it always has.
         case .finalTranscriptAndSessionComplete(let text, let duration, let credits):
+            let completionEndsSession = strategy.completeEndsSessionBeforeStop || stopRequested
             await MainActor.run {
                 self.finalsDelivered += 1
                 self.onTranscriptUpdate?(text, true)
+                guard completionEndsSession else {
+                    self.logger.debug(
+                        "Turn boundary from \(self.strategy.transcriptionProviderLabel, privacy: .public) rode in on a final, session continues"
+                    )
+                    return
+                }
                 self.didReceiveSessionComplete = true
                 self.logger.info("Session complete: \(duration, privacy: .public)s, \(credits, privacy: .public) credits")
                 self.onSessionComplete?(duration, credits)
@@ -1754,6 +1774,37 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             return
         }
 
+        // DETACH THE OLD SESSION BEFORE COMMITTING TO A NEW ONE, AND CLEAR
+        // NOTHING A STOP OWNS. One ordering rule, and everything below it
+        // follows from it.
+        //
+        // The capture engine keeps running through a reconnect, so between "this
+        // function commits to new state" and "the old wiring stops running"
+        // there is a window in which a tap callback is still live against state
+        // the reconnect has already replaced. The rule is that the window is
+        // closed FIRST: the audio callback comes off before anything is
+        // replaced, and the reconnect writes only state that belongs to the new
+        // socket.
+        //
+        // The detach used to sit AFTER `buildWebSocketURL`, which is the call
+        // that installs a fresh `HwLiveSession` and runs `connect()` — and
+        // `connect()` zeroes the core's per-connection counters (OpenAI's
+        // pending-byte total and commit clock, Deepgram's keepalive mark). A tap
+        // callback in that window sent its bytes out on the OLD dead socket while
+        // reporting them to the NEW session, so OpenAI's first
+        // `input_audio_buffer.commit` on the fresh socket claimed audio the
+        // server had never been sent. Detaching first removes the whole
+        // connect() from that window.
+        //
+        // A callback ALREADY executing when this line runs is not stopped by it —
+        // `onAudioData` is read on the tap thread with no barrier. That residual
+        // is one in-flight invocation rather than the duration of an FFI connect,
+        // and closing it needs a barrier in `StreamingAudioCapture`, not here.
+        //
+        // The callback is re-wired below, bound to the post-handshake socket,
+        // once the session is re-established.
+        audioCapture?.onAudioData = nil
+
         // A live session whose config or URL is missing is a genuine failure,
         // and stays exactly as loud as it has always been.
         guard let config = currentConfig,
@@ -1769,14 +1820,6 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             return
         }
 
-        // Detach the audio callback before assigning the new WebSocket task.
-        // The capture engine keeps running during reconnect, and the callback
-        // re-reads self.webSocketTask on every invocation — without this, audio
-        // chunks land on the new socket before startMessages configure the
-        // session (OpenAI Realtime rejects appends sent before session.update).
-        // The callback is re-wired below once the session is re-established.
-        audioCapture?.onAudioData = nil
-
         // Rebuild WebSocket connection. Release the dead socket first — every
         // other place in this file that replaces or drops webSocketTask cancels
         // it, and dropping the last reference without cancelling leaks a
@@ -1788,12 +1831,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Reset session ID so waitForSessionStarted can detect the new ready message
         sessionId = nil
         disconnectedDuringReconnect = false
-        // The fresh socket is a fresh session, so its first turn boundary is not
-        // terminal either. Belt-and-braces today — the `didInitiateClose` guard
-        // above abandons any reconnect that raced a stop, and `stopRequested` is
-        // only ever raised together with that flag — but the two are set for
-        // different reasons and the guard is not this line's to depend on.
-        stopRequested = false
+        // `stopRequested` IS NOT CLEARED HERE, deliberately — the second half of
+        // the rule above. It is raised by exactly one caller, `stopSession()`,
+        // which raises `didInitiateClose` in the same breath and then cancels
+        // this task; the guard above is what abandons a reconnect that raced a
+        // stop. So a reconnect that gets this far has never seen the flag set,
+        // and the only way it could is if a stop had just raised it — the one
+        // case in which the flag is telling the truth and clearing it would
+        // discard the answer. `startSession` re-arms it for the next session,
+        // which is the load-bearing clear and the only one.
 
         // HAND THE receiveTask SLOT OVER TO THE REPLACEMENT LOOP — DO NOT CANCEL
         // THE OLD ONE.

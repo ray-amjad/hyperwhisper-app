@@ -573,6 +573,18 @@ pub enum LiveServerMessage {
     PartialTranscript { text: String },
     /// A committed segment (`serverContent.inputTranscription`).
     FinalTranscript { text: String },
+    /// ONE frame carrying a committed segment AND the turn's completion —
+    /// `serverContent.inputTranscription` together with `generationComplete` /
+    /// `turnComplete`.
+    ///
+    /// Reported separately from [`Self::FinalTranscript`] because dropping the
+    /// completion half is not free: after the client has sent
+    /// `audio_stream_end` this frame IS the answer its stop wait is blocked on,
+    /// and a decoder that reports only the text leaves that wait to burn its
+    /// whole budget and then report a stop failure. It is still a TURN
+    /// completion and not a session completion — which of the two it is remains
+    /// the client's call, exactly as for [`Self::Complete`].
+    FinalTranscriptAndComplete { text: String },
     /// `serverContent.generationComplete` / `turnComplete`.
     Complete,
     /// A `goAway` / error payload from the server.
@@ -606,22 +618,6 @@ pub fn parse_live_server_message(frame: &str) -> Result<LiveServerMessage, Trans
         .get("serverContent")
         .or_else(|| json.get("server_content"));
     if let Some(content) = content {
-        // FINAL FIRST, deliberately. One `serverContent` frame may carry BOTH
-        // `inputTranscription` and `interimInputTranscription`; checking the
-        // interim first would emit only the preview and drop the committed
-        // segment on the floor, so the user's text would end at the last
-        // hypothesis. Windows' and macOS' streaming strategies and the shared
-        // .NET client all check final first — this must match them.
-        if let Some(text) = transcription_text(content, "inputTranscription")
-            .or_else(|| transcription_text(content, "input_transcription"))
-        {
-            return Ok(LiveServerMessage::FinalTranscript { text });
-        }
-        if let Some(text) = transcription_text(content, "interimInputTranscription")
-            .or_else(|| transcription_text(content, "interim_input_transcription"))
-        {
-            return Ok(LiveServerMessage::PartialTranscript { text });
-        }
         let complete = content
             .get("generationComplete")
             .or_else(|| content.get("generation_complete"))
@@ -629,6 +625,37 @@ pub fn parse_live_server_message(frame: &str) -> Result<LiveServerMessage, Trans
             .or_else(|| content.get("turn_complete"))
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+
+        // FINAL FIRST, deliberately. One `serverContent` frame may carry BOTH
+        // `inputTranscription` and `interimInputTranscription`; checking the
+        // interim first would emit only the preview and drop the committed
+        // segment on the floor, so the user's text would end at the last
+        // hypothesis. Windows' and macOS' streaming strategies and the shared
+        // .NET client all check final first — this must match them.
+        //
+        // And when the completion rides along on that same frame, BOTH halves
+        // are reported. Google answers the stop's `audio_stream_end` with one
+        // frame carrying the last committed segment and `generationComplete`
+        // together; returning the text alone loses the only completion the
+        // stop's `WaitForSessionComplete` will ever be sent.
+        if let Some(text) = transcription_text(content, "inputTranscription")
+            .or_else(|| transcription_text(content, "input_transcription"))
+        {
+            return Ok(if complete {
+                LiveServerMessage::FinalTranscriptAndComplete { text }
+            } else {
+                LiveServerMessage::FinalTranscript { text }
+            });
+        }
+        // An interim carries no committed text, so there is no half worth
+        // pairing a completion with, and the event vocabulary has no
+        // "partial + complete" shape to report it in. The preview is reported
+        // on its own, as it always has been.
+        if let Some(text) = transcription_text(content, "interimInputTranscription")
+            .or_else(|| transcription_text(content, "interim_input_transcription"))
+        {
+            return Ok(LiveServerMessage::PartialTranscript { text });
+        }
         if complete {
             return Ok(LiveServerMessage::Complete);
         }
@@ -1228,6 +1255,50 @@ mod tests {
             parse_live_server_message(snake).unwrap(),
             LiveServerMessage::FinalTranscript {
                 text: "hello world".to_string()
+            }
+        );
+    }
+
+    /// The frame Google answers `audio_stream_end` with: the last committed
+    /// segment and the turn's completion on ONE `serverContent`. Both halves
+    /// are reported, because the completion is what a client's stop wait is
+    /// blocked on and dropping it costs that wait its whole budget.
+    #[test]
+    fn a_frame_with_a_final_and_a_completion_reports_both() {
+        for frame in [
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":true}}"#,
+            r#"{"serverContent":{"generationComplete":true,"inputTranscription":{"text":"hello world"}}}"#,
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"turnComplete":true}}"#,
+            r#"{"server_content":{"input_transcription":{"text":"hello world"},"generation_complete":true}}"#,
+        ] {
+            assert_eq!(
+                parse_live_server_message(frame).unwrap(),
+                LiveServerMessage::FinalTranscriptAndComplete {
+                    text: "hello world".to_string()
+                },
+                "{frame}"
+            );
+        }
+
+        // A completion flag that is present and false is not a boundary.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":false}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::FinalTranscript {
+                text: "hello world".to_string()
+            }
+        );
+
+        // An interim has no committed text to pair a completion with.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"interimInputTranscription":{"text":"hello wor"},"generationComplete":true}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::PartialTranscript {
+                text: "hello wor".to_string()
             }
         );
     }

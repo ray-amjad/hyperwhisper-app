@@ -2003,6 +2003,64 @@ fn gemini_reads_the_final_before_the_interim_in_one_frame() {
 }
 
 #[test]
+fn gemini_reports_both_halves_of_a_combined_final_and_completion_frame() {
+    // THE FRAME THE STOP IS WAITING FOR. Google answers `audio_stream_end` with
+    // ONE serverContent carrying the last committed segment and
+    // `generationComplete` together. Reporting the text alone drops the only
+    // completion the session will ever be sent, so `WaitForSessionComplete`
+    // burns its whole 5 s budget and the head reports a stop failure on an
+    // ordinary dictation.
+    let mut session = credentialed(LiveProvider::GeminiTranscribe);
+
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world."},"generationComplete":true}}"#
+        ),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "hello world.".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0
+        }
+    );
+
+    // `turnComplete` is the same boundary under Google's other spelling, and
+    // the snake_case forms are what the REST-shaped payloads use.
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"input_transcription":{"text":"hello world."},"turn_complete":true}}"#
+        ),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "hello world.".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0
+        }
+    );
+
+    // An explicit `false` is not a boundary, and neither shape may leak into
+    // the plain-final path's behaviour.
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world."},"generationComplete":false}}"#
+        ),
+        LiveEvent::FinalTranscript {
+            text: "hello world.".to_string()
+        }
+    );
+
+    // An INTERIM riding with a completion stays a plain partial: there is no
+    // committed text to pair the completion with, and the preview is
+    // superseded by the final that follows.
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"interimInputTranscription":{"text":"hello wor"},"generationComplete":true}}"#
+        ),
+        LiveEvent::PartialTranscript {
+            text: "hello wor".to_string()
+        }
+    );
+}
+
+#[test]
 fn gemini_finals_are_appended_never_prefix_diffed() {
     // The trap this provider's shape invites. xAI's transcript is cumulative
     // across the SESSION and is emitted as a delta; Gemini's `inputTranscription`

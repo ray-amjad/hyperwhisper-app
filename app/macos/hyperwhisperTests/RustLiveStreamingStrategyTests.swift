@@ -307,6 +307,116 @@ struct RustLiveStreamingStrategyTests {
         #expect(close == #"{"type":"CloseStream"}"#)
     }
 
+    @Test("OpenAI's stop commits the tail only when the server would accept it")
+    func openAIStopCommitsOnlyACommittableTail() throws {
+        // THE CASE `OpenAIStreamingCommitGateTests` PINNED, re-aimed at the FFI.
+        // `stopSequence()` is what decides whether the user's last word is
+        // committed before the socket closes, and the byte count it decides on
+        // crosses the FFI through `encodeAudioChunk`. The Rust suite proves the
+        // gate; only this proves the bytes get there.
+        //
+        // 4800 bytes is exactly 100 ms of 24 kHz 16-bit mono — the server's own
+        // floor, below which a commit is rejected outright ("buffer too small").
+        var now: UInt64 = 0
+        let (strategy, _) = try connected(.openAI, config(apiKey: "sk-test"), nowMs: { now })
+
+        // A tail one byte short of the floor is dropped rather than committed:
+        // the rejection would surface as a streaming-error toast on an
+        // otherwise clean stop, and the audio was lost to it either way.
+        _ = strategy.encodeAudioChunk(Data(count: 4_799))
+        now = 5_000
+        var steps = strategy.stopSequence()
+        #expect(steps.count == 2, "a sub-threshold tail must not produce a commit: \(steps)")
+        guard case let .wait(shortGap) = steps[0], case .closeWebSocket = steps[1] else {
+            Issue.record("unexpected OpenAI stop shape without a commit: \(steps)")
+            return
+        }
+        #expect(shortGap == 1.0)
+    }
+
+    @Test("OpenAI's stop commits a tail that clears the floor, and never the same bytes twice")
+    func openAIStopCommitsTheTailOnceAndOnlyOnce() throws {
+        var now: UInt64 = 0
+        let (strategy, _) = try connected(.openAI, config(apiKey: "sk-test"), nowMs: { now })
+
+        _ = strategy.encodeAudioChunk(Data(count: 4_800))
+        now = 5_000
+        let steps = strategy.stopSequence()
+
+        #expect(steps.count == 3)
+        guard case let .sendText(commit) = steps[0],
+              case let .wait(gap) = steps[1],
+              case .closeWebSocket = steps[2] else {
+            Issue.record("unexpected OpenAI stop shape: \(steps)")
+            return
+        }
+        #expect(commit == #"{"type":"input_audio_buffer.commit"}"#)
+        // THE WAIT SURVIVES EVEN WITH NOTHING LEFT TO COMMIT. The receive loop
+        // is still live, and the completion for the last commit can be in
+        // flight; closing at once trades a toast for a truncated transcript.
+        #expect(gap == 1.0)
+
+        // A second stop on the same session claims no bytes — the periodic path
+        // and the stop path can never both commit one buffer.
+        now = 10_000
+        let again = strategy.stopSequence()
+        #expect(again.count == 2, "the same audio must not be committed twice: \(again)")
+    }
+
+    @Test("OpenAI's stop and its periodic commit cannot both claim the same bytes")
+    func openAIStopDropsATailAPeriodicCommitAlreadyTook() throws {
+        var now: UInt64 = 0
+        let (strategy, _) = try connected(.openAI, config(apiKey: "sk-test"), nowMs: { now })
+
+        var sent: [URLSessionWebSocketTask.Message] = []
+        strategy.onAudioSendOpportunity { sent.append($0) }  // seeds the commit clock
+
+        _ = strategy.encodeAudioChunk(Data(count: 4_800))
+        now = 1_201
+        strategy.onAudioSendOpportunity { sent.append($0) }
+        #expect(sent.count == 1, "the periodic commit takes the buffer")
+
+        // Nothing has accumulated since, so the stop must not commit again.
+        let steps = strategy.stopSequence()
+        #expect(steps.count == 2, "the stop must not re-commit what the periodic path took: \(steps)")
+    }
+
+    @Test("xAI stops by ending the audio stream and waiting ten seconds for the completion")
+    func xaiStopSequence() throws {
+        // xAI is the one provider whose completion arrives as a combined
+        // final-and-complete event, so the wait here is what the client's
+        // `didReceiveSessionComplete` is released by. A ms→seconds slip would
+        // either close before the last transcript or hang the stop for hours.
+        let (strategy, _) = try connected(.xai, config(apiKey: "xai-test"))
+        let steps = strategy.stopSequence()
+
+        #expect(steps.count == 3)
+        guard case let .sendText(done) = steps[0],
+              case let .waitForSessionComplete(timeout) = steps[1],
+              case .closeWebSocket = steps[2] else {
+            Issue.record("unexpected xAI stop shape: \(steps)")
+            return
+        }
+        #expect(done == #"{"type":"audio.done"}"#)
+        #expect(timeout == 10.0)
+    }
+
+    @Test("ElevenLabs stops by closing the socket and nothing else")
+    func elevenLabsStopSequence() throws {
+        // Deliberately bare: ElevenLabs has no flush frame and no completion
+        // event, so anything else here would be a wait for something that never
+        // arrives. An empty sequence would be a different bug — the socket must
+        // still be closed by us.
+        let (strategy, _) = try connected(.elevenLabs, config(apiKey: "el-test"))
+        let steps = strategy.stopSequence()
+
+        #expect(steps.count == 1)
+        guard case .closeWebSocket = steps.first else {
+            Issue.record("unexpected ElevenLabs stop shape: \(steps)")
+            return
+        }
+    }
+
     // MARK: - Credentials
 
     @Test("A missing credential refuses to build a URL, for every provider")
@@ -327,6 +437,39 @@ struct RustLiveStreamingStrategyTests {
                 "\(provider) accepted a whitespace-only credential"
             )
         }
+    }
+
+    @Test("The on-device engines open no socket here, credential or not")
+    func onDeviceEnginesAreRefusedRatherThanRoutedToCloud() {
+        // NOT A CLOUD PROVIDER, AND NOT A CRASH. Parakeet and Nemotron have no
+        // `HwLiveProvider`, transcribe on-device and route to their own clients,
+        // so neither arm is reachable today. Mapping them onto
+        // `.hyperWhisperCloud` — which is what shipped in the first cut of this
+        // file — meant a later edit that DID route one through this class would
+        // open a HyperWhisper Cloud session against the user's licence key and
+        // bill credits for the engine they chose because it runs offline.
+        //
+        // A full set of credentials is passed on purpose: the refusal must not
+        // depend on one being absent.
+        for provider in [StreamingTranscriptionProvider.parakeetLocal, .nemotronLocal] {
+            let strategy = RustLiveStreamingStrategy(
+                provider: provider,
+                baseURL: "https://relay.test",
+                cloudTier: "deepgramNova3"
+            )
+            #expect(
+                strategy.buildWebSocketURL(
+                    config: config(licenseKey: "HW-1", deviceId: "dev-1", apiKey: "sk-test")
+                ) == nil,
+                "\(provider.rawValue) transcribes on-device and must open no socket at all"
+            )
+            #expect(strategy.startMessages(config: config()).isEmpty)
+            #expect(strategy.webSocketSubprotocols(config: config()) == nil)
+        }
+
+        #expect(RustLiveStreamingStrategy.coreProvider(.parakeetLocal) == nil)
+        #expect(RustLiveStreamingStrategy.coreProvider(.nemotronLocal) == nil)
+        #expect(RustLiveStreamingStrategy.coreProvider(.hyperwhisperCloud) == .hyperWhisperCloud)
     }
 
     @Test("A refused connect clears the previous session's descriptor")
@@ -704,6 +847,59 @@ struct RustLiveStreamingStrategyTests {
         #expect(cloud.parseMessage(#"{"type":"something_new"}"#) == nil)
         #expect(cloud.parseMessage("not json at all") == nil)
         #expect(cloud.parseMessage("") == nil)
+    }
+
+    @Test("Gemini's combined final-and-complete frame reports BOTH halves")
+    func geminiCombinedFrameReportsTextAndCompletion() throws {
+        // THE REAL PARSE, not a stub. Google answers `audio_stream_end` with ONE
+        // `serverContent` carrying the last committed segment and
+        // `generationComplete` together. Reporting only the text leaves the
+        // client's `waitForSessionComplete(timeout: 5.0)` waiting for a
+        // completion that has already been and gone: the stop burns its whole
+        // budget and then files a `wait_for_session_complete` failure to Sentry
+        // on an ordinary dictation.
+        //
+        // `StreamingTurnBoundaryTests` pins what the CLIENT does with this
+        // event; this pins that the event is produced at all.
+        let (gemini, _) = try connected(.gemini, config(apiKey: "AIza-test"))
+
+        guard case let .finalTranscriptAndSessionComplete(text, duration, credits) = gemini.parseMessage(
+            #"{"serverContent":{"inputTranscription":{"text":"hello world."},"generationComplete":true}}"#
+        ) else {
+            Issue.record("a frame carrying a final AND a completion must report both")
+            return
+        }
+        #expect(text == "hello world.")
+        // BYOK: Google reports no figures and HyperWhisper meters nothing.
+        #expect(duration == 0)
+        #expect(credits == 0)
+
+        // The three neighbouring shapes must be untouched by that: a final on
+        // its own stays a final, a standalone completion stays a completion, and
+        // an interim riding with a completion stays a partial (there is no
+        // committed text to pair the boundary with).
+        guard case let .finalTranscript(final) = gemini.parseMessage(
+            #"{"serverContent":{"inputTranscription":{"text":"first utterance."}}}"#
+        ) else {
+            Issue.record("a final on its own must stay a plain final")
+            return
+        }
+        #expect(final == "first utterance.")
+
+        guard case .sessionComplete = gemini.parseMessage(
+            #"{"serverContent":{"generationComplete":true}}"#
+        ) else {
+            Issue.record("a standalone generationComplete must stay a standalone completion")
+            return
+        }
+
+        guard case let .partialTranscript(partial) = gemini.parseMessage(
+            #"{"serverContent":{"interimInputTranscription":{"text":"hello wor"},"generationComplete":true}}"#
+        ) else {
+            Issue.record("an interim carries no committed text to pair a completion with")
+            return
+        }
+        #expect(partial == "hello wor")
     }
 
     @Test("Deepgram's polymorphic channel field does not swallow the frame")

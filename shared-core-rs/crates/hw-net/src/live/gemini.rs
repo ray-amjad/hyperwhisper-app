@@ -49,6 +49,13 @@
 //! the frame — and what a client does with it is decided by
 //! [`super::complete_ends_session_before_stop`], which answers `false` for this
 //! provider alone.
+//!
+//! It can also arrive on the SAME frame as the turn's committed text, which is
+//! the shape Google answers `audio_stream_end` with. That frame parses to
+//! [`LiveEvent::FinalTranscriptAndSessionComplete`] — both halves, because the
+//! completion half is the only one a stop's `WaitForSessionComplete` is
+//! listening for — and `complete_ends_session_before_stop` governs it exactly
+//! as it governs the standalone completion above.
 
 use super::config::{LiveConfig, LiveConnect, LiveError, LiveEvent, LiveFrame, StopStep};
 use super::AudioFraming;
@@ -153,6 +160,27 @@ pub(super) fn parse(root: &serde_json::Value, text: &str) -> LiveEvent {
             duration_seconds: 0.0,
             credits_used: 0.0,
         },
+        // The same turn boundary, riding on the frame that carries the turn's
+        // committed text. Google answers `audio_stream_end` in exactly this
+        // shape, so a client that reports only the text half is left waiting
+        // out its whole `WaitForSessionComplete` budget for a completion that
+        // has already been and gone.
+        //
+        // `complete_ends_session_before_stop` still decides whether it ends the
+        // SESSION, and it decides it for this event as much as for
+        // `SessionComplete` above: a client that answers `false` for this
+        // provider must commit the text and keep the socket open until it has
+        // asked to stop. Both .NET consumers already collapse the two events
+        // onto one `Complete` kind and gate that, and
+        // `StreamingTranscriptionClient` on both native heads gates this arm
+        // the same way.
+        gt::LiveServerMessage::FinalTranscriptAndComplete { text } => {
+            LiveEvent::FinalTranscriptAndSessionComplete {
+                text,
+                duration_seconds: 0.0,
+                credits_used: 0.0,
+            }
+        }
         gt::LiveServerMessage::Error { message } => LiveEvent::Error {
             message,
             kind: None,

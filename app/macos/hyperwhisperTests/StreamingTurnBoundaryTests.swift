@@ -151,8 +151,9 @@ struct StreamingTurnBoundaryTests {
         return (client, recorder)
     }
 
-    /// Inherited from `GeminiStreamingStrategyTests.preStopCombinedFrameOnlyCommitsText`
-    /// and from the two-utterance walk-through above it.
+    /// Inherited from `GeminiStreamingStrategyTests`' two-utterance walk-through.
+    /// The combined-frame half of that case is
+    /// `combinedFinalAndCompleteBeforeStopCommitsTextOnly`, below.
     @Test("A completion before stop is a turn boundary and the session continues")
     func aCompleteBeforeStopDoesNotEndTheSession() async {
         let (client, recorder) = makeClient(completeEndsSessionBeforeStop: false)
@@ -238,13 +239,57 @@ struct StreamingTurnBoundaryTests {
         #expect(recorder.completions.count == 1)
     }
 
-    /// The gate covers `.sessionComplete` and deliberately does not cover
-    /// `.finalTranscriptAndSessionComplete` — same way round as Windows. That
-    /// arm exists for a provider whose final flush and completion arrive in one
-    /// frame, which is a shape only a post-stop flush produces.
-    @Test("A combined final-and-complete frame is never gated")
-    func combinedFinalAndCompleteIsNotGated() async {
+    /// Inherited from `GeminiStreamingStrategyTests.preStopCombinedFrameOnlyCommitsText`,
+    /// which is the case this suite originally replaced with a weaker one.
+    ///
+    /// Gemini answers `audio_stream_end` with ONE `serverContent` carrying the
+    /// last committed segment and `generationComplete` together, and the core
+    /// now reports both halves. The completion half is the same boundary as a
+    /// standalone completion and answers to the same gate; the TEXT half is
+    /// committed either way, because a turn's committed segment belongs in the
+    /// document whether or not the turn was the last one.
+    @Test("A combined final-and-complete frame before stop commits its text only")
+    func combinedFinalAndCompleteBeforeStopCommitsTextOnly() async {
         let (client, recorder) = makeClient(completeEndsSessionBeforeStop: false)
+
+        await client.processServerMessage(TurnBoundaryStubStrategy.finalAndCompleteFrame)
+        #expect(recorder.finals == ["tail."], "the committed segment is never dropped")
+        #expect(
+            recorder.completions.isEmpty,
+            "a completion riding on a final is still a turn boundary before the user asks to stop"
+        )
+
+        // And the session is still live for the next utterance.
+        await client.processServerMessage(TurnBoundaryStubStrategy.partialFrame)
+        #expect(recorder.partials == ["second"])
+    }
+
+    /// Inherited from `GeminiStreamingStrategyTests.postStopCombinedFrameReportsTextAndCompletion`.
+    ///
+    /// THE REGRESSION THIS PINS: with the completion dropped, Gemini's
+    /// `.waitForSessionComplete(timeout: 5.0)` sat out its whole budget on every
+    /// ordinary dictation and the client then reported a
+    /// `wait_for_session_complete` stop failure to Sentry.
+    @Test("A combined final-and-complete frame after stop ends the session")
+    func combinedFinalAndCompleteAfterStopEndsTheSession() async {
+        let (client, recorder) = makeClient(completeEndsSessionBeforeStop: false)
+
+        await client.stopSession()
+        await client.processServerMessage(TurnBoundaryStubStrategy.finalAndCompleteFrame)
+
+        #expect(recorder.finals == ["tail."])
+        #expect(
+            recorder.completions == [TurnBoundaryRecorder.Completion(durationSeconds: 4, creditsUsed: 0)],
+            "this frame is the only completion the stop wait will ever be sent"
+        )
+    }
+
+    /// The no-regression half for the five providers that answer `true`: their
+    /// combined frame is never gated, which is what xAI's `.done` event relies
+    /// on.
+    @Test("A combined final-and-complete frame from a terminal-completion provider is never gated")
+    func combinedFinalAndCompleteIsNotGatedForTerminalProviders() async {
+        let (client, recorder) = makeClient(completeEndsSessionBeforeStop: true)
 
         await client.processServerMessage(TurnBoundaryStubStrategy.finalAndCompleteFrame)
         #expect(recorder.finals == ["tail."])
