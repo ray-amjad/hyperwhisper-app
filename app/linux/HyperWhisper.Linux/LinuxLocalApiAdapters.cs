@@ -153,10 +153,41 @@ internal sealed class LinuxLocalApiPostProcessor(
         return new(
             result.Text,
             result.Provider,
-            mode.LanguageModel ?? mode.LocalPostProcessingModel ?? string.Empty,
+            // Report the model that ACTUALLY ran (issue #314), not the one stored
+            // on the working Mode — every fallback inside the cloud and local
+            // post-processors happens after the Mode was read. `preset` is not
+            // remapped anywhere, so it still comes straight off the Mode.
+            ResponseModel(mode, result.Model),
             mode.Preset,
             (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
     }
+
+    /// <summary>
+    /// Decide the `model` field of the `/post-process` success body: what
+    /// actually ran, falling back to the working Mode's stored values only when
+    /// the processor did not name a model (issue #314).
+    /// <para>
+    /// An empty or whitespace resolved model counts as ABSENT: <c>""</c> is "no
+    /// answer", not an answer. This matches
+    /// <c>PostProcessEndpoint.responseLabels</c> on macOS and
+    /// <c>PostProcessEndpoints.ResponseLabels</c> on Windows, so the wire field
+    /// means the same thing on all three heads.
+    /// </para>
+    /// <para>
+    /// There is deliberately NO provider rule here, and the sibling heads'
+    /// provider-spelling preservation is NOT copied. This head's `provider` is
+    /// already taken from the run (<c>PortablePostProcessingResult.Provider</c>),
+    /// so it was never part of #314 — and it is a HUMAN DISPLAY LABEL
+    /// (<c>"OpenAI · gpt-5.6-luna"</c>) where macOS and Windows emit an id
+    /// (<c>"openai"</c>), so neither a string compare nor a provider parse could
+    /// match it against a stored id anyway. That divergence is pre-existing and
+    /// out of scope for #314.
+    /// </para>
+    /// </summary>
+    private static string ResponseModel(Mode mode, string? resolvedModel) =>
+        !string.IsNullOrWhiteSpace(resolvedModel)
+            ? resolvedModel.Trim()
+            : mode.LanguageModel ?? mode.LocalPostProcessingModel ?? string.Empty;
 
     private async Task<Mode> BuildWorkingModeAsync(
         PostProcessRequest request,

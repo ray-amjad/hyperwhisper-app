@@ -551,9 +551,9 @@ components:
       properties:
         ok: { type: boolean }
         text: { type: string }
-        provider: { type: string }
-        model: { type: string }
-        preset: { type: string }
+        provider: { type: string, description: "The provider that ACTUALLY ran, not the one stored on the mode. When the mode's stored spelling names the same provider, that spelling is echoed back unchanged, so this differs from what you sent only when post-processing genuinely routed elsewhere." }
+        model: { type: string, description: "The model that ACTUALLY ran and produced this text, not the one stored on the mode. Post-processing substitutes silently — a retired or unknown model id is remapped to the provider default, and a local-model run reports the local model — so the substituted id is what appears here, not the id you asked for. Empty only when no model can be named." }
+        preset: { type: string, description: "The preset the mode was resolved to. Never remapped, so this always matches the mode." }
         latency_ms: { type: integer }
         post_processed: { type: boolean, description: "true when an LLM actually ran and produced post-processed text; false when a failure path (bad key, model/network error, offline) returned the raw input unchanged. ok stays true for graceful degradation, so read this to know post-processing happened." }
 
