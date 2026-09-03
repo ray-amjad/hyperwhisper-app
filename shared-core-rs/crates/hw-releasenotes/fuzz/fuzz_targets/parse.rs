@@ -107,13 +107,18 @@ fuzz_target!(|data: &[u8]| {
     // hand-written, so this is where an unchecked `*` or a bad slice index
     // would abort the app.
     if let Some(secs) = hw_releasenotes::parse_pub_date(&html) {
-        // The year bound is what stops Windows' `DateTimeOffset` throwing, so
-        // assert the range it implies rather than merely that we did not panic.
-        // 0001-01-01T00:00:00Z .. 9999-12-31T23:59:59Z, widened by one day for
-        // the largest zone offset either end.
+        // The bound is what stops Windows' `DateTimeOffset.FromUnixTimeSeconds`
+        // throwing, so assert the range rather than merely that we did not
+        // panic. It is asserted on the RETURNED instant, exactly as the parser
+        // applies it — an earlier version of this assertion widened the range
+        // by a day at each end to allow for the zone offset, which is precisely
+        // the defect: a `-0100` on 9999-12-31 produced a value .NET cannot
+        // hold, and this assertion passed it.
         assert!(
-            (-62_135_683_200..=253_402_387_199).contains(&secs),
-            "date out of the DateTime-representable range: {html:?} -> {secs}"
+            (hw_releasenotes::MIN_REPRESENTABLE_EPOCH_SECS
+                ..=hw_releasenotes::MAX_REPRESENTABLE_EPOCH_SECS)
+                .contains(&secs),
+            "date out of the DateTimeOffset-representable range: {html:?} -> {secs}"
         );
     }
 

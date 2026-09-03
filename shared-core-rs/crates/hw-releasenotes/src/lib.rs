@@ -87,6 +87,9 @@ mod entity;
 mod inline;
 mod tag;
 
-pub use appcast::{parse_pub_date, select_releases, FeedEntry, Release};
+pub use appcast::{
+    parse_pub_date, select_releases, FeedEntry, Release, MAX_REPRESENTABLE_EPOCH_SECS,
+    MIN_REPRESENTABLE_EPOCH_SECS,
+};
 pub use block::{parse_release_note, split_blocks, Block, BlockKind, ReleaseNote};
 pub use inline::{parse_inline, plain_text, Run};

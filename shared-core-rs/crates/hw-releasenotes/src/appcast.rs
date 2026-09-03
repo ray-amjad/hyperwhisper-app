@@ -102,6 +102,20 @@
 
 use std::collections::HashSet;
 
+/// The earliest instant [`parse_pub_date`] will return: `0001-01-01T00:00:00Z`,
+/// which is `DateTimeOffset.MinValue` in Unix seconds.
+///
+/// Windows converts with `DateTimeOffset.FromUnixTimeSeconds`, which **throws**
+/// below this. macOS's `Date(timeIntervalSince1970:)` has no such limit, but the
+/// rule is shared so that a feed cannot behave differently on the two heads.
+pub const MIN_REPRESENTABLE_EPOCH_SECS: i64 = -62_135_596_800;
+
+/// The latest instant [`parse_pub_date`] will return: `9999-12-31T23:59:59Z`,
+/// i.e. `DateTimeOffset.MaxValue` truncated to whole seconds, which is what
+/// `DateTimeOffset.FromUnixTimeSeconds` accepts. See
+/// [`MIN_REPRESENTABLE_EPOCH_SECS`].
+pub const MAX_REPRESENTABLE_EPOCH_SECS: i64 = 253_402_300_799;
+
 /// One raw `<item>`, exactly as a native XML reader found it. **No rules
 /// applied**: every field is the feed's own text, untrimmed, and `None` means
 /// the element was absent rather than empty.
@@ -243,10 +257,23 @@ fn trimmed_non_empty(value: Option<&str>) -> Option<String> {
 /// * Everything is range-checked — month 1–12, day valid for the month
 ///   including leap years, hour 0–23, minute and second 0–59 (no leap seconds).
 ///
-/// **The year is bounded to `1..=9999`, and that is not cosmetic.** The Windows
-/// facade converts the result with `DateTimeOffset.FromUnixTimeSeconds`, which
-/// **throws** outside .NET's `DateTime` range. This bound, in Rust, is what
-/// stops a remote feed throwing inside the facade.
+/// **The returned instant is bounded to
+/// `[MIN_REPRESENTABLE_EPOCH_SECS, MAX_REPRESENTABLE_EPOCH_SECS]`, and that is
+/// not cosmetic.** The Windows facade converts the result with
+/// `DateTimeOffset.FromUnixTimeSeconds`, which **throws** outside .NET's
+/// `DateTimeOffset` range. This bound, in Rust, is what stops a remote feed
+/// throwing inside the facade.
+///
+/// The bound is applied to the **final UTC instant, after the zone offset**,
+/// and not to the written year. A written year of `9999` is not the same
+/// question: `Fri, 31 Dec 9999 23:59:59 -0100` is a legal RFC 2822 date whose
+/// written year is in range but whose UTC instant is an hour past
+/// `DateTimeOffset.MaxValue`, and `Mon, 01 Jan 0001 00:00:00 +2359` is the same
+/// defect at the other end. Both used to be accepted, and both threw inside the
+/// facade — where the throw took out the whole Recent Updates list, because
+/// `SelectReleases` unwinds into a `catch (Exception)`. A year bound cannot
+/// express this; the offset moves the answer by up to ±23:59 after the year is
+/// read.
 #[must_use]
 pub fn parse_pub_date(value: &str) -> Option<i64> {
     let trimmed = value.trim_matches(|c: char| c.is_ascii_whitespace());
@@ -281,7 +308,7 @@ pub fn parse_pub_date(value: &str) -> Option<i64> {
     let day = parse_digits(day, 1, 2)?;
     let month = parse_month(month)?;
     let year = parse_digits(year, 4, 4)?;
-    if !(1..=9999).contains(&year) || !(1..=days_in_month(month, year)).contains(&day) {
+    if !(1..=days_in_month(month, year)).contains(&day) {
         return None;
     }
 
@@ -289,11 +316,22 @@ pub fn parse_pub_date(value: &str) -> Option<i64> {
     let offset_secs = parse_zone(zone)?;
 
     let days = days_from_civil(i64::from(year), i64::from(month), i64::from(day))?;
-    days.checked_mul(86_400)?
+    let epoch_secs = days
+        .checked_mul(86_400)?
         .checked_add(i64::from(hour).checked_mul(3_600)?)?
         .checked_add(i64::from(minute).checked_mul(60)?)?
         .checked_add(i64::from(second))?
-        .checked_sub(offset_secs)
+        .checked_sub(offset_secs)?;
+
+    // The representability bound goes HERE — on the UTC instant, once the zone
+    // offset has been applied — and not on the written year. See the doc
+    // comment: the offset moves the answer by up to ±23:59, so a written year
+    // inside `1..=9999` says nothing about whether the instant is one .NET can
+    // hold.
+    if !(MIN_REPRESENTABLE_EPOCH_SECS..=MAX_REPRESENTABLE_EPOCH_SECS).contains(&epoch_secs) {
+        return None;
+    }
+    Some(epoch_secs)
 }
 
 /// A run of exactly `min..=max` ASCII digits, as a `u32`. Rejects a sign, a
@@ -381,8 +419,12 @@ fn days_in_month(month: u32, year: u32) -> u32 {
 /// Howard Hinnant's `days_from_civil`: a proleptic-Gregorian date to a day
 /// count relative to 1970-01-01, with no table and no branch on leap years.
 ///
-/// Every step is `checked_*`. With the caller's `1..=9999` year bound none of
-/// them can fail, which is the point — the bound is not the only guard.
+/// Every step is `checked_*`. The caller reads the year as exactly four ASCII
+/// digits, so `year` is `0..=9999` here and none of them can fail — which is
+/// the point: the range checks are not the only guard. Note the caller's
+/// representability bound is applied *after* this, on the final instant, so
+/// this function must stay total over the four-digit range rather than assuming
+/// its input is already in `1..=9999`.
 fn days_from_civil(year: i64, month: i64, day: i64) -> Option<i64> {
     // The algorithm shifts the year so that March is month 1 and the leap day
     // lands at the end of it.
@@ -829,8 +871,8 @@ mod tests {
             "Wed, 02 Sep 2026 24:06:28 +0000",  // hour 24
             "Wed, 02 Sep 2026 12:60:28 +0000",  // minute 60
             "Wed, 02 Sep 2026 12:06:60 +0000",  // second 60, no leap seconds
-            "Wed, 02 Sep 0000 12:06:28 +0000",  // year 0
-            "Wed, 02 Sep 10000 12:06:28 +0000", // year 10000
+            "Wed, 02 Sep 0000 12:06:28 +0000",  // before the representable range
+            "Wed, 02 Sep 10000 12:06:28 +0000", // year is exactly 4 digits
             "Wed, 02 Sep 999 12:06:28 +0000",   // year is exactly 4 digits
             "Wed, 02 Sep 2026 12:06:28 +2500",  // zone hour out of range
             "Wed, 02 Sep 2026 12:06:28 +0060",  // zone minute out of range
@@ -862,17 +904,51 @@ mod tests {
         );
     }
 
-    /// The year bound's two ends, which is what keeps Windows'
+    /// The representability bound's two ends, which is what keeps Windows'
     /// `DateTimeOffset.FromUnixTimeSeconds` from throwing.
     #[test]
-    fn the_year_bound_holds_at_both_ends() {
+    fn the_representability_bound_holds_at_both_ends() {
         assert_eq!(
             parse_pub_date("Mon, 01 Jan 0001 00:00:00 +0000"),
-            Some(-62_135_596_800)
+            Some(MIN_REPRESENTABLE_EPOCH_SECS)
         );
         assert_eq!(
             parse_pub_date("Fri, 31 Dec 9999 23:59:59 +0000"),
-            Some(253_402_300_799)
+            Some(MAX_REPRESENTABLE_EPOCH_SECS)
+        );
+    }
+
+    /// **The bound is on the UTC instant, not on the written year.** Both dates
+    /// below have a written year inside `1..=9999`, and both land outside
+    /// `DateTimeOffset`'s range once the zone offset is applied. Accepting
+    /// either one threw inside the Windows facade and, because `SelectReleases`
+    /// unwinds into a `catch (Exception)`, took out the entire Recent Updates
+    /// list over one malformed feed item.
+    #[test]
+    fn a_zone_offset_cannot_push_the_instant_out_of_range() {
+        // 9999-12-31T23:59:59-01:00 is 10000-01-01T00:59:59Z — 253_402_304_399,
+        // an hour past `DateTimeOffset.MaxValue`.
+        assert_eq!(parse_pub_date("Fri, 31 Dec 9999 23:59:59 -0100"), None);
+        // 0001-01-01T00:00:00+23:59 is 0000-12-31T00:01:00Z — -62_135_683_140,
+        // just under `DateTimeOffset.MinValue`.
+        assert_eq!(parse_pub_date("Mon, 01 Jan 0001 00:00:00 +2359"), None);
+    }
+
+    /// The two instants immediately inside that bound, each reached *through* a
+    /// zone offset — so a fix that merely moved the year bound to the other end
+    /// of the arithmetic would fail here.
+    #[test]
+    fn a_zone_offset_that_lands_just_inside_the_bound_is_accepted() {
+        // 9999-12-31T22:59:59-01:00 is exactly `DateTimeOffset.MaxValue`
+        // truncated to whole seconds.
+        assert_eq!(
+            parse_pub_date("Fri, 31 Dec 9999 22:59:59 -0100"),
+            Some(MAX_REPRESENTABLE_EPOCH_SECS)
+        );
+        // 0001-01-01T23:59:00+23:59 is exactly `DateTimeOffset.MinValue`.
+        assert_eq!(
+            parse_pub_date("Mon, 01 Jan 0001 23:59:00 +2359"),
+            Some(MIN_REPRESENTABLE_EPOCH_SECS)
         );
     }
 

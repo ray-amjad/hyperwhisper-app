@@ -221,9 +221,14 @@ pub struct HwAppcastRelease {
     /// that has never occurred in 129 committed feed items. `i64` seconds also
     /// keeps this side of the boundary clock-free, per `ffi_license.rs`.
     ///
-    /// The Rust side bounds the year to `1..=9999`, which is what stops
+    /// The Rust side bounds this value to
+    /// `[hw_releasenotes::MIN_REPRESENTABLE_EPOCH_SECS,
+    /// hw_releasenotes::MAX_REPRESENTABLE_EPOCH_SECS]` — i.e.
+    /// `DateTimeOffset`'s own range, in whole seconds — which is what stops
     /// Windows' `DateTimeOffset.FromUnixTimeSeconds` throwing on a hostile
-    /// feed.
+    /// feed. The bound is on the final UTC instant, after the feed's zone
+    /// offset is applied, and not on the written year: a `-0100` offset on
+    /// `31 Dec 9999` moves a legal-looking year past the maximum.
     pub pub_date_epoch_secs: i64,
     /// The inline release notes, trimmed and non-empty. Feed this straight to
     /// `release_notes_parse`.

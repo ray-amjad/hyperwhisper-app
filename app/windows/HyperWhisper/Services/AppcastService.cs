@@ -183,7 +183,9 @@ public class AppcastService
                 // an offset-bearing string returned Kind = Local, and
                 // FormattedDate renders the value as it stands — so converting
                 // to UTC here would silently shift every displayed date by the
-                // local offset. The core bounds the year to 1..=9999, which is
+                // local offset. The core bounds the instant it returns to
+                // [DateTimeOffset.MinValue, DateTimeOffset.MaxValue] in whole
+                // seconds — AFTER applying the feed's zone offset, which is
                 // what keeps this call from throwing on a hostile feed.
                 PubDate = DateTimeOffset.FromUnixTimeSeconds(release.pubDateEpochSecs).LocalDateTime,
                 // Via the object initializer, because this setter parses the
