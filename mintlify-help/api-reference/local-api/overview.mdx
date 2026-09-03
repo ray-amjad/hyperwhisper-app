@@ -127,10 +127,20 @@ Each platform applies the limits differently:
   macOS. Only `/transcribe` answers with the HTTP 200 envelope. On the other
   routes, the web server stops the body itself and returns a bare **413** with
   no envelope.
-- **Windows** does not use these two values yet. Its web server keeps its own
-  default of 30,000,000 bytes (approximately 28.6 MiB), which applies to every
-  route. The refusal arrives as HTTP 400 with the message `Invalid JSON body`.
-  Windows has no audio limit.
+- **Windows** applies both limits, and both are reachable. The request limit
+  applies to every route that reads a body — `POST /transcribe`,
+  `POST /post-process`, `POST /modes` and `PATCH /modes/{id}` — and each one
+  answers with the HTTP 200 envelope. The audio limit applies to the decoded
+  bytes of `audio_base64` and to a `file` path, so a `file` path above 48 MiB
+  is refused here and on Linux but accepted on macOS. Windows accepts no
+  multipart request.
+
+  Older Windows builds used neither value. Their web server kept its own
+  default of 30,000,000 bytes (approximately 28.6 MiB), the refusal arrived as
+  HTTP 400 with the message `Invalid JSON body` — which a client could not tell
+  from malformed JSON — and there was no audio limit at all. Read the `code`
+  and the `message`, and keep your client tolerant of both answers if it must
+  support older builds.
 
 Do not use **413** to find an oversized request. `PAYLOAD_TOO_LARGE` is not one
 of the codes in the closed set, and a client that shares the macOS decoder

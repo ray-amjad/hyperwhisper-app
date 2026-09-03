@@ -47,16 +47,14 @@ internal static class ModesEndpoints
 
         app.MapPost("/modes", async (HttpContext ctx) =>
         {
-            ModeDto? dto;
-            try
+            // Over-limit bodies answer 200 + INVALID_REQUEST here too; only a
+            // genuine JSON error still gets the 400. See LocalApiLimits.
+            var (dto, bodyFailure) = await LocalApiLimits.ReadJsonBodyAsync<ModeDto>(
+                ctx,
+                "Required: name. See /modes GET for the full shape.");
+            if (bodyFailure != null)
             {
-                dto = await ctx.Request.ReadFromJsonAsync<ModeDto>(LocalApiResponder.JsonOptions);
-            }
-            catch
-            {
-                return LocalApiResponder.BadRequest(
-                    "Invalid JSON body",
-                    "Required: name. See /modes GET for the full shape.");
+                return bodyFailure;
             }
             if (dto == null)
             {
@@ -192,14 +190,12 @@ internal static class ModesEndpoints
                     $"No mode with id '{id}'");
             }
 
-            ModePatchDto? patch;
-            try
+            // Over-limit bodies answer 200 + INVALID_REQUEST here too; only a
+            // genuine JSON error still gets the 400. See LocalApiLimits.
+            var (patch, bodyFailure) = await LocalApiLimits.ReadJsonBodyAsync<ModePatchDto>(ctx);
+            if (bodyFailure != null)
             {
-                patch = await ctx.Request.ReadFromJsonAsync<ModePatchDto>(LocalApiResponder.JsonOptions);
-            }
-            catch
-            {
-                return LocalApiResponder.BadRequest("Invalid JSON body");
+                return bodyFailure;
             }
             if (patch == null)
             {

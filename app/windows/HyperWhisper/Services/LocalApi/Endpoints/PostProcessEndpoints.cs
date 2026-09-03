@@ -31,16 +31,14 @@ internal static class PostProcessEndpoints
     {
         app.MapPost("/post-process", async (HttpContext ctx) =>
         {
-            PostProcessRequest? req;
-            try
+            // Over-limit bodies answer 200 + INVALID_REQUEST here too; only a
+            // genuine JSON error still gets the 400. See LocalApiLimits.
+            var (req, bodyFailure) = await LocalApiLimits.ReadJsonBodyAsync<PostProcessRequest>(
+                ctx,
+                "Required: 'text' plus one of mode_id / preset / prompt.");
+            if (bodyFailure != null)
             {
-                req = await ctx.Request.ReadFromJsonAsync<PostProcessRequest>(LocalApiResponder.JsonOptions);
-            }
-            catch
-            {
-                return LocalApiResponder.BadRequest(
-                    "Invalid JSON body",
-                    "Required: 'text' plus one of mode_id / preset / prompt.");
+                return bodyFailure;
             }
             if (req == null)
             {
