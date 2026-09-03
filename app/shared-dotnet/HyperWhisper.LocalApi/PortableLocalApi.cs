@@ -97,6 +97,18 @@ public static class PortableLocalApi
             {
                 await next(context);
             }
+            // FIRST, and deliberately (issue #356). Everything below maps a CLR
+            // exception TYPE onto one of two wire codes; this one carries the
+            // envelope `hw-localapi` already decided, so a backend can ask for
+            // any of the closed fourteen. `MODE_NAME_TAKEN` was declared on this
+            // head and never emitted until it existed.
+            catch (LocalApiFailureException failure)
+            {
+                if (context.Response.HasStarted) throw;
+                context.Response.StatusCode = failure.HttpStatus;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await context.Response.WriteAsync(failure.Json);
+            }
             catch (ArgumentException)
             {
                 if (context.Response.HasStarted) throw;
@@ -274,8 +286,10 @@ public static class PortableLocalApi
             var limit = int.TryParse(context.Request.Query["limit"], CultureInfo.InvariantCulture, out var parsed) ? Math.Clamp(parsed, 1, 500) : 50;
             _ = DateTime.TryParse(context.Request.Query["since"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var since);
             _ = DateTime.TryParse(context.Request.Query["until"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var until);
-            var rows = await backend.GetRecordingsAsync(new(context.Request.Query["q"], since == default ? null : since, until == default ? null : until, limit), ct);
-            return Results.Ok(new { ok = true, total = rows.Count, returned = rows.Count, recordings = rows });
+            var page = await backend.GetRecordingsAsync(new(context.Request.Query["q"], since == default ? null : since, until == default ? null : until, limit), ct);
+            // `total` is the full filtered match count, `returned` is this page.
+            // They are only equal when the limit did not truncate.
+            return Results.Ok(new { ok = true, total = page.Total, returned = page.Recordings.Count, recordings = page.Recordings });
         }
 
         static async Task<JsonElement?> ReadJsonObject(HttpContext context, CancellationToken ct)

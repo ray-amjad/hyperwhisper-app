@@ -5,6 +5,7 @@ using HyperWhisper.Utilities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.LocalApi.Endpoints;
 
@@ -49,9 +50,14 @@ internal static class ModesEndpoints
         {
             // Over-limit bodies answer 200 + INVALID_REQUEST here too; only a
             // genuine JSON error still gets the 400. See LocalApiLimits.
-            var (dto, bodyFailure) = await LocalApiLimits.ReadJsonBodyAsync<ModeDto>(
+            //
+            // The KEYS come back too (issue #356). This head cannot infer which
+            // keys the caller sent from `ModeDto` — its three booleans are
+            // non-nullable, so absent and `false` are the same value — and the
+            // required-key check needs to know.
+            var (dto, presentKeys, bodyFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
                 ctx,
-                "Required: name. See /modes GET for the full shape.");
+                $"Required: {string.Join(", ", HyperwhisperCoreMethods.LocalApiRequiredModeKeys())}. See /modes GET for the full shape.");
             if (bodyFailure != null)
             {
                 return bodyFailure;
@@ -61,25 +67,47 @@ internal static class ModesEndpoints
                 return LocalApiResponder.BadRequest("Empty request body");
             }
 
+            LogIgnoredModeKeys(presentKeys);
+
             var trimmedName = (dto.Name ?? "").Trim();
-            if (trimmedName.Length == 0)
+            // ONE MODE CONTRACT (issue #356 items 2 and 5). `validate_mode` owns
+            // the required-key set, both numeric ranges and every length bound;
+            // this head had none of them but the empty-name check. Two of those
+            // are a client-visible tightening: `POST /modes {"name":"Only"}`
+            // created a mode here and now fails, and `sortOrder` is bounded to
+            // the Int16 range its storage column has always had. Both are what
+            // `openapi.yaml` already publishes.
+            var validation = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                HwLocalApiModeOperation.Create,
+                presentKeys.ToList(),
+                // `ModeDto.Name` is declared non-nullable, but System.Text.Json
+                // happily assigns null from an explicit `"name": null` — which
+                // passes the required-key check. Coalescing here hands the
+                // shared rule an empty string, which it refuses, instead of a
+                // `None` it would skip.
+                dto.Name ?? "",
+                dto.Language,
+                dto.Preset,
+                (long?)dto.PostProcessingMode,
+                (long?)dto.SortOrder,
+                dto.UserSystemPrompt,
+                dto.GeminiCustomPrompt,
+                dto.CustomVocabulary));
+            if (validation != null)
             {
-                return LocalApiResponder.Failure(
-                    LocalApiErrorCode.InvalidRequest,
-                    "Mode 'name' cannot be empty");
+                return LocalApiResponder.Shared(validation);
             }
 
             // Name uniqueness — `ModeService` does not enforce, so we mirror the
-            // macOS endpoint check inline. Match case-insensitively to match
-            // typical user expectations.
-            var existingByName = ModeService.Instance.GetAllModes()
-                .FirstOrDefault(m => string.Equals(m.Name, trimmedName, StringComparison.OrdinalIgnoreCase));
-            if (existingByName != null)
+            // macOS endpoint check inline. The comparison key and the failure
+            // are the shared ones now: `OrdinalIgnoreCase` was one of three
+            // different answers to "the same name" across the heads.
+            if (HyperwhisperCoreMethods.LocalApiModeNameConflict(
+                    trimmedName,
+                    ModeService.Instance.GetAllModes().Select(m => m.Name).ToList()))
             {
-                return LocalApiResponder.Failure(
-                    LocalApiErrorCode.ModeNameTaken,
-                    $"A mode named '{trimmedName}' already exists",
-                    "Choose a different name or PATCH the existing mode instead.");
+                return LocalApiResponder.Shared(HyperwhisperCoreMethods.LocalApiModeNameTakenFailure(
+                    trimmedName, HwLocalApiModeOperation.Create));
             }
 
             var normalized = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
@@ -192,7 +220,7 @@ internal static class ModesEndpoints
 
             // Over-limit bodies answer 200 + INVALID_REQUEST here too; only a
             // genuine JSON error still gets the 400. See LocalApiLimits.
-            var (patch, bodyFailure) = await LocalApiLimits.ReadJsonBodyAsync<ModePatchDto>(ctx);
+            var (patch, presentKeys, bodyFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModePatchDto>(ctx);
             if (bodyFailure != null)
             {
                 return bodyFailure;
@@ -202,26 +230,60 @@ internal static class ModesEndpoints
                 return LocalApiResponder.BadRequest("Empty request body");
             }
 
-            // Name uniqueness check — only when the caller is actually renaming.
+            LogIgnoredModeKeys(presentKeys);
+
+            // The same bounds as the create path, minus the required-key rule:
+            // `ModePatch` has no `required:` list, because "any field omitted is
+            // left untouched" is what a patch means (issue #356).
+            var patchValidation = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                HwLocalApiModeOperation.Patch,
+                presentKeys.ToList(),
+                patch.Name,
+                patch.Language,
+                patch.Preset,
+                (long?)patch.PostProcessingMode,
+                (long?)patch.SortOrder,
+                patch.UserSystemPrompt,
+                patch.GeminiCustomPrompt,
+                patch.CustomVocabulary));
+            if (patchValidation != null)
+            {
+                return LocalApiResponder.Shared(patchValidation);
+            }
+
+            // Name uniqueness check — ONLY WHEN THE CALLER IS ACTUALLY RENAMING.
+            // The head still filters out the record it is writing, because only
+            // the head knows which one that is; the comparison itself is shared.
+            //
+            // The "is this a rename" question is asked with the same shared key
+            // (issue #356, review round 1). Dropping it made a read-modify-write
+            // client — `GET /modes/{id}`, edit one field, `PATCH` the whole
+            // object back — compare its unchanged name against every OTHER
+            // stored mode, and duplicate names are producible on this head:
+            // `HyperWhisperDbContext` declares a NON-unique index on `Name`, and
+            // neither `ModeService.SaveMode`/`UpdateMode` nor
+            // `ModeEditorWindow` checks for a collision. A mode sharing a name
+            // with another became patchable only by omitting `name` entirely.
+            // macOS never lost its guard (`newName != mode.name`).
+            //
+            // A name whose comparison key is unchanged cannot introduce a new
+            // collision, because the multiset of keys in storage is the same
+            // after the write as before it — which is exactly why it is safe to
+            // skip, and why the skip uses the shared key rather than a fourth
+            // definition of "the same name".
             if (patch.Name is { } rawName)
             {
                 var trimmed = rawName.Trim();
-                if (trimmed.Length == 0)
+                if (PatchNameCollides(
+                        trimmed,
+                        existing.Name,
+                        ModeService.Instance.GetAllModes()
+                            .Where(m => m.Id != existing.Id)
+                            .Select(m => m.Name)
+                            .ToList()))
                 {
-                    return LocalApiResponder.Failure(
-                        LocalApiErrorCode.InvalidRequest,
-                        "Mode 'name' cannot be empty");
-                }
-                if (!string.Equals(trimmed, existing.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    var clash = ModeService.Instance.GetAllModes()
-                        .FirstOrDefault(m => string.Equals(m.Name, trimmed, StringComparison.OrdinalIgnoreCase));
-                    if (clash != null && clash.Id != existing.Id)
-                    {
-                        return LocalApiResponder.Failure(
-                            LocalApiErrorCode.ModeNameTaken,
-                            $"A mode named '{trimmed}' already exists");
-                    }
+                    return LocalApiResponder.Shared(HyperwhisperCoreMethods.LocalApiModeNameTakenFailure(
+                        trimmed, HwLocalApiModeOperation.Patch));
                 }
             }
 
@@ -412,6 +474,66 @@ internal static class ModesEndpoints
         if (patch.LocalPostProcessingModel is { } v21) mode.LocalPostProcessingModel = v21;
         if (patch.CustomVocabulary is { } v22) mode.CustomVocabulary = v22;
         if (patch.ProviderType is { } v23) mode.ProviderType = v23;
+    }
+
+    /// <summary>
+    /// Log the keys of a mode body this head does not store, classified by the
+    /// shared key union (issue #356 item 2).
+    /// </summary>
+    /// <remarks>
+    /// This head has always IGNORED an unrecognised key — System.Text.Json's
+    /// default <c>UnmappedMemberHandling</c> is <c>Skip</c> and
+    /// <see cref="LocalApiResponder.JsonOptions"/> does not change it — and the
+    /// verdict for #356 is that ignoring is right, because <c>openapi.yaml</c>
+    /// documents five keys as "Windows only. macOS ignores this key" and so
+    /// invites a cross-platform client to send keys a head does not implement.
+    /// So this is a LOG, not a gate: nothing here rejects. Its value is that
+    /// `mode_key_classification` is the one written-down union, so a key that a
+    /// future release adds to one head and not to another shows up here as
+    /// <c>Unknown</c> instead of vanishing silently.
+    /// </remarks>
+    private static void LogIgnoredModeKeys(IReadOnlyList<string> presentKeys)
+    {
+        foreach (var key in presentKeys)
+        {
+            if (HyperwhisperCoreMethods.LocalApiModeKeyClassification(key) == HwLocalApiModeKeyClass.Unknown)
+            {
+                System.Diagnostics.Debug.WriteLine($"Local API: ignoring unrecognised mode field '{key}'.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether a <c>PATCH</c> body's <c>name</c> collides with another stored
+    /// mode. <c>false</c> when the caller is not actually renaming.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Issue #356, review round 1. The "only when the caller is actually
+    /// renaming" half of this check was dropped when the collision rule moved
+    /// into <c>hw-localapi</c>. Without it a read-modify-write client — <c>GET
+    /// /modes/{id}</c>, change one field, <c>PATCH</c> the whole object back —
+    /// has its UNCHANGED name compared against every other stored mode, and
+    /// duplicate names are producible on this head:
+    /// <c>HyperWhisperDbContext</c> declares a NON-unique index on <c>Name</c>,
+    /// and neither <c>ModeService.SaveMode</c>/<c>UpdateMode</c> nor
+    /// <c>ModeEditorWindow</c> checks for a collision. A mode sharing a name
+    /// with another became patchable only by omitting <c>name</c> entirely.
+    /// macOS never lost its guard.
+    /// </para>
+    /// <para>
+    /// "Not actually renaming" is asked with the SAME shared comparison key, not
+    /// with a fourth definition of "the same name". That is sound as well as
+    /// tidy: if the comparison key does not change, the multiset of keys in
+    /// storage is identical after the write and before it, so the write cannot
+    /// introduce a collision that did not already exist.
+    /// </para>
+    /// </remarks>
+    internal static bool PatchNameCollides(string trimmedName, string storedName, IReadOnlyList<string> otherNames)
+    {
+        ArgumentNullException.ThrowIfNull(otherNames);
+        if (HyperwhisperCoreMethods.LocalApiModeNameConflict(trimmedName, [storedName])) return false;
+        return HyperwhisperCoreMethods.LocalApiModeNameConflict(trimmedName, otherNames.ToList());
     }
 
     private static string? ValidatePostProcessingSelection(Mode mode)

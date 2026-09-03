@@ -208,6 +208,19 @@ struct NemotronLocalAPIEngineTests {
             #expect(alias == alias.lowercased(), "'\(alias)' can never be matched")
         }
 
+        // Issue #356 moved the matching itself into `hw-localapi`, so the two
+        // switches no longer read this set — they read the shared table, which
+        // Windows and the portable head read too. This set is now the PIN that
+        // the two agree: a spelling added here and not there (or the reverse)
+        // is a Nemotron request that works on one head and not another, which
+        // is exactly the drift #356 exists to stop.
+        for alias in NemotronModelManager.Constants.engineAliases {
+            #expect(
+                localApiResolveEngineAlias(alias: alias) == .nemotron,
+                "'\(alias)' is a macOS Nemotron spelling the shared engine table does not resolve"
+            )
+        }
+
         // The label `/transcribe` reports back must itself be an accepted
         // spelling, so a client can feed a response's `engine` straight into
         // the next request.

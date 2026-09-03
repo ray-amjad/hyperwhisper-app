@@ -326,33 +326,55 @@ components:
           items: { $ref: '#/components/schemas/ModelEntry' }
 
     Mode:
+      description: >-
+        A key that is not listed here is IGNORED, on every platform. That is
+        what makes the "Windows only" keys below safe to send from a
+        cross-platform client. The seven `required` keys are required on
+        `POST /modes` only; a body missing one is refused on every platform
+        with HTTP 200 and `INVALID_REQUEST`, naming the keys that are
+        missing. A well-formed JSON object that is merely incomplete is a
+        business failure, not a protocol failure — see the envelope rule in
+        this document's introduction. A body that is not a JSON object, or
+        that carries a value of the wrong type, is still the protocol failure
+        that rule describes: HTTP 400.
       type: object
       required: [name, preset, language, model, punctuation, capitalization, profanityFilter]
       properties:
         id: { type: string, format: uuid }
         name:
           type: string
+          minLength: 1
+          maxLength: 100
           description: >-
-            Must not be empty after normalization and must be unique without
-            regard to case. Windows trims boundary whitespace. macOS also
-            normalizes Unicode, trims invisible boundary characters, and
-            rejects names with no visible base character.
-        preset: { type: string, description: "hyper | message | mail | note | meeting | code | custom" }
-        language: { type: string }
+            Must not be empty after normalization and must be unique. Two names
+            are the same name when they are equal after trimming Unicode
+            whitespace and lowercasing. Windows and Linux trim boundary
+            whitespace first; macOS also normalizes Unicode, trims invisible
+            boundary characters, and rejects names with no visible base
+            character. Lengths are counted in Unicode scalar values.
+        preset:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: "hyper | message | mail | note | meeting | code | custom"
+        language: { type: string, minLength: 1, maxLength: 32 }
         model: { type: string }
         punctuation: { type: boolean }
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
         isDefault: { type: boolean, nullable: true }
         isSystemProvided: { type: boolean, nullable: true }
         sortOrder:
           type: integer
           nullable: true
+          minimum: -32768
+          maximum: 32767
           description: >-
-            macOS stores values from -32768 through 32767. On create, macOS
-            ignores this input and assigns the next stored order.
+            Every platform accepts values from -32768 through 32767 and refuses
+            anything outside that range with `INVALID_REQUEST`. On create,
+            macOS ignores the value and assigns the next stored order.
         createdDate: { type: string, format: date-time, nullable: true }
         modifiedDate: { type: string, format: date-time, nullable: true }
         languageModel: { type: string, nullable: true }
@@ -360,7 +382,9 @@ components:
         cloudProvider: { type: string, nullable: true }
         postProcessingMode:
           type: integer
-          description: "0 = off, 1 = cloud, 2 = local. macOS rejects all other values."
+          minimum: 0
+          maximum: 2
+          description: "0 = off, 1 = cloud, 2 = local. Every platform rejects all other values."
         postProcessingProvider: { type: string, nullable: true }
         englishSpelling:
           type: string
@@ -378,7 +402,7 @@ components:
           description: "On create, an omitted or empty value resolves to `elevenLabsScribeV2`."
         removeTrailingPeriod: { type: boolean, nullable: true }
         enableScreenOCR: { type: boolean, nullable: true }
-        geminiCustomPrompt: { type: string, nullable: true }
+        geminiCustomPrompt: { type: string, nullable: true, maxLength: 2000 }
         cloudPostProcessingModel:
           type: string
           nullable: true
@@ -390,7 +414,8 @@ components:
         customVocabulary:
           type: array
           nullable: true
-          items: { type: string }
+          maxItems: 1000
+          items: { type: string, maxLength: 200 }
           description: "Windows only. macOS ignores this key and never returns it."
         providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
 
@@ -404,42 +429,56 @@ components:
         `cloudTranscriptionModel`, `cloudTranscriptionDomain`, `cloudProvider`,
         `postProcessingProvider`, `englishSpelling`, `cloudAccuracyTier`,
         `geminiCustomPrompt`, or `cloudPostProcessingModel`. Windows treats null
-        like omission for nullable PATCH fields.
+        like omission for nullable PATCH fields. A key that is not listed here
+        is IGNORED, on every platform. The value bounds are the same as on
+        `Mode`; only the required-key rule is create-only.
       type: object
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 100
           description: >-
-            Must not be empty after normalization and must be unique without
-            regard to case. Windows trims boundary whitespace. macOS also
-            normalizes Unicode, trims invisible boundary characters, and
-            rejects names with no visible base character.
-        preset: { type: string, description: "hyper | message | mail | note | meeting | code | custom" }
-        language: { type: string }
+            Must not be empty after normalization and must be unique. Two names
+            are the same name when they are equal after trimming Unicode
+            whitespace and lowercasing. Windows and Linux trim boundary
+            whitespace first; macOS also normalizes Unicode, trims invisible
+            boundary characters, and rejects names with no visible base
+            character. Lengths are counted in Unicode scalar values.
+        preset:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: "hyper | message | mail | note | meeting | code | custom"
+        language: { type: string, minLength: 1, maxLength: 32 }
         model: { type: string }
         punctuation: { type: boolean }
         capitalization: { type: boolean }
         profanityFilter: { type: boolean }
         customInstructions: { type: string, nullable: true }
-        userSystemPrompt: { type: string, nullable: true }
+        userSystemPrompt: { type: string, nullable: true, maxLength: 2000 }
         isDefault: { type: boolean, nullable: true }
         sortOrder:
           type: integer
           nullable: true
-          description: "macOS accepts values from -32768 through 32767."
+          minimum: -32768
+          maximum: 32767
+          description: "Every platform accepts values from -32768 through 32767."
         languageModel: { type: string, nullable: true }
         cloudTranscriptionModel: { type: string, nullable: true }
         cloudProvider: { type: string, nullable: true }
         postProcessingMode:
           type: integer
-          description: "0 = off, 1 = cloud, 2 = local. macOS rejects all other values."
+          minimum: 0
+          maximum: 2
+          description: "0 = off, 1 = cloud, 2 = local. Every platform rejects all other values."
         postProcessingProvider: { type: string, nullable: true }
         englishSpelling: { type: string, nullable: true, description: "american | british | australian | canadian" }
         useStreamingTranscription: { type: boolean, nullable: true }
         cloudAccuracyTier: { type: string, nullable: true }
         removeTrailingPeriod: { type: boolean, nullable: true }
         enableScreenOCR: { type: boolean, nullable: true }
-        geminiCustomPrompt: { type: string, nullable: true }
+        geminiCustomPrompt: { type: string, nullable: true, maxLength: 2000 }
         cloudPostProcessingModel: { type: string, nullable: true }
         cloudTranscriptionDomain: { type: string, nullable: true }
         localEngine: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
@@ -448,7 +487,8 @@ components:
         customVocabulary:
           type: array
           nullable: true
-          items: { type: string }
+          maxItems: 1000
+          items: { type: string, maxLength: 200 }
           description: "Windows only. macOS ignores this key."
         providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
 
@@ -484,7 +524,17 @@ components:
           description: Saved Mode used as the baseline. May be combined with engine/model/language to override per-call.
         engine:
           type: string
-          description: "whisperLocal | parakeet | nemotron | qwen3Asr | appleSpeech | <CloudProvider rawValue>. nemotron and appleSpeech are macOS only. Windows and Linux reject them with ENGINE_UNAVAILABLE."
+          description: >-
+            whisperLocal | parakeet | nemotron | qwen3Asr | appleSpeech |
+            <CloudProvider rawValue>. nemotron and appleSpeech are macOS only.
+            Windows and Linux reject them with ENGINE_UNAVAILABLE. The value is
+            trimmed and matched without regard to case on every platform, and
+            every platform accepts the same alias spellings: whisper,
+            whisperLocal, libwhisper; parakeet; nemotron, nemotronLocal,
+            nemotron-local, nemotron-asr; qwen3Asr, qwen3, qwen3-asr, qwen3_asr,
+            qwen; appleSpeech, apple, apple-speech, apple-speech-analyzer,
+            speech-analyzer. So the engine a response reports can always be fed
+            back into the next request, on any platform.
         model:
           type: string
         language:
@@ -576,8 +626,8 @@ components:
       type: object
       properties:
         ok: { type: boolean }
-        total: { type: integer }
-        returned: { type: integer }
+        total: { type: integer, description: "Number of recordings that match the filters, before limit is applied. Page with limit and since/until while total is more than returned." }
+        returned: { type: integer, description: "Number of recordings in this response. Equal to the length of recordings, and never more than limit." }
         recordings:
           type: array
           items: { $ref: '#/components/schemas/RecordingDTO' }

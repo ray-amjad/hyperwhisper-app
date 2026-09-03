@@ -10,7 +10,7 @@
 //!
 //! # What is here, and what is not
 //!
-//! Five things, and only five:
+//! Eight things, and only eight:
 //!
 //! * [`check_origin`] — the DNS-rebind guard, which **only macOS shipped**. Two
 //!   of three platforms served every route, including the unauthenticated
@@ -30,11 +30,27 @@
 //!   with a timeout and nothing else, so a caller chose the app's peak resident
 //!   memory. The numbers are `PortableLocalApiOptions`', moved rather than
 //!   invented.
+//! * [`resolve_engine_alias`] and [`EngineId`] — `POST /transcribe`'s `engine`
+//!   field, resolved by one table instead of four hand-kept `switch`es, two of
+//!   which are on macOS alone. It resolves an id and says nothing about whether
+//!   this build can serve it; see `engine.rs` (#356 item 3).
+//! * [`mode_key_classification`], [`REQUIRED_MODE_KEYS`],
+//!   [`missing_required_mode_keys`], [`validate_mode`],
+//!   [`mode_name_comparison_key`], [`mode_name_conflict`] and
+//!   [`mode_name_taken_failure`] — the Mode body's key union, the create-only
+//!   required set, the value bounds, and what "the same name" means. See
+//!   `mode.rs` (#356 items 2 and 5).
+//! * [`map_transcription_error`] and [`TranscriptionFailureReason`] — the one
+//!   `(code, message, hint)` table for a transcription failure, replacing two
+//!   divergent native tables and the portable head's *absence* of one. The
+//!   reason enum is the union of the three heads' own error types and maps
+//!   onto the closed 14; **it adds no error code**. See `transcription.rs`
+//!   (#356 item 4).
+//!
 //!
 //! Deliberately NOT here: routing, JSON body parsing, file reads, the
-//! `audio_base64` buffer itself and its decode, `map_transcription_error`'s
-//! message table, engine aliases, `validate_mode`, pagination — and, since
-//! review, **the size comparisons themselves**. An earlier revision exported
+//! `audio_base64` buffer itself and its decode, pagination — and, since review, **the size comparisons
+//! themselves**. An earlier revision exported
 //! `exceeds_request_limit`, `exceeds_upload_limit` and
 //! `exceeds_base64_upload_limit`; no head can call them, because macOS compares
 //! against a `limit` parameter and the .NET head against a host-overridable
@@ -46,6 +62,40 @@
 //! logic over header-sized inputs, which is what makes the `panic = "abort"`
 //! risk acceptable — see below.
 //!
+//! #356 adds four more lines this crate does not cross, each for the same
+//! reason — the thing on the far side is a *capability* or a *catalog*, not a
+//! wire shape, and pulling it in would either be wrong on one platform or
+//! duplicate something that already has a shared home:
+//!
+//! 1. **Whether an engine is available.** [`resolve_engine_alias`] returns the
+//!    id the caller asked for. macOS has Nemotron and Apple Speech, the .NET
+//!    heads do not, so one answer to "is this usable" is wrong somewhere. Each
+//!    head decides, and answers `ENGINE_UNAVAILABLE` — no new code.
+//! 2. **Cloud provider folding.** `openapi.yaml` documents `engine` as five
+//!    names *or* a `<CloudProvider rawValue>`. The five are here; the rawValues
+//!    belong to `hw-catalog`'s `CloudSttCatalog::normalize_cloud_provider`,
+//!    which macOS and Windows already call. Two catalogs of the same thing is
+//!    the failure #356 exists to stop.
+//! 3. **NFC and Unicode general categories.** [`mode_name_comparison_key`] is
+//!    `trim` + `to_lowercase`, both `std`. macOS's
+//!    `precomposedStringWithCanonicalMapping` and its category-based boundary
+//!    trim stay a macOS pre-step, because reproducing them needs
+//!    `unicode-normalization` and a category table — and rule 2 below is why
+//!    that dependency is not taken. `mode.rs` says so at length; do not "fix"
+//!    it.
+//! 4. **"An enabled `postProcessingMode` needs a provider".** One line on the
+//!    portable head, a much richer rule on Windows that reaches into
+//!    `CustomEndpointManager` and `PlatformHelper`, and nothing at all on
+//!    macOS. All three keep their own.
+//! 5. **A hint that names a product surface, and per-endpoint validation
+//!    text.** [`map_transcription_error`] takes its hint as a parameter on the
+//!    three rows where macOS says `Settings → API Keys` and Windows says
+//!    `Model Library API keys manager` — the same slot, two different menus.
+//!    And it covers the *transcription* table only: roughly 125 other sites
+//!    across the three heads build a `(code, message, hint)` triple inline in
+//!    endpoint validation, and #356 names three tables, not the whole surface.
+//!
+
 //! # Panic-free by construction
 //!
 //! The workspace release profile sets `panic = "abort"`, and every input here
@@ -81,13 +131,17 @@
 )]
 
 mod auth;
+mod engine;
 mod failure;
 mod limits;
+mod mode;
 mod origin;
 mod sha256;
 mod token;
+mod transcription;
 
 pub use auth::{authorize, bearer_token, AUTHORIZATION_HEADER};
+pub use engine::{resolve_engine_alias, EngineId, ALL_ENGINE_IDS};
 pub use failure::{
     forbidden_origin, unauthorized, Failure, FailureKind, LocalApiErrorCode, ALL_ERROR_CODES,
 };
@@ -95,10 +149,22 @@ pub use limits::{
     max_base64_length_for_upload, request_too_large, upload_too_large, MAX_REQUEST_BYTES,
     MAX_UPLOAD_BYTES,
 };
+pub use mode::{
+    missing_required_mode_keys, mode_key_classification, mode_name_comparison_key,
+    mode_name_conflict, mode_name_taken_failure, validate_mode, ModeKeyClass, ModeOperation,
+    ModeValidationInput, MODE_CUSTOM_VOCABULARY_MAX_TERMS, MODE_CUSTOM_VOCABULARY_TERM_MAX_CHARS,
+    MODE_LANGUAGE_MAX_CHARS, MODE_NAME_MAX_CHARS, MODE_POST_PROCESSING_MODE_MAX,
+    MODE_POST_PROCESSING_MODE_MIN, MODE_PRESET_MAX_CHARS, MODE_PROMPT_MAX_CHARS,
+    MODE_SORT_ORDER_MAX, MODE_SORT_ORDER_MIN, REQUIRED_MODE_KEYS,
+};
 pub use origin::{check_origin, OriginDecision, OriginHeaders};
 pub use token::{
     base64url_encode, generate_token, is_well_formed_token, token_fingerprint, TokenError,
     TOKEN_ENTROPY_BYTES, TOKEN_LENGTH,
+};
+pub use transcription::{
+    map_transcription_error, TranscriptionFailureParams, TranscriptionFailureReason,
+    ALL_TRANSCRIPTION_FAILURE_REASONS,
 };
 
 #[cfg(test)]

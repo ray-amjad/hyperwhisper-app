@@ -107,6 +107,14 @@ final class NemotronModelManager: ObservableObject {
         /// Sharing the list makes that drift impossible rather than merely
         /// observable; `NemotronLocalAPIEngineTests` pins the contents so the
         /// spellings themselves cannot change unnoticed.
+        ///
+        /// Issue #356 took the matching one step further out: both switches now
+        /// call `hw-localapi`'s `resolve_engine_alias`, which is the union of
+        /// all four engine tables across the three heads, so this set is no
+        /// longer what either switch reads. It stays because it is the PIN —
+        /// `NemotronLocalAPIEngineTests` asserts every spelling here resolves to
+        /// `.nemotron` in the shared table, which is what stops macOS and the
+        /// .NET heads from disagreeing about a Nemotron spelling.
         static let engineAliases: Set<String> = [
             "nemotron",
             "nemotronlocal",
