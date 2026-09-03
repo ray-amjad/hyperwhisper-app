@@ -670,6 +670,39 @@ internal static class Program
                     "/post-process does not report the cloud model it actually sent");
             });
 
+            // Issue #314, group B: a `local_llm` run resolves its GGUF from
+            // `LocalPostProcessingModel ?? LanguageModel`, so writing the caller's
+            // `model` only to `LanguageModel` let a mode that already had a
+            // `LocalPostProcessingModel` run the baseline GGUF and (now honestly)
+            // report it. The portable head already writes both fields.
+            Run("Local API /post-process applies a model override to the local GGUF field", () =>
+            {
+                var local = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "local_llm",
+                        Model = "gemma-4-31B-it-Q4_K_M.gguf",
+                    });
+                Assert(local.PostProcessingMode == 2 && local.PostProcessingProvider == "local_llm",
+                    "a local_llm provider override did not switch the working mode to local post-processing");
+                Assert(local.LocalPostProcessingModel == "gemma-4-31B-it-Q4_K_M.gguf",
+                    "the caller's model override never reached the field a local run resolves from");
+                Assert(local.LanguageModel == "gemma-4-31B-it-Q4_K_M.gguf",
+                    "the caller's model override no longer reaches LanguageModel");
+
+                // A CLOUD run must not gain a local GGUF it never asked for.
+                var cloud = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "openai",
+                        Model = "gpt-4.1-nano",
+                    });
+                Assert(cloud.PostProcessingMode == 1 && cloud.LocalPostProcessingModel == null,
+                    "a cloud model override leaked into the local GGUF field");
+            });
+
             Run("Retired cloud models resolve to selectable canonical models", () =>
             {
                 var cases = new (string OldId, CloudTranscriptionProvider Provider, string Replacement)[]

@@ -286,8 +286,13 @@ internal static class PostProcessEndpoints
     ///   3. No `mode_id` but preset/prompt/provider/model present → build a
     ///      transient Mode from defaults and apply overrides.
     /// Never persisted.
+    /// <para>
+    /// `internal` rather than `private` so <c>HyperWhisper.SmokeTests</c> can pin
+    /// the override rules directly. Shape 3 is the only one it exercises — the
+    /// other two need <see cref="ModeService"/>.
+    /// </para>
     /// </summary>
-    private static Mode BuildWorkingMode(PostProcessRequest req)
+    internal static Mode BuildWorkingMode(PostProcessRequest req)
     {
         var preset = req.Preset?.Trim();
         var prompt = req.Prompt?.Trim();
@@ -367,6 +372,17 @@ internal static class PostProcessEndpoints
         if (!string.IsNullOrEmpty(model))
         {
             mode.LanguageModel = model;
+            // A LOCAL run resolves from `LocalPostProcessingModel ?? LanguageModel`
+            // (`PostProcessingService.ProcessAsync`), so writing only
+            // `LanguageModel` let a mode that already had a `LocalPostProcessingModel`
+            // silently ignore the caller's `model` and run the baseline GGUF. The
+            // same request on the portable head honours it (`LinuxLocalApiAdapters
+            // .BuildWorkingModeAsync`); this is the same one-line rule, so the two
+            // heads agree.
+            if (mode.PostProcessingMode == 2)
+            {
+                mode.LocalPostProcessingModel = model;
+            }
         }
 
         // After applying overrides, the request implied post-processing is
