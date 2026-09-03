@@ -13,13 +13,12 @@ import Darwin
 
 enum TranscribeEndpoint {
 
+    /// Takes `body`, not an `HTTPRequest` (issue #375). The bytes have already
+    /// been read and bounded at the shared cap by `LocalAPIServer.bodied`, the
+    /// router-level wrapper that sits beside the origin and bearer guards. This
+    /// endpoint is handed no request, so it has no unbounded body to read.
     @MainActor
-    static func handle(request: HTTPRequest, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
-        let body: Data
-        do { body = try await request.bodyData } catch {
-            return LocalAPIResponder.badRequest(message: "Could not read request body")
-        }
-
+    static func handle(body: Data, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
         let req: TranscribeRequest
         do { req = try LocalAPIResponder.decoder.decode(TranscribeRequest.self, from: body) } catch {
             return LocalAPIResponder.badRequest(
@@ -170,6 +169,24 @@ enum TranscribeEndpoint {
         let hint: String?
     }
 
+    /// The "audio is too big" input error, with its wording read off Rust.
+    ///
+    /// An `APIInputError` rather than an `HTTPResponse` because the two size
+    /// checks live inside `resolveAudioSource`, which is synchronous and
+    /// throwing; `handle` catches `APIInputError` and renders it through
+    /// `LocalAPIResponder.failure(code:message:hint:)`. That is HTTP 200 carrying
+    /// `INVALID_REQUEST` — the same envelope `LocalAPIBodyLimit` produces for an
+    /// over-cap request, and the same bytes the .NET head sends
+    /// (`PortableLocalApi.cs:193`/`:245`/`:251`).
+    private static func uploadTooLargeError() -> APIInputError {
+        let failure = localApiUploadTooLargeFailure()
+        return APIInputError(
+            code: LocalAPIErrorCode(shared: failure.code),
+            message: failure.message,
+            hint: failure.hint
+        )
+    }
+
     /// Resolve `file` or `audio_base64` into a concrete file URL on disk.
     /// When base64 is used, writes a temp file and returns a cleanup closure
     /// that deletes it after the transcription run.
@@ -252,6 +269,42 @@ enum TranscribeEndpoint {
                 allowListedPath: allowListedPath,
                 fileIdentity: fileIdentity
             )
+            // SIZE (issue #375): the `file` path is deliberately NOT capped at
+            // `localApiMaxUploadBytes()`, unlike the `audio_base64` branch below.
+            //
+            // Be clear about what that is: a per-head DIVERGENCE on a documented
+            // field, and one this change introduces. The .NET head does cap it —
+            // `PortableLocalApi.ReadAllowedFileAsync` at :340-341 answers
+            // `Failure(200, INVALID_REQUEST, "Audio exceeds the configured upload
+            // limit.")` when `input.Length > options.MaxUploadBytes`, and that is
+            // the head the two numbers were copied from. So for the same request,
+            // a 60 MiB local recording, macOS transcribes and Linux refuses. It is
+            // called out per-head in the "Request limits" section of
+            // `mintlify-help/api-reference/local-api/overview.mdx`, so a client
+            // integrator can at least see it; it is not hidden, but it is not
+            // parity either. `hw-localapi::limits`'s own module doc names exactly
+            // this shape of outcome — one head's number, another head's answer —
+            // as the failure it exists to prevent.
+            //
+            // The case for leaving it uncapped: `stageValidatedAudioFile` copies
+            // through a 1 MiB window into a temp file and never holds the
+            // recording in memory, so a cap here buys no memory back. It would
+            // only stop a user transcribing a long recording they already have on
+            // disk. The amplification #375 reports is the buffered base64 payload,
+            // not this. The .NET head's cap is not gratuitous either, for the
+            // mirror-image reason: its `file` path DOES buffer whole
+            // (`new MemoryStream((int)input.Length)`, `PortableLocalApi.cs:342`),
+            // so there the cap is the memory guard it is everywhere else. The two
+            // heads diverge because their implementations do.
+            //
+            // The case against: parity is the point of the change, and "which
+            // head am I talking to" is not a question a documented field should
+            // make a caller ask.
+            //
+            // Unresolved on purpose — it is a product call, not a code call. It
+            // is written up as an open question in the implementation notes for
+            // this change: cap macOS to match .NET, or lift the .NET cap? Either
+            // answer is a wire change on one of the two heads.
             let stagedFile: StagedAudioFile
             do {
                 stagedFile = try Self.stageValidatedAudioFile(
@@ -271,12 +324,42 @@ enum TranscribeEndpoint {
         }
 
         // base64 path
-        guard let raw = trimmedBase64, let data = Data(base64Encoded: raw, options: [.ignoreUnknownCharacters]) else {
+        guard let raw = trimmedBase64 else {
             throw APIInputError(
                 code: .audioDecodeFailed,
                 message: "'audio_base64' is not valid base64",
                 hint: nil
             )
+        }
+        // SIZE (issue #375), before the decode: `Data(base64Encoded:)` allocates
+        // the decoded buffer, so checking the decoded size alone would still let
+        // a caller pay for the allocation first. The ceiling is the encoded
+        // length that `localApiMaxUploadBytes()` expands to, exactly as
+        // `PortableLocalApi.cs:243-245` computes it.
+        //
+        // Honest scope: at the shipped defaults this cannot fire on this head.
+        // 48 MiB of audio expands to a ~64 MiB base64 string, which is already
+        // over the 50 MiB request cap `LocalAPIBodyLimit` enforces first, so the
+        // request guard always wins. It is defence-in-depth for a head with a
+        // looser request cap (and for the multipart `audio` part the .NET head
+        // has), not the fix for the reported repro.
+        if UInt64(raw.utf8.count) > localApiMaxBase64LengthForUpload() {
+            throw Self.uploadTooLargeError()
+        }
+        guard let data = Data(base64Encoded: raw, options: [.ignoreUnknownCharacters]) else {
+            throw APIInputError(
+                code: .audioDecodeFailed,
+                message: "'audio_base64' is not valid base64",
+                hint: nil
+            )
+        }
+        // And the decoded bytes, the comparison `PortableLocalApi.cs:251` makes.
+        // Also unreachable today — an encoded string under the ceiling above
+        // cannot decode to more than the upload cap, by construction — but it is
+        // the check that binds if either cap is ever loosened independently, and
+        // it is the one that would still be here if the decode moved.
+        if UInt64(data.count) > localApiMaxUploadBytes() {
+            throw Self.uploadTooLargeError()
         }
         let ext = Self.extensionForMime(req.mime_type)
         let stagedFile: StagedAudioFile

@@ -109,6 +109,62 @@ struct LocalAPIContractTests {
         #expect(failure.hint == hint)
     }
 
+    // MARK: - The request-size caps (issue #375)
+
+    /// The two caps are one pair of numbers shared by every head, not three
+    /// copies that drift.
+    ///
+    /// They are `PortableLocalApiOptions.MaxRequestBytes` / `.MaxUploadBytes`
+    /// (`PortableLocalApi.cs:18-19`) moved into Rust. A head that enforced a
+    /// different ceiling would accept a body its sibling refuses, for the same
+    /// caller and the same documented API — which is the failure #289 spent a
+    /// whole issue undoing for the origin guard.
+    ///
+    /// `maxUpload <= maxRequest` is the invariant `PortableLocalApiOptions.Validate()`
+    /// throws on: an upload cap above the request cap is unreachable, and every
+    /// oversized upload would be reported as an oversized *request* instead.
+    @Test func theSizeCapsAreTheSharedNumbers() {
+        #expect(localApiMaxRequestBytes() == 52_428_800)
+        #expect(localApiMaxUploadBytes() == 50_331_648)
+        #expect(localApiMaxUploadBytes() <= localApiMaxRequestBytes())
+    }
+
+    /// The base64 ceiling is the .NET expansion, evaluated the way C# evaluates
+    /// it — integer division before the multiply.
+    ///
+    /// `TranscribeEndpoint` checks the encoded string against this *before*
+    /// `Data(base64Encoded:)` allocates anything. Derived from the upload cap and
+    /// not the request cap, matching `PortableLocalApi.cs:244`; deriving it from
+    /// the other cap would make the two heads reject different payloads.
+    @Test func theBase64CeilingIsTheDotnetExpansion() {
+        #expect(localApiMaxBase64LengthForUpload() == (50_331_648 + 2) / 3 * 4)
+        #expect(localApiMaxBase64LengthForUpload() == 67_108_864)
+    }
+
+    /// Both size failures are HTTP 200 carrying `INVALID_REQUEST`, with the
+    /// messages the .NET head already sends, verbatim.
+    ///
+    /// #375 asks for a 413. A 413 wants `PAYLOAD_TOO_LARGE`, which
+    /// `theOutOfEnumCodesStayOutOfTheEnum` above requires to stay undecodable —
+    /// and because `LocalAPIErrorCode` is a closed `Codable` enum, a client
+    /// sharing this decoder would fail to decode the ENTIRE envelope, not just
+    /// the code. So the rejection is a business failure, and this test is the
+    /// guard on that decision. The strings are wire contract: rewording either
+    /// one changes what every head says.
+    @Test func theOversizeFailuresAreBusinessFailures() {
+        let request = localApiRequestTooLargeFailure()
+        #expect(request.httpStatus == 200)
+        #expect(LocalAPIErrorCode(shared: request.code) == .invalidRequest)
+        #expect(request.message == "Request exceeds the configured limit.")
+        #expect(request.hint == nil)
+
+        let upload = localApiUploadTooLargeFailure()
+        #expect(upload.httpStatus == 200)
+        #expect(LocalAPIErrorCode(shared: upload.code) == .invalidRequest)
+        #expect(upload.message == "Audio exceeds the configured upload limit.")
+        #expect(upload.hint == nil)
+    }
+
     // MARK: - The origin guard
 
     /// The vectors that matter most on this side: a loopback client is

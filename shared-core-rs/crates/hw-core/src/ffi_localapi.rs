@@ -391,6 +391,67 @@ pub fn local_api_unauthorized_failure(hint: Option<String>) -> HwLocalApiFailure
     hw_localapi::unauthorized(hint).into()
 }
 
+/// The largest request body any head accepts, in bytes: 50 MiB.
+///
+/// A constant rather than a magic `52_428_800` in three heads, for the same
+/// reason as [`local_api_token_entropy_bytes`]. macOS shipped no cap at all
+/// (#375): `HTTPServer` takes an address and a timeout, and every write
+/// endpoint read the whole body with `try await request.bodyData`, so the
+/// caller chose the app's peak resident memory. The number is
+/// `PortableLocalApiOptions.MaxRequestBytes` (`PortableLocalApi.cs:18`), which
+/// the Linux head already enforces.
+#[uniffi::export]
+pub fn local_api_max_request_bytes() -> u64 {
+    hw_localapi::MAX_REQUEST_BYTES
+}
+
+/// The largest piece of audio any head accepts, in bytes: 48 MiB.
+///
+/// `PortableLocalApiOptions.MaxUploadBytes` (`PortableLocalApi.cs:19`).
+/// Applies to the decoded bytes of an `audio_base64` payload and to a
+/// multipart `audio` part — the two shapes a head buffers whole. Always less
+/// than or equal to [`local_api_max_request_bytes`].
+#[uniffi::export]
+pub fn local_api_max_upload_bytes() -> u64 {
+    hw_localapi::MAX_UPLOAD_BYTES
+}
+
+/// The longest base64 string that can decode to
+/// [`local_api_max_upload_bytes`] or fewer bytes.
+///
+/// Check the trimmed string's length against this **before** decoding. That
+/// pre-check is the half of #375 that stops the amplification: without it a
+/// caller makes the head allocate the decoded buffer only to be told the
+/// decoded buffer is too big. Derived from the upload cap, not the request cap
+/// — same as `PortableLocalApi.cs:244`.
+#[uniffi::export]
+pub fn local_api_max_base64_length_for_upload() -> u64 {
+    hw_localapi::max_base64_length_for_upload()
+}
+
+/// The response an over-sized request body gets, byte for byte what the Linux
+/// head already sends (`PortableLocalApi.cs:185`).
+///
+/// **HTTP 200 carrying `INVALID_REQUEST`, not 413.** #375 suggests a 413, but
+/// a 413 wants a `PAYLOAD_TOO_LARGE` code, and that is one of the four codes
+/// outside the closed 14 — a client sharing the macOS `Codable` decoder cannot
+/// decode *any* envelope carrying it. See the `failure.rs` module docs.
+#[uniffi::export]
+pub fn local_api_request_too_large_failure() -> HwLocalApiFailure {
+    hw_localapi::request_too_large().into()
+}
+
+/// The response an over-sized audio upload gets, byte for byte what the Linux
+/// head already sends (`PortableLocalApi.cs:193`, `:245`, `:251`).
+///
+/// One message for the multipart part, the base64 string before decoding and
+/// the decoded bytes alike — a caller cannot tell those apart and the .NET head
+/// does not distinguish them either. HTTP 200 carrying `INVALID_REQUEST`.
+#[uniffi::export]
+pub fn local_api_upload_too_large_failure() -> HwLocalApiFailure {
+    hw_localapi::upload_too_large().into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -536,6 +597,123 @@ mod tests {
         );
         assert!(failure.json.contains(r#""code":"INVALID_REQUEST""#));
         assert!(failure.json.starts_with(r#"{"ok":false,"error":{"#));
+    }
+
+    /// The two caps cross the boundary as the .NET numbers, and the invariant
+    /// `PortableLocalApiOptions.Validate()` asserts (`PortableLocalApi.cs:27`)
+    /// holds on this side too. A head reads these instead of writing
+    /// `52_428_800` into its own server config, which is how the three heads
+    /// stay on one contract.
+    #[test]
+    fn the_size_caps_are_the_dotnet_numbers() {
+        assert_eq!(local_api_max_request_bytes(), 52_428_800);
+        assert_eq!(local_api_max_upload_bytes(), 50_331_648);
+        assert!(local_api_max_upload_bytes() <= local_api_max_request_bytes());
+        assert_eq!(
+            local_api_max_request_bytes(),
+            hw_localapi::MAX_REQUEST_BYTES
+        );
+        assert_eq!(local_api_max_upload_bytes(), hw_localapi::MAX_UPLOAD_BYTES);
+    }
+
+    /// The base64 threshold is `((long)MaxUploadBytes + 2) / 3 * 4`, the
+    /// expansion `PortableLocalApi.cs:244` computes inline — evaluated against
+    /// the *upload* cap, not the request cap. A head that used the other cap
+    /// would accept payloads its sibling rejects.
+    ///
+    /// `manual_div_ceil` is allowed on purpose: the line is a transcription of
+    /// the C# expression so a reader can diff it against that file. Rewriting
+    /// it as `div_ceil` would make it agree with the implementation by
+    /// construction.
+    #[test]
+    #[allow(clippy::manual_div_ceil)]
+    fn the_base64_threshold_crosses_the_boundary() {
+        let expected = (local_api_max_upload_bytes() + 2) / 3 * 4;
+        assert_eq!(local_api_max_base64_length_for_upload(), expected);
+        assert_eq!(local_api_max_base64_length_for_upload(), 67_108_864);
+        assert!(local_api_max_base64_length_for_upload() > local_api_max_upload_bytes());
+
+        // Note the shape of the shipped numbers, because it is surprising and
+        // it is .NET's shape too: base64 expands by 4/3, and 48 MiB expands to
+        // 64 MiB — which is *more* than the 50 MiB request cap. So with the
+        // default options the base64 length pre-check can never fire on its
+        // own: any string long enough to trip it is in a body the request cap
+        // already refused. It is not dead code — `PortableLocalApiOptions`
+        // lets a host lower `MaxRequestBytes` (the .NET test fixture uses
+        // 4096), and it is the check that keeps the decode from running on a
+        // head whose request cap is looser or absent. But at these defaults
+        // the request cap subsumes the whole base64 path: 50 MiB of characters
+        // decode to at most 37.5 MiB, under the 48 MiB upload cap, so the
+        // post-decode check cannot fire either. The upload cap earns its keep
+        // on the multipart `audio` part, which is bytes rather than base64.
+        assert!(local_api_max_base64_length_for_upload() > local_api_max_request_bytes());
+    }
+
+    /// Both size failures are HTTP 200 + `INVALID_REQUEST`, with the .NET
+    /// message strings verbatim.
+    ///
+    /// The 200 is load-bearing and is a deliberate departure from #375's
+    /// suggested 413: `PAYLOAD_TOO_LARGE` is one of the four codes outside the
+    /// closed 14, and emitting it makes the whole envelope undecodable for a
+    /// client sharing the macOS `Codable` enum. This test is the guard on that
+    /// decision, and it asserts the code stays unparseable.
+    #[test]
+    fn the_size_failures_are_business_failures_with_the_dotnet_messages() {
+        let request = local_api_request_too_large_failure();
+        assert_eq!(request.http_status, 200);
+        assert_eq!(request.code, HwLocalApiErrorCode::InvalidRequest);
+        assert_eq!(request.message, "Request exceeds the configured limit.");
+        assert_eq!(request.hint, None);
+        assert_eq!(
+            request.json,
+            r#"{"ok":false,"error":{"code":"INVALID_REQUEST","message":"Request exceeds the configured limit."}}"#
+        );
+
+        let upload = local_api_upload_too_large_failure();
+        assert_eq!(upload.http_status, 200);
+        assert_eq!(upload.code, HwLocalApiErrorCode::InvalidRequest);
+        assert_eq!(upload.message, "Audio exceeds the configured upload limit.");
+        assert_eq!(upload.hint, None);
+        assert_eq!(
+            upload.json,
+            r#"{"ok":false,"error":{"code":"INVALID_REQUEST","message":"Audio exceeds the configured upload limit."}}"#
+        );
+
+        assert_eq!(
+            local_api_error_code_from_wire_value("PAYLOAD_TOO_LARGE".to_string()),
+            None
+        );
+    }
+
+    /// The three exported numbers are ordered the way every head's three
+    /// comparisons need them to be.
+    ///
+    /// This used to assert `exceeds_request_limit(cap)` /
+    /// `exceeds_request_limit(cap + 1)` against three `hw_localapi` predicates.
+    /// Those were deleted in review: no head could call them — macOS compares
+    /// against a `limit` parameter and the .NET head against a per-host
+    /// `options.MaxRequestBytes` — so they pinned a comparison that shipped
+    /// nowhere. The boundary itself is now pinned where the comparison lives:
+    /// `exactlyTheCapIsAccepted` in `LocalAPIBodyLimitTests.swift` and
+    /// `SharedSizeLimits` in `HyperWhisper.LocalApi.Tests/Program.cs`. What is
+    /// still Rust's to guarantee is the *relationship* between the values a
+    /// head reads out, which is what this asserts.
+    #[test]
+    fn the_exported_values_are_ordered_for_the_heads() {
+        let request = local_api_max_request_bytes();
+        let upload = local_api_max_upload_bytes();
+        let encoded = local_api_max_base64_length_for_upload();
+
+        // An upload at its cap is always an acceptable request, so an oversized
+        // upload is never reported as an oversized request instead.
+        assert!(upload <= request);
+        // The pre-decode ceiling is above the decoded cap, so the cheap check
+        // never refuses a payload the expensive one would have taken.
+        assert!(encoded > upload);
+        // None of them is zero, which would refuse every request ever sent.
+        assert_ne!(request, 0);
+        assert_ne!(upload, 0);
+        assert_ne!(encoded, 0);
     }
 
     #[test]

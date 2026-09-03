@@ -17,13 +17,10 @@ import FlyingFox
 
 enum PostProcessEndpoint {
 
+    /// Takes `body`, not an `HTTPRequest` (issue #375) — already read and
+    /// bounded at the shared cap by `LocalAPIServer.bodied`.
     @MainActor
-    static func handle(request: HTTPRequest, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
-        let body: Data
-        do { body = try await request.bodyData } catch {
-            return LocalAPIResponder.badRequest(message: "Could not read request body")
-        }
-
+    static func handle(body: Data, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
         let req: PostProcessRequest
         do { req = try LocalAPIResponder.decoder.decode(PostProcessRequest.self, from: body) } catch {
             return LocalAPIResponder.badRequest(
