@@ -167,11 +167,16 @@ internal sealed class LinuxLocalApiPostProcessor(
     /// actually ran, falling back to the working Mode's stored values only when
     /// the processor did not name a model (issue #314).
     /// <para>
-    /// An empty or whitespace resolved model counts as ABSENT: <c>""</c> is "no
-    /// answer", not an answer. This matches
-    /// <c>PostProcessEndpoint.responseLabels</c> on macOS and
-    /// <c>PostProcessEndpoints.ResponseLabels</c> on Windows, so the wire field
-    /// means the same thing on all three heads.
+    /// A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. The fallback keys on the
+    /// resolved model being NULL — the processor named nothing — not on it being
+    /// empty. A custom endpoint saved with a blank model name posts
+    /// <c>"model": ""</c>, a single-model server answers 200, and
+    /// <c>CloudPostProcessingService.ProcessCustomAsync</c> reports <c>""</c>;
+    /// substituting <c>mode.LanguageModel</c> there would name a leftover BYOK
+    /// cloud id for text a local custom endpoint produced, which is issue #314
+    /// verbatim. This matches <c>PostProcessEndpoint.responseLabels</c> on macOS
+    /// and <c>PostProcessEndpoints.ResponseLabels</c> on Windows, so the wire
+    /// field means the same thing on all three heads.
     /// </para>
     /// <para>
     /// There is deliberately NO provider rule here, and the sibling heads'
@@ -185,7 +190,7 @@ internal sealed class LinuxLocalApiPostProcessor(
     /// </para>
     /// </summary>
     private static string ResponseModel(Mode mode, string? resolvedModel) =>
-        !string.IsNullOrWhiteSpace(resolvedModel)
+        resolvedModel is not null
             ? resolvedModel.Trim()
             : mode.LanguageModel ?? mode.LocalPostProcessingModel ?? string.Empty;
 

@@ -248,8 +248,10 @@ internal static class PostProcessEndpoints
             provider = resolved;
         }
 
-        var resolvedModelValue = resolvedModel?.Trim() ?? "";
-        var model = resolvedModelValue.Length == 0 ? (storedModel ?? "") : resolvedModelValue;
+        // A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. The fallback keys on
+        // `resolvedModel is null` — "nothing ran" — NOT on the resolved string
+        // being empty. `""` is reported as `""`.
+        var model = resolvedModel is null ? (storedModel ?? "") : resolvedModel.Trim();
 
         return (provider, model);
     }
@@ -375,11 +377,26 @@ internal static class PostProcessEndpoints
             // A LOCAL run resolves from `LocalPostProcessingModel ?? LanguageModel`
             // (`PostProcessingService.ProcessAsync`), so writing only
             // `LanguageModel` let a mode that already had a `LocalPostProcessingModel`
-            // silently ignore the caller's `model` and run the baseline GGUF. The
-            // same request on the portable head honours it (`LinuxLocalApiAdapters
-            // .BuildWorkingModeAsync`); this is the same one-line rule, so the two
-            // heads agree.
-            if (mode.PostProcessingMode == 2)
+            // silently ignore the caller's `model` and run the baseline GGUF.
+            //
+            // KEYED ON THE PROVIDER, NOT ON `PostProcessingMode`. Windows decides
+            // a local run from the provider STRING alone — `ProcessAsync` parses
+            // `mode.PostProcessingProvider` and never reads `PostProcessingMode`
+            // beyond the `== 0` skip — so a mode with post-processing switched off
+            // (`PostProcessingMode == 0`) whose provider is still `"local_llm"`
+            // runs the local GGUF as soon as the rule below promotes it to 1. A
+            // mode-keyed guard skipped this write on exactly that shape and ran
+            // the STALE GGUF, now honestly reported as a model the caller never
+            // asked for. `FromString` is the same predicate `ProcessAsync` routes
+            // on, so the two cannot disagree.
+            //
+            // The portable head keys on `PostProcessingMode == 2` instead
+            // (`LinuxLocalApiAdapters.BuildWorkingModeAsync`) and is correct to:
+            // its router requires mode 2 AND the provider string
+            // (`LinuxPostProcessingRouter.ProcessAsync`). Same intent, different
+            // routers.
+            if (PostProcessingProviderExtensions.FromString(mode.PostProcessingProvider)
+                == PostProcessingProvider.LocalLlm)
             {
                 mode.LocalPostProcessingModel = model;
             }

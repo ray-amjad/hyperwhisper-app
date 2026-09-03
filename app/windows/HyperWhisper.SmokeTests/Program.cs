@@ -597,7 +597,22 @@ internal static class Program
                 Assert(fellBack.Provider == "anthropic" && fellBack.Model == "claude-haiku-4-5",
                     "/post-process still reports the Mode's model instead of the one that ran");
 
-                // A real provider substitution DOES move the provider field.
+                // ---------------------------------------------------------------
+                // UNIT-ONLY, AND SAY SO. On Windows today the PROVIDER half of
+                // this rule cannot fire end-to-end. `PostProcessingService` derives
+                // its resolved provider from the SAME `Mode.PostProcessingProvider`
+                // the endpoint passes as `storedProvider`, and nothing mutates the
+                // Mode in between — so `NamesTheSameProvider` is true on every
+                // reachable input and the wire `provider` always equals the stored
+                // spelling. The two cases below are (stored, resolved) pairs this
+                // head cannot emit. They pin `ResponseLabels` as a unit, against a
+                // future path that resolves a provider somewhere else and against a
+                // careless simplification of the helper — they are NOT evidence
+                // that the head reports a substitution, and they pass regardless of
+                // the endpoint code. The MODEL half below IS reachable.
+                // ---------------------------------------------------------------
+
+                // UNREACHABLE TODAY (see above): a genuine provider substitution.
                 var swapped = Labels("openai", "gpt-4.1-nano", "local_llm", "gemma-4-31b");
                 Assert(swapped.Provider == "local_llm" && swapped.Model == "gemma-4-31b",
                     "/post-process does not report a genuine provider substitution");
@@ -627,6 +642,11 @@ internal static class Program
                 var custom = Labels(EndpointA, "ignored-by-custom-endpoints", EndpointA, "llama3.2");
                 Assert(custom.Provider == EndpointA && custom.Model == "llama3.2",
                     "/post-process did not report the custom endpoint's own provider string and model");
+                // UNREACHABLE TODAY (see above): the endpoint hands the SAME
+                // `custom:<guid>` string to both sides, so two different endpoints
+                // never meet here. It pins the parse-only trap in
+                // `NamesTheSameProvider` — every custom string parses to `None`, so
+                // dropping the exact-match arm would echo the stale endpoint.
                 Assert(Labels(EndpointA, "m", EndpointB, "m").Provider == EndpointB,
                     "/post-process confused two different custom endpoints for each other");
 
@@ -637,10 +657,18 @@ internal static class Program
                 var noRunNoMode = Labels(null, null, null, null);
                 Assert(noRunNoMode.Provider == "hyperwhisper" && noRunNoMode.Model.Length == 0,
                     "/post-process invented a label when nothing ran and nothing was stored");
-                // An empty resolved value is "no answer", not an answer.
-                var blank = Labels("openai", "gpt-4.1-nano", "   ", "");
+                // A blank resolved PROVIDER means nothing ran.
+                var blank = Labels("openai", "gpt-4.1-nano", "   ", null);
                 Assert(blank.Provider == "openai" && blank.Model == "gpt-4.1-nano",
-                    "/post-process treated a blank resolved label as an answer");
+                    "/post-process treated a blank resolved provider as an answer");
+                // A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. A custom
+                // endpoint saved with a blank model name posts `"model": ""` and a
+                // single-model server answers 200. Reporting the Mode's stored
+                // value there would name a leftover BYOK cloud id for text a local
+                // endpoint produced — issue #314 verbatim — so `""` is reported.
+                var ranUnnamed = Labels(EndpointA, "gpt-4.1-nano", EndpointA, "");
+                Assert(ranUnnamed.Provider == EndpointA && ranUnnamed.Model.Length == 0,
+                    "/post-process reported the Mode's model for a run that named none");
                 Assert(Labels("  ", null, "anthropic", "claude-haiku-4-5").Provider == "anthropic",
                     "/post-process kept a blank stored provider over the one that ran");
 
@@ -708,6 +736,33 @@ internal static class Program
                     });
                 Assert(cloud.PostProcessingMode == 1 && cloud.LocalPostProcessingModel == null,
                     "a cloud model override leaked into the local GGUF field");
+
+                // The write is keyed on the PROVIDER, not on `PostProcessingMode`,
+                // because that is what `PostProcessingService.ProcessAsync` routes
+                // on — it parses `Mode.PostProcessingProvider` and never reads
+                // `PostProcessingMode` past the `== 0` skip. `"local"` is the
+                // reachable proof: `FromString` maps it to `LocalLlm` (so the run
+                // IS local) while `IsLocalLlmProvider` above does not (so the mode
+                // int is 1, not 2). A mode-int guard skipped the write on exactly
+                // this input. The worse shape — a SAVED mode with post-processing
+                // off whose provider is still `local_llm`, where the skipped write
+                // meant a stale GGUF ran and was honestly reported as a model the
+                // caller never asked for — needs `ModeService` and is covered by
+                // this predicate alignment rather than end to end.
+                Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
+                        && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
+                    "the local_llm spellings ProcessAsync routes on have drifted");
+                var altSpelling = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "local",
+                        Model = "gemma-4-12b-it-Q4_K_M.gguf",
+                    });
+                Assert(altSpelling.PostProcessingMode == 1,
+                    "the PostProcessingMode this case depends on being 1 has changed");
+                Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
+                    "the model override missed the local GGUF field for a run ProcessAsync routes local");
             });
 
             Run("Retired cloud models resolve to selectable canonical models", () =>

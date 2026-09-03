@@ -122,9 +122,16 @@ enum PostProcessEndpoint {
         // ones stored on the Mode — every fallback inside `AIPostProcessor`
         // happens after the Mode was read. `preset` is not remapped anywhere, so
         // it still comes straight off the working Mode.
+        // `storedCloudModel` is the nothing-ran fallback for a HyperWhisper Cloud
+        // mode, whose engine is `cloudPostProcessingModel` and not `languageModel`.
+        // Resolved through the same expression the run path reports
+        // (`AIPostProcessor.performHyperWhisperCloudPostProcessing`) so the two
+        // cannot name the value differently.
+        let storedCloudPPModel = CloudPostProcessingModel.fromStorageValue(working.mode.cloudPostProcessingModel)
         let labels = responseLabels(
             storedProvider: working.mode.postProcessingProvider,
             storedModel: working.mode.languageModel,
+            storedCloudModel: storedCloudPPModel.llmModelHeader ?? storedCloudPPModel.modelId,
             storedProcessingMode: working.mode.postProcessingMode,
             resolvedProvider: mutationSignal.resolvedProvider,
             resolvedModel: mutationSignal.resolvedModel
@@ -167,9 +174,14 @@ enum PostProcessEndpoint {
     /// only case differs; Windows has a real divergence here, which is why the
     /// rule is stated rather than assumed.)
     ///
-    /// An empty resolved model is treated as absent: `""` is "no answer", not an
-    /// answer. When nothing ran at all, `model` can still be `""` — that is
-    /// honest, and `post_processed: false` already says so.
+    /// A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. The model fallback keys
+    /// on `resolvedModel == nil` — "nothing ran" — NOT on the resolved string
+    /// being empty. An LLM that ran and answered `""` (a custom endpoint whose
+    /// saved `modelName` is blank sends `"model": ""` and a single-model server
+    /// answers 200) is reported as `""`, because substituting the Mode's stored
+    /// value there would name a leftover cloud id for text a local endpoint
+    /// produced — issue #314 verbatim. `""` means "an LLM ran and did not name
+    /// its model"; `post_processed: true` still says a run happened.
     ///
     /// NOTHING-RAN FALLS BACK THE SAME WAY THE ROUTER DOES. `storedProcessingMode`
     /// is `Mode.postProcessingMode`, and the stored-provider fallback below is the
@@ -181,9 +193,23 @@ enum PostProcessEndpoint {
     /// Reading `postProcessingProvider` alone answered `hyperwhisper` for a local
     /// mode with no stored provider, which is a provider the same mode would never
     /// have routed to.
+    ///
+    /// AND IT NAMES THE FIELD THAT MODE'S OWN ENGINE READS. A HyperWhisper Cloud
+    /// run never reads `Mode.languageModel` — its engine is
+    /// `Mode.cloudPostProcessingModel` — and `PersistenceController` stamps
+    /// `languageModel = "gpt-5.6-luna"` (an OpenAI BYOK id) on EVERY non-local
+    /// mode created without an explicit value, including via `POST /modes`. So
+    /// the stored fallback for a cloud mode is `storedCloudModel` — the caller
+    /// passes `CloudPostProcessingModel.fromStorageValue(...).llmModelHeader ??
+    /// .modelId`, the same expression the run path reports — and everything else
+    /// keeps `storedModel`. Otherwise a failed cloud call answered
+    /// `provider: "hyperwhisper", model: "gpt-5.6-luna"`, a pair that cannot
+    /// exist. (A `custom:<uuid>` mode still falls back to `storedModel`: the
+    /// endpoint's own model name lives on the endpoint, not on the Mode.)
     static func responseLabels(
         storedProvider: String?,
         storedModel: String?,
+        storedCloudModel: String?,
         storedProcessingMode: Int16,
         resolvedProvider: String?,
         resolvedModel: String?
@@ -208,8 +234,15 @@ enum PostProcessEndpoint {
             provider = resolved
         }
 
-        let resolvedModelValue = resolvedModel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let model = resolvedModelValue.isEmpty ? (storedModel ?? "") : resolvedModelValue
+        let model: String
+        if let resolvedModel {
+            // An LLM ran. Report what it named, even when that is `""`.
+            model = resolvedModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if provider.caseInsensitiveCompare(PostProcessingProvider.hyperwhisper.rawValue) == .orderedSame {
+            model = storedCloudModel ?? ""
+        } else {
+            model = storedModel ?? ""
+        }
 
         return (provider, model)
     }

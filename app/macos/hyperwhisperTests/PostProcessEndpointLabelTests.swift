@@ -25,6 +25,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "anthropic",
             storedModel: "gpt-4.1-nano",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: "anthropic",
             resolvedModel: "claude-haiku-4-5"
@@ -37,6 +38,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "openai",
             storedModel: "gpt-4.1-nano",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: PostProcessingProvider.localLLM.rawValue,
             resolvedModel: "gemma-3-12b"
@@ -52,6 +54,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "hyperwhisper",
             storedModel: "gpt-4.1-nano",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: PostProcessingProvider.hyperwhisper.rawValue,
             resolvedModel: "claude-haiku-4-5"
@@ -65,6 +68,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: providerString,
             storedModel: "ignored-by-custom-endpoints",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: providerString,
             resolvedModel: "llama3.1:8b"
@@ -79,6 +83,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "openai",
             storedModel: "gpt-4.1-nano",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: nil,
             resolvedModel: nil
@@ -93,6 +98,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: nil,
             storedModel: nil,
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: nil,
             resolvedModel: nil
@@ -101,16 +107,84 @@ struct PostProcessEndpointLabelTests {
         #expect(labels.model == "")
     }
 
-    @Test func emptyResolvedValuesAreTreatedAsAbsent() {
+    @Test func aBlankResolvedProviderMeansNothingRan() {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "openai",
             storedModel: "gpt-4.1-nano",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: "   ",
-            resolvedModel: ""
+            resolvedModel: nil
         )
         #expect(labels.provider == "openai")
         #expect(labels.model == "gpt-4.1-nano")
+    }
+
+    @Test func aRunThatDidNotNameItsModelReportsEmptyNotTheStoredModel() {
+        // A custom endpoint saved with a blank `modelName` sends `"model": ""`,
+        // and a single-model server answers 200. An LLM ran — substituting the
+        // Mode's stored value here would name a leftover BYOK cloud id for text
+        // a local custom endpoint produced, which is issue #314 verbatim.
+        let providerString = "custom:0F5F6B1E-4B4A-4E0B-9C2E-6F8C3F2A1D77"
+        let labels = PostProcessEndpoint.responseLabels(
+            storedProvider: providerString,
+            storedModel: "gpt-4.1-nano",
+            storedCloudModel: "grok-4.3",
+            storedProcessingMode: PostProcessingMode.cloud.rawValue,
+            resolvedProvider: providerString,
+            resolvedModel: ""
+        )
+        #expect(labels.provider == providerString)
+        #expect(labels.model == "")
+    }
+
+    // MARK: - Nothing ran: the fallback names the field that mode's engine reads
+
+    @Test func nothingRanOnACloudModeReportsTheCloudEngineNotLanguageModel() {
+        // A HyperWhisper Cloud run never reads `mode.languageModel`, and
+        // `PersistenceController` stamps `"gpt-5.6-luna"` on EVERY non-local mode
+        // created without an explicit value — so the old fallback answered
+        // `provider: "hyperwhisper", model: "gpt-5.6-luna"`, a pair that cannot
+        // exist.
+        let labels = PostProcessEndpoint.responseLabels(
+            storedProvider: PostProcessingProvider.hyperwhisper.rawValue,
+            storedModel: "gpt-5.6-luna",
+            storedCloudModel: "claude-haiku-4-5",
+            storedProcessingMode: PostProcessingMode.cloud.rawValue,
+            resolvedProvider: nil,
+            resolvedModel: nil
+        )
+        #expect(labels.provider == PostProcessingProvider.hyperwhisper.rawValue)
+        #expect(labels.model == "claude-haiku-4-5")
+    }
+
+    @Test func nothingRanOnACloudModeWithNoStoredProviderStillUsesTheCloudEngine() {
+        // `.cloud` with nothing stored resolves to `hyperwhisper`, so the model
+        // half must follow the provider the fallback just decided — not the
+        // stored provider string, which is absent here.
+        let labels = PostProcessEndpoint.responseLabels(
+            storedProvider: nil,
+            storedModel: "gpt-5.6-luna",
+            storedCloudModel: "grok-4.3",
+            storedProcessingMode: PostProcessingMode.cloud.rawValue,
+            resolvedProvider: nil,
+            resolvedModel: nil
+        )
+        #expect(labels.provider == PostProcessingProvider.hyperwhisper.rawValue)
+        #expect(labels.model == "grok-4.3")
+    }
+
+    @Test func nothingRanOnABYOKModeStillReportsTheModesLanguageModel() {
+        let labels = PostProcessEndpoint.responseLabels(
+            storedProvider: "anthropic",
+            storedModel: "claude-haiku-4-5",
+            storedCloudModel: "grok-4.3",
+            storedProcessingMode: PostProcessingMode.cloud.rawValue,
+            resolvedProvider: nil,
+            resolvedModel: nil
+        )
+        #expect(labels.provider == "anthropic")
+        #expect(labels.model == "claude-haiku-4-5")
     }
 
     // MARK: - Nothing ran: the fallback follows the router, not just the string
@@ -123,6 +197,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: nil,
             storedModel: nil,
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.local.rawValue,
             resolvedProvider: nil,
             resolvedModel: nil
@@ -136,6 +211,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "openai",
             storedModel: "gpt-4.1-nano",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.local.rawValue,
             resolvedProvider: nil,
             resolvedModel: nil
@@ -150,6 +226,7 @@ struct PostProcessEndpointLabelTests {
         let cloudLabels = PostProcessEndpoint.responseLabels(
             storedProvider: nil,
             storedModel: nil,
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: nil,
             resolvedModel: nil
@@ -159,6 +236,7 @@ struct PostProcessEndpointLabelTests {
         let offLabels = PostProcessEndpoint.responseLabels(
             storedProvider: nil,
             storedModel: nil,
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.off.rawValue,
             resolvedProvider: nil,
             resolvedModel: nil
@@ -172,6 +250,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: nil,
             storedModel: nil,
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.local.rawValue,
             resolvedProvider: "anthropic",
             resolvedModel: "claude-haiku-4-5"
@@ -188,6 +267,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "OpenAI",
             storedModel: "gpt-4.1-nano",
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: "openai",
             resolvedModel: "gpt-4.1-nano"
@@ -199,6 +279,7 @@ struct PostProcessEndpointLabelTests {
         let labels = PostProcessEndpoint.responseLabels(
             storedProvider: "  ",
             storedModel: nil,
+            storedCloudModel: nil,
             storedProcessingMode: PostProcessingMode.cloud.rawValue,
             resolvedProvider: "anthropic",
             resolvedModel: "claude-haiku-4-5"

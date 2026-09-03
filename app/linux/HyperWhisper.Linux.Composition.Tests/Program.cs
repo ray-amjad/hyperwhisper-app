@@ -1072,14 +1072,18 @@ static async Task LocalApiPostProcessingTransientModes()
         Assert(substituted.Model == "grok-4.3",
             "the resolved model did not win over the model stored on the Mode");
 
-        // Empty/whitespace counts as ABSENT, matching macOS `responseLabels` and
-        // Windows `ResponseLabels`: "" is "no answer", not an answer.
+        // A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN, matching macOS
+        // `responseLabels` and Windows `ResponseLabels`. Only NULL — the processor
+        // named nothing — falls back to the Mode. A processor that ran and
+        // answered blank reports blank: substituting the Mode's stored id there
+        // would name `gpt-test` for text this run produced, which is #314 itself.
         processor.ResolvedModel = "   ";
         var blank = await adapter.ProcessAsync(
             new PostProcessRequest("raw", disabled.Id.ToString("D"), "message", null, "openai", "gpt-test", context),
             CancellationToken.None);
-        Assert(blank.Model == "gpt-test",
-            "a whitespace resolved model was not treated as absent");
+        Assert(blank.Model.Length == 0,
+            "a run that did not name its model reported the Mode's stored model instead");
+        processor.ResolvedModel = null;
     }
     finally
     {
