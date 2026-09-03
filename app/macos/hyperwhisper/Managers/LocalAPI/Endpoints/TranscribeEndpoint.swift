@@ -158,12 +158,27 @@ enum TranscribeEndpoint {
         let fileIdentity: FileIdentity
     }
 
-    private struct FileIdentity: Equatable {
+    /// Which inode a descriptor is bound to. Not `private`, because
+    /// `fileStatus(forFileDescriptor:)` returns it and that is called from
+    /// `LocalAPIFilePathCapTests`.
+    struct FileIdentity: Equatable {
         let device: UInt64
         let inode: UInt64
     }
 
-    private struct APIInputError: Error {
+    /// Everything one `fstat` on an open descriptor tells this endpoint.
+    ///
+    /// The identity is what the TOCTOU walk compares; the size is what the
+    /// upload cap compares. They come out of the same `struct stat` on purpose —
+    /// see `fileStatus(forFileDescriptor:)`.
+    struct FileStatus: Equatable {
+        let identity: FileIdentity
+        let size: UInt64
+    }
+
+    /// Not `private`, because `uploadCapRefusal(forAudioBytes:)` returns one and
+    /// the tests read its `code`/`message`/`hint` back.
+    struct APIInputError: Error {
         let code: LocalAPIErrorCode
         let message: String
         let hint: String?
@@ -185,6 +200,34 @@ enum TranscribeEndpoint {
             message: failure.message,
             hint: failure.hint
         )
+    }
+
+    /// The refusal `count` bytes of audio earns, or `nil` when it is within the
+    /// shared upload cap.
+    ///
+    /// # Why this is a function rather than an `if`
+    ///
+    /// This *is* the cap: which limit, which direction, which error. Its two
+    /// call sites cannot be driven from a test — `stageValidatedAudioFile` takes
+    /// a `ValidatedAudioFilePath` only the `openat` walk can mint, and
+    /// `resolveAudioSource` is reached through a FlyingFox `handle` this test
+    /// target links nothing for. Reading the production text back instead proves
+    /// only that `localApiMaxUploadBytes()` is *mentioned*: flip the `>` to `<`
+    /// and every such assertion still holds while macOS refuses every file under
+    /// the cap. So the decision is lifted out to somewhere a test can call it
+    /// with 0, cap, and cap + 1 — the same split `LocalAPIBodyLimit` makes for
+    /// `drain` and `reservation(declared:received:)`, for the same reason.
+    ///
+    /// The comparison is `>`, so exactly the cap is accepted: the comparison
+    /// `PortableLocalApi.cs:340` makes, and the reason one caller gets one answer
+    /// from every head instead of two.
+    ///
+    /// - Parameter count: bytes of audio. For a `file`, `st_size` from the
+    ///   `fstat` that already proved the descriptor's identity — never a fresh
+    ///   stat of the caller's path. For `audio_base64`, the decoded length.
+    static func uploadCapRefusal(forAudioBytes count: UInt64) -> APIInputError? {
+        guard count > localApiMaxUploadBytes() else { return nil }
+        return Self.uploadTooLargeError()
     }
 
     /// Resolve `file` or `audio_base64` into a concrete file URL on disk.
@@ -284,11 +327,14 @@ enum TranscribeEndpoint {
             // This cap buys no memory back on macOS. It exists so the same
             // request gets the same answer from every head, nothing else.
             //
-            // The check lives in `stageValidatedAudioFile`, on the descriptor
-            // that function already validated — see the note there. .NET also
-            // refuses an empty file first (`input.Length <= 0` → 400 "Audio must
-            // not be empty."); macOS still has no equivalent, and that stays a
-            // separate wire change rather than a rider on the cap.
+            // The decision itself is `uploadCapRefusal(forAudioBytes:)` — a
+            // function so a test can call it rather than read it — applied in
+            // `stageValidatedAudioFile` to the size the validated descriptor
+            // reported. See the notes on both.
+            //
+            // .NET also refuses an empty file first (`input.Length <= 0` → 400
+            // "Audio must not be empty."); macOS still has no equivalent, and
+            // that stays a separate wire change rather than a rider on the cap.
             let stagedFile: StagedAudioFile
             do {
                 stagedFile = try Self.stageValidatedAudioFile(
@@ -348,8 +394,8 @@ enum TranscribeEndpoint {
         // cannot decode to more than the upload cap, by construction — but it is
         // the check that binds if either cap is ever loosened independently, and
         // it is the one that would still be here if the decode moved.
-        if UInt64(data.count) > localApiMaxUploadBytes() {
-            throw Self.uploadTooLargeError()
+        if let refusal = Self.uploadCapRefusal(forAudioBytes: UInt64(data.count)) {
+            throw refusal
         }
         let ext = Self.extensionForMime(req.mime_type)
         let stagedFile: StagedAudioFile
@@ -384,17 +430,19 @@ enum TranscribeEndpoint {
     private static func stageValidatedAudioFile(_ source: ValidatedAudioFilePath, fileExtension ext: String) throws -> StagedAudioFile {
         let stagedFile = try Self.makePrivateStagedAudioFile(fileExtension: ext)
         do {
-            let input = try Self.openValidatedAudioFile(source)
+            let opened = try Self.openValidatedAudioFile(source)
+            let input = opened.handle
             defer { try? input.close() }
 
-            // SIZE (issue #375): read off the descriptor `openValidatedAudioFile`
-            // just walked and identity-checked, never a fresh `FileManager` stat
-            // of the caller's path. Statting the path again would reopen the very
-            // swap window the `O_NOFOLLOW` walk closes, and could measure a file
-            // other than the one about to be staged. Placed before the copy loop
-            // so an over-cap file costs one `fstat`, not a full streamed copy.
-            if try Self.fileSize(forFileDescriptor: input.fileDescriptor) > localApiMaxUploadBytes() {
-                throw Self.uploadTooLargeError()
+            // SIZE (issue #375): `opened.size` is the `st_size` from the very
+            // `fstat` that proved this descriptor is the inode validation
+            // approved. It is not a second stat, and above all not a fresh
+            // `FileManager` stat of the caller's path — statting the path again
+            // would reopen the swap window the `O_NOFOLLOW` walk closes, and
+            // could measure a file other than the one about to be staged.
+            // Applied before the copy loop, so an over-cap file costs no I/O.
+            if let refusal = Self.uploadCapRefusal(forAudioBytes: opened.size) {
+                throw refusal
             }
 
             guard FileManager.default.createFile(
@@ -447,8 +495,21 @@ enum TranscribeEndpoint {
         return StagedAudioFile(fileURL: fileURL, directoryURL: directoryURL)
     }
 
+    /// A validated audio file, opened, with the size the walk's own `fstat`
+    /// reported.
+    ///
+    /// The size travels with the handle so the upload cap needs no `fstat` of
+    /// its own: the walk already has to stat the final descriptor to compare its
+    /// identity, and `st_size` is in that same `struct stat`. Two stats would be
+    /// a wasted syscall on every `file` request and a second place for the two
+    /// answers to drift apart.
+    private struct OpenedAudioFile {
+        let handle: FileHandle
+        let size: UInt64
+    }
+
     /// Open `source` by walking from the validated recordings root with `openat`
-    /// and `O_NOFOLLOW`, returning a descriptor-backed handle.
+    /// and `O_NOFOLLOW`, returning a descriptor-backed handle and its size.
     ///
     /// SECURITY (issue #713 — TOCTOU): `O_NOFOLLOW` on the final file is not
     /// enough because a writable ancestor directory could be swapped for a symlink
@@ -456,11 +517,11 @@ enum TranscribeEndpoint {
     /// O_DIRECTORY | O_NOFOLLOW)` and comparing file identities prevents root,
     /// ancestor, and final-file replacement from redirecting the provider's read
     /// outside the validated recordings root.
-    private static func openValidatedAudioFile(_ source: ValidatedAudioFilePath) throws -> FileHandle {
+    private static func openValidatedAudioFile(_ source: ValidatedAudioFilePath) throws -> OpenedAudioFile {
         let rootFD = try Self.openDirectoryRefusingSymlinks(at: source.allowListedPath.rootURL)
         defer { close(rootFD) }
 
-        guard try Self.fileIdentity(forFileDescriptor: rootFD) == source.allowListedPath.rootIdentity else {
+        guard try Self.fileStatus(forFileDescriptor: rootFD).identity == source.allowListedPath.rootIdentity else {
             throw POSIXError(.ESTALE)
         }
 
@@ -499,16 +560,25 @@ enum TranscribeEndpoint {
         guard fd >= 0 else {
             throw Self.currentPOSIXError()
         }
+        // Not a `do`/`catch` around the identity check: `close(fd)` followed by
+        // `throw` inside a `do` lands in that `catch`, which closes `fd` a second
+        // time — and by then the number can name a descriptor another thread has
+        // just opened. Each exit closes exactly once.
+        let status: FileStatus
         do {
-            guard try Self.fileIdentity(forFileDescriptor: fd) == source.fileIdentity else {
-                close(fd)
-                throw POSIXError(.ESTALE)
-            }
+            status = try Self.fileStatus(forFileDescriptor: fd)
         } catch {
             close(fd)
             throw error
         }
-        return FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+        guard status.identity == source.fileIdentity else {
+            close(fd)
+            throw POSIXError(.ESTALE)
+        }
+        return OpenedAudioFile(
+            handle: FileHandle(fileDescriptor: fd, closeOnDealloc: true),
+            size: status.size
+        )
     }
 
     private static func openDirectoryRefusingSymlinks(at url: URL) throws -> CInt {
@@ -563,27 +633,31 @@ enum TranscribeEndpoint {
         return FileIdentity(device: device.uint64Value, inode: inode.uint64Value)
     }
 
-    private static func fileIdentity(forFileDescriptor fd: CInt) throws -> FileIdentity {
-        var statInfo = stat()
-        guard fstat(fd, &statInfo) == 0 else {
-            throw Self.currentPOSIXError()
-        }
-        return FileIdentity(device: UInt64(statInfo.st_dev), inode: UInt64(statInfo.st_ino))
-    }
-
-    /// The size of the file behind an already-open descriptor, for the `file`
-    /// upload cap.
+    /// One `fstat` on an already-open descriptor: the identity the TOCTOU walk
+    /// compares, and the size the upload cap compares.
+    ///
+    /// Both answers come out of the same `struct stat` deliberately. The walk
+    /// has to stat the final descriptor anyway to prove it is the inode
+    /// validation approved, and `st_size` is sitting in that struct — a second
+    /// `fstat` for the size would be a wasted syscall on every `file` request,
+    /// two near-identical helpers to keep in step, and a window (however small)
+    /// for the identity and the size to describe different states of the file.
     ///
     /// `st_size` is a signed `off_t`, so it is clamped rather than converted: a
     /// negative value would trap the `UInt64` initializer, and a trap on a
     /// network-facing path is a process abort. Same reasoning
     /// `LocalAPIBodyLimit`'s counter gives for saturating instead of overflowing.
-    private static func fileSize(forFileDescriptor fd: CInt) throws -> UInt64 {
+    ///
+    /// Not `private`: `LocalAPIFilePathCapTests` calls it on a real descriptor.
+    static func fileStatus(forFileDescriptor fd: CInt) throws -> FileStatus {
         var statInfo = stat()
         guard fstat(fd, &statInfo) == 0 else {
             throw Self.currentPOSIXError()
         }
-        return UInt64(max(0, Int64(statInfo.st_size)))
+        return FileStatus(
+            identity: FileIdentity(device: UInt64(statInfo.st_dev), inode: UInt64(statInfo.st_ino)),
+            size: UInt64(max(0, Int64(statInfo.st_size)))
+        )
     }
 
     private static func relativePathComponents(for url: URL, inside root: URL) -> [String] {
