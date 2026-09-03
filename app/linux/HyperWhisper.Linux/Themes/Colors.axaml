@@ -47,8 +47,8 @@
       <Color x:Key="HwInputBackground">#242428</Color>
       <Color x:Key="HwHoverBackground">#303035</Color>
       <Color x:Key="HwSelectedBackground">#183D66</Color>
-      <Color x:Key="HwBorder">#34343A</Color>
-      <Color x:Key="HwSubtleBorder">#2A2A2F</Color>
+      <Color x:Key="HwBorder">#2D2D33</Color>
+      <Color x:Key="HwSubtleBorder">#26262B</Color>
 
       <Color x:Key="HwTextPrimary">#F5F5F7</Color>
       <Color x:Key="HwTextSecondary">#A1A1A6</Color>

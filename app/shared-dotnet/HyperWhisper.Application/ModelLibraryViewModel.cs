@@ -54,7 +54,23 @@ public sealed class ManagedModelViewModel : ViewModelBase
             ? "navigate.account"
             : $"navigate.credentials:{Capability.CredentialAccount}";
     public string? AccountNavigationActionId => Capability.CloudTierEligible ? "navigate.account" : null;
-    public bool Installed { get => _installed; set => Set(ref _installed, value); }
+    // A table row draws one action button, so the row needs to know which action applies without
+    // first selecting the model. Local rows download or delete; cloud rows only need a credential.
+    public bool IsLocal => Capability.Deployment == ModelDeployment.Local;
+    public bool CanDownload => IsLocal && Model is not null && !Installed;
+    public bool CanDelete => IsLocal && Model is not null && Installed;
+    public bool NeedsCredential => !IsLocal && Capability.CredentialAccount is not null;
+
+    public bool Installed
+    {
+        get => _installed;
+        set
+        {
+            if (!Set(ref _installed, value)) return;
+            Notify(nameof(CanDownload));
+            Notify(nameof(CanDelete));
+        }
+    }
     public double Progress { get => _progress; set => Set(ref _progress, value); }
     public string Status { get => _status; set => Set(ref _status, value); }
     public ReadinessState Readiness { get => _readiness; private set => Set(ref _readiness, value); }

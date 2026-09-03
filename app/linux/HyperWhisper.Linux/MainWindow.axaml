@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:HyperWhisper.PortableApplication.ViewModels" xmlns:local="using:HyperWhisper.Linux" xmlns:data="using:HyperWhisper.Data.Entities" xmlns:platform="using:HyperWhisper.Platform.Abstractions" xmlns:conv="using:Avalonia.Data.Converters" x:Class="HyperWhisper.Linux.MainWindow" x:DataType="vm:ApplicationShellViewModel"
-        Title="{ReflectionBinding [app.title], Source={StaticResource Localization}}" FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}" Width="1040" Height="680" MinWidth="800" MinHeight="520" WindowStartupLocation="CenterScreen"
+        Title="{ReflectionBinding [app.title], Source={StaticResource Localization}}" FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}" Width="1000" Height="680" MinWidth="1000" MinHeight="680" WindowStartupLocation="CenterScreen"
         Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}">
   <Window.Resources>
     <!-- One template per sidebar row. Content stays the localized string, so the row still
@@ -108,48 +108,97 @@
       </StackPanel>
       </ScrollViewer>
     </DataTemplate>
+    <!-- HISTORY
+         The Windows page is a 300px list pane on the sidebar surface, a 1px rule, then the detail.
+         Each pane carries its own header and footer band, so the page runs edge to edge with no
+         page heading above it. -->
     <DataTemplate DataType="vm:HistoryViewModel">
-      <Grid x:Name="HistoryScreen" RowDefinitions="Auto,*" ColumnDefinitions="360,*" ColumnSpacing="20" RowSpacing="14">
-        <Border Classes="card" Padding="14" Grid.ColumnSpan="2">
-          <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
-            <TextBox x:Name="HistorySearchInput" MinWidth="200" Text="{Binding SearchText}" PlaceholderText="{ReflectionBinding [linux.ui.search.transcripts], Source={StaticResource Localization}}"/>
-            <Button x:Name="HistorySearchButton" Classes="accent" Grid.Column="1" Content="{ReflectionBinding [linux.ui.search], Source={StaticResource Localization}}" Command="{Binding SearchCommand}"/>
-            <Button Grid.Column="2" Content="{ReflectionBinding [settings.credits.refresh], Source={StaticResource Localization}}" Command="{Binding RefreshCommand}"/>
-            <DatePicker x:Name="HistoryStartDate" Grid.Column="3" MinWidth="156" SelectedDate="{Binding StartDate}"/>
-            <DatePicker x:Name="HistoryEndDate" Grid.Column="4" MinWidth="156" SelectedDate="{Binding EndDate}"/>
-            <Button x:Name="HistoryClearFilters" Grid.Column="5" Content="{ReflectionBinding [settings.models.clearFilters], Source={StaticResource Localization}}" Command="{Binding ClearFiltersCommand}"/>
-          </Grid>
-        </Border>
-        <Border Classes="card" Padding="6" Grid.Row="1">
-          <Grid MinHeight="260">
-            <ListBox x:Name="HistoryList" IsVisible="{Binding Items.Count}" Classes="plain" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" SelectionMode="Multiple,Toggle" SelectionChanged="OnHistorySelectionChanged">
-              <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="6,7" Spacing="3"><TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis" MaxLines="2"/><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding Date}" FontSize="11" Opacity="0.65"/><TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold"/></StackPanel><TextBlock Text="{Binding FailedReason}" FontSize="11" Foreground="IndianRed" TextWrapping="Wrap"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+      <Grid x:Name="HistoryScreen" ColumnDefinitions="300,1,*">
+        <Grid RowDefinitions="Auto,*" Background="{DynamicResource HwSidebarBackgroundBrush}">
+          <Border Padding="16,8" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*,Auto">
+              <Border Background="{DynamicResource HwInputBackgroundBrush}" CornerRadius="8" Padding="10,0">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <Path Data="{StaticResource HwIconSearch}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="13" Height="13" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="1" x:Name="HistorySearchInput" Background="Transparent" BorderThickness="0" Padding="0,7"
+                         Text="{Binding SearchText}" PlaceholderText="{ReflectionBinding [linux.ui.search.transcripts], Source={StaticResource Localization}}"/>
+                </Grid>
+              </Border>
+              <ComboBox x:Name="HistoryPeriod" Grid.Column="1" Margin="12,0,0,0" Width="104" SelectedIndex="0" SelectionChanged="OnHistoryPeriodChanged">
+                <ComboBoxItem Tag="All" Content="{ReflectionBinding [history.filter.all], Source={StaticResource Localization}}"/>
+                <ComboBoxItem Tag="Today" Content="{ReflectionBinding [history.filter.today], Source={StaticResource Localization}}"/>
+                <ComboBoxItem Tag="ThisWeek" Content="{ReflectionBinding [history.filter.week], Source={StaticResource Localization}}"/>
+                <ComboBoxItem Tag="ThisMonth" Content="{ReflectionBinding [history.filter.month], Source={StaticResource Localization}}"/>
+              </ComboBox>
+            </Grid>
+          </Border>
+          <Grid Grid.Row="1">
+            <ListBox x:Name="HistoryList" IsVisible="{Binding Items.Count}" Classes="plain flush" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" SelectionMode="Multiple,Toggle" SelectionChanged="OnHistorySelectionChanged">
+              <ListBox.ItemTemplate><DataTemplate>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="12,10">
+                  <TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap"/>
+                  <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                    <TextBlock Text="{Binding Date, Converter={StaticResource LocalTimeConverter}}" Classes="caption"/>
+                    <TextBlock Text="·" Classes="caption"/>
+                    <TextBlock Text="{Binding Duration, Converter={StaticResource ShortDurationConverter}}" Classes="caption"/>
+                  </StackPanel>
+                  <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FailedReason}" Classes="caption" Foreground="{DynamicResource HwErrorForegroundBrush}"/>
+                </Grid>
+              </DataTemplate></ListBox.ItemTemplate>
             </ListBox>
             <StackPanel Classes="emptyState" IsVisible="{Binding !Items.Count}">
               <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="34" Height="34" Opacity="0.5"/>
-              <TextBlock Text="{ReflectionBinding [linux.empty.history.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [linux.empty.history.body], Source={StaticResource Localization}}" Classes="caption"/>
+              <TextBlock Text="{ReflectionBinding [history.empty.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [history.empty.subtitle], Source={StaticResource Localization}}" Classes="caption" TextAlignment="Center"/>
             </StackPanel>
           </Grid>
-        </Border>
-        <StackPanel Grid.Row="1" Grid.Column="1" Classes="emptyState" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNull}}">
-          <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="38" Height="38" Opacity="0.5"/>
-          <TextBlock Text="{ReflectionBinding [linux.empty.historyDetail.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+        </Grid>
+        <Border Grid.Column="1" Background="{DynamicResource HwBorderBrush}"/>
+        <StackPanel Grid.Column="2" Classes="emptyState" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNull}}">
+          <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="44" Height="44" Opacity="0.45"/>
+          <TextBlock Text="{ReflectionBinding [history.detail.empty], Source={StaticResource Localization}}" Classes="caption" Margin="0,10,0,0"/>
         </StackPanel>
-        <ScrollViewer Grid.Row="1" Grid.Column="1" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-        <Border Classes="card"><StackPanel Spacing="12">
-          <TextBlock Text="{ReflectionBinding [linux.ui.transcript.detail], Source={StaticResource Localization}}" FontSize="18" FontWeight="SemiBold"/>
-          <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding SelectedStatusLabel}" FontWeight="SemiBold"/><TextBlock Text="{Binding SelectedFailureReason}" Foreground="IndianRed" IsVisible="{Binding IsSelectedFailed}"/><TextBlock Text="{ReflectionBinding [linux.ui.retry.in.progress], Source={StaticResource Localization}}" IsVisible="{Binding IsSelectedRetrying}"/></StackPanel>
-          <CheckBox x:Name="HistoryShowRawTranscript" Content="{ReflectionBinding [linux.ui.show.raw.transcription], Source={StaticResource Localization}}" IsChecked="{Binding ShowRawTranscript}" IsEnabled="{Binding HasRawTranscript}"/>
-          <TextBlock x:Name="HistoryDetailLabel" Text="{Binding DetailLabel}" FontWeight="SemiBold"/><TextBlock x:Name="HistoryDetailText" Text="{Binding DetailText}" TextWrapping="Wrap"/>
-          <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="HistoryCopyButton" Content="{Binding CopyLabel}" Command="{Binding CopyCommand}"/><TextBlock Text="{Binding Selected.TranscriptionProvider, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.provider.value}"/><TextBlock Text="{Binding Selected.Duration, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.duration.values}"/></StackPanel>
-          <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8"><Button x:Name="HistoryPlayButton" Content="{Binding PlayPauseLabel}" Command="{Binding PlayCommand}"/><Slider x:Name="HistoryPlaybackSlider" Grid.Column="1" Minimum="0" Maximum="{Binding PlaybackDurationSeconds}" Value="{Binding PlaybackPositionSeconds, Mode=TwoWay}" IsEnabled="{Binding IsPlaybackAvailable}"/><TextBlock Grid.Column="2" Text="{Binding FormattedPlaybackPosition}" VerticalAlignment="Center"/><TextBlock Grid.Column="3" Text="{Binding FormattedPlaybackDuration, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.value}" VerticalAlignment="Center"/></Grid>
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><ComboBox x:Name="HistoryRetryMode" ItemsSource="{Binding AvailableRetryModes}" SelectedItem="{Binding SelectedRetryMode}" DisplayMemberBinding="{Binding Name}" PlaceholderText="{ReflectionBinding [linux.ui.retry.mode], Source={StaticResource Localization}}"/><Button x:Name="HistoryRetryButton" Grid.Column="1" Content="{ReflectionBinding [linux.ui.transcribe.again], Source={StaticResource Localization}}" Command="{Binding RetryCommand}"/></Grid>
-          <CheckBox x:Name="HistoryDeleteAudio" Content="{ReflectionBinding [linux.ui.also.delete.app.owned.recordings.off.by.default], Source={StaticResource Localization}}" IsChecked="{Binding DeleteAudio}"/>
-          <Button x:Name="HistoryDeleteButton" Content="{ReflectionBinding [linux.ui.delete.selected.transcript.s], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}" HorizontalAlignment="Left"/>
-          <TextBlock Text="{ReflectionBinding [linux.ui.caller.owned.files.and.symbolic.link.targets.are.always.retained], Source={StaticResource Localization}}" TextWrapping="Wrap" Opacity="0.65"/><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/>
-        </StackPanel></Border>
-        </ScrollViewer>
+        <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+          <Border Padding="24,20" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Border Classes="keyChip"><TextBlock Text="{Binding SelectedStatusLabel}" FontSize="11"/></Border>
+                <Border Classes="keyChip" IsVisible="{Binding Selected.TranscriptionProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"><TextBlock Text="{Binding Selected.TranscriptionProvider}" FontSize="11"/></Border>
+                <Border Classes="keyChip"><TextBlock Text="{Binding Selected.Duration, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.duration.values}" FontSize="11"/></Border>
+                <Border Classes="keyChip" IsVisible="{Binding ShowRawTranscript}"><TextBlock Text="{ReflectionBinding [history.badge.originalTranscript], Source={StaticResource Localization}}" FontSize="11"/></Border>
+              </StackPanel>
+              <TextBlock Text="{Binding SelectedFailureReason}" Classes="caption" Foreground="{DynamicResource HwErrorForegroundBrush}" IsVisible="{Binding IsSelectedFailed}"/>
+              <TextBlock Text="{ReflectionBinding [history.status.retrying], Source={StaticResource Localization}}" Classes="caption" IsVisible="{Binding IsSelectedRetrying}"/>
+            </StackPanel>
+          </Border>
+          <ScrollViewer Grid.Row="1" Padding="24,16">
+            <StackPanel Spacing="8">
+              <TextBlock x:Name="HistoryDetailLabel" Text="{Binding DetailLabel}" Classes="rowTitle"/>
+              <TextBlock x:Name="HistoryDetailText" Text="{Binding DetailText}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </ScrollViewer>
+          <Border Grid.Row="2" Padding="24,12" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                <Button x:Name="HistoryPlayButton" Content="{Binding PlayPauseLabel}" Command="{Binding PlayCommand}"/>
+                <Slider x:Name="HistoryPlaybackSlider" Grid.Column="1" Minimum="0" Maximum="{Binding PlaybackDurationSeconds}" Value="{Binding PlaybackPositionSeconds, Mode=TwoWay}" IsEnabled="{Binding IsPlaybackAvailable}"/>
+                <TextBlock Grid.Column="2" Text="{Binding FormattedPlaybackPosition}" Classes="caption" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="{Binding FormattedPlaybackDuration, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.value}" Classes="caption" VerticalAlignment="Center"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="HistoryCopyButton" Content="{Binding CopyLabel}" Command="{Binding CopyCommand}"/>
+                <CheckBox x:Name="HistoryShowRawTranscript" Content="{ReflectionBinding [history.toggle.showOriginal], Source={StaticResource Localization}}" IsChecked="{Binding ShowRawTranscript}" IsEnabled="{Binding HasRawTranscript}"/>
+                <ComboBox x:Name="HistoryRetryMode" MinWidth="150" ItemsSource="{Binding AvailableRetryModes}" SelectedItem="{Binding SelectedRetryMode}" DisplayMemberBinding="{Binding Name}" PlaceholderText="{ReflectionBinding [history.context.retryWith], Source={StaticResource Localization}}"/>
+                <Button x:Name="HistoryRetryButton" Content="{ReflectionBinding [common.retry], Source={StaticResource Localization}}" Command="{Binding RetryCommand}"/>
+              </StackPanel>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <CheckBox x:Name="HistoryDeleteAudio" Content="{ReflectionBinding [linux.ui.also.delete.app.owned.recordings.off.by.default], Source={StaticResource Localization}}" IsChecked="{Binding DeleteAudio}"/>
+                <Button x:Name="HistoryDeleteButton" Grid.Column="1" Content="{ReflectionBinding [history.action.deleteSelected], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}"/>
+              </Grid>
+              <TextBlock Text="{Binding Status.Message}" Classes="caption"/>
+            </StackPanel>
+          </Border>
+        </Grid>
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="vm:VocabularyViewModel">
@@ -276,479 +325,701 @@
         </Border>
       </StackPanel></ScrollViewer>
     </DataTemplate>
-    <DataTemplate DataType="vm:SettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="SettingsScreen" Spacing="14" MaxWidth="980" HorizontalAlignment="Left">
-        <TextBlock Text="{ReflectionBinding [settings.nav.general], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
+    <!-- SETTINGS SECTIONS
+         One template per Windows settings page, in the same order, with the same cards, the same
+         row copy and the same 20px page title. Every row reads a value off Settings, which is the
+         one view model all seven sections share. -->
+    <DataTemplate DataType="vm:GeneralSettingsViewModel">
+      <ScrollViewer Classes="page"><StackPanel x:Name="SettingsScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.general.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.default.transcription.language.preference], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" x:Name="SettingsLanguageInput" MinWidth="220" Text="{Binding Language}"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [settings.appearance.theme.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" x:Name="SettingsThemeMode" MinWidth="220" ItemsSource="{Binding ThemeModes}" SelectedItem="{Binding ThemeMode}"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.launch.with.the.window.hidden.when.the.tray.is.available], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsLaunchMinimized" IsChecked="{Binding LaunchMinimized}" VerticalAlignment="Center"/>
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.general.launchAtLogin.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.launchAtLogin.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsAutostart" IsChecked="{Binding Settings.AutostartEnabled}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.ui.hide.minimized.or.closed.windows.in.the.tray], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [linux.ui.if.this.desktop.has.no.statusnotifieritem.tray.watcher.hyper.265a6b0d], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.launchMinimized.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.launchMinimized.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsMinimizeToTray" IsChecked="{Binding MinimizeToTray}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.show.the.recording.status.overlay], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsShowRecordingWindow" IsChecked="{Binding ShowRecordingWindow}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsLaunchMinimized" IsChecked="{Binding Settings.LaunchMinimized}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.ui.send.privacy.filtered.crash.and.performance.diagnostics], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [linux.ui.no.transcript.audio.prompt.or.credential.content.is.attached.14a7239e], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.minimizeToTray.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.minimizeToTray.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsEnableErrorLogging" IsChecked="{Binding EnableErrorLogging}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsMinimizeToTray" IsChecked="{Binding Settings.MinimizeToTray}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.general.showRecordingWindow.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.showRecordingWindow.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsShowRecordingWindow" IsChecked="{Binding Settings.ShowRecordingWindow}" VerticalAlignment="Center"/>
+          </Grid></Border>
+        </StackPanel></Border>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.general.errorLogging.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.errorLogging.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsEnableErrorLogging" IsChecked="{Binding Settings.EnableErrorLogging}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
               <TextBlock Text="{ReflectionBinding [settings.general.shareSpeedData.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [settings.general.shareSpeedData.subtitle], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [settings.general.shareSpeedData.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+              <TextBlock Text="{ReflectionBinding [linux.ui.no.transcript.audio.prompt.or.credential.content.is.attached.14a7239e], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsShareSpeedData" IsChecked="{Binding ShareAnonymousSpeedData}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsShareSpeedData" IsChecked="{Binding Settings.ShareAnonymousSpeedData}" VerticalAlignment="Center"/>
           </Grid></Border>
         </StackPanel></Border>
+        <Border Classes="card" Margin="0,0,0,20"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <TextBlock Text="{ReflectionBinding [linux.ui.default.transcription.language.preference], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+          <TextBox Grid.Column="1" x:Name="SettingsLanguageInput" Width="160" Text="{Binding Settings.Language}"/>
+        </Grid></Border>
+        <TextBlock x:Name="SettingsDesktopContextStatus" Text="{Binding Settings.DesktopContextStatus}" Classes="caption" Margin="4,0,0,0"/>
+      </StackPanel></ScrollViewer>
+    </DataTemplate>
 
-        <TextBlock Text="{ReflectionBinding [linux.ui.shortcuts.and.push.to.talk], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
-          <Border Classes="settingRow"><StackPanel Spacing="6">
-            <TextBlock Text="{ReflectionBinding [linux.ui.use.comma.separated.control.alt.shift.and.meta.leave.both.fi.f2eb583d], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-          </StackPanel></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.toggle.batch.recording.modifiers.and.key], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <Grid Grid.Column="1" ColumnDefinitions="150,110" ColumnSpacing="8"><TextBox x:Name="SettingsToggleModifiers" Text="{Binding ToggleShortcutModifiers}"/><TextBox x:Name="SettingsToggleKey" Grid.Column="1" Text="{Binding ToggleShortcutKey}"/></Grid>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.cancel.active.recording.modifiers.and.key], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <Grid Grid.Column="1" ColumnDefinitions="150,110" ColumnSpacing="8"><TextBox x:Name="SettingsCancelModifiers" Text="{Binding CancelShortcutModifiers}"/><TextBox x:Name="SettingsCancelKey" Grid.Column="1" Text="{Binding CancelShortcutKey}"/></Grid>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.change.mode.modifiers.and.key], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <Grid Grid.Column="1" ColumnDefinitions="150,110" ColumnSpacing="8"><TextBox x:Name="SettingsChangeModeModifiers" Text="{Binding ChangeModeShortcutModifiers}"/><TextBox x:Name="SettingsChangeModeKey" Grid.Column="1" Text="{Binding ChangeModeShortcutKey}"/></Grid>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.start.stop.live.streaming.modifiers.and.key], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <Grid Grid.Column="1" ColumnDefinitions="150,110" ColumnSpacing="8"><TextBox x:Name="SettingsStreamingShortcutModifiers" Text="{Binding StreamingShortcutModifiers}"/><TextBox x:Name="SettingsStreamingShortcutKey" Grid.Column="1" Text="{Binding StreamingShortcutKey}"/></Grid>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"><ComboBox x:Name="SettingsPushToTalkMode" MinWidth="150" ItemsSource="{Binding PushToTalkModes}" SelectedItem="{Binding PushToTalkMode}"/><ComboBox x:Name="SettingsPushToTalkModifier" MinWidth="110" ItemsSource="{Binding PushToTalkModifiers}" SelectedItem="{Binding PushToTalkModifier}"/></StackPanel>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.custom.push.to.talk.modifiers.and.key], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <Grid Grid.Column="1" ColumnDefinitions="150,110" ColumnSpacing="8"><TextBox x:Name="SettingsPushToTalkCustomModifiers" Text="{Binding PushToTalkShortcutModifiers}"/><TextBox x:Name="SettingsPushToTalkCustomKey" Grid.Column="1" Text="{Binding PushToTalkShortcutKey}"/></Grid>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.double.press.to.lock.push.to.talk], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsPushToTalkDoubleLock" IsChecked="{Binding PushToTalkDoublePressLock}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow last"><Button x:Name="SettingsResetShortcuts" Content="{ReflectionBinding [linux.ui.reset.shortcut.defaults], Source={StaticResource Localization}}" Command="{Binding ResetShortcutsCommand}" HorizontalAlignment="Left"/></Border>
-        </StackPanel></Border>
-
-        <TextBlock Text="{ReflectionBinding [linux.ui.text.output], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.paste.the.result.into.the.active.application], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsPasteResultText" IsChecked="{Binding PasteResultText}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.remove.filler.words.when.ai.post.processing.is.off], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsRemoveFillerWords" IsChecked="{Binding RemoveFillerWords}" VerticalAlignment="Center"/>
-          </Grid></Border>
+    <DataTemplate DataType="vm:SoundSettingsViewModel">
+      <ScrollViewer Classes="page"><StackPanel x:Name="SoundScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.sound.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.timestamps.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [linux.timestamps.subtitle], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [settings.sound.enableSoundEffects.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.sound.enableSoundEffects.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsStoreWordTimestamps" IsChecked="{Binding StoreWordTimestamps, Mode=TwoWay}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.ui.best.effort.capitalization.matching.at.the.insertion.point], Source={StaticResource Localization}}" Classes="rowTitle" TextWrapping="Wrap"/>
-              <TextBlock Text="{ReflectionBinding [linux.ui.insertion.context.is.classified.without.retaining.surroundin.eaea7cd0], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-            </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsAutocapitalizeInsert" IsChecked="{Binding AutocapitalizeInsert}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.ui.request.that.pasted.text.stays.out.of.clipboard.history], Source={StaticResource Localization}}" Classes="rowTitle" TextWrapping="Wrap"/>
-              <TextBlock Text="{ReflectionBinding [linux.ui.best.effort.only.linux.clipboard.managers.do.not.expose.one.81f7c687], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-              <TextBlock x:Name="SettingsClipboardHistoryStatus" Text="{Binding ClipboardHistoryPrivacyStatus}" Classes="caption" TextWrapping="Wrap"/>
-            </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsHideClipboardHistory" IsChecked="{Binding HideFromClipboardHistory}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.restore.the.previous.clipboard.after.paste.or.copy], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsRestoreClipboard" IsChecked="{Binding RestoreClipboardAfterPaste}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.clipboard.restore.delay.seconds], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <NumericUpDown Grid.Column="1" x:Name="SettingsClipboardRestoreDelay" MinWidth="150" Minimum="0" Maximum="60" Increment="0.5" Value="{Binding ClipboardRestoreDelaySeconds}"/>
-          </Grid></Border>
-        </StackPanel></Border>
-
-        <TextBlock Text="{ReflectionBinding [linux.ui.live.transcription], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.ui.enable.the.dedicated.live.transcription.shortcut], Source={StaticResource Localization}}" Classes="rowTitle" TextWrapping="Wrap"/>
-              <TextBlock Text="{ReflectionBinding [linux.ui.credentials.are.loaded.from.the.secure.credentials.page.and.9110957e], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-            </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsStreamingEnabled" IsChecked="{Binding StreamingEnabled}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.cloud.provider], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" x:Name="SettingsStreamingProvider" MinWidth="220" ItemsSource="{Binding StreamingProviders}" SelectedItem="{Binding StreamingProvider}"/>
-          </Grid></Border>
-          <Border Classes="settingRow" IsVisible="{Binding StreamingUsesHyperWhisperCloud}"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.hyperwhisper.cloud.accuracy.tier], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" x:Name="SettingsStreamingCloudTier" MinWidth="220" ItemsSource="{Binding StreamingCloudTiers}" SelectedItem="{Binding StreamingCloudTier}"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.language.code], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" x:Name="SettingsStreamingLanguage" MinWidth="220" Text="{Binding StreamingLanguage}" PlaceholderText="auto"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.provider.model.optional], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" x:Name="SettingsStreamingModel" MinWidth="220" Text="{Binding StreamingModel}"/>
-          </Grid></Border>
-          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.enable.provider.fast.formatting], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsStreamingFastFormatting" IsChecked="{Binding StreamingFastFormatting}" VerticalAlignment="Center"/>
-          </Grid></Border>
-        </StackPanel></Border>
-
-        <TextBlock Text="{ReflectionBinding [linux.ui.audio.and.desktop], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.play.recording.start.and.stop.sounds], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsSoundEffects" IsChecked="{Binding EnableSoundEffects}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsSoundEffects" IsChecked="{Binding Settings.EnableSoundEffects}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <TextBlock Text="{ReflectionBinding [linux.ui.sound.effects.volume], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <Slider Grid.Column="1" x:Name="SettingsSoundEffectsVolume" Width="220" Minimum="0" Maximum="1" TickFrequency="0.05" Value="{Binding SoundEffectsVolume}" IsEnabled="{Binding EnableSoundEffects}"/>
+            <Slider Grid.Column="1" x:Name="SettingsSoundEffectsVolume" Width="180" Minimum="0" Maximum="1" TickFrequency="0.05" Value="{Binding Settings.SoundEffectsVolume}" IsEnabled="{Binding Settings.EnableSoundEffects}"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.vad.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [linux.vad.subtitle], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [settings.sound.mediaControl.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.sound.mediaControl.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsVoiceActivityTrimming" IsChecked="{Binding EnableVoiceActivityTrimming}" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" x:Name="SettingsAudioEnvironmentPolicy" MinWidth="160" ItemsSource="{Binding Settings.AudioEnvironmentPolicies}" SelectedItem="{Binding Settings.AudioEnvironmentPolicy}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.temporarily.raise.low.microphone.volume], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsBoostMicrophone" IsChecked="{Binding AutoIncreaseMicVolume}" VerticalAlignment="Center"/>
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.sound.autoIncreaseMicVolume.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.sound.autoIncreaseMicVolume.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsBoostMicrophone" IsChecked="{Binding Settings.AutoIncreaseMicVolume}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.keep.the.selected.microphone.warm.between.recordings], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsKeepMicrophoneWarm" IsChecked="{Binding KeepMicrophoneWarm}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.other.audio.policy], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" x:Name="SettingsAudioEnvironmentPolicy" MinWidth="220" ItemsSource="{Binding AudioEnvironmentPolicies}" SelectedItem="{Binding AudioEnvironmentPolicy}"/>
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.sound.keepMicrophoneWarm.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.sound.keepMicrophoneWarm.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsKeepMicrophoneWarm" IsChecked="{Binding Settings.KeepMicrophoneWarm}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.ui.start.hyperwhisper.when.this.desktop.session.starts], Source={StaticResource Localization}}" Classes="rowTitle" TextWrapping="Wrap"/>
-              <TextBlock x:Name="SettingsDesktopContextStatus" Text="{Binding DesktopContextStatus}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [linux.vad.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [linux.vad.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsAutostart" IsChecked="{Binding AutostartEnabled}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsVoiceActivityTrimming" IsChecked="{Binding Settings.EnableVoiceActivityTrimming}" VerticalAlignment="Center"/>
           </Grid></Border>
         </StackPanel></Border>
+      </StackPanel></ScrollViewer>
+    </DataTemplate>
 
-        <TextBlock Text="{ReflectionBinding [linux.ui.recording.storage], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
+    <DataTemplate DataType="vm:StorageSettingsViewModel">
+      <ScrollViewer Classes="page"><StackPanel x:Name="StorageScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.section.storage], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><StackPanel Spacing="8">
+            <TextBlock Text="{ReflectionBinding [settings.storage.recordings.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox x:Name="SettingsRecordingsDirectory" Text="{Binding Settings.RecordingsDirectory}"/>
+              <Button x:Name="SettingsChooseRecordingsDirectory" Grid.Column="1" Content="{ReflectionBinding [settings.storage.choose.button], Source={StaticResource Localization}}" Click="OnChooseRecordingsDirectory"/>
+            </Grid>
+            <TextBlock Text="{ReflectionBinding [settings.storage.notice], Source={StaticResource Localization}}" Classes="caption"/>
+            <TextBlock Text="{ReflectionBinding [linux.storage.restart_required], Source={StaticResource Localization}}" Classes="caption"/>
+          </StackPanel></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.keep.app.owned.audio.after.transcription], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsKeepAudioFiles" IsChecked="{Binding KeepAudioFiles}" VerticalAlignment="Center"/>
+            <TextBlock Text="{ReflectionBinding [settings.storage.showFolder.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" x:Name="SettingsStorageOpenFolder" Content="{ReflectionBinding [settings.storage.showFolder.button], Source={StaticResource Localization}}" Click="OnOpenRecordingsFolder"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
               <TextBlock Text="{ReflectionBinding [settings.storage.storeAsM4A.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [settings.storage.storeAsM4A.subtitle], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [settings.storage.storeAsM4A.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsStoreAsM4A" IsChecked="{Binding StoreAsM4A}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsStoreAsM4A" IsChecked="{Binding Settings.StoreAsM4A}" VerticalAlignment="Center"/>
           </Grid></Border>
-          <Border Classes="settingRow"><StackPanel Spacing="6">
-            <TextBlock Text="{ReflectionBinding [settings.storage.recordings.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="SettingsRecordingsDirectory" Text="{Binding RecordingsDirectory}"/><Button x:Name="SettingsChooseRecordingsDirectory" Grid.Column="1" Content="{ReflectionBinding [settings.storage.choose.button], Source={StaticResource Localization}}" Click="OnChooseRecordingsDirectory"/></Grid>
-            <TextBlock Text="{ReflectionBinding [settings.storage.notice], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-            <TextBlock Text="{ReflectionBinding [linux.storage.restart_required], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-          </StackPanel></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.automatically.delete.old.transcripts.and.app.owned.audio], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsAutoDeleteEnabled" IsChecked="{Binding AutoDeleteEnabled}" VerticalAlignment="Center"/>
+          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [linux.ui.keep.app.owned.audio.after.transcription], Source={StaticResource Localization}}" Classes="rowTitle"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsKeepAudioFiles" IsChecked="{Binding Settings.KeepAudioFiles}" VerticalAlignment="Center"/>
           </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.delete.items.older.than.this.many.days.1365], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <NumericUpDown Grid.Column="1" x:Name="SettingsAutoDeleteDays" MinWidth="150" Minimum="1" Maximum="365" Value="{Binding AutoDeleteDaysOld}"/>
-          </Grid></Border>
-          <Border Classes="settingRow last"><StackPanel Spacing="8">
-            <TextBlock x:Name="StoragePathText" Classes="caption" TextWrapping="Wrap"/>
-            <TextBlock x:Name="StorageStatusText" Text="{ReflectionBinding [linux.ui.storage.inventory.loads.at.startup], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-            <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="SettingsStorageRefresh" Content="{ReflectionBinding [linux.ui.refresh.usage], Source={StaticResource Localization}}" Click="OnRefreshStorage"/><Button x:Name="SettingsStorageDeleteNow" Content="{ReflectionBinding [linux.ui.delete.now], Source={StaticResource Localization}}" Click="OnDeleteStoredAudioNow" IsEnabled="{Binding AutoDeleteEnabled}"/><Button x:Name="SettingsStorageOpenFolder" Content="{ReflectionBinding [linux.ui.open.recordings.folder], Source={StaticResource Localization}}" Click="OnOpenRecordingsFolder"/></StackPanel>
-          </StackPanel></Border>
         </StackPanel></Border>
-
-        <TextBlock Text="{ReflectionBinding [settings.localApi.title], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
-              <TextBlock Text="{ReflectionBinding [linux.ui.enable.the.loopback.only.local.api], Source={StaticResource Localization}}" Classes="rowTitle" TextWrapping="Wrap"/>
-              <TextBlock x:Name="SettingsLocalApiStatus" Text="{ReflectionBinding [settings.localApi.status.idle], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+              <TextBlock Text="{ReflectionBinding [settings.storage.autoDelete.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.storage.autoDelete.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <CheckBox Grid.Column="1" x:Name="SettingsLocalApiEnabled" IsChecked="{Binding LocalApiEnabled}" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsAutoDeleteEnabled" IsChecked="{Binding Settings.AutoDeleteEnabled}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBlock Text="{ReflectionBinding [settings.storage.autoDelete.deleteAfter], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" x:Name="SettingsAutoDeleteDays" Width="120" Minimum="1" Maximum="365" Value="{Binding Settings.AutoDeleteDaysOld}"/>
+            <TextBlock Grid.Column="2" Text="{ReflectionBinding [settings.storage.autoDelete.days], Source={StaticResource Localization}}" Classes="caption" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow last"><StackPanel Spacing="8">
+            <TextBlock x:Name="StoragePathText" Classes="caption"/>
+            <TextBlock x:Name="StorageStatusText" Text="{ReflectionBinding [linux.ui.storage.inventory.loads.at.startup], Source={StaticResource Localization}}" Classes="caption"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="SettingsStorageRefresh" Content="{ReflectionBinding [linux.ui.refresh.usage], Source={StaticResource Localization}}" Click="OnRefreshStorage"/>
+              <Button x:Name="SettingsStorageDeleteNow" Content="{ReflectionBinding [settings.storage.autoDelete.deleteNow], Source={StaticResource Localization}}" Click="OnDeleteStoredAudioNow" IsEnabled="{Binding Settings.AutoDeleteEnabled}"/>
+            </StackPanel>
+          </StackPanel></Border>
+        </StackPanel></Border>
+      </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:OutputSettingsViewModel">
+      <ScrollViewer Classes="page"><StackPanel x:Name="OutputScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.section.output], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.output.paste.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.output.paste.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsPasteResultText" IsChecked="{Binding Settings.PasteResultText}" VerticalAlignment="Center"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.preferred.port.falls.back.to.an.available.loopback.port], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <NumericUpDown Grid.Column="1" x:Name="SettingsLocalApiPort" MinWidth="150" Minimum="0" Maximum="65535" Value="{Binding LocalApiPort}"/>
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.output.removeFillerWords.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.output.removeFillerWords.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsRemoveFillerWords" IsChecked="{Binding Settings.RemoveFillerWords}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.output.autocapitalizeInsert.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.output.autocapitalizeInsert.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsAutocapitalizeInsert" IsChecked="{Binding Settings.AutocapitalizeInsert}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [linux.timestamps.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [linux.timestamps.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsStoreWordTimestamps" IsChecked="{Binding Settings.StoreWordTimestamps, Mode=TwoWay}" VerticalAlignment="Center"/>
+          </Grid></Border>
+        </StackPanel></Border>
+        <TextBlock Text="{ReflectionBinding [settings.output.clipboard.section], Source={StaticResource Localization}}" Classes="rowTitle" Margin="0,0,0,10"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.output.restoreClipboard.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.output.restoreClipboard.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsRestoreClipboard" IsChecked="{Binding Settings.RestoreClipboardAfterPaste}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.output.restoreDelay.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.output.restoreDelay.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <NumericUpDown Grid.Column="1" x:Name="SettingsClipboardRestoreDelay" Width="140" Minimum="0" Maximum="60" Increment="0.5" Value="{Binding Settings.ClipboardRestoreDelaySeconds}"/>
+          </Grid></Border>
+          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.output.hideClipboardHistory.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.output.hideClipboardHistory.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+              <TextBlock x:Name="SettingsClipboardHistoryStatus" Text="{Binding Settings.ClipboardHistoryPrivacyStatus}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsHideClipboardHistory" IsChecked="{Binding Settings.HideFromClipboardHistory}" VerticalAlignment="Center"/>
+          </Grid></Border>
+        </StackPanel></Border>
+      </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:LocalApiSettingsViewModel">
+      <ScrollViewer Classes="page"><StackPanel x:Name="LocalApiScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.localApi.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [linux.ui.enable.the.loopback.only.local.api], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock x:Name="SettingsLocalApiStatus" Text="{ReflectionBinding [settings.localApi.status.idle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsLocalApiEnabled" IsChecked="{Binding Settings.LocalApiEnabled}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <TextBlock Text="{ReflectionBinding [linux.ui.preferred.port.falls.back.to.an.available.loopback.port], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" x:Name="SettingsLocalApiPort" Width="140" Minimum="0" Maximum="65535" Value="{Binding Settings.LocalApiPort}"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
             <TextBlock Text="{ReflectionBinding [settings.localApi.row.port], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
             <TextBlock x:Name="SettingsLocalApiBoundPort" Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"/>
             <Button Grid.Column="2" Content="{ReflectionBinding [settings.localApi.copy], Source={StaticResource Localization}}" Click="OnCopyLocalApiPort"/>
           </Grid></Border>
-          <Border Classes="settingRow"><StackPanel Spacing="6">
+          <Border Classes="settingRow"><StackPanel Spacing="8">
             <TextBlock Text="{ReflectionBinding [settings.localApi.row.token], Source={StaticResource Localization}}" Classes="rowTitle"/>
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8"><TextBox x:Name="SettingsLocalApiToken" IsReadOnly="True"/><Button x:Name="SettingsLocalApiReveal" Grid.Column="1" Content="{ReflectionBinding [settings.localApi.reveal], Source={StaticResource Localization}}" Click="OnRevealLocalApiToken"/><Button Grid.Column="2" Content="{ReflectionBinding [settings.localApi.copy], Source={StaticResource Localization}}" Click="OnCopyLocalApiToken"/><Button Grid.Column="3" Content="{ReflectionBinding [settings.localApi.regenerate], Source={StaticResource Localization}}" Click="OnRegenerateLocalApiToken"/></Grid>
-            <TextBlock Text="{ReflectionBinding [settings.localApi.helperAuth], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+              <TextBox x:Name="SettingsLocalApiToken" IsReadOnly="True"/>
+              <Button x:Name="SettingsLocalApiReveal" Grid.Column="1" Content="{ReflectionBinding [settings.localApi.reveal], Source={StaticResource Localization}}" Click="OnRevealLocalApiToken"/>
+              <Button Grid.Column="2" Content="{ReflectionBinding [settings.localApi.copy], Source={StaticResource Localization}}" Click="OnCopyLocalApiToken"/>
+              <Button Grid.Column="3" Content="{ReflectionBinding [settings.localApi.regenerate], Source={StaticResource Localization}}" Click="OnRegenerateLocalApiToken"/>
+            </Grid>
+            <TextBlock Text="{ReflectionBinding [settings.localApi.helperAuth], Source={StaticResource Localization}}" Classes="caption"/>
           </StackPanel></Border>
-          <Border Classes="settingRow"><StackPanel Spacing="6">
+          <Border Classes="settingRow last"><StackPanel Spacing="8">
             <TextBlock Text="{ReflectionBinding [settings.localApi.row.portFile], Source={StaticResource Localization}}" Classes="rowTitle"/>
             <TextBox x:Name="SettingsLocalApiDiscoveryPath" IsReadOnly="True"/>
           </StackPanel></Border>
-          <Border Classes="settingRow"><StackPanel Spacing="6">
+        </StackPanel></Border>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><StackPanel Spacing="8">
             <TextBlock Text="{ReflectionBinding [settings.localApi.tab.mcp], Source={StaticResource Localization}}" Classes="rowTitle"/>
             <TextBox x:Name="SettingsLocalApiMcpSnippet" AcceptsReturn="True" IsReadOnly="True" MinHeight="80"/>
             <Button Content="{ReflectionBinding [settings.localApi.copy], Source={StaticResource Localization}}" Click="OnCopyLocalApiMcpSnippet" HorizontalAlignment="Left"/>
           </StackPanel></Border>
-          <Border Classes="settingRow last"><StackPanel Spacing="6">
+          <Border Classes="settingRow last"><StackPanel Spacing="8">
             <TextBlock Text="{ReflectionBinding [settings.localApi.tab.curl], Source={StaticResource Localization}}" Classes="rowTitle"/>
             <TextBox x:Name="SettingsLocalApiCurlSnippet" AcceptsReturn="True" IsReadOnly="True" MinHeight="110"/>
             <Button Content="{ReflectionBinding [settings.localApi.copy], Source={StaticResource Localization}}" Click="OnCopyLocalApiCurlSnippet" HorizontalAlignment="Left"/>
           </StackPanel></Border>
         </StackPanel></Border>
-
-        <TextBlock Text="{ReflectionBinding [linux.ui.local.whisper.backend], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.local.whisper.backend], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" x:Name="SettingsLocalWhisperBackend" MinWidth="220" ItemsSource="{Binding LocalWhisperBackends}" SelectedItem="{Binding LocalWhisperBackend}"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.fall.back.to.cpu.if.the.selected.whisper.gpu.runtime.cannot.start], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsLocalWhisperCpuFallback" IsChecked="{Binding AllowLocalWhisperCpuFallback}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow last"><StackPanel Spacing="4">
-            <TextBlock x:Name="SettingsLocalWhisperRuntimeStatus" Text="{Binding LocalWhisperRuntimeStatus}" Classes="caption" TextWrapping="Wrap"/>
-            <TextBlock Text="{ReflectionBinding [linux.ui.auto.prefers.nvidia.cuda.12.then.a.physical.vulkan.gpu.then.91d87e48], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-          </StackPanel></Border>
-        </StackPanel></Border>
-
-        <TextBlock Text="{ReflectionBinding [linux.ui.local.llm.backend], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <Border Classes="card"><StackPanel>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.local.llm.backend], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" x:Name="SettingsLocalLlmBackend" MinWidth="220" ItemsSource="{Binding LocalLlmBackends}" SelectedItem="{Binding LocalLlmBackend}"/>
-          </Grid></Border>
-          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-            <TextBlock Text="{ReflectionBinding [linux.ui.fall.back.to.cpu.if.gpu.model.loading.fails], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <CheckBox Grid.Column="1" x:Name="SettingsLocalLlmCpuFallback" IsChecked="{Binding AllowLocalLlmCpuFallback}" VerticalAlignment="Center"/>
-          </Grid></Border>
-          <Border Classes="settingRow last"><StackPanel Spacing="4">
-            <TextBlock Text="{Binding LocalLlmRuntimeStatus}" Classes="caption" TextWrapping="Wrap"/>
-            <TextBlock Text="{ReflectionBinding [linux.ui.cuda.is.selected.only.when.its.packaged.backend.and.nvidia.d.71c76162], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-          </StackPanel></Border>
-        </StackPanel></Border>
-
-        <StackPanel Orientation="Horizontal" Spacing="12">
-          <Button x:Name="SettingsSaveButton" Classes="accent" Content="{ReflectionBinding [linux.ui.save.settings], Source={StaticResource Localization}}" Command="{Binding SaveCommand}"/>
-          <TextBlock Text="{Binding Status.Message}" VerticalAlignment="Center"/>
-          <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption" VerticalAlignment="Center"/>
-        </StackPanel>
       </StackPanel></ScrollViewer>
     </DataTemplate>
+
+    <DataTemplate DataType="vm:ShortcutsSettingsViewModel">
+      <ScrollViewer Classes="page"><StackPanel x:Name="ShortcutsScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.section.shortcuts], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.toggle.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsToggleModifiers" Text="{Binding Settings.ToggleShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsToggleKey" Grid.Column="1" Text="{Binding Settings.ToggleShortcutKey}"/></Grid>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.cancel.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsCancelModifiers" Text="{Binding Settings.CancelShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsCancelKey" Grid.Column="1" Text="{Binding Settings.CancelShortcutKey}"/></Grid>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.changeMode.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsChangeModeModifiers" Text="{Binding Settings.ChangeModeShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsChangeModeKey" Grid.Column="1" Text="{Binding Settings.ChangeModeShortcutKey}"/></Grid>
+          </Grid></Border>
+          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.streaming.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsStreamingShortcutModifiers" Text="{Binding Settings.StreamingShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsStreamingShortcutKey" Grid.Column="1" Text="{Binding Settings.StreamingShortcutKey}"/></Grid>
+          </Grid></Border>
+        </StackPanel></Border>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <ComboBox Grid.Column="1" x:Name="SettingsPushToTalkMode" MinWidth="160" ItemsSource="{Binding Settings.PushToTalkModes}" SelectedItem="{Binding Settings.PushToTalkMode}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow" IsVisible="{Binding Settings.PushToTalkUsesModifier}"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.modifier.label], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" x:Name="SettingsPushToTalkModifier" MinWidth="160" ItemsSource="{Binding Settings.PushToTalkModifiers}" SelectedItem="{Binding Settings.PushToTalkModifier}"/>
+          </Grid></Border>
+          <Border Classes="settingRow" IsVisible="{Binding Settings.PushToTalkUsesCustomShortcut}"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.custom.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.custom.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsPushToTalkCustomModifiers" Text="{Binding Settings.PushToTalkShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsPushToTalkCustomKey" Grid.Column="1" Text="{Binding Settings.PushToTalkShortcutKey}"/></Grid>
+          </Grid></Border>
+          <Border Classes="settingRow last" IsVisible="{Binding Settings.PushToTalkIsEnabled}"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.doublePress], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.doublePress.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <CheckBox Grid.Column="1" x:Name="SettingsPushToTalkDoubleLock" IsChecked="{Binding Settings.PushToTalkDoublePressLock}" VerticalAlignment="Center"/>
+          </Grid></Border>
+        </StackPanel></Border>
+        <Button x:Name="SettingsResetShortcuts" Content="{ReflectionBinding [settings.shortcuts.reset.button], Source={StaticResource Localization}}" Command="{Binding Settings.ResetShortcutsCommand}" HorizontalAlignment="Left"/>
+      </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <DataTemplate DataType="vm:AppearanceSettingsViewModel">
+      <ScrollViewer Classes="page"><StackPanel x:Name="AppearanceScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.appearance.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><StackPanel Spacing="2">
+            <TextBlock Text="{ReflectionBinding [settings.appearance.theme.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+            <TextBlock Text="{ReflectionBinding [settings.appearance.theme.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+          </StackPanel></Border>
+          <Border Classes="settingRow">
+            <RadioButton x:Name="SettingsThemeMode" GroupName="ThemeMode" IsChecked="{Binding Settings.ThemeIsSystem, Mode=TwoWay}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{ReflectionBinding [settings.appearance.theme.system], Source={StaticResource Localization}}" Classes="rowTitle"/>
+                <TextBlock Text="{ReflectionBinding [settings.appearance.theme.system.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+              </StackPanel>
+            </RadioButton>
+          </Border>
+          <Border Classes="settingRow">
+            <RadioButton GroupName="ThemeMode" IsChecked="{Binding Settings.ThemeIsLight, Mode=TwoWay}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{ReflectionBinding [settings.appearance.theme.light], Source={StaticResource Localization}}" Classes="rowTitle"/>
+                <TextBlock Text="{ReflectionBinding [settings.appearance.theme.light.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+              </StackPanel>
+            </RadioButton>
+          </Border>
+          <Border Classes="settingRow last">
+            <RadioButton GroupName="ThemeMode" IsChecked="{Binding Settings.ThemeIsDark, Mode=TwoWay}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{ReflectionBinding [settings.appearance.theme.dark], Source={StaticResource Localization}}" Classes="rowTitle"/>
+                <TextBlock Text="{ReflectionBinding [settings.appearance.theme.dark.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+              </StackPanel>
+            </RadioButton>
+          </Border>
+        </StackPanel></Border>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <TextBlock Text="{ReflectionBinding [linux.ui.local.whisper.backend], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" x:Name="SettingsLocalWhisperBackend" MinWidth="180" ItemsSource="{Binding Settings.LocalWhisperBackends}" SelectedItem="{Binding Settings.LocalWhisperBackend}"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <TextBlock Text="{ReflectionBinding [linux.ui.fall.back.to.cpu.if.the.selected.whisper.gpu.runtime.cannot.start], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsLocalWhisperCpuFallback" IsChecked="{Binding Settings.AllowLocalWhisperCpuFallback}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <TextBlock Text="{ReflectionBinding [linux.ui.local.llm.backend], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" x:Name="SettingsLocalLlmBackend" MinWidth="180" ItemsSource="{Binding Settings.LocalLlmBackends}" SelectedItem="{Binding Settings.LocalLlmBackend}"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <TextBlock Text="{ReflectionBinding [linux.ui.fall.back.to.cpu.if.gpu.model.loading.fails], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+            <CheckBox Grid.Column="1" x:Name="SettingsLocalLlmCpuFallback" IsChecked="{Binding Settings.AllowLocalLlmCpuFallback}" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow last"><StackPanel Spacing="4">
+            <TextBlock x:Name="SettingsLocalWhisperRuntimeStatus" Text="{Binding Settings.LocalWhisperRuntimeStatus}" Classes="caption"/>
+            <TextBlock Text="{Binding Settings.LocalLlmRuntimeStatus}" Classes="caption"/>
+          </StackPanel></Border>
+        </StackPanel></Border>
+      </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <!-- Model library. Windows draws one full width table: a search field, a filter row, a
+         column header and one row per model with the action on the right. The Linux head has
+         no speed or accuracy ratings (those tables are Windows only), so that column carries
+         the readiness state instead. The selected row keeps a detail strip at the foot,
+         because Linux exposes actions Windows puts in a context menu. -->
     <DataTemplate DataType="vm:ModelLibraryViewModel">
-      <Grid x:Name="ModelsScreen" RowDefinitions="Auto,*" RowSpacing="14">
-        <Border Classes="card" Padding="14">
-          <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
-            <TextBox x:Name="ModelSearch" Grid.ColumnSpan="4" Text="{Binding SearchText}" PlaceholderText="{ReflectionBinding [linux.ui.search.model.provider.or.id], Source={StaticResource Localization}}"/>
-            <ComboBox Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" ItemsSource="{Binding DeploymentFilters}" SelectedItem="{Binding DeploymentFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.deployments], Source={StaticResource Localization}}"/>
-            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding WorkloadFilters}" SelectedItem="{Binding WorkloadFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.workloads], Source={StaticResource Localization}}"/>
-            <ComboBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{Binding SurfaceFilters}" SelectedItem="{Binding SurfaceFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.surfaces], Source={StaticResource Localization}}"/>
-            <ComboBox Grid.Row="1" Grid.Column="3" HorizontalAlignment="Stretch" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort}"/>
+      <Grid x:Name="ModelsScreen" RowDefinitions="Auto,Auto,Auto,*,Auto">
+        <Border Background="{DynamicResource HwInputBackgroundBrush}" CornerRadius="8" Padding="12,0" Margin="0,0,0,10">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <Path Data="{StaticResource HwIconSearch}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="13" Height="13" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" x:Name="ModelSearch" Background="Transparent" BorderThickness="0" Padding="0,8"
+                     Text="{Binding SearchText}" PlaceholderText="{ReflectionBinding [linux.ui.search.model.provider.or.id], Source={StaticResource Localization}}"/>
           </Grid>
         </Border>
-        <Grid Grid.Row="1" ColumnDefinitions="360,*" ColumnSpacing="16">
-          <Border Classes="card" Padding="6">
-            <ListBox x:Name="ModelList" Classes="plain" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <Grid ColumnDefinitions="34,*" ColumnSpacing="10" Margin="4,7">
-                    <Border Width="34" Height="34" CornerRadius="8" Background="{DynamicResource HwTileModelsBrush}" VerticalAlignment="Top">
-                      <Path Data="{StaticResource HwIconModels}" Fill="White" Stretch="Uniform" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8" Margin="0,0,0,12">
+          <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding DeploymentFilters}" SelectedItem="{Binding DeploymentFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.deployments], Source={StaticResource Localization}}"/>
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding WorkloadFilters}" SelectedItem="{Binding WorkloadFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.workloads], Source={StaticResource Localization}}"/>
+          <ComboBox Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{Binding SurfaceFilters}" SelectedItem="{Binding SurfaceFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.surfaces], Source={StaticResource Localization}}"/>
+          <ComboBox Grid.Column="3" HorizontalAlignment="Stretch" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort}"/>
+          <StackPanel Grid.Row="1" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button x:Name="ModelRefreshVisibleButton" Content="{ReflectionBinding [linux.ui.refresh.visible.rows], Source={StaticResource Localization}}" Command="{Binding RefreshVisibleReadinessCommand}"/>
+            <Button x:Name="ModelAccountButton" Content="{ReflectionBinding [linux.ui.open.cloud.account], Source={StaticResource Localization}}" Click="OnModelAccountAction"/>
+            <Button x:Name="ModelCredentialButton" Content="{ReflectionBinding [linux.ui.api.keys], Source={StaticResource Localization}}" Click="OnModelCredentialAction"/>
+          </StackPanel>
+        </Grid>
+        <Border Grid.Row="2" Padding="12,0,12,7" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
+          <Grid ColumnDefinitions="*,110,150,196">
+            <TextBlock Text="{ReflectionBinding [linux.ui.column.model.name], Source={StaticResource Localization}}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+            <TextBlock Grid.Column="1" Text="{ReflectionBinding [linux.ui.column.type], Source={StaticResource Localization}}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}" HorizontalAlignment="Center"/>
+            <TextBlock Grid.Column="2" Text="{ReflectionBinding [linux.ui.column.readiness], Source={StaticResource Localization}}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+            <TextBlock Grid.Column="3" Text="{ReflectionBinding [linux.ui.column.location], Source={StaticResource Localization}}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}" HorizontalAlignment="Right"/>
+          </Grid>
+        </Border>
+        <ListBox Grid.Row="3" x:Name="ModelList" Classes="plain flush" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Border BorderBrush="{DynamicResource HwSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
+                <Grid ColumnDefinitions="*,110,150,196">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Border Width="28" Height="28" CornerRadius="7" Background="{DynamicResource HwHoverBackgroundBrush}" VerticalAlignment="Center">
+                      <Path Data="{StaticResource HwIconModels}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
-                    <StackPanel Grid.Column="1" Spacing="3">
-                      <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                      <TextBlock Text="{Binding Kind}" Classes="caption" TextTrimming="CharacterEllipsis"/>
-                      <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Border Classes="keyChip"><TextBlock Text="{Binding RuntimeBadge}" FontSize="11"/></Border>
-                        <Border Classes="keyChip"><TextBlock Text="{Binding Status}" FontSize="11" TextTrimming="CharacterEllipsis"/></Border>
-                      </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Text="{Binding ProviderId}" Classes="caption" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                   </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </Border>
-          <ScrollViewer Grid.Column="1">
-            <StackPanel Spacing="14" Margin="0,0,8,0">
-              <StackPanel Classes="emptyState" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNull}}" Margin="0,60,0,0">
-                <Path Data="{StaticResource HwIconModels}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="36" Height="36" Opacity="0.5"/>
-                <TextBlock Text="{ReflectionBinding [linux.ui.unified.model.library], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              </StackPanel>
-              <StackPanel Spacing="14" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-                <Border Classes="card">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="{Binding Selected.DisplayName}" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                      <Border Classes="keyChip"><TextBlock Text="{Binding Selected.RuntimeBadge}" FontSize="11"/></Border>
-                      <Border Classes="keyChip"><TextBlock Text="{Binding Selected.Size}" FontSize="11"/></Border>
-                    </StackPanel>
-                    <TextBlock Text="{Binding Selected.CapabilitySummary}" Classes="caption" TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding Selected.ProviderId, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.provider.value}" Classes="caption"/>
-                    <TextBlock Text="{Binding Selected.ModelId, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.model.id.value}" Classes="caption"/>
-                  </StackPanel>
-                </Border>
-                <Border Classes="card">
-                  <StackPanel Spacing="10">
-                    <TextBlock Text="{Binding Selected.Status}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                    <TextBlock Text="{Binding Selected.ReadinessDetail}" Classes="caption" TextWrapping="Wrap"/>
-                    <ProgressBar x:Name="ModelDownloadProgress" Minimum="0" Maximum="1" Value="{Binding Selected.Progress}"/>
-                    <WrapPanel ItemSpacing="8" LineSpacing="8">
-                      <Button x:Name="ModelDownloadButton" Classes="accent" Content="{ReflectionBinding [settings.models.download], Source={StaticResource Localization}}" Command="{Binding DownloadCommand}"/>
-                      <Button x:Name="ModelCancelButton" Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}" Command="{Binding CancelCommand}"/>
-                      <Button x:Name="ModelDeleteButton" Content="{ReflectionBinding [common.delete], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}"/>
-                      <Button x:Name="ModelUseForLiveButton" Content="{ReflectionBinding [linux.ui.use.for.live.transcription], Source={StaticResource Localization}}" Command="{Binding UseForLiveStreamingCommand}"/>
-                    </WrapPanel>
-                  </StackPanel>
-                </Border>
-                <Border Classes="card">
-                  <StackPanel Spacing="10">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <Button x:Name="ModelRefreshButton" Content="{ReflectionBinding [linux.ui.refresh.selected.readiness], Source={StaticResource Localization}}" Command="{Binding RefreshReadinessCommand}"/>
-                      <Button x:Name="ModelRefreshVisibleButton" Content="{ReflectionBinding [linux.ui.refresh.visible.rows], Source={StaticResource Localization}}" Command="{Binding RefreshVisibleReadinessCommand}"/>
-                    </StackPanel>
-                    <TextBlock Text="{ReflectionBinding [linux.ui.readiness.checks.only.run.when.you.press.refresh.no.provider.3a6d1e9f], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <Button x:Name="ModelCredentialButton" Content="{ReflectionBinding [linux.ui.set.up.provider.credential], Source={StaticResource Localization}}" Click="OnModelCredentialAction"/>
-                      <Button x:Name="ModelAccountButton" Content="{ReflectionBinding [linux.ui.open.cloud.account], Source={StaticResource Localization}}" Click="OnModelAccountAction"/>
-                    </StackPanel>
-                    <TextBlock Text="{ReflectionBinding [linux.ui.select.the.model.id.in.a.mode.after.local.installation.or.pr.9d088bee], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Border>
-                <TextBlock Text="{Binding Status.Message}" TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption"/>
-              </StackPanel>
-            </StackPanel>
-          </ScrollViewer>
-        </Grid>
+                  <TextBlock Grid.Column="1" Text="{Binding Workload}" Classes="caption" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Status}" Classes="caption" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                  <Grid Grid.Column="3" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <TextBlock Text="{Binding Size}" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <Button Grid.Column="1" MinWidth="86" Content="{ReflectionBinding [settings.models.download], Source={StaticResource Localization}}" IsVisible="{Binding CanDownload}" Click="OnModelRowDownload"/>
+                    <Button Grid.Column="1" MinWidth="86" Content="{ReflectionBinding [common.delete], Source={StaticResource Localization}}" IsVisible="{Binding CanDelete}" Click="OnModelRowDelete"/>
+                    <Button Grid.Column="1" MinWidth="86" Content="{ReflectionBinding [linux.ui.api.keys], Source={StaticResource Localization}}" IsVisible="{Binding NeedsCredential}" Click="OnModelRowCredential"/>
+                  </Grid>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <Border Grid.Row="4" Padding="12,10,12,0" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,0"
+                IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+          <StackPanel Spacing="8">
+            <ProgressBar x:Name="ModelDownloadProgress" Minimum="0" Maximum="1" Value="{Binding Selected.Progress}" Height="3"/>
+            <WrapPanel ItemSpacing="8" LineSpacing="8">
+              <Button x:Name="ModelDownloadButton" Classes="accent" Content="{ReflectionBinding [settings.models.download], Source={StaticResource Localization}}" Command="{Binding DownloadCommand}"/>
+              <Button x:Name="ModelCancelButton" Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}" Command="{Binding CancelCommand}"/>
+              <Button x:Name="ModelDeleteButton" Content="{ReflectionBinding [common.delete], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}"/>
+              <Button x:Name="ModelUseForLiveButton" Content="{ReflectionBinding [linux.ui.use.for.live.transcription], Source={StaticResource Localization}}" Command="{Binding UseForLiveStreamingCommand}"/>
+              <Button x:Name="ModelRefreshButton" Content="{ReflectionBinding [linux.ui.refresh.selected.readiness], Source={StaticResource Localization}}" Command="{Binding RefreshReadinessCommand}"/>
+            </WrapPanel>
+          </StackPanel>
+        </Border>
       </Grid>
     </DataTemplate>
+    <!-- Backup. Windows shows one Export card, one Import card and a footnote; the Linux
+         extras (inspect, preview, confirm) stay, but inside the same two cards. -->
     <DataTemplate DataType="vm:BackupViewModel">
-      <ScrollViewer><StackPanel x:Name="BackupScreen" Spacing="14" MaxWidth="720" HorizontalAlignment="Left">
-        <TextBlock Text="{ReflectionBinding [linux.ui.universal.backup], Source={StaticResource Localization}}" FontSize="22" FontWeight="SemiBold"/>
-        <TextBlock Text="{ReflectionBinding [linux.ui.export.or.import.the.cross.platform.universal.v2.format.tran.be45cc3a], Source={StaticResource Localization}}" TextWrapping="Wrap"/>
-        <TextBlock Text="{ReflectionBinding [linux.ui.unknown.linux.windows.and.macos.platform.extension.fields.ar.73aa2e90], Source={StaticResource Localization}}" Classes="caption"/>
-        <TextBlock Text="{ReflectionBinding [linux.ui.export.sections], Source={StaticResource Localization}}" FontWeight="SemiBold"/>
-        <StackPanel Orientation="Horizontal" Spacing="12"><CheckBox x:Name="BackupExportSettings" Content="{ReflectionBinding [sidebar.settings], Source={StaticResource Localization}}" IsChecked="{Binding ExportSettings}"/><CheckBox x:Name="BackupExportModes" Content="{ReflectionBinding [sidebar.modes], Source={StaticResource Localization}}" IsChecked="{Binding ExportModes}"/><CheckBox x:Name="BackupExportVocabulary" Content="{ReflectionBinding [sidebar.vocabulary], Source={StaticResource Localization}}" IsChecked="{Binding ExportVocabulary}"/><CheckBox x:Name="BackupExportApiKeys" Content="{ReflectionBinding [linux.ui.api.keys], Source={StaticResource Localization}}" IsChecked="{Binding ExportCredentials}"/></StackPanel>
-        <StackPanel IsVisible="{Binding ExportCredentials}" Spacing="6"><TextBlock Text="{Binding PlaintextCredentialWarning}" TextWrapping="Wrap" Foreground="DarkOrange"/><CheckBox x:Name="BackupAcknowledgePlaintextApiKeys" Content="{ReflectionBinding [linux.ui.i.understand.this.backup.will.contain.plaintext.api.keys], Source={StaticResource Localization}}" IsChecked="{Binding PlaintextCredentialExportAcknowledged}"/></StackPanel>
-        <Button x:Name="BackupExportButton" Classes="accent" Content="{ReflectionBinding [linux.ui.choose.destination.and.export], Source={StaticResource Localization}}" Click="OnExportBackup" HorizontalAlignment="Left"/>
-        <Separator/>
-        <TextBlock Text="{ReflectionBinding [linux.ui.import.backup], Source={StaticResource Localization}}" FontWeight="SemiBold"/>
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="BackupPathInput" Text="{Binding Path}" IsReadOnly="True" PlaceholderText="{ReflectionBinding [linux.ui.no.backup.selected], Source={StaticResource Localization}}"/><Button x:Name="BackupChooseImportButton" Grid.Column="1" Content="{ReflectionBinding [linux.ui.choose.backup], Source={StaticResource Localization}}" Click="OnChooseBackup"/></Grid>
-        <Button x:Name="BackupInspectButton" Content="{ReflectionBinding [linux.ui.inspect.selected.backup], Source={StaticResource Localization}}" Command="{Binding InspectCommand}" HorizontalAlignment="Left"/>
-        <TextBlock Text="{Binding ContentsSummary}" TextWrapping="Wrap"/>
-        <TextBlock Text="{Binding SensitiveDataNotice}" TextWrapping="Wrap" Foreground="DarkOrange"/>
-        <StackPanel IsVisible="{Binding HasInspectedBackup}" Spacing="10">
-          <TextBlock Text="{ReflectionBinding [linux.ui.import.sections], Source={StaticResource Localization}}" FontWeight="SemiBold"/>
-          <StackPanel Orientation="Horizontal" Spacing="12"><CheckBox x:Name="BackupImportSettings" Content="{ReflectionBinding [sidebar.settings], Source={StaticResource Localization}}" IsChecked="{Binding ImportSettings}"/><CheckBox x:Name="BackupImportModes" Content="{ReflectionBinding [sidebar.modes], Source={StaticResource Localization}}" IsChecked="{Binding ImportModes}"/><CheckBox x:Name="BackupImportVocabulary" Content="{ReflectionBinding [sidebar.vocabulary], Source={StaticResource Localization}}" IsChecked="{Binding ImportVocabulary}"/><CheckBox x:Name="BackupImportApiKeys" Content="{ReflectionBinding [linux.ui.api.keys], Source={StaticResource Localization}}" IsChecked="{Binding ImportCredentials}" IsVisible="{Binding ContainsImportableCredentials}"/></StackPanel>
-          <CheckBox x:Name="BackupReplaceAllModes" Content="{ReflectionBinding [linux.ui.replace.all.modes.uncheck.to.merge.only.selected.modes], Source={StaticResource Localization}}" IsChecked="{Binding ReplaceAllModes}"/>
-          <ItemsControl ItemsSource="{Binding ImportModeSelections}" IsVisible="{Binding ImportModes}"><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="16,2,0,2"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-          <TextBlock Text="{ReflectionBinding [linux.ui.vocabulary.conflicts], Source={StaticResource Localization}}" FontWeight="SemiBold"/>
-          <StackPanel Orientation="Horizontal" Spacing="12"><RadioButton x:Name="BackupVocabularyReplace" GroupName="VocabularyConflict" Content="{ReflectionBinding [linux.ui.replace.existing], Source={StaticResource Localization}}" IsChecked="{Binding ReplaceVocabularyConflicts}"/><RadioButton x:Name="BackupVocabularySkip" GroupName="VocabularyConflict" Content="{ReflectionBinding [linux.ui.skip.existing], Source={StaticResource Localization}}" IsChecked="{Binding SkipVocabularyConflicts}"/></StackPanel>
-          <Button x:Name="BackupPreviewButton" Content="{ReflectionBinding [linux.ui.preview.selected.import], Source={StaticResource Localization}}" Command="{Binding PreviewCommand}" HorizontalAlignment="Left"/>
-          <TextBlock Text="{Binding PreviewSummary}" TextWrapping="Wrap"/>
-          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8"><TextBlock Text="{Binding PreviewModesAdded, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.modes.added.value}"/><TextBlock Grid.Column="1" Text="{Binding PreviewModesReplaced, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.modes.replaced.value}"/><TextBlock Grid.Column="2" Text="{Binding PreviewModesRemoved, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.modes.removed.value}"/></Grid>
-          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8"><TextBlock Text="{Binding PreviewVocabularyAdded, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.words.added.value}"/><TextBlock Grid.Column="1" Text="{Binding PreviewVocabularyReplaced, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.words.replaced.value}"/><TextBlock Grid.Column="2" Text="{Binding PreviewVocabularySkipped, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.words.skipped.value}"/></Grid>
-          <CheckBox x:Name="BackupConfirmImport" Content="{ReflectionBinding [linux.ui.i.reviewed.this.preview.and.confirm.these.changes], Source={StaticResource Localization}}" IsChecked="{Binding ImportConfirmed}"/>
-          <Button x:Name="BackupImportButton" Content="{ReflectionBinding [linux.ui.confirm.import], Source={StaticResource Localization}}" Command="{Binding ImportCommand}" HorizontalAlignment="Left"/>
-        </StackPanel>
-        <TextBlock Text="{Binding OperationSummary}" TextWrapping="Wrap"/>
-        <TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/>
+      <ScrollViewer Classes="page"><StackPanel x:Name="BackupScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.section.backup], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.backup.export.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.backup.export.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Button Grid.Column="1" x:Name="BackupExportButton" Classes="accent" Content="{ReflectionBinding [settings.backup.export.button], Source={StaticResource Localization}}" Click="OnExportBackup" VerticalAlignment="Center"/>
+          </Grid></Border>
+          <Border Classes="settingRow"><StackPanel Spacing="4">
+            <TextBlock Text="{ReflectionBinding [settings.backup.export.sections.header], Source={StaticResource Localization}}" Classes="caption" FontWeight="SemiBold" Margin="0,0,0,2"/>
+            <CheckBox x:Name="BackupExportSettings" Content="{ReflectionBinding [settings.backup.export.section.settings], Source={StaticResource Localization}}" IsChecked="{Binding ExportSettings}"/>
+            <CheckBox x:Name="BackupExportModes" Content="{ReflectionBinding [settings.backup.export.section.modes], Source={StaticResource Localization}}" IsChecked="{Binding ExportModes}"/>
+            <CheckBox x:Name="BackupExportVocabulary" Content="{ReflectionBinding [sidebar.vocabulary], Source={StaticResource Localization}}" IsChecked="{Binding ExportVocabulary}"/>
+          </StackPanel></Border>
+          <Border Classes="settingRow last"><StackPanel Spacing="8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{ReflectionBinding [settings.backup.export.includeApiKeys], Source={StaticResource Localization}}" Classes="rowTitle"/>
+                <TextBlock Text="{ReflectionBinding [settings.backup.export.apiKeysWarning], Source={StaticResource Localization}}" Classes="caption"/>
+              </StackPanel>
+              <CheckBox Grid.Column="1" x:Name="BackupExportApiKeys" IsChecked="{Binding ExportCredentials}" VerticalAlignment="Center"/>
+            </Grid>
+            <StackPanel IsVisible="{Binding ExportCredentials}" Spacing="6">
+              <TextBlock Text="{Binding PlaintextCredentialWarning}" TextWrapping="Wrap" Classes="caption" Foreground="{DynamicResource HwWarningBrush}"/>
+              <CheckBox x:Name="BackupAcknowledgePlaintextApiKeys" Content="{ReflectionBinding [linux.ui.i.understand.this.backup.will.contain.plaintext.api.keys], Source={StaticResource Localization}}" IsChecked="{Binding PlaintextCredentialExportAcknowledged}"/>
+            </StackPanel>
+          </StackPanel></Border>
+        </StackPanel></Border>
+        <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+          <Border Classes="settingRow"><StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{ReflectionBinding [settings.backup.import.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+                <TextBlock Text="{ReflectionBinding [settings.backup.import.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
+              </StackPanel>
+              <Button Grid.Column="1" x:Name="BackupChooseImportButton" Classes="accent" Content="{ReflectionBinding [settings.backup.import.chooseFile], Source={StaticResource Localization}}" Click="OnChooseBackup" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox x:Name="BackupPathInput" Text="{Binding Path}" IsReadOnly="True" PlaceholderText="{ReflectionBinding [linux.ui.no.backup.selected], Source={StaticResource Localization}}"/>
+              <Button Grid.Column="1" x:Name="BackupInspectButton" Content="{ReflectionBinding [linux.ui.inspect.selected.backup], Source={StaticResource Localization}}" Command="{Binding InspectCommand}"/>
+            </Grid>
+            <TextBlock Text="{Binding ContentsSummary}" TextWrapping="Wrap" Classes="caption"/>
+            <TextBlock Text="{Binding SensitiveDataNotice}" TextWrapping="Wrap" Classes="caption" Foreground="{DynamicResource HwWarningBrush}"/>
+          </StackPanel></Border>
+          <Border Classes="settingRow last" IsVisible="{Binding HasInspectedBackup}"><StackPanel Spacing="10">
+            <CheckBox x:Name="BackupImportSettings" Content="{ReflectionBinding [settings.backup.import.section.settings], Source={StaticResource Localization}}" IsChecked="{Binding ImportSettings}"/>
+            <CheckBox x:Name="BackupImportModes" Content="{ReflectionBinding [settings.backup.import.section.modes], Source={StaticResource Localization}}" IsChecked="{Binding ImportModes}"/>
+            <CheckBox x:Name="BackupImportVocabulary" Content="{ReflectionBinding [sidebar.vocabulary], Source={StaticResource Localization}}" IsChecked="{Binding ImportVocabulary}"/>
+            <CheckBox x:Name="BackupImportApiKeys" Content="{ReflectionBinding [settings.backup.import.section.apiKeys], Source={StaticResource Localization}}" IsChecked="{Binding ImportCredentials}" IsVisible="{Binding ContainsImportableCredentials}"/>
+            <CheckBox x:Name="BackupReplaceAllModes" Content="{ReflectionBinding [linux.ui.replace.all.modes.uncheck.to.merge.only.selected.modes], Source={StaticResource Localization}}" IsChecked="{Binding ReplaceAllModes}"/>
+            <ItemsControl ItemsSource="{Binding ImportModeSelections}" IsVisible="{Binding ImportModes}"><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="20,2,0,2"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <StackPanel Margin="20,0,0,0" Spacing="4">
+              <TextBlock Text="{ReflectionBinding [settings.backup.import.vocabConflict.header], Source={StaticResource Localization}}" Classes="caption"/>
+              <RadioButton x:Name="BackupVocabularySkip" GroupName="VocabularyConflict" Content="{ReflectionBinding [settings.backup.import.vocabConflict.skip], Source={StaticResource Localization}}" IsChecked="{Binding SkipVocabularyConflicts}"/>
+              <RadioButton x:Name="BackupVocabularyReplace" GroupName="VocabularyConflict" Content="{ReflectionBinding [settings.backup.import.vocabConflict.replace], Source={StaticResource Localization}}" IsChecked="{Binding ReplaceVocabularyConflicts}"/>
+            </StackPanel>
+            <Button x:Name="BackupPreviewButton" Content="{ReflectionBinding [linux.ui.preview.selected.import], Source={StaticResource Localization}}" Command="{Binding PreviewCommand}" HorizontalAlignment="Right"/>
+            <TextBlock Text="{Binding PreviewSummary}" TextWrapping="Wrap" Classes="caption"/>
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8"><TextBlock Classes="caption" Text="{Binding PreviewModesAdded, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.modes.added.value}"/><TextBlock Grid.Column="1" Classes="caption" Text="{Binding PreviewModesReplaced, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.modes.replaced.value}"/><TextBlock Grid.Column="2" Classes="caption" Text="{Binding PreviewModesRemoved, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.modes.removed.value}"/></Grid>
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8"><TextBlock Classes="caption" Text="{Binding PreviewVocabularyAdded, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.words.added.value}"/><TextBlock Grid.Column="1" Classes="caption" Text="{Binding PreviewVocabularyReplaced, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.words.replaced.value}"/><TextBlock Grid.Column="2" Classes="caption" Text="{Binding PreviewVocabularySkipped, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.words.skipped.value}"/></Grid>
+            <CheckBox x:Name="BackupConfirmImport" Content="{ReflectionBinding [linux.ui.i.reviewed.this.preview.and.confirm.these.changes], Source={StaticResource Localization}}" IsChecked="{Binding ImportConfirmed}"/>
+            <Button x:Name="BackupImportButton" Classes="accent" Content="{ReflectionBinding [settings.backup.import.applyButton], Source={StaticResource Localization}}" Command="{Binding ImportCommand}" HorizontalAlignment="Right"/>
+          </StackPanel></Border>
+        </StackPanel></Border>
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,8">
+          <Path Data="{StaticResource HwIconInfo}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"/>
+          <TextBlock Grid.Column="1" Text="{ReflectionBinding [settings.backup.notice], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap"/>
+        </Grid>
+        <TextBlock Text="{Binding OperationSummary}" TextWrapping="Wrap" Classes="caption" Margin="0,0,0,4"/>
+        <TextBlock Text="{Binding Status.Message}" Classes="caption"/>
+        <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption" Opacity="0.7"/>
       </StackPanel></ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="vm:CloudAccountViewModel">
-      <ScrollViewer x:Name="AccountScreen">
-        <StackPanel Spacing="14" MaxWidth="680" HorizontalAlignment="Left">
-          <TextBlock Text="{ReflectionBinding [linux.ui.hyperwhisper.cloud.account], Source={StaticResource Localization}}" FontSize="22" FontWeight="SemiBold"/>
-          <TextBlock Text="{ReflectionBinding [linux.ui.activate.the.account.key.from.your.purchase.email.the.key.is.e2ee57ef], Source={StaticResource Localization}}" TextWrapping="Wrap"/>
-          <TextBlock Text="{Binding AccountState, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.status.value}" FontSize="18" FontWeight="SemiBold"/>
-          <TextBlock Text="{Binding CustomerEmail, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.email.value}" IsVisible="{Binding HasCustomerEmail}"/>
-          <TextBlock Text="{Binding CustomerId, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.customer.value}" IsVisible="{Binding HasCustomerId}"/>
-          <TextBlock Text="{Binding ExpiresAt, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.expires.value}" IsVisible="{Binding HasExpiry}"/>
-          <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsVisible="{Binding HasCredits}">
-            <Border Classes="metricCard" Padding="14"><StackPanel><TextBlock Text="{ReflectionBinding [settings.credits.accountInfo.credits], Source={StaticResource Localization}}"/><TextBlock Text="{Binding Credits}" Classes="metricValue"/></StackPanel></Border>
-            <Border Grid.Column="1" Classes="metricCard" Padding="14"><StackPanel><TextBlock Text="{ReflectionBinding [linux.ui.estimated.minutes], Source={StaticResource Localization}}"/><TextBlock Text="{Binding MinutesRemaining}" Classes="metricValue"/></StackPanel></Border>
-          </Grid>
-          <TextBox x:Name="AccountKeyInput" Text="{Binding AccountKey}" PasswordChar="●" PlaceholderText="{ReflectionBinding [settings.cloud.licenseKey], Source={StaticResource Localization}}"/>
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button x:Name="AccountActivateButton" Classes="accent" Content="{ReflectionBinding [linux.ui.activate.account], Source={StaticResource Localization}}" Command="{Binding ActivateCommand}"/>
-            <Button x:Name="AccountStatusRefreshButton" Content="{ReflectionBinding [linux.ui.refresh.status], Source={StaticResource Localization}}" Command="{Binding RefreshStatusCommand}"/>
+      <ScrollViewer x:Name="AccountScreen" Classes="page">
+        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+          <StackPanel Spacing="4" Margin="0,0,0,20">
+            <TextBlock Text="{ReflectionBinding [settings.nav.cloud], Source={StaticResource Localization}}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+            <TextBlock Text="{ReflectionBinding [settings.credits.subtitle], Source={StaticResource Localization}}" Classes="caption" FontSize="13" TextWrapping="Wrap"/>
+          </StackPanel>
+          <!-- Balance. Windows shows one big minutes figure over the credit total. -->
+          <Border Classes="card" Margin="0,0,0,20" IsVisible="{Binding HasCredits}">
+            <StackPanel HorizontalAlignment="Center" Margin="0,8,0,8" Spacing="2">
+              <TextBlock Text="{Binding MinutesRemaining}" FontSize="42" FontWeight="Bold" HorizontalAlignment="Center" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+              <TextBlock Text="{ReflectionBinding [settings.credits.minutesRemaining], Source={StaticResource Localization}}" FontSize="15" HorizontalAlignment="Center" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="card" Margin="0,0,0,20" IsVisible="{Binding HasAccount}"><StackPanel>
+            <TextBlock Text="{ReflectionBinding [settings.credits.accountInfo.title], Source={StaticResource Localization}}" Classes="rowTitle" Foreground="{DynamicResource HwTextSecondaryBrush}" Margin="0,0,0,12"/>
+            <Border Height="1" Background="{DynamicResource HwBorderBrush}" Margin="0,0,0,16"/>
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
+              <StackPanel Margin="0,0,8,12" Spacing="1">
+                <TextBlock Text="{ReflectionBinding [settings.credits.accountInfo.credits], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{Binding Credits}" FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="8,0,0,12" Spacing="1">
+                <TextBlock Text="{ReflectionBinding [settings.credits.accountInfo.accountType], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{Binding AccountState}" FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Margin="0,0,8,12" Spacing="1" IsVisible="{Binding HasCustomerEmail}">
+                <TextBlock Text="{ReflectionBinding [settings.cloud.account.email], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{Binding CustomerEmail}" FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,12" Spacing="1" IsVisible="{Binding HasCustomerId}">
+                <TextBlock Text="{ReflectionBinding [settings.credits.accountInfo.customerId], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{Binding CustomerId}" FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+              <StackPanel Grid.Row="2" Margin="0,0,8,0" Spacing="1" IsVisible="{Binding HasExpiry}">
+                <TextBlock Text="{Binding ExpiresAt, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.expires.value}" FontSize="13" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+              </StackPanel>
+            </Grid>
+          </StackPanel></Border>
+          <!-- Activation. Windows only shows this while the device has no key; Linux keeps it
+               visible so the key can be replaced without deactivating first. -->
+          <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+            <TextBlock Text="{ReflectionBinding [settings.cloud.activate.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+            <TextBlock Text="{ReflectionBinding [settings.cloud.activate.subtitle], Source={StaticResource Localization}}" Classes="caption" Margin="0,2,0,12" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox x:Name="AccountKeyInput" Text="{Binding AccountKey}" PasswordChar="●" PlaceholderText="{ReflectionBinding [settings.cloud.licenseKey], Source={StaticResource Localization}}"/>
+              <Button Grid.Column="1" x:Name="AccountActivateButton" Classes="accent" Content="{ReflectionBinding [license.button.activate], Source={StaticResource Localization}}" Command="{Binding ActivateCommand}"/>
+            </Grid>
+          </StackPanel></Border>
+          <Border Classes="card" Margin="0,0,0,20"><StackPanel>
+            <TextBlock Text="{ReflectionBinding [settings.cloud.getCredits.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
+            <TextBlock Text="{ReflectionBinding [settings.cloud.getCredits.subtitle], Source={StaticResource Localization}}" Classes="caption" Margin="0,2,0,12" TextWrapping="Wrap"/>
+            <Button x:Name="AccountPurchaseButton" Classes="accent" Content="{ReflectionBinding [settings.cloud.getCredits.button], Source={StaticResource Localization}}" Command="{Binding PurchaseCommand}" HorizontalAlignment="Left"/>
+          </StackPanel></Border>
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,0,12">
+            <Button x:Name="AccountManageButton" Content="{ReflectionBinding [license.button.manageBilling], Source={StaticResource Localization}}" Command="{Binding ManageCommand}"/>
+            <Button x:Name="AccountStatusRefreshButton" Content="{ReflectionBinding [settings.credits.refresh], Source={StaticResource Localization}}" Command="{Binding RefreshStatusCommand}"/>
             <Button x:Name="AccountCreditsRefreshButton" Content="{ReflectionBinding [linux.ui.refresh.credits], Source={StaticResource Localization}}" Command="{Binding RefreshCreditsCommand}"/>
+            <Button x:Name="AccountDeactivateButton" Content="{ReflectionBinding [license.button.deactivate], Source={StaticResource Localization}}" Command="{Binding DeactivateCommand}" IsVisible="{Binding HasAccount}"/>
+            <Button Content="{ReflectionBinding [linux.ui.provider.credentials], Source={StaticResource Localization}}" Click="OnGoToCredentials"/>
           </StackPanel>
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button x:Name="AccountPurchaseButton" Content="{ReflectionBinding [linux.ui.buy.credits], Source={StaticResource Localization}}" Command="{Binding PurchaseCommand}"/>
-            <Button x:Name="AccountManageButton" Content="{ReflectionBinding [linux.ui.manage.account], Source={StaticResource Localization}}" Command="{Binding ManageCommand}"/>
-          </StackPanel>
-          <Separator/>
-          <TextBlock Text="{ReflectionBinding [linux.ui.removing.the.account.contacts.the.compatibility.endpoint.fir.566eb641], Source={StaticResource Localization}}" Classes="caption"/>
-          <Button x:Name="AccountDeactivateButton" Content="{ReflectionBinding [linux.ui.remove.account.from.this.device], Source={StaticResource Localization}}" Command="{Binding DeactivateCommand}" HorizontalAlignment="Left" IsVisible="{Binding HasAccount}"/>
-          <TextBlock Text="{Binding Status.Message}" TextWrapping="Wrap"/>
-          <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/>
+          <TextBlock Text="{ReflectionBinding [linux.ui.removing.the.account.contacts.the.compatibility.endpoint.fir.566eb641], Source={StaticResource Localization}}" Classes="caption" TextWrapping="Wrap" Margin="4,0,0,8"/>
+          <TextBlock Text="{Binding Status.Message}" TextWrapping="Wrap" Classes="caption" Margin="4,0,0,0"/>
+          <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption" Opacity="0.7" Margin="4,0,0,0"/>
         </StackPanel>
       </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="vm:CredentialManagementViewModel">
-      <Grid x:Name="CredentialsScreen" ColumnDefinitions="2*,3*" ColumnSpacing="20"><ListBox x:Name="CredentialList" Classes="plain" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}"><ListBox.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding IsPresent, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.stored.value}" Classes="caption"/></Grid></DataTemplate></ListBox.ItemTemplate></ListBox><StackPanel Grid.Column="1" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.ui.cloud.provider.credentials], Source={StaticResource Localization}}" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="{Binding Selected.DisplayName}" FontSize="18"/><TextBlock Text="{ReflectionBinding [linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81], Source={StaticResource Localization}}" TextWrapping="Wrap"/><TextBox x:Name="CredentialSecretInput" Text="{Binding Secret}" PasswordChar="●" PlaceholderText="{ReflectionBinding [linux.ui.enter.a.new.provider.credential], Source={StaticResource Localization}}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="CredentialSaveButton" Classes="accent" Content="{ReflectionBinding [linux.ui.save.securely], Source={StaticResource Localization}}" Command="{Binding SaveCommand}"/><Button x:Name="CredentialDeleteButton" Content="{ReflectionBinding [linux.ui.delete.stored.credential], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}"/></StackPanel><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel></Grid>
+      <Grid x:Name="CredentialsScreen" ColumnDefinitions="2*,3*" ColumnSpacing="20"><ListBox x:Name="CredentialList" Classes="plain" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}"><ListBox.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding IsPresent, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.stored.value}" Classes="caption"/></Grid></DataTemplate></ListBox.ItemTemplate></ListBox><StackPanel Grid.Column="1" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.ui.cloud.provider.credentials], Source={StaticResource Localization}}" Classes="pageTitle"/><TextBlock Text="{Binding Selected.DisplayName}" FontSize="18"/><TextBlock Text="{ReflectionBinding [linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81], Source={StaticResource Localization}}" TextWrapping="Wrap"/><TextBox x:Name="CredentialSecretInput" Text="{Binding Secret}" PasswordChar="●" PlaceholderText="{ReflectionBinding [linux.ui.enter.a.new.provider.credential], Source={StaticResource Localization}}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="CredentialSaveButton" Classes="accent" Content="{ReflectionBinding [linux.ui.save.securely], Source={StaticResource Localization}}" Command="{Binding SaveCommand}"/><Button x:Name="CredentialDeleteButton" Content="{ReflectionBinding [linux.ui.delete.stored.credential], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}"/></StackPanel><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel></Grid>
     </DataTemplate>
+    <!-- About. Windows uses an identity card, then one card per action. Linux keeps the same
+         shape and adds the two rows Windows does not have: documentation and support. -->
     <DataTemplate DataType="vm:AboutViewModel">
-      <ScrollViewer><StackPanel x:Name="AboutScreen" Spacing="14" MaxWidth="700" HorizontalAlignment="Left">
-        <TextBlock Text="{ReflectionBinding [linux.ui.about.hyperwhisper], Source={StaticResource Localization}}" FontSize="22" FontWeight="SemiBold"/>
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="8"><TextBlock Text="{ReflectionBinding [linux.ui.application.version], Source={StaticResource Localization}}" FontWeight="SemiBold"/><TextBlock Grid.Column="1" Text="{Binding AppVersion}"/><TextBlock Grid.Row="1" Text="{ReflectionBinding [linux.ui.package.version], Source={StaticResource Localization}}" FontWeight="SemiBold"/><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageVersion}"/></Grid>
-        <TextBlock Text="{Binding UpdateDescription}" TextWrapping="Wrap"/>
-        <Separator/>
-        <TextBlock Text="{ReflectionBinding [linux.update.title], Source={StaticResource Localization}}" FontSize="18" FontWeight="SemiBold"/>
-        <TextBlock x:Name="AboutUpdateStatus" Text="{ReflectionBinding [linux.update.not_checked], Source={StaticResource Localization}}" TextWrapping="Wrap"/>
-        <TextBlock Text="{ReflectionBinding [linux.update.instructions], Source={StaticResource Localization}}" Classes="caption"/>
-        <Button x:Name="AboutUpdateRefreshButton" Content="{ReflectionBinding [linux.update.refresh], Source={StaticResource Localization}}" Click="OnRefreshPackageStatus" HorizontalAlignment="Left"/>
-        <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="AboutDocsButton" Content="{ReflectionBinding [linux.ui.documentation], Source={StaticResource Localization}}" Click="OnOpenDocumentation"/><Button x:Name="AboutSupportButton" Content="{ReflectionBinding [linux.ui.support], Source={StaticResource Localization}}" Click="OnOpenSupport"/><Button x:Name="AboutLogsButton" Content="{ReflectionBinding [linux.ui.open.private.logs], Source={StaticResource Localization}}" Click="OnOpenLogs"/></StackPanel>
-        <Separator/>
-        <TextBlock Text="{ReflectionBinding [linux.ui.privacy.safe.diagnostics], Source={StaticResource Localization}}" FontSize="18" FontWeight="SemiBold"/>
-        <TextBlock Text="{Binding DiagnosticsPrivacyDescription}" TextWrapping="Wrap"/>
-        <TextBlock Text="{ReflectionBinding [linux.ui.archive.allowlist.system.json.capabilities.json.and.logs.eve.266126c8], Source={StaticResource Localization}}" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <Button x:Name="AboutExportDiagnosticsButton" Content="{ReflectionBinding [linux.ui.choose.destination.and.export.diagnostics], Source={StaticResource Localization}}" Click="OnExportDiagnostics" HorizontalAlignment="Left"/>
-        <TextBlock Text="{Binding Status.Message}" TextWrapping="Wrap"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/>
+      <ScrollViewer Classes="page"><StackPanel x:Name="AboutScreen" MaxWidth="560" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.section.about], Source={StaticResource Localization}}" Classes="pageTitle"/>
+        <Border Classes="card" Margin="0,0,0,12"><Grid ColumnDefinitions="52,*,Auto" MinHeight="54">
+          <Border Width="38" Height="38" CornerRadius="9" Background="{DynamicResource HwAccentBrush}" VerticalAlignment="Center" HorizontalAlignment="Left">
+            <TextBlock Text="H" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource HwOnAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+            <TextBlock Text="{ReflectionBinding [settings.about.appTitle], Source={StaticResource Localization}}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{ReflectionBinding [linux.ui.application.version], Source={StaticResource Localization}}" Classes="caption"/>
+              <TextBlock Text="{Binding AppVersion}" Classes="caption"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{ReflectionBinding [linux.ui.package.version], Source={StaticResource Localization}}" Classes="caption"/>
+              <TextBlock Text="{Binding PackageVersion}" Classes="caption"/>
+            </StackPanel>
+          </StackPanel>
+          <Border Grid.Column="2" Classes="editionPill" VerticalAlignment="Center">
+            <TextBlock Text="{ReflectionBinding [linux.ui.linux.1.0], Source={StaticResource Localization}}" FontSize="11"/>
+          </Border>
+        </Grid></Border>
+        <Border Classes="card" Padding="12" Margin="0,0,0,12"><Grid ColumnDefinitions="36,*,Auto" MinHeight="42">
+          <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource HwHoverBackgroundBrush}" VerticalAlignment="Center" HorizontalAlignment="Left">
+            <Path Data="{StaticResource HwIconFolder}" Fill="{DynamicResource HwAccentBrush}" Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+            <TextBlock Text="{ReflectionBinding [settings.about.openLogFolder], Source={StaticResource Localization}}" Classes="rowTitle"/>
+            <TextBlock Text="{ReflectionBinding [settings.about.openLogFolder.description], Source={StaticResource Localization}}" Classes="caption"/>
+          </StackPanel>
+          <Button Grid.Column="2" x:Name="AboutLogsButton" Content="{ReflectionBinding [linux.ui.open.private.logs], Source={StaticResource Localization}}" Click="OnOpenLogs" VerticalAlignment="Center"/>
+        </Grid></Border>
+        <Border Classes="card" Padding="12" Margin="0,0,0,12"><StackPanel Spacing="8">
+          <Grid ColumnDefinitions="36,*,Auto" MinHeight="42">
+            <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource HwHoverBackgroundBrush}" VerticalAlignment="Center" HorizontalAlignment="Left">
+              <Path Data="{StaticResource HwIconExport}" Fill="{DynamicResource HwAccentBrush}" Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.about.exportDiagnostics], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.about.exportDiagnostics.description], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Button Grid.Column="2" x:Name="AboutExportDiagnosticsButton" Content="{ReflectionBinding [settings.about.exportDiagnostics], Source={StaticResource Localization}}" Click="OnExportDiagnostics" VerticalAlignment="Center"/>
+          </Grid>
+          <TextBlock Text="{Binding DiagnosticsPrivacyDescription}" TextWrapping="Wrap" Classes="caption" Margin="36,0,0,0"/>
+        </StackPanel></Border>
+        <Border Classes="card" Padding="12" Margin="0,0,0,12"><StackPanel Spacing="8">
+          <Grid ColumnDefinitions="36,*,Auto" MinHeight="42">
+            <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource HwHoverBackgroundBrush}" VerticalAlignment="Center" HorizontalAlignment="Left">
+              <Path Data="{StaticResource HwIconRefresh}" Fill="{DynamicResource HwAccentBrush}" Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Text="{ReflectionBinding [settings.about.checkUpdates], Source={StaticResource Localization}}" Classes="rowTitle"/>
+              <TextBlock Text="{ReflectionBinding [settings.about.checkUpdates.description], Source={StaticResource Localization}}" Classes="caption"/>
+            </StackPanel>
+            <Button Grid.Column="2" x:Name="AboutUpdateRefreshButton" Content="{ReflectionBinding [linux.update.refresh], Source={StaticResource Localization}}" Click="OnRefreshPackageStatus" VerticalAlignment="Center"/>
+          </Grid>
+          <StackPanel Margin="36,0,0,0" Spacing="2">
+            <TextBlock x:Name="AboutUpdateStatus" Text="{ReflectionBinding [linux.update.not_checked], Source={StaticResource Localization}}" TextWrapping="Wrap" Classes="caption"/>
+            <TextBlock Text="{ReflectionBinding [linux.update.instructions], Source={StaticResource Localization}}" TextWrapping="Wrap" Classes="caption"/>
+          </StackPanel>
+        </StackPanel></Border>
+        <Border Classes="card" Padding="12" Margin="0,0,0,12"><Grid ColumnDefinitions="36,*,Auto" MinHeight="42">
+          <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource HwHoverBackgroundBrush}" VerticalAlignment="Center" HorizontalAlignment="Left">
+            <Path Data="{StaticResource HwIconInfo}" Fill="{DynamicResource HwAccentBrush}" Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <TextBlock Grid.Column="1" Text="{ReflectionBinding [settings.general.support.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button x:Name="AboutDocsButton" Content="{ReflectionBinding [linux.ui.documentation], Source={StaticResource Localization}}" Click="OnOpenDocumentation"/>
+            <Button x:Name="AboutSupportButton" Content="{ReflectionBinding [menu.command.contact.support], Source={StaticResource Localization}}" Click="OnOpenSupport"/>
+          </StackPanel>
+        </Grid></Border>
+        <TextBlock Text="{Binding Status.Message}" TextWrapping="Wrap" Classes="caption"/>
+        <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption" Opacity="0.7"/>
       </StackPanel></ScrollViewer>
     </DataTemplate>
   </Window.DataTemplates>
@@ -791,41 +1062,83 @@
         <TextBlock x:Name="PlatformStatusText" Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #PlatformStatusText.Text}"/>
       </Border>
       <Grid Grid.Row="2" ColumnDefinitions="Auto,*">
-        <Border x:Name="SettingsNavPane" Width="206" IsVisible="False" Padding="10,16" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,1,0">
+        <Border x:Name="SettingsNavPane" Width="200" IsVisible="False" Padding="8,14,8,0" Background="{DynamicResource HwSidebarBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,1,0">
+          <!-- The same ten sections the Windows settings pane lists, in the same order. -->
           <ListBox x:Name="SettingsNav" Classes="nav sub" SelectionChanged="OnSettingsNavigationChanged">
             <ListBoxItem Tag="settings" IsSelected="True">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Path Data="{StaticResource HwIconSettings}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
                 <TextBlock Text="{ReflectionBinding [settings.nav.general], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </ListBoxItem>
+            <ListBoxItem Tag="sound">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Path Data="{StaticResource HwIconStreaming}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.nav.sound], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="account">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconHome}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
-                <TextBlock Text="{ReflectionBinding [linux.ui.cloud.account], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
+                <Path Data="{StaticResource HwIconCheck}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.nav.cloud], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="credentials">
+            <ListBoxItem Tag="storage">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconKeyboard}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
-                <TextBlock Text="{ReflectionBinding [linux.ui.provider.credentials], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
+                <Path Data="{StaticResource HwIconEmptyList}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.nav.storage], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </ListBoxItem>
+            <ListBoxItem Tag="output">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Path Data="{StaticResource HwIconVocabulary}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.nav.output], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </ListBoxItem>
+            <ListBoxItem Tag="localapi">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Path Data="{StaticResource HwIconModels}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.nav.localApi], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </ListBoxItem>
+            <ListBoxItem Tag="shortcuts">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Path Data="{StaticResource HwIconKeyboard}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.nav.shortcuts], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="backup">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Path Data="{StaticResource HwIconHistory}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
                 <TextBlock Text="{ReflectionBinding [settings.nav.backup], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </ListBoxItem>
+            <ListBoxItem Tag="appearance">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Path Data="{StaticResource HwIconModes}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.nav.appearance], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="about">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconCheck}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Path Data="{StaticResource HwIconHome}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
                 <TextBlock Text="{ReflectionBinding [settings.nav.about], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
           </ListBox>
         </Border>
-        <ContentControl x:Name="PageContent" Grid.Column="1" Margin="30,22,30,20" Content="{Binding CurrentPage}"/>
+        <Grid Grid.Column="1" RowDefinitions="*,Auto">
+          <ContentControl x:Name="PageContent" Content="{Binding CurrentPage}"/>
+          <!-- Windows applies a settings change at once. Linux keeps an explicit save, so the
+               button lives under every settings section rather than inside one of them. -->
+          <Border x:Name="SettingsFooter" Grid.Row="1" IsVisible="False" Padding="24,10" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Button x:Name="SettingsSaveButton" Classes="accent" Content="{ReflectionBinding [linux.ui.save.settings], Source={StaticResource Localization}}" Click="OnSaveSettings"/>
+              <TextBlock Text="{Binding Settings.Status.Message}" Classes="caption" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding Settings.Status.ErrorCode}" IsVisible="{Binding Settings.Status.HasError}" Classes="caption" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+        </Grid>
       </Grid>
     </Grid>
     <Border Grid.Column="1" Grid.Row="1" Padding="30,7" Background="{DynamicResource HwSidebarBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0">

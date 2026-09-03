@@ -160,6 +160,10 @@
   <data name="linux.ui.profanity.filter" xml:space="preserve"><value>Profanity filter</value></data>
   <data name="linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81" xml:space="preserve"><value>Provider API keys use Secret Service when available, otherwise owner-only private files. Existing values are never displayed; backup export is plaintext and requires explicit opt-in. HyperWhisper Account Keys must be validated on the Cloud account page.</value></data>
   <data name="linux.ui.api.keys" xml:space="preserve"><value>API keys</value></data>
+  <data name="linux.ui.column.model.name" xml:space="preserve"><value>Model name</value></data>
+  <data name="linux.ui.column.type" xml:space="preserve"><value>Type</value></data>
+  <data name="linux.ui.column.readiness" xml:space="preserve"><value>Readiness</value></data>
+  <data name="linux.ui.column.location" xml:space="preserve"><value>Cloud / Offline</value></data>
   <data name="linux.ui.i.understand.this.backup.will.contain.plaintext.api.keys" xml:space="preserve"><value>I understand this backup will contain plaintext API keys</value></data>
   <data name="linux.ui.provider.credentials" xml:space="preserve"><value>Provider credentials</value></data>
   <data name="linux.ui.provider.model.optional" xml:space="preserve"><value>Provider model (optional)</value></data>

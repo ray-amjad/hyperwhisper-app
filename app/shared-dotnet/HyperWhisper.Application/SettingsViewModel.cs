@@ -114,7 +114,25 @@ public sealed class SettingsViewModel : ViewModelBase
     public string ChangeModeShortcutKey { get => _changeModeShortcutKey; set => Set(ref _changeModeShortcutKey, value ?? string.Empty); }
     public string StreamingShortcutModifiers { get => _streamingShortcutModifiers; set => Set(ref _streamingShortcutModifiers, value ?? string.Empty); }
     public string StreamingShortcutKey { get => _streamingShortcutKey; set => Set(ref _streamingShortcutKey, value ?? string.Empty); }
-    public string PushToTalkMode { get => _pushToTalkMode; set => Set(ref _pushToTalkMode, value ?? "Disabled"); }
+    public string PushToTalkMode
+    {
+        get => _pushToTalkMode;
+        set
+        {
+            if (!Set(ref _pushToTalkMode, value ?? "Disabled")) return;
+            Notify(nameof(PushToTalkUsesModifier));
+            Notify(nameof(PushToTalkUsesCustomShortcut));
+            Notify(nameof(PushToTalkIsEnabled));
+        }
+    }
+
+    /// <summary>
+    /// Windows shows the modifier, the custom shortcut and the double press rows only once push to
+    /// talk is on, and only the row the chosen mode uses.
+    /// </summary>
+    public bool PushToTalkIsEnabled => !string.Equals(PushToTalkMode, "Disabled", StringComparison.Ordinal);
+    public bool PushToTalkUsesModifier => string.Equals(PushToTalkMode, "Modifier", StringComparison.Ordinal);
+    public bool PushToTalkUsesCustomShortcut => string.Equals(PushToTalkMode, "CustomShortcut", StringComparison.Ordinal);
     public string PushToTalkModifier { get => _pushToTalkModifier; set => Set(ref _pushToTalkModifier, value ?? "LeftAlt"); }
     public string PushToTalkShortcutModifiers { get => _pushToTalkShortcutModifiers; set => Set(ref _pushToTalkShortcutModifiers, value ?? "None"); }
     public string PushToTalkShortcutKey { get => _pushToTalkShortcutKey; set => Set(ref _pushToTalkShortcutKey, value ?? string.Empty); }
@@ -152,7 +170,39 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool EnableSoundEffects { get => _enableSoundEffects; set => Set(ref _enableSoundEffects, value); }
     public double SoundEffectsVolume { get => _soundEffectsVolume; set => Set(ref _soundEffectsVolume, Math.Clamp(double.IsFinite(value) ? value : 1, 0, 1)); }
     public bool ShowRecordingWindow { get => _showRecordingWindow; set => Set(ref _showRecordingWindow, value); }
-    public string ThemeMode { get => _themeMode; set => Set(ref _themeMode, NormalizeThemeMode(value)); }
+    public string ThemeMode
+    {
+        get => _themeMode;
+        set
+        {
+            if (!Set(ref _themeMode, NormalizeThemeMode(value))) return;
+            Notify(nameof(ThemeIsSystem));
+            Notify(nameof(ThemeIsLight));
+            Notify(nameof(ThemeIsDark));
+        }
+    }
+
+    /// <summary>
+    /// Windows offers the theme as three rows, each with a title and a description, not as a list.
+    /// These three make that shape bindable without a converter.
+    /// </summary>
+    public bool ThemeIsSystem
+    {
+        get => ThemeMode == "system";
+        set { if (value) ThemeMode = "system"; }
+    }
+
+    public bool ThemeIsLight
+    {
+        get => ThemeMode == "light";
+        set { if (value) ThemeMode = "light"; }
+    }
+
+    public bool ThemeIsDark
+    {
+        get => ThemeMode == "dark";
+        set { if (value) ThemeMode = "dark"; }
+    }
     public IReadOnlyList<string> ThemeModes { get; } = ["system", "light", "dark"];
     public bool AutoIncreaseMicVolume { get => _autoIncreaseMicVolume; set => Set(ref _autoIncreaseMicVolume, value); }
     public bool KeepMicrophoneWarm { get => _keepMicrophoneWarm; set => Set(ref _keepMicrophoneWarm, value); }

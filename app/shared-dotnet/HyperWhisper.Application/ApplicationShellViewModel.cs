@@ -52,6 +52,13 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Modes = new ModesViewModel(modeRepository, settings, credentials);
         Settings = new SettingsViewModel(settings, localLlmRuntimeStatus, localWhisperRuntimeStatus);
         Streaming = new StreamingSettingsViewModel(Settings);
+        General = new GeneralSettingsViewModel(Settings);
+        Sound = new SoundSettingsViewModel(Settings);
+        Storage = new StorageSettingsViewModel(Settings);
+        Output = new OutputSettingsViewModel(Settings);
+        LocalApi = new LocalApiSettingsViewModel(Settings);
+        Shortcuts = new ShortcutsSettingsViewModel(Settings);
+        Appearance = new AppearanceSettingsViewModel(Settings);
         History = new HistoryViewModel(
             historyRepository,
             playback,
@@ -105,6 +112,13 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public ModesViewModel Modes { get; }
     public SettingsViewModel Settings { get; }
     public StreamingSettingsViewModel Streaming { get; }
+    public GeneralSettingsViewModel General { get; }
+    public SoundSettingsViewModel Sound { get; }
+    public StorageSettingsViewModel Storage { get; }
+    public OutputSettingsViewModel Output { get; }
+    public LocalApiSettingsViewModel LocalApi { get; }
+    public ShortcutsSettingsViewModel Shortcuts { get; }
+    public AppearanceSettingsViewModel Appearance { get; }
     public ModelLibraryViewModel? Models { get; }
     public BackupViewModel Backup { get; }
     public CredentialManagementViewModel? Credentials { get; }
@@ -167,7 +181,13 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             "history" => (Text("sidebar.history", "History"), History),
             "vocabulary" => (Text("sidebar.vocabulary", "Vocabulary"), Vocabulary),
             "modes" => (Text("sidebar.modes", "Modes"), Modes),
-            "settings" => (Text("sidebar.settings", "Settings"), Settings),
+            "settings" => (Text("settings.nav.general", "General"), General),
+            "sound" => (Text("settings.nav.sound", "Sound"), Sound),
+            "storage" => (Text("settings.nav.storage", "Storage"), Storage),
+            "output" => (Text("settings.nav.output", "Output"), Output),
+            "localapi" => (Text("settings.nav.localApi", "Local API"), LocalApi),
+            "shortcuts" => (Text("settings.nav.shortcuts", "Shortcuts"), Shortcuts),
+            "appearance" => (Text("settings.nav.appearance", "Appearance"), Appearance),
             "streaming" => (Text("settings.nav.streaming", "Streaming"), Streaming),
             "models" when Models is not null => (Text("settings.section.models", "Models"), Models),
             "backup" => (Text("settings.nav.backup", "Backup"), Backup),

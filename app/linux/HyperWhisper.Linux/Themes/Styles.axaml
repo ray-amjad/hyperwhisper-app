@@ -20,7 +20,7 @@
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
   <Style Selector="TextBlock.caption">
-    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontSize" Value="11"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
@@ -31,11 +31,21 @@
   </Style>
 
   <!-- Cards -->
+  <!-- Card, row and title metrics come from the Windows theme: CardStyle is a 1px border with
+       CardCornerRadius 9 and 16 padding, and a settings row is a 14px title over an 11px
+       subtitle, divided by a 1px rule with 10 above and 10 below. -->
   <Style Selector="Border.card, Border.metricCard">
     <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="10"/>
-    <Setter Property="Padding" Value="20"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="16"/>
+  </Style>
+  <Style Selector="TextBlock.pageTitle">
+    <Setter Property="FontSize" Value="20"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+    <Setter Property="Margin" Value="0,0,0,20"/>
   </Style>
   <Style Selector="Border.notice">
     <Setter Property="Background" Value="{DynamicResource HwWarningBackgroundBrush}"/>
@@ -101,12 +111,15 @@
   <!-- A settings row: title and description on the left, the control hard right, hairline
        under it. Windows groups these rows into one card, so the last row drops the rule. -->
   <Style Selector="Border.settingRow">
-    <Setter Property="BorderBrush" Value="{DynamicResource HwSubtleBorderBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="Padding" Value="0,14"/>
+    <Setter Property="Padding" Value="0,0,0,10"/>
+    <Setter Property="Margin" Value="0,0,0,10"/>
   </Style>
   <Style Selector="Border.settingRow.last">
     <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0"/>
   </Style>
   <Style Selector="TextBlock.rowTitle">
     <Setter Property="FontSize" Value="14"/>
@@ -183,6 +196,20 @@
   </Style>
   <Style Selector="DatePicker /template/ Button#PART_FlyoutButton">
     <Setter Property="MinWidth" Value="0"/>
+  </Style>
+  <!-- The history list runs edge to edge on the sidebar surface, as on Windows: no card, no
+       rounded rows, and a selected row that fills the full pane width. -->
+  <Style Selector="ListBox.flush">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0"/>
   </Style>
   <Style Selector="ListBox.plain ListBoxItem">
     <Setter Property="CornerRadius" Value="6"/>

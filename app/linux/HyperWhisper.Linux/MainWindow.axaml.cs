@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Styling;
 using Avalonia.Interactivity;
@@ -302,9 +303,13 @@ public partial class MainWindow : Window
 
     private AboutViewModel CreateAboutViewModel(string diagnosticDirectory)
     {
-        var version = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        // The informational version carries the source revision after a '+'. The About card shows
+        // the number a person would quote in a support mail, so keep only what precedes it.
+        var informational = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? typeof(MainWindow).Assembly.GetName().Version?.ToString()
             ?? "unknown";
+        var plus = informational.IndexOf('+');
+        var version = plus > 0 ? informational[..plus] : informational;
         var packageVersion = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? version;
         var capabilities = LinuxDiagnosticCapabilityProbe.Detect(_platformServices);
         return new AboutViewModel(
@@ -358,12 +363,40 @@ public partial class MainWindow : Window
             return;
         }
         const string prefix = "navigate.credentials:";
-        if (action?.StartsWith(prefix, StringComparison.Ordinal) != true) return;
-        _viewModel.Credentials?.SelectAccount(action[prefix.Length..]);
+        if (action?.StartsWith(prefix, StringComparison.Ordinal) == true)
+            _viewModel.Credentials?.SelectAccount(action[prefix.Length..]);
         NavigateFromModel("credentials");
     }
 
     private void OnModelAccountAction(object? sender, RoutedEventArgs e) => NavigateFromModel("account");
+
+    // A table row carries its own action button. Every command on the view model works on the
+    // selected model, so a row action selects its row first and then runs the command.
+    private ManagedModelViewModel? SelectModelRow(object? sender)
+    {
+        if (_viewModel.Models is null
+            || sender is not Control { DataContext: ManagedModelViewModel row }) return null;
+        _viewModel.Models.Selected = row;
+        return row;
+    }
+
+    private void OnModelRowDownload(object? sender, RoutedEventArgs e)
+    {
+        if (SelectModelRow(sender) is null || _viewModel.Models is null) return;
+        if (_viewModel.Models.DownloadCommand.CanExecute(null)) _viewModel.Models.DownloadCommand.Execute(null);
+    }
+
+    private void OnModelRowDelete(object? sender, RoutedEventArgs e)
+    {
+        if (SelectModelRow(sender) is null || _viewModel.Models is null) return;
+        if (_viewModel.Models.DeleteCommand.CanExecute(null)) _viewModel.Models.DeleteCommand.Execute(null);
+    }
+
+    private void OnModelRowCredential(object? sender, RoutedEventArgs e)
+    {
+        if (SelectModelRow(sender) is null) return;
+        OnModelCredentialAction(sender, e);
+    }
 
     private void NavigateFromModel(string page)
     {
@@ -1011,8 +1044,35 @@ public partial class MainWindow : Window
     // Backup, the cloud account, provider credentials and About are their own pages here, but
     // the Windows app reaches all four through Settings. The sidebar shows one Settings row and
     // a second column lists the family, so both apps navigate the same way.
-    private static readonly string[] SettingsFamily = ["settings", "account", "credentials", "backup", "about"];
+    private static readonly string[] SettingsFamily =
+        ["settings", "sound", "account", "storage", "output", "localapi", "shortcuts", "backup",
+         "appearance", "about", "credentials"];
     private bool _navigationSyncing;
+    private string _currentPageId = "home";
+
+    /// <summary>
+    /// Windows filters history by one period list, not by two date pickers. The dates still drive
+    /// the query; this only turns the chosen period into a start and an end date.
+    /// </summary>
+    private void OnHistoryPeriodChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox { SelectedItem: ComboBoxItem { Tag: string period } }) return;
+        var today = DateTimeOffset.Now.Date;
+        _viewModel.History.StartDate = period switch
+        {
+            "Today" => new DateTimeOffset(today),
+            "ThisWeek" => new DateTimeOffset(today.AddDays(-(int)today.DayOfWeek)),
+            "ThisMonth" => new DateTimeOffset(new DateTime(today.Year, today.Month, 1)),
+            _ => null
+        };
+        _viewModel.History.EndDate = null;
+        if (_viewModel.History.SearchCommand.CanExecute(null)) _viewModel.History.SearchCommand.Execute(null);
+    }
+
+    private void OnSaveSettings(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.Settings.SaveCommand.CanExecute(null)) _viewModel.Settings.SaveCommand.Execute(null);
+    }
 
     private void OnNavigationChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -1035,16 +1095,25 @@ public partial class MainWindow : Window
         try
         {
             _viewModel.Navigate(pageId);
+            _currentPageId = pageId;
+            UpdatePlatformNotice();
             var inSettings = Array.IndexOf(SettingsFamily, pageId) >= 0;
             Select(Navigation, inSettings ? "settings" : pageId);
             // The sidebar list raises its first selection while the rest of the tree is still
             // being built, so every control below it in the markup can still be null here.
             if (SettingsNavPane is not null) SettingsNavPane.IsVisible = inSettings;
             if (inSettings && SettingsNav is not null) Select(SettingsNav, pageId);
+            if (SettingsFooter is not null) SettingsFooter.IsVisible = inSettings;
             if (PageSubtitle is not null) PageSubtitle.Text = _localization[$"linux.page.subtitle.{pageId}"];
-            // Windows opens Home straight onto the dashboard, with no page heading above it.
-            if (PageHeader is not null) PageHeader.IsVisible = pageId != "home";
-            if (pageId == "settings") Dispatcher.UIThread.Post(UpdateLocalApiConnectionUi);
+            // Windows draws no page heading on Home, on History or on any settings section: each
+            // of those carries its own title, and History runs edge to edge.
+            var ownsItsHeader = pageId is "home" or "history" || inSettings;
+            if (PageHeader is not null) PageHeader.IsVisible = !ownsItsHeader;
+            if (PageContent is not null)
+                PageContent.Margin = pageId == "history" ? new Thickness(0)
+                    : inSettings ? new Thickness(24, 24, 24, 0)
+                    : new Thickness(30, 22, 30, 20);
+            if (pageId == "localapi") Dispatcher.UIThread.Post(UpdateLocalApiConnectionUi);
         }
         finally { _navigationSyncing = false; }
     }
@@ -1054,13 +1123,27 @@ public partial class MainWindow : Window
     /// pushed the rest of the column off screen. It now shows as a notice over the page, and
     /// only when something is actually wrong.
     /// </summary>
+    private bool _platformStatusIsWarning;
+
     private void ShowPlatformStatus(string text, bool isWarning)
     {
         PlatformStatusText.Text = text;
-        PlatformNotice.IsVisible = isWarning;
+        _platformStatusIsWarning = isWarning;
+        UpdatePlatformNotice();
     }
 
-    private void OnGoToShortcuts(object? sender, RoutedEventArgs e) => GoTo("settings");
+    /// <summary>
+    /// Windows shows no banner over its pages. The Linux integration warning is real, so it stays,
+    /// but it shows on Home only. Every other page then lays out at the same height Windows does.
+    /// </summary>
+    private void UpdatePlatformNotice()
+    {
+        if (PlatformNotice is null) return;
+        PlatformNotice.IsVisible = _platformStatusIsWarning && _currentPageId == "home";
+    }
+
+    private void OnGoToShortcuts(object? sender, RoutedEventArgs e) => GoTo("shortcuts");
+    private void OnGoToCredentials(object? sender, RoutedEventArgs e) => GoTo("credentials");
     private void OnGoToModes(object? sender, RoutedEventArgs e) => GoTo("modes");
     private void OnGoToVocabulary(object? sender, RoutedEventArgs e) => GoTo("vocabulary");
 
@@ -1185,7 +1268,7 @@ public partial class MainWindow : Window
                 ["backup"] = "BackupExportButton",
                 ["account"] = "AccountActivateButton",
                 ["credentials"] = "CredentialSaveButton",
-                ["settings"] = "SettingsSaveButton"
+                ["settings"] = "SettingsLaunchMinimized"
             };
             foreach (var page in expectedControls)
             {
@@ -1226,39 +1309,40 @@ public partial class MainWindow : Window
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("VocabularyTransferPath") || !HasVisibleControl("VocabularyImportButton")
                 || !HasVisibleControl("VocabularyExportButton")) return 12;
-            _viewModel.Navigate("settings");
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-            if (!HasVisibleControl("SettingsLocalLlmBackend")
-                || !HasVisibleControl("SettingsLocalLlmCpuFallback")
-                || !HasVisibleControl("SettingsLocalWhisperBackend")
-                || !HasVisibleControl("SettingsLocalWhisperCpuFallback")
-                || !HasVisibleControl("SettingsLocalWhisperRuntimeStatus")
-                || !HasVisibleControl("SettingsLocalApiEnabled")
-                || !HasVisibleControl("SettingsLocalApiPort")
-                || !HasVisibleControl("SettingsLocalApiStatus")
-                || !HasVisibleControl("SettingsLocalApiToken")
-                || !HasVisibleControl("SettingsLocalApiDiscoveryPath")
-                || !HasVisibleControl("SettingsToggleKey")
-                || !HasVisibleControl("SettingsPushToTalkMode")
-                || !HasVisibleControl("SettingsPasteResultText")
-                || !HasVisibleControl("SettingsRemoveFillerWords")
-                || !HasVisibleControl("SettingsAutocapitalizeInsert")
-                || !HasVisibleControl("SettingsRestoreClipboard")
-                || !HasVisibleControl("SettingsStreamingEnabled")
-                || !HasVisibleControl("SettingsStreamingProvider")
-                || !HasVisibleControl("SettingsAudioEnvironmentPolicy")
-                || !HasVisibleControl("SettingsKeepAudioFiles")
-                || !HasVisibleControl("SettingsStoreAsM4A")
-                || !HasVisibleControl("SettingsRecordingsDirectory")
-                || !HasVisibleControl("SettingsChooseRecordingsDirectory")
-                || !HasVisibleControl("SettingsAutoDeleteEnabled")
-                || !HasVisibleControl("SettingsAutoDeleteDays")
-                || !HasVisibleControl("SettingsStorageDeleteNow")
-                || !HasVisibleControl("SettingsStorageOpenFolder")
-                || !HasVisibleControl("SettingsAutostart")
-                || !HasVisibleControl("SettingsDesktopContextStatus")
-                || !HasVisibleControl("SettingsEnableErrorLogging")
-                || !HasVisibleControl("SettingsShareSpeedData")) return 10;
+            // Settings is ten sections now, as on Windows, so each one is checked on its own page.
+            var settingsSections = new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["settings"] = ["SettingsAutostart", "SettingsLaunchMinimized", "SettingsMinimizeToTray",
+                    "SettingsShowRecordingWindow", "SettingsEnableErrorLogging", "SettingsShareSpeedData",
+                    "SettingsLanguageInput", "SettingsDesktopContextStatus"],
+                ["sound"] = ["SettingsSoundEffects", "SettingsAudioEnvironmentPolicy", "SettingsBoostMicrophone",
+                    "SettingsKeepMicrophoneWarm", "SettingsVoiceActivityTrimming"],
+                ["storage"] = ["SettingsRecordingsDirectory", "SettingsChooseRecordingsDirectory",
+                    "SettingsStoreAsM4A", "SettingsKeepAudioFiles", "SettingsAutoDeleteEnabled",
+                    "SettingsAutoDeleteDays", "SettingsStorageDeleteNow", "SettingsStorageOpenFolder"],
+                ["output"] = ["SettingsPasteResultText", "SettingsRemoveFillerWords", "SettingsAutocapitalizeInsert",
+                    "SettingsStoreWordTimestamps", "SettingsRestoreClipboard", "SettingsClipboardRestoreDelay",
+                    "SettingsHideClipboardHistory"],
+                ["localapi"] = ["SettingsLocalApiEnabled", "SettingsLocalApiPort", "SettingsLocalApiStatus",
+                    "SettingsLocalApiToken", "SettingsLocalApiDiscoveryPath"],
+                ["shortcuts"] = ["SettingsToggleKey", "SettingsCancelKey", "SettingsChangeModeKey",
+                    "SettingsStreamingShortcutKey", "SettingsPushToTalkMode", "SettingsResetShortcuts"],
+                ["appearance"] = ["SettingsThemeMode", "SettingsLocalWhisperBackend", "SettingsLocalWhisperCpuFallback",
+                    "SettingsLocalWhisperRuntimeStatus", "SettingsLocalLlmBackend", "SettingsLocalLlmCpuFallback"],
+                ["streaming"] = ["StreamingEnabledToggle", "StreamingProviderChoice", "StreamingLanguageInput"]
+            };
+            foreach (var section in settingsSections)
+            {
+                _viewModel.Navigate(section.Key);
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+                foreach (var control in section.Value)
+                    if (!HasVisibleControl(control))
+                    {
+                        Console.Error.WriteLine($"Smoke: {control} is not visible on the {section.Key} page.");
+                        return 10;
+                    }
+            }
+
 
             _viewModel.Navigate("account");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);

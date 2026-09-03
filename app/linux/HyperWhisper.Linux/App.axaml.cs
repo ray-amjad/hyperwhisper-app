@@ -20,6 +20,8 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
         Resources["Localization"] = Localization;
         Resources["LocalizedFormatConverter"] = new LocalizedFormatConverter(Localization);
+        Resources["LocalTimeConverter"] = new LocalTimeConverter();
+        Resources["ShortDurationConverter"] = new ShortDurationConverter();
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -64,7 +66,11 @@ public partial class App : Application
                 window.Opened += async (_, _) =>
                 {
                     var exitCode = await window.RunSmokeTestAsync();
-                    desktop.Shutdown(exitCode);
+                    Console.Error.WriteLine($"Smoke result: {exitCode}");
+                    // Opened can raise before the dispatcher enters its main loop. Shutting down
+                    // from here then aborts the process with "Dispatcher shut down" and loses the
+                    // result, so hand the shutdown back to the loop.
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => desktop.Shutdown(exitCode));
                 };
             }
         }
