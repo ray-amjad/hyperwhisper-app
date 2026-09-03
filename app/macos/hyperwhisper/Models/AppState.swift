@@ -139,6 +139,45 @@ enum StreamingConnectionState: Equatable {
     case error(String)           // Connection/streaming error
 }
 
+// MARK: - Mode Preparation Key
+
+/// The subset of a Mode's properties that model preparation actually consumes.
+///
+/// Issue #318. The model-preparation sink used to be keyed on `selectedModeId`,
+/// which is an *identity*, not a *value*. Onboarding's source commit
+/// (`LiveOnboardingSourceCommitter.apply`) reconfigures the existing Default Mode
+/// **in place** and re-selects the same UUID, so an id-keyed
+/// `removeDuplicates()` swallowed the emission and the model never re-prepared.
+/// Keying on content instead means "the selected Mode now transcribes with
+/// something else" fires, and "the selected Mode was renamed" does not.
+///
+/// Deliberately EXCLUDES `name`, `sortOrder`, `enableScreenOCR`, `cloudProvider`
+/// and the accuracy tier: a rename must not tear down a resident model, and the
+/// cloud branch of `prepareModel` reports `.ready(name: "Cloud")` regardless of
+/// which cloud provider or tier is selected.
+///
+/// `postProcessingProvider` is read from `rawPostProcessingProvider` rather than
+/// the defaulted `postProcessingProvider`, so "unset" and "explicitly set to the
+/// default" stay distinguishable.
+struct ModePreparationKey: Equatable, Sendable {
+    /// Kept in the key so switching between two Modes that happen to share a
+    /// model/post-processing signature still re-prepares.
+    let modeId: String
+    let model: String
+    let postProcessingMode: Int16
+    let postProcessingProvider: String?
+    let languageModel: String?
+
+    init?(_ snapshot: ModeSnapshot?) {
+        guard let snapshot else { return nil }
+        self.modeId = snapshot.id.uuidString
+        self.model = snapshot.model
+        self.postProcessingMode = snapshot.postProcessingMode
+        self.postProcessingProvider = snapshot.rawPostProcessingProvider
+        self.languageModel = snapshot.languageModel
+    }
+}
+
 // MARK: - Main App State Class
 
 /// ObservableObject allows SwiftUI to watch for changes
@@ -193,6 +232,15 @@ class AppState: ObservableObject {
     @Published var hasCompletedOnboarding: Bool = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     
     /// Currently selected mode ID (Core Data UUID string)
+    ///
+    /// Seeded here with the well-known Default Mode id and **no matching
+    /// snapshot** — `selectedModeSnapshot` below starts `nil` on purpose. Model
+    /// preparation at launch therefore does not come from this seed; it comes
+    /// from `initializeSelectedModeLightweight()`
+    /// (`hyperwhisperApp.swift`), which sets id + name + snapshot together and
+    /// then prepares explicitly. A future writer that sets this id must set
+    /// `selectedModeSnapshot` too, or model preparation will not run for it
+    /// (#318).
     @Published var selectedModeId: String = "00000000-0000-0000-0000-000000000001"
     
     /// Currently selected mode name (for display)
@@ -204,6 +252,22 @@ class AppState: ObservableObject {
     /// Views consume this instead of calling fetchMode on the main thread.
     /// Fixes Sentry HYPERWHISPER-KP (DB on Main Thread during Recording Start).
     @Published var selectedModeSnapshot: ModeSnapshot?
+
+    /// The single publisher the model-preparation sink is keyed on (#318).
+    ///
+    /// Stored, not computed, so there is exactly one instance of this chain:
+    /// `setupSubscriptions()` subscribes to *this* property, which is what makes
+    /// a test that observes it real coverage of production behaviour rather than
+    /// a restatement of `ModePreparationKey`.
+    ///
+    /// `private(set)` shuts the setter while leaving the getter internal, which
+    /// is all `@testable import` needs. `lazy` because the chain reads
+    /// `$selectedModeSnapshot` off `self`.
+    private(set) lazy var modePreparationTrigger: AnyPublisher<ModePreparationKey?, Never> =
+        $selectedModeSnapshot
+            .map { ModePreparationKey($0) }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
 
     /// Cached list of all modes sorted by sortOrder as value snapshots. Seeded
     /// synchronously once at launch, then refreshed off-main on Mode saves.
@@ -850,13 +914,38 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Preload model ASAP when selected mode changes. Resolve the Mode on a
-        // background context so the SQL fetch doesn't land inside the recording
-        // start transaction on the main thread.
-        $selectedModeId
-            .removeDuplicates()
-            .sink { [weak self] modeId in
+        // Preload model ASAP when the selected Mode's preparation inputs change.
+        // Resolve the Mode on a background context so the SQL fetch doesn't land
+        // inside the recording start transaction on the main thread.
+        //
+        // Keyed on `modePreparationTrigger` — the Mode's CONTENT — and not on
+        // `$selectedModeId`, because the id is an identity and this sink cares
+        // about a value. Issue #318: onboarding's source commit reconfigures the
+        // seeded Default Mode in place and re-selects the same UUID, so an
+        // id-keyed `removeDuplicates()` swallowed the emission, `prepareModel`
+        // never re-ran, and the status bar kept advertising the pre-onboarding
+        // source until the next launch.
+        //
+        // Two consequences worth stating so they don't read as accidents:
+        //   1. At launch the first key arrives from the snapshot back-fill the
+        //      `$selectedModeId` sink below kicks off (the seeded id ships with a
+        //      nil snapshot), with the explicit prepare in
+        //      `initializeSelectedModeLightweight()` covering the branch where
+        //      that back-fill lands before the pipeline is wired. Both are
+        //      load-bearing now; neither may be removed.
+        //   2. In-place edits made in the Modes editor now reach preparation too,
+        //      via the save notification below → `refreshSelectedModeSnapshot`.
+        //      That is deliberate: it is what stops the local-runtime indicator
+        //      showing a green llama server for a Mode that no longer uses local
+        //      post-processing, since only `prepareLocalRuntime` stops it. Safe
+        //      because `prepareModel` returns early while `.transcribing` and is
+        //      generation-guarded, and the content key makes a no-op re-save a
+        //      no-op here.
+        modePreparationTrigger
+            .sink { [weak self] key in
                 guard let self else { return }
+                guard let key else { return }
+                let modeId = key.modeId
                 guard !modeId.isEmpty else { return }
                 Task { @MainActor in
                     guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: modeId) else { return }

@@ -989,8 +989,18 @@ struct MenuBarIconView: View {
             appState.selectedModeName = mode.name ?? "Default"
             appState.selectedModeSnapshot = ModeSnapshot(mode)
 
-            // Explicitly prepare the model — the Combine $selectedModeId sink may not
-            // fire (due to .removeDuplicates or pipeline being nil during init)
+            // Explicitly prepare the model. LOAD-BEARING, not belt-and-braces —
+            // do not delete this as redundant with AppState's preparation sink.
+            //
+            // That sink is keyed on the selected Mode's content (#318), and its
+            // first value at launch comes from AppState's asynchronous snapshot
+            // back-fill. If the back-fill lands BEFORE `bootstrapAppServices()`
+            // wires `appState.transcriptionPipeline`, the sink fires into a nil
+            // pipeline and its `removeDuplicates()` memoizes that key — the
+            // assignments just above then publish an equal key and are swallowed,
+            // leaving this `Task` as the only thing that prepares a model at
+            // launch. (If the back-fill lands after, both prepare and
+            // `preparationGeneration` makes the second one a no-op.)
             Task { @MainActor in
                 await transcriptionPipeline.prepareModel(for: mode)
                 await transcriptionPipeline.prepareLocalRuntime(for: mode)
