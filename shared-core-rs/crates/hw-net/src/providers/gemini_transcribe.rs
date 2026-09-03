@@ -618,13 +618,30 @@ pub fn parse_live_server_message(frame: &str) -> Result<LiveServerMessage, Trans
         .get("serverContent")
         .or_else(|| json.get("server_content"));
     if let Some(content) = content {
-        let complete = content
-            .get("generationComplete")
-            .or_else(|| content.get("generation_complete"))
-            .or_else(|| content.get("turnComplete"))
-            .or_else(|| content.get("turn_complete"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        // An OR over all four spellings, NOT first-present-wins. The `.or_else`
+        // chain this replaces stopped at the first key that was PRESENT, so a
+        // frame carrying `"generationComplete": false` alongside a true
+        // `turnComplete` read as "not complete" and the completion was dropped
+        // — the same stall as the combined-frame bug below, with a different
+        // trigger. The cloud relay's decoder
+        // (`hyperwhisper-cloud/src/routes/ws-streaming-gemini-transcribe.ts`)
+        // has always been a genuine OR; this is the edit that stops the two
+        // decoders disagreeing about that shape. Pinned by the
+        // `a-false-generation-complete-does-not-mask-a-true-turn-complete`
+        // conformance vector.
+        let complete = [
+            "generationComplete",
+            "generation_complete",
+            "turnComplete",
+            "turn_complete",
+        ]
+        .iter()
+        .any(|key| {
+            content
+                .get(*key)
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        });
 
         // FINAL FIRST, deliberately. One `serverContent` frame may carry BOTH
         // `inputTranscription` and `interimInputTranscription`; checking the
@@ -1300,6 +1317,50 @@ mod tests {
             LiveServerMessage::PartialTranscript {
                 text: "hello wor".to_string()
             }
+        );
+    }
+
+    /// The four completion spellings are an OR, not first-present-wins.
+    ///
+    /// The `.or_else` chain that used to read this flag stopped at the first
+    /// key that was PRESENT, so `"generationComplete": false` next to a true
+    /// `turnComplete` decoded as "no boundary" and the stop handshake waited
+    /// out its whole budget. The cloud relay's decoder has always been a
+    /// genuine `||`, so this was also a disagreement between two decoders of
+    /// the same frame. Pinned cross-platform by the
+    /// `a-false-generation-complete-does-not-mask-a-true-turn-complete` vector.
+    #[test]
+    fn a_false_completion_flag_does_not_mask_a_true_one() {
+        for frame in [
+            r#"{"serverContent":{"generationComplete":false,"turnComplete":true}}"#,
+            r#"{"serverContent":{"generationComplete":false,"turn_complete":true}}"#,
+            r#"{"server_content":{"generation_complete":false,"turnComplete":true}}"#,
+        ] {
+            assert_eq!(
+                parse_live_server_message(frame).unwrap(),
+                LiveServerMessage::Complete,
+                "{frame}"
+            );
+        }
+
+        // And the same rule on the combined frame.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":false,"turnComplete":true}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::FinalTranscriptAndComplete {
+                text: "hello world".to_string()
+            }
+        );
+
+        // Every flag present and false is still not a boundary.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"generationComplete":false,"turnComplete":false}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::Unhandled
         );
     }
 
