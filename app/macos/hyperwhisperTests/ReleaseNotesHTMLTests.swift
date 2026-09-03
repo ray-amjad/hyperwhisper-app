@@ -589,3 +589,351 @@ struct ReleaseNotesHTMLTests {
         #expect(first != other)
     }
 }
+
+// MARK: - Appcast selection (#353)
+
+/// The macOS side of #353: this head reads the XML and nothing else.
+///
+/// `AppcastParser.feedEntries` must hand every `<item>` over verbatim, and
+/// `AppcastParser.selectReleases` must take the shared step's answer as given.
+/// The RULES themselves — version precedence, the drop conditions, dedupe, the
+/// ordering, the date grammar — are pinned by `hw-releasenotes`' own unit tests;
+/// what is pinned here is the wiring, plus the handful of feed shapes where a
+/// wiring mistake would look like a rule change.
+struct AppcastSelectionTests {
+
+    /// A feed with `items` spliced into the channel, after the channel's own
+    /// `<title>hyperwhisper</title>` — the string that must never become a version.
+    private func feed(_ items: String) -> Data {
+        return Data("""
+        <?xml version="1.0" encoding="utf-8"?>
+        <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+            <channel>
+                <title>hyperwhisper</title>
+        \(items)
+            </channel>
+        </rss>
+        """.utf8)
+    }
+
+    /// The live macOS feed's shape, verbatim in every field.
+    @Test func everyFieldOfARealItemReachesTheCoreUntouched() throws {
+        let entries = try AppcastParser.feedEntries(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <sparkle:version>116</sparkle:version>
+                    <sparkle:shortVersionString>2.46.0</sparkle:shortVersionString>
+                    <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+                    <description><![CDATA[<ul><li>One</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(entries.count == 1)
+        #expect(entries[0].title == "2.46.0")
+        #expect(entries[0].sparkleVersion == "116")
+        #expect(entries[0].sparkleShortVersionString == "2.46.0")
+        #expect(entries[0].pubDate == "Wed, 02 Sep 2026 12:06:28 +0000")
+        #expect(entries[0].description == "<ul><li>One</li></ul>")
+        #expect(entries[0].hasReleaseNotesLink == false)
+    }
+
+    /// FINDING #3, PINNED. `sparkle:version` and `sparkle:shortVersionString`
+    /// are matched on their namespace URI and local name, never on the
+    /// `sparkle:` prefix — the old code tested `qualifiedName == "sparkle:version"`
+    /// under `shouldProcessNamespaces = true`, which is not specified to be
+    /// populated in that mode. If Foundation ever changes what it reports, this
+    /// fails here rather than silently emptying the build number in the field.
+    @Test func sparkleFieldsAreMatchedByNamespaceNotByPrefix() throws {
+        // Same two elements, bound to the Sparkle namespace through a
+        // differently-named prefix. The prefix test could not have passed this.
+        let entries = try AppcastParser.feedEntries(from: Data("""
+        <?xml version="1.0" encoding="utf-8"?>
+        <rss xmlns:sp="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+            <channel>
+                <item>
+                    <title>2.46.0</title>
+                    <sp:version>116</sp:version>
+                    <sp:shortVersionString>2.46.0</sp:shortVersionString>
+                </item>
+            </channel>
+        </rss>
+        """.utf8))
+
+        #expect(entries.count == 1)
+        #expect(entries[0].sparkleVersion == "116")
+        #expect(entries[0].sparkleShortVersionString == "2.46.0")
+    }
+
+    /// A `<version>` in no namespace at all is NOT `sparkle:version`.
+    @Test func anUnnamespacedVersionElementIsIgnored() throws {
+        let entries = try AppcastParser.feedEntries(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                    <version>999</version>
+                </item>
+        """))
+
+        #expect(entries[0].sparkleVersion == nil)
+    }
+
+    /// An absent element is `nil`, not `""`. "Absent" and "present but blank"
+    /// are the core's distinction to make; flattening them here would move that
+    /// decision into the head.
+    @Test func absentElementsArriveAsNilAndBlankOnesAsEmpty() throws {
+        let entries = try AppcastParser.feedEntries(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                </item>
+                <item>
+                    <title></title>
+                    <pubDate></pubDate>
+                    <sparkle:version></sparkle:version>
+                    <description></description>
+                </item>
+        """))
+
+        #expect(entries.count == 2)
+        #expect(entries[0].pubDate == nil)
+        #expect(entries[0].sparkleVersion == nil)
+        #expect(entries[0].sparkleShortVersionString == nil)
+        #expect(entries[0].description == nil)
+
+        #expect(entries[1].title == "")
+        #expect(entries[1].pubDate == "")
+        #expect(entries[1].sparkleVersion == "")
+        #expect(entries[1].description == "")
+    }
+
+    /// The reader DROPS NOTHING. An item with no usable field at all still
+    /// produces an entry — the core is the only thing allowed to decide that an
+    /// item is not worth showing, or the two heads drop different items again.
+    @Test func anItemWithNothingUsableStillBecomesAnEntry() throws {
+        let entries = try AppcastParser.feedEntries(from: feed("""
+                <item>
+                </item>
+        """))
+
+        #expect(entries.count == 1)
+        #expect(entries[0].title == nil)
+        #expect(entries[0].pubDate == nil)
+        #expect(entries[0].description == nil)
+    }
+
+    /// `sparkle:releaseNotesLink` is reported as a flag, not read as a value.
+    @Test func aReleaseNotesLinkIsReportedAsAFlag() throws {
+        let entries = try AppcastParser.feedEntries(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                    <sparkle:releaseNotesLink>https://example.com/notes.html</sparkle:releaseNotesLink>
+                    <description><![CDATA[<ul><li>One</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>2.45.0</title>
+                    <description><![CDATA[<ul><li>Two</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(entries[0].hasReleaseNotesLink == true)
+        #expect(entries[1].hasReleaseNotesLink == false)
+
+        // And the core drops the linked one: this card cannot fetch a URL.
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                    <sparkle:releaseNotesLink>https://example.com/notes.html</sparkle:releaseNotesLink>
+                    <description><![CDATA[<ul><li>One</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>2.45.0</title>
+                    <description><![CDATA[<ul><li>Two</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(releases.map(\.version) == ["2.45.0"])
+    }
+
+    /// The channel's `<title>hyperwhisper</title>` must not leak into the first
+    /// item. It sits before every `<item>` and `<title>` is now a version
+    /// candidate, so a leak would put a release called "hyperwhisper" at the top
+    /// of Recent Updates. The per-item reset is what prevents it.
+    @Test func theChannelTitleNeverBecomesAnItemsTitle() throws {
+        let entries = try AppcastParser.feedEntries(from: feed("""
+                <item>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <sparkle:shortVersionString>2.46.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>One</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(entries[0].title == nil)
+    }
+
+    /// END TO END: version, order and dedupe all come from the shared step.
+    ///
+    /// The fixture is deliberately in the wrong order and carries a duplicate:
+    /// 1.0.0 first, then 2.0.0 which is newer, then a SECOND 1.0.0 that is newer
+    /// still. The shared rules give [2.0.0, 1.0.0], and the surviving 1.0.0 is
+    /// the first in document order — not the newest — which is the tie-break
+    /// Windows has always used.
+    @Test func versionOrderAndDedupeComeFromTheSharedStep() throws {
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>1.0.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <sparkle:version>100</sparkle:version>
+                    <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>first in document order</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>2.0.0</title>
+                    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+                    <sparkle:version>200</sparkle:version>
+                    <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>newest</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>1.0.0</title>
+                    <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+                    <sparkle:version>101</sparkle:version>
+                    <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>duplicate version, later date</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(releases.map(\.version) == ["2.0.0", "1.0.0"])
+        #expect(releases.map(\.buildNumber) == ["200", "100"])
+        #expect(releases[1].bulletPoints.map { String($0.characters) } == ["first in document order"])
+    }
+
+    /// `sparkle:shortVersionString` wins over `sparkle:version` and `<title>`.
+    /// On the live macOS feed all three agree except `sparkle:version`, which is
+    /// the build number — reading it as the version would show "116".
+    @Test func theVersionIsTheShortVersionStringNotTheBuildNumber() throws {
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>HyperWhisper 2.46.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <sparkle:version>116</sparkle:version>
+                    <sparkle:shortVersionString>2.46.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>One</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(releases.map(\.version) == ["2.46.0"])
+        #expect(releases[0].buildNumber == "116")
+    }
+
+    /// With no `sparkle:version` to pass through, `buildNumber` falls back to
+    /// the resolved version — this head's only native-only field, and still not
+    /// rendered anywhere.
+    @Test func buildNumberFallsBackToTheVersion() throws {
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <description><![CDATA[<ul><li>One</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(releases.map(\.version) == ["2.46.0"])
+        #expect(releases[0].buildNumber == "2.46.0")
+    }
+
+    /// An entry with no inline notes is dropped by the core, so `fetchReleases`
+    /// no longer filters on `hasReleaseNotes` itself. A whitespace-only
+    /// `<description>` counts as none.
+    @Test func entriesWithoutInlineNotesAreDroppedByTheCore() throws {
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>3.0.0</title>
+                    <pubDate>Sun, 06 Sep 2026 00:00:00 +0000</pubDate>
+                </item>
+                <item>
+                    <title>2.0.0</title>
+                    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+                    <description>   </description>
+                </item>
+                <item>
+                    <title>1.0.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <description><![CDATA[<ul><li>kept</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(releases.map(\.version) == ["1.0.0"])
+        #expect(releases.allSatisfy { $0.hasReleaseNotes })
+    }
+
+    /// A BEHAVIOUR CHANGE THIS HEAD GAINS: an item with a missing or unreadable
+    /// `<pubDate>` used to be dropped outright. It now survives, dated to the
+    /// epoch — which sorts it LAST, where the old `Date()` fallback would have
+    /// sorted it first and moved it on every fetch.
+    @Test func anUnreadableDateSurvivesAtTheEpochAndSortsLast() throws {
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>3.0.0</title>
+                    <pubDate>not a date at all</pubDate>
+                    <description><![CDATA[<ul><li>broken date</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>2.0.0</title>
+                    <description><![CDATA[<ul><li>no date element</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>1.0.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <description><![CDATA[<ul><li>real date</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(releases.map(\.version) == ["1.0.0", "3.0.0", "2.0.0"])
+        #expect(releases[1].pubDate.timeIntervalSince1970 == 0)
+        #expect(releases[2].pubDate.timeIntervalSince1970 == 0)
+
+        // And the epoch renders. `formattedDate` is locale-dependent, so what is
+        // asserted is that it produces something rather than what it says.
+        #expect(!releases[1].formattedDate.isEmpty)
+    }
+
+    /// The date is read by the shared RFC 2822 parser, so the epoch it produces
+    /// is the one the item carries.
+    @Test func theDateIsTheSharedParsersAnswer() throws {
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <description><![CDATA[<ul><li>One</li></ul>]]></description>
+                </item>
+        """))
+
+        #expect(releases[0].pubDate
+                == Date(timeIntervalSince1970: Double(appcastParsePubDate(value: "Wed, 02 Sep 2026 12:06:28 +0000") ?? -1)))
+    }
+
+    /// The notes reaching `AppcastItem` are trimmed by the core, and the CDATA
+    /// indentation the feed writes around them is gone.
+    @Test func theNotesArriveTrimmed() throws {
+        let releases = try AppcastParser.selectReleases(from: feed("""
+                <item>
+                    <title>2.46.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <description>
+                        <![CDATA[
+                        <ul><li>One</li></ul>
+                        ]]>
+                    </description>
+                </item>
+        """))
+
+        #expect(releases[0].releaseNotes == "<ul><li>One</li></ul>")
+        #expect(releases[0].bulletPoints.map { String($0.characters) } == ["One"])
+    }
+
+    /// Malformed XML is still a thrown `AppcastError.parseError`, not an empty list.
+    @Test func malformedXMLStillThrows() {
+        #expect(throws: AppcastError.self) {
+            try AppcastParser.selectReleases(from: Data("<rss><channel><item>".utf8))
+        }
+    }
+}
