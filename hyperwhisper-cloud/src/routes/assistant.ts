@@ -5,12 +5,13 @@
 
 import type { Context } from 'hono';
 import { generateRequestId, getClientIP } from '../lib/request-id';
+import { logEvent } from '../lib/logging';
 import { MAX_ASSISTANT_BODY_BYTES } from '../lib/constants';
 import { creditsForCost } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
 import { MAX_ASSISTANT_IMAGE_BYTES } from '../lib/constants';
 import { errorResponse, imageTooLargeResponse, CORS_HEADERS } from '../lib/responses';
-import { validateAuth } from '../middleware/auth';
+import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { streamAnthropicChat, type AnthropicContentBlock, type AnthropicMessage } from '../providers/anthropic';
 import {
@@ -246,6 +247,7 @@ export function countInlineImages(clientMessages: unknown[]): number {
 
 export async function assistantRoute(c: Context) {
   const requestId = generateRequestId();
+  const startTime = performance.now();
   const clientIP = getClientIP(c);
 
   if (await isIPBlocked(clientIP)) {
@@ -314,6 +316,11 @@ export async function assistantRoute(c: Context) {
   // Auth — Cloud is licensed-only; a valid license key is required.
   const authResult = await validateAuth({ licenseKey: licenseKey || undefined });
   if (!authResult.ok) {
+    logEvent(requestId, startTime, 'assistant.request_rejected', {
+      reason: 'auth_failed',
+      status: authResult.response.status,
+      ...authDiagnosticsForLog(authResult.diagnostics),
+    });
     return authResult.response;
   }
 

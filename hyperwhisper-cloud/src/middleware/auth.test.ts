@@ -37,7 +37,14 @@ describe('validateAuth', () => {
     const result = await validateAuth({});
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.diagnostics).toMatchObject({
+        source: 'missing',
+        outcome: 'missing_key',
+        cacheHit: false,
+      });
+    }
   });
 
   test('serves a valid cached license without calling the API', async () => {
@@ -51,6 +58,11 @@ describe('validateAuth', () => {
       expect(result.value.credits).toBe(25);
       expect(result.value.licenseKey).toBe('abc123');
       expect(result.value.identifier).toBe('abc123');
+      expect(result.diagnostics).toMatchObject({
+        source: 'cache',
+        outcome: 'accepted',
+        cacheHit: true,
+      });
     }
   });
 
@@ -61,7 +73,14 @@ describe('validateAuth', () => {
     const result = await validateAuth({ licenseKey: 'bad-key' });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.diagnostics).toMatchObject({
+        source: 'cache',
+        outcome: 'cached_invalid',
+        cacheHit: true,
+      });
+    }
   });
 
   test('forceRefresh bypasses a valid cache entry and re-validates via the API', async () => {
@@ -71,7 +90,14 @@ describe('validateAuth', () => {
     const result = await validateAuth({ licenseKey: 'abc123' }, true);
 
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.credits).toBe(99);
+    if (result.ok) {
+      expect(result.value.credits).toBe(99);
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'accepted',
+        upstreamStatus: 200,
+      });
+    }
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 99 });
   });
@@ -82,7 +108,15 @@ describe('validateAuth', () => {
     const result = await validateAuth({ licenseKey: 'fresh-key' });
 
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.credits).toBe(7);
+    if (result.ok) {
+      expect(result.value.credits).toBe(7);
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'accepted',
+        cacheHit: false,
+        upstreamStatus: 200,
+      });
+    }
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 7 });
   });
@@ -95,7 +129,14 @@ describe('validateAuth', () => {
     const result = await validateAuth({ licenseKey: 'revoked-key' });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'api_invalid',
+        upstreamStatus: 404,
+      });
+    }
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license.isValid).toBe(false);
   });
@@ -106,19 +147,34 @@ describe('validateAuth', () => {
     const result = await validateAuth({ licenseKey: 'transient-key' });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'api_transient_status',
+        upstreamStatus: 503,
+      });
+    }
     expect(cacheWrites).toHaveLength(0);
   });
 
   test('fails closed on a network error without caching the result', async () => {
     globalThis.fetch = mock(async () => {
-      throw new Error('ECONNREFUSED');
+      throw new TypeError('fetch failed', { cause: { code: 'ECONNREFUSED' } });
     }) as unknown as typeof fetch;
 
     const result = await validateAuth({ licenseKey: 'unreachable-key' });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'api_network_error',
+        apiErrorCode: 'ECONNREFUSED',
+        apiErrorType: 'type_error',
+      });
+    }
     expect(cacheWrites).toHaveLength(0);
   });
 
@@ -131,7 +187,13 @@ describe('validateAuth', () => {
     const result = await validateAuth({ licenseKey: 'slow-key' });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'api_timeout',
+      });
+    }
     expect(cacheWrites).toHaveLength(0);
   });
 
@@ -141,8 +203,30 @@ describe('validateAuth', () => {
     const result = await validateAuth({ licenseKey: 'malformed-key' });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'api_invalid_json',
+        upstreamStatus: 200,
+      });
+    }
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license.isValid).toBe(false);
+  });
+
+  test('classifies valid JSON with the wrong shape as invalid JSON', async () => {
+    globalThis.fetch = mock(async () => Response.json('not an object')) as unknown as typeof fetch;
+
+    const result = await validateAuth({ licenseKey: 'wrong-shape-key' });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'api_invalid_json',
+        upstreamStatus: 200,
+      });
+    }
   });
 });
