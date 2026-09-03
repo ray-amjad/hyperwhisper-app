@@ -858,7 +858,6 @@ final class OnboardingFlowModel: ObservableObject {
         // #321: a Keychain write after the flow closed is permanent. The capture
         // below would still record a restore point, but both exits have already
         // emptied `providerKeyRestorePoints`, so nothing would ever consume it.
-        guard isLive else { return }
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         captureProviderKeyRestorePoint(for: selectedProvider)
@@ -1081,7 +1080,6 @@ final class OnboardingFlowModel: ObservableObject {
         // against a `restorePoint` that `complete()` already cleared, capturing a
         // fresh one nobody will ever restore. `false` reads the same as always
         // here: the user did not move forward.
-        guard isLive else { return false }
         guard canContinue,
               let next = OnboardingStep(rawValue: step.rawValue + 1) else { return false }
         // #315: the setup gate is positional, so a source that died after the
