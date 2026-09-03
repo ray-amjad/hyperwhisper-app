@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "ดาวน์โหลดโมเดลของคุณ";
 "onboarding.setup.onDevice.download" = "ดาวน์โหลด %@";
 "onboarding.setup.onDevice.downloading" = "กำลังดาวน์โหลด… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "กำลังดาวน์โหลด…";
+"onboarding.setup.onDevice.preparing" = "กำลังเตรียมการดาวน์โหลด…";
+"onboarding.setup.onDevice.downloadingFile" = "กำลังดาวน์โหลดไฟล์ที่ %1$d จาก %2$d";
+"onboarding.setup.onDevice.optimizing" = "กำลังปรับโมเดลให้เหมาะกับ Mac เครื่องนี้ ใกล้เสร็จแล้ว";
+"onboarding.setup.onDevice.firstRunHint" = "การดาวน์โหลดครั้งแรกใช้เวลาสองสามนาที คุณเปิดหน้าต่างนี้ทิ้งไว้ได้";
 "onboarding.setup.onDevice.ready" = "โมเดลพร้อมใช้งาน";
 "onboarding.setup.cloud.title" = "เปิดใช้งานคีย์ของคุณ";
 "onboarding.setup.cloud.activate" = "เปิดใช้งาน Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "ปรับความเร็วในการพิมพ์ที่ใช้อ้างอิง (WPM) สำหรับประมาณเวลาที่ประหยัดได้";
 "onboarding.progress.a11y" = "ขั้นตอน %1$d จาก %2$d";
 "onboarding.a11y.percent" = "%d เปอร์เซ็นต์";
+"onboarding.a11y.inProgress" = "กำลังดำเนินการ";
 "onboarding.a11y.downloadProgress" = "ความคืบหน้าการดาวน์โหลด";
 "onboarding.a11y.inputLevel" = "ระดับสัญญาณเสียงไมโครโฟน";
 "onboarding.a11y.selected" = "เลือกแล้ว";

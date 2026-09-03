@@ -523,6 +523,26 @@ struct OnboardingProgressBar: View {
     }
 }
 
+/// The indeterminate sibling of `OnboardingProgressBar`, for the stretch of a
+/// download where work is definitely happening but no trustworthy fraction
+/// exists yet (issue #312: FluidAudio emits nothing usable until a file lands,
+/// so a number there would read as a frozen 1%).
+///
+/// Deliberately the system linear `ProgressView` and not a hand written
+/// `repeatForever` capsule: the motion is then AppKit's own, which is both the
+/// familiar macOS idiom and the version that cannot be got subtly wrong.
+struct OnboardingIndeterminateProgressBar: View {
+    var body: some View {
+        ProgressView()
+            .progressViewStyle(.linear)
+            .tint(Color.accentColor)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement()
+            .accessibilityLabel("onboarding.a11y.downloadProgress".localized)
+            .accessibilityValue("onboarding.a11y.inProgress".localized)
+    }
+}
+
 // MARK: - Level meter
 
 /// Thirty three bars fed by the real idle metering session on

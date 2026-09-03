@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Pobierz swój model";
 "onboarding.setup.onDevice.download" = "Pobierz %@";
 "onboarding.setup.onDevice.downloading" = "Pobieranie… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Pobieranie…";
+"onboarding.setup.onDevice.preparing" = "Przygotowywanie pobierania…";
+"onboarding.setup.onDevice.downloadingFile" = "Pobieranie pliku %1$d z %2$d";
+"onboarding.setup.onDevice.optimizing" = "Model jest optymalizowany pod tego Maca. Już prawie.";
+"onboarding.setup.onDevice.firstRunHint" = "Pierwsze pobieranie trwa kilka minut. To okno możesz zostawić otwarte.";
 "onboarding.setup.onDevice.ready" = "Model gotowy";
 "onboarding.setup.cloud.title" = "Aktywuj swój klucz";
 "onboarding.setup.cloud.activate" = "Aktywuj Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Dostosuj zakładaną szybkość pisania (WPM) używaną do szacowania zaoszczędzonego czasu.";
 "onboarding.progress.a11y" = "Krok %1$d z %2$d";
 "onboarding.a11y.percent" = "%d procent";
+"onboarding.a11y.inProgress" = "W toku";
 "onboarding.a11y.downloadProgress" = "Postęp pobierania";
 "onboarding.a11y.inputLevel" = "Poziom wejścia mikrofonu";
 "onboarding.a11y.selected" = "Wybrano";

@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "모델 다운로드";
 "onboarding.setup.onDevice.download" = "%@ 다운로드";
 "onboarding.setup.onDevice.downloading" = "다운로드 중… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "다운로드 중…";
+"onboarding.setup.onDevice.preparing" = "다운로드 준비 중…";
+"onboarding.setup.onDevice.downloadingFile" = "파일 다운로드 중 %1$d/%2$d";
+"onboarding.setup.onDevice.optimizing" = "이 Mac에 맞게 모델을 최적화하는 중입니다. 거의 다 됐습니다.";
+"onboarding.setup.onDevice.firstRunHint" = "첫 다운로드는 몇 분 정도 걸립니다. 이 창은 열어 두어도 됩니다.";
 "onboarding.setup.onDevice.ready" = "모델 준비 완료";
 "onboarding.setup.cloud.title" = "키 활성화";
 "onboarding.setup.cloud.activate" = "Cloud 활성화";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "절약한 시간을 계산할 때 기준이 되는 타이핑 속도(WPM)를 조정합니다.";
 "onboarding.progress.a11y" = "%2$d단계 중 %1$d단계";
 "onboarding.a11y.percent" = "%d 퍼센트";
+"onboarding.a11y.inProgress" = "진행 중";
 "onboarding.a11y.downloadProgress" = "다운로드 진행 상황";
 "onboarding.a11y.inputLevel" = "마이크 입력 레벨";
 "onboarding.a11y.selected" = "선택됨";

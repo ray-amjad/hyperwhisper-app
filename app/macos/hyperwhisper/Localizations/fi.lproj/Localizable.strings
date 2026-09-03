@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Lataa mallisi";
 "onboarding.setup.onDevice.download" = "Lataa %@";
 "onboarding.setup.onDevice.downloading" = "Ladataan… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Ladataan…";
+"onboarding.setup.onDevice.preparing" = "Valmistellaan latausta…";
+"onboarding.setup.onDevice.downloadingFile" = "Ladataan tiedostoa %1$d / %2$d";
+"onboarding.setup.onDevice.optimizing" = "Mallia optimoidaan tälle Macille. Melkein valmis.";
+"onboarding.setup.onDevice.firstRunHint" = "Ensimmäinen lataus kestää muutaman minuutin. Voit jättää tämän ikkunan auki.";
 "onboarding.setup.onDevice.ready" = "Malli valmis";
 "onboarding.setup.cloud.title" = "Aktivoi avaimesi";
 "onboarding.setup.cloud.activate" = "Aktivoi Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Säädä oletettua kirjoitusnopeutta (WPM), jonka perusteella säästetty aika arvioidaan.";
 "onboarding.progress.a11y" = "Vaihe %1$d/%2$d";
 "onboarding.a11y.percent" = "%d prosenttia";
+"onboarding.a11y.inProgress" = "Käynnissä";
 "onboarding.a11y.downloadProgress" = "Latauksen edistyminen";
 "onboarding.a11y.inputLevel" = "Mikrofonin tulotaso";
 "onboarding.a11y.selected" = "Valittu";

@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Download din model";
 "onboarding.setup.onDevice.download" = "Download %@";
 "onboarding.setup.onDevice.downloading" = "Downloader… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Downloader…";
+"onboarding.setup.onDevice.preparing" = "Forbereder download…";
+"onboarding.setup.onDevice.downloadingFile" = "Downloader fil %1$d af %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modellen optimeres til denne Mac. Næsten færdig.";
+"onboarding.setup.onDevice.firstRunHint" = "Den første download tager et par minutter. Du kan lade dette vindue stå åbent.";
 "onboarding.setup.onDevice.ready" = "Model klar";
 "onboarding.setup.cloud.title" = "Aktivér din nøgle";
 "onboarding.setup.cloud.activate" = "Aktivér Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Justér den antagne skrivehastighed (WPM), der bruges til at estimere den sparede tid.";
 "onboarding.progress.a11y" = "Trin %1$d af %2$d";
 "onboarding.a11y.percent" = "%d procent";
+"onboarding.a11y.inProgress" = "I gang";
 "onboarding.a11y.downloadProgress" = "Downloadfremgang";
 "onboarding.a11y.inputLevel" = "Mikrofonens indgangsniveau";
 "onboarding.a11y.selected" = "Valgt";

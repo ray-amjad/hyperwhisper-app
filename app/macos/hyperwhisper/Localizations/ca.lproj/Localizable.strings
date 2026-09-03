@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Descarrega el teu model";
 "onboarding.setup.onDevice.download" = "Descarrega %@";
 "onboarding.setup.onDevice.downloading" = "Descarregant… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Descarregant…";
+"onboarding.setup.onDevice.preparing" = "S'està preparant la descàrrega…";
+"onboarding.setup.onDevice.downloadingFile" = "S'està descarregant el fitxer %1$d de %2$d";
+"onboarding.setup.onDevice.optimizing" = "S'està optimitzant el model per a aquest Mac. Gairebé fet.";
+"onboarding.setup.onDevice.firstRunHint" = "La primera descàrrega triga uns minuts. Pots deixar aquesta finestra oberta.";
 "onboarding.setup.onDevice.ready" = "Model preparat";
 "onboarding.setup.cloud.title" = "Activa la teva clau";
 "onboarding.setup.cloud.activate" = "Activa Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Ajusta la velocitat d'escriptura estimada (WPM) que s'utilitza per calcular el temps estalviat.";
 "onboarding.progress.a11y" = "Pas %1$d de %2$d";
 "onboarding.a11y.percent" = "%d per cent";
+"onboarding.a11y.inProgress" = "En curs";
 "onboarding.a11y.downloadProgress" = "Progrés de la descàrrega";
 "onboarding.a11y.inputLevel" = "Nivell d'entrada del micròfon";
 "onboarding.a11y.selected" = "Seleccionat";

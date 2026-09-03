@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Sæktu líkanið þitt";
 "onboarding.setup.onDevice.download" = "Sækja %@";
 "onboarding.setup.onDevice.downloading" = "Sæki… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Sæki…";
+"onboarding.setup.onDevice.preparing" = "Undirbý niðurhal…";
+"onboarding.setup.onDevice.downloadingFile" = "Sæki skrá %1$d af %2$d";
+"onboarding.setup.onDevice.optimizing" = "Fínstilli líkanið fyrir þessa Mac-tölvu. Næstum búið.";
+"onboarding.setup.onDevice.firstRunHint" = "Fyrsta niðurhalið tekur nokkrar mínútur. Þú mátt láta þennan glugga vera opinn.";
 "onboarding.setup.onDevice.ready" = "Líkan tilbúið";
 "onboarding.setup.cloud.title" = "Virkjaðu lykilinn þinn";
 "onboarding.setup.cloud.activate" = "Virkja Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Stilltu áætlaðan innsláttarhraða (WPM) sem notaður er til að meta sparaðan tíma.";
 "onboarding.progress.a11y" = "Skref %1$d af %2$d";
 "onboarding.a11y.percent" = "%d prósent";
+"onboarding.a11y.inProgress" = "Í gangi";
 "onboarding.a11y.downloadProgress" = "Framvinda niðurhals";
 "onboarding.a11y.inputLevel" = "Inntaksstig hljóðnema";
 "onboarding.a11y.selected" = "Valið";

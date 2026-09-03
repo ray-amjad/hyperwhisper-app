@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Modell herunterladen";
 "onboarding.setup.onDevice.download" = "%@ herunterladen";
 "onboarding.setup.onDevice.downloading" = "Wird heruntergeladen… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Wird heruntergeladen…";
+"onboarding.setup.onDevice.preparing" = "Download wird vorbereitet…";
+"onboarding.setup.onDevice.downloadingFile" = "Datei %1$d von %2$d wird heruntergeladen";
+"onboarding.setup.onDevice.optimizing" = "Das Modell wird für diesen Mac optimiert. Fast fertig.";
+"onboarding.setup.onDevice.firstRunHint" = "Der erste Download dauert ein paar Minuten. Du kannst dieses Fenster offen lassen.";
 "onboarding.setup.onDevice.ready" = "Modell bereit";
 "onboarding.setup.cloud.title" = "Deinen Schlüssel aktivieren";
 "onboarding.setup.cloud.activate" = "Cloud aktivieren";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Passen Sie die angenommene Tippgeschwindigkeit (WPM) an, mit der die gesparte Zeit geschätzt wird.";
 "onboarding.progress.a11y" = "Schritt %1$d von %2$d";
 "onboarding.a11y.percent" = "%d Prozent";
+"onboarding.a11y.inProgress" = "Läuft";
 "onboarding.a11y.downloadProgress" = "Downloadfortschritt";
 "onboarding.a11y.inputLevel" = "Mikrofon-Eingangspegel";
 "onboarding.a11y.selected" = "Ausgewählt";

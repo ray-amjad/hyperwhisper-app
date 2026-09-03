@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Laadi mudel alla";
 "onboarding.setup.onDevice.download" = "Laadi alla %@";
 "onboarding.setup.onDevice.downloading" = "Allalaadimine… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Allalaadimine…";
+"onboarding.setup.onDevice.preparing" = "Allalaadimise ettevalmistamine…";
+"onboarding.setup.onDevice.downloadingFile" = "Laaditakse alla fail %1$d / %2$d";
+"onboarding.setup.onDevice.optimizing" = "Mudelit optimeeritakse selle Maci jaoks. Peaaegu valmis.";
+"onboarding.setup.onDevice.firstRunHint" = "Esimene allalaadimine võtab paar minutit. Võid selle akna lahti jätta.";
 "onboarding.setup.onDevice.ready" = "Mudel on valmis";
 "onboarding.setup.cloud.title" = "Aktiveeri oma võti";
 "onboarding.setup.cloud.activate" = "Aktiveeri Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Muuda eeldatavat kirjutamiskiirust (WPM), mille alusel säästetud aega hinnatakse.";
 "onboarding.progress.a11y" = "Samm %1$d %2$d-st";
 "onboarding.a11y.percent" = "%d protsenti";
+"onboarding.a11y.inProgress" = "Käib";
 "onboarding.a11y.downloadProgress" = "Allalaadimise edenemine";
 "onboarding.a11y.inputLevel" = "Mikrofoni sisendi tase";
 "onboarding.a11y.selected" = "Valitud";

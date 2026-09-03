@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "モデルをダウンロード";
 "onboarding.setup.onDevice.download" = "%@をダウンロード";
 "onboarding.setup.onDevice.downloading" = "ダウンロード中… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "ダウンロード中…";
+"onboarding.setup.onDevice.preparing" = "ダウンロードを準備中…";
+"onboarding.setup.onDevice.downloadingFile" = "%2$d 個中 %1$d 個目のファイルをダウンロード中";
+"onboarding.setup.onDevice.optimizing" = "このMac用にモデルを最適化しています。もうすぐ完了します。";
+"onboarding.setup.onDevice.firstRunHint" = "初回のダウンロードには数分かかります。このウインドウは開いたままにしておけます。";
 "onboarding.setup.onDevice.ready" = "モデルの準備完了";
 "onboarding.setup.cloud.title" = "キーを有効化";
 "onboarding.setup.cloud.activate" = "Cloudを有効化";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "節約時間の推定に使用するタイピング速度（WPM）を調整します。";
 "onboarding.progress.a11y" = "ステップ %1$d/%2$d";
 "onboarding.a11y.percent" = "%dパーセント";
+"onboarding.a11y.inProgress" = "実行中";
 "onboarding.a11y.downloadProgress" = "ダウンロードの進行状況";
 "onboarding.a11y.inputLevel" = "マイク入力レベル";
 "onboarding.a11y.selected" = "選択済み";

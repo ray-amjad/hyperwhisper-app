@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Преузми свој модел";
 "onboarding.setup.onDevice.download" = "Преузми %@";
 "onboarding.setup.onDevice.downloading" = "Преузимање… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Преузимање…";
+"onboarding.setup.onDevice.preparing" = "Припрема преузимања…";
+"onboarding.setup.onDevice.downloadingFile" = "Преузимање датотеке %1$d од %2$d";
+"onboarding.setup.onDevice.optimizing" = "Модел се оптимизује за овај Mac. Само још мало.";
+"onboarding.setup.onDevice.firstRunHint" = "Прво преузимање траје неколико минута. Овај прозор можете оставити отворен.";
 "onboarding.setup.onDevice.ready" = "Модел спреман";
 "onboarding.setup.cloud.title" = "Активирај свој кључ";
 "onboarding.setup.cloud.activate" = "Активирај Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Podesite pretpostavljenu brzinu kucanja (WPM) koja se koristi za procenu uštede vremena.";
 "onboarding.progress.a11y" = "Корак %1$d од %2$d";
 "onboarding.a11y.percent" = "%d процената";
+"onboarding.a11y.inProgress" = "У току";
 "onboarding.a11y.downloadProgress" = "Напредак преузимања";
 "onboarding.a11y.inputLevel" = "Ниво улаза микрофона";
 "onboarding.a11y.selected" = "Изабрано";

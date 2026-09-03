@@ -336,6 +336,11 @@
 "onboarding.setup.onDevice.subtitle" = "This happens once. Every recording after it runs offline.";
 "onboarding.setup.onDevice.download" = "Download %@";
 "onboarding.setup.onDevice.downloading" = "Downloading… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Downloading…";
+"onboarding.setup.onDevice.preparing" = "Preparing download…";
+"onboarding.setup.onDevice.downloadingFile" = "Downloading file %1$d of %2$d";
+"onboarding.setup.onDevice.optimizing" = "Optimizing the model for this Mac. Almost done.";
+"onboarding.setup.onDevice.firstRunHint" = "The first download takes a few minutes. You can leave this window open.";
 "onboarding.setup.onDevice.ready" = "Model ready";
 "onboarding.setup.onDevice.storedCaption" = "stored on this Mac";
 "onboarding.setup.onDevice.totalCaption" = "total download";
@@ -421,6 +426,7 @@
 // VoiceOver
 "onboarding.progress.a11y" = "Step %1$d of %2$d";
 "onboarding.a11y.percent" = "%d percent";
+"onboarding.a11y.inProgress" = "In progress";
 "onboarding.a11y.downloadProgress" = "Download progress";
 "onboarding.a11y.inputLevel" = "Microphone input level";
 "onboarding.a11y.selected" = "Selected";

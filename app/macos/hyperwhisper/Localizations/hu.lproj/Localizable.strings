@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Töltsd le a modelledet";
 "onboarding.setup.onDevice.download" = "%@ letöltése";
 "onboarding.setup.onDevice.downloading" = "Letöltés… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Letöltés…";
+"onboarding.setup.onDevice.preparing" = "Letöltés előkészítése…";
+"onboarding.setup.onDevice.downloadingFile" = "Fájl letöltése: %1$d / %2$d";
+"onboarding.setup.onDevice.optimizing" = "A modell optimalizálása ehhez a Machez. Mindjárt kész.";
+"onboarding.setup.onDevice.firstRunHint" = "Az első letöltés néhány percig tart. Ezt az ablakot nyitva hagyhatod.";
 "onboarding.setup.onDevice.ready" = "A modell készen áll";
 "onboarding.setup.cloud.title" = "Kulcsod aktiválása";
 "onboarding.setup.cloud.activate" = "Cloud aktiválása";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Az időmegtakarítás becsléséhez használt feltételezett gépelési sebesség (WPM) módosítása.";
 "onboarding.progress.a11y" = "%1$d. lépés a(z) %2$d-ből";
 "onboarding.a11y.percent" = "%d százalék";
+"onboarding.a11y.inProgress" = "Folyamatban";
 "onboarding.a11y.downloadProgress" = "Letöltés folyamata";
 "onboarding.a11y.inputLevel" = "Mikrofon bemeneti szintje";
 "onboarding.a11y.selected" = "Kiválasztva";

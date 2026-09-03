@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Завантажте вашу модель";
 "onboarding.setup.onDevice.download" = "Завантажити %@";
 "onboarding.setup.onDevice.downloading" = "Завантаження… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Завантаження…";
+"onboarding.setup.onDevice.preparing" = "Підготовка завантаження…";
+"onboarding.setup.onDevice.downloadingFile" = "Завантаження файлу %1$d з %2$d";
+"onboarding.setup.onDevice.optimizing" = "Модель оптимізується для цього Mac. Майже готово.";
+"onboarding.setup.onDevice.firstRunHint" = "Перше завантаження триває кілька хвилин. Це вікно можна залишити відкритим.";
 "onboarding.setup.onDevice.ready" = "Модель готова";
 "onboarding.setup.cloud.title" = "Активуйте ваш ключ";
 "onboarding.setup.cloud.activate" = "Активувати Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Налаштуйте орієнтовну швидкість набору (WPM), яка використовується для оцінки заощадженого часу.";
 "onboarding.progress.a11y" = "Крок %1$d з %2$d";
 "onboarding.a11y.percent" = "%d відсотків";
+"onboarding.a11y.inProgress" = "Виконується";
 "onboarding.a11y.downloadProgress" = "Прогрес завантаження";
 "onboarding.a11y.inputLevel" = "Рівень вхідного сигналу мікрофона";
 "onboarding.a11y.selected" = "Обрано";

@@ -631,6 +631,8 @@ struct OnboardingSetupView: View {
             let ready = flow.isSelectedModelInstalled()
             let downloading = flow.isSelectedModelDownloading()
             let progress = flow.selectedModelProgress()
+            let stage = flow.selectedModelStage()
+            let indeterminate = Self.isIndeterminate(stage)
 
             OnboardingCard {
                 OnboardingCardRow {
@@ -650,7 +652,7 @@ struct OnboardingSetupView: View {
                         )
                     } else if downloading {
                         OnboardingStatusPill(
-                            text: "onboarding.setup.onDevice.downloading".localized(arguments: Int(progress * 100)),
+                            text: Self.downloadPillText(stage: stage, progress: progress),
                             tone: .accent
                         )
                     } else {
@@ -669,22 +671,48 @@ struct OnboardingSetupView: View {
                             caption: "onboarding.setup.onDevice.storedCaption".localized
                         )
                     } else if downloading {
-                        Text("\(Int(progress * 100))%")
-                            .font(.system(size: 30, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
+                        // Issue #312. While the engine is preparing or transferring
+                        // there is no fraction worth printing — the published value
+                        // sits on its 0.01 floor until a file lands — so the number
+                        // is replaced by the phase and an indeterminate bar. Once
+                        // the bytes are down and CoreML compilation starts, the
+                        // fraction is real again and the percentage comes back.
+                        if indeterminate {
+                            Text(Self.downloadPhaseText(stage))
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .fixedSize(horizontal: false, vertical: true)
 
-                        OnboardingProgressBar(value: progress)
-                            .padding(.top, DesignConstants.Spacing.medium)
+                            OnboardingIndeterminateProgressBar()
+                                .padding(.top, DesignConstants.Spacing.medium)
+                        } else {
+                            Text("\(Int(progress * 100))%")
+                                .font(.system(size: 30, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+
+                            OnboardingProgressBar(value: progress)
+                                .padding(.top, DesignConstants.Spacing.medium)
+                        }
 
                         // The managers publish a fraction, not bytes or a rate, so
                         // the reference's "409 MB of 620 MB" and "40s left" are
-                        // reduced to the one figure that is actually known.
+                        // reduced to the one figure that is actually known. Shown in
+                        // both branches: it is the only hard number on this step.
                         OnboardingBigNumber(
                             value: model.size,
                             caption: "onboarding.setup.onDevice.totalCaption".localized,
                             compact: true
                         )
                             .padding(.top, DesignConstants.Spacing.medium)
+
+                        // Reassurance, only for an engine that reports a stage. A
+                        // four minute wait behind a still indicator reads as a hang,
+                        // and this says out loud that it is not one. `nil` — every
+                        // engine that reports no stage, Whisper included — gets the
+                        // card exactly as it was.
+                        if let hint = Self.downloadHintText(stage) {
+                            OnboardingQuietNote(text: hint)
+                        }
                     } else {
                         Button(action: flow.startSelectedModelDownload) {
                             Label(
@@ -712,6 +740,73 @@ struct OnboardingSetupView: View {
                     OnboardingRowText(title: "onboarding.setup.selectFirst".localized)
                 }
             }
+        }
+    }
+
+    // MARK: Download stage copy (issue #312)
+    //
+    // These are plain static functions rather than inline `switch`es in the
+    // ViewBuilder on purpose: a `switch` reads very differently inside a result
+    // builder, and keeping the decision out here makes the card body a simple
+    // if/else over a `Bool` and two `String`s.
+
+    /// True while the published fraction is not worth printing as a percentage.
+    ///
+    /// `DownloadController` clamps to a 0.01 floor and FluidAudio publishes no
+    /// usable value until a whole file lands, so during `preparing` and
+    /// `downloading` a number would sit at "1%" for minutes — the whole of #312.
+    /// `processing` has a real 0.9…1.0 fraction, and `nil` (Whisper, or any
+    /// engine with no stage) keeps today's behaviour.
+    private static func isIndeterminate(_ stage: ModelDownloadStage?) -> Bool {
+        guard let stage else { return false }
+        switch stage {
+        case .preparing, .downloading:
+            return true
+        case .processing:
+            return false
+        }
+    }
+
+    /// The line that replaces the percentage while the bar is indeterminate.
+    ///
+    /// FluidAudio counts files it has *finished*, so the one in flight is the
+    /// next one; the `min` stops the very last callback reading "23 of 22".
+    private static func downloadPhaseText(_ stage: ModelDownloadStage?) -> String {
+        guard let stage else { return "onboarding.setup.onDevice.preparing".localized }
+        switch stage {
+        case .preparing:
+            return "onboarding.setup.onDevice.preparing".localized
+        case .downloading(let completedFiles, let totalFiles):
+            guard totalFiles > 0 else { return "onboarding.setup.onDevice.preparing".localized }
+            let current = min(completedFiles + 1, totalFiles)
+            return "onboarding.setup.onDevice.downloadingFile".localized(arguments: current, totalFiles)
+        case .processing:
+            return "onboarding.setup.onDevice.optimizing".localized
+        }
+    }
+
+    /// The status pill next to the model name. Same rule as the big figure: no
+    /// percentage while there is no percentage to be honest about.
+    private static func downloadPillText(stage: ModelDownloadStage?, progress: Double) -> String {
+        if isIndeterminate(stage) {
+            return "onboarding.setup.onDevice.downloadingPill".localized
+        }
+        return "onboarding.setup.onDevice.downloading".localized(arguments: Int(progress * 100))
+    }
+
+    /// The reassurance note under the size, or `nil` for an engine that reports
+    /// no stage — which is what keeps Whisper's card untouched.
+    ///
+    /// `processing` reuses the same sentence `downloadPhaseText` would give it.
+    /// The two are never on screen together: `processing` is not indeterminate,
+    /// so its heading is the percentage and this note carries the explanation.
+    private static func downloadHintText(_ stage: ModelDownloadStage?) -> String? {
+        guard let stage else { return nil }
+        switch stage {
+        case .preparing, .downloading:
+            return "onboarding.setup.onDevice.firstRunHint".localized
+        case .processing:
+            return "onboarding.setup.onDevice.optimizing".localized
         }
     }
 

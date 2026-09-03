@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "下载您的模型";
 "onboarding.setup.onDevice.download" = "下载 %@";
 "onboarding.setup.onDevice.downloading" = "正在下载… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "正在下载…";
+"onboarding.setup.onDevice.preparing" = "正在准备下载…";
+"onboarding.setup.onDevice.downloadingFile" = "正在下载第 %1$d 个文件，共 %2$d 个";
+"onboarding.setup.onDevice.optimizing" = "正在为这台 Mac 优化模型，即将完成。";
+"onboarding.setup.onDevice.firstRunHint" = "首次下载需要几分钟。你可以让此窗口保持打开。";
 "onboarding.setup.onDevice.ready" = "模型已就绪";
 "onboarding.setup.cloud.title" = "激活您的密钥";
 "onboarding.setup.cloud.activate" = "激活 Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "调整用于估算节省时间的假定打字速度（WPM）。";
 "onboarding.progress.a11y" = "第 %1$d 步，共 %2$d 步";
 "onboarding.a11y.percent" = "百分之 %d";
+"onboarding.a11y.inProgress" = "进行中";
 "onboarding.a11y.downloadProgress" = "下载进度";
 "onboarding.a11y.inputLevel" = "麦克风输入音量";
 "onboarding.a11y.selected" = "已选择";

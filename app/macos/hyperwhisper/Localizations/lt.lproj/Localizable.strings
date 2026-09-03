@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Atsisiųskite savo modelį";
 "onboarding.setup.onDevice.download" = "Atsisiųsti %@";
 "onboarding.setup.onDevice.downloading" = "Atsisiunčiama… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Atsisiunčiama…";
+"onboarding.setup.onDevice.preparing" = "Ruošiamas atsisiuntimas…";
+"onboarding.setup.onDevice.downloadingFile" = "Atsisiunčiamas failas %1$d iš %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modelis optimizuojamas šiam „Mac“. Beveik baigta.";
+"onboarding.setup.onDevice.firstRunHint" = "Pirmasis atsisiuntimas trunka kelias minutes. Šį langą galite palikti atvertą.";
 "onboarding.setup.onDevice.ready" = "Modelis paruoštas";
 "onboarding.setup.cloud.title" = "Aktyvuokite savo raktą";
 "onboarding.setup.cloud.activate" = "Aktyvuoti „Cloud“";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Pakoreguokite numatomą rašymo greitį (WPM), pagal kurį apskaičiuojamas sutaupytas laikas.";
 "onboarding.progress.a11y" = "%1$d žingsnis iš %2$d";
 "onboarding.a11y.percent" = "%d procentai";
+"onboarding.a11y.inProgress" = "Vykdoma";
 "onboarding.a11y.downloadProgress" = "Atsisiuntimo eiga";
 "onboarding.a11y.inputLevel" = "Mikrofono įvesties lygis";
 "onboarding.a11y.selected" = "Pasirinkta";

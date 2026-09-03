@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "अपना मॉडल डाउनलोड करें";
 "onboarding.setup.onDevice.download" = "%@ डाउनलोड करें";
 "onboarding.setup.onDevice.downloading" = "डाउनलोड हो रहा है… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "डाउनलोड हो रहा है…";
+"onboarding.setup.onDevice.preparing" = "डाउनलोड तैयार किया जा रहा है…";
+"onboarding.setup.onDevice.downloadingFile" = "फ़ाइल %1$d / %2$d डाउनलोड हो रही है";
+"onboarding.setup.onDevice.optimizing" = "मॉडल को इस Mac के लिए ऑप्टिमाइज़ किया जा रहा है. लगभग हो गया.";
+"onboarding.setup.onDevice.firstRunHint" = "पहले डाउनलोड में कुछ मिनट लगते हैं. आप यह विंडो खुली छोड़ सकते हैं.";
 "onboarding.setup.onDevice.ready" = "मॉडल तैयार है";
 "onboarding.setup.cloud.title" = "अपनी कुंजी सक्रिय करें";
 "onboarding.setup.cloud.activate" = "Cloud सक्रिय करें";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "बचे हुए समय का अनुमान लगाने के लिए मानी गई टाइपिंग गति (WPM) समायोजित करें।";
 "onboarding.progress.a11y" = "स्टेप %1$d, कुल %2$d में से";
 "onboarding.a11y.percent" = "%d प्रतिशत";
+"onboarding.a11y.inProgress" = "जारी है";
 "onboarding.a11y.downloadProgress" = "डाउनलोड प्रगति";
 "onboarding.a11y.inputLevel" = "माइक्रोफ़ोन इनपुट लेवल";
 "onboarding.a11y.selected" = "चयनित";

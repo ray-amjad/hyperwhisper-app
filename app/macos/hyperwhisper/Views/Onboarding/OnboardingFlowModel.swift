@@ -139,6 +139,11 @@ protocol OnboardingModelCatalog: AnyObject {
     func isInstalled(_ model: OnboardingModelSelection) -> Bool
     func isDownloading(_ model: OnboardingModelSelection) -> Bool
     func progress(for model: OnboardingModelSelection) -> Double
+    /// What the download is currently doing, when the engine behind `model`
+    /// publishes it. `nil` means "no stage information available" and callers
+    /// must fall back to rendering the fraction on its own — that is what keeps
+    /// Whisper, which only ever publishes a fraction, on its existing UI.
+    func stage(for model: OnboardingModelSelection) -> ModelDownloadStage?
     func startDownload(_ model: OnboardingModelSelection)
     /// Emits whenever either engine's error message changes. Carrying both in one
     /// value is what lets a Parakeet failure reach the UI (bug 2).
@@ -147,6 +152,14 @@ protocol OnboardingModelCatalog: AnyObject {
     /// catalog reads are plain function calls, so without this tick nothing tells
     /// SwiftUI that the setup step's progress bar has moved (bug 2).
     var downloadActivity: AnyPublisher<Void, Never> { get }
+}
+
+@MainActor
+extension OnboardingModelCatalog {
+    /// Default: no stage. Declared as a requirement so a conformer that has one
+    /// still overrides it dynamically, but defaulted here so a conformer that has
+    /// nothing to say — including the test fakes — needs no change at all.
+    func stage(for model: OnboardingModelSelection) -> ModelDownloadStage? { nil }
 }
 
 /// HyperWhisper Cloud. `probe` is read only; `activate` is the single explicit
@@ -651,6 +664,14 @@ final class OnboardingFlowModel: ObservableObject {
     func selectedModelProgress() -> Double {
         guard let model = selectedModel else { return 0 }
         return catalog.progress(for: model)
+    }
+
+    /// The selected model's download stage, or `nil` when nothing is selected or
+    /// the engine publishes no stage. Issue #312: the setup step needs this to
+    /// decide whether the published fraction is worth printing as a percentage.
+    func selectedModelStage() -> ModelDownloadStage? {
+        guard let model = selectedModel else { return nil }
+        return catalog.stage(for: model)
     }
 
     /// Bug 3. The activation task is owned, replaces any earlier one, and its

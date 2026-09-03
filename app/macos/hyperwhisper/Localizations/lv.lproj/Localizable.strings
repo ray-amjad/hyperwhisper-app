@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Lejupielādējiet savu modeli";
 "onboarding.setup.onDevice.download" = "Lejupielādēt %@";
 "onboarding.setup.onDevice.downloading" = "Notiek lejupielāde… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Notiek lejupielāde…";
+"onboarding.setup.onDevice.preparing" = "Sagatavo lejupielādi…";
+"onboarding.setup.onDevice.downloadingFile" = "Lejupielādē failu %1$d no %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modelis tiek optimizēts šim Mac. Gandrīz gatavs.";
+"onboarding.setup.onDevice.firstRunHint" = "Pirmā lejupielāde aizņem dažas minūtes. Šo logu var atstāt atvērtu.";
 "onboarding.setup.onDevice.ready" = "Modelis ir gatavs";
 "onboarding.setup.cloud.title" = "Aktivizējiet savu atslēgu";
 "onboarding.setup.cloud.activate" = "Aktivizēt Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Pielāgojiet pieņemto rakstīšanas ātrumu (WPM), ko izmanto ietaupītā laika aprēķinam.";
 "onboarding.progress.a11y" = "%1$d. solis no %2$d";
 "onboarding.a11y.percent" = "%d procenti";
+"onboarding.a11y.inProgress" = "Notiek";
 "onboarding.a11y.downloadProgress" = "Lejupielādes progress";
 "onboarding.a11y.inputLevel" = "Mikrofona ievades līmenis";
 "onboarding.a11y.selected" = "Izvēlēts";

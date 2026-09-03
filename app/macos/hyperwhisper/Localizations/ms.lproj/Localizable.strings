@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Muat turun model anda";
 "onboarding.setup.onDevice.download" = "Muat Turun %@";
 "onboarding.setup.onDevice.downloading" = "Memuat turun… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Memuat turun…";
+"onboarding.setup.onDevice.preparing" = "Menyediakan muat turun…";
+"onboarding.setup.onDevice.downloadingFile" = "Memuat turun fail %1$d daripada %2$d";
+"onboarding.setup.onDevice.optimizing" = "Mengoptimumkan model untuk Mac ini. Hampir selesai.";
+"onboarding.setup.onDevice.firstRunHint" = "Muat turun pertama mengambil masa beberapa minit. Anda boleh biarkan tetingkap ini terbuka.";
 "onboarding.setup.onDevice.ready" = "Model sedia";
 "onboarding.setup.cloud.title" = "Aktifkan kunci anda";
 "onboarding.setup.cloud.activate" = "Aktifkan Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Laraskan andaian kelajuan menaip (WPM) yang digunakan untuk menganggarkan masa yang dijimatkan.";
 "onboarding.progress.a11y" = "Langkah %1$d daripada %2$d";
 "onboarding.a11y.percent" = "%d peratus";
+"onboarding.a11y.inProgress" = "Sedang berjalan";
 "onboarding.a11y.downloadProgress" = "Kemajuan muat turun";
 "onboarding.a11y.inputLevel" = "Aras input mikrofon";
 "onboarding.a11y.selected" = "Dipilih";

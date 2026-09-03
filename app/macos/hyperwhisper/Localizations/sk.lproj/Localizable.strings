@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Stiahnite si svoj model";
 "onboarding.setup.onDevice.download" = "Stiahnuť %@";
 "onboarding.setup.onDevice.downloading" = "Sťahovanie… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Sťahovanie…";
+"onboarding.setup.onDevice.preparing" = "Príprava sťahovania…";
+"onboarding.setup.onDevice.downloadingFile" = "Sťahovanie súboru %1$d z %2$d";
+"onboarding.setup.onDevice.optimizing" = "Model sa optimalizuje pre tento Mac. Už to bude.";
+"onboarding.setup.onDevice.firstRunHint" = "Prvé sťahovanie trvá niekoľko minút. Toto okno môžete nechať otvorené.";
 "onboarding.setup.onDevice.ready" = "Model pripravený";
 "onboarding.setup.cloud.title" = "Aktivujte svoj kľúč";
 "onboarding.setup.cloud.activate" = "Aktivovať Cloud";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Upravte predpokladanú rýchlosť písania (WPM), ktorá sa používa na odhad ušetreného času.";
 "onboarding.progress.a11y" = "Krok %1$d z %2$d";
 "onboarding.a11y.percent" = "%d percent";
+"onboarding.a11y.inProgress" = "Prebieha";
 "onboarding.a11y.downloadProgress" = "Priebeh sťahovania";
 "onboarding.a11y.inputLevel" = "Úroveň vstupu mikrofónu";
 "onboarding.a11y.selected" = "Vybraté";

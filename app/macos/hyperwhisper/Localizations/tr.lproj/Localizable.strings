@@ -265,6 +265,11 @@
 "onboarding.setup.onDevice.title" = "Modelinizi indirin";
 "onboarding.setup.onDevice.download" = "%@ İndir";
 "onboarding.setup.onDevice.downloading" = "İndiriliyor… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "İndiriliyor…";
+"onboarding.setup.onDevice.preparing" = "İndirme hazırlanıyor…";
+"onboarding.setup.onDevice.downloadingFile" = "%2$d dosyadan %1$d. dosya indiriliyor";
+"onboarding.setup.onDevice.optimizing" = "Model bu Mac için optimize ediliyor. Neredeyse bitti.";
+"onboarding.setup.onDevice.firstRunHint" = "İlk indirme birkaç dakika sürer. Bu pencereyi açık bırakabilirsiniz.";
 "onboarding.setup.onDevice.ready" = "Model hazır";
 "onboarding.setup.cloud.title" = "Anahtarınızı etkinleştirin";
 "onboarding.setup.cloud.activate" = "Cloud'u Etkinleştir";
@@ -491,6 +496,7 @@
 "home.stats.typing.speed.help" = "Kazanılan süreyi hesaplamak için kullanılan varsayılan yazma hızını (WPM) ayarlayın.";
 "onboarding.progress.a11y" = "Adım %1$d / %2$d";
 "onboarding.a11y.percent" = "yüzde %d";
+"onboarding.a11y.inProgress" = "Sürüyor";
 "onboarding.a11y.downloadProgress" = "İndirme ilerlemesi";
 "onboarding.a11y.inputLevel" = "Mikrofon giriş seviyesi";
 "onboarding.a11y.selected" = "Seçildi";
