@@ -122,14 +122,9 @@ class RecordingLifecycle {
     /// boost the mic". Reset at the start of every recording.
     private(set) var lastMicBoostFailed = false
 
-    /// Recordings directory URL
+    /// Recordings directory URL from the shared resolver.
     private var recordingsDirectory: URL {
-        if let path = settingsManager?.recordingsFolder, !path.isEmpty {
-            return URL(fileURLWithPath: path, isDirectory: true)
-        }
-
-        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Recordings", isDirectory: true)
+        RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
     }
 
     // MARK: - Initialization

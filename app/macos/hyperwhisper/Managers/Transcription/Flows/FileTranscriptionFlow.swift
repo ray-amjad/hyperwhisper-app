@@ -654,16 +654,11 @@ class FileTranscriptionFlow {
         return destinationURL
     }
 
-    /// Gets the recordings directory from settings or default location
+    /// Gets the configured recordings directory or the legacy fallback location.
     ///
     /// - Returns: URL of the recordings directory
     private func getRecordingsDirectory() -> URL {
-        if let path = settingsManager?.recordingsFolder, !path.isEmpty {
-            return URL(fileURLWithPath: path, isDirectory: true)
-        }
-
-        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Recordings", isDirectory: true)
+        RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
     }
 
     private func cleanupCopiedFile(reason: String) {
