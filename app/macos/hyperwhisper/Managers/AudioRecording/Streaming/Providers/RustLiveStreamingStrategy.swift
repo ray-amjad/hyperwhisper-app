@@ -263,14 +263,16 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
     /// deleted strategies reset that state in `startMessages` instead; this one
     /// also covers the providers that send no start message at all.
     ///
-    /// THE CALLER OWES THIS METHOD A DETACHED AUDIO CALLBACK. The reset is what
-    /// makes the ordering load-bearing: a capture callback that reaches
+    /// THE CALLER OWES THIS METHOD EXCLUSION AGAINST ITS AUDIO CALLBACK. The
+    /// reset is what makes it load-bearing: a capture callback that reaches
     /// `encodeAudioChunk` while this call is in flight reports its bytes to the
     /// session being installed here while sending them on the socket being
     /// replaced, and OpenAI's next commit then claims audio the new server never
-    /// received. `startSession` wires the callback only after this returns, and
-    /// `handleUnexpectedDisconnect` clears it before calling this — see the
-    /// ordering rule written out at that call site.
+    /// received. Clearing the callback is not enough on its own — it stops the
+    /// next invocation, not the one already running on the tap thread — so
+    /// `StreamingTranscriptionClient` takes `audioWiringLock` around this call
+    /// and the callback takes it (non-blockingly) before it touches this object.
+    /// Read that property's doc before moving this call.
     ///
     /// The caller's config is re-read rather than the constructor's being
     /// reused: the protocol says the caller supplies the config, and a strategy
@@ -395,6 +397,25 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
     /// The byte count is the only thing the core ever learns about audio, and
     /// only OpenAI's commit gate reads it — the call is free for the other
     /// five, so it is unconditional.
+    ///
+    /// THIS RUNS ON THE REAL-TIME TAP THREAD AND TAKES THE CORE SESSION'S
+    /// MUTEX. `HwLiveSession` is one `std::sync::Mutex<LiveSession>` and every
+    /// exported method locks it, so this call and `onAudioSendOpportunity`
+    /// contend with `parseMessage` and `stopSequence` on the main actor. The
+    /// six deleted strategies did not have that coupling: each guarded a Swift
+    /// counter behind its own lock, held for nanoseconds and never across a
+    /// decode. The core's `HwLiveSession::parse` now decodes the frame OUTSIDE
+    /// that mutex for this reason, which leaves the critical section a
+    /// per-provider state read rather than an unbounded `serde_json` parse.
+    ///
+    /// It narrows the window rather than closing it, and that is a known,
+    /// deliberate gap: a `std::sync::Mutex` does not donate priority, so a main
+    /// thread descheduled inside the remaining section can still make this
+    /// thread wait. Closing it properly means hopping the per-chunk calls off
+    /// the real-time thread onto a serial queue — which changes the order
+    /// control frames and audio reach the socket, for every provider, and
+    /// cannot be measured without a Mac. It is deliberately not bundled into
+    /// #326, whose whole point is that the wire behaviour is unchanged.
     func encodeAudioChunk(_ pcmData: Data) -> URLSessionWebSocketTask.Message {
         let (session, descriptor) = snapshot()
         session.noteAudio(byteCount: UInt64(pcmData.count))

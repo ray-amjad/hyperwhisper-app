@@ -139,6 +139,48 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private let strategy: StreamingProviderStrategy
     private let streamingProvider: StreamingTranscriptionProvider?
 
+    /// Serializes ONE audio callback against the swap of the strategy's session.
+    ///
+    /// THE PROBLEM IT SOLVES. `strategy.buildWebSocketURL` is the call that
+    /// installs a fresh core session and runs its `connect()`, which zeroes the
+    /// per-connection counters (OpenAI's pending-byte total and commit clock,
+    /// Deepgram's keepalive mark). The audio callback runs on the AVAudioEngine
+    /// tap thread, reads `onAudioData` with no barrier, and reaches the SAME
+    /// strategy object. Clearing `onAudioData` stops the NEXT callback; it does
+    /// not stop the one already executing. That callback can call
+    /// `onAudioSendOpportunity` on the old session, straddle the swap, and then
+    /// count its chunk against the NEW session while its bytes go out on the OLD
+    /// socket — after which OpenAI's first commit on the fresh socket claims
+    /// audio that server was never sent, and is refused.
+    ///
+    /// THE RULE. Every swap of the strategy's session happens under this lock,
+    /// and a callback touches the strategy only while holding it. So a callback
+    /// either completes entirely before the swap — reporting the old session's
+    /// bytes to the old session, which is correct — or it does not run at all.
+    ///
+    /// THE AUDIO THREAD NEVER WAITS. It takes the lock with `try()` and returns
+    /// on failure, dropping that chunk: `try()` is a `pthread_mutex_trylock`,
+    /// which does not block and does not allocate, so this cannot cost the tap
+    /// its ~21 ms deadline. A dropped chunk here is a chunk that belongs to
+    /// neither socket — the old one is dead and the new one has not handshaken —
+    /// so dropping it loses nothing that was going to be transcribed.
+    /// (`os_unfair_lock` is the lighter primitive and is what the deleted
+    /// `DeepgramStreamingStrategy` used, but its Swift form needs `&` on a
+    /// stored property from a closure that is not main-actor isolated.
+    /// `NSLock.try()` is the same non-blocking behaviour through an API that
+    /// cannot be got wrong. It is spelled with backticks at the call sites
+    /// because `try` is a keyword.)
+    ///
+    /// THE MAIN THREAD'S WAIT IS BOUNDED BY ONE CALLBACK. `lock()` here can
+    /// wait on the tap thread, whose longest inner wait is the core session's
+    /// own mutex — and that mutex is only ever held by `parseMessage` /
+    /// `stopSequence`, both of which run on this actor. They cannot be running
+    /// while this actor is blocked, so there is no cycle.
+    ///
+    /// NEVER HELD ACROSS AN `await`. `NSLock` must be unlocked by the thread
+    /// that locked it, and a resumed continuation can land on another thread.
+    private let audioWiringLock = NSLock()
+
     /// Audio capture component that manages the AVAudioEngine lifecycle.
     /// Created when the session starts, destroyed when it stops.
     private var audioCapture: StreamingAudioCapture?
@@ -429,7 +471,18 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         }
 
         // STEP 1: Build WebSocket URL via strategy
-        guard let url = strategy.buildWebSocketURL(config: config) else {
+        //
+        // Under `audioWiringLock` because this is a session SWAP — see the
+        // property's doc. No callback of this client's should be live here (the
+        // previous session's capture was torn down with its `onAudioData`
+        // cleared), so the lock is uncontended; taking it anyway is what makes
+        // the rule "every swap happens under the lock" total rather than a
+        // property of one call site, which is the form that survives an edit.
+        audioWiringLock.lock()
+        let builtURL = strategy.buildWebSocketURL(config: config)
+        audioWiringLock.unlock()
+
+        guard let url = builtURL else {
             throw StreamingError.invalidURL
         }
 
@@ -531,6 +584,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         let generation = sessionGeneration
         capture.onAudioData = { [weak self] pcmData in
             guard let self = self, let ws = connectedSocket else { return }
+
+            // ONE CALLBACK, ONE SESSION — see `audioWiringLock`. Non-blocking:
+            // a failed `try()` means a session swap is in flight and this chunk
+            // belongs to neither socket, so it is dropped rather than counted
+            // against a session it was never sent to.
+            guard self.audioWiringLock.`try`() else { return }
+            defer { self.audioWiringLock.unlock() }
 
             // Let strategy handle provider-specific periodic tasks (e.g., Deepgram KeepAlive)
             self.strategy.onAudioSendOpportunity { msg in
@@ -1796,19 +1856,29 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // server had never been sent. Detaching first removes the whole
         // connect() from that window.
         //
-        // A callback ALREADY executing when this line runs is not stopped by it —
-        // `onAudioData` is read on the tap thread with no barrier. That residual
-        // is one in-flight invocation rather than the duration of an FFI connect,
-        // and closing it needs a barrier in `StreamingAudioCapture`, not here.
+        // A callback ALREADY executing when the detach runs is not stopped by
+        // it — `onAudioData` is read on the tap thread with no barrier — so the
+        // detach and the swap it protects are BOTH taken under
+        // `audioWiringLock`, which the callback holds while it is inside the
+        // strategy. That is what closes the residual window round 1 left open:
+        // an in-flight callback either finishes before the swap, reporting the
+        // old session's bytes to the old session, or it never enters the
+        // strategy at all. Read `audioWiringLock`'s own doc before changing any
+        // of the five lines below — including why the audio thread never waits
+        // and why this lock is never held across an `await`.
         //
         // The callback is re-wired below, bound to the post-handshake socket,
         // once the session is re-established.
+        audioWiringLock.lock()
         audioCapture?.onAudioData = nil
+        let savedConfig = currentConfig
+        let rebuiltURL = savedConfig.flatMap { strategy.buildWebSocketURL(config: $0) }
+        audioWiringLock.unlock()
 
         // A live session whose config or URL is missing is a genuine failure,
         // and stays exactly as loud as it has always been.
-        guard let config = currentConfig,
-              let url = strategy.buildWebSocketURL(config: config) else {
+        guard let config = savedConfig,
+              let url = rebuiltURL else {
             logger.error("Reconnect failed: no usable WebSocket URL for the saved config")
             // This one reports through the flow's own `onError` capture rather
             // than raising a second event here; the stage is what tells that
@@ -1892,6 +1962,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             let generation = sessionGeneration
             audioCapture?.onAudioData = { [weak self] pcmData in
                 guard let self = self, let ws = reconnectedSocket else { return }
+                // ONE CALLBACK, ONE SESSION — see `audioWiringLock`, and the
+                // initial wiring in `startSession` this mirrors.
+                guard self.audioWiringLock.`try`() else { return }
+                defer { self.audioWiringLock.unlock() }
                 self.strategy.onAudioSendOpportunity { msg in
                     ws.send(msg) { _ in }
                 }

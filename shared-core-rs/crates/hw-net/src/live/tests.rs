@@ -1835,6 +1835,39 @@ fn a_frame_that_is_not_a_json_object_is_ignored_by_every_provider() {
     }
 }
 
+/// `decode` + `parse_value` must answer exactly what `parse` answers.
+///
+/// The split exists so `HwLiveSession::parse` can do the JSON decode OUTSIDE
+/// the mutex the platform's real-time audio thread also takes (`note_audio`,
+/// `control_frames`), which is what stops the audio thread's worst case being a
+/// function of how large a frame the provider sent. Two entry points into one
+/// parser is a drift hazard, so they are asserted to agree — including on the
+/// frames that decode to nothing.
+#[test]
+fn the_split_decode_answers_exactly_what_parse_answers() {
+    for provider in LiveProvider::ALL {
+        for frame in [
+            "",
+            "not json",
+            "[1,2,3]",
+            "{}",
+            r#"{"type":"Results","channel":{"alternatives":[{"transcript":"hello"}]},"is_final":true}"#,
+            r#"{"message_type":"partial_transcript","text":"hel"}"#,
+            r#"{"type":"session.created","session":{"id":"s-1"}}"#,
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":true}}"#,
+            r#"{"type":"session_complete","duration_seconds":1.5,"credits_used":0.25}"#,
+        ] {
+            let expected = credentialed(provider).parse(frame);
+            let mut split = credentialed(provider);
+            let actual = match LiveSession::decode(frame) {
+                Some(root) => split.parse_value(&root, frame),
+                None => LiveEvent::Ignore,
+            };
+            assert_eq!(actual, expected, "{provider:?} on {frame:?}");
+        }
+    }
+}
+
 #[test]
 fn the_connect_descriptor_agrees_with_the_free_capability_functions() {
     // Two sources for one number is how the fifteen implementations drifted.
