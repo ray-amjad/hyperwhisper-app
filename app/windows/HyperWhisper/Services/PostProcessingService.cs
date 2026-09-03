@@ -107,13 +107,26 @@ public class PostProcessingService : IDisposable
         var anyFailed = false;
         // Resolved provider/model (#314) are aggregated FIRST-NON-NULL rather than
         // last-write-wins: every segment shares one `mode`, so they can only
-        // disagree if a provider fell back differently mid-request, and the first
-        // segment that actually ran is the honest answer for the call as a whole.
-        // A disagreement is logged, never asserted — Debug.Assert is compiled out
-        // of Release, and failing a working transcription over a label would be
-        // worse than the mislabel.
+        // disagree if a provider fell back differently mid-request. A disagreement
+        // is logged, never asserted — Debug.Assert is compiled out of Release, and
+        // failing a working transcription over a label would be worse than the
+        // mislabel.
+        //
+        // A MIXED-MODEL RESPONSE NAMES NO MODEL. When two segments really did run
+        // on different models, the first one is not the honest answer for the
+        // combined text — it is an affirmative claim about text a different model
+        // produced, which is issue #314 inside one response. The whole call is
+        // reported as `ResolvedModel = ""`: "an LLM ran and no single model names
+        // this text", the same meaning `""` carries everywhere else in this fix.
+        // Rejecting the result instead would throw away perfectly good
+        // post-processed text over a label, and `AnyPartialFailure` already covers
+        // a genuinely broken mix. (`resolvedProvider` keeps first-non-null: `""`
+        // there would read as "nothing ran" to `PostProcessEndpoints.ResponseLabels`,
+        // and segments that differ by provider differ by model too, so the model
+        // field already carries the warning.)
         string? resolvedProvider = null;
         string? resolvedModel = null;
+        var modelsDisagreed = false;
         foreach (var segment in segments)
         {
             var result = await ProcessAsync(segment, mode, applicationContext, cancellationToken);
@@ -139,8 +152,9 @@ public class PostProcessingService : IDisposable
                 }
                 else if (!string.Equals(resolvedModel, result.ResolvedModel, StringComparison.Ordinal))
                 {
+                    modelsDisagreed = true;
                     LoggingService.Warn(
-                        $"PostProcessingService: segments disagree on the model that ran — reporting the first ('{resolvedModel}'), saw '{result.ResolvedModel}'");
+                        $"PostProcessingService: segments disagree on the model that ran — naming none ('{resolvedModel}'), saw '{result.ResolvedModel}'");
                 }
             }
             var trimmed = result.Text.Trim();
@@ -155,7 +169,8 @@ public class PostProcessingService : IDisposable
             anyApplied,
             AnyPartialFailure: anyApplied && anyFailed,
             ResolvedProvider: resolvedProvider,
-            ResolvedModel: resolvedModel);
+            // Non-null (a run happened) but unnamed, when the segments disagreed.
+            ResolvedModel: modelsDisagreed ? string.Empty : resolvedModel);
     }
 
     /// <summary>

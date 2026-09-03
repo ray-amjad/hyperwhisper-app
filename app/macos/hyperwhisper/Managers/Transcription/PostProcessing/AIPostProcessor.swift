@@ -558,13 +558,27 @@ class AIPostProcessor: ObservableObject {
             var anyFailed = false
             // Resolved provider/model (#314) are aggregated FIRST-NON-NIL rather
             // than last-write-wins: every segment shares one `mode`, so they can
-            // only disagree if a provider fell back differently mid-request, and
-            // the first segment that actually ran is the honest answer for the
-            // response as a whole. A disagreement is logged, never asserted —
-            // `assert` is compiled out in release, and crashing a working
-            // transcription over a label would be worse than the mislabel.
+            // only disagree if a provider fell back differently mid-request. A
+            // disagreement is logged, never asserted — `assert` is compiled out in
+            // release, and crashing a working transcription over a label would be
+            // worse than the mislabel.
+            //
+            // A MIXED-MODEL RESPONSE NAMES NO MODEL. When two segments really did
+            // run on different models, the first one is not the honest answer for
+            // the combined text — it is an affirmative claim about text a
+            // different model produced, which is issue #314 inside one response.
+            // The whole run is reported as `resolvedModel = ""`: "an LLM ran and
+            // no single model names this text", the same meaning `""` carries
+            // everywhere else in this fix. Failing the request instead would throw
+            // away perfectly good post-processed text over a label, and
+            // `anyPartialFailure` already covers a genuinely broken mix.
+            // (`resolvedProvider` keeps first-non-nil: `""` there would read as
+            // "nothing ran" to `PostProcessEndpoint.responseLabels`, and segments
+            // that differ by provider differ by model too, so the model field
+            // already carries the warning.)
             var resolvedProvider: String?
             var resolvedModel: String?
+            var modelsDisagreed = false
             for segment in segments {
                 let completed = processed.joined(separator: "\n\n")
                 let segmentSignal = MutationSignal()
@@ -592,7 +606,8 @@ class AIPostProcessor: ObservableObject {
                 if let segmentModel = segmentSignal.resolvedModel {
                     if let resolvedModel {
                         if resolvedModel != segmentModel {
-                            AppLogger.transcription.warning("Segments disagree on the post-processing model that ran — reporting the first (\(resolvedModel, privacy: .public)), saw \(segmentModel, privacy: .public)")
+                            modelsDisagreed = true
+                            AppLogger.transcription.warning("Segments disagree on the post-processing model that ran — naming none (\(resolvedModel, privacy: .public)), saw \(segmentModel, privacy: .public)")
                         }
                     } else {
                         resolvedModel = segmentModel
@@ -609,7 +624,8 @@ class AIPostProcessor: ObservableObject {
             signal.didMutate = anyMutated
             signal.anyPartialFailure = anyMutated && anyFailed
             signal.resolvedProvider = resolvedProvider
-            signal.resolvedModel = resolvedModel
+            // Non-nil (a run happened) but unnamed, when the segments disagreed.
+            signal.resolvedModel = modelsDisagreed ? "" : resolvedModel
         } else {
             // No per-call sink: this is the single in-app live-recording caller,
             // which post-processes one recording at a time and never overlaps
