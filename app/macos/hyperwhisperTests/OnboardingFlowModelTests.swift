@@ -1878,3 +1878,193 @@ struct OnboardingPostFinishMutationTests {
         #expect(h.audio.stopForExitCalls == stopsAfterCommit + 1)
     }
 }
+
+// MARK: - The post-finish invariant, swept (#321)
+
+/// Every side effect the six fakes record, in one comparable value. This is what
+/// lets the sweep below say "no dependency was reached" as a SINGLE assertion
+/// instead of one per method, so the guarded list can grow without the assertions
+/// growing with it.
+private struct OnboardingSideEffects: Equatable {
+    var microphoneRequests = 0
+    var openedMicrophoneSettings = 0
+    var openedAccessibilitySettings = 0
+    var startedDownloads: [String] = []
+    var probedLicenseKeys: [String] = []
+    var activatedLicenseKeys: [String] = []
+    var providerProbes = 0
+    var storedProviderKeys: [CloudProvider: String] = [:]
+    var deviceRefreshes = 0
+    var permissionRefreshes = 0
+    var previewStarts = 0
+    var previewStops = 0
+    var recordingToggles = 0
+    var stopsForExit = 0
+    var transcriptClears = 0
+    var openDeviceID: String?
+    var storedDeviceID: String?
+    var appliedSources = 0
+    var restorePointCaptures = 0
+    var restores = 0
+    var completionMarks = 0
+    var returnsHome = 0
+    var productionState = ""
+}
+
+private extension Harness {
+    var sideEffects: OnboardingSideEffects {
+        OnboardingSideEffects(
+            microphoneRequests: permissions.requestCount,
+            openedMicrophoneSettings: permissions.openedMicrophoneSettings,
+            openedAccessibilitySettings: permissions.openedAccessibilitySettings,
+            startedDownloads: catalog.startedDownloads,
+            probedLicenseKeys: license.probedKeys,
+            activatedLicenseKeys: license.activatedKeys,
+            providerProbes: providerKeys.probeCount,
+            storedProviderKeys: providerKeys.stored,
+            deviceRefreshes: audio.refreshDeviceCalls,
+            permissionRefreshes: audio.refreshPermissionCalls,
+            previewStarts: audio.previewStarts,
+            previewStops: audio.previewStops,
+            recordingToggles: audio.toggleCalls,
+            stopsForExit: audio.stopForExitCalls,
+            transcriptClears: audio.clearTranscriptCalls,
+            openDeviceID: audio.selectedDeviceID,
+            storedDeviceID: audio.storedDeviceID,
+            appliedSources: committer.applied.count,
+            restorePointCaptures: committer.captureCount,
+            restores: committer.restoreCount,
+            completionMarks: committer.markCompletedCount,
+            returnsHome: committer.returnHomeCount,
+            productionState: committer.productionState
+        )
+    }
+
+    /// A flow parked on the microphone step with everything primed: a usable
+    /// on-device source, a populated device list, and both key fields filled. Every
+    /// entry point called after the exit therefore has real work it WOULD do if its
+    /// guard were missing, which is what makes the frozen snapshot mean something.
+    func primeForTheSweep() {
+        stageInstalledOnDeviceModel()
+        advance(to: .microphone)
+        flow.beginMicrophoneStep()
+        flow.licenseKeyInput = "hw-late"
+        flow.apiKeyInput = "sk-late"
+    }
+
+    /// Every entry point the `isLive` doc block lists as guarded, in that order.
+    ///
+    /// THIS IS THE LIST. Adding an `isLive` guard to the model means adding its
+    /// method here; adding a mutating entry point WITHOUT a guard means adding it
+    /// here and watching this fail. That is the whole point — the alternative is a
+    /// bespoke test per method, which grows with the allow list and can never catch
+    /// the method nobody thought to write a test for.
+    func callEveryGuardedEntryPoint() {
+        flow.back()
+        flow.advance()
+        flow.complete()
+        flow.deferSetup()
+        flow.handleMicrophoneAction()
+        flow.requestMicrophonePermission()
+        flow.handleAccessibilityAction()
+        flow.testAccessKey()
+        flow.testProviderKey()
+        flow.saveProviderKey()
+        flow.activateCloudLicense()
+        flow.startSelectedModelDownload()
+        flow.beginMicrophoneStep()
+        flow.selectDevice(id: "usb")
+        flow.beginTryItStep()
+        flow.toggleTestRecording()
+    }
+}
+
+/// The invariant itself, rather than the five methods #321 happened to name:
+/// once the flow has finished, no guarded entry point moves the step machine,
+/// reaches a dependency, or starts new work — through EITHER exit. The companion
+/// test pins the deliberate exclusions, so the two together cover the model's
+/// whole mutating surface.
+@MainActor
+struct OnboardingPostFinishInvariantTests {
+    @Test func nothingGuardedRunsAfterCompletion() async {
+        let h = Harness()
+        h.primeForTheSweep()
+        #expect(h.flow.complete())
+        await sweepEveryGuardedEntryPoint(h)
+    }
+
+    @Test func nothingGuardedRunsAfterSetUpLater() async {
+        let h = Harness()
+        h.primeForTheSweep()
+        h.flow.deferSetup()
+        await sweepEveryGuardedEntryPoint(h)
+    }
+
+    /// The other half of the invariant. The exclusions are excluded for reasons,
+    /// and both halves of each reason are asserted here: the release hooks really
+    /// do still fire after the exit (the microphone backstop, which is why gating
+    /// them was rejected), and none of the excluded paths touches the step machine
+    /// or anything a rollback would have had to undo.
+    @Test func theExcludedEntryPointsStillReleaseButNeverWrite() {
+        let h = Harness()
+        h.primeForTheSweep()
+        #expect(h.flow.complete())
+        let before = h.sideEffects
+
+        // Release hooks: `.onDisappear` fires after `finish()`.
+        h.flow.endMicrophoneStep()
+        h.flow.endTryItStep()
+        // Mirrors of system state.
+        h.flow.refreshPermissions()
+        h.flow.refreshDeviceOptions()
+        // Staged, in-memory selection.
+        h.flow.resetConfigureTestResults()
+        h.flow.select(source: .yourProvider)
+        h.flow.select(provider: .deepgram)
+        h.flow.select(model: FakeCatalog.whisper)
+
+        // Gating these would strand an open device or a running test recording,
+        // which is the exact failure the guards exist to prevent.
+        #expect(h.audio.previewStops == before.previewStops + 1)
+        #expect(h.audio.stopForExitCalls == before.stopsForExit + 1)
+        #expect(h.audio.clearTranscriptCalls == before.transcriptClears + 1)
+
+        // And that is all they may do. Staging after the exit is harmless only
+        // because `advance()` and `complete()` — the two paths that turn a staged
+        // selection into a production write — are themselves guarded.
+        #expect(h.flow.step == .microphone)
+        #expect(!h.flow.hasPendingProductionWrite)
+        #expect(h.committer.applied.count == before.appliedSources)
+        #expect(h.committer.captureCount == before.restorePointCaptures)
+        #expect(h.committer.restoreCount == before.restores)
+        #expect(h.committer.productionState == before.productionState)
+        #expect(h.providerKeys.stored == before.storedProviderKeys)
+        #expect(h.audio.selectedDeviceID == before.openDeviceID)
+        #expect(h.audio.storedDeviceID == before.storedDeviceID)
+        #expect(h.catalog.startedDownloads == before.startedDownloads)
+    }
+
+    private func sweepEveryGuardedEntryPoint(_ h: Harness) async {
+        #expect(!h.flow.isLiveForTesting, "the exit under test did not close the flow")
+        let stepAtExit = h.flow.step
+        let before = h.sideEffects
+
+        h.callEveryGuardedEntryPoint()
+
+        // Synchronous detectors first. Each async entry point sets its in-progress
+        // flag and stores its task BEFORE its first suspension point, so a leaked
+        // guard shows up here with no awaiting at all.
+        #expect(!h.flow.hasInFlightWorkForTesting, "an entry point spawned work after the exit")
+        #expect(!h.flow.isTestingKey)
+        #expect(!h.flow.isActivatingLicense)
+
+        // Then drain anything that did get spawned, so the snapshot below cannot
+        // pass merely because a leaked task had not run yet.
+        await h.flow.lastAsyncTaskForTesting?.value
+
+        #expect(h.flow.step == stepAtExit, "the step machine moved after the exit")
+        #expect(!h.flow.hasPendingProductionWrite)
+        // The single assertion that covers all six fakes at once.
+        #expect(h.sideEffects == before, "an entry point reached a dependency after the exit")
+    }
+}
