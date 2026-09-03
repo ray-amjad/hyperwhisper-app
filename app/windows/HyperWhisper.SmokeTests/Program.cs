@@ -15,6 +15,7 @@
 // Requires InternalsVisibleTo("HyperWhisper.SmokeTests") in HyperWhisper.csproj.
 // Coverage is x64-only on the CI runner; ARM64 is exercised manually.
 
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -26,6 +27,7 @@ using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Converters;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
@@ -3160,6 +3162,20 @@ internal static class Program
                     Assert(StreamingTranscriptionSessionFactory.SupportsVocabulary(provider) == vocabulary,
                         $"{provider}: the factory and the strategy disagree about vocabulary support");
                 }
+            });
+
+            Run("History provider labels normalize current and legacy SpaceXAI names", () =>
+            {
+                var converter = new ProviderNameDisplayConverter();
+
+                Assert(
+                    converter.Convert("SpaceXAI (Streaming)", typeof(string), null!, CultureInfo.InvariantCulture)
+                        as string == "SpaceXAI (Streaming)",
+                    "the current persisted label must keep the SpaceXAI capitalization");
+                Assert(
+                    converter.Convert("xAI (Streaming)", typeof(string), null!, CultureInfo.InvariantCulture)
+                        as string == "SpaceXAI (Streaming)",
+                    "the legacy persisted label must display as SpaceXAI");
             });
 
             Run("Every streaming provider builds its shipped connect URL", () =>
