@@ -1715,3 +1715,166 @@ struct OnboardingSessionValidationTests {
         #expect(!h.flow.canContinue, "a revoked key must not stay remembered")
     }
 }
+
+// MARK: - Mutations after the flow finished (#321)
+
+/// `finish()` flips `isLive` false and both exits clear every restore point, so
+/// anything written after that point is permanent and un-rollbackable. These pin
+/// the five mutating entry points as no-ops once the sheet has gone, through BOTH
+/// exits, plus the positive control that the guards are not inverted and the one
+/// exit path that is deliberately NOT guarded.
+@MainActor
+struct OnboardingPostFinishMutationTests {
+    @Test func saveProviderKeyAfterDeferralWritesNothingToTheKeychain() {
+        let h = Harness()
+        h.flow.select(source: .yourProvider)
+        h.flow.apiKeyInput = "sk-late"
+
+        h.flow.deferSetup()
+        #expect(!h.flow.isLiveForTesting)
+
+        h.flow.saveProviderKey()
+
+        // Nothing reached the Keychain, and no restore point was captured for a
+        // write that rollback can no longer undo.
+        #expect(h.providerKeys.stored.isEmpty)
+        #expect(!h.flow.hasPendingProductionWrite)
+    }
+
+    @Test func activatingAfterDeferralNeverReachesTheLicenceGateway() async {
+        let h = Harness()
+        h.flow.select(source: .hyperwhisperCloud)
+        h.flow.licenseKeyInput = "hw-key"
+
+        h.flow.deferSetup()
+        #expect(!h.flow.isLiveForTesting)
+
+        h.flow.activateCloudLicense()
+        // Nil when the guard held; without it this awaits the activation the call
+        // would have spawned, so the gateway assertion below cannot pass by timing.
+        await h.flow.lastAsyncTaskForTesting?.value
+
+        #expect(h.license.activatedKeys.isEmpty)
+        #expect(!h.flow.isActivatingLicense)
+        #expect(!h.flow.hasInFlightWorkForTesting)
+    }
+
+    /// The load bearing one. `complete()` clears `restorePoint`, so stepping into
+    /// `.tryIt` afterwards would re-enter `applyStagedSourceReversibly()`, find no
+    /// restore point, and capture a fresh one nobody will ever restore.
+    @Test func advancingAfterCompletionCannotReapplyTheStagedSource() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+
+        #expect(h.flow.complete())
+        #expect(!h.flow.isLiveForTesting)
+        // The commit itself captures and applies once, so the snapshot has to be
+        // taken AFTER it: the question is whether `advance()` moves them again.
+        let capturesAfterCommit = h.committer.captureCount
+        let appliedAfterCommit = h.committer.applied.count
+        #expect(capturesAfterCommit == 1)
+        #expect(appliedAfterCommit == 1)
+
+        #expect(!h.flow.advance())
+
+        #expect(h.flow.step == .microphone)
+        #expect(h.committer.captureCount == capturesAfterCommit)
+        #expect(h.committer.applied.count == appliedAfterCommit)
+    }
+
+    /// `beginMicrophoneStep()` runs FIRST, while the flow is still live, because
+    /// `selectDevice` already rejects an id that is not in `deviceOptions` and the
+    /// options are empty until the device list is applied. Without that setup this
+    /// test would pass on the pre-existing guard alone (see
+    /// `selectingADisconnectedDeviceIsIgnored`) and prove nothing.
+    @Test func selectingADeviceAfterDeferralCannotRepointTheInput() {
+        let h = Harness()
+        h.flow.beginMicrophoneStep()
+        #expect(h.flow.deviceOptions.contains(where: { $0.id == "usb" }),
+                "the pick must be a real, connected device or the old guard rejects it")
+
+        h.flow.deferSetup()
+        #expect(!h.flow.isLiveForTesting)
+
+        h.flow.selectDevice(id: "usb")
+
+        #expect(h.audio.selectedDeviceID == nil)
+        #expect(h.audio.storedDeviceID == nil)
+        #expect(h.flow.selectedDeviceID.isEmpty)
+        #expect(!h.flow.hasPendingProductionWrite)
+    }
+
+    @Test func togglingTheTestRecordingAfterDeferralStartsNothing() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .tryIt)
+        let togglesBeforeExit = h.audio.toggleCalls
+
+        h.flow.deferSetup()
+        h.flow.toggleTestRecording()
+
+        // A toggle here would START a recording with no sheet left to stop it.
+        #expect(h.audio.toggleCalls == togglesBeforeExit)
+        // `finish()` moves this counter itself, so it is never asserted at zero.
+        #expect(h.audio.stopForExitCalls >= 1)
+    }
+
+    /// `finish()` is reached through both exits, so the refusal cannot be specific
+    /// to Set Up Later.
+    @Test func theSameRefusalHoldsAfterCompletionNotJustDeferral() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+
+        #expect(h.flow.complete())
+        #expect(!h.flow.isLiveForTesting)
+
+        h.flow.apiKeyInput = "sk-after-the-commit"
+        h.flow.saveProviderKey()
+
+        #expect(h.providerKeys.stored.isEmpty)
+        #expect(!h.flow.hasPendingProductionWrite)
+    }
+
+    /// The positive control. Every refusal above would still pass with the guard
+    /// inverted, which would break the whole flow instead of protecting it.
+    @Test func theGuardsDoNotBlockAnythingWhileTheSheetIsLive() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.flow.beginMicrophoneStep()
+        #expect(h.flow.isLiveForTesting)
+
+        h.flow.selectDevice(id: "usb")
+        #expect(h.audio.selectedDeviceID == "usb")
+        #expect(h.audio.storedDeviceID == "usb")
+
+        h.flow.apiKeyInput = "sk-live"
+        h.flow.saveProviderKey()
+        #expect(h.providerKeys.stored[.openai] == "sk-live")
+
+        let togglesBefore = h.audio.toggleCalls
+        h.flow.toggleTestRecording()
+        #expect(h.audio.toggleCalls == togglesBefore + 1)
+
+        #expect(h.flow.advance())
+        #expect(h.flow.step == .tryIt)
+    }
+
+    /// The deliberate non-guard. `.onDisappear` fires after the sheet is dismissed,
+    /// so the microphone release backstop has to keep working post-`finish()`;
+    /// gating it would strand an open recording.
+    @Test func leavingTheTryItStepStillReleasesTheMicrophoneAfterCompletion() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .tryIt)
+
+        #expect(h.flow.complete())
+        let stopsAfterCommit = h.audio.stopForExitCalls
+
+        h.flow.endTryItStep()
+
+        #expect(h.audio.stopForExitCalls == stopsAfterCommit + 1)
+    }
+}
