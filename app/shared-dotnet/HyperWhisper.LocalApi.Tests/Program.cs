@@ -1059,10 +1059,16 @@ static async Task ApplicationBackendModeRouting()
     // reverse. The normalisation is trim, THEN lowercase.
     foreach (var spelling in new[] { "qwen3_asr", " QWEN3-ASR ", "qwen", "\tQwen3\n" })
     {
-        _ = await backend.TranscribeAsync(new AudioUpload(
+        var aliased = await backend.TranscribeAsync(new AudioUpload(
             "alias.wav", "audio/wav", new byte[] { 2 }, null, spelling, null, "en"), CancellationToken.None);
         Assert(transcriber.Request?.SelectedMode is { ProviderType: "local", LocalEngine: "parakeet", LocalParakeetModel: "qwen3-asr-0.6b" },
             $"engine spelling {spelling.Replace("\t", "\\t", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal)} did not resolve through the shared alias table");
+        // ...AND THE ROUND TRIP IS CLOSED ON THE RESPONSE SIDE TOO (issue #356
+        // item 3, review round 1). This head answered `qwen3_asr`, a spelling
+        // `openapi.yaml` does not list for this field — it publishes `qwen3Asr`
+        // and nothing else, and macOS has always emitted that. The label is now
+        // `EngineId::wire_label`, which is what that export was added for.
+        Assert(aliased.Engine == "qwen3Asr", $"the response engine label is \"{aliased.Engine}\", not the published qwen3Asr");
     }
     _ = await backend.TranscribeAsync(new AudioUpload(
         "libwhisper.wav", "audio/wav", new byte[] { 2 }, null, " libWhisper ", "tiny.en", "en"), CancellationToken.None);

@@ -462,7 +462,15 @@ class TranscriptionProviderRouter {
     /// - Returns: The configured provider plus the cloud identity the engine
     ///   string resolved to (nil for local engines) — see `ProviderSelection`.
     func resolveProvider(engine: String, model: String?, language: String?) async throws -> ProviderSelection {
-        let normalizedEngine = engine.lowercased()
+        // TRIM FIRST, ON BOTH HALVES (issue #356 item 3, review round 1).
+        // `localApiResolveEngineAlias` trims, but only the five LOCAL ids go
+        // through it — the cloud half below matches literals against this
+        // string, and `cloud` exists ONLY as that literal comparison. Untrimmed,
+        // `{"engine":" cloud"}` reached neither half. Windows and the portable
+        // head both route the same body to Cloud, and `openapi.yaml` says the
+        // value is trimmed and case-insensitively matched on every platform.
+        let trimmedEngine = engine.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEngine = trimmedEngine.lowercased()
         let resolvedLanguage: String? = (language?.lowercased() == "auto") ? nil : language
 
         // Cloud engine? Normalize retired standalone spellings first. `meta`
@@ -494,7 +502,7 @@ class TranscriptionProviderRouter {
         // and `appleSpeech` too and then answer ENGINE_UNAVAILABLE, because a
         // shared table that decided availability would be wrong on two
         // platforms in opposite directions.
-        guard let resolvedEngine = localApiResolveEngineAlias(alias: engine) else {
+        guard let resolvedEngine = localApiResolveEngineAlias(alias: trimmedEngine) else {
             throw TranscriptionError.providerNotAvailable(provider: engine, reason: "Unknown engine '\(engine)'")
         }
         let modelString: String

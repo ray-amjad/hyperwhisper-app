@@ -998,6 +998,23 @@ internal static class TranscribeEndpoints
     // Wire-label projection
     // =========================================================================
 
+    /// <summary>
+    /// The <c>engine</c> spelling a response carries, read from the shared
+    /// table (issue #356 item 3, review round 1).
+    /// </summary>
+    /// <remarks>
+    /// CLIENT-VISIBLE RESPONSE CHANGE: Qwen3 was labelled <c>qwen3_asr</c> here
+    /// and is now <c>qwen3Asr</c>. <c>openapi.yaml</c> publishes
+    /// <c>qwen3Asr</c> as the ONLY spelling of that value, and macOS has always
+    /// emitted it, so this head was answering with a string its own published
+    /// contract does not list. <c>qwen3_asr</c> stays an accepted REQUEST alias
+    /// on all three heads through <c>resolve_engine_alias</c>, so a client that
+    /// echoes an old response back still works — the round trip is now closed
+    /// from both sides rather than only the accept side.
+    ///
+    /// The cloud arm keeps this head's provider id: the shared table covers the
+    /// five local ids only, and the cloud half stays in <c>hw-catalog</c>.
+    /// </remarks>
     private static string EngineLabel(Mode mode)
     {
         if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
@@ -1006,9 +1023,10 @@ internal static class TranscribeEndpoints
         }
         if (IsParakeetMode(mode))
         {
-            return IsQwen3Model(mode) ? "qwen3_asr" : "parakeet";
+            return HyperwhisperCoreMethods.LocalApiEngineWireLabel(
+                IsQwen3Model(mode) ? HwLocalApiEngineId.Qwen3Asr : HwLocalApiEngineId.Parakeet);
         }
-        return "whisperLocal";
+        return HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.WhisperLocal);
     }
 
     private static string ModelLabel(Mode mode)

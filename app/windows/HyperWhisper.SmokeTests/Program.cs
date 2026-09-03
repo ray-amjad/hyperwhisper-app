@@ -6220,6 +6220,17 @@ internal static class Program
                         $"engine spelling '{spelling}' did not resolve through the shared alias table");
                 }
 
+                // ...AND THE ROUND TRIP IS CLOSED ON THE RESPONSE SIDE TOO
+                // (issue #356 item 3, review round 1). `EngineLabel` emitted
+                // `qwen3_asr`, a spelling `openapi.yaml` does not list for that
+                // field — it publishes `qwen3Asr` and nothing else, and macOS
+                // has always emitted it. The label now comes from
+                // `EngineId::wire_label`, which is what that export exists for.
+                Assert(HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.Qwen3Asr) == "qwen3Asr"
+                        && HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.Parakeet) == "parakeet"
+                        && HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.WhisperLocal) == "whisperLocal",
+                    "the shared wire labels drifted from the ones openapi.yaml publishes");
+
                 // A REAL ENGINE ID WINDOWS DOES NOT SHIP is ENGINE_UNAVAILABLE,
                 // not `Unknown engine` — the resolver answers identity, and the
                 // capability verdict is this head's.

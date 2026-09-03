@@ -899,7 +899,20 @@ enum TranscribeEndpoint {
     /// `cloudProvider` / `cloudTranscriptionModel` fields.
     @MainActor
     static func applyEngineModel(to mode: Mode, engine: String, model: String?) {
-        let normalizedEngine = engine.lowercased()
+        // TRIM FIRST, ON BOTH HALVES (issue #356 item 3, review round 1).
+        // `localApiResolveEngineAlias` trims, but only the five LOCAL ids go
+        // through it — the cloud half below matches literals against this
+        // string. Untrimmed, `{"engine":" cloud"}` was not a `CloudProvider`
+        // rawValue and not a `hw-catalog` alias either (`cloud` exists only as
+        // the literal comparison a few lines down), so it fell to the `nil` arm,
+        // silently patched only `model`, and transcribed on the baseline engine
+        // with `ok: true`. `" meta"` skipped the meta case and left
+        // `cloudAccuracyTier` uncleared. Windows and the portable head both
+        // route the same body to Cloud, and the `openapi.yaml` line #356 adds
+        // says the value is trimmed and case-insensitively matched on every
+        // platform, with no carve-out.
+        let trimmedEngine = engine.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedEngine = trimmedEngine.lowercased()
         if normalizedEngine == "meta" {
             mode.model = "cloud"
             mode.cloudProvider = CloudProvider.meta.rawValue
@@ -974,7 +987,7 @@ enum TranscribeEndpoint {
         // asymmetry is a real open question, but closing it is a client-visible
         // behaviour change on the one head this change could not build locally,
         // so #356 routes the RESOLUTION and leaves the verdict alone.
-        guard let resolvedEngine = localApiResolveEngineAlias(alias: engine) else {
+        guard let resolvedEngine = localApiResolveEngineAlias(alias: trimmedEngine) else {
             if let m = model, !m.isEmpty { mode.model = m }
             return
         }

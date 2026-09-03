@@ -458,15 +458,34 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         }
     }
 
+    /// <summary>
+    /// The <c>engine</c> spelling a response carries, read from the shared
+    /// table (issue #356 item 3, review round 1).
+    /// </summary>
+    /// <remarks>
+    /// CLIENT-VISIBLE RESPONSE CHANGE: Qwen3 was labelled <c>qwen3_asr</c> here
+    /// and is now <c>qwen3Asr</c>. <c>openapi.yaml</c> publishes
+    /// <c>qwen3Asr</c> as the ONLY spelling of that value and macOS has always
+    /// emitted it, so this head was answering with a string its own published
+    /// contract does not list. <c>qwen3_asr</c> remains an accepted REQUEST
+    /// alias on all three heads, so a client echoing an old response still
+    /// works — the round trip is closed from both sides now, not only the
+    /// accept side. It is also what <c>EngineId::wire_label</c> was added for:
+    /// an export no head calls is an export that gets deleted.
+    ///
+    /// The cloud arm keeps this head's provider id; the shared table covers the
+    /// five local ids only.
+    /// </remarks>
     private static string EngineLabel(Mode? mode)
     {
         if (mode is null) return string.Empty;
         if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
             return mode.CloudProvider ?? "cloud";
         if (string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase))
-            return mode.LocalParakeetModel?.StartsWith("qwen3", StringComparison.OrdinalIgnoreCase) == true
-                ? "qwen3_asr" : "parakeet";
-        return "whisperLocal";
+            return HyperwhisperCoreMethods.LocalApiEngineWireLabel(
+                mode.LocalParakeetModel?.StartsWith("qwen3", StringComparison.OrdinalIgnoreCase) == true
+                    ? HwLocalApiEngineId.Qwen3Asr : HwLocalApiEngineId.Parakeet);
+        return HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.WhisperLocal);
     }
 
     private static string ModelLabel(Mode? mode)
