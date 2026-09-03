@@ -1258,6 +1258,20 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2011,7 +2025,23 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ulong uniffi_hyperwhisper_core_fn_func_local_api_max_base64_length_for_upload(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ulong uniffi_hyperwhisper_core_fn_func_local_api_max_request_bytes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ulong uniffi_hyperwhisper_core_fn_func_local_api_max_upload_bytes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(RustBuffer @decision,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_request_too_large_failure(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2024,6 +2054,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(RustBuffer @hint,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_upload_too_large_failure(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3187,7 +3221,23 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_max_base64_length_for_upload(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_max_request_bytes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3200,6 +3250,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4537,9 +4591,33 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_max_base64_length_for_upload();
+            if (checksum != 19309) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_max_base64_length_for_upload` checksum `19309`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_max_request_bytes();
+            if (checksum != 17134) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_max_request_bytes` checksum `17134`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes();
+            if (checksum != 24328) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes` checksum `24328`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed();
             if (checksum != 27804) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed` checksum `27804`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure();
+            if (checksum != 64254) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure` checksum `64254`, library returned `{checksum}`");
             }
         }
         {
@@ -4558,6 +4636,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure();
             if (checksum != 22025) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure` checksum `22025`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure();
+            if (checksum != 37577) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure` checksum `37577`, library returned `{checksum}`");
             }
         }
         {
@@ -15810,6 +15894,59 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// The longest base64 string that can decode to
+    /// [`local_api_max_upload_bytes`] or fewer bytes.
+    ///
+    /// Check the trimmed string's length against this **before** decoding. That
+    /// pre-check is the half of #375 that stops the amplification: without it a
+    /// caller makes the head allocate the decoded buffer only to be told the
+    /// decoded buffer is too big. Derived from the upload cap, not the request cap
+    /// — same as `PortableLocalApi.cs:244`.
+    /// </summary>
+    public static ulong LocalApiMaxBase64LengthForUpload() {
+        return FfiConverterUInt64.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_max_base64_length_for_upload( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The largest request body any head accepts, in bytes: 50 MiB.
+    ///
+    /// A constant rather than a magic `52_428_800` in three heads, for the same
+    /// reason as [`local_api_token_entropy_bytes`]. macOS shipped no cap at all
+    /// (#375): `HTTPServer` takes an address and a timeout, and every write
+    /// endpoint read the whole body with `try await request.bodyData`, so the
+    /// caller chose the app's peak resident memory. The number is
+    /// `PortableLocalApiOptions.MaxRequestBytes` (`PortableLocalApi.cs:18`), which
+    /// the Linux head already enforces.
+    /// </summary>
+    public static ulong LocalApiMaxRequestBytes() {
+        return FfiConverterUInt64.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_max_request_bytes( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The largest piece of audio any head accepts, in bytes: 48 MiB.
+    ///
+    /// `PortableLocalApiOptions.MaxUploadBytes` (`PortableLocalApi.cs:19`).
+    /// Applies to the decoded bytes of an `audio_base64` payload and to a
+    /// multipart `audio` part — the two shapes a head buffers whole. Always less
+    /// than or equal to [`local_api_max_request_bytes`].
+    /// </summary>
+    public static ulong LocalApiMaxUploadBytes() {
+        return FfiConverterUInt64.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_max_upload_bytes( ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Whether a decision means "dispatch it".
     ///
     /// A head can match the enum instead. This exists so the common case is one
@@ -15819,6 +15956,23 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(FfiConverterTypeHwLocalApiOriginDecision.INSTANCE.Lower(@decision), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The response an over-sized request body gets, byte for byte what the Linux
+    /// head already sends (`PortableLocalApi.cs:185`).
+    ///
+    /// **HTTP 200 carrying `INVALID_REQUEST`, not 413.** #375 suggests a 413, but
+    /// a 413 wants a `PAYLOAD_TOO_LARGE` code, and that is one of the four codes
+    /// outside the closed 14 — a client sharing the macOS `Codable` decoder cannot
+    /// decode *any* envelope carrying it. See the `failure.rs` module docs.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiRequestTooLargeFailure() {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_request_too_large_failure( ref _status)
 ));
     }
 
@@ -15862,6 +16016,22 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(FfiConverterOptionalString.INSTANCE.Lower(@hint), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The response an over-sized audio upload gets, byte for byte what the Linux
+    /// head already sends (`PortableLocalApi.cs:193`, `:245`, `:251`).
+    ///
+    /// One message for the multipart part, the base64 string before decoding and
+    /// the decoded bytes alike — a caller cannot tell those apart and the .NET head
+    /// does not distinguish them either. HTTP 200 carrying `INVALID_REQUEST`.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiUploadTooLargeFailure() {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_upload_too_large_failure( ref _status)
 ));
     }
 

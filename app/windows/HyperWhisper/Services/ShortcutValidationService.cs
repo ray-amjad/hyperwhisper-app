@@ -78,6 +78,24 @@ public static class ShortcutValidationService
     }
 
     /// <summary>
+    /// Pulls the Win32 code back out of a KeyboardShortcutService registration
+    /// failure ("...Win32 error=1409"), which is the only place it survives.
+    /// Returns 0 when the message carries none, which
+    /// <see cref="GetRegistrationErrorMessage"/> renders as the generic arm.
+    ///
+    /// Lives here rather than at a call site because two screens now need it: the
+    /// main window's conflict banner and the onboarding permissions row. The
+    /// message and the code it is built from belong to the same class.
+    /// </summary>
+    public static int ExtractWin32ErrorCode(string? errorMessage)
+    {
+        if (string.IsNullOrEmpty(errorMessage)) return 0;
+
+        var match = System.Text.RegularExpressions.Regex.Match(errorMessage, @"Win32 error=(\d+)");
+        return match.Success && int.TryParse(match.Groups[1].Value, out int code) ? code : 0;
+    }
+
+    /// <summary>
     /// Maps Win32 RegisterHotKey error codes to user-friendly messages.
     /// </summary>
     public static string GetRegistrationErrorMessage(int win32ErrorCode, KeyboardShortcut shortcut)

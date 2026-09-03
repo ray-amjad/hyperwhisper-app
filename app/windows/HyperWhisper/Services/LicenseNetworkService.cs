@@ -251,6 +251,104 @@ public sealed class LicenseNetworkService : IDisposable
     }
 
     /// <summary>
+    /// Checks a key WITHOUT activating it on this PC. This is what the
+    /// onboarding "Test access key" button runs, and it is the Windows port of
+    /// macOS <c>LicenseNetworkService.probeLicense</c>
+    /// (<c>performValidation(mode: .probe)</c>).
+    ///
+    /// Three things separate it from <see cref="ValidateLicenseAsync"/>, and all
+    /// three are the point:
+    /// <list type="bullet">
+    /// <item>the body carries <c>probe_only</c> and NO device identity, so the
+    /// backend records no device validation against the key;</item>
+    /// <item><c>LicensePersistValidationVerdict</c> is never called, so a valid
+    /// verdict does not store the key or write the validation cache;</item>
+    /// <item>there is no offline fallback, because a cached verdict belongs to
+    /// the STORED key and reporting it here would pass an unverified key.</item>
+    /// </list>
+    ///
+    /// The core has no probe request builder, so the body is built here (as macOS
+    /// builds its own) and only the endpoint is taken from the core's validate
+    /// request, which keeps the two calls pointed at the same URL.
+    /// </summary>
+    public async Task<LicenseValidationResult> ProbeLicenseAsync(
+        string licenseKey,
+        CancellationToken cancellationToken = default)
+    {
+        var trimmedKey = licenseKey?.Trim() ?? "";
+        if (string.IsNullOrEmpty(trimmedKey))
+        {
+            LoggingService.Warn("LicenseNetworkService: Probe rejected - empty license key");
+            return RustLicenseCore.ToResult(HyperwhisperCoreMethods.LicenseEmptyKeyOutcome());
+        }
+
+        // Endpoint only. The device-tracking body this builds is deliberately
+        // discarded and replaced with the probe body below.
+        var endpoint = HyperwhisperCoreMethods
+            .LicenseBuildValidateRequest(trimmedKey, deviceId: "", deviceName: "")
+            .url;
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(new ProbeRequestBody(trimmedKey));
+
+        try
+        {
+            LoggingService.Debug("LicenseNetworkService: POST /api/license/validate (probe)");
+
+            using var content = new ByteArrayContent(body);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+            var response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
+            var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var code = (int)response.StatusCode;
+
+                // 429 and 5xx are not a verdict about this key. With no cached
+                // fallback available to a probe, say so plainly rather than
+                // reporting the key as invalid.
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || code >= 500)
+                {
+                    LoggingService.Warn($"LicenseNetworkService: Probe hit transient {code}");
+                    return LicenseValidationResult.Failed(ProbeUnavailableMessage);
+                }
+
+                LoggingService.Warn($"LicenseNetworkService: Probe rejected by server - status={code}");
+                return RustLicenseCore.ToResult(
+                    HyperwhisperCoreMethods.LicenseHttpErrorOutcome((ushort)code, responseBytes));
+            }
+
+            var outcome = HyperwhisperCoreMethods.LicenseParseValidateResponse(responseBytes);
+            LoggingService.Info($"LicenseNetworkService: Probe complete (valid={outcome.isValid})");
+            return RustLicenseCore.ToResult(outcome);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            LoggingService.Info("LicenseNetworkService: Probe cancelled");
+            return LicenseValidationResult.Failed("Validation cancelled");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"LicenseNetworkService: Probe failed - {ex.Message}");
+            return LicenseValidationResult.Failed(ProbeUnavailableMessage);
+        }
+    }
+
+    private const string ProbeUnavailableMessage = "Unable to verify license while offline";
+
+    /// <summary>
+    /// The probe request body. <c>device_id</c> is omitted on purpose: the backend
+    /// treats it as optional and only records a device validation when it is
+    /// present, which is what keeps Test a lookup.
+    /// </summary>
+    private sealed record ProbeRequestBody(
+        [property: JsonPropertyName("license_key")] string LicenseKey)
+    {
+        [JsonPropertyName("probe_only")]
+        public bool ProbeOnly => true;
+    }
+
+    /// <summary>
     /// Returns the core's offline fallback ONLY when the key being validated
     /// matches the key currently on file. The cached offline-grace verdict is tied
     /// to that stored key, so honoring it for a DIFFERENT (or first-time) key would

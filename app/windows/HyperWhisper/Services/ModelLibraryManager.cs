@@ -422,26 +422,13 @@ public sealed class ModelLibraryManager
         };
     }
 
-    internal static string CloudProviderAssetName(CloudTranscriptionProvider provider) => provider switch
-    {
-        CloudTranscriptionProvider.OpenAI => "providerOpenAI",
-        CloudTranscriptionProvider.Groq => "providerGroq",
-        CloudTranscriptionProvider.Deepgram => "providerDeepgram",
-        CloudTranscriptionProvider.AssemblyAI => "providerAssemblyAI",
-        CloudTranscriptionProvider.ElevenLabs => "providerElevenLabs",
-        CloudTranscriptionProvider.Mistral => "providerMistral",
-        CloudTranscriptionProvider.Soniox => "providerSoniox",
-        CloudTranscriptionProvider.Gemini => "providerGemini",
-        // Same vendor as Gemini, so it reuses the Gemini logo rather than
-        // shipping a duplicate PNG. ApiKeysSettingsPage.xaml points at the same
-        // asset — keep the two in step.
-        CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
-        CloudTranscriptionProvider.Meta => "providerMeta",
-        CloudTranscriptionProvider.Grok => "providerGrok",
-        CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
-        CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
-        _ => "providerLocalWhisper"
-    };
+    // Single-sourced on CloudTranscriptionProviderExtensions.GetAssetName so the
+    // model library and the onboarding provider chips can never disagree about
+    // which logo a provider gets. ApiKeysSettingsPage.xaml names the same files
+    // literally; keep the three in step. Kept `internal` under this name because
+    // HyperWhisper.SmokeTests pins it directly.
+    internal static string CloudProviderAssetName(CloudTranscriptionProvider provider) =>
+        provider.GetAssetName();
 
     private static string ProviderAssetName(PostProcessingProvider provider) => provider switch
     {

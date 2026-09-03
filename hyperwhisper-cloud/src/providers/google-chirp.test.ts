@@ -19,7 +19,8 @@ const uploadCalls: Array<{ bytes: number; contentType: string }> = [];
 const deleteCalls: Array<{ bucket: string; objectName: string }> = [];
 
 mock.module('../lib/gcs-storage', () => ({
-  isGcsTranscriptionBucketConfigured: () => gcsConfigured,
+  isGcsTranscriptionBucketConfigured: () =>
+    gcsConfigured || Boolean(process.env.GOOGLE_SPEECH_GCS_BUCKET?.trim()),
   uploadTranscriptionAudio: async (audio: ArrayBuffer, contentType: string) => {
     uploadCalls.push({ bytes: audio.byteLength, contentType });
     if (uploadShouldThrow) throw uploadShouldThrow;
@@ -63,7 +64,7 @@ const originalFetch = globalThis.fetch;
 
 const { transcribeWithGoogleChirp, INLINE_AUDIO_MAX_BYTES } = await import('./google-chirp');
 
-const ENV_KEYS = ['GOOGLE_PROJECT_ID', 'GOOGLE_SPEECH_REGION'] as const;
+const ENV_KEYS = ['GOOGLE_PROJECT_ID', 'GOOGLE_SPEECH_REGION', 'STT_PROVIDER_TIMEOUT_MS'] as const;
 const savedEnv: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -89,6 +90,7 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  gcsConfigured = false;
   for (const key of ENV_KEYS) {
     if (savedEnv[key] === undefined) delete process.env[key];
     else process.env[key] = savedEnv[key];
@@ -100,6 +102,26 @@ function syncRecognizeResponse(transcript = 'hello world', languageCode = 'en-US
     results: transcript ? [{ alternatives: [{ transcript }], languageCode }] : [],
     metadata: totalBilledDuration ? { totalBilledDuration } : {},
   });
+}
+
+async function recordTimeouts<T>(run: (delays: number[]) => Promise<T>): Promise<T> {
+  const delays: number[] = [];
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((handler: (...args: unknown[]) => void, delay?: number, ...args: unknown[]) => {
+    const timeoutMs = delay ?? 0;
+    delays.push(timeoutMs);
+    if (timeoutMs === 500 || timeoutMs === 750) {
+      handler(...args);
+      return 0;
+    }
+    return originalSetTimeout(handler, timeoutMs, ...args);
+  }) as typeof setTimeout;
+
+  try {
+    return await run(delays);
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
 }
 
 /**
@@ -525,5 +547,136 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     uploadShouldThrow = new ProviderUnavailableError('GCS upload', 'network error: boom');
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav')).rejects.toThrow(ProviderUnavailableError);
     expect(deleteCalls.length).toBe(0);
+  });
+});
+
+describe('transcribeWithGoogleChirp — explicit network timeout budgets', () => {
+  function bigAudio() {
+    return new ArrayBuffer(INLINE_AUDIO_MAX_BYTES + 1);
+  }
+
+  function completedBatchResponse(transcript = 'batched transcript') {
+    return Response.json({
+      done: true,
+      response: {
+        results: {
+          [uploadResult.gcsUri]: {
+            transcript: { results: [{ alternatives: [{ transcript }] }] },
+            metadata: { totalBilledDuration: '2s' },
+          },
+        },
+      },
+    });
+  }
+
+  test('inline recognize keeps its 45s budget when the shared timeout is smaller', async () => {
+    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
+    const requestTimeouts: number[] = [];
+
+    await recordTimeouts(async (delays) => {
+      fetchHandler = (url) => {
+        expect(url).toContain(':recognize');
+        requestTimeouts.push(delays.at(-1)!);
+        return syncRecognizeResponse('inline');
+      };
+
+      await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav');
+    });
+
+    expect(requestTimeouts).toEqual([45_000]);
+  });
+
+  test('batch submit uses 45s and its completed first poll uses 8s', async () => {
+    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
+    gcsConfigured = true;
+    const requestTimeouts: Record<string, number[]> = { submit: [], poll: [] };
+
+    await recordTimeouts(async (delays) => {
+      fetchHandler = (url) => {
+        if (url.includes(':batchRecognize')) {
+          requestTimeouts.submit.push(delays.at(-1)!);
+          return Response.json({ name: 'operations/timeout-budget' });
+        }
+        requestTimeouts.poll.push(delays.at(-1)!);
+        return completedBatchResponse();
+      };
+
+      await transcribeWithGoogleChirp(bigAudio(), 'audio/wav');
+    });
+
+    expect(requestTimeouts).toEqual({ submit: [45_000], poll: [8_000] });
+  });
+
+  test('a failed operation uses 8s for cancellation and still deletes the GCS object', async () => {
+    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
+    gcsConfigured = true;
+    const requestTimeouts: Record<string, number[]> = { poll: [], cancel: [] };
+
+    await recordTimeouts(async (delays) => {
+      fetchHandler = (url) => {
+        if (url.includes(':batchRecognize')) {
+          return Response.json({ name: 'operations/failing-operation' });
+        }
+        if (url.endsWith(':cancel')) {
+          requestTimeouts.cancel.push(delays.at(-1)!);
+          return Response.json({});
+        }
+        requestTimeouts.poll.push(delays.at(-1)!);
+        return Response.json({ done: true, error: { code: 3, message: 'bad audio' } });
+      };
+
+      await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+        .rejects.toThrow('Google Speech batchRecognize failed (3): bad audio');
+    });
+
+    expect(requestTimeouts).toEqual({ poll: [8_000], cancel: [8_000] });
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+  });
+
+  test('adaptation retries retain the inline and batch submit phase budgets', async () => {
+    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
+    const requestTimeouts: Record<string, number[]> = { inline: [], submit: [], poll: [] };
+
+    await recordTimeouts(async (delays) => {
+      fetchHandler = (url, init) => {
+        const body = init.body ? JSON.parse(init.body as string) : undefined;
+        if (url.includes(':batchRecognize')) {
+          requestTimeouts.submit.push(delays.at(-1)!);
+          if (body.config.adaptation) {
+            return new Response('{"error":{"status":"NOT_FOUND"}}', { status: 404 });
+          }
+          return Response.json({ name: 'operations/adaptation-retry' });
+        }
+        if (url.includes(':recognize')) {
+          requestTimeouts.inline.push(delays.at(-1)!);
+          if (body.config.adaptation) {
+            return new Response('{"error":{"status":"NOT_FOUND"}}', { status: 404 });
+          }
+          return syncRecognizeResponse('inline retry');
+        }
+        requestTimeouts.poll.push(delays.at(-1)!);
+        return completedBatchResponse('batch retry');
+      };
+
+      await transcribeWithGoogleChirp(
+        new ArrayBuffer(1000),
+        'audio/wav',
+        'en-US',
+        'HyperWhisper',
+      );
+      gcsConfigured = true;
+      await transcribeWithGoogleChirp(
+        bigAudio(),
+        'audio/wav',
+        'en-US',
+        'HyperWhisper',
+      );
+    });
+
+    expect(requestTimeouts).toEqual({
+      inline: [45_000, 45_000],
+      submit: [45_000, 45_000],
+      poll: [8_000],
+    });
   });
 });

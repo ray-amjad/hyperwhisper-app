@@ -1,0 +1,19 @@
+<!--
+    The configured shortcut, drawn as keycaps. Mirrors
+    OnboardingFocusComponents.swift:314-332.
+
+    macOS tokenizes a shortcut description into named modifier symbols. Windows
+    does not need to: KeyboardShortcut.ToDisplayString() already joins the parts
+    with "+" and already returns "Unassigned" when nothing is bound
+    (Models/KeyboardShortcut.cs), and the shortcut seam hands that exact string
+    over as ShortcutDisplay. Splitting it here means this control and the
+    Shortcuts settings page can never disagree about what the shortcut is.
+
+    "Unassigned" contains no "+", so it falls out as a single neutral pill for
+    free.
+-->
+<UserControl x:Class="HyperWhisper.Views.Controls.Onboarding.OnboardingKeycaps"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel x:Name="Caps" Orientation="Horizontal" VerticalAlignment="Center"/>
+</UserControl>

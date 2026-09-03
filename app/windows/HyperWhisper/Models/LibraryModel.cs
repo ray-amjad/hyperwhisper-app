@@ -115,13 +115,15 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     public string Id => Model.Id;
     public string DisplayName => Model.DisplayName;
     public string ProviderName => Model.ProviderName;
-    public string ProviderAssetPath => Model.ProviderAssetName == "providerMeta"
-        ? string.Empty
-        : $"/Assets/Providers/{Model.ProviderAssetName}.png";
-    public Visibility ProviderAssetVisibility => Model.ProviderAssetName == "providerMeta"
-        ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility ProviderMonogramVisibility => Model.ProviderAssetName == "providerMeta"
+    // Through ProviderAssets, which checks the name against the PNGs that really
+    // ship. This used to test for the one sentinel it knew about by literal, which
+    // is the same guard the onboarding chip strip did NOT have - and the reason a
+    // vendor added to that strip rendered a blank square.
+    public string ProviderAssetPath => ProviderAssets.PathFor(Model.ProviderAssetName) ?? string.Empty;
+    public Visibility ProviderAssetVisibility => ProviderAssets.Exists(Model.ProviderAssetName)
         ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ProviderMonogramVisibility => ProviderAssets.Exists(Model.ProviderAssetName)
+        ? Visibility.Collapsed : Visibility.Visible;
     public string TagText => Model.Tag ?? "";
     public Visibility TagVisibility => string.IsNullOrWhiteSpace(Model.Tag) ? Visibility.Collapsed : Visibility.Visible;
     public string RuntimeBadgeText => Model.RuntimeBadge ?? "";

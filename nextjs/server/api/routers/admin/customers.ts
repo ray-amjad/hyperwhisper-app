@@ -28,6 +28,7 @@ import {
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailService } from "@/lib/services/email";
+import { createCustomerSpendReader } from "./customer-spend";
 
 // Pre-existing inline Stripe client, pinned to the API version the refund
 // flow (checkout.sessions.retrieve / refunds.create below) was built and
@@ -47,111 +48,17 @@ const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
 // Distinct customers (by userId) per page of the admin Customers list.
 const CUSTOMERS_PAGE_SIZE = 100;
 
-// How many distinct Stripe customer IDs to fetch net spend for concurrently.
-// The customer list is paginated to CUSTOMERS_PAGE_SIZE distinct customers
-// per request (refetched on a 300ms search debounce and on page change), which
-// bounds the Stripe-fetch fan-out to at most one page's worth of customers —
-// but an unbounded Promise.all across even that many Stripe customer IDs
-// would still fan out too many concurrent requests.
-const STRIPE_SPEND_FETCH_CONCURRENCY = 10;
-
-/**
- * Looks up the most recent dispute filed against a charge, so we can tell
- * whether a disputed charge was ultimately won or lost rather than just
- * knowing "disputed: true".
- *
- * Note: the `Charge` object used to expose an expandable `dispute` field,
- * but Stripe removed it (only the `disputed` boolean remains) — so this
- * can't be fetched via `expand` on `charges.list` and needs its own
- * `disputes.list` call. It's only called for charges that are actually
- * disputed, which should be rare, so the extra round trip is bounded.
- * Disputes are returned most-recent-first, so `limit: 1` gets the current
- * outcome even in the unusual case of more than one dispute on a charge.
- */
-async function getLatestDisputeStatusForCharge(
-  chargeId: string,
-): Promise<Stripe.Dispute.Status | null> {
-  const disputes = await stripe.disputes.list({ charge: chargeId, limit: 1 });
-
-  return disputes.data[0]?.status ?? null;
-}
-
-/**
- * Net lifetime spend (in cents) for a single Stripe customer: the sum of
- * `amount - amount_refunded` across their succeeded charges that aren't
- * currently/permanently in dispute, auto-paginated via the SDK's built-in
- * helper. Mirrors the refund semantics already used elsewhere in this
- * router (net of refunds, not gross).
- *
- * Returns `null` (rather than $0) if the Stripe fetch fails, so a genuine
- * Stripe error is distinguishable from a customer who legitimately spent
- * nothing. The error is still logged server-side either way.
- */
-async function getNetSpendCentsForStripeCustomer(
-  stripeCustomerId: string
-): Promise<number | null> {
-  try {
-    const charges = await stripe.charges
+const customerSpendReader = createCustomerSpendReader({
+  listCharges: async (stripeCustomerId) =>
+    stripe.charges
       .list({ customer: stripeCustomerId, limit: 100 })
-      .autoPagingToArray({ limit: 10_000 });
+      .autoPagingToArray({ limit: 10_000 }),
+  getLatestDisputeStatus: async (chargeId) => {
+    const disputes = await stripe.disputes.list({ charge: chargeId, limit: 1 });
 
-    let totalCents = 0;
-
-    for (const charge of charges) {
-      if (charge.status !== "succeeded") continue;
-
-      if (charge.disputed) {
-        // `disputed` never reverts to false once a dispute has happened,
-        // even after it resolves in our favor — so it alone can't tell us
-        // whether to count this charge. Look up the actual outcome:
-        //   - lost: we don't get to keep the money, exclude entirely.
-        //   - won: we kept the funds, count it like any other charge.
-        //   - anything else (needs_response, under_review, warning_*, or
-        //     no dispute record found): still unresolved, exclude
-        //     conservatively for now. Unlike a lost dispute this exclusion
-        //     is temporary — it'll be re-evaluated next time spend is
-        //     fetched, once the dispute resolves.
-        const disputeStatus = await getLatestDisputeStatusForCharge(charge.id);
-
-        if (disputeStatus !== "won") continue;
-      }
-
-      totalCents += charge.amount - charge.amount_refunded;
-    }
-
-    return totalCents;
-  } catch (error) {
-    console.error(
-      `Failed to fetch Stripe charges for customer ${stripeCustomerId}:`,
-      error
-    );
-    return null;
-  }
-}
-
-/**
- * Net lifetime spend (in cents) across a set of unique Stripe customer IDs,
- * fetched with capped concurrency rather than one unbounded Promise.all.
- * A `null` value means the fetch for that particular Stripe customer ID
- * failed (see getNetSpendCentsForStripeCustomer).
- */
-async function getNetSpendCentsForStripeCustomers(
-  stripeCustomerIds: string[]
-): Promise<Map<string, number | null>> {
-  const results = new Map<string, number | null>();
-
-  for (let i = 0; i < stripeCustomerIds.length; i += STRIPE_SPEND_FETCH_CONCURRENCY) {
-    const chunk = stripeCustomerIds.slice(i, i + STRIPE_SPEND_FETCH_CONCURRENCY);
-    const chunkResults = await Promise.all(
-      chunk.map(async (id) => [id, await getNetSpendCentsForStripeCustomer(id)] as const)
-    );
-    for (const [id, cents] of chunkResults) {
-      results.set(id, cents);
-    }
-  }
-
-  return results;
-}
+    return disputes.data[0]?.status ?? null;
+  },
+});
 
 export const customersRouter = createTRPCRouter({
   /**
@@ -291,9 +198,10 @@ export const customersRouter = createTRPCRouter({
             )
           )
         );
-        const spendByStripeCustomerId = await getNetSpendCentsForStripeCustomers(
-          allStripeCustomerIds
-        );
+        const spendByStripeCustomerId =
+          await customerSpendReader.getNetSpendCentsForStripeCustomers(
+            allStripeCustomerIds,
+          );
         for (const customer of Array.from(customerMap.values())) {
           const customerStripeIds = stripeCustomerIdsByUserId.get(
             customer.userId

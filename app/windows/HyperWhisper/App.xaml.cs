@@ -3,15 +3,49 @@ using HyperWhisper.Data;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
 using HyperWhisper.Services.LocalApi;
+using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Transcription;
 
 namespace HyperWhisper;
 
 public partial class App : WpfApplication
 {
+    /// <summary>
+    /// Whether this launch owes the user the first run flow. Decided ONCE in
+    /// OnStartup, after the database and settings are up and before anything
+    /// UI affine has happened, and read by MainWindow.Loaded.
+    ///
+    /// It is a snapshot, not a live read: the flow's own completion clears
+    /// SettingsService.OnboardingPending, and MainWindow still has to know that
+    /// this launch was a first run so it can keep LaunchMinimized from hiding the
+    /// window out from under the modal.
+    /// </summary>
+    public static bool ShouldShowOnboarding { get; private set; }
+
+    /// <summary>
+    /// True once Windows has told us the user is logging off, restarting or
+    /// shutting down.
+    ///
+    /// The one thing that legitimately forbids a modal dialog during teardown: a
+    /// message box raised while the OS is ending the session blocks shutdown
+    /// behind a prompt nobody will answer. Every OTHER close - Alt+F4, the
+    /// taskbar, tray Quit - leaves the process alive and running, so a report
+    /// there is both feasible and owed.
+    ///
+    /// WPF raises SessionEnding before it closes windows, so a handler reading
+    /// this from Window.Closing sees the right answer.
+    /// </summary>
+    public static bool IsSessionEnding { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        SessionEnding += (_, args) =>
+        {
+            IsSessionEnding = true;
+            LoggingService.Info($"App: the OS is ending the session ({args.ReasonSessionEnding})");
+        };
 
         // SINGLE-INSTANCE CHECK: Prevent duplicate instances (e.g., installer + auto-restart)
         if (!SingleInstanceGuard.TryAcquire())
@@ -20,6 +54,11 @@ public partial class App : WpfApplication
             Shutdown(0);
             return;
         }
+
+        // The mutex is per profile, so a scratch profile boots beside the user's
+        // own app. Machine-global input is a separate question with a separate
+        // answer; say which one this process got, once, in its own log.
+        SingleInstanceGuard.LogGlobalInputDecision();
 
         // CRITICAL: Register exception handlers FIRST, before any initialization,
         // so that startup crashes are logged instead of silently terminating.
@@ -111,6 +150,22 @@ public partial class App : WpfApplication
         else if (SettingsService.Instance.IsFirstLaunch)
         {
             LoggingService.Info("First launch detected in isolated app-data profile - skipping launch at startup registration");
+        }
+
+        // FIRST RUN ONBOARDING
+        // Decide here and stash the answer: the database is initialised, settings
+        // are loaded, and nothing UI affine has happened yet. MainWindow.Loaded
+        // does the showing, once its own navigation has populated the device list
+        // and registered the hotkeys the flow reads.
+        //
+        // Unlike the block above, this is NOT gated on the app-data override: an
+        // isolated profile is the mechanism that produces a fresh
+        // OnboardingPending == true, and onboarding writes nothing outside
+        // AppDataRoot. See OnboardingLaunchPolicy for the whole rule.
+        ShouldShowOnboarding = OnboardingLaunchPolicy.ShouldShowOnboarding();
+        if (ShouldShowOnboarding)
+        {
+            LoggingService.Info("Onboarding pending - the first run flow will be shown once the main window has loaded");
         }
 
         // THEME INITIALIZATION

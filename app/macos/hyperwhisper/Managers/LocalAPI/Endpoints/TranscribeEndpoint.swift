@@ -13,13 +13,12 @@ import Darwin
 
 enum TranscribeEndpoint {
 
+    /// Takes `body`, not an `HTTPRequest` (issue #375). The bytes have already
+    /// been read and bounded at the shared cap by `LocalAPIServer.bodied`, the
+    /// router-level wrapper that sits beside the origin and bearer guards. This
+    /// endpoint is handed no request, so it has no unbounded body to read.
     @MainActor
-    static func handle(request: HTTPRequest, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
-        let body: Data
-        do { body = try await request.bodyData } catch {
-            return LocalAPIResponder.badRequest(message: "Could not read request body")
-        }
-
+    static func handle(body: Data, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
         let req: TranscribeRequest
         do { req = try LocalAPIResponder.decoder.decode(TranscribeRequest.self, from: body) } catch {
             return LocalAPIResponder.badRequest(
@@ -170,6 +169,24 @@ enum TranscribeEndpoint {
         let hint: String?
     }
 
+    /// The "audio is too big" input error, with its wording read off Rust.
+    ///
+    /// An `APIInputError` rather than an `HTTPResponse` because the two size
+    /// checks live inside `resolveAudioSource`, which is synchronous and
+    /// throwing; `handle` catches `APIInputError` and renders it through
+    /// `LocalAPIResponder.failure(code:message:hint:)`. That is HTTP 200 carrying
+    /// `INVALID_REQUEST` — the same envelope `LocalAPIBodyLimit` produces for an
+    /// over-cap request, and the same bytes the .NET head sends
+    /// (`PortableLocalApi.cs:193`/`:245`/`:251`).
+    private static func uploadTooLargeError() -> APIInputError {
+        let failure = localApiUploadTooLargeFailure()
+        return APIInputError(
+            code: LocalAPIErrorCode(shared: failure.code),
+            message: failure.message,
+            hint: failure.hint
+        )
+    }
+
     /// Resolve `file` or `audio_base64` into a concrete file URL on disk.
     /// When base64 is used, writes a temp file and returns a cleanup closure
     /// that deletes it after the transcription run.
@@ -252,6 +269,42 @@ enum TranscribeEndpoint {
                 allowListedPath: allowListedPath,
                 fileIdentity: fileIdentity
             )
+            // SIZE (issue #375): the `file` path is deliberately NOT capped at
+            // `localApiMaxUploadBytes()`, unlike the `audio_base64` branch below.
+            //
+            // Be clear about what that is: a per-head DIVERGENCE on a documented
+            // field, and one this change introduces. The .NET head does cap it —
+            // `PortableLocalApi.ReadAllowedFileAsync` at :340-341 answers
+            // `Failure(200, INVALID_REQUEST, "Audio exceeds the configured upload
+            // limit.")` when `input.Length > options.MaxUploadBytes`, and that is
+            // the head the two numbers were copied from. So for the same request,
+            // a 60 MiB local recording, macOS transcribes and Linux refuses. It is
+            // called out per-head in the "Request limits" section of
+            // `mintlify-help/api-reference/local-api/overview.mdx`, so a client
+            // integrator can at least see it; it is not hidden, but it is not
+            // parity either. `hw-localapi::limits`'s own module doc names exactly
+            // this shape of outcome — one head's number, another head's answer —
+            // as the failure it exists to prevent.
+            //
+            // The case for leaving it uncapped: `stageValidatedAudioFile` copies
+            // through a 1 MiB window into a temp file and never holds the
+            // recording in memory, so a cap here buys no memory back. It would
+            // only stop a user transcribing a long recording they already have on
+            // disk. The amplification #375 reports is the buffered base64 payload,
+            // not this. The .NET head's cap is not gratuitous either, for the
+            // mirror-image reason: its `file` path DOES buffer whole
+            // (`new MemoryStream((int)input.Length)`, `PortableLocalApi.cs:342`),
+            // so there the cap is the memory guard it is everywhere else. The two
+            // heads diverge because their implementations do.
+            //
+            // The case against: parity is the point of the change, and "which
+            // head am I talking to" is not a question a documented field should
+            // make a caller ask.
+            //
+            // Unresolved on purpose — it is a product call, not a code call. It
+            // is written up as an open question in the implementation notes for
+            // this change: cap macOS to match .NET, or lift the .NET cap? Either
+            // answer is a wire change on one of the two heads.
             let stagedFile: StagedAudioFile
             do {
                 stagedFile = try Self.stageValidatedAudioFile(
@@ -271,12 +324,42 @@ enum TranscribeEndpoint {
         }
 
         // base64 path
-        guard let raw = trimmedBase64, let data = Data(base64Encoded: raw, options: [.ignoreUnknownCharacters]) else {
+        guard let raw = trimmedBase64 else {
             throw APIInputError(
                 code: .audioDecodeFailed,
                 message: "'audio_base64' is not valid base64",
                 hint: nil
             )
+        }
+        // SIZE (issue #375), before the decode: `Data(base64Encoded:)` allocates
+        // the decoded buffer, so checking the decoded size alone would still let
+        // a caller pay for the allocation first. The ceiling is the encoded
+        // length that `localApiMaxUploadBytes()` expands to, exactly as
+        // `PortableLocalApi.cs:243-245` computes it.
+        //
+        // Honest scope: at the shipped defaults this cannot fire on this head.
+        // 48 MiB of audio expands to a ~64 MiB base64 string, which is already
+        // over the 50 MiB request cap `LocalAPIBodyLimit` enforces first, so the
+        // request guard always wins. It is defence-in-depth for a head with a
+        // looser request cap (and for the multipart `audio` part the .NET head
+        // has), not the fix for the reported repro.
+        if UInt64(raw.utf8.count) > localApiMaxBase64LengthForUpload() {
+            throw Self.uploadTooLargeError()
+        }
+        guard let data = Data(base64Encoded: raw, options: [.ignoreUnknownCharacters]) else {
+            throw APIInputError(
+                code: .audioDecodeFailed,
+                message: "'audio_base64' is not valid base64",
+                hint: nil
+            )
+        }
+        // And the decoded bytes, the comparison `PortableLocalApi.cs:251` makes.
+        // Also unreachable today — an encoded string under the ceiling above
+        // cannot decode to more than the upload cap, by construction — but it is
+        // the check that binds if either cap is ever loosened independently, and
+        // it is the one that would still be here if the decode moved.
+        if UInt64(data.count) > localApiMaxUploadBytes() {
+            throw Self.uploadTooLargeError()
         }
         let ext = Self.extensionForMime(req.mime_type)
         let stagedFile: StagedAudioFile
@@ -792,6 +875,69 @@ enum TranscribeEndpoint {
             mode.model = model ?? "base"
         case "parakeet":
             mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
+        // Shared spelling list — see `Constants.engineAliases`. Must stay the
+        // same set `TranscriptionProviderRouter.resolveProvider` matches on,
+        // which is why it is a constant and not a second literal copy.
+        case _ where NemotronModelManager.Constants.engineAliases.contains(normalizedEngine):
+            // `canonicalModelId` trims, lowercases, and answers nil for blank,
+            // so this one test covers "no model", "  ", and "not a variant".
+            if let explicitVariant = NemotronModelManager.Constants.canonicalModelId(for: model ?? "") {
+                // An explicit model naming a real variant wins outright: the
+                // caller is changing variant, not re-asserting the engine, so
+                // no inherit and no language snap.
+                //
+                // Review round 2: this arm now accepts ONLY a real variant. It
+                // used to pass an unknown id through unchanged
+                // (`modelIdForSelection` preserves it), on the reasoning that
+                // the router would reject it and name it in the error. True on
+                // the engine-only path, where `resolve` calls `resolveProvider`
+                // BEFORE `makeTransientMode` — but the mixed mode_id+engine
+                // path only calls `selectProvider(for: transient)` and never
+                // reaches `resolveProvider`, so nothing rejected it. There
+                // `{mode_id: X, engine: "nemotron", model: "base"}` wrote
+                // "base" onto the Mode, `selectLocalProvider`'s
+                // `mapModelIdToWhisperModel` matched it, and LibWhisper
+                // transcribed — `ok: true`, `"engine": "whisperLocal"`, for a
+                // caller who asked for Nemotron (`"parakeet-tdt-0.6b-v3"`
+                // reached ParakeetProvider the same way). `engine=` must never
+                // select another engine's provider, so an unusable model is
+                // treated as absent and falls through to the inherit-or-default
+                // rule below; the response's `model` then reports what ran.
+                mode.model = explicitVariant
+            } else {
+                // No usable explicit model. Same reasoning as the cloud branch's
+                // `belongsToProvider` guard above: on the mixed mode_id+engine
+                // form the caller is re-asserting the engine, not asking to
+                // change variant, and `mode` is already a copy of their saved
+                // Mode — so keep an inherited id that really is a Nemotron
+                // variant. Defaulting unconditionally would swap a saved Latin
+                // mode to multilingual and fail with MODEL_NOT_INSTALLED for a
+                // caller who only installed Latin. Anything else inherited
+                // (the Core Data default "base", a Parakeet id, a prefix-alike
+                // that names no real variant) is not usable here, so it falls
+                // through to the engine's default.
+                //
+                // Review round 2: inherit only when the saved variant can also
+                // serve the language THIS request asked for. `makeTransientMode`
+                // has already written the request's `language` onto the Mode by
+                // the time we get here, and nothing downstream re-checks the
+                // pair: `NemotronProvider.prepareIfNeeded` takes the variant
+                // from `modelId` alone and never reads its `language` argument,
+                // then `transcribe` hands `mode.language` straight to
+                // `setLanguage`. So `{mode_id: <a saved Latin mode>,
+                // engine: "nemotron", language: "ja"}` would run "ja" against a
+                // vocabulary pruned to `latinLanguages` (en/es/fr/it/pt/de) and
+                // answer HTTP 200 with Latin-script garbage. Falling back to
+                // multilingual is the safe direction: a code it does not list
+                // degrades to the model's own auto-detect prompt (see
+                // `multilingualLanguages`' note), not to the wrong alphabet.
+                let inherited = NemotronModelManager.Constants.canonicalModelId(for: mode.model ?? "")
+                if let inherited, Self.nemotronVariant(inherited, canServe: mode.language) {
+                    mode.model = inherited
+                } else {
+                    mode.model = NemotronModelManager.Constants.modelIdForSelection(nil)
+                }
+            }
         case "qwen3asr", "qwen3", "qwen3-asr":
             mode.model = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
@@ -799,6 +945,31 @@ enum TranscribeEndpoint {
         default:
             if let m = model, !m.isEmpty { mode.model = m }
         }
+    }
+
+    /// Whether the Nemotron variant named by `modelId` can transcribe
+    /// `language`. Used by `applyEngineModel` to decide if a variant inherited
+    /// off a saved Mode is still appropriate for the language the request asked
+    /// for; `RecordingTranscriptionFlow+Streaming` answers the same question the
+    /// same way, off the same `supportedLanguages(forModelId:)` table, when it
+    /// falls back between variants.
+    ///
+    /// A nil / empty / `"auto"` language means auto-detect, which every variant
+    /// serves — the same normalisation `effectiveLanguage(for:request:)`,
+    /// `resolveProvider` and `NemotronProvider.transcribe` all apply. Region and
+    /// script subtags are stripped because `latinLanguages` /
+    /// `multilingualLanguages` are keyed by bare ISO codes while a Mode may hold
+    /// a BCP-47 form such as `"en-US"`. A non-Nemotron id serves nothing here.
+    private static func nemotronVariant(_ modelId: String, canServe language: String?) -> Bool {
+        let normalized = (language ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !normalized.isEmpty, normalized != "auto" else { return true }
+        guard let supported = NemotronModelManager.supportedLanguages(forModelId: modelId) else {
+            return false
+        }
+        let baseCode = String(normalized.prefix { $0 != "-" && $0 != "_" })
+        return supported[baseCode] != nil
     }
 
     @MainActor
@@ -820,12 +991,13 @@ enum TranscribeEndpoint {
     }
 
     @MainActor
-    private static func engineLabel(forMode mode: Mode) -> String {
+    static func engineLabel(forMode mode: Mode) -> String {
         let modelString = (mode.model ?? "").lowercased()
         if modelString == "cloud" || modelString.isEmpty {
             return mode.cloudProvider ?? "cloud"
         }
         if modelString.hasPrefix("parakeet-tdt-") { return "parakeet" }
+        if modelString.hasPrefix("nemotron-asr-3.5-") { return "nemotron" }
         if modelString == "apple-speech-analyzer" { return "appleSpeech" }
         if modelString == Qwen3AsrModelManager.Constants.modelId { return "qwen3Asr" }
         return "whisperLocal"

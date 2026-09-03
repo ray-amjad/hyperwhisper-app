@@ -334,6 +334,39 @@ public sealed class LocalApiServer : INotifyPropertyChanged
             await next();
         });
 
+        // First-run middleware — one gate for the whole mutating surface.
+        //
+        // The onboarding window stages the DEFAULT MODE ROW and the active Mode
+        // selection, then blind-restores its snapshot on "Set Up Later" with no
+        // version check. A client that PATCHed that row while the flow sat on
+        // the Try It step had its write destroyed silently. In the other
+        // direction /transcribe loads a model into the very
+        // TranscriptionRuntime.Orchestrator and Parakeet provider the Try It
+        // step is using.
+        //
+        // The rule is per-METHOD rather than per-route on purpose: the reads
+        // (/health, /models, GET /modes, /recordings) are harmless and stay
+        // available for a client that is mid-poll, while every write and every
+        // engine-driving call is refused — including one added to this server
+        // later, which is exactly the leak the per-call-site shape had.
+        //
+        // ENGINE_UNAVAILABLE, not a new code: the wire codes are a closed
+        // fourteen shared with macOS through hw-localapi
+        // (crates/hw-localapi/src/failure.rs), and a fifteenth would fail that
+        // crate's conformance test and break the macOS decoder.
+        app.Use(async (ctx, next) =>
+        {
+            if (!IsReadOnlyMethod(ctx.Request.Method) && OnboardingSession.IsActive)
+            {
+                LoggingService.Info(
+                    $"LocalApiServer: refused {ctx.Request.Method} {ctx.Request.Path} while the first-run window is open");
+                await WriteOnboardingBusyAsync(ctx);
+                return;
+            }
+
+            await next();
+        });
+
         // Route table — phase 3: /health, /models, /modes, /transcribe,
         // /post-process, /recordings/*. Full endpoint parity with macOS.
         HealthEndpoints.Map(app, this);
@@ -344,6 +377,42 @@ public sealed class LocalApiServer : INotifyPropertyChanged
         RecordingsEndpoints.Map(app, this);
 
         return app;
+    }
+
+    /// <summary>
+    /// GET and HEAD read; everything else writes, drives the shared
+    /// transcription engine, or both. Internal so the smoke suite asserts on the
+    /// same predicate the middleware runs rather than a second copy of it.
+    /// </summary>
+    internal static bool IsReadOnlyMethod(string? method) =>
+        string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The message and hint the first-run middleware answers with.</summary>
+    internal const string OnboardingBusyMessage =
+        "HyperWhisper first-run setup is open and owns the default Mode and the local transcription engine";
+
+    internal const string OnboardingBusyHint =
+        "Finish or dismiss the HyperWhisper setup window, then retry.";
+
+    private static async Task WriteOnboardingBusyAsync(HttpContext ctx)
+    {
+        var envelope = new ApiFailureEnvelope
+        {
+            Error = new ApiError
+            {
+                Code = LocalApiErrorCode.EngineUnavailable,
+                Message = OnboardingBusyMessage,
+                Hint = OnboardingBusyHint
+            }
+        };
+
+        // 200, like every other business failure on this server; see
+        // LocalApiResponder.Failure.
+        ctx.Response.StatusCode = 200;
+        ctx.Response.ContentType = "application/json; charset=utf-8";
+        await ctx.Response.WriteAsync(
+            System.Text.Json.JsonSerializer.Serialize(envelope, LocalApiResponder.JsonOptions));
     }
 
     private static async Task WriteUnauthorizedAsync(HttpContext ctx)

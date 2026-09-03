@@ -1,0 +1,25 @@
+<!--
+    The model download bar. Mirrors OnboardingFocusComponents.swift:507-524.
+
+    Hand rolled rather than a WPF ProgressBar because this app has no ProgressBar
+    style and the stock template is not themed. The shape copies the one
+    determinate bar the app already ships, UpdateDownloadProgressWindow.xaml: a
+    rounded track with a left aligned fill whose width is set from code.
+-->
+<UserControl x:Class="HyperWhisper.Views.Controls.Onboarding.OnboardingProgressBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:HyperWhisper.Localization"
+             Height="6"
+             AutomationProperties.Name="{loc:Loc onboarding.a11y.downloadProgress}">
+    <Border x:Name="Track"
+            CornerRadius="3"
+            Background="{DynamicResource ProgressBackgroundBrush}"
+            SizeChanged="OnTrackSizeChanged">
+        <Border x:Name="Fill"
+                CornerRadius="3"
+                Width="0"
+                HorizontalAlignment="Left"
+                Background="{DynamicResource AccentBrush}"/>
+    </Border>
+</UserControl>

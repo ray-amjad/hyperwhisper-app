@@ -1,0 +1,751 @@
+// ONBOARDING TEST SUPPORT
+//
+// Fakes and a harness for the first-run flow model
+// (HyperWhisper/ViewModels/Onboarding/OnboardingFlowViewModel.cs), mirroring the
+// ones in app/macos/hyperwhisperTests/OnboardingFlowModelTests.swift.
+//
+// The cases themselves live in Program.cs, in the same Run(...) idiom as the rest of
+// the suite; only the doubles live here so Program.cs does not grow another 600
+// lines of scaffolding.
+//
+// Two fakes can PARK an asynchronous call on a TaskCompletionSource
+// (FakeOnboardingLicense.GateProbe / GateActivation,
+// FakeOnboardingProviderKeys.GateProbe). That is what makes the staleness and
+// "landed after the window closed" cases deterministic: a fake that completes
+// synchronously would run the whole continuation inside the call that started it,
+// leaving no window in which the user can edit the field.
+
+using HyperWhisper.Models;
+using HyperWhisper.ViewModels.Onboarding;
+
+namespace HyperWhisper.SmokeTests;
+
+// =============================================================================
+// Permissions
+// =============================================================================
+
+internal sealed class FakeOnboardingPermissions : IOnboardingPermissions
+{
+    public OnboardingMicrophoneAuthorization MicrophoneAuthorization { get; set; }
+        = OnboardingMicrophoneAuthorization.Undetermined;
+
+    public OnboardingShortcutState Shortcut { get; set; }
+        = new("Ctrl+Shift+Space", OnboardingShortcutStatus.Registered, null);
+
+    public bool RequestResult { get; set; } = true;
+    public int RequestCount { get; private set; }
+    public int OpenedMicrophoneSettings { get; private set; }
+    /// <summary>Every shortcut the flow asked to store, in order.</summary>
+    public List<string> StoredToggleShortcuts { get; } = new();
+
+    /// <summary>Make the next SetToggleShortcut refuse, as a full credential store would.</summary>
+    public bool RefuseShortcutWrite { get; set; }
+    public int ShortcutRefreshes { get; private set; }
+
+    public event EventHandler? ShortcutChanged;
+
+    public Task<bool> RequestMicrophoneAccessAsync()
+    {
+        RequestCount++;
+        if (RequestResult)
+            MicrophoneAuthorization = OnboardingMicrophoneAuthorization.Authorized;
+        return Task.FromResult(RequestResult);
+    }
+
+    public void OpenMicrophonePrivacySettings() => OpenedMicrophoneSettings++;
+
+    public bool SetToggleShortcut(string persistedShortcut)
+    {
+        if (RefuseShortcutWrite) return false;
+        StoredToggleShortcuts.Add(persistedShortcut);
+        // The live adapter's write goes through SettingsService, which re-registers
+        // every hotkey inline; the state the flow then re-reads is the NEW one.
+        Shortcut = new OnboardingShortcutState(persistedShortcut, OnboardingShortcutStatus.Registered, null);
+        return true;
+    }
+
+    public void RefreshShortcutRegistration()
+    {
+        ShortcutRefreshes++;
+        ShortcutChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>The shortcut is re-registered, or the user edits it in Settings.</summary>
+    public void Publish(OnboardingShortcutState state)
+    {
+        Shortcut = state;
+        ShortcutChanged?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+// =============================================================================
+// Model catalog
+// =============================================================================
+
+internal sealed class FakeOnboardingCatalog : IOnboardingModelCatalog
+{
+    public static readonly OnboardingModelSelection Parakeet = new(
+        "parakeet-tdt-0.6b-v2", OnboardingModelKind.Parakeet, "Parakeet V2",
+        "onboarding.model.parakeetV2.subtitle", "474 MB", 5, 3, IsRecommended: true);
+
+    public static readonly OnboardingModelSelection Whisper = new(
+        "base", OnboardingModelKind.Whisper, "Whisper Base",
+        "onboarding.model.whisperBase.subtitle", "142 MB", 5, 1, IsRecommended: false);
+
+    public List<OnboardingModelSelection> Catalog { get; } = new() { Parakeet, Whisper };
+    public HashSet<string> Installed { get; } = new();
+    public HashSet<string> Downloading { get; } = new();
+    public Dictionary<string, double> Progresses { get; } = new();
+    public List<string> StartedDownloads { get; } = new();
+
+    public IReadOnlyList<OnboardingModelSelection> Models => Catalog;
+
+    public event EventHandler<OnboardingDownloadErrors>? DownloadErrorsChanged;
+    public event EventHandler? DownloadActivity;
+
+    public bool IsInstalled(OnboardingModelSelection model) => Installed.Contains(model.Id);
+
+    public bool IsDownloading(OnboardingModelSelection model) => Downloading.Contains(model.Id);
+
+    public double Progress(OnboardingModelSelection model)
+        => Progresses.TryGetValue(model.Id, out var value) ? value : 0;
+
+    public void StartDownload(OnboardingModelSelection model) => StartedDownloads.Add(model.Id);
+
+    public void PublishErrors(OnboardingDownloadErrors errors)
+        => DownloadErrorsChanged?.Invoke(this, errors);
+
+    /// <summary>
+    /// Stands in for the download manager's change tick. Unthrottled, because the
+    /// live adapter is where any coalescing lives.
+    /// </summary>
+    public void PublishActivity() => DownloadActivity?.Invoke(this, EventArgs.Empty);
+}
+
+// =============================================================================
+// Licence
+// =============================================================================
+
+internal sealed class FakeOnboardingLicense : IOnboardingLicenseGateway
+{
+    public bool IsActive { get; set; }
+    public OnboardingLicenseOutcome ProbeOutcome { get; set; } = new(true, null);
+    public OnboardingLicenseOutcome ActivateOutcome { get; set; } = new(true, null);
+    public List<string> ProbedKeys { get; } = new();
+    public List<string> ActivatedKeys { get; } = new();
+
+    /// <summary>When true, the next probe parks until <see cref="Release"/>.</summary>
+    public bool GateProbe { get; set; }
+
+    /// <summary>When true, the next activation parks until <see cref="Release"/>.</summary>
+    public bool GateActivation { get; set; }
+
+    // ONE FIELD PER CALL, deliberately.
+    //
+    // A single shared _gate made this fake LIE in two ways, and a fuzz round paid
+    // for it: parking a probe after an activation overwrote the activation's
+    // TaskCompletionSource, so Release() completed only the probe and the
+    // activation's continuation was orphaned forever - the flow looked stuck on a
+    // state no production code could produce. And Release() nulled the field, so
+    // IsParked read false while a call was still parked, which turned a real
+    // "landed after the window closed" case into a silent pass.
+    private TaskCompletionSource<bool>? _probeGate;
+    private TaskCompletionSource<bool>? _activationGate;
+
+    public async Task<OnboardingLicenseOutcome> ProbeAsync(string key, CancellationToken cancellationToken)
+    {
+        if (GateProbe)
+        {
+            var gate = new TaskCompletionSource<bool>();
+            _probeGate = gate;
+            await gate.Task;
+        }
+
+        ProbedKeys.Add(key);
+        return ProbeOutcome;
+    }
+
+    public async Task<OnboardingLicenseOutcome> ActivateAsync(string key, CancellationToken cancellationToken)
+    {
+        if (GateActivation)
+        {
+            var gate = new TaskCompletionSource<bool>();
+            _activationGate = gate;
+            await gate.Task;
+        }
+
+        ActivatedKeys.Add(key);
+        if (ActivateOutcome.IsValid)
+            IsActive = true;
+        return ActivateOutcome;
+    }
+
+    /// <summary>
+    /// Let every parked call land, long after the window may have closed. Releasing
+    /// both is what the old single-gate version pretended to do; a caller that needs
+    /// one at a time has <see cref="ReleaseProbe"/> and <see cref="ReleaseActivation"/>.
+    /// </summary>
+    public void Release()
+    {
+        ReleaseProbe();
+        ReleaseActivation();
+    }
+
+    public void ReleaseProbe()
+    {
+        var gate = _probeGate;
+        _probeGate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public void ReleaseActivation()
+    {
+        var gate = _activationGate;
+        _activationGate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public bool IsParked => _probeGate is not null || _activationGate is not null;
+
+    public bool IsProbeParked => _probeGate is not null;
+
+    public bool IsActivationParked => _activationGate is not null;
+}
+
+// =============================================================================
+// Credits
+// =============================================================================
+
+internal sealed class FakeOnboardingCredits : IOnboardingCreditsGateway
+{
+    public OnboardingCloudCredits? Credits { get; set; }
+    public bool IsFetching { get; set; }
+    public int RefreshCount { get; private set; }
+    public bool ThrowOnRefresh { get; set; }
+
+    /// <summary>What a successful refresh lands, if anything.</summary>
+    public OnboardingCloudCredits? NextCredits { get; set; }
+
+    public event EventHandler? CreditsChanged;
+
+    public Task RefreshAsync(bool force, CancellationToken cancellationToken)
+    {
+        RefreshCount++;
+
+        if (ThrowOnRefresh)
+            return Task.FromException(new InvalidOperationException("credits endpoint unreachable"));
+
+        if (NextCredits is not null)
+            Credits = NextCredits;
+
+        return Task.CompletedTask;
+    }
+
+    public void Publish(OnboardingCloudCredits? credits)
+    {
+        Credits = credits;
+        CreditsChanged?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+// =============================================================================
+// Provider keys
+// =============================================================================
+
+internal sealed class FakeOnboardingProviderKeys : IOnboardingProviderKeyGateway
+{
+    /// <summary>Two is enough to prove the chip strip renders a list and marks one selected.</summary>
+    public IReadOnlyList<CloudTranscriptionProvider> Providers { get; set; } = new[]
+    {
+        CloudTranscriptionProvider.OpenAI,
+        CloudTranscriptionProvider.Groq
+    };
+
+    public string? ValidationError { get; set; }
+    public ProviderHealth Health { get; set; } = ProviderHealth.Healthy;
+    public bool PersistSucceeds { get; set; } = true;
+    public Dictionary<CloudTranscriptionProvider, string> Stored { get; } = new();
+    public int ProbeCount { get; private set; }
+
+    /// <summary>When true, the next probe parks until <see cref="Release"/>.</summary>
+    public bool GateProbe { get; set; }
+
+    private TaskCompletionSource<bool>? _gate;
+
+    public async Task<ProviderHealth> ProbeAsync(
+        CloudTranscriptionProvider provider,
+        string apiKey,
+        CancellationToken cancellationToken)
+    {
+        ProbeCount++;
+
+        if (GateProbe)
+        {
+            _gate = new TaskCompletionSource<bool>();
+            await _gate.Task;
+        }
+
+        return Health;
+    }
+
+    public void Release()
+    {
+        var gate = _gate;
+        _gate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public bool Persist(string key, CloudTranscriptionProvider provider)
+    {
+        if (!PersistSucceeds)
+        {
+            ValidationError = "credential store denied";
+            return false;
+        }
+
+        // Mirrors ApiKeyService: writing an empty string deletes the entry.
+        if (key.Length == 0)
+            Stored.Remove(provider);
+        else
+            Stored[provider] = key;
+
+        return true;
+    }
+
+    public bool HasKey(CloudTranscriptionProvider provider) => Stored.ContainsKey(provider);
+
+    public string CurrentKey(CloudTranscriptionProvider provider)
+        => Stored.TryGetValue(provider, out var key) ? key : string.Empty;
+}
+
+// =============================================================================
+// Audio
+// =============================================================================
+
+internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
+{
+    public static readonly OnboardingInputDevice[] ConnectedDevices =
+    {
+        new("builtin", "Realtek Microphone Array"),
+        new("usb", "External USB Microphone")
+    };
+
+    private List<OnboardingInputDevice> _devices = new(ConnectedDevices);
+
+    public IReadOnlyList<OnboardingInputDevice> Devices => _devices;
+
+    public OnboardingDeviceAvailability Availability { get; set; } = OnboardingDeviceAvailability.Available;
+
+    public string? SelectedDeviceId { get; set; }
+    public string? StoredDeviceId { get; set; }
+
+    public int RefreshDeviceCalls { get; private set; }
+    public int RefreshAuthorizationCalls { get; private set; }
+    public int PreviewStarts { get; private set; }
+    public int PreviewStops { get; private set; }
+    public int StartRecordingCalls { get; private set; }
+    public int StopAndTranscribeCalls { get; private set; }
+    public int StopForExitCalls { get; private set; }
+    public int ClearTranscriptCalls { get; private set; }
+    public int SampleTranscriptions { get; private set; }
+
+    /// <summary>
+    /// The live adapter's real failure mode: the device enumerates, the open
+    /// throws, and StartInputLevelPreview reports false. The old fake could not
+    /// fail, which is why the frozen-meter defect had no coverage.
+    /// </summary>
+    public bool PreviewOpenFails { get; set; }
+
+    /// <summary>When true, the next stop-and-transcribe parks until <see cref="Release"/>.</summary>
+    public bool GateStopAndTranscribe { get; set; }
+
+    private TaskCompletionSource<bool>? _stopGate;
+
+    /// <summary>What a completed microphone transcription publishes.</summary>
+    public string RecordedTranscript { get; set; } = "This is a live microphone transcript.";
+
+    public bool HasSampleClip { get; set; } = true;
+    public string SampleTranscript { get; set; } = "This is the bundled sample clip.";
+    public bool SampleThrows { get; set; }
+
+    public float InputLevel { get; private set; }
+    public bool IsRecording { get; private set; }
+    public string Transcript { get; private set; } = string.Empty;
+    public string? TranscriptWarning { get; private set; }
+
+    public event EventHandler? DevicesChanged;
+    public event EventHandler<float>? InputLevelChanged;
+    public event EventHandler? IsRecordingChanged;
+    public event EventHandler? TranscriptChanged;
+    public event EventHandler? TranscriptWarningChanged;
+
+    public void RefreshDevices() => RefreshDeviceCalls++;
+
+    public void RefreshMicrophoneAuthorization() => RefreshAuthorizationCalls++;
+
+    public void SelectDevice(string? id)
+    {
+        SelectedDeviceId = id;
+        StoredDeviceId = id;
+    }
+
+    /// <summary>
+    /// Mirrors the live adapter (LiveOnboarding.ApplyOpenDevice): the preference
+    /// goes back even when the device it names is absent; the OPEN device goes back
+    /// when it is still present, falls back to the first connected device when it is
+    /// not, and is only left at null when null is what was captured.
+    ///
+    /// The fallback is the part that matters. On MainViewModel null is not "system
+    /// default", it is "no microphone", so a fake that restored null for an absent
+    /// device agreed with a live adapter that left the app unable to record.
+    /// </summary>
+    public void RestoreDevice(string? storedId, string? openId)
+    {
+        StoredDeviceId = storedId;
+
+        if (string.IsNullOrEmpty(openId))
+        {
+            SelectedDeviceId = null;
+            return;
+        }
+
+        SelectedDeviceId = _devices.Any(d => d.Id == openId)
+            ? openId
+            : (_devices.Count > 0 ? _devices[0].Id : null);
+    }
+
+    public bool StartInputLevelPreview()
+    {
+        PreviewStarts++;
+        return Availability == OnboardingDeviceAvailability.Available && !PreviewOpenFails;
+    }
+
+    public void StopInputLevelPreview() => PreviewStops++;
+
+    public bool StartTestRecording()
+    {
+        StartRecordingCalls++;
+        if (Availability != OnboardingDeviceAvailability.Available)
+        {
+            PublishTranscript("Error: no microphone");
+            return false;
+        }
+
+        PublishRecording(true);
+        return true;
+    }
+
+    public async Task StopAndTranscribeAsync(CancellationToken cancellationToken)
+    {
+        StopAndTranscribeCalls++;
+        PublishRecording(false);
+
+        if (GateStopAndTranscribe)
+        {
+            _stopGate = new TaskCompletionSource<bool>();
+            await _stopGate.Task;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        PublishTranscript(RecordedTranscript);
+    }
+
+    /// <summary>Let a parked stop-and-transcribe land, long after Stop was pressed.</summary>
+    public void Release()
+    {
+        var gate = _stopGate;
+        _stopGate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public bool IsParked => _stopGate is not null;
+
+    public void StopRecordingForExit() => StopForExitCalls++;
+
+    public void ClearTranscript()
+    {
+        ClearTranscriptCalls++;
+        PublishTranscript(string.Empty);
+        PublishWarning(null);
+    }
+
+    /// <summary>When true, the next sample transcription parks until <see cref="ReleaseSample"/>.</summary>
+    public bool GateSample { get; set; }
+
+    private TaskCompletionSource<bool>? _sampleGate;
+
+    public async Task TranscribeSampleClipAsync(CancellationToken cancellationToken)
+    {
+        SampleTranscriptions++;
+
+        if (SampleThrows)
+            throw new InvalidOperationException("sample clip missing");
+
+        if (GateSample)
+        {
+            _sampleGate = new TaskCompletionSource<bool>();
+            await _sampleGate.Task;
+        }
+
+        // The live gateway drops a transcript that lands after the flow gave up
+        // on this run; the fake has to do the same or the Back-navigation case
+        // would pass for the wrong reason.
+        cancellationToken.ThrowIfCancellationRequested();
+        PublishTranscript(SampleTranscript);
+    }
+
+    /// <summary>Let a parked sample transcription land, long after Back was pressed.</summary>
+    public void ReleaseSample()
+    {
+        var gate = _sampleGate;
+        _sampleGate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public bool IsSampleParked => _sampleGate is not null;
+
+    // --- Test drivers --------------------------------------------------------
+
+    /// <summary>A device is plugged in or pulled out while the step is open.</summary>
+    public void Publish(IEnumerable<OnboardingInputDevice> devices)
+    {
+        _devices = devices.ToList();
+        DevicesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Consent or the audio stack changes without the list changing.</summary>
+    public void PublishAvailability(OnboardingDeviceAvailability availability)
+    {
+        Availability = availability;
+        DevicesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void PublishTranscript(string text)
+    {
+        Transcript = text;
+        TranscriptChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>The orchestrator raised a post-processing warning for this call site.</summary>
+    public void PublishWarning(string? warning)
+    {
+        TranscriptWarning = warning;
+        TranscriptWarningChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void PublishRecording(bool recording)
+    {
+        IsRecording = recording;
+        IsRecordingChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void PublishLevel(float level)
+    {
+        InputLevel = level;
+        InputLevelChanged?.Invoke(this, level);
+    }
+}
+
+// =============================================================================
+// Committer
+// =============================================================================
+
+internal sealed record FakeOnboardingRestorePoint(string State) : IOnboardingRestorePoint;
+
+/// <summary>
+/// Stands in for the database, SettingsService and the shell. ProductionState is the
+/// single observable fact the rollback cases assert on.
+/// </summary>
+internal sealed class FakeOnboardingCommitter : IOnboardingSourceCommitter
+{
+    public const string Seed = "seeded-default-mode";
+
+    public string ProductionState { get; private set; } = Seed;
+    public List<OnboardingStagedSource> Applied { get; } = new();
+    public int CaptureCount { get; private set; }
+    public int RestoreCount { get; private set; }
+    public int MarkCompletedCount { get; private set; }
+    public int ReturnHomeCount { get; private set; }
+
+    public IOnboardingRestorePoint CaptureRestorePoint()
+    {
+        CaptureCount++;
+        return new FakeOnboardingRestorePoint(ProductionState);
+    }
+
+    /// <summary>
+    /// The database refuses the WRITE. ModeService.SaveMode rethrows
+    /// DbUpdateException, unlike DeleteMode, so the real committer's Apply can and
+    /// does escape - which is the whole of finding C4.
+    /// </summary>
+    public bool ApplyThrows { get; set; }
+
+    public int ApplyAttempts { get; private set; }
+
+    public void Apply(OnboardingStagedSource staged)
+    {
+        ApplyAttempts++;
+
+        if (ApplyThrows)
+            throw new InvalidOperationException("the Modes database is locked");
+
+        Applied.Add(staged);
+        ProductionState = $"{staged.Source.Identifier()}:{staged.Model}:{staged.CloudProvider ?? "-"}";
+    }
+
+    /// <summary>
+    /// The database refuses the restore. The real committer catches its own
+    /// exceptions and answers false, so that is what the fake does.
+    /// </summary>
+    public bool RestoreSucceeds { get; set; } = true;
+
+    public bool Restore(IOnboardingRestorePoint point)
+    {
+        RestoreCount++;
+
+        if (!RestoreSucceeds)
+            return false;
+
+        if (point is FakeOnboardingRestorePoint restore)
+            ProductionState = restore.State;
+
+        return true;
+    }
+
+    public void MarkOnboardingCompleted() => MarkCompletedCount++;
+
+    public void ReturnToHome() => ReturnHomeCount++;
+}
+
+// =============================================================================
+// Seams that THROW
+//
+// Thin delegating wrappers around the fakes above, each changing exactly one
+// behaviour the fake cannot express: a seam that raises instead of answering,
+// which is what a real HttpRequestException out of the licence or health service
+// does. A gateway that can only return is what let a throwing ActivateAsync strand
+// IsActivatingLicense with no coverage.
+// =============================================================================
+
+internal sealed class ThrowingOnboardingLicense : IOnboardingLicenseGateway
+{
+    private readonly FakeOnboardingLicense _inner;
+    private readonly bool _probeThrows;
+    private readonly bool _activateThrows;
+
+    public ThrowingOnboardingLicense(FakeOnboardingLicense inner, bool probeThrows, bool activateThrows)
+    {
+        _inner = inner;
+        _probeThrows = probeThrows;
+        _activateThrows = activateThrows;
+    }
+
+    public bool IsActive => _inner.IsActive;
+
+    public async Task<OnboardingLicenseOutcome> ProbeAsync(string key, CancellationToken cancellationToken)
+    {
+        var outcome = await _inner.ProbeAsync(key, cancellationToken);
+        if (_probeThrows)
+            throw new InvalidOperationException("licence probe blew up");
+        return outcome;
+    }
+
+    public async Task<OnboardingLicenseOutcome> ActivateAsync(string key, CancellationToken cancellationToken)
+    {
+        var outcome = await _inner.ActivateAsync(key, cancellationToken);
+        if (_activateThrows)
+            throw new InvalidOperationException("activation blew up");
+        return outcome;
+    }
+}
+
+internal sealed class ThrowingOnboardingProviderKeys : IOnboardingProviderKeyGateway
+{
+    private readonly FakeOnboardingProviderKeys _inner;
+
+    public ThrowingOnboardingProviderKeys(FakeOnboardingProviderKeys inner) => _inner = inner;
+
+    public IReadOnlyList<CloudTranscriptionProvider> Providers => _inner.Providers;
+
+    public string? ValidationError => _inner.ValidationError;
+
+    public Task<ProviderHealth> ProbeAsync(
+        CloudTranscriptionProvider provider,
+        string apiKey,
+        CancellationToken cancellationToken)
+        => Task.FromException<ProviderHealth>(new InvalidOperationException("health endpoint unreachable"));
+
+    public bool Persist(string key, CloudTranscriptionProvider provider) => _inner.Persist(key, provider);
+
+    public bool HasKey(CloudTranscriptionProvider provider) => _inner.HasKey(provider);
+
+    public string CurrentKey(CloudTranscriptionProvider provider) => _inner.CurrentKey(provider);
+}
+
+// =============================================================================
+// Harness
+// =============================================================================
+
+internal sealed class OnboardingHarness
+{
+    public const string SystemDefaultName = "System Default";
+
+    public FakeOnboardingPermissions Permissions { get; } = new();
+    public FakeOnboardingCatalog Catalog { get; } = new();
+    public FakeOnboardingLicense License { get; } = new();
+    public FakeOnboardingCredits Credits { get; } = new();
+    public FakeOnboardingProviderKeys ProviderKeys { get; } = new();
+    public FakeOnboardingAudio Audio { get; } = new();
+    public FakeOnboardingCommitter Committer { get; } = new();
+    public OnboardingFlowViewModel Flow { get; }
+
+    /// <param name="license">
+    /// Substituted for <see cref="License"/> in the flow only. The fake stays
+    /// reachable through the property so a case can still drive and assert on it.
+    /// </param>
+    /// <param name="providerKeys">The same, for <see cref="ProviderKeys"/>.</param>
+    public OnboardingHarness(
+        IOnboardingLicenseGateway? license = null,
+        IOnboardingProviderKeyGateway? providerKeys = null)
+    {
+        Flow = new OnboardingFlowViewModel(
+            Permissions,
+            Catalog,
+            license ?? License,
+            Credits,
+            providerKeys ?? ProviderKeys,
+            Audio,
+            Committer,
+            SystemDefaultName);
+    }
+
+    /// <summary>The most recent asynchronous action, awaitable exactly once it exists.</summary>
+    public Task LastTask => Flow.LastAsyncTaskForTesting ?? Task.CompletedTask;
+
+    /// <summary>Walk to a step, failing loudly at whichever gate refuses.</summary>
+    public void AdvanceTo(OnboardingStep target)
+    {
+        while (Flow.Step < target)
+        {
+            var from = Flow.Step;
+            if (!Flow.Advance())
+                throw new InvalidOperationException($"blocked at {from} on the way to {target}");
+        }
+    }
+
+    /// <summary>Grant the microphone so the permissions gate opens.</summary>
+    public void GrantMicrophone()
+    {
+        Permissions.MicrophoneAuthorization = OnboardingMicrophoneAuthorization.Authorized;
+        Flow.RefreshPermissions();
+    }
+
+    /// <summary>The shortest path to a usable on-device source.</summary>
+    public void StageInstalledOnDeviceModel()
+    {
+        GrantMicrophone();
+        Flow.SelectSource(OnboardingSourceKind.OnDevice);
+        Flow.SelectModel(FakeOnboardingCatalog.Parakeet);
+        Catalog.Installed.Add(FakeOnboardingCatalog.Parakeet.Id);
+    }
+}

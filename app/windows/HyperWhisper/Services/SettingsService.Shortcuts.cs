@@ -117,6 +117,17 @@ public partial class SettingsService
         _settings.StoreAsM4A ??= _settingsFileExists ? false : true;
         _settings.UserChoseAlternateStorage ??= false;
 
+        // FIRST-RUN ONBOARDING
+        // A genuine fresh install has no settings.json yet and is born owing the
+        // flow; every pre-existing file defaults to false. No LatestSettingsVersion
+        // bump: the ??= is already correct for both old and new files.
+        //
+        // Consequence the verification path depends on: settings.json lives under
+        // AppPaths.AppDataRoot, so a scratch profile pointed at by
+        // HYPERWHISPER_WINDOWS_APPDATA_ROOT has no settings file and is therefore
+        // born with OnboardingPending == true.
+        _settings.OnboardingPending ??= !_settingsFileExists;
+
         // GENERAL DEFAULTS
         _settings.AutoPasteEnabled ??= true;
         _settings.KeepMicrophoneWarm ??= false;

@@ -15,21 +15,19 @@ export type { CachedLicense, RedisStore, RedisStoreFactory } from './redis-core'
 // Initialize Redis client (lazy initialization for testing without Redis)
 let _redis: Redis | null = null;
 
-// This is the transcription service's Upstash pair, named WITHOUT the
-// `_REST_` infix the Next.js site uses. That site reads
-// UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN in
-// `nextjs/lib/clients/redis.ts`. Both go through the same @upstash/redis
-// client over the same REST protocol, so a cross-wired value fails silently
-// as a cache that answers the wrong service's keys rather than as a
-// connection error. Keep the two name pairs distinct, and check which
-// service you are in before you touch either one.
+// The transcription service's own Upstash database. The Next.js site has a
+// separate one behind UPSTASH_REDIS_SITE_* (`nextjs/lib/clients/redis.ts`).
+// Both go through the same @upstash/redis client against the same REST
+// protocol, so a swapped value fails silently — as a cache answering the
+// other service's keys, not as a connection error. The SITE / CLOUD segment
+// is the only thing separating them; keep it accurate.
 function getRedis(): Redis {
   if (!_redis) {
-    const url = process.env.UPSTASH_REDIS_URL;
-    const token = process.env.UPSTASH_REDIS_TOKEN;
+    const url = process.env.UPSTASH_REDIS_CLOUD_URL;
+    const token = process.env.UPSTASH_REDIS_CLOUD_TOKEN;
 
     if (!url || !token) {
-      throw new Error('UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN are required');
+      throw new Error('UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required');
     }
 
     _redis = new Redis({ url, token });

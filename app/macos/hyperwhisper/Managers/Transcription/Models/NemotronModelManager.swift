@@ -92,6 +92,64 @@ final class NemotronModelManager: ObservableObject {
         // Required file inside a downloaded variant — matches FluidAudio's own
         // cache-reuse probe in downloadVariant.
         static let metadataFileName = "metadata.json"
+
+        /// Engine spellings the Local API accepts for `engine=`. Both call
+        /// sites lowercase the caller's string first, so every entry here is
+        /// lowercase.
+        ///
+        /// This is ONE list matched by two independently maintained switches —
+        /// `TranscriptionProviderRouter.resolveProvider` and
+        /// `TranscribeEndpoint.applyEngineModel`. They were literal copies of
+        /// each other, and the router's arm cannot be unit-tested in this
+        /// target (it needs live providers and `Bundle.main`), so deleting a
+        /// spelling from one and not the other would have turned a working
+        /// `engine=` into `Unknown engine` with every test still green.
+        /// Sharing the list makes that drift impossible rather than merely
+        /// observable; `NemotronLocalAPIEngineTests` pins the contents so the
+        /// spellings themselves cannot change unnoticed.
+        static let engineAliases: Set<String> = [
+            "nemotron",
+            "nemotronlocal",
+            "nemotron-local",
+            "nemotron-asr"
+        ]
+
+        /// Resolve supported persisted aliases to the exact identifiers used
+        /// by the model library. Coercing an unknown identifier to a real
+        /// variant would make a typo select a real model, so anything that is
+        /// not a known variant returns nil.
+        ///
+        /// Normalises (trim + lowercase) and then defers to
+        /// `NemotronModelManager.variant(forModelId:)`, which is the app's
+        /// existing owner of "is this a real Nemotron id" — the provider path
+        /// and the on-disk variant lookup already go through it. Keeping a
+        /// second id list here let the Local API accept an id the provider
+        /// would then reject. The switch below is exhaustive over `Variant`,
+        /// so a third variant is a compile error at this site rather than a
+        /// silently missing arm. Same shape as `supportedLanguages(forModelId:)`.
+        static func canonicalModelId(for modelId: String) -> String? {
+            let normalized = modelId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            switch NemotronModelManager.variant(forModelId: normalized) {
+            case .latin:
+                return latinModelId
+            case .multilingual:
+                return multilingualModelId
+            case .none:
+                return nil
+            }
+        }
+
+        /// Local API requests default an omitted Nemotron model to the
+        /// multilingual variant, matching `SettingsManager.defaultStreamingNemotronVariant`.
+        /// Preserve unknown explicit values so the provider router can reject
+        /// them instead of silently changing the requested model.
+        static func modelIdForSelection(_ modelId: String?) -> String {
+            guard let trimmed = modelId?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else {
+                return multilingualModelId
+            }
+            return canonicalModelId(for: trimmed) ?? trimmed
+        }
     }
 
     // LATIN VARIANT — vocab-pruned, fast path:
@@ -253,6 +311,11 @@ final class NemotronModelManager: ObservableObject {
     // VARIANT FROM MODEL ID:
     // Maps Constants.latinModelId / Constants.multilingualModelId to the on-disk variant.
     // Returns nil for any unrelated model id (e.g. a Parakeet/Qwen3 id).
+    //
+    // THE single id->variant list. `Constants.canonicalModelId(for:)` normalises and
+    // then calls this, so a new variant is registered here once and both the Local API
+    // and the provider path agree about what a real Nemotron id is. Matching is exact —
+    // callers that accept user input normalise before calling.
     //
     // Marked nonisolated because the @MainActor class isolation otherwise pins these
     // pure helpers to the main actor, which would forbid use from the (background)

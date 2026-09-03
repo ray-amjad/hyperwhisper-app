@@ -14609,6 +14609,53 @@ public func localApiIsWellFormedToken(token: String) -> Bool {
 })
 }
 /**
+ * The longest base64 string that can decode to
+ * [`local_api_max_upload_bytes`] or fewer bytes.
+ *
+ * Check the trimmed string's length against this **before** decoding. That
+ * pre-check is the half of #375 that stops the amplification: without it a
+ * caller makes the head allocate the decoded buffer only to be told the
+ * decoded buffer is too big. Derived from the upload cap, not the request cap
+ * — same as `PortableLocalApi.cs:244`.
+ */
+public func localApiMaxBase64LengthForUpload() -> UInt64 {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_max_base64_length_for_upload($0
+    )
+})
+}
+/**
+ * The largest request body any head accepts, in bytes: 50 MiB.
+ *
+ * A constant rather than a magic `52_428_800` in three heads, for the same
+ * reason as [`local_api_token_entropy_bytes`]. macOS shipped no cap at all
+ * (#375): `HTTPServer` takes an address and a timeout, and every write
+ * endpoint read the whole body with `try await request.bodyData`, so the
+ * caller chose the app's peak resident memory. The number is
+ * `PortableLocalApiOptions.MaxRequestBytes` (`PortableLocalApi.cs:18`), which
+ * the Linux head already enforces.
+ */
+public func localApiMaxRequestBytes() -> UInt64 {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_max_request_bytes($0
+    )
+})
+}
+/**
+ * The largest piece of audio any head accepts, in bytes: 48 MiB.
+ *
+ * `PortableLocalApiOptions.MaxUploadBytes` (`PortableLocalApi.cs:19`).
+ * Applies to the decoded bytes of an `audio_base64` payload and to a
+ * multipart `audio` part — the two shapes a head buffers whole. Always less
+ * than or equal to [`local_api_max_request_bytes`].
+ */
+public func localApiMaxUploadBytes() -> UInt64 {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_max_upload_bytes($0
+    )
+})
+}
+/**
  * Whether a decision means "dispatch it".
  *
  * A head can match the enum instead. This exists so the common case is one
@@ -14618,6 +14665,21 @@ public func localApiOriginDecisionIsAllowed(decision: HwLocalApiOriginDecision) 
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(
         FfiConverterTypeHwLocalApiOriginDecision.lower(decision),$0
+    )
+})
+}
+/**
+ * The response an over-sized request body gets, byte for byte what the Linux
+ * head already sends (`PortableLocalApi.cs:185`).
+ *
+ * **HTTP 200 carrying `INVALID_REQUEST`, not 413.** #375 suggests a 413, but
+ * a 413 wants a `PAYLOAD_TOO_LARGE` code, and that is one of the four codes
+ * outside the closed 14 — a client sharing the macOS `Codable` decoder cannot
+ * decode *any* envelope carrying it. See the `failure.rs` module docs.
+ */
+public func localApiRequestTooLargeFailure() -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_request_too_large_failure($0
     )
 })
 }
@@ -14657,6 +14719,20 @@ public func localApiUnauthorizedFailure(hint: String?) -> HwLocalApiFailure {
     return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(
         FfiConverterOptionString.lower(hint),$0
+    )
+})
+}
+/**
+ * The response an over-sized audio upload gets, byte for byte what the Linux
+ * head already sends (`PortableLocalApi.cs:193`, `:245`, `:251`).
+ *
+ * One message for the multipart part, the base64 string before decoding and
+ * the decoded bytes alike — a caller cannot tell those apart and the .NET head
+ * does not distinguish them either. HTTP 200 carrying `INVALID_REQUEST`.
+ */
+public func localApiUploadTooLargeFailure() -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_upload_too_large_failure($0
     )
 })
 }
@@ -15947,7 +16023,19 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token() != 22695) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_max_base64_length_for_upload() != 19309) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_max_request_bytes() != 17134) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes() != 24328) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed() != 27804) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure() != 64254) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes() != 13421) {
@@ -15957,6 +16045,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure() != 22025) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure() != 37577) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json() != 44899) {

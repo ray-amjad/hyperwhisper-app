@@ -265,7 +265,7 @@ final class LocalAPIServer: ObservableObject {
         }
 
         await server.appendRoute("POST /modes") { [weak self] request in
-            await self?.guarded(request) { await $0.authorized(request) { await $0.handleModeCreate(request: request) } } ?? Self.shuttingDown
+            await self?.guarded(request) { await $0.authorized(request) { await $0.bodied(request) { await $0.handleModeCreate(body: $1) } } } ?? Self.shuttingDown
         }
 
         await server.appendRoute("GET /modes/:id") { [weak self] request in
@@ -273,7 +273,7 @@ final class LocalAPIServer: ObservableObject {
         }
 
         await server.appendRoute("PATCH /modes/:id") { [weak self] request in
-            await self?.guarded(request) { await $0.authorized(request) { await $0.handleModePatch(request: request) } } ?? Self.shuttingDown
+            await self?.guarded(request) { await $0.authorized(request) { await $0.bodied(request) { await $0.handleModePatch(request: request, body: $1) } } } ?? Self.shuttingDown
         }
 
         await server.appendRoute("DELETE /modes/:id") { [weak self] request in
@@ -281,11 +281,11 @@ final class LocalAPIServer: ObservableObject {
         }
 
         await server.appendRoute("POST /transcribe") { [weak self] request in
-            await self?.guarded(request) { await $0.authorized(request) { await $0.handleTranscribe(request: request) } } ?? Self.shuttingDown
+            await self?.guarded(request) { await $0.authorized(request) { await $0.bodied(request) { await $0.handleTranscribe(body: $1) } } } ?? Self.shuttingDown
         }
 
         await server.appendRoute("POST /post-process") { [weak self] request in
-            await self?.guarded(request) { await $0.authorized(request) { await $0.handlePostProcess(request: request) } } ?? Self.shuttingDown
+            await self?.guarded(request) { await $0.authorized(request) { await $0.bodied(request) { await $0.handlePostProcess(body: $1) } } } ?? Self.shuttingDown
         }
 
         await server.appendRoute("GET /recordings/search") { [weak self] request in
@@ -347,6 +347,47 @@ final class LocalAPIServer: ObservableObject {
         return await body(self)
     }
 
+    /// Read the request body once, bounded at the shared cap, and hand the
+    /// bytes to `body` — or answer with the refusal instead (issue #375).
+    ///
+    /// The third cross-cutting wrapper, and here for the same reason as the
+    /// other two. The origin guard and the bearer check are applied in the route
+    /// table, one line per route, so a new route that forgets one is visible in
+    /// the diff next to eleven that do not. The body cap used to be applied
+    /// inside four endpoint bodies instead, four copies of the same five lines,
+    /// where a fifth body-reading endpoint would simply have written
+    /// `try await request.bodyData` — the idiom every one of those files used
+    /// before #375 — and been silently uncapped again.
+    ///
+    /// Two consequences worth naming, because they are the point rather than
+    /// side effects:
+    ///
+    /// - `TranscribeEndpoint.handle`, `PostProcessEndpoint.handle` and
+    ///   `ModesEndpoint.create` no longer take an `HTTPRequest` at all. They
+    ///   take `Data`. They cannot read an unbounded body because they are not
+    ///   handed anything that has one. `ModesEndpoint.patch` still takes the
+    ///   request, for its `:id` path parameter only.
+    /// - `PATCH /modes/:id` now reads its body *before* the mode-existence
+    ///   check rather than after it. The check was only ordered first to keep a
+    ///   view-context `Mode` from being retained across the body suspension
+    ///   point, and it never retained one — it is a count fetch returning
+    ///   `Bool`. The single observable change is that a PATCH carrying an
+    ///   over-cap body to an id that does not exist now answers
+    ///   "Request exceeds the configured limit." instead of "No mode with id";
+    ///   both are HTTP 200 business failures, and refusing the oversized body
+    ///   first is the more useful of the two.
+    ///
+    /// `LocalAPIBodyLimitTests.theOnlyBodyReadInTheLocalApiIsTheBoundedOne` is
+    /// the mechanical guard that keeps this the only body read in the tree.
+    private func bodied(_ request: HTTPRequest, _ body: (LocalAPIServer, Data) async -> HTTPResponse) async -> HTTPResponse {
+        switch await LocalAPIBodyLimit.read(request) {
+        case .body(let data):
+            return await body(self, data)
+        case .rejected(let response):
+            return response
+        }
+    }
+
     // MARK: - Endpoint trampolines (real impls live in Endpoints/)
 
     private func handleHealth() async -> HTTPResponse {
@@ -355,6 +396,7 @@ final class LocalAPIServer: ObservableObject {
             cloudHealth: cloudHealth,
             whisperModelManager: whisperModelManager,
             parakeetModelManager: parakeetModelManager,
+            nemotronModelManager: nemotronModelManager,
             qwen3AsrModelManager: qwen3AsrModelManager,
             localModelManager: localModelManager,
             settingsManager: settingsManager
@@ -369,28 +411,28 @@ final class LocalAPIServer: ObservableObject {
         await ModesEndpoint.list()
     }
 
-    private func handleModeCreate(request: HTTPRequest) async -> HTTPResponse {
-        await ModesEndpoint.create(request: request)
+    private func handleModeCreate(body: Data) async -> HTTPResponse {
+        await ModesEndpoint.create(body: body)
     }
 
     private func handleModeGet(request: HTTPRequest) async -> HTTPResponse {
         await ModesEndpoint.get(request: request)
     }
 
-    private func handleModePatch(request: HTTPRequest) async -> HTTPResponse {
-        await ModesEndpoint.patch(request: request)
+    private func handleModePatch(request: HTTPRequest, body: Data) async -> HTTPResponse {
+        await ModesEndpoint.patch(request: request, body: body)
     }
 
     private func handleModeDelete(request: HTTPRequest) async -> HTTPResponse {
         await ModesEndpoint.delete(request: request)
     }
 
-    private func handleTranscribe(request: HTTPRequest) async -> HTTPResponse {
-        await TranscribeEndpoint.handle(request: request, transcriptionPipeline: transcriptionPipeline)
+    private func handleTranscribe(body: Data) async -> HTTPResponse {
+        await TranscribeEndpoint.handle(body: body, transcriptionPipeline: transcriptionPipeline)
     }
 
-    private func handlePostProcess(request: HTTPRequest) async -> HTTPResponse {
-        await PostProcessEndpoint.handle(request: request, transcriptionPipeline: transcriptionPipeline)
+    private func handlePostProcess(body: Data) async -> HTTPResponse {
+        await PostProcessEndpoint.handle(body: body, transcriptionPipeline: transcriptionPipeline)
     }
 
     private func handleRecordingsSearch(request: HTTPRequest) async -> HTTPResponse {

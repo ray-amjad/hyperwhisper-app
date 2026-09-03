@@ -104,6 +104,55 @@ public static class CloudTranscriptionProviderExtensions
     };
 
     /// <summary>
+    /// Whether a content-free health probe can say anything about this vendor's
+    /// API key.
+    ///
+    /// False for Meta MuseSTT alone: it documents no validation endpoint, so
+    /// CloudProviderHealthService answers <c>ProviderHealth.Unknown</c> for it
+    /// unconditionally and a caller that waits for <c>Healthy</c> waits forever. A
+    /// present Meta key is CONFIGURED but unvalidated until the first
+    /// transcription, and callers have to be able to say that rather than treat
+    /// the silence as a failure.
+    ///
+    /// Single-sourced here because both sides need it: the health service, which
+    /// produces the Unknown, and the onboarding Configure step, which has to open
+    /// its gate on it. #393 shipped Meta with full BYOK support and left the two
+    /// facts in one file; the onboarding chip strip made that a dead end.
+    /// </summary>
+    public static bool SupportsKeyHealthProbe(this CloudTranscriptionProvider provider) =>
+        provider != CloudTranscriptionProvider.Meta;
+
+    /// <summary>
+    /// The bare file name, without extension, of this provider's logo under
+    /// Assets/Providers. Single-sourced here because two places need it:
+    /// ModelLibraryManager builds LibraryModel.ProviderAssetName from it, and the
+    /// onboarding Configure step draws the same marks on its provider chips.
+    /// GeminiTranscribe is the same vendor as Gemini and deliberately reuses the
+    /// Gemini logo rather than shipping a duplicate PNG. "providerMeta" is a
+    /// sentinel with no PNG behind it: LibraryModel draws a monogram for it
+    /// instead, so nothing may build an image path from it unguarded.
+    ///
+    /// Use <see cref="TryGetAssetPath"/> to build a pack URI. Do not concatenate.
+    /// </summary>
+    public static string GetAssetName(this CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.OpenAI => "providerOpenAI",
+        CloudTranscriptionProvider.Groq => "providerGroq",
+        CloudTranscriptionProvider.Deepgram => "providerDeepgram",
+        CloudTranscriptionProvider.AssemblyAI => "providerAssemblyAI",
+        CloudTranscriptionProvider.ElevenLabs => "providerElevenLabs",
+        CloudTranscriptionProvider.Mistral => "providerMistral",
+        CloudTranscriptionProvider.Soniox => "providerSoniox",
+        CloudTranscriptionProvider.Gemini => "providerGemini",
+        CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
+        CloudTranscriptionProvider.Meta => "providerMeta",
+        CloudTranscriptionProvider.Grok => "providerGrok",
+        CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
+        CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
+        _ => "providerLocalWhisper"
+    };
+
+    /// <summary>
     /// Gets the string identifier used in Mode.CloudProvider field.
     /// Used for JSON serialization and cross-platform compatibility.
     /// </summary>
