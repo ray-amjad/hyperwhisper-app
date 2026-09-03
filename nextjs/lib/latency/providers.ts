@@ -74,7 +74,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
   {
     sttProvider: "grok",
     vendor: "xai",
-    vendorDisplayName: "xAI",
+    vendorDisplayName: "SpaceXAI",
     models: [
       // Empty id, like the catalog: the endpoint takes no model parameter, so
       // the ingest stores null and modelDisplayName() normalises the two.

@@ -3138,7 +3138,7 @@ internal static class Program
                     (StreamingTranscriptionProvider.Deepgram, "Deepgram (Streaming)", 16000, true),
                     (StreamingTranscriptionProvider.ElevenLabs, "ElevenLabs (Streaming)", 16000, false),
                     (StreamingTranscriptionProvider.OpenAI, "OpenAI (Streaming)", 24000, false),
-                    (StreamingTranscriptionProvider.Xai, "xAI (Streaming)", 16000, true),
+                    (StreamingTranscriptionProvider.Xai, "SpaceXAI (Streaming)", 16000, true),
                 };
 
                 foreach (var (provider, label, sampleRate, vocabulary) in expected)
