@@ -37,16 +37,15 @@ internal static class TranscribeEndpoints
     {
         app.MapPost("/transcribe", async (HttpContext ctx) =>
         {
-            TranscribeRequest? req;
-            try
+            // An over-limit body is a 200 + INVALID_REQUEST business failure,
+            // not the 400 "Invalid JSON body" the old bare catch produced —
+            // that answer told a caller its 60 MB upload was malformed.
+            var (req, bodyFailure) = await LocalApiLimits.ReadJsonBodyAsync<TranscribeRequest>(
+                ctx,
+                "Required: file (absolute path) plus either mode_id, or engine + model.");
+            if (bodyFailure != null)
             {
-                req = await ctx.Request.ReadFromJsonAsync<TranscribeRequest>(LocalApiResponder.JsonOptions);
-            }
-            catch
-            {
-                return LocalApiResponder.BadRequest(
-                    "Invalid JSON body",
-                    "Required: file (absolute path) plus either mode_id, or engine + model.");
+                return bodyFailure;
             }
             if (req == null)
             {
@@ -321,7 +320,12 @@ internal static class TranscribeEndpoints
     /// path on disk. Returns the path and a flag the caller uses in its
     /// `finally` to clean up only temp files this method created.
     /// </summary>
-    private static (string path, bool isTempFile, FileStream? readLock) ResolveAudioSource(TranscribeRequest req)
+    /// <remarks>
+    /// <c>internal</c> so the smoke suite can drive the two upload caps — the
+    /// base64 pre-check and the <c>file</c> cap — through the production
+    /// resolver rather than a copy of it.
+    /// </remarks>
+    internal static (string path, bool isTempFile, FileStream? readLock) ResolveAudioSource(TranscribeRequest req)
     {
         var trimmedFile = req.File?.Trim();
         var trimmedBase64 = req.AudioBase64?.Trim();
@@ -480,6 +484,22 @@ internal static class TranscribeEndpoints
                             + "or pass a file inside the configured recordings folder.");
                 }
 
+                // Cap the `file` path at the shared upload limit, as
+                // PortableLocalApi.cs:340-341 does. The size comes off the
+                // ALREADY-OPEN handle: sourceStream.Length asks the file system
+                // about this handle, so it describes the same bytes the snapshot
+                // below copies. A fresh File/FileInfo stat of the caller's path
+                // would reopen the time-of-check/time-of-use window the snapshot
+                // exists to close (#740) — the caller could swap a small file
+                // for a large one between the stat and the copy.
+                if (LocalApiLimits.ExceedsUploadLimit(sourceStream.Length))
+                {
+                    throw new ApiInputException(
+                        LocalApiLimits.UploadTooLarge.Code,
+                        LocalApiLimits.UploadTooLarge.Message,
+                        LocalApiLimits.UploadTooLarge.Hint);
+                }
+
                 var snapshotPath = CreateLocalApiSnapshotPath(openedPath);
                 try
                 {
@@ -523,6 +543,22 @@ internal static class TranscribeEndpoints
         }
 
         // base64 path
+        //
+        // Two guards, both mirroring PortableLocalApi.cs:244-251. The FIRST one
+        // is the one that matters: it bounds the ENCODED string before
+        // Convert.FromBase64String is asked to allocate anything, so a caller
+        // cannot make this head materialise the decoded buffer only to be told
+        // the decoded buffer is too big. The second bounds the decoded bytes.
+        // Both answer with the shared "Audio exceeds the configured upload
+        // limit." envelope — HTTP 200 + INVALID_REQUEST, never a 413.
+        if (LocalApiLimits.ExceedsBase64UploadLimit(trimmedBase64!.Length))
+        {
+            throw new ApiInputException(
+                LocalApiLimits.UploadTooLarge.Code,
+                LocalApiLimits.UploadTooLarge.Message,
+                LocalApiLimits.UploadTooLarge.Hint);
+        }
+
         byte[] data;
         try
         {
@@ -533,6 +569,19 @@ internal static class TranscribeEndpoints
             throw new ApiInputException(
                 LocalApiErrorCode.AudioDecodeFailed,
                 "'audio_base64' is not valid base64");
+        }
+
+        // Belt to the pre-check's braces. The encoded cap is derived from the
+        // decoded cap, so a string that passes the first check cannot decode to
+        // more than MaxUploadBytes today — but the two caps are independent
+        // shared constants and this head must not be the one that assumes their
+        // relationship.
+        if (LocalApiLimits.ExceedsUploadLimit(data.LongLength))
+        {
+            throw new ApiInputException(
+                LocalApiLimits.UploadTooLarge.Code,
+                LocalApiLimits.UploadTooLarge.Message,
+                LocalApiLimits.UploadTooLarge.Hint);
         }
 
         var ext = ExtensionForMime(req.MimeType);
@@ -969,7 +1018,11 @@ internal static class TranscribeEndpoints
     // Helpers
     // =========================================================================
 
-    private sealed class ApiInputException : Exception
+    /// <remarks>
+    /// <c>internal</c> for the same reason as <see cref="ResolveAudioSource"/>:
+    /// the smoke suite asserts the wire code and message this carries.
+    /// </remarks>
+    internal sealed class ApiInputException : Exception
     {
         public string Code { get; }
         public string? Hint { get; }

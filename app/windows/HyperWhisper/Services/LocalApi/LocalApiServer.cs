@@ -275,7 +275,13 @@ public sealed class LocalApiServer : INotifyPropertyChanged
 
     // MARK: - Kestrel host construction
 
-    private WebApplication BuildApp(int preferredPort)
+    /// <summary>
+    /// Construct the Kestrel host and its route table. <c>internal</c> so the
+    /// smoke suite can assert the configured limits on the REAL host rather
+    /// than on a look-alike it built itself; nothing binds a socket until
+    /// <c>StartAsync</c>.
+    /// </summary>
+    internal WebApplication BuildApp(int preferredPort)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
@@ -287,6 +293,10 @@ public sealed class LocalApiServer : INotifyPropertyChanged
             // Kestrel's defaults — match macOS's 600 s ceiling.
             options.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(600);
             options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(600);
+            // Bound the body at the shared 50 MiB cap. Without this line
+            // Kestrel keeps its own 30,000,000-byte default — an accidental cap
+            // at a number no other head enforces. See LocalApiLimits.
+            LocalApiLimits.ApplyRequestBodyLimit(options);
             options.Listen(IPAddress.Loopback, preferredPort);
         });
 

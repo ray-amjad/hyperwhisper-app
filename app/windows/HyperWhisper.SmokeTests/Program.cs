@@ -43,9 +43,17 @@ using HyperWhisper.Views.Controls.Onboarding;
 using HyperWhisper.Views.Pages.Onboarding;
 using HyperWhisper.Views.Pages.Settings;
 using HyperWhisper.Views.Windows;
+// Safe to import, unlike Microsoft.AspNetCore.Http: none of these collide with
+// the UniFFI binding's own type names. The Local API size-limit checks build a
+// real Kestrel listener, which needs the builder, the host and the logging
+// extension methods.
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using uniffi.hyperwhisper_core;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 // Aliased, not imported: HyperWhisper.SharedCore also declares
@@ -5859,6 +5867,279 @@ internal static class Program
             });
 
             // =================================================================
+            // Local API request-size limits (issue #375, the Windows half)
+            //
+            // #405 bounded macOS and moved the two caps into hw-localapi. It
+            // deliberately skipped Windows, which is a SEPARATE implementation:
+            // app/windows/.../LocalApi references neither PortableLocalApi nor
+            // LocalApiHost, so nothing the portable head enforces ever reached
+            // it. What it actually had was Kestrel's OWN default of 30,000,000
+            // bytes — an accidental cap, at a number no other head uses — and a
+            // bare `catch` around every JSON body read that turned Kestrel's
+            // rejection into HTTP 400 "Invalid JSON body".
+            //
+            // These pin the four things that were wrong, in the order they were
+            // wrong: the configured cap, the failure shape, the two base64
+            // guards, and the `file` cap.
+            //
+            // As with #289 above, they test the SEAM. The numbers and the
+            // envelope text are the Rust crate's, and its own suite fuzzes
+            // them; what can go wrong here is a limit that never reaches
+            // Kestrel, an exception the head misreads, or a guard on a path
+            // nothing calls.
+            // =================================================================
+
+            Run("the Kestrel host bounds the request body at the shared cap", () =>
+            {
+                var maxRequest = (long)HyperwhisperCoreMethods.LocalApiMaxRequestBytes();
+                var maxUpload = (long)HyperwhisperCoreMethods.LocalApiMaxUploadBytes();
+                var maxBase64 = (long)HyperwhisperCoreMethods.LocalApiMaxBase64LengthForUpload();
+
+                Assert(maxUpload <= maxRequest,
+                    $"the shared upload cap {maxUpload} is above the request cap {maxRequest}");
+                Assert(LocalApiLimits.MaxRequestBytes == maxRequest,
+                    $"LocalApiLimits.MaxRequestBytes is {LocalApiLimits.MaxRequestBytes}, the shared core says {maxRequest}");
+                Assert(LocalApiLimits.MaxUploadBytes == maxUpload,
+                    $"LocalApiLimits.MaxUploadBytes is {LocalApiLimits.MaxUploadBytes}, the shared core says {maxUpload}");
+                Assert(LocalApiLimits.MaxBase64LengthForUpload == maxBase64,
+                    $"LocalApiLimits.MaxBase64LengthForUpload is {LocalApiLimits.MaxBase64LengthForUpload}, the shared core says {maxBase64}");
+
+                // The REAL host, not a look-alike built here: BuildApp is what
+                // Start() calls, and reading the limit back off its options is
+                // the only way to prove the configure delegate ran. Nothing
+                // binds a socket until StartAsync, so this costs no port.
+                var app = LocalApiServer.Instance.BuildApp(0);
+                try
+                {
+                    var kestrel = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                        .GetRequiredService<Microsoft.Extensions.Options.IOptions<
+                            Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>>(app.Services)
+                        .Value;
+                    Assert(kestrel.Limits.MaxRequestBodySize == maxRequest,
+                        $"the Local API host caps the body at {kestrel.Limits.MaxRequestBodySize?.ToString() ?? "null"}, "
+                            + $"the shared core says {maxRequest}. Kestrel's own default is 30000000 — if that is the "
+                            + "number above, ConfigureKestrel lost its LocalApiLimits.ApplyRequestBodyLimit call.");
+                }
+                finally
+                {
+                    app.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                }
+            });
+
+            RunAsync("an over-limit body answers 200 + INVALID_REQUEST, never 400 and never 413", async () =>
+            {
+                var tooLarge = HyperwhisperCoreMethods.LocalApiRequestTooLargeFailure();
+                var cap = LocalApiLimits.MaxRequestBytes;
+
+                // A real Kestrel listener on an ephemeral loopback port,
+                // configured through the same ApplyRequestBodyLimit the server
+                // uses and answering through the same ReadJsonBodyAsync every
+                // route on this head now calls. A DefaultHttpContext could not
+                // prove any of this: the rejection is Kestrel's, raised from
+                // inside the body read.
+                var builder = WebApplication.CreateSlimBuilder();
+                builder.Logging.ClearProviders();
+                builder.WebHost.ConfigureKestrel(options =>
+                {
+                    LocalApiLimits.ApplyRequestBodyLimit(options);
+                    options.Listen(IPAddress.Loopback, 0);
+                });
+                await using var app = builder.Build();
+                app.MapPost("/probe", async (Microsoft.AspNetCore.Http.HttpContext ctx) =>
+                {
+                    var (dto, failure) = await LocalApiLimits.ReadJsonBodyAsync<ModeDto>(
+                        ctx, "Required: name. See /modes GET for the full shape.");
+                    return failure ?? LocalApiResponder.Ok(new { ok = true, name = dto?.Name ?? "" });
+                });
+                await app.StartAsync();
+                try
+                {
+                    var port = app.Services
+                        .GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+                        .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!
+                        .Addresses.Select(address => new Uri(address).Port).First(p => p > 0);
+                    using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+
+                    // 1. One byte over, declared in Content-Length. `>` not
+                    //    `>=`, the same edge macOS pins in
+                    //    `exactlyTheCapIsAccepted`.
+                    var oversized = NameJsonOfExactly(cap + 1);
+                    using (var response = await client.PostAsync("/probe", JsonBytes(oversized)))
+                    {
+                        var (status, code, message) = await ReadFailureEnvelope(response);
+                        Assert(status == 200,
+                            $"an over-limit body answered HTTP {status}. It must be 200: 400 is what the old bare "
+                                + "catch sent, and 413 wants a PAYLOAD_TOO_LARGE code that is outside the closed 14.");
+                        Assert(code == "INVALID_REQUEST", $"an over-limit body answered code {code}");
+                        Assert(message == tooLarge.message,
+                            $"the request-limit message is \"{message}\", the shared core says \"{tooLarge.message}\"");
+                    }
+
+                    // 2. The same overflow with NO Content-Length, so the
+                    //    pre-check cannot see it and Kestrel's own counter is
+                    //    what refuses: BadHttpRequestException with StatusCode
+                    //    413, raised from inside ReadFromJsonAsync. This is the
+                    //    exception the bare catch used to swallow.
+                    using (var response = await client.PostAsync("/probe", new ChunkedBytesContent(oversized)))
+                    {
+                        var (status, code, message) = await ReadFailureEnvelope(response);
+                        Assert(status == 200,
+                            $"a chunked over-limit body answered HTTP {status}; Kestrel's 413 must not reach the wire");
+                        Assert(code == "INVALID_REQUEST", $"a chunked over-limit body answered code {code}");
+                        Assert(message == tooLarge.message,
+                            $"the chunked request-limit message is \"{message}\", the shared core says \"{tooLarge.message}\"");
+                    }
+                    oversized = null!;
+
+                    // 3. The accepting side of the boundary. A body of EXACTLY
+                    //    the cap is served; assert only that the size guard is
+                    //    not what answered.
+                    using (var response = await client.PostAsync("/probe", JsonBytes(NameJsonOfExactly(cap))))
+                    {
+                        var body = await response.Content.ReadAsStringAsync();
+                        Assert((int)response.StatusCode == 200,
+                            $"a body of exactly {cap} bytes answered HTTP {(int)response.StatusCode}");
+                        Assert(!body.Contains(tooLarge.message, StringComparison.Ordinal),
+                            $"a body of exactly {cap} bytes was refused for its size; the cap is inclusive on every head");
+                    }
+
+                    // 4. A genuinely malformed body keeps the answer it has
+                    //    always had. The point of the fix is that "too big" and
+                    //    "malformed" stopped being the same reply.
+                    using (var response = await client.PostAsync(
+                        "/probe", new ByteArrayContent("{\"name\": "u8.ToArray())
+                        {
+                            Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
+                        }))
+                    {
+                        var (status, code, message) = await ReadFailureEnvelope(response);
+                        Assert(status == 400, $"malformed JSON answered HTTP {status}, it must stay 400");
+                        Assert(code == "INVALID_REQUEST", $"malformed JSON answered code {code}");
+                        Assert(message == "Invalid JSON body",
+                            $"malformed JSON now says \"{message}\"; a caller can no longer tell it from an over-limit body");
+                    }
+                }
+                finally
+                {
+                    await app.StopAsync();
+                }
+
+                static byte[] NameJsonOfExactly(long totalBytes)
+                {
+                    const string prefix = "{\"name\":\"";
+                    const string suffix = "\"}";
+                    var bytes = new byte[totalBytes];
+                    System.Text.Encoding.ASCII.GetBytes(prefix).CopyTo(bytes, 0);
+                    bytes.AsSpan(prefix.Length, bytes.Length - prefix.Length - suffix.Length).Fill((byte)'x');
+                    System.Text.Encoding.ASCII.GetBytes(suffix).CopyTo(bytes, bytes.Length - suffix.Length);
+                    return bytes;
+                }
+
+                static ByteArrayContent JsonBytes(byte[] payload) => new(payload)
+                {
+                    Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
+                };
+
+                static async Task<(int Status, string? Code, string? Message)> ReadFailureEnvelope(HttpResponseMessage response)
+                {
+                    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                    var error = document.RootElement.GetProperty("error");
+                    return ((int)response.StatusCode,
+                        error.GetProperty("code").GetString(),
+                        error.GetProperty("message").GetString());
+                }
+            });
+
+            Run("the audio_base64 guards refuse an oversized clip before decoding it", () =>
+            {
+                var tooLarge = HyperwhisperCoreMethods.LocalApiUploadTooLargeFailure();
+
+                // Both comparisons are `>`, so exactly the cap is accepted.
+                Assert(!LocalApiLimits.ExceedsBase64UploadLimit(LocalApiLimits.MaxBase64LengthForUpload),
+                    "a base64 string of exactly the encoded cap must be accepted");
+                Assert(LocalApiLimits.ExceedsBase64UploadLimit(LocalApiLimits.MaxBase64LengthForUpload + 1),
+                    "one character over the encoded cap must be refused");
+                Assert(!LocalApiLimits.ExceedsUploadLimit(LocalApiLimits.MaxUploadBytes),
+                    "audio of exactly the upload cap must be accepted");
+                Assert(LocalApiLimits.ExceedsUploadLimit(LocalApiLimits.MaxUploadBytes + 1),
+                    "one byte over the upload cap must be refused");
+
+                // The encoded cap is derived from the decoded cap, so no string
+                // that clears the pre-check can decode past MaxUploadBytes —
+                // the post-decode guard is unreachable from here, exactly as
+                // PortableLocalApi.cs:251 is unreachable without a shrunken
+                // fixture cap. The boundary assertions above are its coverage.
+                Assert(LocalApiLimits.MaxBase64LengthForUpload / 4 * 3 <= LocalApiLimits.MaxUploadBytes,
+                    "the encoded cap now admits a string that decodes past the upload cap; the post-decode guard "
+                        + "in ResolveAudioSource is no longer unreachable and needs a round-trip test of its own");
+
+                // The production resolver, driven through the pre-check. If the
+                // guard were missing this would allocate the decoded buffer
+                // first — which is the amplification #375 is about.
+                var request = new TranscribeRequest
+                {
+                    AudioBase64 = new string('A', checked((int)LocalApiLimits.MaxBase64LengthForUpload) + 1),
+                    MimeType = "audio/wav"
+                };
+                var refusal = CaptureApiInputException(() =>
+                    HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(request));
+                Assert(refusal.Code == LocalApiErrorCode.InvalidRequest,
+                    $"an oversized audio_base64 answered code {refusal.Code}; every size refusal is INVALID_REQUEST");
+                Assert(refusal.Message == tooLarge.message,
+                    $"the base64 upload-limit message is \"{refusal.Message}\", the shared core says \"{tooLarge.message}\"");
+            });
+
+            Run("the file path is capped at the shared upload limit", () =>
+            {
+                var tooLarge = HyperwhisperCoreMethods.LocalApiUploadTooLargeFailure();
+                var root = AppPaths.ProfileTempRecordingsDirectory;
+                Directory.CreateDirectory(root);
+                var oversizedPath = Path.Combine(root, $"oversized-{Guid.NewGuid():N}.wav");
+                var atCapPath = Path.Combine(root, $"at-cap-{Guid.NewGuid():N}.wav");
+                try
+                {
+                    // SetLength moves the end-of-file marker; NTFS does not
+                    // write the bytes, so a 48 MiB fixture costs no 48 MiB of
+                    // I/O. The cap reads FileStream.Length, which asks about the
+                    // open handle, so the marker is what it sees.
+                    using (var file = new FileStream(oversizedPath, FileMode.CreateNew, FileAccess.Write))
+                        file.SetLength(LocalApiLimits.MaxUploadBytes + 1);
+
+                    Assert(HistoryService.IsTrustedAudioPath(oversizedPath),
+                        $"the fixture at {oversizedPath} is not inside a trusted recordings root, so this test would "
+                            + "pass on the containment refusal rather than on the size cap");
+
+                    var refusal = CaptureApiInputException(() =>
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(
+                            new TranscribeRequest { File = oversizedPath }));
+                    Assert(refusal.Code == LocalApiErrorCode.InvalidRequest,
+                        $"an oversized file answered code {refusal.Code}; every size refusal is INVALID_REQUEST");
+                    Assert(refusal.Message == tooLarge.message,
+                        $"the file upload-limit message is \"{refusal.Message}\", the shared core says \"{tooLarge.message}\"");
+
+                    // The accepting side: exactly the cap still resolves.
+                    using (var file = new FileStream(atCapPath, FileMode.CreateNew, FileAccess.Write))
+                        file.SetLength(LocalApiLimits.MaxUploadBytes);
+
+                    var (snapshotPath, isTemp, readLock) =
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(
+                            new TranscribeRequest { File = atCapPath });
+                    readLock?.Dispose();
+                    Assert(isTemp && File.Exists(snapshotPath),
+                        $"a file of exactly {LocalApiLimits.MaxUploadBytes} bytes was refused for its size; "
+                            + "the cap is inclusive on every head");
+                    try { File.Delete(snapshotPath); } catch (IOException) { }
+                }
+                finally
+                {
+                    foreach (var path in new[] { oversizedPath, atCapPath })
+                    {
+                        try { File.Delete(path); } catch (IOException) { }
+                    }
+                }
+            });
+
+            // =================================================================
             // Issue #379 — real transcription outcomes feed the health cache.
             //
             // The reported defect: with a valid Cloud key, POST /transcribe
@@ -9880,6 +10161,53 @@ internal static class Program
     /// Set <see cref="Next"/> before each send. Used by the custom-endpoint test
     /// checks, which assert on the request as well as on the reply.
     /// </summary>
+    /// <summary>
+    /// Run <paramref name="act"/> and return the <c>ApiInputException</c> it was
+    /// supposed to throw. Failing to throw is itself the failure, and says so —
+    /// a bare try/catch would report "the guard is missing" as a pass.
+    /// </summary>
+    private static HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException
+        CaptureApiInputException(Action act)
+    {
+        try
+        {
+            act();
+        }
+        catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+        {
+            return ex;
+        }
+        throw new InvalidOperationException(
+            "expected the size guard to refuse this input, but ResolveAudioSource returned normally");
+    }
+
+    /// <summary>
+    /// An HTTP body sent with <c>Transfer-Encoding: chunked</c> and no
+    /// <c>Content-Length</c>. That is the shape the Local API's own
+    /// Content-Length pre-check cannot see, so Kestrel's running byte counter is
+    /// what refuses it — which is the exception path the size fix exists for.
+    /// </summary>
+    private sealed class ChunkedBytesContent : HttpContent
+    {
+        private readonly byte[] _payload;
+
+        public ChunkedBytesContent(byte[] payload)
+        {
+            _payload = payload;
+            Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            stream.WriteAsync(_payload, 0, _payload.Length);
+
+        // Returning false is what makes HttpClient chunk it.
+        protected override bool TryComputeLength(out long length)
+        {
+            length = -1;
+            return false;
+        }
+    }
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public Func<HttpResponseMessage>? Next;
