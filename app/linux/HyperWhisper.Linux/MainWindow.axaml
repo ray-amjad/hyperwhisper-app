@@ -231,18 +231,17 @@
     </DataTemplate>
     <DataTemplate DataType="vm:ModesViewModel">
       <ScrollViewer x:Name="ModesScreen" Classes="page">
-      <StackPanel Spacing="16" MaxWidth="980" HorizontalAlignment="Left">
-        <!-- Windows lays the modes out as a two column card grid and opens the editor from a
-             card. The editor here drops in under the grid instead of in a dialog. -->
+      <StackPanel Spacing="16" MaxWidth="720">
+        <!-- Windows lays the modes out as a two column grid with the create button on the header
+             row. The editor drops in under the grid here instead of opening as a dialog. -->
         <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Text="{ReflectionBinding [sidebar.modes], Source={StaticResource Localization}}" Classes="sectionTitle" VerticalAlignment="Center"/>
-          <Button Grid.Column="1" x:Name="ModeNewButton" Classes="accent" Content="{ReflectionBinding [linux.ui.new], Source={StaticResource Localization}}" Command="{Binding NewCommand}"/>
+          <Button Grid.Column="1" x:Name="ModeNewButton" Classes="accent" Content="{ReflectionBinding [modes.header.create], Source={StaticResource Localization}}" Command="{Binding NewCommand}"/>
         </Grid>
-        <ItemsControl ItemsSource="{Binding Items}">
-          <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl ItemsSource="{Binding Items}" Margin="-4,0">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="data:Mode">
-              <Button Classes="rowAction modeCard" Click="OnSelectMode" Tag="{Binding}" Width="348" Margin="0,0,12,12">
+              <Button Classes="rowAction modeCard" Click="OnSelectMode" Tag="{Binding}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="4">
                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="7">
                   <TextBlock Text="{Binding Name}" Classes="rowTitle" FontSize="15"/>
                   <Path Grid.Column="1" Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Top"/>
@@ -278,14 +277,14 @@
     <!-- Live transcription gets its own page, as it does on Windows. Every value still belongs
          to the settings view model; this template only re-presents the streaming half of it. -->
     <DataTemplate DataType="vm:StreamingSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="StreamingScreen" Spacing="14" MaxWidth="900" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="StreamingScreen" Spacing="14" MaxWidth="720" HorizontalAlignment="Left">
         <TextBlock Text="{ReflectionBinding [settings.nav.general], Source={StaticResource Localization}}" Classes="fieldLabel"/>
         <Border Classes="card">
           <StackPanel>
             <Border Classes="settingRow">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <StackPanel Spacing="2">
-                  <TextBlock Text="{ReflectionBinding [linux.ui.enable.the.dedicated.live.transcription.shortcut], Source={StaticResource Localization}}" Classes="rowTitle"/>
+                  <TextBlock Text="{ReflectionBinding [settings.streaming.enable.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
                   <TextBlock Text="{ReflectionBinding [linux.ui.credentials.are.loaded.from.the.secure.credentials.page.and.9110957e], Source={StaticResource Localization}}" Classes="caption"/>
                 </StackPanel>
                 <CheckBox Grid.Column="1" x:Name="StreamingEnabledToggle" IsChecked="{Binding Settings.StreamingEnabled}" VerticalAlignment="Center"/>
@@ -293,19 +292,19 @@
             </Border>
             <Border Classes="settingRow">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <TextBlock Text="{ReflectionBinding [linux.ui.cloud.provider], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.streaming.provider.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <ComboBox Grid.Column="1" x:Name="StreamingProviderChoice" MinWidth="200" ItemsSource="{Binding Settings.StreamingProviders}" SelectedItem="{Binding Settings.StreamingProvider}"/>
               </Grid>
             </Border>
             <Border Classes="settingRow" IsVisible="{Binding Settings.StreamingUsesHyperWhisperCloud}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <TextBlock Text="{ReflectionBinding [linux.ui.hyperwhisper.cloud.accuracy.tier], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.streaming.cloudTier.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <ComboBox Grid.Column="1" x:Name="StreamingCloudTierChoice" MinWidth="200" ItemsSource="{Binding Settings.StreamingCloudTiers}" SelectedItem="{Binding Settings.StreamingCloudTier}"/>
               </Grid>
             </Border>
             <Border Classes="settingRow">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <TextBlock Text="{ReflectionBinding [linux.ui.language.code], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.streaming.language.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <TextBox Grid.Column="1" x:Name="StreamingLanguageInput" MinWidth="200" Text="{Binding Settings.StreamingLanguage}" PlaceholderText="auto"/>
               </Grid>
             </Border>
@@ -317,7 +316,7 @@
             </Border>
             <Border Classes="settingRow last">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <TextBlock Text="{ReflectionBinding [linux.ui.enable.provider.fast.formatting], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+                <TextBlock Text="{ReflectionBinding [settings.streaming.fastFormatting.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <CheckBox Grid.Column="1" x:Name="StreamingFastFormattingToggle" IsChecked="{Binding Settings.StreamingFastFormatting}" VerticalAlignment="Center"/>
               </Grid>
             </Border>
