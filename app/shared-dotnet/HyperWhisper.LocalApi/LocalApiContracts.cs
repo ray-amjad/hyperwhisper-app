@@ -89,6 +89,19 @@ public sealed record RecordingEntry(
     string? PostProcessingProvider = null,
     string? AudioFilePath = null);
 public sealed record RecordingQuery(string? Search, DateTime? Since, DateTime? Until, int Limit);
+/// <summary>
+/// One page of recordings plus the size of the full filtered set.
+/// </summary>
+/// <remarks>
+/// <paramref name="Total"/> is the number of rows matching the query's filters,
+/// which is usually larger than <c>Recordings.Count</c> when the query's limit
+/// truncates the page. This is the meaning macOS
+/// (<c>RecordingsEndpoint.swift</c>, a separate <c>countResultType</c> fetch taken
+/// before <c>fetchLimit</c> is applied) and Windows
+/// (<c>RecordingsEndpoints.cs</c>, <c>matches.Count</c> before <c>Take(limit)</c>)
+/// already publish, so a client can page on <c>total &gt; returned</c> on every head.
+/// </remarks>
+public sealed record RecordingPage(IReadOnlyList<RecordingEntry> Recordings, int Total);
 public sealed record RecordingState(bool IsRecording, string State);
 public sealed record LocalApiApplicationContext(
     string? ProcessName,
@@ -173,6 +186,6 @@ public interface ILocalApiBackend
     ValueTask<RecordingState> CancelRecordingAsync(CancellationToken cancellationToken);
     ValueTask<TranscriptionResult> TranscribeAsync(AudioUpload upload, CancellationToken cancellationToken);
     ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken cancellationToken);
-    ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken cancellationToken);
+    ValueTask<RecordingPage> GetRecordingsAsync(RecordingQuery query, CancellationToken cancellationToken);
     ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken cancellationToken);
 }

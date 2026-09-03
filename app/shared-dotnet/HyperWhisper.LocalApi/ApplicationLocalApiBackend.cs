@@ -258,13 +258,18 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         => _postProcessor?.ProcessAsync(request, cancellationToken)
             ?? ValueTask.FromException<PostProcessResult>(new InvalidOperationException("Post-processing is not configured."));
 
-    public async ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken cancellationToken)
+    public async ValueTask<RecordingPage> GetRecordingsAsync(RecordingQuery query, CancellationToken cancellationToken)
     {
         IEnumerable<Transcript> rows = await _history.ListAsync(cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(query.Search)) rows = rows.Where(item => item.Text.Contains(query.Search, StringComparison.OrdinalIgnoreCase) || (item.TranscribedText?.Contains(query.Search, StringComparison.OrdinalIgnoreCase) ?? false));
         if (query.Since is { } since) rows = rows.Where(item => item.Date >= since);
         if (query.Until is { } until) rows = rows.Where(item => item.Date <= until);
-        return rows.Take(query.Limit).Select(ToRecording).ToList();
+        // Materialize the filtered set so `Total` is the true match count, not the
+        // page size. Windows does exactly this (`matches.Count` before `Take(limit)`)
+        // and macOS runs a separate count fetch; a client paginating on
+        // `total > returned` has to see the same number on all three heads.
+        var matches = rows.ToList();
+        return new RecordingPage(matches.Take(query.Limit).Select(ToRecording).ToList(), matches.Count);
     }
 
     public async ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken cancellationToken)

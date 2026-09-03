@@ -274,8 +274,10 @@ public static class PortableLocalApi
             var limit = int.TryParse(context.Request.Query["limit"], CultureInfo.InvariantCulture, out var parsed) ? Math.Clamp(parsed, 1, 500) : 50;
             _ = DateTime.TryParse(context.Request.Query["since"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var since);
             _ = DateTime.TryParse(context.Request.Query["until"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var until);
-            var rows = await backend.GetRecordingsAsync(new(context.Request.Query["q"], since == default ? null : since, until == default ? null : until, limit), ct);
-            return Results.Ok(new { ok = true, total = rows.Count, returned = rows.Count, recordings = rows });
+            var page = await backend.GetRecordingsAsync(new(context.Request.Query["q"], since == default ? null : since, until == default ? null : until, limit), ct);
+            // `total` is the full filtered match count, `returned` is this page.
+            // They are only equal when the limit did not truncate.
+            return Results.Ok(new { ok = true, total = page.Total, returned = page.Recordings.Count, recordings = page.Recordings });
         }
 
         static async Task<JsonElement?> ReadJsonObject(HttpContext context, CancellationToken ct)

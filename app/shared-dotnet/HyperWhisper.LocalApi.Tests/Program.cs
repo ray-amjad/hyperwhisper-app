@@ -404,6 +404,46 @@ static async Task EndpointContractSnapshots()
             && fixture.Backend.RecordingQuery.Until is not null,
             "recording search/date/limit overrides drifted");
     }
+
+    // `total` is the full match count and `returned` is the page, the meaning
+    // macOS (a separate count fetch) and Windows (`matches.Count`) publish. The
+    // snapshot above cannot see the difference because the fake returns no rows,
+    // which is how the portable head shipped `total = returned = rows.Count`.
+    var paged = new FakeBackend
+    {
+        Recordings =
+        [
+            new("11111111-1111-1111-1111-111111111111", "first", DateTime.UnixEpoch, 1.5, "hyper", "complete"),
+            new("22222222-2222-2222-2222-222222222222", "second", DateTime.UnixEpoch, 2.5, "hyper", "complete"),
+            new("33333333-3333-3333-3333-333333333333", "third", DateTime.UnixEpoch, 3.5, "hyper", "complete"),
+        ],
+    };
+    await using var pagedFixture = await Fixture.Create(backend: paged);
+    pagedFixture.Authenticate();
+    foreach (var route in new[] { "/recordings?limit=2", "/recordings/search?limit=2" })
+    {
+        using var response = JsonDocument.Parse(await pagedFixture.Client.GetStringAsync(route));
+        AssertProperties(response.RootElement, "ok", "total", "returned", "recordings");
+        var total = response.RootElement.GetProperty("total").GetInt32();
+        var returned = response.RootElement.GetProperty("returned").GetInt32();
+        var recordings = response.RootElement.GetProperty("recordings");
+        Assert(total == 3, $"{route} total is not the filtered match count: {total}");
+        Assert(returned == 2, $"{route} returned is not the page size: {returned}");
+        Assert(total > returned, $"{route} reported total == returned, so a client never pages");
+        Assert(recordings.GetArrayLength() == returned, $"{route} returned does not match the page it sent");
+        // The value of `total` changed; the response shape must not have.
+        AssertProperties(recordings[0],
+            "id", "text", "date", "duration", "mode", "status", "postProcessedText",
+            "transcribedText", "transcriptionProvider", "postProcessingProvider", "audioFilePath");
+    }
+
+    // A page the limit did not truncate still reports them equal.
+    using (var whole = JsonDocument.Parse(await pagedFixture.Client.GetStringAsync("/recordings?limit=10")))
+    {
+        Assert(whole.RootElement.GetProperty("total").GetInt32() == 3
+            && whole.RootElement.GetProperty("returned").GetInt32() == 3,
+            "an untruncated page should report total == returned");
+    }
 }
 
 static void AssertProperties(JsonElement element, params string[] expected)
@@ -1044,8 +1084,15 @@ sealed class FakeBackend : ILocalApiBackend
     }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
     { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1)); }
-    public ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken ct)
-    { RecordingQuery = query; return ValueTask.FromResult<IReadOnlyList<RecordingEntry>>([]); }
+    /// <summary>
+    /// The full match set this fake holds. <see cref="GetRecordingsAsync"/> pages it
+    /// with the query's limit, so a caller can set more rows than the limit and get
+    /// a page smaller than the total — the shape that catches a head reporting the
+    /// page size as <c>total</c>.
+    /// </summary>
+    public IReadOnlyList<RecordingEntry> Recordings { get; init; } = [];
+    public ValueTask<RecordingPage> GetRecordingsAsync(RecordingQuery query, CancellationToken ct)
+    { RecordingQuery = query; return ValueTask.FromResult(new RecordingPage(Recordings.Take(query.Limit).ToList(), Recordings.Count)); }
     public ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken ct) => ValueTask.FromResult<RecordingEntry?>(null);
 }
 

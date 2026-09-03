@@ -576,8 +576,8 @@ components:
       type: object
       properties:
         ok: { type: boolean }
-        total: { type: integer }
-        returned: { type: integer }
+        total: { type: integer, description: "Number of recordings that match the filters, before limit is applied. Page with limit and since/until while total is more than returned." }
+        returned: { type: integer, description: "Number of recordings in this response. Equal to the length of recordings, and never more than limit." }
         recordings:
           type: array
           items: { $ref: '#/components/schemas/RecordingDTO' }
