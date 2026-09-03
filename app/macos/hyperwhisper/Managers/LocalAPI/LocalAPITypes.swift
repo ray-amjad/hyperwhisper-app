@@ -95,6 +95,7 @@ struct HealthLocalModelEntry: Codable, Sendable {
 struct HealthLocalModels: Codable, Sendable {
     let whisper: [HealthLocalModelEntry]
     let parakeet: [HealthLocalModelEntry]
+    let nemotron: [HealthLocalModelEntry]
     let qwen3_asr: [HealthLocalModelEntry]
     let apple_speech: [HealthLocalModelEntry]
     let local_llm: [HealthLocalModelEntry]

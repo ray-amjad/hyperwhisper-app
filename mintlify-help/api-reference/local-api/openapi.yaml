@@ -295,6 +295,7 @@ components:
       properties:
         whisper:        { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
         parakeet:       { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
+        nemotron:       { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' }, description: "macOS only. Windows and Linux never return this key." }
         qwen3_asr:      { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
         apple_speech:   { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
         local_llm:      { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
@@ -483,7 +484,7 @@ components:
           description: Saved Mode used as the baseline. May be combined with engine/model/language to override per-call.
         engine:
           type: string
-          description: "whisperLocal | parakeet | qwen3Asr | appleSpeech | <CloudProvider rawValue>"
+          description: "whisperLocal | parakeet | nemotron | qwen3Asr | appleSpeech | <CloudProvider rawValue>. nemotron and appleSpeech are macOS only. Windows and Linux reject them with ENGINE_UNAVAILABLE."
         model:
           type: string
         language:

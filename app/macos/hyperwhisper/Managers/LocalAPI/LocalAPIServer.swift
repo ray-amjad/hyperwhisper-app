@@ -396,6 +396,7 @@ final class LocalAPIServer: ObservableObject {
             cloudHealth: cloudHealth,
             whisperModelManager: whisperModelManager,
             parakeetModelManager: parakeetModelManager,
+            nemotronModelManager: nemotronModelManager,
             qwen3AsrModelManager: qwen3AsrModelManager,
             localModelManager: localModelManager,
             settingsManager: settingsManager

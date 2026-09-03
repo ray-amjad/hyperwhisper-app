@@ -875,6 +875,69 @@ enum TranscribeEndpoint {
             mode.model = model ?? "base"
         case "parakeet":
             mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
+        // Shared spelling list — see `Constants.engineAliases`. Must stay the
+        // same set `TranscriptionProviderRouter.resolveProvider` matches on,
+        // which is why it is a constant and not a second literal copy.
+        case _ where NemotronModelManager.Constants.engineAliases.contains(normalizedEngine):
+            // `canonicalModelId` trims, lowercases, and answers nil for blank,
+            // so this one test covers "no model", "  ", and "not a variant".
+            if let explicitVariant = NemotronModelManager.Constants.canonicalModelId(for: model ?? "") {
+                // An explicit model naming a real variant wins outright: the
+                // caller is changing variant, not re-asserting the engine, so
+                // no inherit and no language snap.
+                //
+                // Review round 2: this arm now accepts ONLY a real variant. It
+                // used to pass an unknown id through unchanged
+                // (`modelIdForSelection` preserves it), on the reasoning that
+                // the router would reject it and name it in the error. True on
+                // the engine-only path, where `resolve` calls `resolveProvider`
+                // BEFORE `makeTransientMode` — but the mixed mode_id+engine
+                // path only calls `selectProvider(for: transient)` and never
+                // reaches `resolveProvider`, so nothing rejected it. There
+                // `{mode_id: X, engine: "nemotron", model: "base"}` wrote
+                // "base" onto the Mode, `selectLocalProvider`'s
+                // `mapModelIdToWhisperModel` matched it, and LibWhisper
+                // transcribed — `ok: true`, `"engine": "whisperLocal"`, for a
+                // caller who asked for Nemotron (`"parakeet-tdt-0.6b-v3"`
+                // reached ParakeetProvider the same way). `engine=` must never
+                // select another engine's provider, so an unusable model is
+                // treated as absent and falls through to the inherit-or-default
+                // rule below; the response's `model` then reports what ran.
+                mode.model = explicitVariant
+            } else {
+                // No usable explicit model. Same reasoning as the cloud branch's
+                // `belongsToProvider` guard above: on the mixed mode_id+engine
+                // form the caller is re-asserting the engine, not asking to
+                // change variant, and `mode` is already a copy of their saved
+                // Mode — so keep an inherited id that really is a Nemotron
+                // variant. Defaulting unconditionally would swap a saved Latin
+                // mode to multilingual and fail with MODEL_NOT_INSTALLED for a
+                // caller who only installed Latin. Anything else inherited
+                // (the Core Data default "base", a Parakeet id, a prefix-alike
+                // that names no real variant) is not usable here, so it falls
+                // through to the engine's default.
+                //
+                // Review round 2: inherit only when the saved variant can also
+                // serve the language THIS request asked for. `makeTransientMode`
+                // has already written the request's `language` onto the Mode by
+                // the time we get here, and nothing downstream re-checks the
+                // pair: `NemotronProvider.prepareIfNeeded` takes the variant
+                // from `modelId` alone and never reads its `language` argument,
+                // then `transcribe` hands `mode.language` straight to
+                // `setLanguage`. So `{mode_id: <a saved Latin mode>,
+                // engine: "nemotron", language: "ja"}` would run "ja" against a
+                // vocabulary pruned to `latinLanguages` (en/es/fr/it/pt/de) and
+                // answer HTTP 200 with Latin-script garbage. Falling back to
+                // multilingual is the safe direction: a code it does not list
+                // degrades to the model's own auto-detect prompt (see
+                // `multilingualLanguages`' note), not to the wrong alphabet.
+                let inherited = NemotronModelManager.Constants.canonicalModelId(for: mode.model ?? "")
+                if let inherited, Self.nemotronVariant(inherited, canServe: mode.language) {
+                    mode.model = inherited
+                } else {
+                    mode.model = NemotronModelManager.Constants.modelIdForSelection(nil)
+                }
+            }
         case "qwen3asr", "qwen3", "qwen3-asr":
             mode.model = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
@@ -882,6 +945,31 @@ enum TranscribeEndpoint {
         default:
             if let m = model, !m.isEmpty { mode.model = m }
         }
+    }
+
+    /// Whether the Nemotron variant named by `modelId` can transcribe
+    /// `language`. Used by `applyEngineModel` to decide if a variant inherited
+    /// off a saved Mode is still appropriate for the language the request asked
+    /// for; `RecordingTranscriptionFlow+Streaming` answers the same question the
+    /// same way, off the same `supportedLanguages(forModelId:)` table, when it
+    /// falls back between variants.
+    ///
+    /// A nil / empty / `"auto"` language means auto-detect, which every variant
+    /// serves — the same normalisation `effectiveLanguage(for:request:)`,
+    /// `resolveProvider` and `NemotronProvider.transcribe` all apply. Region and
+    /// script subtags are stripped because `latinLanguages` /
+    /// `multilingualLanguages` are keyed by bare ISO codes while a Mode may hold
+    /// a BCP-47 form such as `"en-US"`. A non-Nemotron id serves nothing here.
+    private static func nemotronVariant(_ modelId: String, canServe language: String?) -> Bool {
+        let normalized = (language ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !normalized.isEmpty, normalized != "auto" else { return true }
+        guard let supported = NemotronModelManager.supportedLanguages(forModelId: modelId) else {
+            return false
+        }
+        let baseCode = String(normalized.prefix { $0 != "-" && $0 != "_" })
+        return supported[baseCode] != nil
     }
 
     @MainActor
@@ -903,12 +991,13 @@ enum TranscribeEndpoint {
     }
 
     @MainActor
-    private static func engineLabel(forMode mode: Mode) -> String {
+    static func engineLabel(forMode mode: Mode) -> String {
         let modelString = (mode.model ?? "").lowercased()
         if modelString == "cloud" || modelString.isEmpty {
             return mode.cloudProvider ?? "cloud"
         }
         if modelString.hasPrefix("parakeet-tdt-") { return "parakeet" }
+        if modelString.hasPrefix("nemotron-asr-3.5-") { return "nemotron" }
         if modelString == "apple-speech-analyzer" { return "appleSpeech" }
         if modelString == Qwen3AsrModelManager.Constants.modelId { return "qwen3Asr" }
         return "whisperLocal"
