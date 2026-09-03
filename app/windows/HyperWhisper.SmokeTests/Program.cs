@@ -5968,15 +5968,21 @@ internal static class Program
                         .GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
                         .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!
                         .Addresses.Select(address => new Uri(address).Port).First(p => p > 0);
-                    using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
-
-                    // 1. One byte over, declared in Content-Length. `>` not
-                    //    `>=`, the same edge macOS pins in
-                    //    `exactlyTheCapIsAccepted`.
-                    var oversized = NameJsonOfExactly(cap + 1);
-                    using (var response = await client.PostAsync("/probe", JsonBytes(oversized)))
+                    // The two refusals go over a RAW SOCKET rather than
+                    // HttpClient. A refused request is one the server answers
+                    // and then resets, because the rest of the body is still
+                    // coming; HttpClient reports that as
+                    // "Error while copying content to a stream" and loses the
+                    // response it already had. That is a fault in the test, not
+                    // in the head — a real client sees the envelope, because
+                    // this reads the socket WHILE it writes.
+                    //
+                    // 1. One byte over, declared in Content-Length. The head
+                    //    answers from the header without consuming the body, so
+                    //    only a slice of it is sent.
                     {
-                        var (status, code, message) = await ReadFailureEnvelope(response);
+                        var (status, code, message) = await RawProbeAsync(
+                            port, $"Content-Length: {cap + 1}\r\n", PaddedJsonOfExactly(cap + 1), chunked: false);
                         Assert(status == 200,
                             $"an over-limit body answered HTTP {status}. It must be 200: 400 is what the old bare "
                                 + "catch sent, and 413 wants a PAYLOAD_TOO_LARGE code that is outside the closed 14.");
@@ -5989,22 +5995,23 @@ internal static class Program
                     //    pre-check cannot see it and Kestrel's own counter is
                     //    what refuses: BadHttpRequestException with StatusCode
                     //    413, raised from inside ReadFromJsonAsync. This is the
-                    //    exception the bare catch used to swallow.
-                    using (var response = await client.PostAsync("/probe", new ChunkedBytesContent(oversized)))
+                    //    exception the bare catch used to swallow, and this
+                    //    probe is the only proof that the head reads it right.
                     {
-                        var (status, code, message) = await ReadFailureEnvelope(response);
+                        var (status, code, message) = await RawProbeAsync(
+                            port, "Transfer-Encoding: chunked\r\n", PaddedJsonOfExactly(cap + 1), chunked: true);
                         Assert(status == 200,
                             $"a chunked over-limit body answered HTTP {status}; Kestrel's 413 must not reach the wire");
                         Assert(code == "INVALID_REQUEST", $"a chunked over-limit body answered code {code}");
                         Assert(message == tooLarge.message,
                             $"the chunked request-limit message is \"{message}\", the shared core says \"{tooLarge.message}\"");
                     }
-                    oversized = null!;
 
                     // 3. The accepting side of the boundary. A body of EXACTLY
-                    //    the cap is served; assert only that the size guard is
-                    //    not what answered.
-                    using (var response = await client.PostAsync("/probe", JsonBytes(NameJsonOfExactly(cap))))
+                    //    the cap is read whole, so there is nothing left to
+                    //    reset and HttpClient is safe here.
+                    using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+                    using (var response = await client.PostAsync("/probe", JsonBytes(PaddedJsonOfExactly(cap))))
                     {
                         var body = await response.Content.ReadAsStringAsync();
                         Assert((int)response.StatusCode == 200,
@@ -6022,11 +6029,15 @@ internal static class Program
                             Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
                         }))
                     {
-                        var (status, code, message) = await ReadFailureEnvelope(response);
-                        Assert(status == 400, $"malformed JSON answered HTTP {status}, it must stay 400");
-                        Assert(code == "INVALID_REQUEST", $"malformed JSON answered code {code}");
-                        Assert(message == "Invalid JSON body",
-                            $"malformed JSON now says \"{message}\"; a caller can no longer tell it from an over-limit body");
+                        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                        var error = document.RootElement.GetProperty("error");
+                        Assert((int)response.StatusCode == 400,
+                            $"malformed JSON answered HTTP {(int)response.StatusCode}, it must stay 400");
+                        Assert(error.GetProperty("code").GetString() == "INVALID_REQUEST",
+                            $"malformed JSON answered code {error.GetProperty("code").GetString()}");
+                        Assert(error.GetProperty("message").GetString() == "Invalid JSON body",
+                            "malformed JSON no longer says \"Invalid JSON body\"; a caller can no longer tell it "
+                                + "from an over-limit body");
                     }
                 }
                 finally
@@ -6034,13 +6045,18 @@ internal static class Program
                     await app.StopAsync();
                 }
 
-                static byte[] NameJsonOfExactly(long totalBytes)
+                // `{"name":"x"` followed by padding spaces and `}`. JSON allows
+                // whitespace between tokens, so a 50 MiB body of this shape
+                // costs the server one two-character string rather than a 50 MiB
+                // one — the size guards are what this test is about, not the
+                // deserializer's appetite.
+                static byte[] PaddedJsonOfExactly(long totalBytes)
                 {
-                    const string prefix = "{\"name\":\"";
-                    const string suffix = "\"}";
+                    const string prefix = "{\"name\":\"x\"";
+                    const string suffix = "}";
                     var bytes = new byte[totalBytes];
                     System.Text.Encoding.ASCII.GetBytes(prefix).CopyTo(bytes, 0);
-                    bytes.AsSpan(prefix.Length, bytes.Length - prefix.Length - suffix.Length).Fill((byte)'x');
+                    bytes.AsSpan(prefix.Length, bytes.Length - prefix.Length - suffix.Length).Fill((byte)' ');
                     System.Text.Encoding.ASCII.GetBytes(suffix).CopyTo(bytes, bytes.Length - suffix.Length);
                     return bytes;
                 }
@@ -6049,15 +6065,6 @@ internal static class Program
                 {
                     Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
                 };
-
-                static async Task<(int Status, string? Code, string? Message)> ReadFailureEnvelope(HttpResponseMessage response)
-                {
-                    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-                    var error = document.RootElement.GetProperty("error");
-                    return ((int)response.StatusCode,
-                        error.GetProperty("code").GetString(),
-                        error.GetProperty("message").GetString());
-                }
             });
 
             SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
@@ -6124,8 +6131,13 @@ internal static class Program
                     var refusal = CaptureApiInputException(() =>
                         HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(
                             new TranscribeRequest { File = oversizedPath }));
+                    // FILE_NOT_ALLOWED here means the containment guard answered
+                    // ahead of the size cap, which makes the test prove nothing.
+                    // Report the whole path chain so that reads as a fixture
+                    // fault rather than as a missing cap.
                     Assert(refusal.Code == LocalApiErrorCode.InvalidRequest,
-                        $"an oversized file answered code {refusal.Code}; every size refusal is INVALID_REQUEST");
+                        $"an oversized file answered code {refusal.Code}; every size refusal is INVALID_REQUEST. "
+                            + TrustedPathDiagnostics(oversizedPath));
                     Assert(refusal.Message == tooLarge.message,
                         $"the file upload-limit message is \"{refusal.Message}\", the shared core says \"{tooLarge.message}\"");
 
@@ -10174,6 +10186,40 @@ internal static class Program
     /// checks, which assert on the request as well as on the reply.
     /// </summary>
     /// <summary>
+    /// Everything the Local API's <c>file</c> containment guard looks at, in one
+    /// string: the trusted roots, and each ancestor of <paramref name="path"/>
+    /// that is a reparse point or that cannot be resolved. The guard's own
+    /// refusal is deliberately uniform — it must not leak whether a path exists
+    /// — so a test that trips it has nothing to report without this.
+    /// </summary>
+    private static string TrustedPathDiagnostics(string path)
+    {
+        var report = new System.Text.StringBuilder();
+        report.Append($"path={path}; tempRoot={AppPaths.ProfileTempRecordingsDirectory}; ");
+        try { report.Append($"recordings={StorageService.Instance.GetRecordingsFolder()}; "); }
+        catch (Exception ex) { report.Append($"recordings=<{ex.GetType().Name}>; "); }
+        try { report.Append($"legacy={SettingsService.GetLegacyAudioFolder()}; "); }
+        catch (Exception ex) { report.Append($"legacy=<{ex.GetType().Name}>; "); }
+        report.Append($"lexicalTrusted={HistoryService.IsTrustedAudioPath(path)}; chain=[");
+
+        for (var current = Path.GetFullPath(path); !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current)!)
+        {
+            try
+            {
+                var target = File.Exists(current)
+                    ? File.ResolveLinkTarget(current, returnFinalTarget: true)
+                    : Directory.ResolveLinkTarget(current, returnFinalTarget: true);
+                if (target != null) report.Append($"{current} -> {target.FullName}; ");
+            }
+            catch (Exception ex)
+            {
+                report.Append($"{current} !! {ex.GetType().Name}: {ex.Message}; ");
+            }
+        }
+        return report.Append(']').ToString();
+    }
+
+    /// <summary>
     /// Run <paramref name="act"/> and return the <c>ApiInputException</c> it was
     /// supposed to throw. Failing to throw is itself the failure, and says so —
     /// a bare try/catch would report "the guard is missing" as a pass.
@@ -10194,30 +10240,82 @@ internal static class Program
     }
 
     /// <summary>
-    /// An HTTP body sent with <c>Transfer-Encoding: chunked</c> and no
-    /// <c>Content-Length</c>. That is the shape the Local API's own
-    /// Content-Length pre-check cannot see, so Kestrel's running byte counter is
-    /// what refuses it — which is the exception path the size fix exists for.
+    /// POST <paramref name="payload"/> to <c>/probe</c> on a raw loopback
+    /// socket and return the status and failure envelope, reading the response
+    /// CONCURRENTLY with the send.
+    ///
+    /// That concurrency is the whole point. A server that refuses an oversized
+    /// body answers before the body has finished arriving and then resets the
+    /// connection, because the rest is still in flight. An HttpClient that is
+    /// only writing at that moment surfaces the reset as
+    /// <c>HttpRequestException: Error while copying content to a stream</c> and
+    /// throws away the response it had already been sent — which reads as "the
+    /// head answered nothing" when the head answered correctly. Reading while
+    /// writing takes the envelope off the socket before the reset can matter,
+    /// and write failures after that point are expected and ignored.
+    ///
+    /// <paramref name="chunked"/> frames the body with
+    /// <c>Transfer-Encoding: chunked</c>, which is how a caller sends a body
+    /// whose length the head cannot pre-check.
     /// </summary>
-    private sealed class ChunkedBytesContent : HttpContent
+    private static async Task<(int Status, string? Code, string? Message)> RawProbeAsync(
+        int port, string framingHeader, byte[] payload, bool chunked)
     {
-        private readonly byte[] _payload;
+        using var socket = new System.Net.Sockets.TcpClient();
+        await socket.ConnectAsync(IPAddress.Loopback, port);
+        using var stream = socket.GetStream();
 
-        public ChunkedBytesContent(byte[] payload)
+        await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes(
+            $"POST /probe HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\n"
+            + $"Connection: close\r\n{framingHeader}\r\n"));
+
+        var received = new MemoryStream();
+        var reader = Task.Run(async () =>
         {
-            _payload = payload;
-            Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            try { await stream.CopyToAsync(received); }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException) { }
+        });
+
+        try
+        {
+            if (chunked) await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes($"{payload.Length:x}\r\n"));
+            // In slices, so a reset partway through ends the send instead of
+            // blocking on a socket buffer nobody is draining.
+            for (var offset = 0; offset < payload.Length; offset += 1 << 20)
+            {
+                await stream.WriteAsync(payload.AsMemory(offset, Math.Min(1 << 20, payload.Length - offset)));
+            }
+            if (chunked) await stream.WriteAsync("\r\n0\r\n\r\n"u8.ToArray());
+            await stream.FlushAsync();
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or System.Net.Sockets.SocketException)
+        {
+            // The server answered and reset. `reader` already has the answer.
         }
 
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
-            stream.WriteAsync(_payload, 0, _payload.Length);
-
-        // Returning false is what makes HttpClient chunk it.
-        protected override bool TryComputeLength(out long length)
+        await reader.WaitAsync(TimeSpan.FromSeconds(60));
+        var text = System.Text.Encoding.UTF8.GetString(received.ToArray());
+        var separator = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        if (separator < 0)
         {
-            length = -1;
-            return false;
+            throw new InvalidOperationException(
+                $"the server sent no complete HTTP response; got {received.Length} bytes: {text}");
         }
+
+        var status = int.Parse(text.Split(' ')[1]);
+        // Slice the envelope out by its braces rather than taking everything
+        // after the headers: `Connection: close` lets the server answer with
+        // chunked framing, and its length prefix is not JSON.
+        var open = text.IndexOf('{', separator);
+        var close = text.LastIndexOf('}');
+        if (open < 0 || close < open)
+        {
+            throw new InvalidOperationException($"the {status} response carried no JSON envelope: {text}");
+        }
+
+        using var document = JsonDocument.Parse(text[open..(close + 1)]);
+        var error = document.RootElement.GetProperty("error");
+        return (status, error.GetProperty("code").GetString(), error.GetProperty("message").GetString());
     }
 
     private sealed class CapturingHandler : HttpMessageHandler

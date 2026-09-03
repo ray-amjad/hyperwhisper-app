@@ -614,6 +614,20 @@ internal static class TranscribeEndpoints
     /// </summary>
     private static string ResolveRealPath(string canonicalPath)
     {
+        // A volume root is where the parent walk below always ends, and
+        // Directory.ResolveLinkTarget cannot answer for one: it throws
+        // DirectoryNotFoundException, "Could not find a part of the path 'C:\'".
+        // That exception is an IOException, so ResolveAudioSource's catch turned
+        // it into FILE_NOT_ALLOWED — for EVERY `file` request, because every
+        // path walks up to its root. The `file` half of /transcribe has been
+        // refusing everything since the walk was added; the upload cap below it
+        // could never run. A root has no reparse point to follow, so answer for
+        // it here rather than asking.
+        if (string.Equals(canonicalPath, Path.GetPathRoot(canonicalPath), StringComparison.OrdinalIgnoreCase))
+        {
+            return canonicalPath;
+        }
+
         // Resolve the deepest existing component (file or directory) to its final
         // target. returnFinalTarget walks the ENTIRE reparse-point chain along the
         // path — every junction/symlink in any ancestor directory is followed — so
