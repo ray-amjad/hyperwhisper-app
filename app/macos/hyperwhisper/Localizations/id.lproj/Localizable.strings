@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Sesuaikan asumsi kecepatan mengetik (WPM) yang dipakai untuk memperkirakan waktu yang dihemat.";
 "onboarding.progress.a11y" = "Langkah %1$d dari %2$d";
 "onboarding.a11y.percent" = "%d persen";
-"onboarding.a11y.inProgress" = "Sedang berlangsung";
 "onboarding.a11y.downloadProgress" = "Progres unduhan";
 "onboarding.a11y.inputLevel" = "Level input mikrofon";
 "onboarding.a11y.selected" = "Dipilih";

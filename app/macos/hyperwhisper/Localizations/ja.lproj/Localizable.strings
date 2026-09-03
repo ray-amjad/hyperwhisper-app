@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "節約時間の推定に使用するタイピング速度（WPM）を調整します。";
 "onboarding.progress.a11y" = "ステップ %1$d/%2$d";
 "onboarding.a11y.percent" = "%dパーセント";
-"onboarding.a11y.inProgress" = "実行中";
 "onboarding.a11y.downloadProgress" = "ダウンロードの進行状況";
 "onboarding.a11y.inputLevel" = "マイク入力レベル";
 "onboarding.a11y.selected" = "選択済み";

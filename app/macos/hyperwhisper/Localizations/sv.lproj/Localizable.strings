@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Justera den antagna skrivhastigheten (WPM) som används för att beräkna sparad tid.";
 "onboarding.progress.a11y" = "Steg %1$d av %2$d";
 "onboarding.a11y.percent" = "%d procent";
-"onboarding.a11y.inProgress" = "Pågår";
 "onboarding.a11y.downloadProgress" = "Nedladdningsförlopp";
 "onboarding.a11y.inputLevel" = "Mikrofonens ingångsnivå";
 "onboarding.a11y.selected" = "Vald";

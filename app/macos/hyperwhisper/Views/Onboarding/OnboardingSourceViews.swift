@@ -632,7 +632,7 @@ struct OnboardingSetupView: View {
             let downloading = flow.isSelectedModelDownloading()
             let progress = flow.selectedModelProgress()
             let stage = flow.selectedModelStage()
-            let indeterminate = Self.isIndeterminate(stage: stage, progress: progress)
+            let indeterminate = OnboardingDownloadCopy.isIndeterminate(stage: stage, progress: progress)
 
             OnboardingCard {
                 OnboardingCardRow {
@@ -652,7 +652,7 @@ struct OnboardingSetupView: View {
                         )
                     } else if downloading {
                         OnboardingStatusPill(
-                            text: Self.downloadPillText(stage: stage, progress: progress),
+                            text: OnboardingDownloadCopy.pillText(stage: stage, progress: progress),
                             tone: .accent
                         )
                     } else {
@@ -680,12 +680,19 @@ struct OnboardingSetupView: View {
                         // the entire download, which also means this card never swaps
                         // between the two shapes mid-download.
                         if indeterminate {
-                            let phase = Self.downloadPhaseText(stage)
+                            let phase = OnboardingDownloadCopy.phaseText(stage)
                             Text(phase)
                                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(minHeight: Self.headingHeight, alignment: .leading)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.7)
+                                .multilineTextAlignment(.leading)
+                                .frame(
+                                    maxWidth: .infinity,
+                                    minHeight: Self.headingHeight,
+                                    maxHeight: Self.headingHeight,
+                                    alignment: .topLeading
+                                )
 
                             OnboardingIndeterminateProgressBar(accessibilityValue: phase)
                                 .padding(.top, DesignConstants.Spacing.medium)
@@ -693,7 +700,13 @@ struct OnboardingSetupView: View {
                             Text("\(Int(progress * 100))%")
                                 .font(.system(size: 30, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
-                                .frame(minHeight: Self.headingHeight, alignment: .leading)
+                                .lineLimit(1)
+                                .frame(
+                                    maxWidth: .infinity,
+                                    minHeight: Self.headingHeight,
+                                    maxHeight: Self.headingHeight,
+                                    alignment: .topLeading
+                                )
 
                             OnboardingProgressBar(value: progress)
                                 .padding(.top, DesignConstants.Spacing.medium)
@@ -715,7 +728,13 @@ struct OnboardingSetupView: View {
                         // and this says out loud that it is not one. `nil` — every
                         // engine that reports no stage, Whisper included — gets the
                         // card exactly as it was.
-                        if let hint = Self.downloadHintText(stage) {
+                        //
+                        // For an engine that does report a stage this note is present
+                        // in *every* stage and carries the *same* string in every
+                        // stage, so it cannot appear, disappear or change its line
+                        // count as the download moves. It is the last thing in the
+                        // card, so any of those would move the card's bottom edge.
+                        if let hint = OnboardingDownloadCopy.hintText(stage) {
                             OnboardingQuietNote(text: hint)
                         }
                     } else {
@@ -748,105 +767,33 @@ struct OnboardingSetupView: View {
         }
     }
 
-    // MARK: Download stage copy (issue #312)
-    //
-    // These are plain static functions rather than inline `switch`es in the
-    // ViewBuilder on purpose: a `switch` reads very differently inside a result
-    // builder, and keeping the decision out here makes the card body a simple
-    // if/else over a `Bool` and two `String`s.
+    // MARK: Download card layout
 
-    /// The line height reserved for the big figure in both branches, so a swap
-    /// between them cannot resize the card. It is the line height of the 30 pt
-    /// rounded semibold percentage, which is the taller of the two headings.
-    private static let headingHeight: CGFloat = 36
-
-    /// True while the published fraction is not worth printing as a percentage.
+    /// The height reserved for the big heading in **both** branches of the
+    /// download card, so neither a swap between them nor a stage transition
+    /// inside the indeterminate branch can resize the card.
     ///
-    /// For an engine that reports a stage that is the whole download. Every part
-    /// of it publishes a number that stands still for minutes: `DownloadController`
-    /// clamps to a 0.01 floor and FluidAudio emits nothing until a whole file
-    /// lands, then the compile tail steps 0.9 → 1.0 once per component and so
-    /// holds 90% for the entire ANE encoder compile. Both are #312 — relocating
-    /// the frozen number from 1% to 90% would not have fixed it.
+    /// Two lines of the 17 pt rounded semibold phase line, not one line of the
+    /// 30 pt percentage. The phase line runs from "Downloading file 22 of 22" to
+    /// "Optimizing the model for this Mac. Almost done.", and how many lines the
+    /// longer of those needs is a property of the locale — `de` and `ru` are the
+    /// ones that wrap. A floor (`minHeight` alone) does not help there, because a
+    /// floor still lets the taller string win; the frame therefore pins
+    /// `minHeight` and `maxHeight` to the same value and the text is clamped to
+    /// `lineLimit(2)` with a minimum scale factor, so a third line shrinks to
+    /// fit instead of growing the card.
     ///
-    /// `nil` — an engine with no stage — keeps today's percentage, but only when
-    /// the fraction really is one. `WhisperModelManager` publishes
-    /// `-Double(totalBytesWritten)` with the comment "Negative indicates
-    /// indeterminate" when the server sends no `Content-Length`
-    /// (`WhisperModelManager.swift:518`), and `LiveOnboardingModelCatalog` passes
-    /// it through verbatim, so the determinate branch rendered "-48213504%" over
-    /// an empty bar. An unusable fraction gets the indeterminate bar too — the
-    /// same answer, for the same reason, on the one engine whose download really
-    /// is unmeasurable. Nothing in `WhisperModelManager` is touched.
-    private static func isIndeterminate(stage: ModelDownloadStage?, progress: Double) -> Bool {
-        guard let stage else {
-            return !(progress.isFinite && progress >= 0.0 && progress <= 1.0)
-        }
-        // Listed case by case rather than a bare `return true` so that adding a
-        // `ModelDownloadStage` forces a decision here instead of inheriting one.
-        switch stage {
-        case .preparing, .downloading, .processing:
-            return true
-        }
-    }
+    /// It cannot be measured from this sandbox. If it is a few points out the
+    /// only cost is a card slightly taller or shorter than intended, equally in
+    /// both branches and in every stage — which is the property that matters.
+    private static let headingHeight: CGFloat = 44
 
-    /// The line that replaces the percentage while the bar is indeterminate.
-    ///
-    /// FluidAudio counts files it has *finished*, so the one in flight is the
-    /// next one; the `min` stops the very last callback reading "23 of 22".
-    private static func downloadPhaseText(_ stage: ModelDownloadStage?) -> String {
-        // No stage and yet indeterminate: the only route here is an engine whose
-        // fraction is unusable — Whisper against a server that sent no
-        // `Content-Length`. Bytes are moving and nothing else is known, so
-        // "Downloading..." is the whole of the honest answer.
-        guard let stage else { return "onboarding.setup.onDevice.downloadingPill".localized }
-        switch stage {
-        case .preparing:
-            return "onboarding.setup.onDevice.preparing".localized
-        case .downloading(let completedFiles, let totalFiles):
-            guard totalFiles > 0 else { return "onboarding.setup.onDevice.preparing".localized }
-            let current = min(completedFiles + 1, totalFiles)
-            return "onboarding.setup.onDevice.downloadingFile".localized(arguments: current, totalFiles)
-        case .processing:
-            return "onboarding.setup.onDevice.optimizing".localized
-        }
-    }
+    // The four decisions this card makes about what to show — whether to print a
+    // percentage at all, and the three strings — moved out to
+    // `OnboardingDownloadCopy`. They were `private static` here, which put the
+    // whole user-visible half of issue #312 (including the negative-progress
+    // path) out of reach of every test. See OnboardingDownloadCopy.swift.
 
-    /// The status pill next to the model name. Same rule as the big figure: no
-    /// percentage while there is no percentage to be honest about.
-    private static func downloadPillText(stage: ModelDownloadStage?, progress: Double) -> String {
-        guard let stage else {
-            // Whisper. A usable fraction keeps today's "Downloading... 42%"; the
-            // negative "size unknown" sentinel drops the number rather than
-            // printing it.
-            if isIndeterminate(stage: nil, progress: progress) {
-                return "onboarding.setup.onDevice.downloadingPill".localized
-            }
-            return "onboarding.setup.onDevice.downloading".localized(arguments: Int(progress * 100))
-        }
-        switch stage {
-        case .preparing, .downloading:
-            return "onboarding.setup.onDevice.downloadingPill".localized
-        case .processing:
-            // The bytes are down; saying "Downloading…" through the compile would
-            // be the same kind of small lie the rest of this change removes.
-            return "onboarding.setup.onDevice.optimizingPill".localized
-        }
-    }
-
-    /// The reassurance note under the size, or `nil` for an engine that reports
-    /// no stage — which is what keeps Whisper's card untouched.
-    private static func downloadHintText(_ stage: ModelDownloadStage?) -> String? {
-        guard let stage else { return nil }
-        switch stage {
-        case .preparing, .downloading:
-            return "onboarding.setup.onDevice.firstRunHint".localized
-        case .processing:
-            // `processing` is indeterminate too now, so its heading already *is*
-            // the optimizing sentence. Repeating it here would print it twice.
-            return nil
-        }
-    }
 
     // MARK: Your own API key, save + verify
 

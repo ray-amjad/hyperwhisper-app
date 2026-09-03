@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Pas de aangenomen typesnelheid (WPM) aan die wordt gebruikt om de bespaarde tijd te schatten.";
 "onboarding.progress.a11y" = "Stap %1$d van %2$d";
 "onboarding.a11y.percent" = "%d procent";
-"onboarding.a11y.inProgress" = "Bezig";
 "onboarding.a11y.downloadProgress" = "Downloadvoortgang";
 "onboarding.a11y.inputLevel" = "Microfooninvoerniveau";
 "onboarding.a11y.selected" = "Geselecteerd";

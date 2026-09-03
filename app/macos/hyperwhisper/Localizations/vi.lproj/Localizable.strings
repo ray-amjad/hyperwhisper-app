@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Điều chỉnh tốc độ gõ phím giả định (WPM) dùng để ước tính thời gian tiết kiệm được.";
 "onboarding.progress.a11y" = "Bước %1$d trên %2$d";
 "onboarding.a11y.percent" = "%d phần trăm";
-"onboarding.a11y.inProgress" = "Đang thực hiện";
 "onboarding.a11y.downloadProgress" = "Tiến trình tải xuống";
 "onboarding.a11y.inputLevel" = "Mức tín hiệu micrô đầu vào";
 "onboarding.a11y.selected" = "Đã chọn";

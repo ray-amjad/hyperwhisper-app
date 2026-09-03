@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Pielāgojiet pieņemto rakstīšanas ātrumu (WPM), ko izmanto ietaupītā laika aprēķinam.";
 "onboarding.progress.a11y" = "%1$d. solis no %2$d";
 "onboarding.a11y.percent" = "%d procenti";
-"onboarding.a11y.inProgress" = "Notiek";
 "onboarding.a11y.downloadProgress" = "Lejupielādes progress";
 "onboarding.a11y.inputLevel" = "Mikrofona ievades līmenis";
 "onboarding.a11y.selected" = "Izvēlēts";

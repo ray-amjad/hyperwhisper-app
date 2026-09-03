@@ -427,7 +427,6 @@
 // VoiceOver
 "onboarding.progress.a11y" = "Step %1$d of %2$d";
 "onboarding.a11y.percent" = "%d percent";
-"onboarding.a11y.inProgress" = "In progress";
 "onboarding.a11y.downloadProgress" = "Download progress";
 "onboarding.a11y.inputLevel" = "Microphone input level";
 "onboarding.a11y.selected" = "Selected";

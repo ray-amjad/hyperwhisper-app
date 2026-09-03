@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Налаштуйте орієнтовну швидкість набору (WPM), яка використовується для оцінки заощадженого часу.";
 "onboarding.progress.a11y" = "Крок %1$d з %2$d";
 "onboarding.a11y.percent" = "%d відсотків";
-"onboarding.a11y.inProgress" = "Виконується";
 "onboarding.a11y.downloadProgress" = "Прогрес завантаження";
 "onboarding.a11y.inputLevel" = "Рівень вхідного сигналу мікрофона";
 "onboarding.a11y.selected" = "Обрано";

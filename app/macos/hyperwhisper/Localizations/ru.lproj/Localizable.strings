@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Укажите предполагаемую скорость печати (WPM), по которой оценивается сэкономленное время.";
 "onboarding.progress.a11y" = "Шаг %1$d из %2$d";
 "onboarding.a11y.percent" = "%d процентов";
-"onboarding.a11y.inProgress" = "Выполняется";
 "onboarding.a11y.downloadProgress" = "Прогресс скачивания";
 "onboarding.a11y.inputLevel" = "Уровень входного сигнала микрофона";
 "onboarding.a11y.selected" = "Выбрано";

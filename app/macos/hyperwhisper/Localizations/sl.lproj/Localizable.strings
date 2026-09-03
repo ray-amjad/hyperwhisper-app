@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Prilagodite predvideno hitrost tipkanja (WPM), ki se uporablja za oceno prihranjenega časa.";
 "onboarding.progress.a11y" = "Korak %1$d od %2$d";
 "onboarding.a11y.percent" = "%d odstotkov";
-"onboarding.a11y.inProgress" = "V teku";
 "onboarding.a11y.downloadProgress" = "Napredek prenosa";
 "onboarding.a11y.inputLevel" = "Raven vhoda mikrofona";
 "onboarding.a11y.selected" = "Izbrano";

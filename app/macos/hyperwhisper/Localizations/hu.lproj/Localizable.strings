@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Az időmegtakarítás becsléséhez használt feltételezett gépelési sebesség (WPM) módosítása.";
 "onboarding.progress.a11y" = "%1$d. lépés a(z) %2$d-ből";
 "onboarding.a11y.percent" = "%d százalék";
-"onboarding.a11y.inProgress" = "Folyamatban";
 "onboarding.a11y.downloadProgress" = "Letöltés folyamata";
 "onboarding.a11y.inputLevel" = "Mikrofon bemeneti szintje";
 "onboarding.a11y.selected" = "Kiválasztva";

@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Pakoreguokite numatomą rašymo greitį (WPM), pagal kurį apskaičiuojamas sutaupytas laikas.";
 "onboarding.progress.a11y" = "%1$d žingsnis iš %2$d";
 "onboarding.a11y.percent" = "%d procentai";
-"onboarding.a11y.inProgress" = "Vykdoma";
 "onboarding.a11y.downloadProgress" = "Atsisiuntimo eiga";
 "onboarding.a11y.inputLevel" = "Mikrofono įvesties lygis";
 "onboarding.a11y.selected" = "Pasirinkta";

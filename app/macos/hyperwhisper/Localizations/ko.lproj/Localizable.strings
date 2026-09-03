@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "절약한 시간을 계산할 때 기준이 되는 타이핑 속도(WPM)를 조정합니다.";
 "onboarding.progress.a11y" = "%2$d단계 중 %1$d단계";
 "onboarding.a11y.percent" = "%d 퍼센트";
-"onboarding.a11y.inProgress" = "진행 중";
 "onboarding.a11y.downloadProgress" = "다운로드 진행 상황";
 "onboarding.a11y.inputLevel" = "마이크 입력 레벨";
 "onboarding.a11y.selected" = "선택됨";

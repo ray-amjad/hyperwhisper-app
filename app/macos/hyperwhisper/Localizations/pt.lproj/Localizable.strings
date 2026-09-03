@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Ajuste a velocidade de escrita presumida (WPM) usada para estimar o tempo poupado.";
 "onboarding.progress.a11y" = "Passo %1$d de %2$d";
 "onboarding.a11y.percent" = "%d por cento";
-"onboarding.a11y.inProgress" = "Em curso";
 "onboarding.a11y.downloadProgress" = "Progresso da descarga";
 "onboarding.a11y.inputLevel" = "Nível de entrada do microfone";
 "onboarding.a11y.selected" = "Selecionado";

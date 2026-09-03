@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Ajustează viteza de tastare presupusă (WPM) folosită pentru a estima timpul economisit.";
 "onboarding.progress.a11y" = "Pasul %1$d din %2$d";
 "onboarding.a11y.percent" = "%d la sută";
-"onboarding.a11y.inProgress" = "În curs";
 "onboarding.a11y.downloadProgress" = "Progres descărcare";
 "onboarding.a11y.inputLevel" = "Nivel intrare microfon";
 "onboarding.a11y.selected" = "Selectat";

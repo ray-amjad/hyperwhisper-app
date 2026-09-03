@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "اضبط سرعة الكتابة المفترضة (WPM) المستخدَمة لتقدير الوقت الموفَّر.";
 "onboarding.progress.a11y" = "الخطوة %1$d من %2$d";
 "onboarding.a11y.percent" = "%d بالمئة";
-"onboarding.a11y.inProgress" = "قيد التقدم";
 "onboarding.a11y.downloadProgress" = "تقدّم التنزيل";
 "onboarding.a11y.inputLevel" = "مستوى إدخال الميكروفون";
 "onboarding.a11y.selected" = "مُحدَّد";

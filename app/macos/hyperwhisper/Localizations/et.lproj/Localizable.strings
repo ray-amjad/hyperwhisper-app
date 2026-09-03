@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Muuda eeldatavat kirjutamiskiirust (WPM), mille alusel säästetud aega hinnatakse.";
 "onboarding.progress.a11y" = "Samm %1$d %2$d-st";
 "onboarding.a11y.percent" = "%d protsenti";
-"onboarding.a11y.inProgress" = "Käib";
 "onboarding.a11y.downloadProgress" = "Allalaadimise edenemine";
 "onboarding.a11y.inputLevel" = "Mikrofoni sisendi tase";
 "onboarding.a11y.selected" = "Valitud";

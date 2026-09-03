@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Justér den antagne skrivehastighed (WPM), der bruges til at estimere den sparede tid.";
 "onboarding.progress.a11y" = "Trin %1$d af %2$d";
 "onboarding.a11y.percent" = "%d procent";
-"onboarding.a11y.inProgress" = "I gang";
 "onboarding.a11y.downloadProgress" = "Downloadfremgang";
 "onboarding.a11y.inputLevel" = "Mikrofonens indgangsniveau";
 "onboarding.a11y.selected" = "Valgt";

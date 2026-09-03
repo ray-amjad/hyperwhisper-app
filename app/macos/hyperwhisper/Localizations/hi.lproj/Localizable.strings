@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "बचे हुए समय का अनुमान लगाने के लिए मानी गई टाइपिंग गति (WPM) समायोजित करें।";
 "onboarding.progress.a11y" = "स्टेप %1$d, कुल %2$d में से";
 "onboarding.a11y.percent" = "%d प्रतिशत";
-"onboarding.a11y.inProgress" = "जारी है";
 "onboarding.a11y.downloadProgress" = "डाउनलोड प्रगति";
 "onboarding.a11y.inputLevel" = "माइक्रोफ़ोन इनपुट लेवल";
 "onboarding.a11y.selected" = "चयनित";

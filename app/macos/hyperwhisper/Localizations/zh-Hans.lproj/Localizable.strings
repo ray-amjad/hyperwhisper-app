@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "调整用于估算节省时间的假定打字速度（WPM）。";
 "onboarding.progress.a11y" = "第 %1$d 步，共 %2$d 步";
 "onboarding.a11y.percent" = "百分之 %d";
-"onboarding.a11y.inProgress" = "进行中";
 "onboarding.a11y.downloadProgress" = "下载进度";
 "onboarding.a11y.inputLevel" = "麦克风输入音量";
 "onboarding.a11y.selected" = "已选择";

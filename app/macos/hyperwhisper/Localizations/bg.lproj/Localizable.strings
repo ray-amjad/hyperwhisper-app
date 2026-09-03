@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Коригирайте приетата скорост на писане (WPM), използвана за изчисляване на спестеното време.";
 "onboarding.progress.a11y" = "Стъпка %1$d от %2$d";
 "onboarding.a11y.percent" = "%d процента";
-"onboarding.a11y.inProgress" = "В ход";
 "onboarding.a11y.downloadProgress" = "Напредък на изтеглянето";
 "onboarding.a11y.inputLevel" = "Ниво на входния сигнал на микрофона";
 "onboarding.a11y.selected" = "Избрано";

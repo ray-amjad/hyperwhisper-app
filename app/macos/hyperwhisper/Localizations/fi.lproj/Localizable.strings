@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Säädä oletettua kirjoitusnopeutta (WPM), jonka perusteella säästetty aika arvioidaan.";
 "onboarding.progress.a11y" = "Vaihe %1$d/%2$d";
 "onboarding.a11y.percent" = "%d prosenttia";
-"onboarding.a11y.inProgress" = "Käynnissä";
 "onboarding.a11y.downloadProgress" = "Latauksen edistyminen";
 "onboarding.a11y.inputLevel" = "Mikrofonin tulotaso";
 "onboarding.a11y.selected" = "Valittu";

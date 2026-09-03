@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Kazanılan süreyi hesaplamak için kullanılan varsayılan yazma hızını (WPM) ayarlayın.";
 "onboarding.progress.a11y" = "Adım %1$d / %2$d";
 "onboarding.a11y.percent" = "yüzde %d";
-"onboarding.a11y.inProgress" = "Sürüyor";
 "onboarding.a11y.downloadProgress" = "İndirme ilerlemesi";
 "onboarding.a11y.inputLevel" = "Mikrofon giriş seviyesi";
 "onboarding.a11y.selected" = "Seçildi";

@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "התאמת מהירות ההקלדה המשוערת (WPM) המשמשת לחישוב הזמן שנחסך.";
 "onboarding.progress.a11y" = "שלב %1$d מתוך %2$d";
 "onboarding.a11y.percent" = "%d אחוז";
-"onboarding.a11y.inProgress" = "מתבצע";
 "onboarding.a11y.downloadProgress" = "התקדמות ההורדה";
 "onboarding.a11y.inputLevel" = "רמת קלט המיקרופון";
 "onboarding.a11y.selected" = "נבחר";

@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Stilltu áætlaðan innsláttarhraða (WPM) sem notaður er til að meta sparaðan tíma.";
 "onboarding.progress.a11y" = "Skref %1$d af %2$d";
 "onboarding.a11y.percent" = "%d prósent";
-"onboarding.a11y.inProgress" = "Í gangi";
 "onboarding.a11y.downloadProgress" = "Framvinda niðurhals";
 "onboarding.a11y.inputLevel" = "Inntaksstig hljóðnema";
 "onboarding.a11y.selected" = "Valið";

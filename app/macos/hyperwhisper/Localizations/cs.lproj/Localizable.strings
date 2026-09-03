@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Upravte předpokládanou rychlost psaní (WPM) použitou k odhadu ušetřeného času.";
 "onboarding.progress.a11y" = "Krok %1$d z %2$d";
 "onboarding.a11y.percent" = "%d procent";
-"onboarding.a11y.inProgress" = "Probíhá";
 "onboarding.a11y.downloadProgress" = "Průběh stahování";
 "onboarding.a11y.inputLevel" = "Úroveň vstupu mikrofonu";
 "onboarding.a11y.selected" = "Vybráno";

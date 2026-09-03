@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Laraskan andaian kelajuan menaip (WPM) yang digunakan untuk menganggarkan masa yang dijimatkan.";
 "onboarding.progress.a11y" = "Langkah %1$d daripada %2$d";
 "onboarding.a11y.percent" = "%d peratus";
-"onboarding.a11y.inProgress" = "Sedang berjalan";
 "onboarding.a11y.downloadProgress" = "Kemajuan muat turun";
 "onboarding.a11y.inputLevel" = "Aras input mikrofon";
 "onboarding.a11y.selected" = "Dipilih";

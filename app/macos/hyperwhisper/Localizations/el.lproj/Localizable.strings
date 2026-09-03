@@ -497,7 +497,6 @@
 "home.stats.typing.speed.help" = "Προσαρμόστε την εκτιμώμενη ταχύτητα πληκτρολόγησης (WPM) που χρησιμοποιείται για τον υπολογισμό του χρόνου που εξοικονομείται.";
 "onboarding.progress.a11y" = "Βήμα %1$d από %2$d";
 "onboarding.a11y.percent" = "%d τοις εκατό";
-"onboarding.a11y.inProgress" = "Σε εξέλιξη";
 "onboarding.a11y.downloadProgress" = "Πρόοδος λήψης";
 "onboarding.a11y.inputLevel" = "Στάθμη εισόδου μικροφώνου";
 "onboarding.a11y.selected" = "Επιλεγμένο";
