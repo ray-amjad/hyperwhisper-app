@@ -325,10 +325,11 @@ struct RustLiveStreamingStrategyTests {
         // otherwise clean stop, and the audio was lost to it either way.
         _ = strategy.encodeAudioChunk(Data(count: 4_799))
         now = 5_000
-        var steps = strategy.stopSequence()
-        #expect(steps.count == 2, "a sub-threshold tail must not produce a commit: \(steps)")
-        guard case let .wait(shortGap) = steps[0], case .closeWebSocket = steps[1] else {
-            Issue.record("unexpected OpenAI stop shape without a commit: \(steps)")
+        let steps = strategy.stopSequence()
+        guard steps.count == 2,
+              case let .wait(shortGap) = steps[0],
+              case .closeWebSocket = steps[1] else {
+            Issue.record("a sub-threshold tail must not produce a commit, got: \(steps)")
             return
         }
         #expect(shortGap == 1.0)
@@ -343,8 +344,8 @@ struct RustLiveStreamingStrategyTests {
         now = 5_000
         let steps = strategy.stopSequence()
 
-        #expect(steps.count == 3)
-        guard case let .sendText(commit) = steps[0],
+        guard steps.count == 3,
+              case let .sendText(commit) = steps[0],
               case let .wait(gap) = steps[1],
               case .closeWebSocket = steps[2] else {
             Issue.record("unexpected OpenAI stop shape: \(steps)")
@@ -390,8 +391,8 @@ struct RustLiveStreamingStrategyTests {
         let (strategy, _) = try connected(.xai, config(apiKey: "xai-test"))
         let steps = strategy.stopSequence()
 
-        #expect(steps.count == 3)
-        guard case let .sendText(done) = steps[0],
+        guard steps.count == 3,
+              case let .sendText(done) = steps[0],
               case let .waitForSessionComplete(timeout) = steps[1],
               case .closeWebSocket = steps[2] else {
             Issue.record("unexpected xAI stop shape: \(steps)")
@@ -410,8 +411,7 @@ struct RustLiveStreamingStrategyTests {
         let (strategy, _) = try connected(.elevenLabs, config(apiKey: "el-test"))
         let steps = strategy.stopSequence()
 
-        #expect(steps.count == 1)
-        guard case .closeWebSocket = steps.first else {
+        guard steps.count == 1, case .closeWebSocket = steps[0] else {
             Issue.record("unexpected ElevenLabs stop shape: \(steps)")
             return
         }
