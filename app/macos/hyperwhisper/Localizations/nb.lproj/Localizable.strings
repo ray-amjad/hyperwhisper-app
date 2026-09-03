@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Last ned modellen din";
 "onboarding.setup.onDevice.download" = "Last ned %@";
 "onboarding.setup.onDevice.downloading" = "Laster ned… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Laster ned…";
+"onboarding.setup.onDevice.preparing" = "Forbereder nedlasting…";
+"onboarding.setup.onDevice.downloadingFile" = "Laster ned fil %1$d av %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modellen optimaliseres for denne Macen. Nesten ferdig.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimaliserer…";
+"onboarding.setup.onDevice.firstRunHint" = "Den første nedlastingen tar noen minutter. Du kan la dette vinduet stå åpent.";
 "onboarding.setup.onDevice.ready" = "Modell klar";
 "onboarding.setup.cloud.title" = "Aktiver nøkkelen din";
 "onboarding.setup.cloud.activate" = "Aktiver Cloud";

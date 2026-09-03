@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Descarregue o seu modelo";
 "onboarding.setup.onDevice.download" = "Descarregar %@";
 "onboarding.setup.onDevice.downloading" = "A descarregar… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "A descarregar…";
+"onboarding.setup.onDevice.preparing" = "A preparar o descarregamento…";
+"onboarding.setup.onDevice.downloadingFile" = "A descarregar o ficheiro %1$d de %2$d";
+"onboarding.setup.onDevice.optimizing" = "A otimizar o modelo para este Mac. Está quase.";
+"onboarding.setup.onDevice.optimizingPill" = "A otimizar…";
+"onboarding.setup.onDevice.firstRunHint" = "O primeiro descarregamento demora alguns minutos. Pode deixar esta janela aberta.";
 "onboarding.setup.onDevice.ready" = "Modelo pronto";
 "onboarding.setup.cloud.title" = "Ative a sua chave";
 "onboarding.setup.cloud.activate" = "Ativar Cloud";

@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Téléchargez votre modèle";
 "onboarding.setup.onDevice.download" = "Télécharger %@";
 "onboarding.setup.onDevice.downloading" = "Téléchargement… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Téléchargement…";
+"onboarding.setup.onDevice.preparing" = "Préparation du téléchargement…";
+"onboarding.setup.onDevice.downloadingFile" = "Téléchargement du fichier %1$d sur %2$d";
+"onboarding.setup.onDevice.optimizing" = "Optimisation du modèle pour ce Mac. C'est presque terminé.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimisation…";
+"onboarding.setup.onDevice.firstRunHint" = "Le premier téléchargement prend quelques minutes. Vous pouvez laisser cette fenêtre ouverte.";
 "onboarding.setup.onDevice.ready" = "Modèle prêt";
 "onboarding.setup.cloud.title" = "Activez votre clé";
 "onboarding.setup.cloud.activate" = "Activer Cloud";

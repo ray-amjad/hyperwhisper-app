@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "הורידו את המודל שלכם";
 "onboarding.setup.onDevice.download" = "הורד %@";
 "onboarding.setup.onDevice.downloading" = "מוריד… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "מוריד…";
+"onboarding.setup.onDevice.preparing" = "מכין את ההורדה…";
+"onboarding.setup.onDevice.downloadingFile" = "מוריד קובץ %1$d מתוך %2$d";
+"onboarding.setup.onDevice.optimizing" = "מבצע אופטימיזציה של המודל עבור ה-Mac הזה. כמעט סיימנו.";
+"onboarding.setup.onDevice.optimizingPill" = "מבצע אופטימיזציה…";
+"onboarding.setup.onDevice.firstRunHint" = "ההורדה הראשונה נמשכת כמה דקות. אפשר להשאיר את החלון הזה פתוח.";
 "onboarding.setup.onDevice.ready" = "המודל מוכן";
 "onboarding.setup.cloud.title" = "הפעילו את המפתח שלכם";
 "onboarding.setup.cloud.activate" = "הפעל Cloud";

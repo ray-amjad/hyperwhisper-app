@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Stáhni si model";
 "onboarding.setup.onDevice.download" = "Stáhnout %@";
 "onboarding.setup.onDevice.downloading" = "Stahování… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Stahování…";
+"onboarding.setup.onDevice.preparing" = "Příprava stahování…";
+"onboarding.setup.onDevice.downloadingFile" = "Stahování souboru %1$d z %2$d";
+"onboarding.setup.onDevice.optimizing" = "Model se optimalizuje pro tento Mac. Už to bude.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimalizace…";
+"onboarding.setup.onDevice.firstRunHint" = "První stahování trvá několik minut. Toto okno můžete nechat otevřené.";
 "onboarding.setup.onDevice.ready" = "Model připraven";
 "onboarding.setup.cloud.title" = "Aktivuj svůj klíč";
 "onboarding.setup.cloud.activate" = "Aktivovat Cloud";

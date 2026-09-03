@@ -58,6 +58,9 @@ final class FakeCatalog: OnboardingModelCatalog {
     var installed: Set<String> = []
     var downloading: Set<String> = []
     var progresses: [String: Double] = [:]
+    /// Issue #312. Absent by default, which is the state every engine except
+    /// Parakeet is in.
+    var stages: [String: ModelDownloadStage] = [:]
     var startedDownloads: [String] = []
     let errors = CurrentValueSubject<OnboardingDownloadErrors, Never>(.none)
     /// Stands in for the nested download managers' change ticks. Unthrottled,
@@ -67,9 +70,31 @@ final class FakeCatalog: OnboardingModelCatalog {
     func isInstalled(_ model: OnboardingModelSelection) -> Bool { installed.contains(model.id) }
     func isDownloading(_ model: OnboardingModelSelection) -> Bool { downloading.contains(model.id) }
     func progress(for model: OnboardingModelSelection) -> Double { progresses[model.id] ?? 0 }
+    func stage(for model: OnboardingModelSelection) -> ModelDownloadStage? { stages[model.id] }
     func startDownload(_ model: OnboardingModelSelection) { startedDownloads.append(model.id) }
     var downloadErrors: AnyPublisher<OnboardingDownloadErrors, Never> { errors.eraseToAnyPublisher() }
     var downloadActivity: AnyPublisher<Void, Never> { activity.eraseToAnyPublisher() }
+}
+
+/// A catalog that implements only the requirements without a default, so
+/// `OnboardingModelCatalog.stage(for:)`'s own default implementation is the code
+/// under test. This stands in for every conformer that has no stage to give —
+/// which is the whole reason the requirement is defaulted rather than added
+/// bare (issue #312).
+@MainActor
+final class FakeCatalogWithoutStage: OnboardingModelCatalog {
+    var models: [OnboardingModelSelection] = [FakeCatalog.parakeet]
+
+    func isInstalled(_ model: OnboardingModelSelection) -> Bool { false }
+    func isDownloading(_ model: OnboardingModelSelection) -> Bool { true }
+    func progress(for model: OnboardingModelSelection) -> Double { 0.01 }
+    func startDownload(_ model: OnboardingModelSelection) {}
+    var downloadErrors: AnyPublisher<OnboardingDownloadErrors, Never> {
+        Empty<OnboardingDownloadErrors, Never>(completeImmediately: false).eraseToAnyPublisher()
+    }
+    var downloadActivity: AnyPublisher<Void, Never> {
+        Empty<Void, Never>(completeImmediately: false).eraseToAnyPublisher()
+    }
 }
 
 @MainActor
@@ -617,6 +642,47 @@ struct OnboardingDownloadProgressTests {
 
         #expect(invalidations == 1)
         #expect(h.flow.selectedModelProgress() == 0.42)
+    }
+
+    /// Issue #312. The setup step chooses between a percentage and an
+    /// indeterminate bar from the stage, so the stage has to survive the trip
+    /// across the catalog seam intact — associated values included.
+    @Test func theCatalogStageReachesTheFlow() {
+        let h = Harness()
+        h.flow.select(source: .onDevice)
+        h.flow.select(model: FakeCatalog.parakeet)
+
+        #expect(h.flow.selectedModelStage() == nil)
+
+        h.catalog.stages[FakeCatalog.parakeet.id] = .preparing
+        #expect(h.flow.selectedModelStage() == ModelDownloadStage.preparing)
+
+        h.catalog.stages[FakeCatalog.parakeet.id] = .downloading(completedFiles: 3, totalFiles: 22)
+        #expect(h.flow.selectedModelStage()
+                == ModelDownloadStage.downloading(completedFiles: 3, totalFiles: 22))
+
+        h.catalog.stages[FakeCatalog.parakeet.id] = .processing
+        #expect(h.flow.selectedModelStage() == ModelDownloadStage.processing)
+    }
+
+    /// The protocol's default implementation is the whole reason this change
+    /// cannot regress an engine that publishes no stage: the view falls back to
+    /// today's percentage rendering on `nil`.
+    @Test func aCatalogWithNoStageOfItsOwnStaysNil() {
+        let flow = OnboardingFlowModel(
+            permissions: FakePermissions(),
+            catalog: FakeCatalogWithoutStage(),
+            license: FakeLicense(),
+            providerKeys: FakeProviderKeys(),
+            audio: FakeAudio(),
+            committer: FakeCommitter(),
+            systemDefaultDeviceName: "System Default"
+        )
+        flow.select(source: .onDevice)
+        flow.select(model: FakeCatalog.parakeet)
+
+        #expect(flow.selectedModel == FakeCatalog.parakeet)
+        #expect(flow.selectedModelStage() == nil)
     }
 }
 

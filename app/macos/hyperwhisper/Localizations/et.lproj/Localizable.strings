@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Laadi mudel alla";
 "onboarding.setup.onDevice.download" = "Laadi alla %@";
 "onboarding.setup.onDevice.downloading" = "Allalaadimine… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Allalaadimine…";
+"onboarding.setup.onDevice.preparing" = "Allalaadimise ettevalmistamine…";
+"onboarding.setup.onDevice.downloadingFile" = "Laaditakse alla fail %1$d / %2$d";
+"onboarding.setup.onDevice.optimizing" = "Mudelit optimeeritakse selle Maci jaoks. Peaaegu valmis.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimeerimine…";
+"onboarding.setup.onDevice.firstRunHint" = "Esimene allalaadimine võtab paar minutit. Võid selle akna lahti jätta.";
 "onboarding.setup.onDevice.ready" = "Mudel on valmis";
 "onboarding.setup.cloud.title" = "Aktiveeri oma võti";
 "onboarding.setup.cloud.activate" = "Aktiveeri Cloud";

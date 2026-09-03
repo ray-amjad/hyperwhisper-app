@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Изтегли своя модел";
 "onboarding.setup.onDevice.download" = "Изтегли %@";
 "onboarding.setup.onDevice.downloading" = "Изтегляне… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Изтегляне…";
+"onboarding.setup.onDevice.preparing" = "Подготовка на изтеглянето…";
+"onboarding.setup.onDevice.downloadingFile" = "Изтегляне на файл %1$d от %2$d";
+"onboarding.setup.onDevice.optimizing" = "Моделът се оптимизира за този Mac. Почти готово.";
+"onboarding.setup.onDevice.optimizingPill" = "Оптимизиране…";
+"onboarding.setup.onDevice.firstRunHint" = "Първото изтегляне отнема няколко минути. Можете да оставите този прозорец отворен.";
 "onboarding.setup.onDevice.ready" = "Моделът е готов";
 "onboarding.setup.cloud.title" = "Активирай своя ключ";
 "onboarding.setup.cloud.activate" = "Активирай Cloud";

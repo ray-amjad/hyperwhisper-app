@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Descarcă-ți modelul";
 "onboarding.setup.onDevice.download" = "Descarcă %@";
 "onboarding.setup.onDevice.downloading" = "Se descarcă… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Se descarcă…";
+"onboarding.setup.onDevice.preparing" = "Se pregătește descărcarea…";
+"onboarding.setup.onDevice.downloadingFile" = "Se descarcă fișierul %1$d din %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modelul este optimizat pentru acest Mac. Aproape gata.";
+"onboarding.setup.onDevice.optimizingPill" = "Se optimizează…";
+"onboarding.setup.onDevice.firstRunHint" = "Prima descărcare durează câteva minute. Poți lăsa această fereastră deschisă.";
 "onboarding.setup.onDevice.ready" = "Model pregătit";
 "onboarding.setup.cloud.title" = "Activează-ți cheia";
 "onboarding.setup.cloud.activate" = "Activează Cloud";

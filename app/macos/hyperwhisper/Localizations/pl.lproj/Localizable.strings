@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Pobierz swój model";
 "onboarding.setup.onDevice.download" = "Pobierz %@";
 "onboarding.setup.onDevice.downloading" = "Pobieranie… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Pobieranie…";
+"onboarding.setup.onDevice.preparing" = "Przygotowywanie pobierania…";
+"onboarding.setup.onDevice.downloadingFile" = "Pobieranie pliku %1$d z %2$d";
+"onboarding.setup.onDevice.optimizing" = "Model jest optymalizowany pod tego Maca. Już prawie.";
+"onboarding.setup.onDevice.optimizingPill" = "Optymalizowanie…";
+"onboarding.setup.onDevice.firstRunHint" = "Pierwsze pobieranie trwa kilka minut. To okno możesz zostawić otwarte.";
 "onboarding.setup.onDevice.ready" = "Model gotowy";
 "onboarding.setup.cloud.title" = "Aktywuj swój klucz";
 "onboarding.setup.cloud.activate" = "Aktywuj Cloud";

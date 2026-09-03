@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Sæktu líkanið þitt";
 "onboarding.setup.onDevice.download" = "Sækja %@";
 "onboarding.setup.onDevice.downloading" = "Sæki… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Sæki…";
+"onboarding.setup.onDevice.preparing" = "Undirbý niðurhal…";
+"onboarding.setup.onDevice.downloadingFile" = "Sæki skrá %1$d af %2$d";
+"onboarding.setup.onDevice.optimizing" = "Fínstilli líkanið fyrir þessa Mac-tölvu. Næstum búið.";
+"onboarding.setup.onDevice.optimizingPill" = "Fínstilli…";
+"onboarding.setup.onDevice.firstRunHint" = "Fyrsta niðurhalið tekur nokkrar mínútur. Þú mátt láta þennan glugga vera opinn.";
 "onboarding.setup.onDevice.ready" = "Líkan tilbúið";
 "onboarding.setup.cloud.title" = "Virkjaðu lykilinn þinn";
 "onboarding.setup.cloud.activate" = "Virkja Cloud";
