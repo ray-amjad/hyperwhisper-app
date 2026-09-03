@@ -766,7 +766,7 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ πιστώσεις/λεπτό";
 "modes.cloudAccuracy.grokStt.label" = "Υψηλότερο (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Υψηλή (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Πολύγλωσσο, με υποστήριξη προσαρμοσμένου λεξιλογίου.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe 1.5)";

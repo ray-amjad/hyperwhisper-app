@@ -151,7 +151,7 @@ pub struct SttEntry {
     #[serde(default)]
     pub display_model: Option<String>,
     pub vendor: String,
-    /// Plain company name shown in the Provider dropdown ("Deepgram", "xAI").
+    /// Plain company name shown in the Provider dropdown ("Deepgram", "SpaceXAI").
     /// Catalog v7+ — carries no model family or version, unlike `display_name`
     /// ("Deepgram Nova 3"). `None` on an older catalog; callers fall back to
     /// `display_name` (see [`SttEntry::vendor_label`]).

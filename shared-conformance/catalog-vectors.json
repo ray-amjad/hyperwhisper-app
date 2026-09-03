@@ -165,8 +165,8 @@
       "displayName": "Grok STT",
       "displayModel": "grok-stt",
       "vendor": "xai",
-      "vendorDisplayName": "xAI",
-      "vendorLabel": "xAI",
+      "vendorDisplayName": "SpaceXAI",
+      "vendorLabel": "SpaceXAI",
       "sttProvider": "grok",
       "cloudTierEligible": true,
       "byokEligible": true,
@@ -975,7 +975,7 @@
     },
     {
       "vendorKey": "xai",
-      "displayName": "xAI",
+      "displayName": "SpaceXAI",
       "entryIds": [
         "grokStt"
       ],

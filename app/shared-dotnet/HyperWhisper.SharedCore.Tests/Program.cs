@@ -309,7 +309,7 @@ var tests = new (string Name, Func<Task> Run)[]
         Assert.Equal("Deepgram (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.Deepgram));
         Assert.Equal("ElevenLabs (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.ElevenLabs));
         Assert.Equal("OpenAI (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.OpenAi));
-        Assert.Equal("xAI (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.Grok));
+        Assert.Equal("SpaceXAI (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.Grok));
         Assert.Equal(
             "HyperWhisper Cloud (Streaming)",
             SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.HyperWhisperCloud));

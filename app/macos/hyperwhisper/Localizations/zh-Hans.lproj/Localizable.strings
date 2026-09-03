@@ -772,7 +772,7 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高准确度但更慢，适合重要转写。";
 "modes.cloudAccuracy.creditsPerMinute" = "约 %@ 积分/分钟";
 "modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高准确度但更慢，适合重要转写。";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高准确度但更慢，适合重要转写。";
 "modes.cloudAccuracy.geminiTranscribe.label" = "高（Google Gemini 3.5 Transcribe）";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。支持多语言和自定义词汇。";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe 1.5）";

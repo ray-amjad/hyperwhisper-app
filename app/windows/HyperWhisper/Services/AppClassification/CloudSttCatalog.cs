@@ -457,7 +457,7 @@ public sealed class CloudSttCatalogEntry
     public string Vendor { get; init; } = string.Empty;
 
     /// <summary>
-    /// Plain company name shown in the Provider dropdown ("Deepgram", "xAI").
+    /// Plain company name shown in the Provider dropdown ("Deepgram", "SpaceXAI").
     /// Catalog v7+ — carries no model family or version, unlike
     /// <see cref="DisplayName"/> ("Deepgram Nova 3"), which stays for tooltips
     /// and diagnostics. Null on an older catalog; use <see cref="VendorLabel"/>,

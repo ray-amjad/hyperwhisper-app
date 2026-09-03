@@ -766,7 +766,7 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ رصيد/دقيقة";
 "modes.cloudAccuracy.grokStt.label" = "الأعلى (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "مرتفع (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. متعدد اللغات مع دعم المفردات المخصصة.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "مرتفع (Microsoft MAI-Transcribe 1.5)";

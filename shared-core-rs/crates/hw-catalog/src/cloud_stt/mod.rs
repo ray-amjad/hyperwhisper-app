@@ -622,10 +622,10 @@ mod tests {
             names,
             vec![
                 "AssemblyAI", "Deepgram", "ElevenLabs", "Google", "Groq", "Meta",
-                "Microsoft", "Mistral", "OpenAI", "Soniox", "xAI",
+                "Microsoft", "Mistral", "OpenAI", "Soniox", "SpaceXAI",
             ],
             "the Provider dropdown reads alphabetically, case-insensitively \
-             (xAI sorts last only under a case-insensitive compare)"
+             (SpaceXAI sorts last under a case-insensitive compare)"
         );
         // Google owns two entries and contributes ONE row spanning both.
         let google = groups.iter().find(|g| g.vendor_key == "google").unwrap();

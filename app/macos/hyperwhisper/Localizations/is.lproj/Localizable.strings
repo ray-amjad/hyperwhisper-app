@@ -766,7 +766,7 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ einingar/mín";
 "modes.cloudAccuracy.grokStt.label" = "Hæst (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Há (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Fjöltyngt, með stuðningi við sérsniðinn orðaforða.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe 1.5)";

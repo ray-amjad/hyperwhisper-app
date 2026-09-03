@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-01",
+  "lastUpdated": "2026-09-03",
   "models": [
     {
       "provider": "appleSpeech",
@@ -334,7 +334,7 @@
       "availableViaHyperWhisperCloud": true,
       "platforms": ["windows"],
       "supportsAllLanguages": true,
-      "notes": "xAI Grok STT exposes one implicit model; the registry encodes it with an empty id. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per xAI docs), so it is intentionally NOT mirrored here."
+      "notes": "SpaceXAI Grok STT exposes one implicit model; the registry encodes it with an empty id. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per SpaceXAI docs), so it is intentionally NOT mirrored here."
     },
 
     {

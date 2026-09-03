@@ -766,7 +766,7 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediittiä/min";
 "modes.cloudAccuracy.grokStt.label" = "Korkein (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Korkea (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Monikielinen, tukee mukautettua sanastoa.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Korkea (Microsoft MAI-Transcribe 1.5)";

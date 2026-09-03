@@ -248,21 +248,21 @@ struct PostProcessingModels {
             id: "grok-4.3",
             displayName: "Grok 4.3",
             isAvailable: true,
-            description: "xAI's Grok 4.3 with reasoning disabled for low-latency text enhancement",
+            description: "SpaceXAI's Grok 4.3 with reasoning disabled for low-latency text enhancement",
             provider: .grok
         ),
         PostProcessingModel(
             id: "grok-4.5",
             displayName: "Grok 4.5",
             isAvailable: true,
-            description: "xAI's Grok 4.5 with reasoning disabled for low-latency text enhancement",
+            description: "SpaceXAI's Grok 4.5 with reasoning disabled for low-latency text enhancement",
             provider: .grok
         ),
         PostProcessingModel(
             id: "grok-4.6",
             displayName: "Grok 4.6",
             isAvailable: true,
-            description: "xAI's latest Grok model with a 500k context window and reasoning disabled for low-latency text enhancement",
+            description: "SpaceXAI's latest Grok model with a 500k context window and reasoning disabled for low-latency text enhancement",
             provider: .grok
         ),
 

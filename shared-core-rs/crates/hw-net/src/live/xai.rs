@@ -81,7 +81,7 @@ pub(super) fn parse(state: &mut SessionState, root: &serde_json::Value) -> LiveE
     match str_field(root, "type") {
         Some("transcript.created") => LiveEvent::SessionStarted { session_id: None },
         Some("error") => LiveEvent::Error {
-            message: super::config::error_message(root, "xAI streaming transcription failed"),
+            message: super::config::error_message(root, "SpaceXAI streaming transcription failed"),
             kind: None,
         },
         Some("transcript.partial") => parse_partial(state, root),

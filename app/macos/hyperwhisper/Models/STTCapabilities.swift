@@ -409,7 +409,7 @@ enum STTCapabilities {
                         id: "",
                         displayName: "Default",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
-                        notes: "xAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
+                        notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
                     )
                 ]
             ),

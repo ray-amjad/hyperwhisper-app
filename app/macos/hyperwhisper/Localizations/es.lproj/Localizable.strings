@@ -772,7 +772,7 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Máxima precisión con procesamiento más lento. Ideal para transcripciones importantes.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ créditos/min";
 "modes.cloudAccuracy.grokStt.label" = "Máxima (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Máxima precisión con procesamiento más lento. Ideal para transcripciones importantes.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Máxima precisión con procesamiento más lento. Ideal para transcripciones importantes.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingüe, con compatibilidad con vocabulario personalizado.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";

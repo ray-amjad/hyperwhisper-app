@@ -368,7 +368,7 @@ fn openai_strategy_fallback_wording_is_transient() {
 #[test]
 fn xai_strategy_fallback_wording_is_transient() {
     assert_eq!(
-        classify_error_message("xAI streaming transcription failed"),
+        classify_error_message("SpaceXAI streaming transcription failed"),
         LiveErrorOutcome::Transient
     );
 }
@@ -591,7 +591,7 @@ fn each_provider_carries_its_own_capability_row() {
             "ElevenLabs (Streaming)",
         ),
         (LiveProvider::OpenAi, 24_000, false, "OpenAI (Streaming)"),
-        (LiveProvider::Grok, 16_000, true, "xAI (Streaming)"),
+        (LiveProvider::Grok, 16_000, true, "SpaceXAI (Streaming)"),
         (
             LiveProvider::HyperWhisperCloud,
             16_000,

@@ -1202,7 +1202,7 @@ private struct TranscriptDetailView: View {
 
                     // Transcription provider badge (green) - conditional
                     if let provider = snapshot.transcriptionProvider {
-                        Label(provider, systemImage: "waveform")
+                        Label(HistoryProviderDisplayName.normalize(provider), systemImage: "waveform")
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)

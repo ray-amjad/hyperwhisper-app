@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 10,
-  "updated": "2026-09-02",
+  "updated": "2026-09-03",
   "providers": [
     {
       "id": "groqWhisper",
@@ -95,7 +95,7 @@
       "displayName": "Grok STT",
       "displayModel": "grok-stt",
       "vendor": "xai",
-      "vendorDisplayName": "xAI",
+      "vendorDisplayName": "SpaceXAI",
       "sttProvider": "grok",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -120,7 +120,7 @@
       "acceptedFormatsCaveat": "Raw PCM / µ-law / A-law also accepted with explicit `audio_format` + `sample_rate` parameters.",
       "maxFileSizeMb": 500,
       "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
-      "regionalRouting": "Single global endpoint (`https://api.x.ai/v1/stt`); xAI hosts in `us-east-1` but no per-region routing exposed.",
+      "regionalRouting": "Single global endpoint (`https://api.x.ai/v1/stt`); SpaceXAI hosts in `us-east-1` but no per-region routing exposed.",
       "previewStatus": false,
       "sources": [
         "https://docs.x.ai/developers/model-capabilities/audio/speech-to-text",

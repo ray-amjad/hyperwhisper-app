@@ -710,7 +710,7 @@ Do you want to restart now?</value>
     <value>Google's dedicated speech-to-text model with custom vocabulary support</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
-    <value>xAI Grok speech-to-text API</value>
+    <value>SpaceXAI Grok speech-to-text API</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -726,7 +726,7 @@ Do you want to restart now?</value>
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>xAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok models for text enhancement</value>
   </data>
   <data name="settings.api.provider.cerebras.description" xml:space="preserve">
     <value>Cerebras ultra-fast inference for text enhancement</value>
@@ -1216,7 +1216,7 @@ Do you want to restart now?</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - high accuracy, custom vocabulary as keyterms</value>
+    <value>SpaceXAI Grok STT - high accuracy, custom vocabulary as keyterms</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
     <value>Microsoft MAI-Transcribe 1.5</value>
@@ -1381,7 +1381,7 @@ Do you want to restart now?</value>
     <value>Google's Gemini models with native audio understanding</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
-    <value>xAI Grok speech-to-text (batch HTTP)</value>
+    <value>SpaceXAI Grok speech-to-text (batch HTTP)</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
     <value>Fast, accurate transcription - no API key required</value>
@@ -1566,7 +1566,7 @@ You can re-download it later.</value>
     <value>OpenAI</value>
   </data>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
-    <value>xAI</value>
+    <value>SpaceXAI</value>
   </data>
   <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
     <value>Gemini 3.5 Transcribe</value>
@@ -1593,10 +1593,10 @@ You can re-download it later.</value>
     <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>xAI API key is configured.</value>
+    <value>SpaceXAI API key is configured.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>xAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+    <value>SpaceXAI streaming requires a Grok API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
     <value>Gemini API key is configured.</value>

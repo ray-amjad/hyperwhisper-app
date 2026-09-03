@@ -62,7 +62,7 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
         case .groq:
             return "Groq's ultra-fast LLM inference for text enhancement"
         case .grok:
-            return "xAI's Grok models for text enhancement"
+            return "SpaceXAI's Grok models for text enhancement"
         case .cerebras:
             return "Cerebras' ultra-fast LLM inference for text enhancement"
         case .mistral:

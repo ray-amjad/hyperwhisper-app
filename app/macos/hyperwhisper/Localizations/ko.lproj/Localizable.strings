@@ -766,7 +766,7 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ 크레딧/분";
 "modes.cloudAccuracy.grokStt.label" = "최고 (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "높음 (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. 다국어를 지원하며 사용자 지정 어휘를 사용할 수 있습니다.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "높음 (Microsoft MAI-Transcribe 1.5)";

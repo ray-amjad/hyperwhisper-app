@@ -164,7 +164,7 @@
       },
       "apiKey": {
         "question": "APIの利用に料金がかかりますか？",
-        "answer": "次のプロバイダーを利用する場合は、各プロバイダーのAPIキーを用意していただく必要があります: Groq、xAI Grok、OpenAI、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini。一部のプロバイダーは新規ユーザーに無料クレジットを提供しており、Deepgramは$200、AssemblyAIは$50分の無料クレジットが利用できます。長期的には、サブスクリプション型のサービスよりもかなりお得になります。\n\nまた、APIキー不要で従量課金制のHyperWhisper Cloud（組み込み）もご利用いただけます。\n\nもちろん、ローカルオフラインモードはAPIキー不要で完全無料です。"
+        "answer": "次のプロバイダーを利用する場合は、各プロバイダーのAPIキーを用意していただく必要があります: Groq、SpaceXAI Grok、OpenAI、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini。一部のプロバイダーは新規ユーザーに無料クレジットを提供しており、Deepgramは$200、AssemblyAIは$50分の無料クレジットが利用できます。長期的には、サブスクリプション型のサービスよりもかなりお得になります。\n\nまた、APIキー不要で従量課金制のHyperWhisper Cloud（組み込み）もご利用いただけます。\n\nもちろん、ローカルオフラインモードはAPIキー不要で完全無料です。"
       },
       "languages": {
         "question": "対応言語は何ですか？",
@@ -180,11 +180,11 @@
       },
       "privacy": {
         "question": "プライバシーはどのように保護されますか？",
-        "answer": "ローカルモードを使用している場合、データが Mac や Windows PC の外に出ることは決してありません。\n\nクラウド文字起こしを使用している場合、データはお客様が選択したクラウドプロバイダー（OpenAI、Groq、xAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini など）に送信されます。\n\n[Proxyman](https://proxyman.io)などのネットワークインスペクターや、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)などのネットワークモニターで、あるいは[GitHub のソースコード](https://github.com/ray-amjad/hyperwhisper-app)を読むことで、ご自身で確認することもできます。"
+        "answer": "ローカルモードを使用している場合、データが Mac や Windows PC の外に出ることは決してありません。\n\nクラウド文字起こしを使用している場合、データはお客様が選択したクラウドプロバイダー（OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini など）に送信されます。\n\n[Proxyman](https://proxyman.io)などのネットワークインスペクターや、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)などのネットワークモニターで、あるいは[GitHub のソースコード](https://github.com/ray-amjad/hyperwhisper-app)を読むことで、ご自身で確認することもできます。"
       },
       "cloud": {
         "question": "HyperWhisper Cloudとは何ですか？",
-        "answer": "HyperWhisper Cloudは、すぐに使い始めたい、技術にあまり詳しくないユーザー向けの、組み込みのクラウド文字起こしです。\n\n従量課金制のクレジットです。わずか$5（$1あたり1,000クレジット）からチャージでき、文字起こしをするときにだけ消費します。最初のクレジット購入で自動的にAccount Keyが作成されるため、ほかに購入するものはありません。\n    \n精度は4段階あります：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）、そしてHighest（Grok STT。新規インストールのデフォルトで、xAI Grok STTを利用）。後処理は自動で、デフォルトはGrok 4.1 Fast non-reasoningです。消費したクレジット数以外は何も保存せず、利用するすべての上流プロバイダーでモデル学習へのオプトアウトを設定済みです。詳しくは[データプライバシーガイド](https://hyperwhisper.com/docs/data-privacy)をご覧ください。\n\nクレジットはプロバイダー自身の処理コストで消費され、文字起こしへの上乗せはありません。チェックアウト時には一律6%の決済処理手数料が加算され、個別の項目として表示されます。未使用のクレジットは12か月後に失効します（下記参照）。\n\nご安心いただけるよう、Cloudバックエンドを含め、アプリ全体がApache-2.0のもとでオープンソースです。あなたのアプリと、私たちがプロキシするプロバイダーとの間で実行されるすべてのコードを[GitHubで](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)読むことができます。"
+        "answer": "HyperWhisper Cloudは、すぐに使い始めたい、技術にあまり詳しくないユーザー向けの、組み込みのクラウド文字起こしです。\n\n従量課金制のクレジットです。わずか$5（$1あたり1,000クレジット）からチャージでき、文字起こしをするときにだけ消費します。最初のクレジット購入で自動的にAccount Keyが作成されるため、ほかに購入するものはありません。\n    \n精度は4段階あります：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）、そしてHighest（Grok STT。新規インストールのデフォルトで、SpaceXAI Grok STTを利用）。後処理は自動で、デフォルトはGrok 4.1 Fast non-reasoningです。消費したクレジット数以外は何も保存せず、利用するすべての上流プロバイダーでモデル学習へのオプトアウトを設定済みです。詳しくは[データプライバシーガイド](https://hyperwhisper.com/docs/data-privacy)をご覧ください。\n\nクレジットはプロバイダー自身の処理コストで消費され、文字起こしへの上乗せはありません。チェックアウト時には一律6%の決済処理手数料が加算され、個別の項目として表示されます。未使用のクレジットは12か月後に失効します（下記参照）。\n\nご安心いただけるよう、Cloudバックエンドを含め、アプリ全体がApache-2.0のもとでオープンソースです。あなたのアプリと、私たちがプロキシするプロバイダーとの間で実行されるすべてのコードを[GitHubで](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)読むことができます。"
       },
       "dataTraining": {
         "question": "私の音声データはAIモデルの学習に使用されますか？",

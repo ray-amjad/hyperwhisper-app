@@ -254,7 +254,7 @@ extension RecordingTranscriptionFlow {
             let xaiKey = KeychainManager.shared.getAPIKey(for: .grok)
             guard !xaiKey.isEmpty else {
                 AppLogger.audio.error("❌ Streaming failed: xAI API key not configured")
-                await cancelRecordingWithError("xAI API key not configured")
+                await cancelRecordingWithError("SpaceXAI API key not configured")
                 return
             }
             apiKey = xaiKey

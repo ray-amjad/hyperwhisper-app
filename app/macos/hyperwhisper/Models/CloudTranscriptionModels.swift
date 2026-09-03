@@ -129,7 +129,7 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         case .gemini:
             return "Google Gemini multimodal transcription with custom prompting support"
         case .grok:
-            return "xAI Grok speech-to-text API"
+            return "SpaceXAI Grok speech-to-text API"
         case .microsoftAzureSpeech:
             return "Microsoft MAI-Transcribe 1.5 via Azure Speech (43 languages with contextual biasing)"
         case .googleSpeech:
@@ -670,7 +670,7 @@ struct CloudTranscriptionModels {
             id: "",
             displayName: "Grok Speech-to-Text",
             isAvailable: true,
-            description: "xAI's speech-to-text endpoint. It exposes a single model, so there is nothing to choose.",
+            description: "SpaceXAI's speech-to-text endpoint. It exposes a single model, so there is nothing to choose.",
             provider: .grok,
             isPopular: true,
             pricePerSecond: nil

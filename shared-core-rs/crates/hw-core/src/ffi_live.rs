@@ -741,7 +741,7 @@ mod tests {
                 false,
                 "OpenAI (Streaming)",
             ),
-            (lv::LiveProvider::Grok, 16_000, true, "xAI (Streaming)"),
+            (lv::LiveProvider::Grok, 16_000, true, "SpaceXAI (Streaming)"),
             (
                 lv::LiveProvider::GeminiTranscribe,
                 16_000,
