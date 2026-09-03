@@ -158,13 +158,17 @@ enum StreamingConnectionState: Equatable {
 //     starts or stops llama-server and drives the local-runtime indicator.
 //
 // Fusing them into one key would make every post-processing edit tear down and
-// reload the ASR model — a visible "(Loading…)" flicker in the Modes editor at
-// best, and a cancelled dictation at worst, because `prepareModel`'s only
-// bail-out covers `.transcribing` and not `.postProcessing`. Neither key
-// includes `name`, `sortOrder`, `enableScreenOCR`, `cloudProvider` or the
-// accuracy tier: a rename must not tear down a resident model, and the cloud
-// branch of `prepareModel` reports `.ready(name: "Cloud")` regardless of which
-// cloud provider or tier is selected.
+// reload the ASR model — a visible "(Loading…)" flicker in the Modes editor,
+// and a wholly wasted reload. Neither key includes `name`, `sortOrder`,
+// `enableScreenOCR`, `cloudProvider` or the accuracy tier: a rename must not
+// tear down a resident model, and the cloud branch of `prepareModel` reports
+// `.ready(name: "Cloud")` regardless of which cloud provider or tier is
+// selected.
+//
+// Keying on content is also what makes `ModePreparationGate` below necessary.
+// Under the old id key an in-place edit of the ALREADY-SELECTED Mode could not
+// reach preparation at all, so neither prepare function ever ran against a Mode
+// the user was, at that moment, dictating with. Now both can — see the gate.
 
 /// What `prepareModel` reads off the selected Mode.
 struct ASRPreparationKey: Equatable, Sendable {
@@ -210,6 +214,55 @@ struct LocalRuntimePreparationKey: Equatable, Sendable {
         self.postProcessingMode = snapshot.postProcessingMode
         self.postProcessingProvider = snapshot.rawPostProcessingProvider
         self.languageModel = snapshot.languageModel
+    }
+}
+
+// MARK: - Mode Preparation Gate
+
+/// Whether a model-preparation pass may run against a given pipeline state.
+///
+/// Both halves of preparation tear down a resource an in-flight dictation may
+/// still be using:
+///
+///   - `prepareModel` calls `cancelTranscription()` unconditionally
+///     (`TranscriptionModelManager.swift`), which cancels
+///     `TranscriptionPipeline.currentTask` — and that one task spans
+///     transcription AND post-processing, so cancelling it during
+///     `.postProcessing` loses the AI cleanup and, on the rethrowing branch,
+///     the transcript with it.
+///   - `prepareLocalRuntime` takes no state at all and falls through to
+///     `llamaServerController.stop(...)` — a `SIGTERM` at
+///     `LlamaServerController.swift` — or to an `ensureRunning` that restarts
+///     the server when the model URL moved. Either kills the chat-completion
+///     request a local post-processing pass is waiting on, and the user gets
+///     un-post-processed text via `.localRuntimeUnavailable`.
+///
+/// So the answer is stated here, once, for both halves, rather than borrowed
+/// from `TranscriptionPipeline.state_isReadyForTranscription()`: that function
+/// answers "may a NEW transcription start", which happens to have the same
+/// truth table today, and `prepareModel`'s own `if case .transcribing` bail-out
+/// answers a THIRD question and gets it wrong — it does not cover
+/// `.postProcessing`. Widening that bail-out was rejected: it is shared by four
+/// other callers, and it would still leave `prepareLocalRuntime`, which has no
+/// bail-out to widen, unprotected.
+///
+/// The `switch` is exhaustive on purpose. A new `TranscriptionState` case must
+/// not compile until someone decides which side of this gate it falls on.
+enum ModePreparationGate {
+
+    /// - Parameter state: the transcription pipeline's current state, or `nil`
+    ///   when no pipeline is wired yet. `nil` allows preparation: at launch the
+    ///   sinks fire before `bootstrapAppServices()` wires the pipeline, where
+    ///   preparation is a no-op on the optional anyway, and nothing would ever
+    ///   replay a request deferred against a pipeline that does not exist.
+    static func allowsPreparation(during state: TranscriptionState?) -> Bool {
+        guard let state else { return true }
+        switch state {
+        case .idle, .error:
+            return true
+        case .transcribing, .postProcessing:
+            return false
+        }
     }
 }
 
@@ -425,6 +478,21 @@ class AppState: ObservableObject {
     /// Cancellables for Combine subscriptions
     /// These need to be stored to keep the subscriptions alive
     private var cancellables = Set<AnyCancellable>()
+
+    /// The ASR-preparation key that has been requested but not run yet (#318).
+    ///
+    /// Non-nil means one of two things: the two triggers fired in the same main-
+    /// actor turn and the run has not started yet, or `ModePreparationGate`
+    /// deferred the work because a dictation was in flight. Either way it is a
+    /// promise: `runPendingModePreparation()` clears it only by running it, and
+    /// `requeueModePreparation(asr:localRuntime:)` puts it back if it could not.
+    /// Dropping it instead would leave the status bar advertising a source the
+    /// selected Mode no longer uses — which is #318 itself.
+    private var pendingASRPreparationKey: ASRPreparationKey?
+
+    /// The local-runtime-preparation key that has been requested but not run
+    /// yet (#318). Same contract as `pendingASRPreparationKey` above.
+    private var pendingLocalRuntimePreparationKey: LocalRuntimePreparationKey?
 
     /// Prevents SwiftUI body reads from queueing duplicate mode-cache refreshes
     /// while the initial background fetch is still in flight.
@@ -965,9 +1033,7 @@ class AppState: ObservableObject {
             .store(in: &cancellables)
 
         // Preload the ASR model ASAP when the selected Mode's TRANSCRIPTION
-        // inputs change. Resolve the Mode on a background context so the SQL
-        // fetch doesn't land inside the recording start transaction on the main
-        // thread.
+        // inputs change.
         //
         // Keyed on `asrPreparationTrigger` — the Mode's CONTENT — and not on
         // `$selectedModeId`, because the id is an identity and this sink cares
@@ -977,10 +1043,25 @@ class AppState: ObservableObject {
         // never re-ran, and the status bar kept advertising the pre-onboarding
         // source until the next launch.
         //
-        // The local runtime has its OWN sink below, on its own key. Do not merge
-        // them: `prepareModel` cancels in-flight transcription work and repaints
-        // the status bar as "(Loading…)", so it must not run for an edit that
-        // only touched post-processing. See the key types for the full argument.
+        // The local runtime has its OWN key and its own sink below. Do not merge
+        // the KEYS: `prepareModel` tears down and reloads the ASR model, so it
+        // must not run for an edit that only touched post-processing. See the
+        // key types for the full argument.
+        //
+        // Both sinks only RECORD what needs preparing and hand off to
+        // `scheduleModePreparation()`, which owns the two things neither sink
+        // can decide alone:
+        //   - whether it is safe to prepare at all right now
+        //     (`ModePreparationGate` — a dictation may be in flight), and
+        //   - that a Mode SWITCH, which moves both keys in the same main-actor
+        //     turn, resolves the Mode once instead of twice and runs the two
+        //     halves in a defined order.
+        //
+        // A nil key means no Mode is selected. Nothing prepares for a nil Mode
+        // today (`clearModeSelection()` leaves the llama server running — a
+        // pre-existing hole, tracked separately), so assigning the nil through
+        // is exactly right: it must not START anything, and it MUST cancel a
+        // queued request for the Mode that just went away.
         //
         // Two consequences worth stating so they don't read as accidents:
         //   1. At launch the first key arrives from the snapshot back-fill the
@@ -993,45 +1074,30 @@ class AppState: ObservableObject {
         //      via the save notification below → `refreshSelectedModeSnapshot`.
         //      That is deliberate: an editor edit that changes the model or the
         //      language has to reload the model, which under the old id key it
-        //      never did. Safe because `prepareModel` returns early while
-        //      `.transcribing`, and because the content key makes a no-op re-save
-        //      a no-op here.
+        //      never did. It is also why the gate exists — that same edit can be
+        //      saved while the Mode is mid-dictation.
         asrPreparationTrigger
             .sink { [weak self] key in
-                guard let self, let key else { return }
-                Task { @MainActor in
-                    guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: key.modeId) else { return }
-                    let modelId = (mode.model ?? "").isEmpty ? "base" : (mode.model ?? "base")
-                    AppLogger.models.info("Mode changed: \(mode.name ?? "Unknown", privacy: .public) → model: \(modelId, privacy: .public). Preparing model…")
-                    await self.transcriptionPipeline?.prepareModel(for: mode)
-                }
+                guard let self else { return }
+                self.pendingASRPreparationKey = key
+                self.scheduleModePreparation()
             }
             .store(in: &cancellables)
 
         // Start or stop the local LLM runtime when the selected Mode's
         // POST-PROCESSING inputs change — a disjoint set of fields from the one
-        // above, which is why this is a second sink rather than a second call
-        // inside the first (#318).
+        // above, which is why this is a second key rather than more fields on
+        // the first (#318).
         //
         // This is what stops the local-runtime indicator showing a green llama
         // server for a Mode that no longer uses local post-processing:
         // `prepareLocalRuntime` is the only thing that stops the server, and
         // under the old id key an in-place edit never reached it.
-        //
-        // The two sinks are unordered with respect to each other. That is safe:
-        // `prepareLocalRuntime` reads nothing `prepareModel` writes — one owns
-        // `modelReadyState` and the ASR providers, the other owns
-        // `llamaServerController` — and both run on the main actor, so they
-        // interleave only at their own suspension points.
         localRuntimePreparationTrigger
             .sink { [weak self] key in
-                guard let self, let key else { return }
-                Task { @MainActor in
-                    guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: key.modeId) else { return }
-                    let postProcessing = String(key.postProcessingMode)
-                    AppLogger.models.info("Post-processing changed: \(mode.name ?? "Unknown", privacy: .public) → postProcessingMode: \(postProcessing, privacy: .public). Preparing local runtime…")
-                    await self.transcriptionPipeline?.prepareLocalRuntime(for: mode)
-                }
+                guard let self else { return }
+                self.pendingLocalRuntimePreparationKey = key
+                self.scheduleModePreparation()
             }
             .store(in: &cancellables)
 
@@ -1064,6 +1130,119 @@ class AppState: ObservableObject {
         // the "Recording Start" transaction. Subsequent mode edits refresh the
         // cache off-main via the save subscription above.
         cachedSortedModeSnapshots = PersistenceController.shared.fetchAllModes().map(ModeSnapshot.init)
+    }
+
+    // MARK: - Mode Preparation (#318)
+
+    /// True when no dictation is in flight, so preparation may run now.
+    private func canRunModePreparationNow() -> Bool {
+        ModePreparationGate.allowsPreparation(during: transcriptionPipeline?.state)
+    }
+
+    /// Runs whatever the two triggers have left pending, if it is safe to.
+    ///
+    /// Called synchronously by both sinks, and again by
+    /// `resumeModePreparationIfPending()` when the pipeline goes back to idle.
+    /// Cheap and idempotent: with nothing pending it returns immediately, which
+    /// is what makes the second of two sinks firing in the same turn free.
+    private func scheduleModePreparation() {
+        guard pendingASRPreparationKey != nil || pendingLocalRuntimePreparationKey != nil else { return }
+
+        guard canRunModePreparationNow() else {
+            // Deferred, NOT dropped. The keys stay pending and the pipeline's
+            // `state` observer calls `resumeModePreparationIfPending()` the
+            // moment the dictation ends.
+            AppLogger.models.info("Mode preparation deferred: a dictation is in flight. It will run when the pipeline goes idle.")
+            return
+        }
+
+        Task { @MainActor in
+            await self.runPendingModePreparation()
+        }
+    }
+
+    /// Entry point for `TranscriptionPipeline`: a dictation just ended (or
+    /// failed), so anything the gate held back may run now (#318).
+    ///
+    /// Safe to call on every state change — it costs one nil check when there is
+    /// nothing pending.
+    func resumeModePreparationIfPending() {
+        scheduleModePreparation()
+    }
+
+    /// Resolves the pending Mode once and runs the halves that asked for it.
+    ///
+    /// One fetch, not two: both keys carry `modeId`, so a plain Mode switch
+    /// moves both of them and would otherwise open two background contexts for
+    /// the same row. And one `await` chain, not two: `prepareModel` can preload
+    /// multi-gigabyte whisper weights while `prepareLocalRuntime` spawns
+    /// llama-server and loads a GGUF, and there is no reason to make the machine
+    /// do both at once.
+    private func runPendingModePreparation() async {
+        // Claim the work up front. Anything that arrives from here on lands in a
+        // fresh pending key and is picked up by its own `scheduleModePreparation`
+        // pass, so no request can be lost behind this one, and this function
+        // always terminates.
+        let asrKey = pendingASRPreparationKey
+        let runtimeKey = pendingLocalRuntimePreparationKey
+        pendingASRPreparationKey = nil
+        pendingLocalRuntimePreparationKey = nil
+
+        guard let modeId = asrKey?.modeId ?? runtimeKey?.modeId, !modeId.isEmpty else { return }
+        guard canRunModePreparationNow() else {
+            requeueModePreparation(asr: asrKey, localRuntime: runtimeKey)
+            return
+        }
+
+        // Resolve the Mode on a background context so the SQL fetch doesn't land
+        // inside the recording start transaction on the main thread. A missing
+        // row is dropped rather than requeued: the Mode is gone, and retrying
+        // would never resolve it.
+        guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: modeId) else { return }
+
+        // The fetch above suspends, so ask the gate again — a dictation can have
+        // started inside that window.
+        guard canRunModePreparationNow() else {
+            requeueModePreparation(asr: asrKey, localRuntime: runtimeKey)
+            return
+        }
+
+        let modeName = mode.name ?? "Unknown"
+
+        if let asrKey, asrKey.modeId == modeId {
+            let modelId = (mode.model ?? "").isEmpty ? "base" : (mode.model ?? "base")
+            AppLogger.models.info("Preparing ASR model for mode: \(modeName, privacy: .public) → model: \(modelId, privacy: .public)")
+            await transcriptionPipeline?.prepareModel(for: mode)
+        }
+
+        if let runtimeKey, runtimeKey.modeId == modeId {
+            // `prepareModel` above can take seconds, which is long enough for a
+            // recording to finish and a dictation to start behind it.
+            guard canRunModePreparationNow() else {
+                requeueModePreparation(asr: nil, localRuntime: runtimeKey)
+                return
+            }
+            let postProcessing = String(runtimeKey.postProcessingMode)
+            AppLogger.models.info("Preparing local runtime for mode: \(modeName, privacy: .public) → postProcessingMode: \(postProcessing, privacy: .public)")
+            await transcriptionPipeline?.prepareLocalRuntime(for: mode)
+        }
+    }
+
+    /// Puts claimed-but-unrun preparation back, without clobbering a newer key.
+    ///
+    /// A key that arrived while this pass was suspended is by definition more
+    /// current than the one being handed back, so a non-nil pending key always
+    /// wins.
+    private func requeueModePreparation(
+        asr: ASRPreparationKey?,
+        localRuntime: LocalRuntimePreparationKey?
+    ) {
+        if pendingASRPreparationKey == nil {
+            pendingASRPreparationKey = asr
+        }
+        if pendingLocalRuntimePreparationKey == nil {
+            pendingLocalRuntimePreparationKey = localRuntime
+        }
     }
 
     /// Kicks off a background fetch and publishes the resulting snapshot on main.

@@ -61,6 +61,18 @@ class TranscriptionPipeline: ObservableObject {
     /// Current manager state (idle, transcribing, error, etc).
     @Published var state: TranscriptionState = .idle {
         didSet {
+            // A dictation just ended, or failed. Model preparation requested
+            // while one was in flight was deferred rather than run — see
+            // `ModePreparationGate` — because `prepareModel` cancels
+            // `currentTask`, which spans post-processing, and
+            // `prepareLocalRuntime` can SIGTERM llama-server out from under a
+            // local post-processing request. Tell AppState to run what it held
+            // back; deferring without this call would be #318 in a new place
+            // (#318).
+            if state_isReadyForTranscription() {
+                appState?.resumeModePreparationIfPending()
+            }
+
             guard pendingParakeetReadinessModeId != nil,
                   state_isReadyForTranscription() else {
                 return

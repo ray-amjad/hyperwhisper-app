@@ -28,6 +28,13 @@
 //  unconditional `cancelTranscription()` — for an edit that only touched
 //  post-processing, and could not see a language edit at all.
 //
+//  The rest are about what content keys made newly REACHABLE. Under the old id
+//  key, an in-place edit of the already-selected Mode never reached either
+//  prepare function, so neither could run against a Mode that was, at that
+//  moment, mid-dictation. Now both can, and neither is safe there —
+//  `ModePreparationGate` is what refuses, and the pipeline's `state` observer
+//  is what replays afterwards.
+//
 //  WHAT THESE TESTS DO NOT PROVE
 //
 //  They do not prove a model loaded. This target cannot construct a
@@ -416,12 +423,39 @@ struct ModePreparationKeyTests {
         #expect(secondRuntime.postProcessingMode == 0)
     }
 
-    // MARK: - Each sink really is keyed on its own trigger
+    // MARK: - Preparation must not run while a dictation is in flight
+
+    /// The gate that decides whether preparation may run at all, asserted
+    /// directly on its truth table.
+    ///
+    /// `.postProcessing` is the case this exists for, and the one a reasonable
+    /// reader gets wrong: `prepareModel`'s own bail-out covers `.transcribing`
+    /// only, and it then falls through to an unconditional
+    /// `cancelTranscription()`. `TranscriptionPipeline.currentTask` spans BOTH
+    /// transcription and post-processing, so cancelling it while the AI cleanup
+    /// is running loses the enhancement — and, on the rethrowing branch, the
+    /// transcript. `prepareLocalRuntime` is worse: it reads no state at all and
+    /// falls through to a `SIGTERM` of the llama-server that a local
+    /// post-processing pass is mid-request against.
+    ///
+    /// `nil` — no pipeline wired yet — must ALLOW preparation. At launch the
+    /// sinks fire before `bootstrapAppServices()` wires the pipeline; deferring
+    /// there would queue work that nothing is left to replay.
+    @Test func preparationIsRefusedWhileTheTranscriptionPipelineIsBusy() {
+        #expect(ModePreparationGate.allowsPreparation(during: nil))
+        #expect(ModePreparationGate.allowsPreparation(during: .idle))
+        #expect(ModePreparationGate.allowsPreparation(during: .error(message: "boom")))
+
+        #expect(!ModePreparationGate.allowsPreparation(during: .transcribing(provider: "Cloud", progress: 0.5)))
+        #expect(!ModePreparationGate.allowsPreparation(during: .postProcessing))
+    }
+
+    // MARK: - Each key really drives its own half, and nothing runs mid-dictation
 
     /// Backstop for the wiring the test above can only observe indirectly, and
     /// the piece that survives if that test ever has to be dropped: without it,
-    /// "the key types behave correctly" and "each sink uses its own one" are two
-    /// different claims.
+    /// "the key types behave correctly" and "each key drives its own half" are
+    /// two different claims.
     ///
     /// This reads production Swift text, which is the weakest tool in this
     /// target (see `ProductionSource.swift`'s header) — justified here only
@@ -456,20 +490,85 @@ struct ModePreparationKeyTests {
         #expect(runtimeDeclaration.contains(".removeDuplicates()"))
         #expect(!runtimeDeclaration.contains("$selectedModeId"))
 
-        // 2. Each sink hangs off its own trigger and calls only its own half of
-        //    preparation. This is the assertion that fails if the two are ever
-        //    fused back into one sink that calls both.
+        // 2. Each sink records ONLY its own key and then hands off. Neither one
+        //    calls a prepare function directly any more: the gate and the
+        //    single-fetch ordering live in the shared runner, and a sink that
+        //    prepared on its own would bypass both. These are the assertions
+        //    that fail if the two halves are ever fused back together.
         let normalized = try normalizedCode(of: appStatePath)
 
         let asrSink = try subscriptionBody(attachedTo: "asrPreparationTrigger", in: normalized)
-        #expect(asrSink.contains("prepareModel(for: mode)"))
-        #expect(!asrSink.contains("prepareLocalRuntime"))
+        #expect(asrSink.contains("pendingASRPreparationKey = key"))
+        #expect(asrSink.contains("scheduleModePreparation()"))
+        #expect(!asrSink.contains("pendingLocalRuntimePreparationKey"))
+        #expect(!asrSink.contains("prepareModel"))
         #expect(!asrSink.contains("$selectedModeId"))
 
         let runtimeSink = try subscriptionBody(attachedTo: "localRuntimePreparationTrigger", in: normalized)
-        #expect(runtimeSink.contains("prepareLocalRuntime(for: mode)"))
-        #expect(!runtimeSink.contains("prepareModel"))
+        #expect(runtimeSink.contains("pendingLocalRuntimePreparationKey = key"))
+        #expect(runtimeSink.contains("scheduleModePreparation()"))
+        #expect(!runtimeSink.contains("pendingASRPreparationKey"))
+        #expect(!runtimeSink.contains("prepareLocalRuntime"))
         #expect(!runtimeSink.contains("$selectedModeId"))
+    }
+
+    /// The half of the gate that a truth table cannot state: a refused
+    /// preparation must be DEFERRED, not dropped, and something must replay it.
+    ///
+    /// Dropping it would trade a cancelled dictation for a status bar that is
+    /// permanently stale — #318 again, one room over. So this pins three things
+    /// in production text:
+    ///
+    ///   1. the scheduler consults the gate, and clears no pending key when the
+    ///      gate refuses (the keys ARE the queue),
+    ///   2. the runner asks the gate again after its background fetch — which
+    ///      suspends, and a dictation can start inside that window — and hands
+    ///      the claimed work back rather than dropping it, and
+    ///   3. `TranscriptionPipeline`'s own `state` observer calls back into
+    ///      `AppState` when it returns to a state that can accept preparation,
+    ///      which is the only thing that ever replays a deferred key.
+    ///
+    /// Source text is the last resort here for the same reason as above: this
+    /// target cannot build a `TranscriptionPipeline`, so `AppState`'s gate can
+    /// only ever see `nil` in a test, and `nil` is the branch that allows.
+    @Test func aRefusedPreparationIsHeldAndReplayedWhenThePipelineGoesIdle() throws {
+        let appStatePath = "app/macos/hyperwhisper/Models/AppState.swift"
+
+        // 1. The scheduler gates, and holds.
+        let scheduler = try ProductionSource.slice(
+            of: appStatePath,
+            from: "private func scheduleModePreparation() {",
+            to: "func resumeModePreparationIfPending"
+        )
+        #expect(scheduler.contains("canRunModePreparationNow()"))
+        #expect(!scheduler.contains("pendingASRPreparationKey = nil"))
+        #expect(!scheduler.contains("pendingLocalRuntimePreparationKey = nil"))
+
+        // 2. The runner re-checks after the fetch and requeues what it claimed.
+        //    The closing anchor is the declaration that follows the runner, so a
+        //    reorder throws `anchorNotFound` rather than quietly asserting less.
+        let runner = try ProductionSource.slice(
+            of: appStatePath,
+            from: "private func runPendingModePreparation() async {",
+            to: "private func requeueModePreparation"
+        )
+        #expect(runner.contains("canRunModePreparationNow()"))
+        #expect(runner.contains("requeueModePreparation("))
+        #expect(runner.contains("await transcriptionPipeline?.prepareModel(for: mode)"))
+        #expect(runner.contains("await transcriptionPipeline?.prepareLocalRuntime(for: mode)"))
+        // One fetch for both halves — the whole reason the two sinks share a
+        // runner instead of each resolving the Mode themselves.
+        #expect(runner.components(separatedBy: "fetchModeInBackground").count == 2)
+
+        // 3. The replay exists, and hangs off the pipeline's own state observer.
+        let pipelinePath = "app/macos/hyperwhisper/Managers/Transcription/Pipeline/TranscriptionPipeline.swift"
+        let stateObserver = try ProductionSource.slice(
+            of: pipelinePath,
+            from: "@Published var state: TranscriptionState = .idle {",
+            to: "@Published var availableModels"
+        )
+        #expect(stateObserver.contains("state_isReadyForTranscription()"))
+        #expect(stateObserver.contains("appState?.resumeModePreparationIfPending()"))
     }
 
     /// A production file with comments stripped and every run of whitespace
