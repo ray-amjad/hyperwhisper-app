@@ -1272,6 +1272,26 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1985,6 +2005,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_all_engine_ids(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_all_error_codes(ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -2002,6 +2026,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_check_origin(RustBuffer @headers,ushort @port,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_engine_wire_label(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2037,11 +2065,39 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(RustBuffer @present,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(RustBuffer @key,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(RustBuffer @name,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_mode_name_conflict(RustBuffer @candidate,RustBuffer @otherNames,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_mode_name_taken_failure(RustBuffer @name,RustBuffer @operation,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(RustBuffer @decision,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_request_too_large_failure(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_required_mode_keys(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_resolve_engine_alias(RustBuffer @alias,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2058,6 +2114,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_upload_too_large_failure(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_validate_mode(RustBuffer @input,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3181,6 +3241,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes(
     );
 
@@ -3198,6 +3262,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_check_origin(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_engine_wire_label(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3233,11 +3301,39 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_conflict(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_taken_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_required_mode_keys(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_resolve_engine_alias(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3254,6 +3350,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_validate_mode(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4531,6 +4631,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids();
+            if (checksum != 63651) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids` checksum `63651`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes();
             if (checksum != 35889) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes` checksum `35889`, library returned `{checksum}`");
@@ -4558,6 +4664,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_check_origin();
             if (checksum != 60178) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_check_origin` checksum `60178`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_engine_wire_label();
+            if (checksum != 46336) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_engine_wire_label` checksum `46336`, library returned `{checksum}`");
             }
         }
         {
@@ -4609,6 +4721,36 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys();
+            if (checksum != 39725) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys` checksum `39725`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification();
+            if (checksum != 12705) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification` checksum `12705`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key();
+            if (checksum != 44521) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key` checksum `44521`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_conflict();
+            if (checksum != 32568) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_conflict` checksum `32568`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_taken_failure();
+            if (checksum != 46829) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_taken_failure` checksum `46829`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed();
             if (checksum != 27804) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed` checksum `27804`, library returned `{checksum}`");
@@ -4618,6 +4760,18 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure();
             if (checksum != 64254) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure` checksum `64254`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_required_mode_keys();
+            if (checksum != 3310) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_required_mode_keys` checksum `3310`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_resolve_engine_alias();
+            if (checksum != 46171) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_resolve_engine_alias` checksum `46171`, library returned `{checksum}`");
             }
         }
         {
@@ -4642,6 +4796,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure();
             if (checksum != 37577) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure` checksum `37577`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_validate_mode();
+            if (checksum != 35225) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_validate_mode` checksum `35225`, library returned `{checksum}`");
             }
         }
         {
@@ -6962,6 +7122,145 @@ class FfiConverterTypeHwLocalApiFailure: FfiConverterRustBuffer<HwLocalApiFailur
             FfiConverterString.INSTANCE.Write(value.@message, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@hint, stream);
             FfiConverterString.INSTANCE.Write(value.@json, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The fields [`local_api_validate_mode`] bounds. Mirrors
+/// `hw_localapi::ModeValidationInput`.
+///
+/// The two numbers are `i64`, not `i32`/`i16`, so a head hands over an
+/// out-of-range value instead of pre-truncating it. That matters concretely: the
+/// portable head's `property.Value.GetInt32()` throws `FormatException` on
+/// `{"sortOrder": 99999999999}` and nothing in its middleware catches it — an
+/// unhandled HTTP 500 with no envelope. A wide crossing turns that into an
+/// ordinary `INVALID_REQUEST`.
+///
+/// Every field is optional because a `PATCH` legitimately omits any of them. On
+/// a create it is `present_keys` that makes an omission a failure, not a `None`
+/// here.
+/// </summary>
+/// <param name="operation">
+/// Create or patch. Only a create is checked against the required seven.
+/// </param>
+/// <param name="present_keys">
+/// The body's top-level key names. A patch may pass an empty list.
+/// </param>
+/// <param name="name">
+/// `name`, as sent. Trimmed before it is measured or compared.
+/// </param>
+/// <param name="language">
+/// `language`.
+/// </param>
+/// <param name="preset">
+/// `preset`.
+/// </param>
+/// <param name="post_processing_mode">
+/// `postProcessingMode`. 0 = off, 1 = cloud, 2 = local.
+/// </param>
+/// <param name="sort_order">
+/// `sortOrder`. Bounded to the `Int16` range, which is the only bound backed
+/// by a storage column and the one `openapi.yaml` already publishes.
+/// </param>
+/// <param name="user_system_prompt">
+/// `userSystemPrompt`.
+/// </param>
+/// <param name="gemini_custom_prompt">
+/// `geminiCustomPrompt`.
+/// </param>
+/// <param name="custom_vocabulary">
+/// `customVocabulary`.
+/// </param>
+internal record HwLocalApiModeValidationInput (
+    /// <summary>
+    /// Create or patch. Only a create is checked against the required seven.
+    /// </summary>
+    HwLocalApiModeOperation @operation, 
+    /// <summary>
+    /// The body's top-level key names. A patch may pass an empty list.
+    /// </summary>
+    List<string> @presentKeys, 
+    /// <summary>
+    /// `name`, as sent. Trimmed before it is measured or compared.
+    /// </summary>
+    string? @name, 
+    /// <summary>
+    /// `language`.
+    /// </summary>
+    string? @language, 
+    /// <summary>
+    /// `preset`.
+    /// </summary>
+    string? @preset, 
+    /// <summary>
+    /// `postProcessingMode`. 0 = off, 1 = cloud, 2 = local.
+    /// </summary>
+    long? @postProcessingMode, 
+    /// <summary>
+    /// `sortOrder`. Bounded to the `Int16` range, which is the only bound backed
+    /// by a storage column and the one `openapi.yaml` already publishes.
+    /// </summary>
+    long? @sortOrder, 
+    /// <summary>
+    /// `userSystemPrompt`.
+    /// </summary>
+    string? @userSystemPrompt, 
+    /// <summary>
+    /// `geminiCustomPrompt`.
+    /// </summary>
+    string? @geminiCustomPrompt, 
+    /// <summary>
+    /// `customVocabulary`.
+    /// </summary>
+    List<string>? @customVocabulary
+) {
+}
+
+class FfiConverterTypeHwLocalApiModeValidationInput: FfiConverterRustBuffer<HwLocalApiModeValidationInput> {
+    public static FfiConverterTypeHwLocalApiModeValidationInput INSTANCE = new FfiConverterTypeHwLocalApiModeValidationInput();
+
+    public override HwLocalApiModeValidationInput Read(BigEndianStream stream) {
+        return new HwLocalApiModeValidationInput(
+            @operation: FfiConverterTypeHwLocalApiModeOperation.INSTANCE.Read(stream),
+            @presentKeys: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @name: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @language: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @preset: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @postProcessingMode: FfiConverterOptionalInt64.INSTANCE.Read(stream),
+            @sortOrder: FfiConverterOptionalInt64.INSTANCE.Read(stream),
+            @userSystemPrompt: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @geminiCustomPrompt: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @customVocabulary: FfiConverterOptionalSequenceString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLocalApiModeValidationInput value) {
+        return 0
+            + FfiConverterTypeHwLocalApiModeOperation.INSTANCE.AllocationSize(value.@operation)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@presentKeys)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@name)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@language)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@preset)
+            + FfiConverterOptionalInt64.INSTANCE.AllocationSize(value.@postProcessingMode)
+            + FfiConverterOptionalInt64.INSTANCE.AllocationSize(value.@sortOrder)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@userSystemPrompt)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@geminiCustomPrompt)
+            + FfiConverterOptionalSequenceString.INSTANCE.AllocationSize(value.@customVocabulary);
+    }
+
+    public override void Write(HwLocalApiModeValidationInput value, BigEndianStream stream) {
+            FfiConverterTypeHwLocalApiModeOperation.INSTANCE.Write(value.@operation, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@presentKeys, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@name, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@language, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@preset, stream);
+            FfiConverterOptionalInt64.INSTANCE.Write(value.@postProcessingMode, stream);
+            FfiConverterOptionalInt64.INSTANCE.Write(value.@sortOrder, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@userSystemPrompt, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@geminiCustomPrompt, stream);
+            FfiConverterOptionalSequenceString.INSTANCE.Write(value.@customVocabulary, stream);
     }
 }
 
@@ -10993,6 +11292,67 @@ class FfiConverterTypeHwLlmWireProtocol: FfiConverterRustBuffer<HwLlmWireProtoco
 
 
 /// <summary>
+/// A canonical transcription engine id. Mirrors `hw_localapi::EngineId`.
+///
+/// The five names `openapi.yaml` documents for `engine` outside the
+/// `<CloudProvider rawValue>` set. Two of them,
+/// [`HwLocalApiEngineId::Nemotron`] and [`HwLocalApiEngineId::AppleSpeech`], are
+/// macOS-only capabilities — resolving one on a .NET head is correct and the
+/// head then answers `ENGINE_UNAVAILABLE`, which is a better response than the
+/// `Unknown engine '…'` it sends today.
+/// </summary>
+internal enum HwLocalApiEngineId: int {
+    
+    /// <summary>
+    /// Local `whisper.cpp`.
+    /// </summary>
+    WhisperLocal,
+    /// <summary>
+    /// Local Parakeet.
+    /// </summary>
+    Parakeet,
+    /// <summary>
+    /// Local Nemotron. macOS only.
+    /// </summary>
+    Nemotron,
+    /// <summary>
+    /// Local Qwen3-ASR.
+    /// </summary>
+    Qwen3Asr,
+    /// <summary>
+    /// Apple `SpeechAnalyzer`. macOS only.
+    /// </summary>
+    AppleSpeech
+}
+
+class FfiConverterTypeHwLocalApiEngineId: FfiConverterRustBuffer<HwLocalApiEngineId> {
+    public static FfiConverterTypeHwLocalApiEngineId INSTANCE = new FfiConverterTypeHwLocalApiEngineId();
+
+    public override HwLocalApiEngineId Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiEngineId), value)) {
+            return (HwLocalApiEngineId)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiEngineId.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiEngineId value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiEngineId value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// The closed set of Local API error codes. Mirrors
 /// `hw_localapi::LocalApiErrorCode`.
 ///
@@ -11036,6 +11396,108 @@ class FfiConverterTypeHwLocalApiErrorCode: FfiConverterRustBuffer<HwLocalApiErro
     }
 
     public override void Write(HwLocalApiErrorCode value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// What a head should do with a top-level key in a mode body. Mirrors
+/// `hw_localapi::ModeKeyClass`.
+///
+/// **Every variant means "keep going".** None of them is a rejection: the
+/// verdict for an unrecognised key is *ignore*, because `openapi.yaml` already
+/// documents five keys as "Windows only. macOS ignores this key" and so invites
+/// a cross-platform client to send keys a given head does not implement.
+/// </summary>
+internal enum HwLocalApiModeKeyClass: int {
+    
+    /// <summary>
+    /// A documented key every head is expected to honour.
+    /// </summary>
+    Known,
+    /// <summary>
+    /// A documented key marked "Windows only. macOS ignores this key".
+    /// </summary>
+    PlatformOnly,
+    /// <summary>
+    /// A documented key the server owns: returned on a `GET`, ignored on a write.
+    /// </summary>
+    ReadOnly,
+    /// <summary>
+    /// Not in the union. Ignore it, and log it.
+    /// </summary>
+    Unknown
+}
+
+class FfiConverterTypeHwLocalApiModeKeyClass: FfiConverterRustBuffer<HwLocalApiModeKeyClass> {
+    public static FfiConverterTypeHwLocalApiModeKeyClass INSTANCE = new FfiConverterTypeHwLocalApiModeKeyClass();
+
+    public override HwLocalApiModeKeyClass Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiModeKeyClass), value)) {
+            return (HwLocalApiModeKeyClass)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiModeKeyClass.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiModeKeyClass value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiModeKeyClass value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Which request a mode body belongs to. Mirrors `hw_localapi::ModeOperation`.
+///
+/// The required-key rule is create-only, and the `MODE_NAME_TAKEN` hint follows
+/// the same split — both heads that ship the string attach it on create and omit
+/// it on patch.
+/// </summary>
+internal enum HwLocalApiModeOperation: int {
+    
+    /// <summary>
+    /// `POST /modes`.
+    /// </summary>
+    Create,
+    /// <summary>
+    /// `PATCH /modes/{id}`.
+    /// </summary>
+    Patch
+}
+
+class FfiConverterTypeHwLocalApiModeOperation: FfiConverterRustBuffer<HwLocalApiModeOperation> {
+    public static FfiConverterTypeHwLocalApiModeOperation INSTANCE = new FfiConverterTypeHwLocalApiModeOperation();
+
+    public override HwLocalApiModeOperation Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiModeOperation), value)) {
+            return (HwLocalApiModeOperation)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiModeOperation.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiModeOperation value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiModeOperation value, BigEndianStream stream) {
         stream.WriteInt((int)value + 1);
     }
 }
@@ -12576,6 +13038,37 @@ class FfiConverterOptionalTypeHwLanguage: FfiConverterRustBuffer<HwLanguage?> {
 
 
 
+class FfiConverterOptionalTypeHwLocalApiFailure: FfiConverterRustBuffer<HwLocalApiFailure?> {
+    public static FfiConverterOptionalTypeHwLocalApiFailure INSTANCE = new FfiConverterOptionalTypeHwLocalApiFailure();
+
+    public override HwLocalApiFailure? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLocalApiFailure? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLocalApiFailure.INSTANCE.AllocationSize((HwLocalApiFailure)value);
+        }
+    }
+
+    public override void Write(HwLocalApiFailure? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLocalApiFailure.INSTANCE.Write((HwLocalApiFailure)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypeHwModeIdentity: FfiConverterRustBuffer<HwModeIdentity?> {
     public static FfiConverterOptionalTypeHwModeIdentity INSTANCE = new FfiConverterOptionalTypeHwModeIdentity();
 
@@ -13003,6 +13496,37 @@ class FfiConverterOptionalTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiv
         } else {
             stream.WriteByte(1);
             FfiConverterTypeHwLiveUpgradeRefusal.INSTANCE.Write((HwLiveUpgradeRefusal)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeHwLocalApiEngineId: FfiConverterRustBuffer<HwLocalApiEngineId?> {
+    public static FfiConverterOptionalTypeHwLocalApiEngineId INSTANCE = new FfiConverterOptionalTypeHwLocalApiEngineId();
+
+    public override HwLocalApiEngineId? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLocalApiEngineId.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLocalApiEngineId? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLocalApiEngineId.INSTANCE.AllocationSize((HwLocalApiEngineId)value);
+        }
+    }
+
+    public override void Write(HwLocalApiEngineId? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLocalApiEngineId.INSTANCE.Write((HwLocalApiEngineId)value, stream);
         }
     }
 }
@@ -13852,6 +14376,48 @@ class FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffer<List<HwLive
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwLiveStopStep.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwLocalApiEngineId: FfiConverterRustBuffer<List<HwLocalApiEngineId>> {
+    public static FfiConverterSequenceTypeHwLocalApiEngineId INSTANCE = new FfiConverterSequenceTypeHwLocalApiEngineId();
+
+    public override List<HwLocalApiEngineId> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwLocalApiEngineId>(length);
+        var readFn = FfiConverterTypeHwLocalApiEngineId.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwLocalApiEngineId> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwLocalApiEngineId.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwLocalApiEngineId> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwLocalApiEngineId.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -15752,6 +16318,17 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Every engine id, in the order `openapi.yaml` lists them.
+    /// </summary>
+    public static List<HwLocalApiEngineId> LocalApiAllEngineIds() {
+        return FfiConverterSequenceTypeHwLocalApiEngineId.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_all_engine_ids( ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Every code, in the order the docs and the macOS enum list them.
     /// </summary>
     public static List<HwLocalApiErrorCode> LocalApiAllErrorCodes() {
@@ -15815,6 +16392,21 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwLocalApiOriginDecision.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_check_origin(FfiConverterTypeHwLocalApiOriginHeaders.INSTANCE.Lower(@headers), FfiConverterUInt16.INSTANCE.Lower(@port), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The spelling a response's `engine` field must carry — `openapi.yaml`'s.
+    ///
+    /// Windows and the portable head emit `qwen3_asr` today, which their own sibling
+    /// does not accept as a request. Reading the label from here is what closes that
+    /// round trip.
+    /// </summary>
+    public static string LocalApiEngineWireLabel(HwLocalApiEngineId @id) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_engine_wire_label(FfiConverterTypeHwLocalApiEngineId.INSTANCE.Lower(@id), ref _status)
 ));
     }
 
@@ -15947,6 +16539,107 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Which required keys a create body did not carry, in the documented order.
+    ///
+    /// **Call sites: the portable head and Windows only, deliberately.** The portable
+    /// head already walks `document.EnumerateObject()`. Windows needs a new
+    /// `ReadJsonBodyWithKeysAsync<T>` because it cannot infer presence from
+    /// `ModeDto` — `Punctuation`/`Capitalization`/`ProfanityFilter` are non-nullable
+    /// `bool`, so an absent key and `false` are the same value. macOS needs neither:
+    /// its decoder *is* this check.
+    /// </summary>
+    public static List<string> LocalApiMissingRequiredModeKeys(List<string> @present) {
+        return FfiConverterSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(FfiConverterSequenceString.INSTANCE.Lower(@present), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Classify one top-level key of a mode body. Exact, case-sensitive.
+    ///
+    /// **Call sites: the portable head and Windows. Not macOS** — see the module
+    /// docs. On the portable head this replaces
+    /// `default: throw new ArgumentException($"Unsupported mode field …")` with
+    /// classify-and-ignore, which is the one head that enforced; on Windows it is a
+    /// debug log beside a decoder that already conforms.
+    /// </summary>
+    public static HwLocalApiModeKeyClass LocalApiModeKeyClassification(string @key) {
+        return FfiConverterTypeHwLocalApiModeKeyClass.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(FfiConverterString.INSTANCE.Lower(@key), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The key a mode name is compared *by*: trim Unicode whitespace, then
+    /// lowercase. `None` when nothing is left.
+    ///
+    /// **This is the definition of "the same name"**, replacing .NET's
+    /// `OrdinalIgnoreCase` and Core Data's `==[c]`. It is not a storage name — each
+    /// head still writes whatever its own pre-normalisation produced.
+    ///
+    /// **Call sites: all three heads.** On macOS it sits *behind*
+    /// `ModeNamePolicy.normalized`, which keeps NFC and the Unicode general-category
+    /// boundary trim. That half stays native because it needs
+    /// `unicode-normalization` and a category table, and `hw-localapi` takes no
+    /// dependency — it runs under `panic = "abort"` in front of a loopback socket.
+    /// </summary>
+    public static string? LocalApiModeNameComparisonKey(string @name) {
+        return FfiConverterOptionalString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(FfiConverterString.INSTANCE.Lower(@name), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether `candidate` collides with any of `other_names`.
+    ///
+    /// `other_names` is the caller's **already-filtered** list: every head excludes
+    /// the record it is writing before comparing, and only the head knows which one
+    /// that is. An empty candidate never collides — that is
+    /// [`local_api_validate_mode`]'s failure, and reporting it as a collision would
+    /// name the wrong problem.
+    ///
+    /// **Call sites: all three heads.** macOS needs `fetchMode(byName:in:)` to stop
+    /// being a store-side `name ==[c] %@` fetch and become a candidate-name fetch
+    /// plus this call — six lines, on a head that already does full-table mode
+    /// fetches to list and delete.
+    /// </summary>
+    public static bool LocalApiModeNameConflict(string @candidate, List<string> @otherNames) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_mode_name_conflict(FfiConverterString.INSTANCE.Lower(@candidate), FfiConverterSequenceString.INSTANCE.Lower(@otherNames), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The response a colliding name gets: HTTP 200 carrying `MODE_NAME_TAKEN`.
+    ///
+    /// The message is macOS's and Windows's verbatim. The portable head sends
+    /// `"A mode with this name already exists."` as an `ArgumentException`, which its
+    /// middleware turns into HTTP **400 `INVALID_REQUEST`** — `MODE_NAME_TAKEN` is
+    /// declared on that head and never emitted.
+    ///
+    /// `operation` picks the hint, preserving the two heads' existing split rather
+    /// than flattening it: both attach "choose a different name" on create and send
+    /// no hint on patch.
+    ///
+    /// **Call sites: all three heads.**
+    /// </summary>
+    public static HwLocalApiFailure LocalApiModeNameTakenFailure(string @name, HwLocalApiModeOperation @operation) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_mode_name_taken_failure(FfiConverterString.INSTANCE.Lower(@name), FfiConverterTypeHwLocalApiModeOperation.INSTANCE.Lower(@operation), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Whether a decision means "dispatch it".
     ///
     /// A head can match the enum instead. This exists so the common case is one
@@ -15973,6 +16666,46 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_request_too_large_failure( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The seven keys `openapi.yaml`'s `Mode` schema marks `required:`.
+    ///
+    /// macOS's `ModeDTO` declares exactly these as non-optional, so macOS already
+    /// conforms; Windows requires only `name` and the portable head requires
+    /// nothing. Adopting the published set tightens two heads — call it out in the
+    /// PR body, because `{"name":"Only"}` creates a mode on both today.
+    /// </summary>
+    public static List<string> LocalApiRequiredModeKeys() {
+        return FfiConverterSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_required_mode_keys( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Resolve `POST /transcribe`'s `engine` string to a canonical id. Trim, then
+    /// lowercase, then match.
+    ///
+    /// `None` means "not one of the five", **not** "rejected": the caller's next
+    /// step is `CloudSttCatalog.normalizeCloudProvider`, which owns the
+    /// `<CloudProvider rawValue>` half of the documented field, and only after that
+    /// does the string become `ENGINE_UNAVAILABLE`.
+    ///
+    /// **Call sites: all three heads, four switches.** macOS has two —
+    /// `TranscribeEndpoint.applyEngineModel` and
+    /// `TranscriptionProviderRouter.resolveProvider`, whose own comments admit they
+    /// are hand-synced, so both must call this or the drift only moves inside one
+    /// platform. Then `TranscribeEndpoints.ApplyEngineModel` on Windows and
+    /// `ApplicationLocalApiBackend.ApplyTranscriptionOverrides` on the portable head.
+    /// </summary>
+    public static HwLocalApiEngineId? LocalApiResolveEngineAlias(string @alias) {
+        return FfiConverterOptionalTypeHwLocalApiEngineId.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_resolve_engine_alias(FfiConverterString.INSTANCE.Lower(@alias), ref _status)
 ));
     }
 
@@ -16032,6 +16765,29 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_upload_too_large_failure( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Validate a mode body's shape and value ranges. `None` means acceptable.
+    ///
+    /// **Call sites: all three heads**, on create and on patch.
+    ///
+    /// A missing required key is HTTP 400 — the body is malformed *as a request*,
+    /// and on macOS the omission is already a `decode` failure answered with 400.
+    /// Every value bound is a business failure: HTTP 200 carrying `INVALID_REQUEST`.
+    /// Both are in the closed 14; item 5 adds no code.
+    ///
+    /// Lengths are counted in **Unicode scalar values**, which is a deliberate
+    /// choice and is client-visible: `string.Length` on .NET is UTF-16 code units,
+    /// so a 60-emoji name is 120 units and is refused by the portable head today,
+    /// while it is 60 scalars and accepted here.
+    /// </summary>
+    public static HwLocalApiFailure? LocalApiValidateMode(HwLocalApiModeValidationInput @input) {
+        return FfiConverterOptionalTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_validate_mode(FfiConverterTypeHwLocalApiModeValidationInput.INSTANCE.Lower(@input), ref _status)
 ));
     }
 

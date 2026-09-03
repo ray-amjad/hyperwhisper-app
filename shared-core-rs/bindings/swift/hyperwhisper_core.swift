@@ -3018,6 +3018,213 @@ public func FfiConverterTypeHwLocalApiFailure_lower(_ value: HwLocalApiFailure) 
 
 
 /**
+ * The fields [`local_api_validate_mode`] bounds. Mirrors
+ * `hw_localapi::ModeValidationInput`.
+ *
+ * The two numbers are `i64`, not `i32`/`i16`, so a head hands over an
+ * out-of-range value instead of pre-truncating it. That matters concretely: the
+ * portable head's `property.Value.GetInt32()` throws `FormatException` on
+ * `{"sortOrder": 99999999999}` and nothing in its middleware catches it — an
+ * unhandled HTTP 500 with no envelope. A wide crossing turns that into an
+ * ordinary `INVALID_REQUEST`.
+ *
+ * Every field is optional because a `PATCH` legitimately omits any of them. On
+ * a create it is `present_keys` that makes an omission a failure, not a `None`
+ * here.
+ */
+public struct HwLocalApiModeValidationInput {
+    /**
+     * Create or patch. Only a create is checked against the required seven.
+     */
+    public var operation: HwLocalApiModeOperation
+    /**
+     * The body's top-level key names. A patch may pass an empty list.
+     */
+    public var presentKeys: [String]
+    /**
+     * `name`, as sent. Trimmed before it is measured or compared.
+     */
+    public var name: String?
+    /**
+     * `language`.
+     */
+    public var language: String?
+    /**
+     * `preset`.
+     */
+    public var preset: String?
+    /**
+     * `postProcessingMode`. 0 = off, 1 = cloud, 2 = local.
+     */
+    public var postProcessingMode: Int64?
+    /**
+     * `sortOrder`. Bounded to the `Int16` range, which is the only bound backed
+     * by a storage column and the one `openapi.yaml` already publishes.
+     */
+    public var sortOrder: Int64?
+    /**
+     * `userSystemPrompt`.
+     */
+    public var userSystemPrompt: String?
+    /**
+     * `geminiCustomPrompt`.
+     */
+    public var geminiCustomPrompt: String?
+    /**
+     * `customVocabulary`.
+     */
+    public var customVocabulary: [String]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Create or patch. Only a create is checked against the required seven.
+         */operation: HwLocalApiModeOperation, 
+        /**
+         * The body's top-level key names. A patch may pass an empty list.
+         */presentKeys: [String], 
+        /**
+         * `name`, as sent. Trimmed before it is measured or compared.
+         */name: String?, 
+        /**
+         * `language`.
+         */language: String?, 
+        /**
+         * `preset`.
+         */preset: String?, 
+        /**
+         * `postProcessingMode`. 0 = off, 1 = cloud, 2 = local.
+         */postProcessingMode: Int64?, 
+        /**
+         * `sortOrder`. Bounded to the `Int16` range, which is the only bound backed
+         * by a storage column and the one `openapi.yaml` already publishes.
+         */sortOrder: Int64?, 
+        /**
+         * `userSystemPrompt`.
+         */userSystemPrompt: String?, 
+        /**
+         * `geminiCustomPrompt`.
+         */geminiCustomPrompt: String?, 
+        /**
+         * `customVocabulary`.
+         */customVocabulary: [String]?) {
+        self.operation = operation
+        self.presentKeys = presentKeys
+        self.name = name
+        self.language = language
+        self.preset = preset
+        self.postProcessingMode = postProcessingMode
+        self.sortOrder = sortOrder
+        self.userSystemPrompt = userSystemPrompt
+        self.geminiCustomPrompt = geminiCustomPrompt
+        self.customVocabulary = customVocabulary
+    }
+}
+
+
+
+extension HwLocalApiModeValidationInput: Equatable, Hashable {
+    public static func ==(lhs: HwLocalApiModeValidationInput, rhs: HwLocalApiModeValidationInput) -> Bool {
+        if lhs.operation != rhs.operation {
+            return false
+        }
+        if lhs.presentKeys != rhs.presentKeys {
+            return false
+        }
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.language != rhs.language {
+            return false
+        }
+        if lhs.preset != rhs.preset {
+            return false
+        }
+        if lhs.postProcessingMode != rhs.postProcessingMode {
+            return false
+        }
+        if lhs.sortOrder != rhs.sortOrder {
+            return false
+        }
+        if lhs.userSystemPrompt != rhs.userSystemPrompt {
+            return false
+        }
+        if lhs.geminiCustomPrompt != rhs.geminiCustomPrompt {
+            return false
+        }
+        if lhs.customVocabulary != rhs.customVocabulary {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(operation)
+        hasher.combine(presentKeys)
+        hasher.combine(name)
+        hasher.combine(language)
+        hasher.combine(preset)
+        hasher.combine(postProcessingMode)
+        hasher.combine(sortOrder)
+        hasher.combine(userSystemPrompt)
+        hasher.combine(geminiCustomPrompt)
+        hasher.combine(customVocabulary)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiModeValidationInput: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiModeValidationInput {
+        return
+            try HwLocalApiModeValidationInput(
+                operation: FfiConverterTypeHwLocalApiModeOperation.read(from: &buf), 
+                presentKeys: FfiConverterSequenceString.read(from: &buf), 
+                name: FfiConverterOptionString.read(from: &buf), 
+                language: FfiConverterOptionString.read(from: &buf), 
+                preset: FfiConverterOptionString.read(from: &buf), 
+                postProcessingMode: FfiConverterOptionInt64.read(from: &buf), 
+                sortOrder: FfiConverterOptionInt64.read(from: &buf), 
+                userSystemPrompt: FfiConverterOptionString.read(from: &buf), 
+                geminiCustomPrompt: FfiConverterOptionString.read(from: &buf), 
+                customVocabulary: FfiConverterOptionSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLocalApiModeValidationInput, into buf: inout [UInt8]) {
+        FfiConverterTypeHwLocalApiModeOperation.write(value.operation, into: &buf)
+        FfiConverterSequenceString.write(value.presentKeys, into: &buf)
+        FfiConverterOptionString.write(value.name, into: &buf)
+        FfiConverterOptionString.write(value.language, into: &buf)
+        FfiConverterOptionString.write(value.preset, into: &buf)
+        FfiConverterOptionInt64.write(value.postProcessingMode, into: &buf)
+        FfiConverterOptionInt64.write(value.sortOrder, into: &buf)
+        FfiConverterOptionString.write(value.userSystemPrompt, into: &buf)
+        FfiConverterOptionString.write(value.geminiCustomPrompt, into: &buf)
+        FfiConverterOptionSequenceString.write(value.customVocabulary, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiModeValidationInput_lift(_ buf: RustBuffer) throws -> HwLocalApiModeValidationInput {
+    return try FfiConverterTypeHwLocalApiModeValidationInput.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiModeValidationInput_lower(_ value: HwLocalApiModeValidationInput) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiModeValidationInput.lower(value)
+}
+
+
+/**
  * The three request headers the DNS-rebind guard reads. Mirrors
  * `hw_localapi::OriginHeaders`.
  *
@@ -9748,6 +9955,116 @@ extension HwLlmWireProtocol: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * A canonical transcription engine id. Mirrors `hw_localapi::EngineId`.
+ *
+ * The five names `openapi.yaml` documents for `engine` outside the
+ * `<CloudProvider rawValue>` set. Two of them,
+ * [`HwLocalApiEngineId::Nemotron`] and [`HwLocalApiEngineId::AppleSpeech`], are
+ * macOS-only capabilities — resolving one on a .NET head is correct and the
+ * head then answers `ENGINE_UNAVAILABLE`, which is a better response than the
+ * `Unknown engine '…'` it sends today.
+ */
+
+public enum HwLocalApiEngineId {
+    
+    /**
+     * Local `whisper.cpp`.
+     */
+    case whisperLocal
+    /**
+     * Local Parakeet.
+     */
+    case parakeet
+    /**
+     * Local Nemotron. macOS only.
+     */
+    case nemotron
+    /**
+     * Local Qwen3-ASR.
+     */
+    case qwen3Asr
+    /**
+     * Apple `SpeechAnalyzer`. macOS only.
+     */
+    case appleSpeech
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiEngineId: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiEngineId
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiEngineId {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .whisperLocal
+        
+        case 2: return .parakeet
+        
+        case 3: return .nemotron
+        
+        case 4: return .qwen3Asr
+        
+        case 5: return .appleSpeech
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiEngineId, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .whisperLocal:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .parakeet:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .nemotron:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .qwen3Asr:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .appleSpeech:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiEngineId_lift(_ buf: RustBuffer) throws -> HwLocalApiEngineId {
+    return try FfiConverterTypeHwLocalApiEngineId.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiEngineId_lower(_ value: HwLocalApiEngineId) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiEngineId.lower(value)
+}
+
+
+
+extension HwLocalApiEngineId: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * The closed set of Local API error codes. Mirrors
  * `hw_localapi::LocalApiErrorCode`.
  *
@@ -9899,6 +10216,182 @@ public func FfiConverterTypeHwLocalApiErrorCode_lower(_ value: HwLocalApiErrorCo
 
 
 extension HwLocalApiErrorCode: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What a head should do with a top-level key in a mode body. Mirrors
+ * `hw_localapi::ModeKeyClass`.
+ *
+ * **Every variant means "keep going".** None of them is a rejection: the
+ * verdict for an unrecognised key is *ignore*, because `openapi.yaml` already
+ * documents five keys as "Windows only. macOS ignores this key" and so invites
+ * a cross-platform client to send keys a given head does not implement.
+ */
+
+public enum HwLocalApiModeKeyClass {
+    
+    /**
+     * A documented key every head is expected to honour.
+     */
+    case known
+    /**
+     * A documented key marked "Windows only. macOS ignores this key".
+     */
+    case platformOnly
+    /**
+     * A documented key the server owns: returned on a `GET`, ignored on a write.
+     */
+    case readOnly
+    /**
+     * Not in the union. Ignore it, and log it.
+     */
+    case unknown
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiModeKeyClass: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiModeKeyClass
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiModeKeyClass {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .known
+        
+        case 2: return .platformOnly
+        
+        case 3: return .readOnly
+        
+        case 4: return .unknown
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiModeKeyClass, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .known:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .platformOnly:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .readOnly:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .unknown:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiModeKeyClass_lift(_ buf: RustBuffer) throws -> HwLocalApiModeKeyClass {
+    return try FfiConverterTypeHwLocalApiModeKeyClass.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiModeKeyClass_lower(_ value: HwLocalApiModeKeyClass) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiModeKeyClass.lower(value)
+}
+
+
+
+extension HwLocalApiModeKeyClass: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Which request a mode body belongs to. Mirrors `hw_localapi::ModeOperation`.
+ *
+ * The required-key rule is create-only, and the `MODE_NAME_TAKEN` hint follows
+ * the same split — both heads that ship the string attach it on create and omit
+ * it on patch.
+ */
+
+public enum HwLocalApiModeOperation {
+    
+    /**
+     * `POST /modes`.
+     */
+    case create
+    /**
+     * `PATCH /modes/{id}`.
+     */
+    case patch
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiModeOperation: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiModeOperation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiModeOperation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .create
+        
+        case 2: return .patch
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiModeOperation, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .create:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .patch:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiModeOperation_lift(_ buf: RustBuffer) throws -> HwLocalApiModeOperation {
+    return try FfiConverterTypeHwLocalApiModeOperation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiModeOperation_lower(_ value: HwLocalApiModeOperation) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiModeOperation.lower(value)
+}
+
+
+
+extension HwLocalApiModeOperation: Equatable, Hashable {}
 
 
 
@@ -11937,6 +12430,30 @@ fileprivate struct FfiConverterOptionTypeHwLanguage: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLocalApiFailure: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiFailure?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLocalApiFailure.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLocalApiFailure.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwModeIdentity: FfiConverterRustBuffer {
     typealias SwiftType = HwModeIdentity?
 
@@ -12265,6 +12782,30 @@ fileprivate struct FfiConverterOptionTypeHwLiveUpgradeRefusal: FfiConverterRustB
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeHwLiveUpgradeRefusal.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeHwLocalApiEngineId: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiEngineId?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLocalApiEngineId.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLocalApiEngineId.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -12787,6 +13328,31 @@ fileprivate struct FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwLiveStopStep.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwLocalApiEngineId: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLocalApiEngineId]
+
+    public static func write(_ value: [HwLocalApiEngineId], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLocalApiEngineId.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLocalApiEngineId] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLocalApiEngineId]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLocalApiEngineId.read(from: &buf))
         }
         return seq
     }
@@ -14475,6 +15041,15 @@ public func llmWrapTranscript(systemInfo: String, transcript: String) -> String 
 })
 }
 /**
+ * Every engine id, in the order `openapi.yaml` lists them.
+ */
+public func localApiAllEngineIds() -> [HwLocalApiEngineId] {
+    return try!  FfiConverterSequenceTypeHwLocalApiEngineId.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_all_engine_ids($0
+    )
+})
+}
+/**
  * Every code, in the order the docs and the macOS enum list them.
  */
 public func localApiAllErrorCodes() -> [HwLocalApiErrorCode] {
@@ -14538,6 +15113,20 @@ public func localApiCheckOrigin(headers: HwLocalApiOriginHeaders, port: UInt16) 
     uniffi_hyperwhisper_core_fn_func_local_api_check_origin(
         FfiConverterTypeHwLocalApiOriginHeaders.lower(headers),
         FfiConverterUInt16.lower(port),$0
+    )
+})
+}
+/**
+ * The spelling a response's `engine` field must carry — `openapi.yaml`'s.
+ *
+ * Windows and the portable head emit `qwen3_asr` today, which their own sibling
+ * does not accept as a request. Reading the label from here is what closes that
+ * round trip.
+ */
+public func localApiEngineWireLabel(id: HwLocalApiEngineId) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_engine_wire_label(
+        FfiConverterTypeHwLocalApiEngineId.lower(id),$0
     )
 })
 }
@@ -14656,6 +15245,104 @@ public func localApiMaxUploadBytes() -> UInt64 {
 })
 }
 /**
+ * Which required keys a create body did not carry, in the documented order.
+ *
+ * **Call sites: the portable head and Windows only, deliberately.** The portable
+ * head already walks `document.EnumerateObject()`. Windows needs a new
+ * `ReadJsonBodyWithKeysAsync<T>` because it cannot infer presence from
+ * `ModeDto` — `Punctuation`/`Capitalization`/`ProfanityFilter` are non-nullable
+ * `bool`, so an absent key and `false` are the same value. macOS needs neither:
+ * its decoder *is* this check.
+ */
+public func localApiMissingRequiredModeKeys(present: [String]) -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_missing_required_mode_keys(
+        FfiConverterSequenceString.lower(present),$0
+    )
+})
+}
+/**
+ * Classify one top-level key of a mode body. Exact, case-sensitive.
+ *
+ * **Call sites: the portable head and Windows. Not macOS** — see the module
+ * docs. On the portable head this replaces
+ * `default: throw new ArgumentException($"Unsupported mode field …")` with
+ * classify-and-ignore, which is the one head that enforced; on Windows it is a
+ * debug log beside a decoder that already conforms.
+ */
+public func localApiModeKeyClassification(key: String) -> HwLocalApiModeKeyClass {
+    return try!  FfiConverterTypeHwLocalApiModeKeyClass.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_mode_key_classification(
+        FfiConverterString.lower(key),$0
+    )
+})
+}
+/**
+ * The key a mode name is compared *by*: trim Unicode whitespace, then
+ * lowercase. `None` when nothing is left.
+ *
+ * **This is the definition of "the same name"**, replacing .NET's
+ * `OrdinalIgnoreCase` and Core Data's `==[c]`. It is not a storage name — each
+ * head still writes whatever its own pre-normalisation produced.
+ *
+ * **Call sites: all three heads.** On macOS it sits *behind*
+ * `ModeNamePolicy.normalized`, which keeps NFC and the Unicode general-category
+ * boundary trim. That half stays native because it needs
+ * `unicode-normalization` and a category table, and `hw-localapi` takes no
+ * dependency — it runs under `panic = "abort"` in front of a loopback socket.
+ */
+public func localApiModeNameComparisonKey(name: String) -> String? {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_mode_name_comparison_key(
+        FfiConverterString.lower(name),$0
+    )
+})
+}
+/**
+ * Whether `candidate` collides with any of `other_names`.
+ *
+ * `other_names` is the caller's **already-filtered** list: every head excludes
+ * the record it is writing before comparing, and only the head knows which one
+ * that is. An empty candidate never collides — that is
+ * [`local_api_validate_mode`]'s failure, and reporting it as a collision would
+ * name the wrong problem.
+ *
+ * **Call sites: all three heads.** macOS needs `fetchMode(byName:in:)` to stop
+ * being a store-side `name ==[c] %@` fetch and become a candidate-name fetch
+ * plus this call — six lines, on a head that already does full-table mode
+ * fetches to list and delete.
+ */
+public func localApiModeNameConflict(candidate: String, otherNames: [String]) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_mode_name_conflict(
+        FfiConverterString.lower(candidate),
+        FfiConverterSequenceString.lower(otherNames),$0
+    )
+})
+}
+/**
+ * The response a colliding name gets: HTTP 200 carrying `MODE_NAME_TAKEN`.
+ *
+ * The message is macOS's and Windows's verbatim. The portable head sends
+ * `"A mode with this name already exists."` as an `ArgumentException`, which its
+ * middleware turns into HTTP **400 `INVALID_REQUEST`** — `MODE_NAME_TAKEN` is
+ * declared on that head and never emitted.
+ *
+ * `operation` picks the hint, preserving the two heads' existing split rather
+ * than flattening it: both attach "choose a different name" on create and send
+ * no hint on patch.
+ *
+ * **Call sites: all three heads.**
+ */
+public func localApiModeNameTakenFailure(name: String, operation: HwLocalApiModeOperation) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_mode_name_taken_failure(
+        FfiConverterString.lower(name),
+        FfiConverterTypeHwLocalApiModeOperation.lower(operation),$0
+    )
+})
+}
+/**
  * Whether a decision means "dispatch it".
  *
  * A head can match the enum instead. This exists so the common case is one
@@ -14680,6 +15367,43 @@ public func localApiOriginDecisionIsAllowed(decision: HwLocalApiOriginDecision) 
 public func localApiRequestTooLargeFailure() -> HwLocalApiFailure {
     return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_request_too_large_failure($0
+    )
+})
+}
+/**
+ * The seven keys `openapi.yaml`'s `Mode` schema marks `required:`.
+ *
+ * macOS's `ModeDTO` declares exactly these as non-optional, so macOS already
+ * conforms; Windows requires only `name` and the portable head requires
+ * nothing. Adopting the published set tightens two heads — call it out in the
+ * PR body, because `{"name":"Only"}` creates a mode on both today.
+ */
+public func localApiRequiredModeKeys() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_required_mode_keys($0
+    )
+})
+}
+/**
+ * Resolve `POST /transcribe`'s `engine` string to a canonical id. Trim, then
+ * lowercase, then match.
+ *
+ * `None` means "not one of the five", **not** "rejected": the caller's next
+ * step is `CloudSttCatalog.normalizeCloudProvider`, which owns the
+ * `<CloudProvider rawValue>` half of the documented field, and only after that
+ * does the string become `ENGINE_UNAVAILABLE`.
+ *
+ * **Call sites: all three heads, four switches.** macOS has two —
+ * `TranscribeEndpoint.applyEngineModel` and
+ * `TranscriptionProviderRouter.resolveProvider`, whose own comments admit they
+ * are hand-synced, so both must call this or the drift only moves inside one
+ * platform. Then `TranscribeEndpoints.ApplyEngineModel` on Windows and
+ * `ApplicationLocalApiBackend.ApplyTranscriptionOverrides` on the portable head.
+ */
+public func localApiResolveEngineAlias(alias: String) -> HwLocalApiEngineId? {
+    return try!  FfiConverterOptionTypeHwLocalApiEngineId.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_resolve_engine_alias(
+        FfiConverterString.lower(alias),$0
     )
 })
 }
@@ -14733,6 +15457,28 @@ public func localApiUnauthorizedFailure(hint: String?) -> HwLocalApiFailure {
 public func localApiUploadTooLargeFailure() -> HwLocalApiFailure {
     return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_local_api_upload_too_large_failure($0
+    )
+})
+}
+/**
+ * Validate a mode body's shape and value ranges. `None` means acceptable.
+ *
+ * **Call sites: all three heads**, on create and on patch.
+ *
+ * A missing required key is HTTP 400 — the body is malformed *as a request*,
+ * and on macOS the omission is already a `decode` failure answered with 400.
+ * Every value bound is a business failure: HTTP 200 carrying `INVALID_REQUEST`.
+ * Both are in the closed 14; item 5 adds no code.
+ *
+ * Lengths are counted in **Unicode scalar values**, which is a deliberate
+ * choice and is client-visible: `string.Length` on .NET is UTF-16 code units,
+ * so a 60-emoji name is 120 units and is refused by the portable head today,
+ * while it is 60 scalars and accepted here.
+ */
+public func localApiValidateMode(input: HwLocalApiModeValidationInput) -> HwLocalApiFailure? {
+    return try!  FfiConverterOptionTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_validate_mode(
+        FfiConverterTypeHwLocalApiModeValidationInput.lower(input),$0
     )
 })
 }
@@ -15993,6 +16739,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript() != 44003) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_engine_ids() != 63651) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes() != 35889) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -16006,6 +16755,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_check_origin() != 60178) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_engine_wire_label() != 46336) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value() != 15511) {
@@ -16032,10 +16784,31 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_local_api_max_upload_bytes() != 24328) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_missing_required_mode_keys() != 39725) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_key_classification() != 12705) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_comparison_key() != 44521) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_conflict() != 32568) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_mode_name_taken_failure() != 46829) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed() != 27804) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_request_too_large_failure() != 64254) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_required_mode_keys() != 3310) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_resolve_engine_alias() != 46171) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes() != 13421) {
@@ -16048,6 +16821,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_upload_too_large_failure() != 37577) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_validate_mode() != 35225) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json() != 44899) {
