@@ -500,6 +500,21 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     /// <c>PlatformHelper</c>, and macOS has none — that is platform capability,
     /// which is exactly what the crate keeps out.
     /// </para>
+    /// <para>
+    /// <c>sortOrder</c> is the one bound that is validated from the REQUEST and
+    /// not from the merged entity, and the asymmetry is deliberate. Every other
+    /// bound here — <c>name</c>, <c>language</c>, <c>preset</c>,
+    /// <c>postProcessingMode</c>, the prompts, the vocabulary — was already
+    /// applied to the merged entity before issue #356, so a stored value that
+    /// fails one has always failed. The <c>Int16</c> range is NEW, and this head
+    /// (plus backup import) could store an out-of-range <c>sortOrder</c> before
+    /// it existed: applying it to the merged entity would make an unrelated
+    /// <c>PATCH {"isDefault":true}</c> fail forever, naming a field the client
+    /// never sent. macOS (<c>ModesEndpoint.swift</c>) and Windows
+    /// (<c>ModesEndpoints.cs</c>) both bound only the patch's own value, so
+    /// reading the stored one here would re-open the divergence this issue
+    /// closes.
+    /// </para>
     /// </remarks>
     private void ValidateMode(Mode mode, ModeDocumentFacts facts, HwLocalApiModeOperation operation)
     {
@@ -511,7 +526,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             mode.Language,
             mode.Preset,
             facts.PostProcessingMode ?? mode.PostProcessingMode,
-            facts.SortOrder ?? mode.SortOrder,
+            facts.SortOrder,
             mode.UserSystemPrompt,
             mode.GeminiCustomPrompt,
             mode.CustomVocabulary?.ToList()));

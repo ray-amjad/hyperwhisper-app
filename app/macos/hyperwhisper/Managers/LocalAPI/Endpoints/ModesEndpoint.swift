@@ -39,8 +39,42 @@ enum ModesEndpoint {
     /// bounded at the shared cap by `LocalAPIServer.bodied`.
     @MainActor
     static func create(body: Data) async -> HTTPResponse {
+        // The keys the request ACTUALLY carried (issue #356 item 2, review
+        // round 1). This head used to hand `localApiRequiredModeKeys()` to the
+        // shared validator, which made `missing_required_mode_keys` empty by
+        // construction — the rule was exported for three heads and evaluated on
+        // two. Reading the top-level names off the same bytes is what makes the
+        // rule real here: a required key added to `hw-localapi` that `ModeDTO`
+        // does not happen to declare non-optional is now refused on this head
+        // too, and `POST /modes {"name":"Only"}` names the missing fields
+        // instead of answering the generic decode failure.
+        //
+        // `nil` means the body is not a JSON object at all — that is the
+        // protocol failure the `badRequest` arm below was written for, and it
+        // stays one.
+        let presentKeys = Self.topLevelKeys(in: body)
         let dto: ModeDTO
         do { dto = try LocalAPIResponder.decoder.decode(ModeDTO.self, from: body) } catch {
+            // A body that is well-formed JSON and merely INCOMPLETE is a
+            // validation failure on every head, so ask the shared rule before
+            // falling back. A body that is malformed, not an object, or carries
+            // a wrong-typed value still gets this head's decode answer — the
+            // shared rule finds nothing missing and returns nil.
+            if let presentKeys,
+               let failure = localApiValidateMode(input: HwLocalApiModeValidationInput(
+                   operation: .create,
+                   presentKeys: presentKeys,
+                   name: nil,
+                   language: nil,
+                   preset: nil,
+                   postProcessingMode: nil,
+                   sortOrder: nil,
+                   userSystemPrompt: nil,
+                   geminiCustomPrompt: nil,
+                   customVocabulary: nil
+               )) {
+                return LocalAPIResponder.response(for: failure)
+            }
             return LocalAPIResponder.badRequest(
                 message: "Invalid JSON body",
                 hint: "Required: name, preset, language, model, punctuation, capitalization, profanityFilter. See /modes GET for the full shape."
@@ -57,20 +91,15 @@ enum ModesEndpoint {
         }
         // ONE MODE CONTRACT (issue #356 items 2 and 5). The bounds on `name`,
         // `language`, `preset`, `postProcessingMode`, `sortOrder` and the two
-        // prompts are the shared ones now, so all three heads refuse the same
-        // bodies with the same messages.
+        // prompts are the shared ones now, and so is the required-key set, so
+        // all three heads refuse the same bodies with the same messages.
         //
-        // `presentKeys` is the required seven rather than a parsed key list, and
-        // that is deliberate: this head's decoder IS the required-key check —
-        // `ModeDTO` declares exactly those seven non-optional, so a body missing
-        // one failed `decode` above and never reached here. Adding a
-        // `JSONSerialization` pass purely to re-derive a set the decoder already
-        // enforced would be a decode-path change on the head that is hardest to
-        // regression-test. `hw-localapi`'s own unit test pins that the two sets
-        // are the same seven strings.
+        // `presentKeys` cannot be nil here: `decode` succeeded, so the body was
+        // a JSON object. The `?? []` is the total answer, and it refuses rather
+        // than accepts.
         if let failure = localApiValidateMode(input: HwLocalApiModeValidationInput(
             operation: .create,
-            presentKeys: localApiRequiredModeKeys(),
+            presentKeys: presentKeys ?? [],
             name: normalizedName,
             language: dto.language,
             preset: dto.preset,
@@ -295,6 +324,22 @@ enum ModesEndpoint {
 
     private static func idParameter(from request: HTTPRequest) -> String? {
         request.routeParameters["id"]
+    }
+
+    /// The top-level key names a request body carried, or `nil` when the body is
+    /// not a JSON object.
+    ///
+    /// This is the raw-key hook `hw-localapi`'s `validate_mode` needs to run its
+    /// required-key rule (issue #356 item 2). `ModeDTO`'s decoder enforces the
+    /// same seven today, but "today" is the whole problem: the crate owns that
+    /// list, and a head that hands it a fabricated set can never disagree with
+    /// it. The parse is one pass over bytes `LocalAPIServer.bodied` has already
+    /// read and bounded at the shared upload cap, and it feeds validation only —
+    /// decoding is still `ModeDTO`'s job.
+    static func topLevelKeys(in body: Data) -> [String]? {
+        guard let parsed = try? JSONSerialization.jsonObject(with: body),
+              let object = parsed as? [String: Any] else { return nil }
+        return Array(object.keys)
     }
 
     static func normalizedName(_ name: String) -> String? {

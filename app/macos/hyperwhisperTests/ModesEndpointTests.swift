@@ -49,14 +49,12 @@ struct ModesEndpointTests {
         #expect(ModesEndpoint.int16Value(Int(Int16.max) + 1) == nil)
     }
 
-    /// Issue #356 Decision B. `ModeDTO` declares exactly seven properties
-    /// non-optional, so a create body missing one fails `decode` and never
-    /// reaches `validate_mode` — this head's decoder IS the required-key check,
-    /// which is why `ModesEndpoint.create` passes the shared list rather than a
-    /// parsed one. That only holds while the two lists are the same seven
-    /// strings, and this is what holds them together: Windows and the portable
-    /// head enforce the shared list at runtime, so a seven that drifts here is
-    /// a body accepted on macOS and refused on the other two.
+    /// Issue #356 Decision B. Pins the published seven and the wording of the
+    /// hint a decode failure sends, both of which a client reads.
+    ///
+    /// It does NOT pin the equivalence with `ModeDTO` — restating the same seven
+    /// literals cannot do that. `modeDTORequiresExactlyTheSharedRequiredModeKeys`
+    /// derives that from the type.
     @Test func theSharedRequiredModeKeysAreTheOnesModeDTORequires() {
         #expect(
             localApiRequiredModeKeys() == [
@@ -80,6 +78,72 @@ struct ModesEndpointTests {
                 "the decode-failure hint does not name the required key '\(key)'"
             )
         }
+    }
+
+    /// Issue #356 item 2, review round 1. The equivalence between
+    /// `REQUIRED_MODE_KEYS` and `ModeDTO`, derived from `ModeDTO` itself rather
+    /// than restating the seven literals a third time.
+    ///
+    /// A property of `ModeDTO` is required exactly when its declared type is not
+    /// an `Optional`, which `Mirror` reports on the runtime value. So this fails
+    /// if a key is added to the crate's list and not to `ModeDTO` (macOS would
+    /// then be the head that no longer refuses it in the decoder), and it fails
+    /// if `ModeDTO` gains a non-optional property the crate does not list (macOS
+    /// would then refuse a body the other two heads accept).
+    @Test func modeDTORequiresExactlyTheSharedRequiredModeKeys() throws {
+        // Fixture, not an assertion: the smallest body `ModeDTO` accepts. If
+        // `ModeDTO` gains a required property, this decode throws and the test
+        // fails before the comparison below runs — which is also a real answer.
+        let body = Data(#"""
+        {"name":"N","preset":"hyper","language":"en","model":"base",
+         "punctuation":true,"capitalization":true,"profanityFilter":false}
+        """#.utf8)
+        let dto = try LocalAPIResponder.decoder.decode(ModeDTO.self, from: body)
+
+        let required = Mirror(reflecting: dto).children.compactMap { child -> String? in
+            guard let label = child.label else { return nil }
+            return Mirror(reflecting: child.value).displayStyle == .optional ? nil : label
+        }
+
+        #expect(
+            Set(required) == Set(localApiRequiredModeKeys()),
+            """
+            ModeDTO's non-optional properties \(Set(required).sorted()) and the shared \
+            required-key list \(Set(localApiRequiredModeKeys()).sorted()) have drifted
+            """
+        )
+    }
+
+    /// Issue #356 item 2, review round 1. `create` derives the present-key set
+    /// from the body it was handed, so the shared required-key rule is actually
+    /// evaluated on this head. A body that is not a JSON object has no keys to
+    /// classify and stays the protocol failure it always was.
+    @Test func topLevelKeysComeFromTheBodyAndNotFromTheRequiredList() {
+        #expect(
+            ModesEndpoint.topLevelKeys(in: Data(#"{"name":"Only"}"#.utf8)) == ["name"]
+        )
+        #expect(
+            ModesEndpoint.topLevelKeys(in: Data("{}".utf8)) == []
+        )
+        #expect(ModesEndpoint.topLevelKeys(in: Data("[1,2,3]".utf8)) == nil)
+        #expect(ModesEndpoint.topLevelKeys(in: Data("not json".utf8)) == nil)
+
+        // The rule this hook exists to feed: `{"name":"Only"}` is missing six of
+        // the seven, and the shared validator says so by name.
+        let failure = localApiValidateMode(input: HwLocalApiModeValidationInput(
+            operation: .create,
+            presentKeys: ModesEndpoint.topLevelKeys(in: Data(#"{"name":"Only"}"#.utf8)) ?? [],
+            name: nil,
+            language: nil,
+            preset: nil,
+            postProcessingMode: nil,
+            sortOrder: nil,
+            userSystemPrompt: nil,
+            geminiCustomPrompt: nil,
+            customVocabulary: nil
+        ))
+        #expect(failure != nil, "a create body carrying only `name` must fail the shared required-key rule")
+        #expect(failure?.message.contains("preset") == true)
     }
 
     /// Issue #356 Decisions C and D, from the macOS side of the FFI. The

@@ -1175,6 +1175,25 @@ static async Task ApplicationBackendModeContract()
     Assert((await Post(ModeBody("Edge", extra: "\"sortOrder\":32767"))).StatusCode == HttpStatusCode.OK,
         "sortOrder 32767 was refused; the bound is inclusive on every head");
 
+    // ...and the bound is applied to the REQUEST, never to a stored value.
+    // `sortOrder` is the one bound #356 introduced, and this head could store an
+    // out-of-range value before it existed (so could backup import, which writes
+    // the column with no bound at all). Validating the merged entity would make
+    // an unrelated `PATCH {"isDefault":true}` fail forever, naming a field the
+    // client never sent — and macOS and Windows both bound only the patch's own
+    // value, so it would re-open the divergence this issue closes.
+    Assert((await Post(ModeBody("Legacy", extra: "\"sortOrder\":1"))).StatusCode == HttpStatusCode.OK, "the legacy-sortOrder fixture could not be created");
+    var legacy = (await modes.ListAsync()).Single(item => item.Name == "Legacy");
+    legacy.SortOrder = 99999;
+    await modes.UpsertAsync(legacy);
+    var unrelated = await Patch(legacy.Id.ToString("D"), """{"isDefault":true}""");
+    Assert(unrelated.StatusCode == HttpStatusCode.OK && !await HasFailureEnvelope(unrelated),
+        "a PATCH that never mentions sortOrder was refused because the STORED sortOrder is out of range");
+    Assert((await modes.ListAsync()).Single(item => item.Name == "Legacy").SortOrder == 99999,
+        "the unrelated patch rewrote a stored sortOrder it was never given");
+    // A patch that DOES send it is still bounded.
+    await AssertBusinessFailure(await Patch(legacy.Id.ToString("D"), """{"sortOrder":99999}"""), LocalApiErrorCodes.InvalidRequest, "patch sortOrder outside Int16");
+
     var badMode = await Post(ModeBody("Bad post-processing", extra: "\"postProcessingMode\":7"));
     await AssertBusinessFailure(badMode, LocalApiErrorCodes.InvalidRequest, "postProcessingMode out of range");
     Assert(await FailureMessage(badMode) == "Mode 'postProcessingMode' must be 0, 1, or 2", "postProcessingMode message drifted from the shared core");
