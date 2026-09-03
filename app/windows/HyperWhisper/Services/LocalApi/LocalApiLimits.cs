@@ -22,7 +22,7 @@ namespace HyperWhisper.Services.LocalApi;
 ///   </description></item>
 ///   <item><description>
 ///     The wrong failure shape. Each of the four JSON body reads sat in a bare
-///     <c>catch</c>, which swallowed Kestrel's <see cref="BadHttpRequestException"/>
+///     <c>catch</c>, which swallowed Kestrel's <see cref="Microsoft.AspNetCore.Http.BadHttpRequestException"/>
 ///     and answered HTTP 400 <c>"Invalid JSON body"</c>. A caller could not tell
 ///     "too big" from "malformed".
 ///   </description></item>
@@ -122,7 +122,7 @@ internal static class LocalApiLimits
     /// the headers are parsed. <c>MessageBody.AddAndCheckObservedBytes</c>
     /// compares a running counter as the body is CONSUMED, so the rejection
     /// happens inside this method's <c>ReadFromJsonAsync</c> call, as a
-    /// <see cref="BadHttpRequestException"/> whose <c>StatusCode</c> is 413.
+    /// <see cref="Microsoft.AspNetCore.Http.BadHttpRequestException"/> whose <c>StatusCode</c> is 413.
     /// <c>System.Text.Json</c> lets a stream exception through unwrapped, so it
     /// arrives here as itself — which is precisely why the old bare
     /// <c>catch</c> turned it into a 400.
@@ -144,7 +144,7 @@ internal static class LocalApiLimits
     ///   </description></item>
     /// </list>
     ///
-    /// A <see cref="BadHttpRequestException"/> that is NOT the size case (a
+    /// A <see cref="Microsoft.AspNetCore.Http.BadHttpRequestException"/> that is NOT the size case (a
     /// truncated body, bad chunk framing) keeps today's behaviour: HTTP 400
     /// <c>"Invalid JSON body"</c>.
     /// </summary>
@@ -180,15 +180,23 @@ internal static class LocalApiLimits
     /// <summary>
     /// Whether <paramref name="exception"/>, or anything it wraps, is Kestrel's
     /// "request body too large" rejection. Kestrel tags that one rejection with
-    /// <c>StatusCode</c> 413; every other <see cref="BadHttpRequestException"/>
+    /// <c>StatusCode</c> 413; every other <see cref="Microsoft.AspNetCore.Http.BadHttpRequestException"/>
     /// it raises carries 400 or 431.
     /// </summary>
     public static bool IsBodyTooLarge(Exception? exception)
     {
         for (var current = exception; current is not null; current = current.InnerException)
         {
+            // Fully qualified because TWO types carry this name and both are in
+            // scope here: the obsolete
+            // Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException,
+            // and Microsoft.AspNetCore.Http.BadHttpRequestException. The Kestrel
+            // one DERIVES from the Http one and is what Kestrel actually throws,
+            // so matching the base catches both — matching the Kestrel one would
+            // miss a rejection raised anywhere else in the pipeline.
+            //
             // 413 is READ here, never sent. See the class summary.
-            if (current is BadHttpRequestException { StatusCode: 413 }) return true;
+            if (current is Microsoft.AspNetCore.Http.BadHttpRequestException { StatusCode: 413 }) return true;
             if (current is AggregateException aggregate
                 && aggregate.InnerExceptions.Any(IsBodyTooLarge))
             {

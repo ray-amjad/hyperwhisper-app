@@ -5926,6 +5926,16 @@ internal static class Program
                 }
             });
 
+            // RunAsync blocks on GetAwaiter().GetResult(), and by this point the
+            // "BackupExportSettingsPage initializes under WPF" case above has
+            // left a DispatcherSynchronizationContext on this thread. This
+            // console harness never runs a Dispatcher loop, so an awaited
+            // continuation posted to that context would never run and the whole
+            // suite would hang. Detach for the duration, exactly as the
+            // onboarding block below does.
+            var limitsPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
             RunAsync("an over-limit body answers 200 + INVALID_REQUEST, never 400 and never 413", async () =>
             {
                 var tooLarge = HyperwhisperCoreMethods.LocalApiRequestTooLargeFailure();
@@ -6049,6 +6059,8 @@ internal static class Program
                         error.GetProperty("message").GetString());
                 }
             });
+
+            SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             Run("the audio_base64 guards refuse an oversized clip before decoding it", () =>
             {
