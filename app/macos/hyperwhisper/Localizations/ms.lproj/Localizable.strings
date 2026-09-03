@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Menyediakan muat turun…";
 "onboarding.setup.onDevice.downloadingFile" = "Memuat turun fail %1$d daripada %2$d";
 "onboarding.setup.onDevice.optimizing" = "Mengoptimumkan model untuk Mac ini. Hampir selesai.";
+"onboarding.setup.onDevice.optimizingPill" = "Mengoptimumkan…";
 "onboarding.setup.onDevice.firstRunHint" = "Muat turun pertama mengambil masa beberapa minit. Anda boleh biarkan tetingkap ini terbuka.";
 "onboarding.setup.onDevice.ready" = "Model sedia";
 "onboarding.setup.cloud.title" = "Aktifkan kunci anda";

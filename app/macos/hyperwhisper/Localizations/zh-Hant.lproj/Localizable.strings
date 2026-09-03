@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "正在準備下載…";
 "onboarding.setup.onDevice.downloadingFile" = "正在下載第 %1$d 個檔案，共 %2$d 個";
 "onboarding.setup.onDevice.optimizing" = "正在為這台 Mac 最佳化模型，即將完成。";
+"onboarding.setup.onDevice.optimizingPill" = "正在最佳化…";
 "onboarding.setup.onDevice.firstRunHint" = "首次下載需要幾分鐘。你可以讓此視窗保持開啟。";
 "onboarding.setup.onDevice.ready" = "模型已就緒";
 "onboarding.setup.cloud.title" = "啟用您的金鑰";

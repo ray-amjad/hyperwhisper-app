@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Sagatavo lejupielādi…";
 "onboarding.setup.onDevice.downloadingFile" = "Lejupielādē failu %1$d no %2$d";
 "onboarding.setup.onDevice.optimizing" = "Modelis tiek optimizēts šim Mac. Gandrīz gatavs.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimizē…";
 "onboarding.setup.onDevice.firstRunHint" = "Pirmā lejupielāde aizņem dažas minūtes. Šo logu var atstāt atvērtu.";
 "onboarding.setup.onDevice.ready" = "Modelis ir gatavs";
 "onboarding.setup.cloud.title" = "Aktivizējiet savu atslēgu";

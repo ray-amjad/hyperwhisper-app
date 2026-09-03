@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Đang chuẩn bị tải xuống…";
 "onboarding.setup.onDevice.downloadingFile" = "Đang tải xuống tệp %1$d trên %2$d";
 "onboarding.setup.onDevice.optimizing" = "Đang tối ưu mô hình cho máy Mac này. Sắp xong.";
+"onboarding.setup.onDevice.optimizingPill" = "Đang tối ưu…";
 "onboarding.setup.onDevice.firstRunHint" = "Lần tải xuống đầu tiên mất vài phút. Bạn có thể để cửa sổ này mở.";
 "onboarding.setup.onDevice.ready" = "Mô hình đã sẵn sàng";
 "onboarding.setup.cloud.title" = "Kích hoạt key của bạn";

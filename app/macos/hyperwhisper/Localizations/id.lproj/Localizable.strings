@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Menyiapkan unduhan…";
 "onboarding.setup.onDevice.downloadingFile" = "Mengunduh berkas %1$d dari %2$d";
 "onboarding.setup.onDevice.optimizing" = "Mengoptimalkan model untuk Mac ini. Hampir selesai.";
+"onboarding.setup.onDevice.optimizingPill" = "Mengoptimalkan…";
 "onboarding.setup.onDevice.firstRunHint" = "Unduhan pertama memakan waktu beberapa menit. Anda dapat membiarkan jendela ini terbuka.";
 "onboarding.setup.onDevice.ready" = "Model siap";
 "onboarding.setup.cloud.title" = "Aktifkan kunci Anda";

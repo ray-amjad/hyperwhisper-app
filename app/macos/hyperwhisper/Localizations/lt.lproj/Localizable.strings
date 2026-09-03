@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Ruošiamas atsisiuntimas…";
 "onboarding.setup.onDevice.downloadingFile" = "Atsisiunčiamas failas %1$d iš %2$d";
 "onboarding.setup.onDevice.optimizing" = "Modelis optimizuojamas šiam „Mac“. Beveik baigta.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimizuojama…";
 "onboarding.setup.onDevice.firstRunHint" = "Pirmasis atsisiuntimas trunka kelias minutes. Šį langą galite palikti atvertą.";
 "onboarding.setup.onDevice.ready" = "Modelis paruoštas";
 "onboarding.setup.cloud.title" = "Aktyvuokite savo raktą";

@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "다운로드 준비 중…";
 "onboarding.setup.onDevice.downloadingFile" = "파일 다운로드 중 %1$d/%2$d";
 "onboarding.setup.onDevice.optimizing" = "이 Mac에 맞게 모델을 최적화하는 중입니다. 거의 다 됐습니다.";
+"onboarding.setup.onDevice.optimizingPill" = "최적화 중…";
 "onboarding.setup.onDevice.firstRunHint" = "첫 다운로드는 몇 분 정도 걸립니다. 이 창은 열어 두어도 됩니다.";
 "onboarding.setup.onDevice.ready" = "모델 준비 완료";
 "onboarding.setup.cloud.title" = "키 활성화";

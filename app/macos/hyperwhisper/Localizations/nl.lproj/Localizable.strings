@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Download voorbereiden…";
 "onboarding.setup.onDevice.downloadingFile" = "Bestand %1$d van %2$d downloaden";
 "onboarding.setup.onDevice.optimizing" = "Het model wordt geoptimaliseerd voor deze Mac. Bijna klaar.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimaliseren…";
 "onboarding.setup.onDevice.firstRunHint" = "De eerste download duurt een paar minuten. Je kunt dit venster open laten staan.";
 "onboarding.setup.onDevice.ready" = "Model gereed";
 "onboarding.setup.cloud.title" = "Activeer je sleutel";

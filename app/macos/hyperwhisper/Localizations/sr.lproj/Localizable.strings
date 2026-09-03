@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Припрема преузимања…";
 "onboarding.setup.onDevice.downloadingFile" = "Преузимање датотеке %1$d од %2$d";
 "onboarding.setup.onDevice.optimizing" = "Модел се оптимизује за овај Mac. Само још мало.";
+"onboarding.setup.onDevice.optimizingPill" = "Оптимизовање…";
 "onboarding.setup.onDevice.firstRunHint" = "Прво преузимање траје неколико минута. Овај прозор можете оставити отворен.";
 "onboarding.setup.onDevice.ready" = "Модел спреман";
 "onboarding.setup.cloud.title" = "Активирај свој кључ";

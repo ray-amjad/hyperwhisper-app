@@ -365,6 +365,11 @@ final class ParakeetModelManager: ObservableObject {
 /// Instead we take FluidAudio's own repository-wide, byte-weighted download fraction —
 /// which occupies 0…0.5 of *its* range — and give it 0…0.9 of ours, reserving the last 0.1
 /// for the per-component compile passes. Created fresh per download (no persisted state).
+///
+/// Both published values move forwards only, and they do so for the same reason: the
+/// handler arrives on an unspecified queue and `runDownload` hops each callback onto the
+/// main actor in its own unstructured `Task`, so a late straggler must not be able to rewind
+/// the card. The one thing that *does* rewind them is a genuine restart — see `.listing`.
 @MainActor
 final class ModelDownloadProgressAggregator {
 
@@ -374,6 +379,14 @@ final class ModelDownloadProgressAggregator {
     private let componentCount: Int
     private var completedComponents = 0
     private var lastFraction = 0.0
+    /// High-water mark for the stage, the exact counterpart of `lastFraction`.
+    ///
+    /// Without it the published stage runs `.processing → .preparing → .processing` once
+    /// per cached component: `loadModels` re-checks the cache for the whole repository on
+    /// every component, so components 2…n each emit the cache-hit sentinel
+    /// `.downloading(completedFiles: 0, totalFiles: 0)` (`DownloadUtils.swift:296-298`)
+    /// *after* component 1 has already compiled.
+    private var lastStage: ModelDownloadStage = .preparing
 
     init(componentCount: Int) { self.componentCount = max(componentCount, 1) }
 
@@ -383,12 +396,26 @@ final class ModelDownloadProgressAggregator {
         var fraction = lastFraction
         // No default: every branch assigns, so a FluidAudio bump that adds a phase
         // fails to compile here instead of silently reporting the wrong stage.
-        let stage: ModelDownloadStage
+        let candidate: ModelDownloadStage
 
         switch update.phase {
         case .listing:
-            // Listing the repository — nothing measurable yet, so hold the fraction.
-            stage = .preparing
+            // `downloadRepo` emits `.listing` exactly once, at its top, before it has
+            // transferred a byte (`DownloadUtils.swift:495`). Seeing one therefore means a
+            // repository transfer is starting from zero — and the second one means
+            // `loadModels` caught a load failure, deleted the whole repo directory and
+            // re-ran with this same handler (`DownloadUtils.swift:173-213`). Rewind both
+            // high-water marks, or the retry's several hundred megabytes of real network
+            // activity are swallowed by the guards and the bar sits still for minutes.
+            //
+            // `completedComponents` is deliberately *not* rewound: the per-component
+            // `loadModels` calls `AsrModels.download` already finished have returned and
+            // will not compile again, so the compile tail has to resume where it stopped
+            // or it can never reach 1.0.
+            lastFraction = 0.0
+            lastStage = .preparing
+            fraction = 0.0
+            candidate = .preparing
 
         case .downloading(let completedFiles, let totalFiles):
             // FluidAudio's transfer occupies 0…0.5 of its own range and is already
@@ -397,11 +424,12 @@ final class ModelDownloadProgressAggregator {
             let transferred = min(max(update.fractionCompleted * 2.0, 0.0), 1.0)
             fraction = transferred * Self.downloadSpan
             // A cached component emits `.downloading(completedFiles: 0, totalFiles: 0)`,
-            // which is not a real file counter — report that as preparing.
+            // which is not a real file counter — report that as preparing. Once anything
+            // has compiled, `advance(to:)` below discards it entirely.
             if totalFiles > 0 {
-                stage = .downloading(completedFiles: completedFiles, totalFiles: totalFiles)
+                candidate = .downloading(completedFiles: completedFiles, totalFiles: totalFiles)
             } else {
-                stage = .preparing
+                candidate = .preparing
             }
 
         case .compiling:
@@ -415,13 +443,51 @@ final class ModelDownloadProgressAggregator {
                 fraction = Self.downloadSpan
                     + (1.0 - Self.downloadSpan) * Double(completedComponents) / Double(componentCount)
             }
-            stage = .processing
+            candidate = .processing
         }
 
         // Monotonic guard: the published fraction never moves backwards, whatever order
-        // the callbacks arrive in after the hop to the main actor.
-        fraction = max(fraction, lastFraction)
+        // the callbacks arrive in after the hop to the main actor. The trailing `min`
+        // is defensive — `componentCount` mirrors `AsrModels.download`'s spec list by
+        // hand, so a future FluidAudio that adds a fifth component must not be able to
+        // push the bar past a full one.
+        fraction = min(max(fraction, lastFraction), 1.0)
         lastFraction = fraction
+        let stage = Self.advance(from: lastStage, to: candidate)
+        lastStage = stage
         return (fraction, stage)
+    }
+
+    /// The stage half of the monotonic guard: `preparing` → `downloading` → `processing`,
+    /// one way only, and the file counter inside `downloading` climbs only.
+    ///
+    /// Returning the *current* stage rather than the candidate is what keeps the card on
+    /// one stable state for the whole compile tail instead of flipping it back to
+    /// "Preparing download…" once per cached component.
+    private static func advance(
+        from current: ModelDownloadStage,
+        to candidate: ModelDownloadStage
+    ) -> ModelDownloadStage {
+        if rank(candidate) < rank(current) {
+            return current
+        }
+        // Same rank: a straggler must not walk "file 19 of 22" back to "file 5 of 22".
+        if case .downloading(let newFiles, let newTotal) = candidate,
+            case .downloading(let oldFiles, let oldTotal) = current,
+            newTotal == oldTotal, newFiles < oldFiles
+        {
+            return current
+        }
+        return candidate
+    }
+
+    /// Ordering for `advance(from:to:)`. No `default:`, so a new `ModelDownloadStage`
+    /// has to be placed in the order explicitly rather than inheriting one.
+    private static func rank(_ stage: ModelDownloadStage) -> Int {
+        switch stage {
+        case .preparing: return 0
+        case .downloading: return 1
+        case .processing: return 2
+        }
     }
 }

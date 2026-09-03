@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "डाउनलोड तैयार किया जा रहा है…";
 "onboarding.setup.onDevice.downloadingFile" = "फ़ाइल %1$d / %2$d डाउनलोड हो रही है";
 "onboarding.setup.onDevice.optimizing" = "मॉडल को इस Mac के लिए ऑप्टिमाइज़ किया जा रहा है. लगभग हो गया.";
+"onboarding.setup.onDevice.optimizingPill" = "ऑप्टिमाइज़ किया जा रहा है…";
 "onboarding.setup.onDevice.firstRunHint" = "पहले डाउनलोड में कुछ मिनट लगते हैं. आप यह विंडो खुली छोड़ सकते हैं.";
 "onboarding.setup.onDevice.ready" = "मॉडल तैयार है";
 "onboarding.setup.cloud.title" = "अपनी कुंजी सक्रिय करें";

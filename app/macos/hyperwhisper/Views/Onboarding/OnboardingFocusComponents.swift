@@ -523,23 +523,60 @@ struct OnboardingProgressBar: View {
     }
 }
 
-/// The indeterminate sibling of `OnboardingProgressBar`, for the stretch of a
-/// download where work is definitely happening but no trustworthy fraction
-/// exists yet (issue #312: FluidAudio emits nothing usable until a file lands,
-/// so a number there would read as a frozen 1%).
+/// The indeterminate sibling of `OnboardingProgressBar`, for a download where
+/// work is definitely happening but no trustworthy fraction exists (issue #312:
+/// FluidAudio emits nothing usable until a whole file lands, and its compile
+/// tail is a four-step staircase, so a number in either would read as frozen).
 ///
-/// Deliberately the system linear `ProgressView` and not a hand written
-/// `repeatForever` capsule: the motion is then AppKit's own, which is both the
-/// familiar macOS idiom and the version that cannot be got subtly wrong.
+/// Built from the same `GeometryReader` + `Capsule` + `frame(height: 6)` as
+/// `OnboardingProgressBar` rather than from `ProgressView(.linear)`. The two
+/// swap places inside a card that pins no height of its own, so anything but
+/// identical layout resizes the card and everything below it at the swap — and
+/// the system bar takes AppKit's intrinsic height, which is not 6 pt and cannot
+/// be pinned to 6 pt without risking a clipped animation.
 struct OnboardingIndeterminateProgressBar: View {
+    /// What VoiceOver reads as this bar's value. There is no percentage to read,
+    /// so the caller hands over the live phase line ("Downloading file 12 of 22")
+    /// instead of one constant string for the whole four minutes.
+    var accessibilityValue: String = "onboarding.a11y.inProgress".localized
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var sweeping = false
+
+    /// Width of the travelling highlight, as a share of the track.
+    private static let sweepShare: CGFloat = 0.35
+
     var body: some View {
-        ProgressView()
-            .progressViewStyle(.linear)
-            .tint(Color.accentColor)
-            .frame(maxWidth: .infinity)
-            .accessibilityElement()
-            .accessibilityLabel("onboarding.a11y.downloadProgress".localized)
-            .accessibilityValue("onboarding.a11y.inProgress".localized)
+        GeometryReader { proxy in
+            let trackWidth = proxy.size.width
+            let sweepWidth = trackWidth * Self.sweepShare
+            ZStack(alignment: .leading) {
+                Capsule().fill(OnboardingStyle.fill)
+                if reduceMotion {
+                    // Reduce Motion: a still, dimmed fill. AppKit's own bar honours
+                    // the setting for free; a hand written sweep has to be asked.
+                    // The phase line above carries the "something is happening".
+                    Capsule().fill(Color.accentColor.opacity(0.45))
+                } else {
+                    Capsule()
+                        .fill(Color.accentColor)
+                        .frame(width: sweepWidth)
+                        .offset(x: sweeping ? trackWidth : -sweepWidth)
+                }
+            }
+            .clipShape(Capsule())
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false)) {
+                    sweeping = true
+                }
+            }
+        }
+        // Identical to `OnboardingProgressBar`, on purpose. See the note above.
+        .frame(height: 6)
+        .accessibilityElement()
+        .accessibilityLabel("onboarding.a11y.downloadProgress".localized)
+        .accessibilityValue(accessibilityValue)
     }
 }
 

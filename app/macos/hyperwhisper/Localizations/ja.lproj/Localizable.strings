@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "ダウンロードを準備中…";
 "onboarding.setup.onDevice.downloadingFile" = "%2$d 個中 %1$d 個目のファイルをダウンロード中";
 "onboarding.setup.onDevice.optimizing" = "このMac用にモデルを最適化しています。もうすぐ完了します。";
+"onboarding.setup.onDevice.optimizingPill" = "最適化中…";
 "onboarding.setup.onDevice.firstRunHint" = "初回のダウンロードには数分かかります。このウインドウは開いたままにしておけます。";
 "onboarding.setup.onDevice.ready" = "モデルの準備完了";
 "onboarding.setup.cloud.title" = "キーを有効化";

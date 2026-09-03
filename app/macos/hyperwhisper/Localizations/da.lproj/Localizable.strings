@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Forbereder download…";
 "onboarding.setup.onDevice.downloadingFile" = "Downloader fil %1$d af %2$d";
 "onboarding.setup.onDevice.optimizing" = "Modellen optimeres til denne Mac. Næsten færdig.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimerer…";
 "onboarding.setup.onDevice.firstRunHint" = "Den første download tager et par minutter. Du kan lade dette vindue stå åbent.";
 "onboarding.setup.onDevice.ready" = "Model klar";
 "onboarding.setup.cloud.title" = "Aktivér din nøgle";

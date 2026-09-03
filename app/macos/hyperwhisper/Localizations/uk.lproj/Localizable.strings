@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Підготовка завантаження…";
 "onboarding.setup.onDevice.downloadingFile" = "Завантаження файлу %1$d з %2$d";
 "onboarding.setup.onDevice.optimizing" = "Модель оптимізується для цього Mac. Майже готово.";
+"onboarding.setup.onDevice.optimizingPill" = "Оптимізація…";
 "onboarding.setup.onDevice.firstRunHint" = "Перше завантаження триває кілька хвилин. Це вікно можна залишити відкритим.";
 "onboarding.setup.onDevice.ready" = "Модель готова";
 "onboarding.setup.cloud.title" = "Активуйте ваш ключ";

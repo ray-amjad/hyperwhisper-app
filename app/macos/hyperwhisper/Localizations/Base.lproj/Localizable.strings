@@ -340,6 +340,7 @@
 "onboarding.setup.onDevice.preparing" = "Preparing download…";
 "onboarding.setup.onDevice.downloadingFile" = "Downloading file %1$d of %2$d";
 "onboarding.setup.onDevice.optimizing" = "Optimizing the model for this Mac. Almost done.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimizing…";
 "onboarding.setup.onDevice.firstRunHint" = "The first download takes a few minutes. You can leave this window open.";
 "onboarding.setup.onDevice.ready" = "Model ready";
 "onboarding.setup.onDevice.storedCaption" = "stored on this Mac";

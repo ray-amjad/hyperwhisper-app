@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Pripravljanje prenosa…";
 "onboarding.setup.onDevice.downloadingFile" = "Prenašanje datoteke %1$d od %2$d";
 "onboarding.setup.onDevice.optimizing" = "Model se optimizira za ta Mac. Še malo.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimiziranje…";
 "onboarding.setup.onDevice.firstRunHint" = "Prvi prenos traja nekaj minut. To okno lahko pustite odprto.";
 "onboarding.setup.onDevice.ready" = "Model pripravljen";
 "onboarding.setup.cloud.title" = "Aktiviraj svoj ključ";

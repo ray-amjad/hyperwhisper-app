@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Preparando la descarga…";
 "onboarding.setup.onDevice.downloadingFile" = "Descargando el archivo %1$d de %2$d";
 "onboarding.setup.onDevice.optimizing" = "Optimizando el modelo para este Mac. Ya casi está.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimizando…";
 "onboarding.setup.onDevice.firstRunHint" = "La primera descarga tarda unos minutos. Puedes dejar esta ventana abierta.";
 "onboarding.setup.onDevice.ready" = "Modelo listo";
 "onboarding.setup.cloud.title" = "Activa tu clave";

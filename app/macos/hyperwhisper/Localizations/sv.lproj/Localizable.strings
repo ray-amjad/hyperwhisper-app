@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Förbereder nedladdning…";
 "onboarding.setup.onDevice.downloadingFile" = "Laddar ner fil %1$d av %2$d";
 "onboarding.setup.onDevice.optimizing" = "Modellen optimeras för den här Macen. Nästan klart.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimerar…";
 "onboarding.setup.onDevice.firstRunHint" = "Den första nedladdningen tar några minuter. Du kan lämna det här fönstret öppet.";
 "onboarding.setup.onDevice.ready" = "Modellen är klar";
 "onboarding.setup.cloud.title" = "Aktivera din nyckel";

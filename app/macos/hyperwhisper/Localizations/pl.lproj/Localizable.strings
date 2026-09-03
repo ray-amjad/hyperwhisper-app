@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Przygotowywanie pobierania…";
 "onboarding.setup.onDevice.downloadingFile" = "Pobieranie pliku %1$d z %2$d";
 "onboarding.setup.onDevice.optimizing" = "Model jest optymalizowany pod tego Maca. Już prawie.";
+"onboarding.setup.onDevice.optimizingPill" = "Optymalizowanie…";
 "onboarding.setup.onDevice.firstRunHint" = "Pierwsze pobieranie trwa kilka minut. To okno możesz zostawić otwarte.";
 "onboarding.setup.onDevice.ready" = "Model gotowy";
 "onboarding.setup.cloud.title" = "Aktywuj swój klucz";

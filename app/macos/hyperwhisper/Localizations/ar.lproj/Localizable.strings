@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "جارٍ تحضير التنزيل…";
 "onboarding.setup.onDevice.downloadingFile" = "جارٍ تنزيل الملف %1$d من %2$d";
 "onboarding.setup.onDevice.optimizing" = "جارٍ تحسين النموذج لجهاز Mac هذا. أوشك على الانتهاء.";
+"onboarding.setup.onDevice.optimizingPill" = "جارٍ التحسين…";
 "onboarding.setup.onDevice.firstRunHint" = "يستغرق التنزيل الأول بضع دقائق. يمكنك ترك هذه النافذة مفتوحة.";
 "onboarding.setup.onDevice.ready" = "النموذج جاهز";
 "onboarding.setup.cloud.title" = "فعّل مفتاحك";

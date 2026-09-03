@@ -269,6 +269,7 @@
 "onboarding.setup.onDevice.preparing" = "Letöltés előkészítése…";
 "onboarding.setup.onDevice.downloadingFile" = "Fájl letöltése: %1$d / %2$d";
 "onboarding.setup.onDevice.optimizing" = "A modell optimalizálása ehhez a Machez. Mindjárt kész.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimalizálás…";
 "onboarding.setup.onDevice.firstRunHint" = "Az első letöltés néhány percig tart. Ezt az ablakot nyitva hagyhatod.";
 "onboarding.setup.onDevice.ready" = "A modell készen áll";
 "onboarding.setup.cloud.title" = "Kulcsod aktiválása";
