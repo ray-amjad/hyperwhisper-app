@@ -824,6 +824,114 @@ pub fn cloud_pp_picker_providers() -> Vec<PpProvider> {
         .collect()
 }
 
+// ---------------------------------------------------------------------------
+// first-run mode seed
+// ---------------------------------------------------------------------------
+
+/// The one mode a brand-new install creates. Owned mirror of
+/// `hw_catalog::ModeSeed`.
+///
+/// Deliberately a flat record of non-optional scalars. A head must write EVERY
+/// field: macOS Core Data attribute defaults are hostile (`language="en"`,
+/// `model="base"`, `cloudProvider="openai"`, `postProcessingProvider="openai"`,
+/// `cloudPostProcessingModel="claudeHaiku"`), so a field left unwritten inherits
+/// a wrong value rather than an empty one. There is no `Option` here to make
+/// "skip it" look reasonable.
+///
+/// Two field mappings are NOT interchangeable:
+///
+/// * [`Self::provider_type`] → macOS Core Data `mode.model`, C# `Mode.ProviderType`.
+///   macOS has no `providerType` column; the C# entity has both `Model` (left
+///   null) and `ProviderType`.
+/// * [`Self::post_processing_mode`] is `i32`; macOS narrows it to `Int16`.
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq)]
+pub struct ModeSeed {
+    /// `"00000000-0000-0000-0000-000000000001"`. Already identical on all three
+    /// heads and anchored by onboarding restore-point lookups. Do not change it.
+    pub id: String,
+    /// `"Hyper"`.
+    pub name: String,
+    /// `"hyper"`.
+    pub preset: String,
+    /// `"auto"`.
+    pub language: String,
+    /// `"cloud"`. macOS `mode.model`; C# `Mode.ProviderType`. See above.
+    pub provider_type: String,
+    /// `"hyperwhisper"` — the cloud *transcription* provider, not the
+    /// post-processing one.
+    pub cloud_provider: String,
+    /// `"elevenLabsScribeV2"`.
+    pub cloud_accuracy_tier: String,
+    /// Resolved from `cloud-stt-catalog.json`.
+    pub cloud_transcription_model: String,
+    /// `1`. macOS narrows to `Int16`.
+    pub post_processing_mode: i32,
+    /// `"hyperwhispercloud"` — the canonical token. macOS must be able to READ
+    /// this before it starts writing it.
+    pub post_processing_provider: String,
+    /// `"<engineId>:<modelId>"`, resolved from `cloud-pp-catalog.json`. Store it
+    /// verbatim: macOS' parser falls back to **Grok** on a value it cannot split.
+    pub cloud_post_processing_model: String,
+    /// Never `""` — that token means "no spelling instruction at all".
+    pub english_spelling: String,
+    pub punctuation: bool,
+    pub capitalization: bool,
+    pub profanity_filter: bool,
+    /// `""`, written explicitly.
+    pub custom_instructions: String,
+    pub is_default: bool,
+    pub is_system_provided: bool,
+    pub sort_order: i32,
+}
+
+impl From<hw_catalog::ModeSeed> for ModeSeed {
+    fn from(s: hw_catalog::ModeSeed) -> Self {
+        ModeSeed {
+            id: s.id,
+            name: s.name,
+            preset: s.preset,
+            language: s.language,
+            provider_type: s.provider_type,
+            cloud_provider: s.cloud_provider,
+            cloud_accuracy_tier: s.cloud_accuracy_tier,
+            cloud_transcription_model: s.cloud_transcription_model,
+            post_processing_mode: s.post_processing_mode,
+            post_processing_provider: s.post_processing_provider,
+            cloud_post_processing_model: s.cloud_post_processing_model,
+            english_spelling: s.english_spelling,
+            punctuation: s.punctuation,
+            capitalization: s.capitalization,
+            profanity_filter: s.profanity_filter,
+            custom_instructions: s.custom_instructions,
+            is_default: s.is_default,
+            is_system_provided: s.is_system_provided,
+            sort_order: s.sort_order,
+        }
+    }
+}
+
+/// The mode to seed when the store holds NO modes, for a host region.
+///
+/// Returns ONE record, not a `Vec` — "exactly one mode on a fresh install" is
+/// then not a count a head can disagree about. Seeding must still run only on an
+/// empty store; that guard stays in each head and is what keeps existing users
+/// untouched.
+///
+/// `region` is an ISO 3166-1 alpha-2 code, `Option` so Rust owns the nil case —
+/// the same contract and the same parameter shape as
+/// [`crate::ffi_prompt::english_spelling_for_region`]. `None`, empty and unknown
+/// all seed American spelling.
+///
+/// Never panics and never fails: the two catalog-resolved fields fall back to
+/// literals rather than unwrap, because the release profile sets
+/// `panic = "abort"` and this is the first-launch path. `hw-catalog`'s
+/// `catalog_resolution_matches_the_fallback_literals` test pins the catalog to
+/// those literals so the fallback cannot silently become the shipped answer.
+#[uniffi::export]
+pub fn mode_seed_default(region: Option<String>) -> ModeSeed {
+    hw_catalog::mode_seed_default(region.as_deref()).into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

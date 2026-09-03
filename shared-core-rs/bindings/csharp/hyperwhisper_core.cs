@@ -1272,6 +1272,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2086,6 +2088,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_mistral_parse_transcribe_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_mode_seed_default(RustBuffer @region,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3282,6 +3288,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_mode_seed_default(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4684,6 +4694,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response();
             if (checksum != 51263) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response` checksum `51263`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_mode_seed_default();
+            if (checksum != 45896) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_mode_seed_default` checksum `45896`, library returned `{checksum}`");
             }
         }
         {
@@ -8056,6 +8072,208 @@ class FfiConverterTypeLimits: FfiConverterRustBuffer<Limits> {
     public override void Write(Limits value, BigEndianStream stream) {
             FfiConverterInt64.INSTANCE.Write(value.@dailySeconds, stream);
             FfiConverterInt64.INSTANCE.Write(value.@modelDownloads, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The one mode a brand-new install creates. Owned mirror of
+/// `hw_catalog::ModeSeed`.
+///
+/// Deliberately a flat record of non-optional scalars. A head must write EVERY
+/// field: macOS Core Data attribute defaults are hostile (`language="en"`,
+/// `model="base"`, `cloudProvider="openai"`, `postProcessingProvider="openai"`,
+/// `cloudPostProcessingModel="claudeHaiku"`), so a field left unwritten inherits
+/// a wrong value rather than an empty one. There is no `Option` here to make
+/// "skip it" look reasonable.
+///
+/// Two field mappings are NOT interchangeable:
+///
+/// * [`Self::provider_type`] → macOS Core Data `mode.model`, C# `Mode.ProviderType`.
+/// macOS has no `providerType` column; the C# entity has both `Model` (left
+/// null) and `ProviderType`.
+/// * [`Self::post_processing_mode`] is `i32`; macOS narrows it to `Int16`.
+/// </summary>
+/// <param name="id">
+/// `"00000000-0000-0000-0000-000000000001"`. Already identical on all three
+/// heads and anchored by onboarding restore-point lookups. Do not change it.
+/// </param>
+/// <param name="name">
+/// `"Hyper"`.
+/// </param>
+/// <param name="preset">
+/// `"hyper"`.
+/// </param>
+/// <param name="language">
+/// `"auto"`.
+/// </param>
+/// <param name="provider_type">
+/// `"cloud"`. macOS `mode.model`; C# `Mode.ProviderType`. See above.
+/// </param>
+/// <param name="cloud_provider">
+/// `"hyperwhisper"` — the cloud *transcription* provider, not the
+/// post-processing one.
+/// </param>
+/// <param name="cloud_accuracy_tier">
+/// `"elevenLabsScribeV2"`.
+/// </param>
+/// <param name="cloud_transcription_model">
+/// Resolved from `cloud-stt-catalog.json`.
+/// </param>
+/// <param name="post_processing_mode">
+/// `1`. macOS narrows to `Int16`.
+/// </param>
+/// <param name="post_processing_provider">
+/// `"hyperwhispercloud"` — the canonical token. macOS must be able to READ
+/// this before it starts writing it.
+/// </param>
+/// <param name="cloud_post_processing_model">
+/// `"<engineId>:<modelId>"`, resolved from `cloud-pp-catalog.json`. Store it
+/// verbatim: macOS' parser falls back to **Grok** on a value it cannot split.
+/// </param>
+/// <param name="english_spelling">
+/// Never `""` — that token means "no spelling instruction at all".
+/// </param>
+/// <param name="custom_instructions">
+/// `""`, written explicitly.
+/// </param>
+internal record ModeSeed (
+    /// <summary>
+    /// `"00000000-0000-0000-0000-000000000001"`. Already identical on all three
+    /// heads and anchored by onboarding restore-point lookups. Do not change it.
+    /// </summary>
+    string @id, 
+    /// <summary>
+    /// `"Hyper"`.
+    /// </summary>
+    string @name, 
+    /// <summary>
+    /// `"hyper"`.
+    /// </summary>
+    string @preset, 
+    /// <summary>
+    /// `"auto"`.
+    /// </summary>
+    string @language, 
+    /// <summary>
+    /// `"cloud"`. macOS `mode.model`; C# `Mode.ProviderType`. See above.
+    /// </summary>
+    string @providerType, 
+    /// <summary>
+    /// `"hyperwhisper"` — the cloud *transcription* provider, not the
+    /// post-processing one.
+    /// </summary>
+    string @cloudProvider, 
+    /// <summary>
+    /// `"elevenLabsScribeV2"`.
+    /// </summary>
+    string @cloudAccuracyTier, 
+    /// <summary>
+    /// Resolved from `cloud-stt-catalog.json`.
+    /// </summary>
+    string @cloudTranscriptionModel, 
+    /// <summary>
+    /// `1`. macOS narrows to `Int16`.
+    /// </summary>
+    int @postProcessingMode, 
+    /// <summary>
+    /// `"hyperwhispercloud"` — the canonical token. macOS must be able to READ
+    /// this before it starts writing it.
+    /// </summary>
+    string @postProcessingProvider, 
+    /// <summary>
+    /// `"<engineId>:<modelId>"`, resolved from `cloud-pp-catalog.json`. Store it
+    /// verbatim: macOS' parser falls back to **Grok** on a value it cannot split.
+    /// </summary>
+    string @cloudPostProcessingModel, 
+    /// <summary>
+    /// Never `""` — that token means "no spelling instruction at all".
+    /// </summary>
+    string @englishSpelling, 
+    bool @punctuation, 
+    bool @capitalization, 
+    bool @profanityFilter, 
+    /// <summary>
+    /// `""`, written explicitly.
+    /// </summary>
+    string @customInstructions, 
+    bool @isDefault, 
+    bool @isSystemProvided, 
+    int @sortOrder
+) {
+}
+
+class FfiConverterTypeModeSeed: FfiConverterRustBuffer<ModeSeed> {
+    public static FfiConverterTypeModeSeed INSTANCE = new FfiConverterTypeModeSeed();
+
+    public override ModeSeed Read(BigEndianStream stream) {
+        return new ModeSeed(
+            @id: FfiConverterString.INSTANCE.Read(stream),
+            @name: FfiConverterString.INSTANCE.Read(stream),
+            @preset: FfiConverterString.INSTANCE.Read(stream),
+            @language: FfiConverterString.INSTANCE.Read(stream),
+            @providerType: FfiConverterString.INSTANCE.Read(stream),
+            @cloudProvider: FfiConverterString.INSTANCE.Read(stream),
+            @cloudAccuracyTier: FfiConverterString.INSTANCE.Read(stream),
+            @cloudTranscriptionModel: FfiConverterString.INSTANCE.Read(stream),
+            @postProcessingMode: FfiConverterInt32.INSTANCE.Read(stream),
+            @postProcessingProvider: FfiConverterString.INSTANCE.Read(stream),
+            @cloudPostProcessingModel: FfiConverterString.INSTANCE.Read(stream),
+            @englishSpelling: FfiConverterString.INSTANCE.Read(stream),
+            @punctuation: FfiConverterBoolean.INSTANCE.Read(stream),
+            @capitalization: FfiConverterBoolean.INSTANCE.Read(stream),
+            @profanityFilter: FfiConverterBoolean.INSTANCE.Read(stream),
+            @customInstructions: FfiConverterString.INSTANCE.Read(stream),
+            @isDefault: FfiConverterBoolean.INSTANCE.Read(stream),
+            @isSystemProvided: FfiConverterBoolean.INSTANCE.Read(stream),
+            @sortOrder: FfiConverterInt32.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(ModeSeed value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@id)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@name)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@preset)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@language)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@providerType)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@cloudProvider)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@cloudAccuracyTier)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@cloudTranscriptionModel)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@postProcessingMode)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@postProcessingProvider)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@cloudPostProcessingModel)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@englishSpelling)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@punctuation)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@capitalization)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@profanityFilter)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@customInstructions)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@isDefault)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@isSystemProvided)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@sortOrder);
+    }
+
+    public override void Write(ModeSeed value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@id, stream);
+            FfiConverterString.INSTANCE.Write(value.@name, stream);
+            FfiConverterString.INSTANCE.Write(value.@preset, stream);
+            FfiConverterString.INSTANCE.Write(value.@language, stream);
+            FfiConverterString.INSTANCE.Write(value.@providerType, stream);
+            FfiConverterString.INSTANCE.Write(value.@cloudProvider, stream);
+            FfiConverterString.INSTANCE.Write(value.@cloudAccuracyTier, stream);
+            FfiConverterString.INSTANCE.Write(value.@cloudTranscriptionModel, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@postProcessingMode, stream);
+            FfiConverterString.INSTANCE.Write(value.@postProcessingProvider, stream);
+            FfiConverterString.INSTANCE.Write(value.@cloudPostProcessingModel, stream);
+            FfiConverterString.INSTANCE.Write(value.@englishSpelling, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@punctuation, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@capitalization, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@profanityFilter, stream);
+            FfiConverterString.INSTANCE.Write(value.@customInstructions, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@isDefault, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@isSystemProvided, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@sortOrder, stream);
     }
 }
 
@@ -16107,6 +16325,33 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwTranscript.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_mistral_parse_transcribe_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The mode to seed when the store holds NO modes, for a host region.
+    ///
+    /// Returns ONE record, not a `Vec` — "exactly one mode on a fresh install" is
+    /// then not a count a head can disagree about. Seeding must still run only on an
+    /// empty store; that guard stays in each head and is what keeps existing users
+    /// untouched.
+    ///
+    /// `region` is an ISO 3166-1 alpha-2 code, `Option` so Rust owns the nil case —
+    /// the same contract and the same parameter shape as
+    /// [`crate::ffi_prompt::english_spelling_for_region`]. `None`, empty and unknown
+    /// all seed American spelling.
+    ///
+    /// Never panics and never fails: the two catalog-resolved fields fall back to
+    /// literals rather than unwrap, because the release profile sets
+    /// `panic = "abort"` and this is the first-launch path. `hw-catalog`'s
+    /// `catalog_resolution_matches_the_fallback_literals` test pins the catalog to
+    /// those literals so the fallback cannot silently become the shipped answer.
+    /// </summary>
+    public static ModeSeed ModeSeedDefault(string? @region) {
+        return FfiConverterTypeModeSeed.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_mode_seed_default(FfiConverterOptionalString.INSTANCE.Lower(@region), ref _status)
 ));
     }
 

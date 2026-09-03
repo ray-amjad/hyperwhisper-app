@@ -4964,6 +4964,312 @@ public func FfiConverterTypeLimits_lower(_ value: Limits) -> RustBuffer {
 
 
 /**
+ * The one mode a brand-new install creates. Owned mirror of
+ * `hw_catalog::ModeSeed`.
+ *
+ * Deliberately a flat record of non-optional scalars. A head must write EVERY
+ * field: macOS Core Data attribute defaults are hostile (`language="en"`,
+ * `model="base"`, `cloudProvider="openai"`, `postProcessingProvider="openai"`,
+ * `cloudPostProcessingModel="claudeHaiku"`), so a field left unwritten inherits
+ * a wrong value rather than an empty one. There is no `Option` here to make
+ * "skip it" look reasonable.
+ *
+ * Two field mappings are NOT interchangeable:
+ *
+ * * [`Self::provider_type`] → macOS Core Data `mode.model`, C# `Mode.ProviderType`.
+ * macOS has no `providerType` column; the C# entity has both `Model` (left
+ * null) and `ProviderType`.
+ * * [`Self::post_processing_mode`] is `i32`; macOS narrows it to `Int16`.
+ */
+public struct ModeSeed {
+    /**
+     * `"00000000-0000-0000-0000-000000000001"`. Already identical on all three
+     * heads and anchored by onboarding restore-point lookups. Do not change it.
+     */
+    public var id: String
+    /**
+     * `"Hyper"`.
+     */
+    public var name: String
+    /**
+     * `"hyper"`.
+     */
+    public var preset: String
+    /**
+     * `"auto"`.
+     */
+    public var language: String
+    /**
+     * `"cloud"`. macOS `mode.model`; C# `Mode.ProviderType`. See above.
+     */
+    public var providerType: String
+    /**
+     * `"hyperwhisper"` — the cloud *transcription* provider, not the
+     * post-processing one.
+     */
+    public var cloudProvider: String
+    /**
+     * `"elevenLabsScribeV2"`.
+     */
+    public var cloudAccuracyTier: String
+    /**
+     * Resolved from `cloud-stt-catalog.json`.
+     */
+    public var cloudTranscriptionModel: String
+    /**
+     * `1`. macOS narrows to `Int16`.
+     */
+    public var postProcessingMode: Int32
+    /**
+     * `"hyperwhispercloud"` — the canonical token. macOS must be able to READ
+     * this before it starts writing it.
+     */
+    public var postProcessingProvider: String
+    /**
+     * `"<engineId>:<modelId>"`, resolved from `cloud-pp-catalog.json`. Store it
+     * verbatim: macOS' parser falls back to **Grok** on a value it cannot split.
+     */
+    public var cloudPostProcessingModel: String
+    /**
+     * Never `""` — that token means "no spelling instruction at all".
+     */
+    public var englishSpelling: String
+    public var punctuation: Bool
+    public var capitalization: Bool
+    public var profanityFilter: Bool
+    /**
+     * `""`, written explicitly.
+     */
+    public var customInstructions: String
+    public var isDefault: Bool
+    public var isSystemProvided: Bool
+    public var sortOrder: Int32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `"00000000-0000-0000-0000-000000000001"`. Already identical on all three
+         * heads and anchored by onboarding restore-point lookups. Do not change it.
+         */id: String, 
+        /**
+         * `"Hyper"`.
+         */name: String, 
+        /**
+         * `"hyper"`.
+         */preset: String, 
+        /**
+         * `"auto"`.
+         */language: String, 
+        /**
+         * `"cloud"`. macOS `mode.model`; C# `Mode.ProviderType`. See above.
+         */providerType: String, 
+        /**
+         * `"hyperwhisper"` — the cloud *transcription* provider, not the
+         * post-processing one.
+         */cloudProvider: String, 
+        /**
+         * `"elevenLabsScribeV2"`.
+         */cloudAccuracyTier: String, 
+        /**
+         * Resolved from `cloud-stt-catalog.json`.
+         */cloudTranscriptionModel: String, 
+        /**
+         * `1`. macOS narrows to `Int16`.
+         */postProcessingMode: Int32, 
+        /**
+         * `"hyperwhispercloud"` — the canonical token. macOS must be able to READ
+         * this before it starts writing it.
+         */postProcessingProvider: String, 
+        /**
+         * `"<engineId>:<modelId>"`, resolved from `cloud-pp-catalog.json`. Store it
+         * verbatim: macOS' parser falls back to **Grok** on a value it cannot split.
+         */cloudPostProcessingModel: String, 
+        /**
+         * Never `""` — that token means "no spelling instruction at all".
+         */englishSpelling: String, punctuation: Bool, capitalization: Bool, profanityFilter: Bool, 
+        /**
+         * `""`, written explicitly.
+         */customInstructions: String, isDefault: Bool, isSystemProvided: Bool, sortOrder: Int32) {
+        self.id = id
+        self.name = name
+        self.preset = preset
+        self.language = language
+        self.providerType = providerType
+        self.cloudProvider = cloudProvider
+        self.cloudAccuracyTier = cloudAccuracyTier
+        self.cloudTranscriptionModel = cloudTranscriptionModel
+        self.postProcessingMode = postProcessingMode
+        self.postProcessingProvider = postProcessingProvider
+        self.cloudPostProcessingModel = cloudPostProcessingModel
+        self.englishSpelling = englishSpelling
+        self.punctuation = punctuation
+        self.capitalization = capitalization
+        self.profanityFilter = profanityFilter
+        self.customInstructions = customInstructions
+        self.isDefault = isDefault
+        self.isSystemProvided = isSystemProvided
+        self.sortOrder = sortOrder
+    }
+}
+
+
+
+extension ModeSeed: Equatable, Hashable {
+    public static func ==(lhs: ModeSeed, rhs: ModeSeed) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.preset != rhs.preset {
+            return false
+        }
+        if lhs.language != rhs.language {
+            return false
+        }
+        if lhs.providerType != rhs.providerType {
+            return false
+        }
+        if lhs.cloudProvider != rhs.cloudProvider {
+            return false
+        }
+        if lhs.cloudAccuracyTier != rhs.cloudAccuracyTier {
+            return false
+        }
+        if lhs.cloudTranscriptionModel != rhs.cloudTranscriptionModel {
+            return false
+        }
+        if lhs.postProcessingMode != rhs.postProcessingMode {
+            return false
+        }
+        if lhs.postProcessingProvider != rhs.postProcessingProvider {
+            return false
+        }
+        if lhs.cloudPostProcessingModel != rhs.cloudPostProcessingModel {
+            return false
+        }
+        if lhs.englishSpelling != rhs.englishSpelling {
+            return false
+        }
+        if lhs.punctuation != rhs.punctuation {
+            return false
+        }
+        if lhs.capitalization != rhs.capitalization {
+            return false
+        }
+        if lhs.profanityFilter != rhs.profanityFilter {
+            return false
+        }
+        if lhs.customInstructions != rhs.customInstructions {
+            return false
+        }
+        if lhs.isDefault != rhs.isDefault {
+            return false
+        }
+        if lhs.isSystemProvided != rhs.isSystemProvided {
+            return false
+        }
+        if lhs.sortOrder != rhs.sortOrder {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(name)
+        hasher.combine(preset)
+        hasher.combine(language)
+        hasher.combine(providerType)
+        hasher.combine(cloudProvider)
+        hasher.combine(cloudAccuracyTier)
+        hasher.combine(cloudTranscriptionModel)
+        hasher.combine(postProcessingMode)
+        hasher.combine(postProcessingProvider)
+        hasher.combine(cloudPostProcessingModel)
+        hasher.combine(englishSpelling)
+        hasher.combine(punctuation)
+        hasher.combine(capitalization)
+        hasher.combine(profanityFilter)
+        hasher.combine(customInstructions)
+        hasher.combine(isDefault)
+        hasher.combine(isSystemProvided)
+        hasher.combine(sortOrder)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModeSeed: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModeSeed {
+        return
+            try ModeSeed(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                preset: FfiConverterString.read(from: &buf), 
+                language: FfiConverterString.read(from: &buf), 
+                providerType: FfiConverterString.read(from: &buf), 
+                cloudProvider: FfiConverterString.read(from: &buf), 
+                cloudAccuracyTier: FfiConverterString.read(from: &buf), 
+                cloudTranscriptionModel: FfiConverterString.read(from: &buf), 
+                postProcessingMode: FfiConverterInt32.read(from: &buf), 
+                postProcessingProvider: FfiConverterString.read(from: &buf), 
+                cloudPostProcessingModel: FfiConverterString.read(from: &buf), 
+                englishSpelling: FfiConverterString.read(from: &buf), 
+                punctuation: FfiConverterBool.read(from: &buf), 
+                capitalization: FfiConverterBool.read(from: &buf), 
+                profanityFilter: FfiConverterBool.read(from: &buf), 
+                customInstructions: FfiConverterString.read(from: &buf), 
+                isDefault: FfiConverterBool.read(from: &buf), 
+                isSystemProvided: FfiConverterBool.read(from: &buf), 
+                sortOrder: FfiConverterInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ModeSeed, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.preset, into: &buf)
+        FfiConverterString.write(value.language, into: &buf)
+        FfiConverterString.write(value.providerType, into: &buf)
+        FfiConverterString.write(value.cloudProvider, into: &buf)
+        FfiConverterString.write(value.cloudAccuracyTier, into: &buf)
+        FfiConverterString.write(value.cloudTranscriptionModel, into: &buf)
+        FfiConverterInt32.write(value.postProcessingMode, into: &buf)
+        FfiConverterString.write(value.postProcessingProvider, into: &buf)
+        FfiConverterString.write(value.cloudPostProcessingModel, into: &buf)
+        FfiConverterString.write(value.englishSpelling, into: &buf)
+        FfiConverterBool.write(value.punctuation, into: &buf)
+        FfiConverterBool.write(value.capitalization, into: &buf)
+        FfiConverterBool.write(value.profanityFilter, into: &buf)
+        FfiConverterString.write(value.customInstructions, into: &buf)
+        FfiConverterBool.write(value.isDefault, into: &buf)
+        FfiConverterBool.write(value.isSystemProvided, into: &buf)
+        FfiConverterInt32.write(value.sortOrder, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModeSeed_lift(_ buf: RustBuffer) throws -> ModeSeed {
+    return try FfiConverterTypeModeSeed.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModeSeed_lower(_ value: ModeSeed) -> RustBuffer {
+    return FfiConverterTypeModeSeed.lower(value)
+}
+
+
+/**
  * One row of `models-catalog.json`. Owned mirror of `hw_catalog::Entry`.
  */
 public struct ModelsEntry {
@@ -14801,6 +15107,32 @@ public func mistralParseTranscribeResponse(resp: HttpResponse)throws  -> HwTrans
 })
 }
 /**
+ * The mode to seed when the store holds NO modes, for a host region.
+ *
+ * Returns ONE record, not a `Vec` — "exactly one mode on a fresh install" is
+ * then not a count a head can disagree about. Seeding must still run only on an
+ * empty store; that guard stays in each head and is what keeps existing users
+ * untouched.
+ *
+ * `region` is an ISO 3166-1 alpha-2 code, `Option` so Rust owns the nil case —
+ * the same contract and the same parameter shape as
+ * [`crate::ffi_prompt::english_spelling_for_region`]. `None`, empty and unknown
+ * all seed American spelling.
+ *
+ * Never panics and never fails: the two catalog-resolved fields fall back to
+ * literals rather than unwrap, because the release profile sets
+ * `panic = "abort"` and this is the first-launch path. `hw-catalog`'s
+ * `catalog_resolution_matches_the_fallback_literals` test pins the catalog to
+ * those literals so the fallback cannot silently become the shipped answer.
+ */
+public func modeSeedDefault(region: String?) -> ModeSeed {
+    return try!  FfiConverterTypeModeSeed.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_mode_seed_default(
+        FfiConverterOptionString.lower(region),$0
+    )
+})
+}
+/**
  * Every catalogued model row, ordered by `(provider, kind, id)`. Replaces the
  * per-platform catalog decoders that scanned the file for parity checks and for
  * the unified capability list.
@@ -16069,6 +16401,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response() != 51263) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_mode_seed_default() != 45896) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_models_all_entries() != 48414) {
