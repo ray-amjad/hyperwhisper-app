@@ -4816,8 +4816,8 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_validate_mode();
-            if (checksum != 35225) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_validate_mode` checksum `35225`, library returned `{checksum}`");
+            if (checksum != 46155) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_validate_mode` checksum `46155`, library returned `{checksum}`");
             }
         }
         {
@@ -17082,10 +17082,12 @@ internal static class HyperwhisperCoreMethods {
     ///
     /// **Call sites: all three heads**, on create and on patch.
     ///
-    /// A missing required key is HTTP 400 — the body is malformed *as a request*,
-    /// and on macOS the omission is already a `decode` failure answered with 400.
-    /// Every value bound is a business failure: HTTP 200 carrying `INVALID_REQUEST`.
-    /// Both are in the closed 14; item 5 adds no code.
+    /// Every failure this returns is a business failure: HTTP 200 carrying
+    /// `INVALID_REQUEST`, including a missing required key. The published envelope
+    /// rule reserves 4xx for protocol failures — a body that is not JSON, a bad
+    /// token, a rejected origin — and a body that is well-formed JSON but omits
+    /// `preset` is none of those. All three heads now answer it identically.
+    /// `INVALID_REQUEST` is in the closed 14; item 5 adds no code.
     ///
     /// Lengths are counted in **Unicode scalar values**, which is a deliberate
     /// choice and is client-visible: `string.Length` on .NET is UTF-16 code units,
