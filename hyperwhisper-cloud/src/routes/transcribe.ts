@@ -44,7 +44,7 @@ import { maxReservationUsdPerMinute } from '../providers/reservation';
 import { rawQuery } from '../lib/query';
 import { isIPBlocked } from '../lib/redis';
 import { errorResponse } from '../lib/responses';
-import { validateAuth } from '../middleware/auth';
+import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, estimateAudioSecondsFromSize, validateCredits } from '../middleware/credits';
 import { flyProxyOverheadMs, logEvent, machineUptimeMs } from '../lib/logging';
 import {
@@ -267,10 +267,11 @@ export async function transcribeRoute(c: Context) {
       reason: 'auth_failed',
       flyRequestId,
       status: authResult.response.status,
+      ...authDiagnosticsForLog(authResult.diagnostics),
     });
     return authResult.response;
   }
-  logEvent(requestId, startTime, 'transcribe.auth_done');
+  logEvent(requestId, startTime, 'transcribe.auth_done', authDiagnosticsForLog(authResult.diagnostics));
 
   const readAudioBuffer = async (): Promise<ArrayBuffer> => {
     const uploadStart = performance.now();
