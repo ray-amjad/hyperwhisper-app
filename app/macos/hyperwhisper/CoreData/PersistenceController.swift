@@ -67,6 +67,14 @@ struct ModeSnapshot: Sendable {
     let id: UUID
     let name: String
     let model: String
+    /// The Mode's transcription language, exactly as stored — including the
+    /// literal `"auto"`. Kept raw so the snapshot stays a faithful copy;
+    /// `TranscriptionModelManager.extractLanguage(from:)` is what maps `"auto"`
+    /// onto `nil` for the providers, and `ASRPreparationKey` mirrors that.
+    /// Added for #318: the language is a model-preparation input (it selects the
+    /// English-optimized whisper weights), so anything keyed on this snapshot
+    /// has to be able to see it change.
+    let language: String?
     let cloudProvider: String
     let rawCloudProvider: String?
     let postProcessingMode: Int16
@@ -80,6 +88,7 @@ struct ModeSnapshot: Sendable {
         self.id = mode.id ?? UUID()
         self.name = mode.name ?? "Default"
         self.model = mode.model ?? "base"
+        self.language = mode.language
         self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
         self.rawCloudProvider = mode.cloudProvider
         self.postProcessingMode = mode.postProcessingMode

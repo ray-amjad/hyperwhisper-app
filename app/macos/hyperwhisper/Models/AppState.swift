@@ -139,31 +139,67 @@ enum StreamingConnectionState: Equatable {
     case error(String)           // Connection/streaming error
 }
 
-// MARK: - Mode Preparation Key
+// MARK: - Mode Preparation Keys
 
-/// The subset of a Mode's properties that model preparation actually consumes.
-///
-/// Issue #318. The model-preparation sink used to be keyed on `selectedModeId`,
-/// which is an *identity*, not a *value*. Onboarding's source commit
-/// (`LiveOnboardingSourceCommitter.apply`) reconfigures the existing Default Mode
-/// **in place** and re-selects the same UUID, so an id-keyed
-/// `removeDuplicates()` swallowed the emission and the model never re-prepared.
-/// Keying on content instead means "the selected Mode now transcribes with
-/// something else" fires, and "the selected Mode was renamed" does not.
-///
-/// Deliberately EXCLUDES `name`, `sortOrder`, `enableScreenOCR`, `cloudProvider`
-/// and the accuracy tier: a rename must not tear down a resident model, and the
-/// cloud branch of `prepareModel` reports `.ready(name: "Cloud")` regardless of
-/// which cloud provider or tier is selected.
+// Issue #318. Model preparation used to be keyed on `selectedModeId`, which is
+// an *identity*, not a *value*. Onboarding's source commit
+// (`LiveOnboardingSourceCommitter.apply`) reconfigures the existing Default Mode
+// **in place** and re-selects the same UUID, so an id-keyed `removeDuplicates()`
+// swallowed the emission and the model never re-prepared. The two keys below
+// replace that id with the Mode content each half of preparation reads.
+//
+// They are TWO keys, not one, because the two halves have disjoint inputs:
+//
+//   - `TranscriptionModelManager.prepareModel` reads the Mode's `model` and
+//     `extractLanguage(from:)`. It cancels in-flight transcription work and
+//     drives `modelReadyState` (the status bar's left indicator).
+//   - `TranscriptionModelManager.prepareLocalRuntime` reads
+//     `postProcessingMode`, `postProcessingProvider` and `languageModel`. It
+//     starts or stops llama-server and drives the local-runtime indicator.
+//
+// Fusing them into one key would make every post-processing edit tear down and
+// reload the ASR model — a visible "(Loading…)" flicker in the Modes editor at
+// best, and a cancelled dictation at worst, because `prepareModel`'s only
+// bail-out covers `.transcribing` and not `.postProcessing`. Neither key
+// includes `name`, `sortOrder`, `enableScreenOCR`, `cloudProvider` or the
+// accuracy tier: a rename must not tear down a resident model, and the cloud
+// branch of `prepareModel` reports `.ready(name: "Cloud")` regardless of which
+// cloud provider or tier is selected.
+
+/// What `prepareModel` reads off the selected Mode.
+struct ASRPreparationKey: Equatable, Sendable {
+    /// Kept in the key so switching between two Modes that happen to share a
+    /// transcription signature still re-prepares.
+    let modeId: String
+    let model: String
+    /// Normalized exactly the way `TranscriptionModelManager.extractLanguage(from:)`
+    /// normalizes it, so this key changes when — and only when — the language
+    /// value that actually reaches a provider changes. It is a preparation
+    /// input because `preloadExclusively(_:language:preferEnglishOptimized:)`
+    /// swaps to a different weights file for English-only models.
+    let language: String?
+
+    init?(_ snapshot: ModeSnapshot?) {
+        guard let snapshot else { return nil }
+        self.modeId = snapshot.id.uuidString
+        self.model = snapshot.model
+        if let raw = snapshot.language?.lowercased() {
+            self.language = raw == "auto" ? nil : raw
+        } else {
+            self.language = nil
+        }
+    }
+}
+
+/// What `prepareLocalRuntime` reads off the selected Mode.
 ///
 /// `postProcessingProvider` is read from `rawPostProcessingProvider` rather than
 /// the defaulted `postProcessingProvider`, so "unset" and "explicitly set to the
 /// default" stay distinguishable.
-struct ModePreparationKey: Equatable, Sendable {
+struct LocalRuntimePreparationKey: Equatable, Sendable {
     /// Kept in the key so switching between two Modes that happen to share a
-    /// model/post-processing signature still re-prepares.
+    /// post-processing signature still re-prepares.
     let modeId: String
-    let model: String
     let postProcessingMode: Int16
     let postProcessingProvider: String?
     let languageModel: String?
@@ -171,7 +207,6 @@ struct ModePreparationKey: Equatable, Sendable {
     init?(_ snapshot: ModeSnapshot?) {
         guard let snapshot else { return nil }
         self.modeId = snapshot.id.uuidString
-        self.model = snapshot.model
         self.postProcessingMode = snapshot.postProcessingMode
         self.postProcessingProvider = snapshot.rawPostProcessingProvider
         self.languageModel = snapshot.languageModel
@@ -234,13 +269,13 @@ class AppState: ObservableObject {
     /// Currently selected mode ID (Core Data UUID string)
     ///
     /// Seeded here with the well-known Default Mode id and **no matching
-    /// snapshot** — `selectedModeSnapshot` below starts `nil` on purpose. Model
-    /// preparation at launch therefore does not come from this seed; it comes
-    /// from `initializeSelectedModeLightweight()`
-    /// (`hyperwhisperApp.swift`), which sets id + name + snapshot together and
-    /// then prepares explicitly. A future writer that sets this id must set
-    /// `selectedModeSnapshot` too, or model preparation will not run for it
-    /// (#318).
+    /// snapshot** — `selectedModeSnapshot` below starts `nil` on purpose. The
+    /// seed still reaches model preparation, just indirectly (#318): `@Published`
+    /// replays its current value to a new subscriber, so the `$selectedModeId`
+    /// sink in `setupSubscriptions()` fires on the seeded id at construction and
+    /// back-fills `selectedModeSnapshot`, which is what the preparation triggers
+    /// are keyed on. That back-fill is therefore load-bearing — see the sink
+    /// comments below before removing it.
     @Published var selectedModeId: String = "00000000-0000-0000-0000-000000000001"
     
     /// Currently selected mode name (for display)
@@ -253,19 +288,34 @@ class AppState: ObservableObject {
     /// Fixes Sentry HYPERWHISPER-KP (DB on Main Thread during Recording Start).
     @Published var selectedModeSnapshot: ModeSnapshot?
 
-    /// The single publisher the model-preparation sink is keyed on (#318).
+    /// The publisher the ASR-preparation sink is keyed on (#318).
     ///
-    /// Stored, not computed, so there is exactly one instance of this chain:
-    /// `setupSubscriptions()` subscribes to *this* property, which is what makes
-    /// a test that observes it real coverage of production behaviour rather than
-    /// a restatement of `ModePreparationKey`.
+    /// Stored so there is exactly one *definition* of this chain, named once and
+    /// subscribed to by name. It is deliberately NOT shared: there is no
+    /// `.share()`/`.multicast()`, so every subscriber gets its own `Map` and its
+    /// own `RemoveDuplicates` state, and the test that observes it neither sees
+    /// nor perturbs production's dedup. That is the property we want — `share()`
+    /// would drop the `@Published` current-value replay a late subscriber
+    /// depends on. What storedness buys is therefore an identity a test can name,
+    /// not a shared subscription; the source-text test is what pins that
+    /// `setupSubscriptions()` really subscribes to this property.
     ///
     /// `private(set)` shuts the setter while leaving the getter internal, which
     /// is all `@testable import` needs. `lazy` because the chain reads
     /// `$selectedModeSnapshot` off `self`.
-    private(set) lazy var modePreparationTrigger: AnyPublisher<ModePreparationKey?, Never> =
+    private(set) lazy var asrPreparationTrigger: AnyPublisher<ASRPreparationKey?, Never> =
         $selectedModeSnapshot
-            .map { ModePreparationKey($0) }
+            .map { ASRPreparationKey($0) }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+
+    /// The publisher the local-runtime-preparation sink is keyed on (#318).
+    /// Separate from `asrPreparationTrigger` on purpose — see the key types for
+    /// why the two halves of preparation must not share one trigger. Same
+    /// storedness and sharing notes apply.
+    private(set) lazy var localRuntimePreparationTrigger: AnyPublisher<LocalRuntimePreparationKey?, Never> =
+        $selectedModeSnapshot
+            .map { LocalRuntimePreparationKey($0) }
             .removeDuplicates()
             .eraseToAnyPublisher()
 
@@ -914,17 +964,23 @@ class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Preload model ASAP when the selected Mode's preparation inputs change.
-        // Resolve the Mode on a background context so the SQL fetch doesn't land
-        // inside the recording start transaction on the main thread.
+        // Preload the ASR model ASAP when the selected Mode's TRANSCRIPTION
+        // inputs change. Resolve the Mode on a background context so the SQL
+        // fetch doesn't land inside the recording start transaction on the main
+        // thread.
         //
-        // Keyed on `modePreparationTrigger` — the Mode's CONTENT — and not on
+        // Keyed on `asrPreparationTrigger` — the Mode's CONTENT — and not on
         // `$selectedModeId`, because the id is an identity and this sink cares
         // about a value. Issue #318: onboarding's source commit reconfigures the
         // seeded Default Mode in place and re-selects the same UUID, so an
         // id-keyed `removeDuplicates()` swallowed the emission, `prepareModel`
         // never re-ran, and the status bar kept advertising the pre-onboarding
         // source until the next launch.
+        //
+        // The local runtime has its OWN sink below, on its own key. Do not merge
+        // them: `prepareModel` cancels in-flight transcription work and repaints
+        // the status bar as "(Loading…)", so it must not run for an edit that
+        // only touched post-processing. See the key types for the full argument.
         //
         // Two consequences worth stating so they don't read as accidents:
         //   1. At launch the first key arrives from the snapshot back-fill the
@@ -935,23 +991,45 @@ class AppState: ObservableObject {
         //      load-bearing now; neither may be removed.
         //   2. In-place edits made in the Modes editor now reach preparation too,
         //      via the save notification below → `refreshSelectedModeSnapshot`.
-        //      That is deliberate: it is what stops the local-runtime indicator
-        //      showing a green llama server for a Mode that no longer uses local
-        //      post-processing, since only `prepareLocalRuntime` stops it. Safe
-        //      because `prepareModel` returns early while `.transcribing` and is
-        //      generation-guarded, and the content key makes a no-op re-save a
-        //      no-op here.
-        modePreparationTrigger
+        //      That is deliberate: an editor edit that changes the model or the
+        //      language has to reload the model, which under the old id key it
+        //      never did. Safe because `prepareModel` returns early while
+        //      `.transcribing`, and because the content key makes a no-op re-save
+        //      a no-op here.
+        asrPreparationTrigger
             .sink { [weak self] key in
-                guard let self else { return }
-                guard let key else { return }
-                let modeId = key.modeId
-                guard !modeId.isEmpty else { return }
+                guard let self, let key else { return }
                 Task { @MainActor in
-                    guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: modeId) else { return }
+                    guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: key.modeId) else { return }
                     let modelId = (mode.model ?? "").isEmpty ? "base" : (mode.model ?? "base")
-                    AppLogger.models.info("Mode changed: \(mode.name ?? "Unknown", privacy: .public) → model: \(modelId.isEmpty ? "(empty)" : modelId, privacy: .public). Preparing model…")
+                    AppLogger.models.info("Mode changed: \(mode.name ?? "Unknown", privacy: .public) → model: \(modelId, privacy: .public). Preparing model…")
                     await self.transcriptionPipeline?.prepareModel(for: mode)
+                }
+            }
+            .store(in: &cancellables)
+
+        // Start or stop the local LLM runtime when the selected Mode's
+        // POST-PROCESSING inputs change — a disjoint set of fields from the one
+        // above, which is why this is a second sink rather than a second call
+        // inside the first (#318).
+        //
+        // This is what stops the local-runtime indicator showing a green llama
+        // server for a Mode that no longer uses local post-processing:
+        // `prepareLocalRuntime` is the only thing that stops the server, and
+        // under the old id key an in-place edit never reached it.
+        //
+        // The two sinks are unordered with respect to each other. That is safe:
+        // `prepareLocalRuntime` reads nothing `prepareModel` writes — one owns
+        // `modelReadyState` and the ASR providers, the other owns
+        // `llamaServerController` — and both run on the main actor, so they
+        // interleave only at their own suspension points.
+        localRuntimePreparationTrigger
+            .sink { [weak self] key in
+                guard let self, let key else { return }
+                Task { @MainActor in
+                    guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: key.modeId) else { return }
+                    let postProcessing = String(key.postProcessingMode)
+                    AppLogger.models.info("Post-processing changed: \(mode.name ?? "Unknown", privacy: .public) → postProcessingMode: \(postProcessing, privacy: .public). Preparing local runtime…")
                     await self.transcriptionPipeline?.prepareLocalRuntime(for: mode)
                 }
             }

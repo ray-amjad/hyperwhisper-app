@@ -990,17 +990,23 @@ struct MenuBarIconView: View {
             appState.selectedModeSnapshot = ModeSnapshot(mode)
 
             // Explicitly prepare the model. LOAD-BEARING, not belt-and-braces —
-            // do not delete this as redundant with AppState's preparation sink.
+            // do not delete this as redundant with AppState's preparation sinks.
             //
-            // That sink is keyed on the selected Mode's content (#318), and its
-            // first value at launch comes from AppState's asynchronous snapshot
-            // back-fill. If the back-fill lands BEFORE `bootstrapAppServices()`
-            // wires `appState.transcriptionPipeline`, the sink fires into a nil
-            // pipeline and its `removeDuplicates()` memoizes that key — the
-            // assignments just above then publish an equal key and are swallowed,
-            // leaving this `Task` as the only thing that prepares a model at
-            // launch. (If the back-fill lands after, both prepare and
-            // `preparationGeneration` makes the second one a no-op.)
+            // Those sinks are keyed on the selected Mode's content (#318), and
+            // their first value at launch comes from AppState's asynchronous
+            // snapshot back-fill. If the back-fill lands BEFORE
+            // `bootstrapAppServices()` wires `appState.transcriptionPipeline`,
+            // the sinks fire into a nil pipeline and their `removeDuplicates()`
+            // memoizes that key — the assignments just above then publish an
+            // equal key and are swallowed, leaving this `Task` as the only thing
+            // that prepares a model at launch.
+            //
+            // If the back-fill lands after, this runs and so do the sinks, for
+            // the same Mode. That duplicate is wasted work, not a hazard: both
+            // passes compute the same result, and the later-finishing one wins.
+            // (`preparationGeneration` does NOT make the second a no-op — it
+            // only gates the Parakeet recovery path; every `.ready(name:)` write
+            // is unguarded. That race is pre-existing and out of scope here.)
             Task { @MainActor in
                 await transcriptionPipeline.prepareModel(for: mode)
                 await transcriptionPipeline.prepareLocalRuntime(for: mode)
