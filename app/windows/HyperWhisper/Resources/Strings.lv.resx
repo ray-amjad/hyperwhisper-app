@@ -2198,532 +2198,532 @@ You can re-download it later.</value>
     <value>Use your own Meta Model API key for Muse batch transcription</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
-    <value>Set up HyperWhisper</value>
+    <value>HyperWhisper iestatīšana</value>
   </data>
   <data name="onboarding.welcome.title" xml:space="preserve">
-    <value>Write at the speed of thought</value>
+    <value>Rakstiet domas ātrumā</value>
   </data>
   <data name="onboarding.welcome.subtitle" xml:space="preserve">
-    <value>HyperWhisper turns your voice into text in any app on your PC. Three things, then you are typing with your voice.</value>
+    <value>HyperWhisper pārvērš jūsu balsi tekstā jebkurā lietotnē uz šī datora. Trīs lietas, un jūs jau rakstāt ar balsi.</value>
   </data>
   <data name="onboarding.welcome.getStarted" xml:space="preserve">
-    <value>Get started</value>
+    <value>Sākt</value>
   </data>
   <data name="onboarding.welcome.task1.title" xml:space="preserve">
-    <value>Choose how transcription runs</value>
+    <value>Izvēlieties, kā darbosies transkripcija</value>
   </data>
   <data name="onboarding.welcome.task1.caption" xml:space="preserve">
-    <value>In our cloud, on this PC, or through a provider account you already pay for.</value>
+    <value>Mūsu mākonī, šajā datorā vai izmantojot sniedzēja kontu, par kuru jau maksājat.</value>
   </data>
   <data name="onboarding.welcome.task2.title" xml:space="preserve">
-    <value>Check your microphone</value>
+    <value>Pārbaudiet mikrofonu</value>
   </data>
   <data name="onboarding.welcome.task2.caption" xml:space="preserve">
-    <value>Pick an input and watch the level move while you talk.</value>
+    <value>Izvēlieties ievadi un vērojiet, kā līmenis mainās, kamēr runājat.</value>
   </data>
   <data name="onboarding.welcome.task3.title" xml:space="preserve">
-    <value>Make one recording</value>
+    <value>Izveidojiet vienu ierakstu</value>
   </data>
   <data name="onboarding.welcome.task3.caption" xml:space="preserve">
-    <value>Say a line, read the text back. That is the whole product.</value>
+    <value>Pasakiet teikumu, izlasiet iegūto tekstu. Tas ir viss produkts.</value>
   </data>
   <data name="onboarding.welcome.note" xml:space="preserve">
-    <value>HyperWhisper listens only while a recording is running. Nothing is captured in the background.</value>
+    <value>HyperWhisper klausās tikai tad, kad notiek ierakstīšana. Fonā nekas netiek fiksēts.</value>
   </data>
   <data name="onboarding.permissions.title" xml:space="preserve">
-    <value>Two quick checks</value>
+    <value>Divas ātras pārbaudes</value>
   </data>
   <data name="onboarding.permissions.subtitle" xml:space="preserve">
-    <value>HyperWhisper needs these to hear your voice and drop finished text where you are typing.</value>
+    <value>HyperWhisper tās vajag, lai dzirdētu jūsu balsi un ielīmētu tekstu tur, kur rakstāt.</value>
   </data>
   <data name="onboarding.permissions.microphone.title" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofons</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Required. Audio is captured only while a recording is active.</value>
+    <value>Lai varētu dzirdēt jūsu balsi.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
-    <value>Grant</value>
+    <value>Piešķirt</value>
   </data>
   <data name="onboarding.permissions.granted" xml:space="preserve">
-    <value>Granted</value>
+    <value>Piešķirts</value>
   </data>
   <data name="onboarding.permissions.open" xml:space="preserve">
-    <value>Open Settings</value>
+    <value>Atvērt iestatījumus</value>
   </data>
   <data name="onboarding.permissions.note" xml:space="preserve">
-    <value>The shortcut is optional. If another app already owns it, pick a different one now or later in Settings.</value>
+    <value>Īsinājumtaustiņš nav obligāts. Ja to jau izmanto cita lietotne, izvēlieties citu tagad vai vēlāk Iestatījumos.</value>
   </data>
   <data name="onboarding.permissions.shortcut.title" xml:space="preserve">
-    <value>Your shortcut</value>
+    <value>Jūsu īsinājumtaustiņš</value>
   </data>
   <data name="onboarding.permissions.shortcut.subtitle" xml:space="preserve">
-    <value>Optional. Press it in any app to start and stop a recording.</value>
+    <value>Neobligāti. Nospiediet to jebkurā lietotnē, lai sāktu un apturētu ierakstīšanu.</value>
   </data>
   <data name="onboarding.permissions.shortcut.registered" xml:space="preserve">
-    <value>Shortcut registered</value>
+    <value>Īsinājumtaustiņš reģistrēts</value>
   </data>
   <data name="onboarding.permissions.shortcut.checking" xml:space="preserve">
-    <value>Checking the shortcut…</value>
+    <value>Pārbauda īsinājumtaustiņu…</value>
   </data>
   <data name="onboarding.permissions.shortcut.conflict" xml:space="preserve">
-    <value>Shortcut not registered</value>
+    <value>Īsinājumtaustiņš nav reģistrēts</value>
   </data>
   <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
-    <value>Choose a different shortcut</value>
+    <value>Izvēlieties citu īsinājumtaustiņu</value>
   </data>
   <data name="onboarding.source.title" xml:space="preserve">
-    <value>How do you want to transcribe?</value>
+    <value>Kā vēlaties transkribēt?</value>
   </data>
   <data name="onboarding.source.subtitle" xml:space="preserve">
-    <value>All three put the same text in the same place. They differ on speed, privacy, and who you pay.</value>
+    <value>Režīms apvieno transkripcijas avotu ar jūsu formatēšanas iestatījumiem. Izvēlieties avotu, lai sāktu — vēlāk varēsiet pievienot vēl.</value>
   </data>
   <data name="onboarding.source.cloud.title" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.source.cloud.description" xml:space="preserve">
-    <value>Fastest to set up, best accuracy. Prepaid credits, no subscription.</value>
+    <value>Ātrākais un precīzākais. Iepriekš apmaksāti kredīti, centralizēts norēķins — nav jālejupielādē lokāls modelis.</value>
   </data>
   <data name="onboarding.source.onDevice.title" xml:space="preserve">
-    <value>On this PC</value>
+    <value>Šajā datorā</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Private and free. Downloads a model once, then works with no network.</value>
+    <value>Darbojas pilnībā jūsu Mac datorā. Bezmaksas, privāts, darbojas bezsaistē — dati nekad nepamet jūsu ierīci.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
-    <value>Your API Key</value>
+    <value>Jūsu API atslēga</value>
   </data>
   <data name="onboarding.source.provider.description" xml:space="preserve">
-    <value>Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.</value>
+    <value>Izmantojiet savu OpenAI, Deepgram vai Groq kontu. Jūs kontrolējat atslēgu un norēķinus.</value>
   </data>
   <data name="onboarding.source.note" xml:space="preserve">
-    <value>Changing your mind later reruns this one step. Nothing else you set up is lost.</value>
+    <value>Ja vēlāk pārdomāsiet, atkārtot vajadzēs tikai šo vienu soli. Viss pārējais, ko iestatījāt, saglabāsies.</value>
   </data>
   <data name="onboarding.configure.cloud.title" xml:space="preserve">
-    <value>Activate HyperWhisper Cloud</value>
+    <value>Aktivizēt HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.configure.cloud.subtitle" xml:space="preserve">
-    <value>Enter your Cloud access key to connect this PC to your prepaid credits.</value>
+    <value>Ievadiet savu Cloud piekļuves atslēgu, lai savienotu šo datoru ar jūsu iepriekš apmaksātajiem kredītiem.</value>
   </data>
   <data name="onboarding.configure.cloud.placeholder" xml:space="preserve">
-    <value>Paste your access key</value>
+    <value>Ielīmējiet savu piekļuves atslēgu</value>
   </data>
   <data name="onboarding.configure.cloud.getCredits" xml:space="preserve">
-    <value>Don't have a key? Get credits at hyperwhisper.com</value>
+    <value>Nav atslēgas? Iegādājieties kredītus vietnē hyperwhisper.com</value>
   </data>
   <data name="onboarding.configure.cloud.creditsCaption" xml:space="preserve">
-    <value>credits available</value>
+    <value>pieejamie kredīti</value>
   </data>
   <data name="onboarding.configure.cloud.note" xml:space="preserve">
-    <value>Credits are prepaid and shared across every PC signed in with this key. Idle time costs nothing.</value>
+    <value>Kredīti ir iepriekš apmaksāti un koplietoti visos datoros, kas pieteikušies ar šo atslēgu. Dīkstāves laiks nemaksā neko.</value>
   </data>
   <data name="onboarding.configure.onDevice.title" xml:space="preserve">
-    <value>Choose a model</value>
+    <value>Izvēlieties modeli</value>
   </data>
   <data name="onboarding.configure.onDevice.subtitle" xml:space="preserve">
-    <value>Larger models are more accurate and slower to download.</value>
+    <value>Izvēlieties balss modeli, ko lejupielādēt. Lielāki modeļi ir precīzāki, bet aizņem vairāk vietas.</value>
   </data>
   <data name="onboarding.configure.onDevice.note" xml:space="preserve">
-    <value>Audio never leaves this PC. After the download it works on a plane.</value>
+    <value>Audio nekad nepamet šo datoru. Pēc lejupielādes tas darbojas pat lidmašīnā.</value>
   </data>
   <data name="onboarding.configure.provider.title" xml:space="preserve">
-    <value>Connect your provider</value>
+    <value>Savienot savu pakalpojumu sniedzēju</value>
   </data>
   <data name="onboarding.configure.provider.subtitle" xml:space="preserve">
-    <value>Choose a provider and paste your API key. It is stored securely in Windows Credential Manager.</value>
+    <value>Izvēlieties pakalpojumu sniedzēju un ielīmējiet savu API atslēgu. Tā tiek droši glabāta Windows akreditācijas datu pārvaldniekā.</value>
   </data>
   <data name="onboarding.configure.provider.keyPlaceholder" xml:space="preserve">
-    <value>Paste your API key</value>
+    <value>Ielīmējiet savu API atslēgu</value>
   </data>
   <data name="onboarding.configure.provider.keychainNote" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>Droši glabāta Windows akreditācijas datu pārvaldniekā.</value>
   </data>
   <data name="onboarding.configure.noSource.title" xml:space="preserve">
-    <value>Choose a transcription source first.</value>
+    <value>Vispirms izvēlieties transkripcijas avotu.</value>
   </data>
   <data name="onboarding.configure.noSource.caption" xml:space="preserve">
-    <value>Go back one step and pick where your speech should become text.</value>
+    <value>Atgriezieties par vienu soli un izvēlieties, kur jūsu runai jākļūst par tekstu.</value>
   </data>
   <data name="onboarding.noSource.detail" xml:space="preserve">
-    <value>This step depends on the source you pick.</value>
+    <value>Šis solis ir atkarīgs no jūsu izvēlētā avota.</value>
   </data>
   <data name="onboarding.configure.cloud.testKey" xml:space="preserve">
-    <value>Test access key</value>
+    <value>Pārbaudīt piekļuves atslēgu</value>
   </data>
   <data name="onboarding.configure.provider.testKey" xml:space="preserve">
-    <value>Test API key</value>
+    <value>Pārbaudīt API atslēgu</value>
   </data>
   <data name="onboarding.configure.test.testing" xml:space="preserve">
-    <value>Testing…</value>
+    <value>Pārbaudīšana…</value>
   </data>
   <data name="onboarding.configure.test.valid" xml:space="preserve">
-    <value>Access key valid</value>
+    <value>Piekļuves atslēga derīga</value>
   </data>
   <data name="onboarding.configure.test.healthy" xml:space="preserve">
-    <value>Connected</value>
+    <value>Savienots</value>
   </data>
   <data name="onboarding.configure.test.unauthorized" xml:space="preserve">
-    <value>Provider rejected this key. Double-check it's still valid.</value>
+    <value>Sniedzējs noraidīja šo atslēgu. Pārbaudiet, vai tā vēl ir derīga.</value>
   </data>
   <data name="onboarding.configure.test.unreachable" xml:space="preserve">
-    <value>Couldn't reach the provider. Check your internet, then test again.</value>
+    <value>Neizdevās sasniegt sniedzēju. Pārbaudiet savu interneta pieslēgumu un mēģiniet vēlreiz.</value>
   </data>
   <data name="onboarding.model.parakeetV2.subtitle" xml:space="preserve">
-    <value>English only. Fastest on this PC.</value>
+    <value>Tikai angļu valoda. Ātrākais šajā datorā.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingual. Same speed, larger download.</value>
+    <value>Daudzvalodu · 25 valodas</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
-    <value>Multilingual. Smallest download, lowest accuracy.</value>
+    <value>Daudzvalodu · neliels izmērs</value>
   </data>
   <data name="onboarding.model.whisperTurbo.subtitle" xml:space="preserve">
-    <value>Multilingual. Most accurate offline option.</value>
+    <value>Daudzvalodu · precīzākais Whisper</value>
   </data>
   <data name="onboarding.model.downloaded" xml:space="preserve">
-    <value>Downloaded</value>
+    <value>Lejupielādēts</value>
   </data>
   <data name="onboarding.setup.cloud.title" xml:space="preserve">
-    <value>Activate your key</value>
+    <value>Aktivizējiet savu atslēgu</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
-    <value>Key verified, credits confirmed. Recordings will go to HyperWhisper Cloud.</value>
+    <value>Atslēga apstiprināta, kredīti apstiprināti. Ieraksti tiks sūtīti uz HyperWhisper Cloud.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
-    <value>Activate Cloud</value>
+    <value>Aktivizēt Cloud</value>
   </data>
   <data name="onboarding.setup.cloud.activating" xml:space="preserve">
-    <value>Activating…</value>
+    <value>Aktivizē…</value>
   </data>
   <data name="onboarding.setup.cloud.active" xml:space="preserve">
-    <value>Cloud key activated</value>
+    <value>Cloud atslēga aktivizēta</value>
   </data>
   <data name="onboarding.setup.cloud.check.keyVerified" xml:space="preserve">
-    <value>Access key verified</value>
+    <value>Piekļuves atslēga apstiprināta</value>
   </data>
   <data name="onboarding.setup.cloud.check.activated" xml:space="preserve">
-    <value>Account activated for this device</value>
+    <value>Konts aktivizēts šai ierīcei</value>
   </data>
   <data name="onboarding.setup.cloud.check.creditsConfirmed" xml:space="preserve">
-    <value>Credits confirmed</value>
+    <value>Kredīti apstiprināti</value>
   </data>
   <data name="onboarding.setup.cloud.credits.caption" xml:space="preserve">
-    <value>credits, spent per minute of audio</value>
+    <value>kredīti, tērēti par katru audio minūti</value>
   </data>
   <data name="onboarding.setup.cloud.note" xml:space="preserve">
-    <value>Run low and HyperWhisper tells you before a recording, not after.</value>
+    <value>Ja tie beidzas, HyperWhisper paziņo pirms ieraksta, nevis pēc tā.</value>
   </data>
   <data name="onboarding.setup.onDevice.title" xml:space="preserve">
-    <value>Download your model</value>
+    <value>Lejupielādējiet savu modeli</value>
   </data>
   <data name="onboarding.setup.onDevice.subtitle" xml:space="preserve">
-    <value>This happens once. Every recording after it runs offline.</value>
+    <value>Tas notiek tikai vienu reizi. Katrs ieraksts pēc tam darbojas bezsaistē.</value>
   </data>
   <data name="onboarding.setup.onDevice.download" xml:space="preserve">
-    <value>Download {0}</value>
+    <value>Lejupielādēt {0}</value>
   </data>
   <data name="onboarding.setup.onDevice.downloading" xml:space="preserve">
-    <value>Downloading… {0}%</value>
+    <value>Notiek lejupielāde… {0}%</value>
   </data>
   <data name="onboarding.setup.onDevice.ready" xml:space="preserve">
-    <value>Model ready</value>
+    <value>Modelis ir gatavs</value>
   </data>
   <data name="onboarding.setup.onDevice.storedCaption" xml:space="preserve">
-    <value>stored on this PC</value>
+    <value>saglabāts šajā datorā</value>
   </data>
   <data name="onboarding.setup.onDevice.totalCaption" xml:space="preserve">
-    <value>total download</value>
+    <value>kopējā lejupielāde</value>
   </data>
   <data name="onboarding.setup.onDevice.note" xml:space="preserve">
-    <value>The model stays on this PC, so your audio is transcribed here and never uploaded.</value>
+    <value>Modelis paliek šajā datorā, tāpēc audio tiek transkribēts šeit un nekur netiek augšupielādēts.</value>
   </data>
   <data name="onboarding.setup.provider.title" xml:space="preserve">
-    <value>Save your key</value>
+    <value>Saglabājiet savu atslēgu</value>
   </data>
   <data name="onboarding.setup.provider.subtitle" xml:space="preserve">
-    <value>Windows holds it. HyperWhisper asks for it only when a recording needs transcribing.</value>
+    <value>Windows to glabā. HyperWhisper to pieprasa tikai tad, kad ieraksts jātranskribē.</value>
   </data>
   <data name="onboarding.setup.provider.save" xml:space="preserve">
-    <value>Save key</value>
+    <value>Saglabāt atslēgu</value>
   </data>
   <data name="onboarding.setup.provider.saved" xml:space="preserve">
-    <value>API key saved</value>
+    <value>API atslēga saglabāta</value>
   </data>
   <data name="onboarding.setup.provider.check.validated" xml:space="preserve">
-    <value>Key validated against {0}</value>
+    <value>Atslēga apstiprināta ar {0}</value>
   </data>
   <data name="onboarding.setup.provider.check.written" xml:space="preserve">
-    <value>Written to Windows Credential Manager</value>
+    <value>Ierakstīts Windows akreditācijas datu pārvaldniekā</value>
   </data>
   <data name="onboarding.setup.provider.keychainItem" xml:space="preserve">
-    <value>HyperWhisper · {0} API key</value>
+    <value>HyperWhisper · {0} API atslēga</value>
   </data>
   <data name="onboarding.setup.provider.keyHidden" xml:space="preserve">
-    <value>Stored, never shown again</value>
+    <value>Saglabāta, vairs netiks rādīta</value>
   </data>
   <data name="onboarding.setup.provider.note" xml:space="preserve">
-    <value>Delete it from Settings, Transcription and HyperWhisper stops calling the provider immediately.</value>
+    <value>Dzēsiet to sadaļā Iestatījumi, Transkripcija, un HyperWhisper nekavējoties pārtrauks izmantot sniedzēju.</value>
   </data>
   <data name="onboarding.setup.selectFirst" xml:space="preserve">
-    <value>Go back and make a selection first.</value>
+    <value>Atgriezieties un vispirms izvēlieties.</value>
   </data>
   <data name="onboarding.setup.noSource.title" xml:space="preserve">
-    <value>Nothing to set up.</value>
+    <value>Nav ko iestatīt.</value>
   </data>
   <data name="onboarding.setup.noSource.caption" xml:space="preserve">
-    <value>Go back and choose a transcription source.</value>
+    <value>Atgriezieties un izvēlieties transkripcijas avotu.</value>
   </data>
   <data name="onboarding.setup.onDevice.error" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>Lejupielāde neizdevās: {0}</value>
   </data>
   <data name="onboarding.setup.cloud.error" xml:space="preserve">
-    <value>Activation failed: {0}</value>
+    <value>Aktivizācija neizdevās: {0}</value>
   </data>
   <data name="onboarding.setup.provider.error" xml:space="preserve">
-    <value>Could not save your key: {0}</value>
+    <value>Neizdevās saglabāt jūsu atslēgu: {0}</value>
   </data>
   <data name="onboarding.setup.provider.saveFailed" xml:space="preserve">
-    <value>The key could not be written to Windows Credential Manager.</value>
+    <value>Neizdevās ierakstīt atslēgu Windows akreditācijas datu pārvaldniekā.</value>
   </data>
   <data name="onboarding.setup.model.notFound" xml:space="preserve">
-    <value>This model is not in the model library.</value>
+    <value>Šis modelis nav modeļu bibliotēkā.</value>
   </data>
   <data name="onboarding.setup.model.downloadFailed" xml:space="preserve">
-    <value>The download did not finish.</value>
+    <value>Lejupielāde netika pabeigta.</value>
   </data>
   <data name="onboarding.mic.title" xml:space="preserve">
-    <value>Say something. Watch the bars.</value>
+    <value>Iestatiet savu mikrofonu</value>
   </data>
   <data name="onboarding.mic.title.unavailable" xml:space="preserve">
-    <value>Check your microphone.</value>
+    <value>Pārbaudiet mikrofonu.</value>
   </data>
   <data name="onboarding.mic.subtitle" xml:space="preserve">
-    <value>If the level moves when you talk, HyperWhisper can hear you.</value>
+    <value>Izvēlieties ievades ierīci un pārbaudiet, vai līmeņa josla kustas, kad runājat.</value>
   </data>
   <data name="onboarding.mic.device.systemDefault" xml:space="preserve">
-    <value>System Default</value>
+    <value>Sistēmas noklusējums</value>
   </data>
   <data name="onboarding.mic.device.followsSystem" xml:space="preserve">
-    <value>Follows Windows</value>
+    <value>Seko Windows</value>
   </data>
   <data name="onboarding.mic.device.inUse" xml:space="preserve">
-    <value>In use</value>
+    <value>Tiek izmantots</value>
   </data>
   <data name="onboarding.mic.levelHint" xml:space="preserve">
-    <value>Levels too low, or the wrong device listed?</value>
+    <value>Līmenis pārāk zems, vai ir norādīta nepareiza ierīce?</value>
   </data>
   <data name="onboarding.mic.soundSettings" xml:space="preserve">
-    <value>Sound Settings</value>
+    <value>Skaņas iestatījumi</value>
   </data>
   <data name="onboarding.mic.note" xml:space="preserve">
-    <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
+    <value>Sistēmas noklusējums seko tam, ko izmanto Windows, tostarp austiņām, kuras pievienojat vēlāk.</value>
   </data>
   <data name="onboarding.mic.blocked" xml:space="preserve">
-    <value>Microphone access is turned off for desktop apps. Turn it on in Windows Settings, then come back to this step.</value>
+    <value>Piekļuve mikrofonam ir izslēgta darbvirsmas lietotnēm. Ieslēdziet to Windows iestatījumos un atgriezieties pie šī soļa.</value>
   </data>
   <data name="onboarding.mic.none" xml:space="preserve">
-    <value>No microphone is connected. Plug one in and it shows up here on its own.</value>
+    <value>Nav pievienots neviens mikrofons. Pievienojiet to, un tas šeit parādīsies pats.</value>
   </data>
   <data name="onboarding.mic.enumerationFailed" xml:space="preserve">
-    <value>Windows could not list your audio devices. Check Sound settings, then come back to this step.</value>
+    <value>Windows nevarēja uzskaitīt jūsu audioierīces. Pārbaudiet skaņas iestatījumus un atgriezieties pie šī soļa.</value>
   </data>
   <data name="onboarding.mic.meter.inactive" xml:space="preserve">
-    <value>No level to show yet.</value>
+    <value>Vēl nav līmeņa, ko rādīt.</value>
   </data>
   <data name="onboarding.mic.privacySettings" xml:space="preserve">
-    <value>Open privacy settings</value>
+    <value>Atvērt konfidencialitātes iestatījumus</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Make one recording.</value>
+    <value>Viss ir gatavs, sāksim vūsu pirmo ierakstu</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
-    <value>Press the shortcut, say the line, press it again.</value>
+    <value>Nospiediet saīsni, pasakiet teikumu, nospiediet vēlreiz.</value>
   </data>
   <data name="onboarding.tryIt.shortcutHint" xml:space="preserve">
-    <value>Press once to start, once more to stop.</value>
+    <value>Nospiediet vienreiz, lai sāktu, vēlreiz, lai apturētu.</value>
   </data>
   <data name="onboarding.tryIt.record" xml:space="preserve">
-    <value>Record</value>
+    <value>Ierakstīt</value>
   </data>
   <data name="onboarding.tryIt.recorded" xml:space="preserve">
-    <value>Recorded</value>
+    <value>Ierakstīts</value>
   </data>
   <data name="onboarding.tryIt.recordAgain" xml:space="preserve">
-    <value>Record again</value>
+    <value>Ierakstīt vēlreiz</value>
   </data>
   <data name="onboarding.test.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>Apturēt ierakstīšanu</value>
   </data>
   <data name="onboarding.test.status.speak" xml:space="preserve">
-    <value>Speak now...</value>
+    <value>Runājiet tagad...</value>
   </data>
   <data name="onboarding.tryIt.trySaying" xml:space="preserve">
-    <value>Try saying</value>
+    <value>Mēģiniet pateikt</value>
   </data>
   <data name="onboarding.tryIt.sampleLine" xml:space="preserve">
-    <value>“HyperWhisper turns what I say into text, right where I am typing.”</value>
+    <value>„HyperWhisper pārvērš to, ko es saku, tekstā tieši tur, kur es rakstu.“</value>
   </data>
   <data name="onboarding.try.transcript.heading" xml:space="preserve">
-    <value>What came back</value>
+    <value>Jūs sacījāt</value>
   </data>
   <data name="onboarding.tryIt.listening" xml:space="preserve">
-    <value>Listening</value>
+    <value>Klausās</value>
   </data>
   <data name="onboarding.tryIt.empty" xml:space="preserve">
-    <value>Nothing yet. Start a recording to see the text land here.</value>
+    <value>Pagaidām nekā nav. Sāciet ierakstu, lai teksts parādītos šeit.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} words · {1}</value>
+    <value>{0} vārdi · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
-    <value>Shown here only, not pasted into other apps</value>
+    <value>Rādīts tikai šeit — netiek ielīmēts citās lietotnēs.</value>
   </data>
   <data name="onboarding.tryIt.note" xml:space="preserve">
-    <value>Turn on auto paste later and the text lands at your cursor instead.</value>
+    <value>Vēlāk ieslēdziet automātisko ielīmēšanu, un teksts nonāks pie kursora.</value>
   </data>
   <data name="onboarding.tryIt.sample.button" xml:space="preserve">
-    <value>Transcribe a sample clip</value>
+    <value>Transkribēt parauga ierakstu</value>
   </data>
   <data name="onboarding.tryIt.sample.hint" xml:space="preserve">
-    <value>No microphone is connected, so HyperWhisper runs a short bundled clip through everything a real recording uses.</value>
+    <value>Nav pievienots neviens mikrofons, tāpēc HyperWhisper izlaiž īsu iekļauto ierakstu cauri visam, ko izmanto īsts ieraksts.</value>
   </data>
   <data name="onboarding.tryIt.sample.result" xml:space="preserve">
-    <value>From the bundled sample clip</value>
+    <value>No iekļautā parauga ieraksta</value>
   </data>
   <data name="onboarding.tryIt.sample.transcribing" xml:space="preserve">
-    <value>Transcribing the sample…</value>
+    <value>Transkribē paraugu…</value>
   </data>
   <data name="onboarding.tryIt.sample.missing" xml:space="preserve">
-    <value>The sample clip is missing from this build.</value>
+    <value>Šajā būvējumā trūkst parauga ieraksta.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>You are ready to dictate.</value>
+    <value>Viss pabeigts!</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
-    <value>Press the shortcut in any app and start talking.</value>
+    <value>Nospiediet saīsni jebkurā lietotnē un sāciet runāt.</value>
   </data>
   <data name="onboarding.done.summary.transcription" xml:space="preserve">
-    <value>Transcription</value>
+    <value>Transkripcija</value>
   </data>
   <data name="onboarding.done.summary.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofons</value>
   </data>
   <data name="onboarding.done.summary.textDelivery" xml:space="preserve">
-    <value>Text delivery</value>
+    <value>Teksta piegāde</value>
   </data>
   <data name="onboarding.done.summary.shortcut" xml:space="preserve">
-    <value>Shortcut</value>
+    <value>Saīsne</value>
   </data>
   <data name="onboarding.done.summary.onDevice" xml:space="preserve">
-    <value>{0} · on this PC</value>
+    <value>{0} · šajā datorā</value>
   </data>
   <data name="onboarding.done.summary.cloud" xml:space="preserve">
-    <value>{0} · {1} credits</value>
+    <value>{0} · {1} kredīti</value>
   </data>
   <data name="onboarding.done.summary.provider" xml:space="preserve">
-    <value>{0} · your own key</value>
+    <value>{0} · jūsu paša atslēga</value>
   </data>
   <data name="onboarding.done.textDelivery.cursor" xml:space="preserve">
-    <value>Pastes at your cursor</value>
+    <value>Ielīmē pie kursora</value>
   </data>
   <data name="onboarding.done.textDelivery.clipboard" xml:space="preserve">
-    <value>Copied to clipboard</value>
+    <value>Kopēts starpliktuvē</value>
   </data>
   <data name="onboarding.done.menuBarNote" xml:space="preserve">
-    <value>HyperWhisper lives in the system tray. Click it for history, modes, and everything above.</value>
+    <value>HyperWhisper mīt sistēmas teknē. Noklikšķiniet uz tā, lai piekļūtu vēsturei, režīmiem un visam iepriekš minētajam.</value>
   </data>
   <data name="onboarding.done.button" xml:space="preserve">
-    <value>Done Onboarding</value>
+    <value>Sākotnējā iestatīšana pabeigta</value>
   </data>
   <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
-    <value>None connected</value>
+    <value>Nav pievienots neviens</value>
   </data>
   <data name="onboarding.footer.continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>Turpināt</value>
   </data>
   <data name="onboarding.footer.back" xml:space="preserve">
-    <value>Back</value>
+    <value>Atpakaļ</value>
   </data>
   <data name="onboarding.footer.reassurance.welcome" xml:space="preserve">
-    <value>Every answer can be changed later in Settings.</value>
+    <value>Visas atbildes vēlāk var mainīt sadaļā Iestatījumi.</value>
   </data>
   <data name="onboarding.footer.reassurance.permissions" xml:space="preserve">
-    <value>The shortcut can be changed later in Settings.</value>
+    <value>Īsinājumtaustiņu vēlāk var mainīt Iestatījumos.</value>
   </data>
   <data name="onboarding.footer.reassurance.source" xml:space="preserve">
-    <value>You can switch sources later in Settings.</value>
+    <value>Avotu vēlāk varat mainīt sadaļā Iestatījumi.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.cloud" xml:space="preserve">
-    <value>The key is stored in Windows Credential Manager.</value>
+    <value>Atslēga tiek glabāta Windows akreditācijas datu pārvaldniekā.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.onDevice" xml:space="preserve">
-    <value>More models live in the Model Library.</value>
+    <value>Vairāk modeļu ir pieejami Modeļu bibliotēkā.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.provider" xml:space="preserve">
-    <value>You can change providers later in Settings.</value>
+    <value>Sniedzēju vēlāk varat mainīt sadaļā Iestatījumi.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.cloud" xml:space="preserve">
-    <value>Top up any time from your account.</value>
+    <value>Papildiniet jebkurā laikā no sava konta.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.onDevice" xml:space="preserve">
-    <value>Pausing the download will not lose progress.</value>
+    <value>Lejupielādes pauzēšana nezaudēs progresu.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.provider" xml:space="preserve">
-    <value>Remove the key any time in Settings.</value>
+    <value>Atslēgu jebkurā laikā varat noņemt sadaļā Iestatījumi.</value>
   </data>
   <data name="onboarding.footer.reassurance.microphone" xml:space="preserve">
-    <value>Input device is switchable at any time.</value>
+    <value>Ievades ierīci var mainīt jebkurā laikā.</value>
   </data>
   <data name="onboarding.footer.reassurance.tryIt" xml:space="preserve">
-    <value>The audio is discarded once the text is ready.</value>
+    <value>Audio tiek dzēsts, tiklīdz teksts ir gatavs.</value>
   </data>
   <data name="onboarding.footer.reassurance.done" xml:space="preserve">
-    <value>All of it is editable in Settings.</value>
+    <value>Visu to var rediģēt sadaļā Iestatījumi.</value>
   </data>
   <data name="onboarding.footer.reassurance.pickSource" xml:space="preserve">
-    <value>Pick a source to continue.</value>
+    <value>Izvēlieties avotu, lai turpinātu.</value>
   </data>
   <data name="onboarding.setupLater.button" xml:space="preserve">
-    <value>Set Up Later</value>
+    <value>Iestatīt vēlāk</value>
   </data>
   <data name="onboarding.progress.a11y" xml:space="preserve">
-    <value>Step {0} of {1}</value>
+    <value>{0}. solis no {1}</value>
   </data>
   <data name="onboarding.a11y.percent" xml:space="preserve">
-    <value>{0} percent</value>
+    <value>{0} procenti</value>
   </data>
   <data name="onboarding.a11y.downloadProgress" xml:space="preserve">
-    <value>Download progress</value>
+    <value>Lejupielādes progress</value>
   </data>
   <data name="onboarding.a11y.inputLevel" xml:space="preserve">
-    <value>Microphone input level</value>
+    <value>Mikrofona ievades līmenis</value>
   </data>
   <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
-    <value>Selected, {0}</value>
+    <value>Izvēlēts, {0}</value>
   </data>
   <data name="onboarding.a11y.notSelectedDetail" xml:space="preserve">
-    <value>Not selected, {0}</value>
+    <value>Nav izvēlēts, {0}</value>
   </data>
   <data name="onboarding.a11y.selectedInput" xml:space="preserve">
-    <value>Selected input</value>
+    <value>Izvēlētā ievade</value>
   </data>
   <data name="onboarding.error.microphone.denied" xml:space="preserve">
-    <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
+    <value>Mikrofona atļauja noraidīta. Lūdzu, piešķiriet atļauju Windows iestatījumos.</value>
   </data>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
-    <value>Run setup again</value>
+    <value>Palaist iestatīšanu vēlreiz</value>
   </data>
   <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
-    <value>Finish the current dictation before running setup again.</value>
+    <value>Pabeidziet pašreizējo diktēšanu, pirms palaižat iestatīšanu vēlreiz.</value>
   </data>
   <data name="onboarding.restore.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+    <value>HyperWhisper nevarēja atjaunot jūsu iepriekšējo noklusējuma režīmu. Atveriet Režīmus, lai pārbaudītu tā iestatījumus.</value>
   </data>
   <data name="onboarding.apply.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+    <value>HyperWhisper nevarēja saglabāt jūsu izvēli. Nekas netika mainīts. Mēģiniet vēlreiz vai izvēlieties Iestatīt vēlāk.</value>
   </data>
   <data name="onboarding.configure.test.unverified" xml:space="preserve">
-    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+    <value>API atslēga saglabāta. Šis pakalpojumu sniedzējs nevar pārbaudīt atslēgu bez transkripcijas, tāpēc tā tiks pārbaudīta pirmajā diktēšanas reizē.</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>

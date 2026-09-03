@@ -1316,6 +1316,18 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
         RefreshSetupError();
         _taskBox.Clear(OnboardingTaskKeys.Activation);
+
+        // StepDidChange fetches the balance on entry to Configure and to Setup, and
+        // both of those run BEFORE this activation. On a first-run machine the licence
+        // only goes active right here, so every earlier fetch happened unlicensed and
+        // came back unknown - "Credits confirmed" stayed unticked and the Done summary
+        // fell back to a bare source name, on a perfectly good key. Nothing else
+        // refreshed it, so this is the fetch that fills it in.
+        //
+        // force: true because the cloud manager caches, and the cached miss was taken
+        // while the machine was still unlicensed.
+        if (outcome.IsValid)
+            RefreshCredits(force: true);
     }
 
     /// <summary>

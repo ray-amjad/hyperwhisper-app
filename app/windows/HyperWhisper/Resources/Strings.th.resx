@@ -2198,532 +2198,532 @@ You can re-download it later.</value>
     <value>Use your own Meta Model API key for Muse batch transcription</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
-    <value>Set up HyperWhisper</value>
+    <value>ตั้งค่า HyperWhisper</value>
   </data>
   <data name="onboarding.welcome.title" xml:space="preserve">
-    <value>Write at the speed of thought</value>
+    <value>เขียนด้วยความเร็วเท่าความคิด</value>
   </data>
   <data name="onboarding.welcome.subtitle" xml:space="preserve">
-    <value>HyperWhisper turns your voice into text in any app on your PC. Three things, then you are typing with your voice.</value>
+    <value>HyperWhisper แปลงเสียงของคุณเป็นข้อความในแอปใดก็ได้บนพีซีเครื่องนี้ อีกสามขั้นตอน แล้วคุณก็พิมพ์ด้วยเสียงได้เลย</value>
   </data>
   <data name="onboarding.welcome.getStarted" xml:space="preserve">
-    <value>Get started</value>
+    <value>เริ่มต้นใช้งาน</value>
   </data>
   <data name="onboarding.welcome.task1.title" xml:space="preserve">
-    <value>Choose how transcription runs</value>
+    <value>เลือกวิธีการถอดเสียง</value>
   </data>
   <data name="onboarding.welcome.task1.caption" xml:space="preserve">
-    <value>In our cloud, on this PC, or through a provider account you already pay for.</value>
+    <value>ในคลาวด์ของเรา บนพีซีเครื่องนี้ หรือผ่านบัญชีผู้ให้บริการที่คุณจ่ายเงินอยู่แล้ว</value>
   </data>
   <data name="onboarding.welcome.task2.title" xml:space="preserve">
-    <value>Check your microphone</value>
+    <value>ตรวจสอบไมโครโฟนของคุณ</value>
   </data>
   <data name="onboarding.welcome.task2.caption" xml:space="preserve">
-    <value>Pick an input and watch the level move while you talk.</value>
+    <value>เลือกอุปกรณ์อินพุตแล้วดูระดับเสียงขยับขณะที่คุณพูด</value>
   </data>
   <data name="onboarding.welcome.task3.title" xml:space="preserve">
-    <value>Make one recording</value>
+    <value>ทำการบันทึกหนึ่งครั้ง</value>
   </data>
   <data name="onboarding.welcome.task3.caption" xml:space="preserve">
-    <value>Say a line, read the text back. That is the whole product.</value>
+    <value>พูดหนึ่งประโยค แล้วอ่านข้อความที่ได้กลับมา แค่นี้คือทั้งหมดของผลิตภัณฑ์</value>
   </data>
   <data name="onboarding.welcome.note" xml:space="preserve">
-    <value>HyperWhisper listens only while a recording is running. Nothing is captured in the background.</value>
+    <value>HyperWhisper จะฟังเฉพาะขณะที่กำลังบันทึกเท่านั้น ไม่มีการบันทึกใด ๆ อยู่เบื้องหลัง</value>
   </data>
   <data name="onboarding.permissions.title" xml:space="preserve">
-    <value>Two quick checks</value>
+    <value>ตรวจสอบด่วน 2 อย่าง</value>
   </data>
   <data name="onboarding.permissions.subtitle" xml:space="preserve">
-    <value>HyperWhisper needs these to hear your voice and drop finished text where you are typing.</value>
+    <value>HyperWhisper ต้องการสิทธิ์เหล่านี้เพื่อรับฟังเสียงของคุณและวางข้อความในตำแหน่งที่คุณกำลังพิมพ์</value>
   </data>
   <data name="onboarding.permissions.microphone.title" xml:space="preserve">
-    <value>Microphone</value>
+    <value>ไมโครโฟน</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Required. Audio is captured only while a recording is active.</value>
+    <value>เพื่อให้เราได้ยินเสียงของคุณ</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
-    <value>Grant</value>
+    <value>อนุญาต</value>
   </data>
   <data name="onboarding.permissions.granted" xml:space="preserve">
-    <value>Granted</value>
+    <value>อนุญาตแล้ว</value>
   </data>
   <data name="onboarding.permissions.open" xml:space="preserve">
-    <value>Open Settings</value>
+    <value>เปิดการตั้งค่า</value>
   </data>
   <data name="onboarding.permissions.note" xml:space="preserve">
-    <value>The shortcut is optional. If another app already owns it, pick a different one now or later in Settings.</value>
+    <value>ปุ่มลัดเป็นตัวเลือกเสริม หากแอปอื่นใช้อยู่แล้ว ให้เลือกปุ่มอื่นตอนนี้ หรือเปลี่ยนภายหลังในการตั้งค่า</value>
   </data>
   <data name="onboarding.permissions.shortcut.title" xml:space="preserve">
-    <value>Your shortcut</value>
+    <value>ปุ่มลัดของคุณ</value>
   </data>
   <data name="onboarding.permissions.shortcut.subtitle" xml:space="preserve">
-    <value>Optional. Press it in any app to start and stop a recording.</value>
+    <value>ไม่บังคับ กดในแอปใดก็ได้เพื่อเริ่มและหยุดการบันทึก</value>
   </data>
   <data name="onboarding.permissions.shortcut.registered" xml:space="preserve">
-    <value>Shortcut registered</value>
+    <value>ลงทะเบียนปุ่มลัดแล้ว</value>
   </data>
   <data name="onboarding.permissions.shortcut.checking" xml:space="preserve">
-    <value>Checking the shortcut…</value>
+    <value>กำลังตรวจสอบปุ่มลัด…</value>
   </data>
   <data name="onboarding.permissions.shortcut.conflict" xml:space="preserve">
-    <value>Shortcut not registered</value>
+    <value>ยังไม่ได้ลงทะเบียนปุ่มลัด</value>
   </data>
   <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
-    <value>Choose a different shortcut</value>
+    <value>เลือกปุ่มลัดอื่น</value>
   </data>
   <data name="onboarding.source.title" xml:space="preserve">
-    <value>How do you want to transcribe?</value>
+    <value>คุณต้องการถอดเสียงอย่างไร?</value>
   </data>
   <data name="onboarding.source.subtitle" xml:space="preserve">
-    <value>All three put the same text in the same place. They differ on speed, privacy, and who you pay.</value>
+    <value>โหมดหนึ่งจะรวมแหล่งถอดเสียงเข้ากับการตั้งค่าการจัดรูปแบบของคุณ เลือกแหล่งที่มาเพื่อเริ่มต้น — คุณสามารถเพิ่มได้อีกในภายหลัง</value>
   </data>
   <data name="onboarding.source.cloud.title" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.source.cloud.description" xml:space="preserve">
-    <value>Fastest to set up, best accuracy. Prepaid credits, no subscription.</value>
+    <value>รวดเร็วและแม่นยำที่สุด เครดิตแบบเติมเงินล่วงหน้า เรียกเก็บเงินจากส่วนกลาง — ไม่ต้องดาวน์โหลดโมเดลลงเครื่อง</value>
   </data>
   <data name="onboarding.source.onDevice.title" xml:space="preserve">
-    <value>On this PC</value>
+    <value>บนพีซีเครื่องนี้</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Private and free. Downloads a model once, then works with no network.</value>
+    <value>ทำงานทั้งหมดบน Mac ของคุณ ฟรี เป็นส่วนตัว ใช้งานได้แบบออฟไลน์ — ไม่มีข้อมูลใดออกจากอุปกรณ์ของคุณ</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
-    <value>Your API Key</value>
+    <value>API Key ของคุณ</value>
   </data>
   <data name="onboarding.source.provider.description" xml:space="preserve">
-    <value>Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.</value>
+    <value>ใช้บัญชี OpenAI, Deepgram หรือ Groq ของคุณเอง คุณควบคุมคีย์และการเรียกเก็บเงินเอง</value>
   </data>
   <data name="onboarding.source.note" xml:space="preserve">
-    <value>Changing your mind later reruns this one step. Nothing else you set up is lost.</value>
+    <value>หากเปลี่ยนใจภายหลัง ระบบจะรันซ้ำแค่ขั้นตอนนี้ขั้นตอนเดียว สิ่งอื่นที่คุณตั้งค่าไว้จะไม่หายไป</value>
   </data>
   <data name="onboarding.configure.cloud.title" xml:space="preserve">
-    <value>Activate HyperWhisper Cloud</value>
+    <value>เปิดใช้งาน HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.configure.cloud.subtitle" xml:space="preserve">
-    <value>Enter your Cloud access key to connect this PC to your prepaid credits.</value>
+    <value>ป้อนคีย์เข้าถึง Cloud ของคุณเพื่อเชื่อมต่อพีซีเครื่องนี้กับเครดิตแบบเติมเงินล่วงหน้าของคุณ</value>
   </data>
   <data name="onboarding.configure.cloud.placeholder" xml:space="preserve">
-    <value>Paste your access key</value>
+    <value>วางคีย์เข้าถึงของคุณ</value>
   </data>
   <data name="onboarding.configure.cloud.getCredits" xml:space="preserve">
-    <value>Don't have a key? Get credits at hyperwhisper.com</value>
+    <value>ยังไม่มีคีย์ใช่ไหม? รับเครดิตได้ที่ hyperwhisper.com</value>
   </data>
   <data name="onboarding.configure.cloud.creditsCaption" xml:space="preserve">
-    <value>credits available</value>
+    <value>เครดิตที่มี</value>
   </data>
   <data name="onboarding.configure.cloud.note" xml:space="preserve">
-    <value>Credits are prepaid and shared across every PC signed in with this key. Idle time costs nothing.</value>
+    <value>เครดิตเป็นแบบเติมเงินล่วงหน้าและใช้ร่วมกันในทุกพีซีที่เข้าสู่ระบบด้วยคีย์นี้ เวลาที่ไม่ได้ใช้งานไม่เสียค่าใช้จ่าย</value>
   </data>
   <data name="onboarding.configure.onDevice.title" xml:space="preserve">
-    <value>Choose a model</value>
+    <value>เลือกโมเดล</value>
   </data>
   <data name="onboarding.configure.onDevice.subtitle" xml:space="preserve">
-    <value>Larger models are more accurate and slower to download.</value>
+    <value>เลือกโมเดลเสียงที่จะดาวน์โหลด โมเดลที่ใหญ่กว่าจะแม่นยำกว่าแต่ใช้พื้นที่มากกว่า</value>
   </data>
   <data name="onboarding.configure.onDevice.note" xml:space="preserve">
-    <value>Audio never leaves this PC. After the download it works on a plane.</value>
+    <value>เสียงจะไม่ออกจากพีซีเครื่องนี้เลย หลังดาวน์โหลดเสร็จ ใช้งานได้แม้บนเครื่องบิน</value>
   </data>
   <data name="onboarding.configure.provider.title" xml:space="preserve">
-    <value>Connect your provider</value>
+    <value>เชื่อมต่อผู้ให้บริการของคุณ</value>
   </data>
   <data name="onboarding.configure.provider.subtitle" xml:space="preserve">
-    <value>Choose a provider and paste your API key. It is stored securely in Windows Credential Manager.</value>
+    <value>เลือกผู้ให้บริการและวาง API Key ของคุณ ระบบจะจัดเก็บอย่างปลอดภัยใน Windows Credential Manager</value>
   </data>
   <data name="onboarding.configure.provider.keyPlaceholder" xml:space="preserve">
-    <value>Paste your API key</value>
+    <value>วาง API Key ของคุณ</value>
   </data>
   <data name="onboarding.configure.provider.keychainNote" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>จัดเก็บอย่างปลอดภัยใน Windows Credential Manager</value>
   </data>
   <data name="onboarding.configure.noSource.title" xml:space="preserve">
-    <value>Choose a transcription source first.</value>
+    <value>เลือกแหล่งถอดเสียงก่อน</value>
   </data>
   <data name="onboarding.configure.noSource.caption" xml:space="preserve">
-    <value>Go back one step and pick where your speech should become text.</value>
+    <value>ย้อนกลับไปหนึ่งขั้นตอนแล้วเลือกว่าคำพูดของคุณควรกลายเป็นข้อความที่ไหน</value>
   </data>
   <data name="onboarding.noSource.detail" xml:space="preserve">
-    <value>This step depends on the source you pick.</value>
+    <value>ขั้นตอนนี้ขึ้นอยู่กับแหล่งที่คุณเลือก</value>
   </data>
   <data name="onboarding.configure.cloud.testKey" xml:space="preserve">
-    <value>Test access key</value>
+    <value>ทดสอบคีย์เข้าถึง</value>
   </data>
   <data name="onboarding.configure.provider.testKey" xml:space="preserve">
-    <value>Test API key</value>
+    <value>ทดสอบ API Key</value>
   </data>
   <data name="onboarding.configure.test.testing" xml:space="preserve">
-    <value>Testing…</value>
+    <value>กำลังทดสอบ…</value>
   </data>
   <data name="onboarding.configure.test.valid" xml:space="preserve">
-    <value>Access key valid</value>
+    <value>คีย์เข้าถึงถูกต้อง</value>
   </data>
   <data name="onboarding.configure.test.healthy" xml:space="preserve">
-    <value>Connected</value>
+    <value>เชื่อมต่อแล้ว</value>
   </data>
   <data name="onboarding.configure.test.unauthorized" xml:space="preserve">
-    <value>Provider rejected this key. Double-check it's still valid.</value>
+    <value>ผู้ให้บริการปฏิเสธคีย์นี้ กรุณาตรวจสอบว่าคีย์ยังถูกต้องอยู่หรือไม่</value>
   </data>
   <data name="onboarding.configure.test.unreachable" xml:space="preserve">
-    <value>Couldn't reach the provider. Check your internet, then test again.</value>
+    <value>ไม่สามารถเชื่อมต่อกับผู้ให้บริการได้ ตรวจสอบอินเทอร์เน็ตของคุณแล้วลองใหม่อีกครั้ง</value>
   </data>
   <data name="onboarding.model.parakeetV2.subtitle" xml:space="preserve">
-    <value>English only. Fastest on this PC.</value>
+    <value>ภาษาอังกฤษเท่านั้น เร็วที่สุดบนพีซีเครื่องนี้</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingual. Same speed, larger download.</value>
+    <value>พหุภาษา · 25 ภาษา</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
-    <value>Multilingual. Smallest download, lowest accuracy.</value>
+    <value>พหุภาษา · ขนาดเล็กมาก</value>
   </data>
   <data name="onboarding.model.whisperTurbo.subtitle" xml:space="preserve">
-    <value>Multilingual. Most accurate offline option.</value>
+    <value>พหุภาษา · Whisper ที่แม่นยำที่สุด</value>
   </data>
   <data name="onboarding.model.downloaded" xml:space="preserve">
-    <value>Downloaded</value>
+    <value>ดาวน์โหลดแล้ว</value>
   </data>
   <data name="onboarding.setup.cloud.title" xml:space="preserve">
-    <value>Activate your key</value>
+    <value>เปิดใช้งานคีย์ของคุณ</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
-    <value>Key verified, credits confirmed. Recordings will go to HyperWhisper Cloud.</value>
+    <value>ยืนยันคีย์แล้ว ยืนยันเครดิตแล้ว การบันทึกจะไปที่ HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
-    <value>Activate Cloud</value>
+    <value>เปิดใช้งาน Cloud</value>
   </data>
   <data name="onboarding.setup.cloud.activating" xml:space="preserve">
-    <value>Activating…</value>
+    <value>กำลังเปิดใช้งาน…</value>
   </data>
   <data name="onboarding.setup.cloud.active" xml:space="preserve">
-    <value>Cloud key activated</value>
+    <value>เปิดใช้งานคีย์ Cloud แล้ว</value>
   </data>
   <data name="onboarding.setup.cloud.check.keyVerified" xml:space="preserve">
-    <value>Access key verified</value>
+    <value>ยืนยันคีย์เข้าถึงแล้ว</value>
   </data>
   <data name="onboarding.setup.cloud.check.activated" xml:space="preserve">
-    <value>Account activated for this device</value>
+    <value>เปิดใช้งานบัญชีสำหรับอุปกรณ์นี้แล้ว</value>
   </data>
   <data name="onboarding.setup.cloud.check.creditsConfirmed" xml:space="preserve">
-    <value>Credits confirmed</value>
+    <value>ยืนยันเครดิตแล้ว</value>
   </data>
   <data name="onboarding.setup.cloud.credits.caption" xml:space="preserve">
-    <value>credits, spent per minute of audio</value>
+    <value>เครดิต ใช้ต่อนาทีของเสียง</value>
   </data>
   <data name="onboarding.setup.cloud.note" xml:space="preserve">
-    <value>Run low and HyperWhisper tells you before a recording, not after.</value>
+    <value>หากเครดิตใกล้หมด HyperWhisper จะแจ้งให้ทราบก่อนเริ่มบันทึก ไม่ใช่หลังจากนั้น</value>
   </data>
   <data name="onboarding.setup.onDevice.title" xml:space="preserve">
-    <value>Download your model</value>
+    <value>ดาวน์โหลดโมเดลของคุณ</value>
   </data>
   <data name="onboarding.setup.onDevice.subtitle" xml:space="preserve">
-    <value>This happens once. Every recording after it runs offline.</value>
+    <value>เกิดขึ้นเพียงครั้งเดียว การบันทึกทุกครั้งหลังจากนี้จะทำงานแบบออฟไลน์</value>
   </data>
   <data name="onboarding.setup.onDevice.download" xml:space="preserve">
-    <value>Download {0}</value>
+    <value>ดาวน์โหลด {0}</value>
   </data>
   <data name="onboarding.setup.onDevice.downloading" xml:space="preserve">
-    <value>Downloading… {0}%</value>
+    <value>กำลังดาวน์โหลด… {0}%</value>
   </data>
   <data name="onboarding.setup.onDevice.ready" xml:space="preserve">
-    <value>Model ready</value>
+    <value>โมเดลพร้อมใช้งาน</value>
   </data>
   <data name="onboarding.setup.onDevice.storedCaption" xml:space="preserve">
-    <value>stored on this PC</value>
+    <value>จัดเก็บบนพีซีเครื่องนี้</value>
   </data>
   <data name="onboarding.setup.onDevice.totalCaption" xml:space="preserve">
-    <value>total download</value>
+    <value>ขนาดดาวน์โหลดทั้งหมด</value>
   </data>
   <data name="onboarding.setup.onDevice.note" xml:space="preserve">
-    <value>The model stays on this PC, so your audio is transcribed here and never uploaded.</value>
+    <value>โมเดลจะอยู่บนพีซีเครื่องนี้ เสียงของคุณจึงถูกถอดเป็นข้อความที่นี่ และไม่ถูกอัปโหลดไปที่ใด</value>
   </data>
   <data name="onboarding.setup.provider.title" xml:space="preserve">
-    <value>Save your key</value>
+    <value>บันทึกคีย์ของคุณ</value>
   </data>
   <data name="onboarding.setup.provider.subtitle" xml:space="preserve">
-    <value>Windows holds it. HyperWhisper asks for it only when a recording needs transcribing.</value>
+    <value>Windows เป็นผู้เก็บคีย์ไว้ให้ HyperWhisper จะขอใช้ก็ต่อเมื่อมีการบันทึกที่ต้องถอดเสียงเท่านั้น</value>
   </data>
   <data name="onboarding.setup.provider.save" xml:space="preserve">
-    <value>Save key</value>
+    <value>บันทึกคีย์</value>
   </data>
   <data name="onboarding.setup.provider.saved" xml:space="preserve">
-    <value>API key saved</value>
+    <value>บันทึก API Key แล้ว</value>
   </data>
   <data name="onboarding.setup.provider.check.validated" xml:space="preserve">
-    <value>Key validated against {0}</value>
+    <value>ตรวจสอบคีย์กับ {0} แล้ว</value>
   </data>
   <data name="onboarding.setup.provider.check.written" xml:space="preserve">
-    <value>Written to Windows Credential Manager</value>
+    <value>บันทึกลงใน Windows Credential Manager แล้ว</value>
   </data>
   <data name="onboarding.setup.provider.keychainItem" xml:space="preserve">
-    <value>HyperWhisper · {0} API key</value>
+    <value>HyperWhisper · คีย์ API {0}</value>
   </data>
   <data name="onboarding.setup.provider.keyHidden" xml:space="preserve">
-    <value>Stored, never shown again</value>
+    <value>จัดเก็บแล้ว จะไม่แสดงอีก</value>
   </data>
   <data name="onboarding.setup.provider.note" xml:space="preserve">
-    <value>Delete it from Settings, Transcription and HyperWhisper stops calling the provider immediately.</value>
+    <value>ลบออกจาก การตั้งค่า, การถอดเสียง แล้ว HyperWhisper จะหยุดเรียกใช้ผู้ให้บริการทันที</value>
   </data>
   <data name="onboarding.setup.selectFirst" xml:space="preserve">
-    <value>Go back and make a selection first.</value>
+    <value>กลับไปเลือกก่อน</value>
   </data>
   <data name="onboarding.setup.noSource.title" xml:space="preserve">
-    <value>Nothing to set up.</value>
+    <value>ไม่มีอะไรต้องตั้งค่า</value>
   </data>
   <data name="onboarding.setup.noSource.caption" xml:space="preserve">
-    <value>Go back and choose a transcription source.</value>
+    <value>ย้อนกลับไปเลือกแหล่งถอดเสียง</value>
   </data>
   <data name="onboarding.setup.onDevice.error" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>ดาวน์โหลดล้มเหลว: {0}</value>
   </data>
   <data name="onboarding.setup.cloud.error" xml:space="preserve">
-    <value>Activation failed: {0}</value>
+    <value>เปิดใช้งานล้มเหลว: {0}</value>
   </data>
   <data name="onboarding.setup.provider.error" xml:space="preserve">
-    <value>Could not save your key: {0}</value>
+    <value>ไม่สามารถบันทึกคีย์ของคุณได้: {0}</value>
   </data>
   <data name="onboarding.setup.provider.saveFailed" xml:space="preserve">
-    <value>The key could not be written to Windows Credential Manager.</value>
+    <value>ไม่สามารถบันทึกคีย์ลงใน Windows Credential Manager ได้</value>
   </data>
   <data name="onboarding.setup.model.notFound" xml:space="preserve">
-    <value>This model is not in the model library.</value>
+    <value>ไม่พบโมเดลนี้ในคลังโมเดล</value>
   </data>
   <data name="onboarding.setup.model.downloadFailed" xml:space="preserve">
-    <value>The download did not finish.</value>
+    <value>การดาวน์โหลดไม่เสร็จสมบูรณ์</value>
   </data>
   <data name="onboarding.mic.title" xml:space="preserve">
-    <value>Say something. Watch the bars.</value>
+    <value>ตั้งค่าไมโครโฟนของคุณ</value>
   </data>
   <data name="onboarding.mic.title.unavailable" xml:space="preserve">
-    <value>Check your microphone.</value>
+    <value>ตรวจสอบไมโครโฟนของคุณ</value>
   </data>
   <data name="onboarding.mic.subtitle" xml:space="preserve">
-    <value>If the level moves when you talk, HyperWhisper can hear you.</value>
+    <value>เลือกอุปกรณ์อินพุตของคุณ และตรวจสอบว่าแถบระดับเสียงขยับเมื่อคุณพูด</value>
   </data>
   <data name="onboarding.mic.device.systemDefault" xml:space="preserve">
-    <value>System Default</value>
+    <value>ค่าเริ่มต้นของระบบ</value>
   </data>
   <data name="onboarding.mic.device.followsSystem" xml:space="preserve">
-    <value>Follows Windows</value>
+    <value>เป็นไปตาม Windows</value>
   </data>
   <data name="onboarding.mic.device.inUse" xml:space="preserve">
-    <value>In use</value>
+    <value>กำลังใช้งาน</value>
   </data>
   <data name="onboarding.mic.levelHint" xml:space="preserve">
-    <value>Levels too low, or the wrong device listed?</value>
+    <value>ระดับเสียงต่ำเกินไป หรือแสดงอุปกรณ์ผิด?</value>
   </data>
   <data name="onboarding.mic.soundSettings" xml:space="preserve">
-    <value>Sound Settings</value>
+    <value>การตั้งค่าเสียง</value>
   </data>
   <data name="onboarding.mic.note" xml:space="preserve">
-    <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
+    <value>ค่าเริ่มต้นของระบบจะเป็นไปตามที่ Windows กำลังใช้งาน รวมถึงเฮดเซ็ตที่คุณเสียบภายหลังด้วย</value>
   </data>
   <data name="onboarding.mic.blocked" xml:space="preserve">
-    <value>Microphone access is turned off for desktop apps. Turn it on in Windows Settings, then come back to this step.</value>
+    <value>การเข้าถึงไมโครโฟนถูกปิดสำหรับแอปเดสก์ท็อป เปิดใช้งานในการตั้งค่า Windows แล้วกลับมาที่ขั้นตอนนี้</value>
   </data>
   <data name="onboarding.mic.none" xml:space="preserve">
-    <value>No microphone is connected. Plug one in and it shows up here on its own.</value>
+    <value>ยังไม่มีไมโครโฟนเชื่อมต่ออยู่ เสียบสักตัวแล้วมันจะปรากฏที่นี่เอง</value>
   </data>
   <data name="onboarding.mic.enumerationFailed" xml:space="preserve">
-    <value>Windows could not list your audio devices. Check Sound settings, then come back to this step.</value>
+    <value>Windows ไม่สามารถแสดงรายการอุปกรณ์เสียงของคุณได้ ตรวจสอบการตั้งค่าเสียง แล้วกลับมาที่ขั้นตอนนี้</value>
   </data>
   <data name="onboarding.mic.meter.inactive" xml:space="preserve">
-    <value>No level to show yet.</value>
+    <value>ยังไม่มีระดับเสียงให้แสดง</value>
   </data>
   <data name="onboarding.mic.privacySettings" xml:space="preserve">
-    <value>Open privacy settings</value>
+    <value>เปิดการตั้งค่าความเป็นส่วนตัว</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Make one recording.</value>
+    <value>ทุกอย่างพร้อม มาเริ่มการบันทึกครั้งแรกของคุณ</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
-    <value>Press the shortcut, say the line, press it again.</value>
+    <value>กดปุ่มลัด พูดประโยค แล้วกดอีกครั้ง</value>
   </data>
   <data name="onboarding.tryIt.shortcutHint" xml:space="preserve">
-    <value>Press once to start, once more to stop.</value>
+    <value>กดครั้งเดียวเพื่อเริ่ม กดอีกครั้งเพื่อหยุด</value>
   </data>
   <data name="onboarding.tryIt.record" xml:space="preserve">
-    <value>Record</value>
+    <value>บันทึก</value>
   </data>
   <data name="onboarding.tryIt.recorded" xml:space="preserve">
-    <value>Recorded</value>
+    <value>บันทึกแล้ว</value>
   </data>
   <data name="onboarding.tryIt.recordAgain" xml:space="preserve">
-    <value>Record again</value>
+    <value>บันทึกอีกครั้ง</value>
   </data>
   <data name="onboarding.test.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>หยุดการบันทึก</value>
   </data>
   <data name="onboarding.test.status.speak" xml:space="preserve">
-    <value>Speak now...</value>
+    <value>พูดตอนนี้...</value>
   </data>
   <data name="onboarding.tryIt.trySaying" xml:space="preserve">
-    <value>Try saying</value>
+    <value>ลองพูดว่า</value>
   </data>
   <data name="onboarding.tryIt.sampleLine" xml:space="preserve">
-    <value>“HyperWhisper turns what I say into text, right where I am typing.”</value>
+    <value>“HyperWhisper แปลงสิ่งที่ฉันพูดให้เป็นข้อความ ตรงตำแหน่งที่ฉันกำลังพิมพ์อยู่”</value>
   </data>
   <data name="onboarding.try.transcript.heading" xml:space="preserve">
-    <value>What came back</value>
+    <value>คุณพูดว่า</value>
   </data>
   <data name="onboarding.tryIt.listening" xml:space="preserve">
-    <value>Listening</value>
+    <value>กำลังฟัง</value>
   </data>
   <data name="onboarding.tryIt.empty" xml:space="preserve">
-    <value>Nothing yet. Start a recording to see the text land here.</value>
+    <value>ยังไม่มีอะไร เริ่มการบันทึกเพื่อดูข้อความปรากฏที่นี่</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} words · {1}</value>
+    <value>{0} คำ · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
-    <value>Shown here only, not pasted into other apps</value>
+    <value>แสดงที่นี่เท่านั้น — ไม่ได้วางลงในแอปอื่น</value>
   </data>
   <data name="onboarding.tryIt.note" xml:space="preserve">
-    <value>Turn on auto paste later and the text lands at your cursor instead.</value>
+    <value>เปิดการวางอัตโนมัติภายหลัง แล้วข้อความจะไปปรากฏที่เคอร์เซอร์ของคุณแทน</value>
   </data>
   <data name="onboarding.tryIt.sample.button" xml:space="preserve">
-    <value>Transcribe a sample clip</value>
+    <value>ถอดเสียงคลิปตัวอย่าง</value>
   </data>
   <data name="onboarding.tryIt.sample.hint" xml:space="preserve">
-    <value>No microphone is connected, so HyperWhisper runs a short bundled clip through everything a real recording uses.</value>
+    <value>ยังไม่มีไมโครโฟนเชื่อมต่ออยู่ HyperWhisper จึงนำคลิปสั้นที่มาพร้อมกับแอปไปผ่านทุกขั้นตอนเดียวกับการบันทึกจริง</value>
   </data>
   <data name="onboarding.tryIt.sample.result" xml:space="preserve">
-    <value>From the bundled sample clip</value>
+    <value>จากคลิปตัวอย่างที่มาพร้อมกับแอป</value>
   </data>
   <data name="onboarding.tryIt.sample.transcribing" xml:space="preserve">
-    <value>Transcribing the sample…</value>
+    <value>กำลังถอดเสียงคลิปตัวอย่าง…</value>
   </data>
   <data name="onboarding.tryIt.sample.missing" xml:space="preserve">
-    <value>The sample clip is missing from this build.</value>
+    <value>บิลด์นี้ไม่มีคลิปตัวอย่าง</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>You are ready to dictate.</value>
+    <value>เสร็จเรียบร้อย!</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
-    <value>Press the shortcut in any app and start talking.</value>
+    <value>กดปุ่มลัดในแอปใดก็ได้แล้วเริ่มพูด</value>
   </data>
   <data name="onboarding.done.summary.transcription" xml:space="preserve">
-    <value>Transcription</value>
+    <value>การถอดเสียง</value>
   </data>
   <data name="onboarding.done.summary.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>ไมโครโฟน</value>
   </data>
   <data name="onboarding.done.summary.textDelivery" xml:space="preserve">
-    <value>Text delivery</value>
+    <value>การส่งข้อความ</value>
   </data>
   <data name="onboarding.done.summary.shortcut" xml:space="preserve">
-    <value>Shortcut</value>
+    <value>ปุ่มลัด</value>
   </data>
   <data name="onboarding.done.summary.onDevice" xml:space="preserve">
-    <value>{0} · on this PC</value>
+    <value>{0} · บนพีซีเครื่องนี้</value>
   </data>
   <data name="onboarding.done.summary.cloud" xml:space="preserve">
-    <value>{0} · {1} credits</value>
+    <value>{0} · {1} เครดิต</value>
   </data>
   <data name="onboarding.done.summary.provider" xml:space="preserve">
-    <value>{0} · your own key</value>
+    <value>{0} · คีย์ของคุณเอง</value>
   </data>
   <data name="onboarding.done.textDelivery.cursor" xml:space="preserve">
-    <value>Pastes at your cursor</value>
+    <value>วางที่ตำแหน่งเคอร์เซอร์</value>
   </data>
   <data name="onboarding.done.textDelivery.clipboard" xml:space="preserve">
-    <value>Copied to clipboard</value>
+    <value>คัดลอกไปยังคลิปบอร์ด</value>
   </data>
   <data name="onboarding.done.menuBarNote" xml:space="preserve">
-    <value>HyperWhisper lives in the system tray. Click it for history, modes, and everything above.</value>
+    <value>HyperWhisper อยู่ในถาดระบบ คลิกเพื่อดูประวัติ โหมด และทุกอย่างข้างต้น</value>
   </data>
   <data name="onboarding.done.button" xml:space="preserve">
-    <value>Done Onboarding</value>
+    <value>เสร็จสิ้นการเข้าสู่ระบบ</value>
   </data>
   <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
-    <value>None connected</value>
+    <value>ไม่มีที่เชื่อมต่อ</value>
   </data>
   <data name="onboarding.footer.continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>ต่อไป</value>
   </data>
   <data name="onboarding.footer.back" xml:space="preserve">
-    <value>Back</value>
+    <value>ย้อนกลับ</value>
   </data>
   <data name="onboarding.footer.reassurance.welcome" xml:space="preserve">
-    <value>Every answer can be changed later in Settings.</value>
+    <value>ทุกคำตอบสามารถเปลี่ยนได้ภายหลังในการตั้งค่า</value>
   </data>
   <data name="onboarding.footer.reassurance.permissions" xml:space="preserve">
-    <value>The shortcut can be changed later in Settings.</value>
+    <value>เปลี่ยนปุ่มลัดภายหลังได้ในการตั้งค่า</value>
   </data>
   <data name="onboarding.footer.reassurance.source" xml:space="preserve">
-    <value>You can switch sources later in Settings.</value>
+    <value>คุณสามารถเปลี่ยนแหล่งที่มาได้ภายหลังในการตั้งค่า</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.cloud" xml:space="preserve">
-    <value>The key is stored in Windows Credential Manager.</value>
+    <value>คีย์จะถูกจัดเก็บใน Windows Credential Manager</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.onDevice" xml:space="preserve">
-    <value>More models live in the Model Library.</value>
+    <value>มีโมเดลเพิ่มเติมอยู่ในคลังโมเดล</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.provider" xml:space="preserve">
-    <value>You can change providers later in Settings.</value>
+    <value>คุณสามารถเปลี่ยนผู้ให้บริการได้ภายหลังในการตั้งค่า</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.cloud" xml:space="preserve">
-    <value>Top up any time from your account.</value>
+    <value>เติมเครดิตได้ทุกเมื่อจากบัญชีของคุณ</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.onDevice" xml:space="preserve">
-    <value>Pausing the download will not lose progress.</value>
+    <value>หยุดการดาวน์โหลดชั่วคราวจะไม่ทำให้ความคืบหน้าหายไป</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.provider" xml:space="preserve">
-    <value>Remove the key any time in Settings.</value>
+    <value>ลบคีย์ได้ทุกเมื่อในการตั้งค่า</value>
   </data>
   <data name="onboarding.footer.reassurance.microphone" xml:space="preserve">
-    <value>Input device is switchable at any time.</value>
+    <value>สลับอุปกรณ์อินพุตได้ทุกเมื่อ</value>
   </data>
   <data name="onboarding.footer.reassurance.tryIt" xml:space="preserve">
-    <value>The audio is discarded once the text is ready.</value>
+    <value>เสียงจะถูกทิ้งทันทีที่ข้อความพร้อม</value>
   </data>
   <data name="onboarding.footer.reassurance.done" xml:space="preserve">
-    <value>All of it is editable in Settings.</value>
+    <value>ทุกอย่างแก้ไขได้ในการตั้งค่า</value>
   </data>
   <data name="onboarding.footer.reassurance.pickSource" xml:space="preserve">
-    <value>Pick a source to continue.</value>
+    <value>เลือกแหล่งที่มาเพื่อดำเนินการต่อ</value>
   </data>
   <data name="onboarding.setupLater.button" xml:space="preserve">
-    <value>Set Up Later</value>
+    <value>ตั้งค่าภายหลัง</value>
   </data>
   <data name="onboarding.progress.a11y" xml:space="preserve">
-    <value>Step {0} of {1}</value>
+    <value>ขั้นตอน {0} จาก {1}</value>
   </data>
   <data name="onboarding.a11y.percent" xml:space="preserve">
-    <value>{0} percent</value>
+    <value>{0} เปอร์เซ็นต์</value>
   </data>
   <data name="onboarding.a11y.downloadProgress" xml:space="preserve">
-    <value>Download progress</value>
+    <value>ความคืบหน้าการดาวน์โหลด</value>
   </data>
   <data name="onboarding.a11y.inputLevel" xml:space="preserve">
-    <value>Microphone input level</value>
+    <value>ระดับสัญญาณเสียงไมโครโฟน</value>
   </data>
   <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
-    <value>Selected, {0}</value>
+    <value>เลือกแล้ว, {0}</value>
   </data>
   <data name="onboarding.a11y.notSelectedDetail" xml:space="preserve">
-    <value>Not selected, {0}</value>
+    <value>ยังไม่ได้เลือก, {0}</value>
   </data>
   <data name="onboarding.a11y.selectedInput" xml:space="preserve">
-    <value>Selected input</value>
+    <value>อินพุตที่เลือก</value>
   </data>
   <data name="onboarding.error.microphone.denied" xml:space="preserve">
-    <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
+    <value>ปฏิเสธการอนุญาตไมโครโฟน โปรดให้สิทธิ์ในการตั้งค่า Windows</value>
   </data>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
-    <value>Run setup again</value>
+    <value>เรียกใช้การตั้งค่าอีกครั้ง</value>
   </data>
   <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
-    <value>Finish the current dictation before running setup again.</value>
+    <value>ทำการพิมพ์ด้วยเสียงที่ค้างอยู่ให้เสร็จก่อนเรียกใช้การตั้งค่าอีกครั้ง</value>
   </data>
   <data name="onboarding.restore.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+    <value>HyperWhisper ไม่สามารถกู้คืนโหมดเริ่มต้นก่อนหน้าของคุณได้ เปิดโหมดเพื่อตรวจสอบการตั้งค่า</value>
   </data>
   <data name="onboarding.apply.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+    <value>HyperWhisper ไม่สามารถบันทึกตัวเลือกของคุณได้ ไม่มีอะไรถูกเปลี่ยนแปลง ลองอีกครั้ง หรือเลือกตั้งค่าภายหลัง</value>
   </data>
   <data name="onboarding.configure.test.unverified" xml:space="preserve">
-    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+    <value>บันทึก API Key แล้ว ผู้ให้บริการรายนี้ไม่มีวิธีตรวจสอบคีย์โดยไม่ถอดเสียง ระบบจึงจะตรวจสอบในครั้งแรกที่คุณพิมพ์ด้วยเสียง</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
