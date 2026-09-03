@@ -1919,49 +1919,100 @@ private extension Harness {
     }
 
     /// A flow parked on the microphone step with everything primed: a usable
-    /// on-device source, a populated device list, and both key fields filled. Every
-    /// entry point called after the exit therefore has real work it WOULD do if its
-    /// guard were missing, which is what makes the frozen snapshot mean something.
+    /// on-device source, a populated device list, both key fields filled, AND an
+    /// explicit device pick, so `didCaptureDevice` is true and the `deferSetup()`
+    /// exit has a real restore to perform. Every entry point called after the exit
+    /// therefore has real work it WOULD do if its guard were missing, which is what
+    /// makes the frozen snapshot mean something.
     func primeForTheSweep() {
         stageInstalledOnDeviceModel()
         advance(to: .microphone)
         flow.beginMicrophoneStep()
+        flow.selectDevice(id: "usb")
         flow.licenseKeyInput = "hw-late"
         flow.apiKeyInput = "sk-late"
     }
 
-    /// Every entry point the `isLive` doc block lists as guarded, in that order.
+    /// THE LIST. This is the only enumeration of the guarded entry points in the
+    /// codebase: the `isLive` doc block in `OnboardingFlowModel` points here rather
+    /// than restating it, and each guarded method carries only its own reason at its
+    /// own `guard isLive`. Adding a guard to the model means adding one line here —
+    /// and `everyEntryGuardInTheModelIsSweptHere` fails until you do.
     ///
-    /// THIS IS THE LIST. Adding an `isLive` guard to the model means adding its
-    /// method here; adding a mutating entry point WITHOUT a guard means adding it
-    /// here and watching this fail. That is the whole point — the alternative is a
-    /// bespoke test per method, which grows with the allow list and can never catch
-    /// the method nobody thought to write a test for.
-    func callEveryGuardedEntryPoint() {
+    /// `checkpoint` runs after EVERY call, not once at the end. That matters: `back()`
+    /// and `advance()` are adjacent and, from `.microphone` with a usable source, an
+    /// unguarded pair moves `.microphone` → `.setup` → `.microphone` and nets out to
+    /// no change at all. Asserting per call means each entry point is pinned on its
+    /// own and no two can cancel each other.
+    func callEveryGuardedEntryPoint(checkpoint: (String) -> Void) {
         flow.back()
+        checkpoint("back()")
         flow.advance()
+        checkpoint("advance()")
         flow.complete()
+        checkpoint("complete()")
         flow.deferSetup()
+        checkpoint("deferSetup()")
         flow.handleMicrophoneAction()
+        checkpoint("handleMicrophoneAction()")
         flow.requestMicrophonePermission()
+        checkpoint("requestMicrophonePermission()")
         flow.handleAccessibilityAction()
+        checkpoint("handleAccessibilityAction()")
         flow.testAccessKey()
+        checkpoint("testAccessKey()")
         flow.testProviderKey()
+        checkpoint("testProviderKey()")
         flow.saveProviderKey()
+        checkpoint("saveProviderKey()")
         flow.activateCloudLicense()
+        checkpoint("activateCloudLicense()")
         flow.startSelectedModelDownload()
+        checkpoint("startSelectedModelDownload()")
         flow.beginMicrophoneStep()
+        checkpoint("beginMicrophoneStep()")
         flow.selectDevice(id: "usb")
+        checkpoint("selectDevice(id:)")
         flow.beginTryItStep()
+        checkpoint("beginTryItStep()")
         flow.toggleTestRecording()
+        checkpoint("toggleTestRecording()")
     }
+}
+
+/// Counts the `guard isLive` ENTRY guards in the model's own source, so the list
+/// above has something enforcing it instead of three copies kept in step by hand.
+///
+/// Swift has no method reflection for a non-`NSObject` class, so no test can
+/// DISCOVER a new entry point. Reading the file next door is the one check that is
+/// actually available: it cannot tell you WHICH method you forgot, but it fails the
+/// moment the model has a guard the sweep does not call. The inner liveness checks
+/// inside the async continuations read `self.isLive` and do not match.
+private func entryGuardsDeclaredInTheModel() throws -> Int {
+    let model = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()  // hyperwhisperTests
+        .deletingLastPathComponent()  // app/macos
+        .appendingPathComponent("hyperwhisper")
+        .appendingPathComponent("Views")
+        .appendingPathComponent("Onboarding")
+        .appendingPathComponent("OnboardingFlowModel.swift")
+    let source = try String(contentsOf: model, encoding: .utf8)
+    return source
+        .split(separator: "\n", omittingEmptySubsequences: false)
+        .filter { $0.trimmingCharacters(in: .whitespaces).hasPrefix("guard isLive else") }
+        .count
 }
 
 /// The invariant itself, rather than the five methods #321 happened to name:
 /// once the flow has finished, no guarded entry point moves the step machine,
 /// reaches a dependency, or starts new work — through EITHER exit. The companion
-/// test pins the deliberate exclusions, so the two together cover the model's
-/// whole mutating surface.
+/// test pins the deliberate exclusions, and runs both exits too.
+///
+/// The honest limit of "whole mutating surface": these two halves cover every
+/// mutating METHOD. They do not cover the publicly settable `@Published`
+/// properties with `didSet` side effects — `licenseKeyInput`, `apiKeyInput`,
+/// `permissionErrorMessage` — which are bound straight to text fields and are
+/// deliberately left unguarded because their writes never leave this model.
 @MainActor
 struct OnboardingPostFinishInvariantTests {
     @Test func nothingGuardedRunsAfterCompletion() async {
@@ -1978,15 +2029,59 @@ struct OnboardingPostFinishInvariantTests {
         await sweepEveryGuardedEntryPoint(h)
     }
 
-    /// The other half of the invariant. The exclusions are excluded for reasons,
-    /// and both halves of each reason are asserted here: the release hooks really
-    /// do still fire after the exit (the microphone backstop, which is why gating
-    /// them was rejected), and none of the excluded paths touches the step machine
-    /// or anything a rollback would have had to undo.
-    @Test func theExcludedEntryPointsStillReleaseButNeverWrite() {
+    /// The list in `callEveryGuardedEntryPoint` cannot discover a method nobody
+    /// added to it, but it can be held to the model's own guard count. A future PR
+    /// that guards a new entry point and forgets the sweep fails here.
+    @Test func everyEntryGuardInTheModelIsSweptHere() throws {
+        let h = Harness()
+        // Exit first, so counting the list costs nothing: every call below is a
+        // no-op and this test says something about the list alone.
+        h.flow.deferSetup()
+        var swept = 0
+        h.callEveryGuardedEntryPoint { _ in swept += 1 }
+
+        let declared = try entryGuardsDeclaredInTheModel()
+        #expect(
+            swept == declared,
+            """
+            OnboardingFlowModel declares \(declared) `guard isLive` entry guards but \
+            callEveryGuardedEntryPoint makes \(swept) calls. Add the new entry point \
+            to that list — it is the only copy of it, and both sweeps depend on it.
+            """
+        )
+    }
+
+    /// The other half of the invariant, through the completion exit.
+    @Test func theExcludedEntryPointsStillReleaseButNeverWriteAfterCompletion() {
         let h = Harness()
         h.primeForTheSweep()
         #expect(h.flow.complete())
+        exerciseTheExcludedEntryPoints(h)
+    }
+
+    /// And through Set Up Later, which is the exit the exclusion rationale is
+    /// actually written about: `rollback()` has just put the user's original input
+    /// device back, so this is the only run in which "an excluded path must not
+    /// re-point the device" has something to be wrong about. After `complete()`
+    /// there is no restore to undo and the device assertions are vacuous.
+    @Test func theExcludedEntryPointsStillReleaseButNeverWriteAfterSetUpLater() {
+        let h = Harness()
+        h.primeForTheSweep()
+        #expect(h.flow.hasPendingProductionWrite, "the deferral must have a device restore to do")
+        h.flow.deferSetup()
+        // "usb" before the exit; nil is what the user had. Proves the restore ran,
+        // so the device assertions below are about holding it, not about nothing.
+        #expect(h.audio.storedDeviceID == nil, "rollback did not put the original device back")
+        #expect(h.audio.selectedDeviceID == nil)
+        exerciseTheExcludedEntryPoints(h)
+    }
+
+    /// The exclusions are excluded for reasons, and both halves of each reason are
+    /// asserted here: the release hooks really do still fire after the exit (the
+    /// microphone backstop, which is why gating them was rejected), and none of the
+    /// excluded paths touches the step machine or anything the exit just settled.
+    private func exerciseTheExcludedEntryPoints(_ h: Harness) {
+        #expect(!h.flow.isLiveForTesting, "the exit under test did not close the flow")
         let before = h.sideEffects
 
         // Release hooks: `.onDisappear` fires after `finish()`.
@@ -2027,22 +2122,26 @@ struct OnboardingPostFinishInvariantTests {
         let stepAtExit = h.flow.step
         let before = h.sideEffects
 
-        h.callEveryGuardedEntryPoint()
+        // One checkpoint per entry point, so every call is pinned on its own and a
+        // pair cannot net out to no change. Each check is synchronous on purpose:
+        // an entry point that mutates does so before it returns, and one that spawns
+        // work sets its in-progress flag and stores its task BEFORE its first
+        // suspension point, so a leaked guard shows up here with no awaiting at all.
+        h.callEveryGuardedEntryPoint { entryPoint in
+            #expect(h.flow.step == stepAtExit, "\(entryPoint) moved the step machine after the exit")
+            #expect(!h.flow.hasInFlightWorkForTesting, "\(entryPoint) spawned work after the exit")
+            #expect(!h.flow.isTestingKey, "\(entryPoint) started a key test after the exit")
+            #expect(!h.flow.isActivatingLicense, "\(entryPoint) started an activation after the exit")
+            #expect(!h.flow.hasPendingProductionWrite, "\(entryPoint) left a write to roll back")
+            #expect(h.sideEffects == before, "\(entryPoint) reached a dependency after the exit")
+        }
 
-        // Synchronous detectors first. Each async entry point sets its in-progress
-        // flag and stores its task BEFORE its first suspension point, so a leaked
-        // guard shows up here with no awaiting at all.
-        #expect(!h.flow.hasInFlightWorkForTesting, "an entry point spawned work after the exit")
-        #expect(!h.flow.isTestingKey)
-        #expect(!h.flow.isActivatingLicense)
-
-        // Then drain anything that did get spawned, so the snapshot below cannot
+        // Then drain anything that did get spawned, so the final snapshot cannot
         // pass merely because a leaked task had not run yet.
         await h.flow.lastAsyncTaskForTesting?.value
 
         #expect(h.flow.step == stepAtExit, "the step machine moved after the exit")
         #expect(!h.flow.hasPendingProductionWrite)
-        // The single assertion that covers all six fakes at once.
         #expect(h.sideEffects == before, "an entry point reached a dependency after the exit")
     }
 }

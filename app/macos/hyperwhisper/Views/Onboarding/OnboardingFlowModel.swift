@@ -443,14 +443,24 @@ final class OnboardingFlowModel: ObservableObject {
     ///
     /// The invariant, stated so it can be checked: once `isLive` is false, no entry
     /// point on this model may move the step machine, reach a dependency that
-    /// writes state outside this model, or start new work. That is enforced by an
-    /// `isLive` check at the top of `back()`, `advance()`, `complete()`,
-    /// `deferSetup()`, `handleMicrophoneAction()`, `requestMicrophonePermission()`,
-    /// `handleAccessibilityAction()`, `testAccessKey()`, `testProviderKey()`,
-    /// `saveProviderKey()`, `activateCloudLicense()`, `startSelectedModelDownload()`,
-    /// `beginMicrophoneStep()`, `selectDevice(id:)`, `beginTryItStep()` and
-    /// `toggleTestRecording()`. `OnboardingPostFinishInvariantTests` sweeps that
-    /// list against every fake; a new entry point belongs in the sweep too.
+    /// writes state outside this model, or start new work. It is enforced by a
+    /// `guard isLive` at the top of each such method, each carrying the reason that
+    /// applies to it and nothing more.
+    ///
+    /// The list of those methods is deliberately NOT restated here. It exists once,
+    /// as executable code, in `Harness.callEveryGuardedEntryPoint` in
+    /// `OnboardingFlowModelTests.swift`, which `OnboardingPostFinishInvariantTests`
+    /// sweeps through both exits against every fake. Adding a `guard isLive` to a
+    /// method here without adding it to that list fails
+    /// `everyEntryGuardInTheModelIsSweptHere`, which counts the guards in this file.
+    /// So: add the guard, add the line, and let the sweep prove it.
+    ///
+    /// The invariant is about METHODS. `licenseKeyInput`, `apiKeyInput` and
+    /// `permissionErrorMessage` are publicly settable and have `didSet` side
+    /// effects, and they are not guarded: a keystroke landing during the dismissal
+    /// animation still runs `invalidateProviderValidation()`. That is allowed
+    /// because those writes never leave this model, but it is a gap in the wording
+    /// "no entry point", not something the sweep covers.
     ///
     /// Three deliberate exclusions, each with a reason of its own:
     ///
