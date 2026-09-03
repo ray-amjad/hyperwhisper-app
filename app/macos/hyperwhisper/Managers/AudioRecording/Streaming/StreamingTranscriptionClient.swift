@@ -252,6 +252,24 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Used by stop sequences that must wait for a completion event before closing.
     private var didReceiveSessionComplete = false
 
+    /// True from the moment `stopSession()` starts until the next session begins.
+    ///
+    /// This is the client's own "the user has let go of the key" state, and it is
+    /// what a `.sessionComplete` from a per-turn provider is measured against
+    /// (see `completeEndsSessionBeforeStop` and the `.sessionComplete` arm of
+    /// `processServerMessage`). It is a private flag rather than a read of the
+    /// published `StreamingConnectionState.disconnecting` — which is the
+    /// condition Windows uses — because this client only ever *publishes*
+    /// connection state through `onConnectionStateChange` and never reads it
+    /// back, so there is nothing to key on.
+    ///
+    /// `didInitiateClose` is close but is not the same thing: it is also raised
+    /// by terminal-error teardown and by the close delegate, where "the session
+    /// is finished" is already true for other reasons and gating a completion on
+    /// it would be meaningless. Reset alongside `didReceiveSessionComplete` in
+    /// `startSession`.
+    private var stopRequested = false
+
     // MARK: - Session Diagnostics
     //
     // Every streaming fault this file reports used to arrive as a provider
@@ -368,6 +386,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         reconnectCount = 0
         connectionEstablishedAt = Date()
         didReceiveSessionComplete = false
+        // A client instance that survived one stop must not treat the NEXT
+        // session's first turn boundary as terminal. Cleared here, ahead of
+        // STEP 1, so it is cleared even on a start that fails to build a URL.
+        stopRequested = false
 
         // Reset the diagnostics with the rest of the session state, so a report
         // can never carry a count or an elapsed time belonging to the previous
@@ -602,6 +624,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         onConnectionStateChange?(.disconnecting)
         didInitiateClose = true
+
+        // RAISED BEFORE A SINGLE STOP STEP RUNS, on purpose. From here on a
+        // provider completion is the end of the session rather than a turn
+        // boundary, and the stop sequence below is precisely what waits for one
+        // (`.waitForSessionComplete`). Set it any later and the completion the
+        // flush asks for could arrive while the gate still reads "mid-session",
+        // and the wait would burn its whole budget on an answer it had already
+        // been given.
+        stopRequested = true
 
         // Published before the flush starts, so an error raised DURING the stop
         // is distinguishable from one raised mid-session. A provider that
@@ -1276,7 +1307,12 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// | .sessionComplete  | Call onSessionComplete with duration and credits |
     /// | .error            | Store error, emit error state, call onError     |
     /// | .metadata         | Debug log only (not surfaced to UI)             |
-    private func processServerMessage(_ jsonString: String) async {
+    ///
+    /// Internal rather than private only so `StreamingTurnBoundaryTests` can
+    /// drive it with a stub strategy. The turn-boundary rule below is a decision
+    /// this client makes about a provider frame, and there is no other seam that
+    /// reaches it without a live socket.
+    func processServerMessage(_ jsonString: String) async {
         guard let event = strategy.parseMessage(jsonString) else {
             logger.debug("Unhandled message from provider")
             return
@@ -1302,6 +1338,14 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 self.onTranscriptUpdate?(text, true)
             }
 
+        // NOT gated by `completeEndsSessionBeforeStop`, deliberately, and the
+        // same way round as Windows. This arm exists for providers whose final
+        // flush and completion arrive in ONE frame, which is a shape only a
+        // post-stop flush produces; Gemini — the only provider that answers
+        // `false` — reaches it nowhere else. Gating it would also mean deciding
+        // what to do with the text half of a frame whose completion half was
+        // suppressed, and the answer to that is "the same as `.finalTranscript`",
+        // which is what a provider emitting a mid-session boundary sends anyway.
         case .finalTranscriptAndSessionComplete(let text, let duration, let credits):
             await MainActor.run {
                 self.finalsDelivered += 1
@@ -1318,6 +1362,35 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             }
 
         case .sessionComplete(let duration, let credits):
+            // A TURN BOUNDARY IS NOT THE END OF THE SESSION.
+            //
+            // For five of the six remote providers this frame arrives once, at
+            // the end, and `completeEndsSessionBeforeStop` (default true) keeps
+            // the unconditional behaviour this arm always had. Gemini is the
+            // exception: it emits `serverContent.generationComplete` every time
+            // it finishes generating for an utterance, so a two-sentence
+            // dictation sees one mid-stream with more audio still to come.
+            // Latching `didReceiveSessionComplete` there releases the stop
+            // sequence's `waitForSessionComplete` at the first pause and the
+            // last utterance's final never arrives.
+            //
+            // Nothing needs flushing on a turn boundary: the turn's own text
+            // already arrived as its own `.finalTranscript` beforehand, and the
+            // current partial is deliberately left alone so a preview that was
+            // never committed survives into the next turn.
+            //
+            // The decision lives here rather than in the strategy because
+            // "has the user asked to stop yet?" is the client's state and only
+            // the client's. Same split as Windows
+            // (`StreamingTranscriptionClient.cs:648-678`) and the backend proxy
+            // (`ws-streaming-shared.ts`, `complete` arm).
+            if !strategy.completeEndsSessionBeforeStop && !stopRequested {
+                logger.debug(
+                    "Turn boundary from \(self.strategy.transcriptionProviderLabel, privacy: .public), session continues"
+                )
+                return
+            }
+
             await MainActor.run {
                 self.didReceiveSessionComplete = true
                 self.logger.info("Session complete: \(duration, privacy: .public)s, \(credits, privacy: .public) credits")
@@ -1715,6 +1788,12 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Reset session ID so waitForSessionStarted can detect the new ready message
         sessionId = nil
         disconnectedDuringReconnect = false
+        // The fresh socket is a fresh session, so its first turn boundary is not
+        // terminal either. Belt-and-braces today — the `didInitiateClose` guard
+        // above abandons any reconnect that raced a stop, and `stopRequested` is
+        // only ever raised together with that flag — but the two are set for
+        // different reasons and the guard is not this line's to depend on.
+        stopRequested = false
 
         // HAND THE receiveTask SLOT OVER TO THE REPLACEMENT LOOP — DO NOT CANCEL
         // THE OLD ONE.

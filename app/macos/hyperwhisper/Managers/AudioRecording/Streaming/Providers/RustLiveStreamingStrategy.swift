@@ -479,4 +479,18 @@ final class RustLiveStreamingStrategy: StreamingProviderStrategy {
     /// socket's `didOpenWithProtocol` delegate callback, which only fires on a
     /// socket `buildWebSocketURL` produced a URL for.
     var sessionStartsOnWebSocketOpen: Bool { currentConnect?.sessionStartsOnOpen ?? false }
+
+    /// `false` for Gemini alone, straight off the shared capability table.
+    ///
+    /// The core deliberately does NOT model the turn boundary itself: it answers
+    /// `SessionComplete` for every `serverContent.generationComplete`, because
+    /// that is a faithful reading of the frame (`live/gemini.rs:41-51`), and it
+    /// pushes the "is the session over?" decision to the head. That decision now
+    /// lives in `StreamingTranscriptionClient`, which owns the only honest
+    /// answer — it is the object that knows whether the user has let go of the
+    /// key yet. Same split as Windows (`StreamingTranscriptionClient.cs:648-678`)
+    /// and the backend proxy's `complete` arm.
+    var completeEndsSessionBeforeStop: Bool {
+        liveCompleteEndsSessionBeforeStop(provider: provider)
+    }
 }

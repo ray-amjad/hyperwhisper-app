@@ -244,6 +244,21 @@ protocol StreamingProviderStrategy {
     /// and may not emit an explicit "session started" event immediately.
     var sessionStartsOnWebSocketOpen: Bool { get }
 
+    /// Whether a `.sessionComplete` event means the SESSION is over even when the
+    /// client has not asked to stop yet.
+    ///
+    /// True for every provider that emits its completion once, at the end of the
+    /// session. False for Gemini, which emits `serverContent.generationComplete`
+    /// at every TURN boundary: before the client asks to stop, that frame means
+    /// "this utterance is finished", not "the session is finished". Acting on it
+    /// releases the stop sequence's wait early and drops the LAST utterance.
+    ///
+    /// Answered by the strategy rather than decided in the client so the rule
+    /// comes off the shared capability table (`liveCompleteEndsSessionBeforeStop`)
+    /// and cannot drift from the Windows and Linux heads, which key on the same
+    /// bit (`StreamingTranscriptionClient.cs:648-678`).
+    var completeEndsSessionBeforeStop: Bool { get }
+
     /// Called each time an audio chunk is about to be sent.
     ///
     /// USE CASE: Deepgram requires a KeepAlive heartbeat if no audio
@@ -285,6 +300,13 @@ extension StreamingProviderStrategy {
 
     /// Default: provider must emit explicit session started event
     var sessionStartsOnWebSocketOpen: Bool { false }
+
+    /// Default: a completion event ends the session, whenever it arrives.
+    ///
+    /// This is the behaviour every strategy in this app had before the bit
+    /// existed, and it is correct for five of the six providers. Only a strategy
+    /// whose provider emits a completion per TURN overrides it.
+    var completeEndsSessionBeforeStop: Bool { true }
 
     /// Default cloud streaming capture format.
     var audioSampleRate: Double { 16000 }
