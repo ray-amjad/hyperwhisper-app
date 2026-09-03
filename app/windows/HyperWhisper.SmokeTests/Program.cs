@@ -661,11 +661,18 @@ internal static class Program
                 // The cloud branch labels the model from `CloudPostProcessingModel`
                 // (the X-LLM-Model value it really sends), NOT `Mode.LanguageModel`
                 // — which that branch never reads, so the old response reported an
-                // unrelated field rather than merely a stale one.
+                // unrelated field rather than merely a stale one. Assert the exact
+                // catalog value: `FromString` answers `CloudPostProcessingModel
+                // .Fallback` for an id it cannot resolve, so a weaker "non-empty and
+                // not the Mode's model" check passes even when the entry is gone.
                 var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-4-5");
                 var cloudLabel = cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId;
-                Assert(cloudLabel.Length > 0 && cloudLabel != "gpt-4.1-nano",
-                    "the cloud post-processing model no longer yields an X-LLM-Model label");
+                var fallbackModel = CloudPostProcessingModel.Fallback;
+                var fallbackLabel = fallbackModel.ToLlmModelHeader() ?? fallbackModel.ModelId;
+                Assert(cloudLabel == "claude-haiku-4-5",
+                    "the anthropic cloud post-processing engine no longer yields the claude-haiku-4-5 X-LLM-Model label");
+                Assert(cloudLabel != fallbackLabel,
+                    "the cloud label check is no longer distinguishable from the catalog fallback");
                 Assert(Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", cloudLabel).Model == cloudLabel,
                     "/post-process does not report the cloud model it actually sent");
             });

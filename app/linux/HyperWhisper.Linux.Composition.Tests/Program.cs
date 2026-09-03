@@ -1043,6 +1043,24 @@ static async Task LocalApiPostProcessingTransientModes()
         Assert(local.Model == "local.gguf",
             "a local run with no resolved model did not fall back to the stored GGUF filename");
 
+        // ...but that request sets BOTH `LanguageModel` and `LocalPostProcessingModel`,
+        // so it cannot tell the two fallback arms apart. A saved LOCAL mode with no
+        // `LanguageModel` at all is the only shape that reaches
+        // `?? mode.LocalPostProcessingModel` — without it the response would name
+        // `""` for a run that used a real GGUF.
+        var localOnly = new Mode
+        {
+            Name = "Local only", PostProcessingMode = 2,
+            PostProcessingProvider = "local_llm", Preset = "hyper",
+            LanguageModel = null, LocalPostProcessingModel = "baseline.gguf",
+        };
+        await repository.UpsertAsync(localOnly);
+        var localOnlyResult = await adapter.ProcessAsync(
+            new PostProcessRequest("raw", localOnly.Id.ToString("D"), null, null, null, null),
+            CancellationToken.None);
+        Assert(localOnlyResult.Model == "baseline.gguf",
+            "a saved local mode with no LanguageModel did not fall back to its GGUF filename");
+
         // Issue #314: the model the processor actually RAN wins over the one
         // stored on the working Mode. Without this the response names
         // `gpt-test` — a model that never saw the text — after any fallback or
