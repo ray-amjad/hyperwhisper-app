@@ -1818,6 +1818,290 @@ public func FfiConverterTypeHttpResponse_lower(_ value: HttpResponse) -> RustBuf
 
 
 /**
+ * One raw `<item>`, exactly as a native XML reader found it. Mirrors
+ * `hw_releasenotes::FeedEntry`.
+ *
+ * **No rules applied.** Every field is the feed's own text, untrimmed, and
+ * `None` means the element was absent rather than empty. A reader that decides
+ * anything for itself is drift waiting to happen.
+ */
+public struct HwAppcastFeedEntry {
+    /**
+     * `<title>`. Free-form prose: `2.46.0` on the macOS feed,
+     * `1.11.0 (ARM64)` on the Windows one.
+     */
+    public var title: String?
+    /**
+     * `sparkle:version` — the machine build identifier.
+     */
+    public var sparkleVersion: String?
+    /**
+     * `sparkle:shortVersionString` — the human-readable version.
+     */
+    public var sparkleShortVersionString: String?
+    /**
+     * `<pubDate>`, as RFC 2822 text.
+     */
+    public var pubDate: String?
+    /**
+     * `<description>` — the inline release notes, HTML.
+     */
+    public var description: String?
+    /**
+     * Whether `sparkle:releaseNotesLink` was present. On macOS that is
+     * `item.Element(sparkle + "releaseNotesLink") != null`; the head sets the
+     * flag and Rust decides what it means.
+     */
+    public var hasReleaseNotesLink: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `<title>`. Free-form prose: `2.46.0` on the macOS feed,
+         * `1.11.0 (ARM64)` on the Windows one.
+         */title: String?, 
+        /**
+         * `sparkle:version` — the machine build identifier.
+         */sparkleVersion: String?, 
+        /**
+         * `sparkle:shortVersionString` — the human-readable version.
+         */sparkleShortVersionString: String?, 
+        /**
+         * `<pubDate>`, as RFC 2822 text.
+         */pubDate: String?, 
+        /**
+         * `<description>` — the inline release notes, HTML.
+         */description: String?, 
+        /**
+         * Whether `sparkle:releaseNotesLink` was present. On macOS that is
+         * `item.Element(sparkle + "releaseNotesLink") != null`; the head sets the
+         * flag and Rust decides what it means.
+         */hasReleaseNotesLink: Bool) {
+        self.title = title
+        self.sparkleVersion = sparkleVersion
+        self.sparkleShortVersionString = sparkleShortVersionString
+        self.pubDate = pubDate
+        self.description = description
+        self.hasReleaseNotesLink = hasReleaseNotesLink
+    }
+}
+
+
+
+extension HwAppcastFeedEntry: Equatable, Hashable {
+    public static func ==(lhs: HwAppcastFeedEntry, rhs: HwAppcastFeedEntry) -> Bool {
+        if lhs.title != rhs.title {
+            return false
+        }
+        if lhs.sparkleVersion != rhs.sparkleVersion {
+            return false
+        }
+        if lhs.sparkleShortVersionString != rhs.sparkleShortVersionString {
+            return false
+        }
+        if lhs.pubDate != rhs.pubDate {
+            return false
+        }
+        if lhs.description != rhs.description {
+            return false
+        }
+        if lhs.hasReleaseNotesLink != rhs.hasReleaseNotesLink {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(title)
+        hasher.combine(sparkleVersion)
+        hasher.combine(sparkleShortVersionString)
+        hasher.combine(pubDate)
+        hasher.combine(description)
+        hasher.combine(hasReleaseNotesLink)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwAppcastFeedEntry: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwAppcastFeedEntry {
+        return
+            try HwAppcastFeedEntry(
+                title: FfiConverterOptionString.read(from: &buf), 
+                sparkleVersion: FfiConverterOptionString.read(from: &buf), 
+                sparkleShortVersionString: FfiConverterOptionString.read(from: &buf), 
+                pubDate: FfiConverterOptionString.read(from: &buf), 
+                description: FfiConverterOptionString.read(from: &buf), 
+                hasReleaseNotesLink: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwAppcastFeedEntry, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.sparkleVersion, into: &buf)
+        FfiConverterOptionString.write(value.sparkleShortVersionString, into: &buf)
+        FfiConverterOptionString.write(value.pubDate, into: &buf)
+        FfiConverterOptionString.write(value.description, into: &buf)
+        FfiConverterBool.write(value.hasReleaseNotesLink, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAppcastFeedEntry_lift(_ buf: RustBuffer) throws -> HwAppcastFeedEntry {
+    return try FfiConverterTypeHwAppcastFeedEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAppcastFeedEntry_lower(_ value: HwAppcastFeedEntry) -> RustBuffer {
+    return FfiConverterTypeHwAppcastFeedEntry.lower(value)
+}
+
+
+/**
+ * One selected, normalised release, ready to render. Mirrors
+ * `hw_releasenotes::Release`.
+ */
+public struct HwAppcastRelease {
+    /**
+     * The resolved version, trimmed and non-empty.
+     */
+    public var version: String
+    /**
+     * The raw `sparkle:version`, trimmed, for macOS's
+     * `AppcastItem.buildNumber`. Windows has no such field. A passthrough, not
+     * a rule.
+     */
+    public var buildNumber: String?
+    /**
+     * Seconds since the Unix epoch, and **0 when `<pubDate>` was absent, blank
+     * or unparseable** — which sorts the entry last rather than first.
+     *
+     * Not an `Option`: that would turn `pubDate` into `Date?` / `DateTime?` on
+     * both heads and ripple into their formatters and equality, for an input
+     * that has never occurred in 129 committed feed items. `i64` seconds also
+     * keeps this side of the boundary clock-free, per `ffi_license.rs`.
+     *
+     * The Rust side bounds the year to `1..=9999`, which is what stops
+     * Windows' `DateTimeOffset.FromUnixTimeSeconds` throwing on a hostile
+     * feed.
+     */
+    public var pubDateEpochSecs: Int64
+    /**
+     * The inline release notes, trimmed and non-empty. Feed this straight to
+     * `release_notes_parse`.
+     */
+    public var releaseNotes: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The resolved version, trimmed and non-empty.
+         */version: String, 
+        /**
+         * The raw `sparkle:version`, trimmed, for macOS's
+         * `AppcastItem.buildNumber`. Windows has no such field. A passthrough, not
+         * a rule.
+         */buildNumber: String?, 
+        /**
+         * Seconds since the Unix epoch, and **0 when `<pubDate>` was absent, blank
+         * or unparseable** — which sorts the entry last rather than first.
+         *
+         * Not an `Option`: that would turn `pubDate` into `Date?` / `DateTime?` on
+         * both heads and ripple into their formatters and equality, for an input
+         * that has never occurred in 129 committed feed items. `i64` seconds also
+         * keeps this side of the boundary clock-free, per `ffi_license.rs`.
+         *
+         * The Rust side bounds the year to `1..=9999`, which is what stops
+         * Windows' `DateTimeOffset.FromUnixTimeSeconds` throwing on a hostile
+         * feed.
+         */pubDateEpochSecs: Int64, 
+        /**
+         * The inline release notes, trimmed and non-empty. Feed this straight to
+         * `release_notes_parse`.
+         */releaseNotes: String) {
+        self.version = version
+        self.buildNumber = buildNumber
+        self.pubDateEpochSecs = pubDateEpochSecs
+        self.releaseNotes = releaseNotes
+    }
+}
+
+
+
+extension HwAppcastRelease: Equatable, Hashable {
+    public static func ==(lhs: HwAppcastRelease, rhs: HwAppcastRelease) -> Bool {
+        if lhs.version != rhs.version {
+            return false
+        }
+        if lhs.buildNumber != rhs.buildNumber {
+            return false
+        }
+        if lhs.pubDateEpochSecs != rhs.pubDateEpochSecs {
+            return false
+        }
+        if lhs.releaseNotes != rhs.releaseNotes {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(version)
+        hasher.combine(buildNumber)
+        hasher.combine(pubDateEpochSecs)
+        hasher.combine(releaseNotes)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwAppcastRelease: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwAppcastRelease {
+        return
+            try HwAppcastRelease(
+                version: FfiConverterString.read(from: &buf), 
+                buildNumber: FfiConverterOptionString.read(from: &buf), 
+                pubDateEpochSecs: FfiConverterInt64.read(from: &buf), 
+                releaseNotes: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwAppcastRelease, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.version, into: &buf)
+        FfiConverterOptionString.write(value.buildNumber, into: &buf)
+        FfiConverterInt64.write(value.pubDateEpochSecs, into: &buf)
+        FfiConverterString.write(value.releaseNotes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAppcastRelease_lift(_ buf: RustBuffer) throws -> HwAppcastRelease {
+    return try FfiConverterTypeHwAppcastRelease.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAppcastRelease_lower(_ value: HwAppcastRelease) -> RustBuffer {
+    return FfiConverterTypeHwAppcastRelease.lower(value)
+}
+
+
+/**
  * The measurements a diagnostic reports and classifies on. Mirrors
  * `no_speech::AudioSignalSummary`.
  */
@@ -12395,6 +12679,56 @@ fileprivate struct FfiConverterSequenceTypeHeader: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwAppcastFeedEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [HwAppcastFeedEntry]
+
+    public static func write(_ value: [HwAppcastFeedEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwAppcastFeedEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwAppcastFeedEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwAppcastFeedEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwAppcastFeedEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwAppcastRelease: FfiConverterRustBuffer {
+    typealias SwiftType = [HwAppcastRelease]
+
+    public static func write(_ value: [HwAppcastRelease], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwAppcastRelease.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwAppcastRelease] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwAppcastRelease]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwAppcastRelease.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer {
     typealias SwiftType = [HwBlock]
 
@@ -12883,6 +13217,41 @@ public func appTypePromptValue(appType: HwAppType) -> String {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_app_type_prompt_value(
         FfiConverterTypeHwAppType.lower(appType),$0
+    )
+})
+}
+/**
+ * Parse an RFC 2822 `<pubDate>` into seconds since the Unix epoch, or `None`
+ * when it is not a date this accepts.
+ *
+ * Exported separately so each head's own suite can pin the malformed-date case
+ * without building a whole feed, and so a future caller does not re-implement
+ * it. It is culture-free by construction: fixed English month abbreviations,
+ * offset-aware, no locale and no clock — which is the fix for Windows'
+ * `DateTime.TryParse` under `CurrentCulture`.
+ */
+public func appcastParsePubDate(value: String) -> Int64? {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_appcast_parse_pub_date(
+        FfiConverterString.lower(value),$0
+    )
+})
+}
+/**
+ * Turn a feed's `<item>`s, **in document order**, into the releases the update
+ * UI renders: filter, then dedupe, then a stable newest-first sort.
+ *
+ * The caller must not re-filter, re-dedupe or re-sort the result — a leftover
+ * `.Where` or `.OrderByDescending` in a head is exactly the drift this
+ * replaces. The result carries no cap: `prefix(5)` on macOS and
+ * `Take(maxCount)` on Windows stay native, because the two heads cap at
+ * different points relative to their caches. Windows' `IsLatest` stays native
+ * too — it means "index 0 of this list", not a property of a feed entry.
+ */
+public func appcastSelectReleases(entries: [HwAppcastFeedEntry]) -> [HwAppcastRelease] {
+    return try!  FfiConverterSequenceTypeHwAppcastRelease.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_appcast_select_releases(
+        FfiConverterSequenceTypeHwAppcastFeedEntry.lower(entries),$0
     )
 })
 }
@@ -15523,6 +15892,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_app_type_prompt_value() != 40715) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_appcast_parse_pub_date() != 49242) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_appcast_select_releases() != 22526) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_append_trailing_space() != 41846) {

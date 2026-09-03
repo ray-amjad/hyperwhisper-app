@@ -1,4 +1,5 @@
-//! `hw-releasenotes` — the release-notes HTML parser shared by every head.
+//! `hw-releasenotes` — the appcast release-notes core shared by every head: the
+//! HTML parser, and the item-selection rules above it.
 //!
 //! The appcast feeds carry a small slice of HTML for release notes. This crate
 //! turns it into styled runs the UI can render, and is the single source of
@@ -18,6 +19,14 @@
 //! whole note into `<h2>`/`<h3>`, `<li>` and `<p>` [`Block`]s — replacing three
 //! separate `<li>` extractors, two of them regex-based, that had already drifted
 //! apart from each other. See `block.rs` for which behaviour won each time.
+//!
+//! Above both sits the **selection** layer ([`select_releases`],
+//! [`parse_pub_date`]), which owns the step *before* the HTML: turning a feed's
+//! raw `<item>` fields into the releases the update UI renders — which version
+//! string an item has, whether it is dropped, how duplicates collapse and how
+//! the list is ordered (issue #353). The XML reading itself stays native on
+//! each head; only the rules are here, because that is where the two heads had
+//! drifted. See `appcast.rs` for the seven decisions and why each was made.
 //!
 //! Only `http`, `https` and `mailto` links are carried through. A `javascript:`
 //! or `data:` href keeps its label and loses the link, so a compromised feed
@@ -72,10 +81,12 @@
     allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)
 )]
 
+mod appcast;
 mod block;
 mod entity;
 mod inline;
 mod tag;
 
+pub use appcast::{parse_pub_date, select_releases, FeedEntry, Release};
 pub use block::{parse_release_note, split_blocks, Block, BlockKind, ReleaseNote};
 pub use inline::{parse_inline, plain_text, Run};
