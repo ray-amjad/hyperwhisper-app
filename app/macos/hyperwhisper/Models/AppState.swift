@@ -176,22 +176,23 @@ struct ASRPreparationKey: Equatable, Sendable {
     /// transcription signature still re-prepares.
     let modeId: String
     let model: String
-    /// Normalized exactly the way `TranscriptionModelManager.extractLanguage(from:)`
-    /// normalizes it, so this key changes when — and only when — the language
-    /// value that actually reaches a provider changes. It is a preparation
-    /// input because `preloadExclusively(_:language:preferEnglishOptimized:)`
-    /// swaps to a different weights file for English-only models.
+    /// Normalized by `ModeSnapshot.effectiveLanguage(_:)` — the same function
+    /// `extractLanguage(from:)` calls before handing the language to a provider
+    /// — so this key changes when, and only when, the value that actually
+    /// reaches a provider changes. Calling the shared function rather than
+    /// restating the rule is the point: a key that normalizes differently from
+    /// the code it is a key FOR silently stops re-preparing (#318).
+    ///
+    /// It is a preparation input because
+    /// `preloadExclusively(_:language:preferEnglishOptimized:)` swaps to a
+    /// different weights file for English-only models.
     let language: String?
 
     init?(_ snapshot: ModeSnapshot?) {
         guard let snapshot else { return nil }
         self.modeId = snapshot.id.uuidString
         self.model = snapshot.model
-        if let raw = snapshot.language?.lowercased() {
-            self.language = raw == "auto" ? nil : raw
-        } else {
-            self.language = nil
-        }
+        self.language = ModeSnapshot.effectiveLanguage(snapshot.language)
     }
 }
 

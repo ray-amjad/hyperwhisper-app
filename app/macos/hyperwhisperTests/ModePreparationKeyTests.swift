@@ -223,10 +223,18 @@ struct ModePreparationKeyTests {
         #expect(LocalRuntimePreparationKey(frenchSnapshot) == englishRuntime)
     }
 
-    /// `ASRPreparationKey` normalizes the language exactly the way
-    /// `TranscriptionModelManager.extractLanguage(from:)` does — lowercased,
-    /// with `"auto"` collapsed onto `nil` — so the key moves when, and only
-    /// when, the value that actually reaches a provider moves.
+    /// `ASRPreparationKey` normalizes the language through the same function
+    /// preparation does — `ModeSnapshot.effectiveLanguage(_:)`, lowercased with
+    /// `"auto"` collapsed onto `nil` — so the key moves when, and only when, the
+    /// value that actually reaches a provider moves.
+    ///
+    /// Both halves are asserted on purpose. The literals pin today's RULE. The
+    /// comparisons against `effectiveLanguage` pin that the key gets its answer
+    /// from that function rather than from its own copy of the rule: harden the
+    /// normalizer later — trim whitespace, treat `""` as unset — and these stay
+    /// true, where a second copy would have drifted and silently stopped
+    /// re-preparing. `preparationReadsTheLanguageThroughTheOneSharedNormalizer`
+    /// below pins the other three callers.
     ///
     /// Written straight onto the managed object rather than through
     /// `createOrUpdateMode`, which canonicalizes the code on the way in. The
@@ -250,10 +258,56 @@ struct ModePreparationKeyTests {
         mode.language = "Auto"
         let autoKey = try #require(ASRPreparationKey(ModeSnapshot(mode)))
         #expect(autoKey.language == nil)
+        #expect(autoKey.language == ModeSnapshot.effectiveLanguage(mode.language))
 
         mode.language = "EN"
         let englishKey = try #require(ASRPreparationKey(ModeSnapshot(mode)))
         #expect(englishKey.language == "en")
+        #expect(englishKey.language == ModeSnapshot.effectiveLanguage(mode.language))
+    }
+
+    /// The rule that turns `"auto"` into `nil` has exactly one copy, and the key
+    /// and the three preparation/transcription paths all read it from there.
+    ///
+    /// This is what makes the assertions above more than a coincidence. The key
+    /// is a CACHE KEY over the value `extractLanguage(from:)` hands a provider:
+    /// if one copy of the rule were hardened and the key's were not, a Mode
+    /// whose language is `" auto"` or `""` would get a changed effective
+    /// language while the key compared equal, `removeDuplicates()` would swallow
+    /// the emission, and `prepareModel` would never re-run — #318 recreated on
+    /// the language axis. Both `extractLanguage(from:)` copies are `private` and
+    /// live on different types, so nothing but this can observe that they agree.
+    @Test func preparationReadsTheLanguageThroughTheOneSharedNormalizer() throws {
+        let extractors = [
+            "app/macos/hyperwhisper/Managers/Transcription/Coordinators/TranscriptionModelManager.swift",
+            "app/macos/hyperwhisper/Managers/Transcription/Coordinators/TranscriptionProviderRouter.swift"
+        ]
+        for path in extractors {
+            let body = try ProductionSource.slice(
+                of: path,
+                from: "private func extractLanguage(from mode: Mode?) -> String? {",
+                to: "}"
+            )
+            #expect(body.contains("ModeSnapshot.effectiveLanguage(mode?.language)"))
+            #expect(!body.contains("lowercased()"))
+            #expect(!body.contains("\"auto\""))
+        }
+
+        let transcriptionArgument = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Managers/Transcription/Pipeline/TranscriptionPipeline+Transcription.swift",
+            from: "let languageArg: String? =",
+            to: "\n"
+        )
+        #expect(transcriptionArgument.contains("ModeSnapshot.effectiveLanguage(mode?.language)"))
+
+        let key = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Models/AppState.swift",
+            from: "struct ASRPreparationKey",
+            to: "struct LocalRuntimePreparationKey"
+        )
+        #expect(key.contains("ModeSnapshot.effectiveLanguage(snapshot.language)"))
+        #expect(!key.contains("lowercased()"))
+        #expect(!key.contains("\"auto\""))
     }
 
     /// The symmetric case, and the reason the keys are split at all: a
