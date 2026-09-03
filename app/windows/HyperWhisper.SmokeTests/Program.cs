@@ -6161,8 +6161,16 @@ internal static class Program
                     "the shared required-key list changed shape");
                 var missing = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
                     HwLocalApiModeOperation.Create, partialKeys.ToList(), "Only", null, null, null, null, null, null, null));
-                Assert(missing != null && missing.httpStatus == 400,
-                    "a create body missing six required keys was accepted");
+                // HTTP 200 + INVALID_REQUEST, not 400 (issue #356, review round
+                // 1): `openapi.yaml`'s `info.description` reserves 4xx for
+                // malformed JSON, a bad bearer token and a rejected origin, and
+                // a well-formed body that is merely incomplete is none of those.
+                // This is a status change on this head: `{"name":"Only"}`
+                // answered 200 before #356 because it CREATED the mode.
+                Assert(missing != null
+                        && missing.httpStatus == 200
+                        && HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(missing.code) == LocalApiErrorCode.InvalidRequest,
+                    "a create body missing six required keys was accepted, or refused outside the published envelope rule");
                 var patchOk = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
                     HwLocalApiModeOperation.Patch, partialKeys.ToList(), "Only", null, null, null, null, null, null, null));
                 Assert(patchOk == null,

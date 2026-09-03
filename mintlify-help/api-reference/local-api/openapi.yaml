@@ -330,8 +330,13 @@ components:
         A key that is not listed here is IGNORED, on every platform. That is
         what makes the "Windows only" keys below safe to send from a
         cross-platform client. The seven `required` keys are required on
-        `POST /modes` only; a body missing one is refused with
-        `INVALID_REQUEST`.
+        `POST /modes` only; a body missing one is refused on every platform
+        with HTTP 200 and `INVALID_REQUEST`, naming the keys that are
+        missing. A well-formed JSON object that is merely incomplete is a
+        business failure, not a protocol failure — see the envelope rule in
+        this document's introduction. A body that is not a JSON object, or
+        that carries a value of the wrong type, is still the protocol failure
+        that rule describes: HTTP 400.
       type: object
       required: [name, preset, language, model, punctuation, capitalization, profanityFilter]
       properties:

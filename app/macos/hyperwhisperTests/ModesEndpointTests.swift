@@ -144,6 +144,12 @@ struct ModesEndpointTests {
         ))
         #expect(failure != nil, "a create body carrying only `name` must fail the shared required-key rule")
         #expect(failure?.message.contains("preset") == true)
+        // HTTP 200, not 400 (issue #356, review round 1). `openapi.yaml`'s
+        // `info.description` reserves 4xx for malformed JSON, a bad bearer token
+        // and a rejected origin; a well-formed object that is merely incomplete
+        // is a business failure. All three heads now answer this identically —
+        // before this round macOS answered 400 "Invalid JSON body" for it.
+        #expect(failure?.httpStatus == 200)
     }
 
     /// Issue #356 Decisions C and D, from the macOS side of the FFI. The

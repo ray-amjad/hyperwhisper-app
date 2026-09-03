@@ -1155,7 +1155,15 @@ static async Task ApplicationBackendModeContract()
     // --- Decision B: the required seven, on create only. -------------------
     // `{"name":"Only"}` created a mode here (and on Windows) before #356.
     var partial = await Post("""{"name":"Only"}""");
-    Assert(partial.StatusCode == HttpStatusCode.BadRequest, $"a create body missing six required keys answered {(int)partial.StatusCode}");
+    // HTTP 200, NOT 400 (issue #356, review round 1). `openapi.yaml`'s own
+    // `info.description` — which this PR does not change — says expected
+    // business failures return 200 with the envelope, and that "HTTP 4xx is
+    // reserved for protocol failures: malformed JSON (400), missing or invalid
+    // bearer token (401), or a rejected Host/Origin header (403)". A body that
+    // is well-formed JSON and merely incomplete is none of those three. This is
+    // a status change on this head and on Windows, both of which answered 200
+    // for these bodies before #356 only because they accepted them.
+    Assert(partial.StatusCode == HttpStatusCode.OK, $"a create body missing six required keys answered {(int)partial.StatusCode}, not the 200 the published envelope rule mandates");
     Assert(await HasFailureEnvelope(partial), "the missing-required-keys refusal had no failure envelope");
     var partialMessage = await FailureMessage(partial);
     foreach (var key in new[] { "preset", "language", "model", "punctuation", "capitalization", "profanityFilter" })

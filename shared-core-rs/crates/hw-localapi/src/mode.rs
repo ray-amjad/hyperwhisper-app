@@ -309,11 +309,11 @@ impl ModeValidationInput {
 /// the same body: required keys, then `name`, `language`, `preset`,
 /// `postProcessingMode`, `sortOrder`, the two prompts, then `customVocabulary`.
 ///
-/// A missing required key is HTTP 400 — the body is malformed *as a request*,
-/// which is what `FailureKind::BadRequest` means and what macOS already answers,
-/// because on macOS the omission is a `decode` failure. Everything else is a
-/// business failure: HTTP 200 carrying `INVALID_REQUEST`, a value the caller can
-/// read and correct. **No new error code** — both are in the closed 14.
+/// EVERY failure here is a business failure: HTTP 200 carrying
+/// `INVALID_REQUEST`, a value the caller can read and correct. That includes a
+/// missing required key, which was HTTP 400 until review round 1 — see
+/// [`missing_required_keys_failure`] for why the published envelope rule in
+/// `openapi.yaml`'s `info.description` settles it. **No new error code.**
 ///
 /// # What is deliberately *not* checked here
 ///
@@ -480,13 +480,28 @@ pub fn mode_name_taken_failure(name: &str, operation: ModeOperation) -> Failure 
     }
 }
 
-/// HTTP 400: the create body left out keys `openapi.yaml` marks required.
+/// HTTP 200 carrying `INVALID_REQUEST`: the create body left out keys
+/// `openapi.yaml` marks required.
+///
+/// **It is a business failure, not a protocol failure**, and that is the
+/// published rule rather than a preference. `openapi.yaml`'s `info.description`
+/// — unchanged by issue #356 — says expected business failures return HTTP 200
+/// with the `{"ok":false,"error":{"code":…}}` envelope, and that *"HTTP 4xx is
+/// reserved for protocol failures: malformed JSON (400), missing or invalid
+/// bearer token (401), or a rejected Host/Origin header (403)"*. A body that is
+/// well-formed JSON and merely incomplete is none of those three.
+///
+/// This was HTTP 400 when the rule moved into this crate, on the reasoning that
+/// macOS answers 400 for the same body. It does — but on macOS that body is a
+/// `decode` failure, which genuinely IS the protocol case, while on the other
+/// two heads it is validation. Matching the status of a different fault is not
+/// the same as agreeing.
 ///
 /// The hint is macOS's, verbatim (`ModesEndpoint.swift`'s create decode
 /// failure), because macOS is the head whose decoder already enforces this set
 /// and its hint already lists all seven.
 fn missing_required_keys_failure(missing: &[String]) -> Failure {
-    Failure::bad_request(format!(
+    invalid(format!(
         "Mode is missing required field(s): {}",
         missing.join(", ")
     ))
@@ -645,13 +660,15 @@ mod tests {
         .is_empty());
     }
 
-    /// A create missing a required key is HTTP **400** — the body is malformed
-    /// as a request, which is what macOS already answers because there the
-    /// omission is a `decode` failure. A patch is never checked against the set.
+    /// A create missing a required key is HTTP **200** carrying
+    /// `INVALID_REQUEST`: a well-formed body that is merely incomplete is an
+    /// expected business failure, and `openapi.yaml`'s `info.description`
+    /// reserves 4xx for malformed JSON, a bad token and a rejected origin. A
+    /// patch is never checked against the set.
     #[test]
     fn a_create_needs_the_seven_and_a_patch_does_not() {
         let failure = validate_mode(&create_with(&["name"])).expect("incomplete create");
-        assert_eq!(failure.http_status(), 400);
+        assert_eq!(failure.http_status(), 200);
         assert_eq!(failure.code, LocalApiErrorCode::InvalidRequest);
         assert!(
             failure.message.contains("preset"),
@@ -922,7 +939,8 @@ mod tests {
             ..ModeValidationInput::new(ModeOperation::Create)
         })
         .expect("incomplete create");
-        assert_eq!(failure.http_status(), 400);
+        assert_eq!(failure.http_status(), 200);
+        assert!(failure.message.contains("missing required field(s)"));
 
         // Then name, before language.
         let failure = validate_mode(&ModeValidationInput {
