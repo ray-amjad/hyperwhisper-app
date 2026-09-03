@@ -176,9 +176,13 @@ enum PostProcessEndpoint {
     ///
     /// A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. The model fallback keys
     /// on `resolvedModel == nil` — "nothing ran" — NOT on the resolved string
-    /// being empty. An LLM that ran and answered `""` (a custom endpoint whose
-    /// saved `modelName` is blank sends `"model": ""` and a single-model server
-    /// answers 200) is reported as `""`, because substituting the Mode's stored
+    /// being empty. An LLM that ran and answered `""` (segments of one dictation
+    /// post-processed by DIFFERENT models, so no single id names the combined
+    /// text; or a stored custom endpoint whose `modelName` is blank AND whose URL
+    /// needs repair — the lenient validator returns before the empty-model check
+    /// and still hands back a callable URL, so `"model": ""` goes to a
+    /// single-model server that answers 200) is reported as `""`, because
+    /// substituting the Mode's stored
     /// value there would name a leftover cloud id for text a local endpoint
     /// produced — issue #314 verbatim. `""` means "an LLM ran and did not name
     /// its model"; `post_processed: true` still says a run happened.

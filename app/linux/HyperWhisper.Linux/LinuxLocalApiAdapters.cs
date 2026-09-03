@@ -169,14 +169,23 @@ internal sealed class LinuxLocalApiPostProcessor(
     /// <para>
     /// A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. The fallback keys on the
     /// resolved model being NULL — the processor named nothing — not on it being
-    /// empty. A custom endpoint saved with a blank model name posts
-    /// <c>"model": ""</c>, a single-model server answers 200, and
-    /// <c>CloudPostProcessingService.ProcessCustomAsync</c> reports <c>""</c>;
-    /// substituting <c>mode.LanguageModel</c> there would name a leftover BYOK
-    /// cloud id for text a local custom endpoint produced, which is issue #314
-    /// verbatim. This matches <c>PostProcessEndpoint.responseLabels</c> on macOS
-    /// and <c>PostProcessEndpoints.ResponseLabels</c> on Windows, so the wire
-    /// field means the same thing on all three heads.
+    /// empty, because <c>""</c> means "an LLM ran and no single id names this
+    /// text"; substituting <c>mode.LanguageModel</c> there would name a leftover
+    /// BYOK cloud id for text some other run produced, which is issue #314
+    /// verbatim.
+    /// </para>
+    /// <para>
+    /// NOTHING THIS HEAD RUNS EMITS THAT VALUE TODAY, and a live run of the Local
+    /// API measured it. Every applied <c>CloudPostProcessingService</c> result
+    /// carries a real id; a blank-model custom endpoint never reaches
+    /// <c>ProcessCustomAsync</c>, because <c>Validate</c> requires a Valid verdict
+    /// from <c>normalize_custom_endpoint</c> and an empty model is fatal there
+    /// (the request fails with <c>ENGINE_UNAVAILABLE</c> and nothing goes on the
+    /// wire); and this head post-processes the whole text in ONE call, so it has
+    /// no mixed-model case either. The rule is still keyed on NULL so the wire
+    /// field means the same thing as <c>PostProcessEndpoint.responseLabels</c> on
+    /// macOS and <c>PostProcessEndpoints.ResponseLabels</c> on Windows, where both
+    /// of those cases ARE reachable — not because this head can hit them.
     /// </para>
     /// <para>
     /// There is deliberately NO provider rule here, and the sibling heads'
