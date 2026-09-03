@@ -72,7 +72,7 @@ static void AllCatalogsLoad()
     //
     // The catalog-v8 tier rename is key-count neutral: googleChirp3's
     // label/description became geminiTranscribe's.
-    Equal(671, PortableLocalizer.BaseKeyCount, "base key count");
+    Equal(849, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
