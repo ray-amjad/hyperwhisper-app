@@ -6125,6 +6125,33 @@ internal static class Program
                 Assert(brokenFailure != null && brokenKeys.Count == 0,
                     "malformed JSON did not answer the same 400 the existing reader answers");
 
+                // A NULL VOCABULARY TERM NEVER REACHES THE FFI (issue #356,
+                // review round 1). System.Text.Json puts a null element into
+                // `List<string>` unless `RespectNullableAnnotations` is set, and
+                // `FfiConverterSequenceString.AllocationSize` calls
+                // `Encoding.UTF8.GetByteCount(null)` — an `ArgumentNullException`
+                // no middleware here wraps, so Kestrel answered a bare HTTP 500
+                // with no body on a route whose contract is the 200 envelope.
+                // `NonNullStringListConverter` refuses it at the parse instead,
+                // with the same 400 every other wrong-typed value gets.
+                var (_, _, nullTermFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"N","customVocabulary":["ok",null]}"""));
+                Assert(nullTermFailure != null,
+                    "a null customVocabulary term deserialised; it would throw inside FfiConverterSequenceString");
+                var (_, _, nullPatchFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModePatchDto>(
+                    BodyContext("""{"customVocabulary":[null]}"""));
+                Assert(nullPatchFailure != null,
+                    "a null customVocabulary term deserialised on the patch DTO");
+                var (cleanVocabulary, _, cleanFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"N","customVocabulary":["ok","fine"]}"""));
+                Assert(cleanFailure == null && cleanVocabulary!.CustomVocabulary is { Count: 2 } terms
+                        && terms[0] == "ok" && terms[1] == "fine",
+                    "the converter broke a valid customVocabulary");
+                var (nullVocabulary, _, nullVocabularyFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"N","customVocabulary":null}"""));
+                Assert(nullVocabularyFailure == null && nullVocabulary!.CustomVocabulary == null,
+                    "an explicit null customVocabulary stopped meaning 'absent'");
+
                 // DECISION B — the required seven, create only. `{"name":"Only"}`
                 // created a mode on this head before #356; `openapi.yaml` has
                 // required all seven since it was written, and macOS has

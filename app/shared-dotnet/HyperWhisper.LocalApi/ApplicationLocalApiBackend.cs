@@ -529,7 +529,14 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             facts.SortOrder,
             mode.UserSystemPrompt,
             mode.GeminiCustomPrompt,
-            mode.CustomVocabulary?.ToList()));
+            // STORED terms, so `StringArray`'s guard is not the whole answer:
+            // backup import and the GUI write this column too, and a null term
+            // already in the database would throw inside
+            // `FfiConverterSequenceString.AllocationSize` on an unrelated PATCH.
+            // Dropping it is right rather than refusing: a null is not a term,
+            // it is not something the caller sent, and refusing would be the
+            // same fault as bounding a stored `sortOrder` (see above).
+            mode.CustomVocabulary?.Where(term => term is not null).ToList()));
         if (failure is not null) throw LocalApiFailureException.From(failure);
         if (mode.PostProcessingMode != 0 && string.IsNullOrWhiteSpace(mode.PostProcessingProvider)) throw new ArgumentException("An enabled post-processing mode requires a provider.");
         if (mode.ProviderType == "cloud")
@@ -691,13 +698,34 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             ? value
             : throw new ArgumentException($"'{property.Name}' must be a whole number.");
 
+    /// <summary>
+    /// A JSON array of strings, in which <c>null</c> is not a string.
+    /// </summary>
+    /// <remarks>
+    /// <c>Deserialize&lt;List&lt;string&gt;&gt;</c> accepted <c>["ok", null]</c>
+    /// and produced a list with a null element — System.Text.Json erases
+    /// nullable reference types unless <c>RespectNullableAnnotations</c> is set,
+    /// which it is nowhere in this repo. That element cannot cross the FFI: the
+    /// generated <c>FfiConverterSequenceString.AllocationSize</c> sums
+    /// <c>Encoding.UTF8.GetByteCount(item)</c> with no per-element guard, so the
+    /// first null throws before Rust sees the call (issue #356, review round 1).
+    /// The guard is HERE, at the one place this head parses a string array,
+    /// rather than at each call site that hands a list to <c>hw-localapi</c>: a
+    /// value that cannot cross the boundary should never be built.
+    /// </remarks>
     private static List<string>? StringArray(JsonProperty property)
     {
         if (property.Value.ValueKind == JsonValueKind.Null) return null;
         if (property.Value.ValueKind != JsonValueKind.Array)
             throw new ArgumentException($"'{property.Name}' must be an array of strings.");
-        try { return property.Value.Deserialize<List<string>>(WebJson); }
-        catch (JsonException) { throw new ArgumentException($"'{property.Name}' must be an array of strings."); }
+        var items = new List<string>();
+        foreach (var element in property.Value.EnumerateArray())
+        {
+            if (element.ValueKind != JsonValueKind.String || element.GetString() is not { } term)
+                throw new ArgumentException($"'{property.Name}' must be an array of strings.");
+            items.Add(term);
+        }
+        return items;
     }
 
     private static JsonElement ToModeJson(Mode mode) => JsonSerializer.SerializeToElement(new

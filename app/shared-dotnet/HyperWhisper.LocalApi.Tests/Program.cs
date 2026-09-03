@@ -1194,6 +1194,40 @@ static async Task ApplicationBackendModeContract()
     // A patch that DOES send it is still bounded.
     await AssertBusinessFailure(await Patch(legacy.Id.ToString("D"), """{"sortOrder":99999}"""), LocalApiErrorCodes.InvalidRequest, "patch sortOrder outside Int16");
 
+    // --- A null term never reaches the FFI. -------------------------------
+    // `FfiConverterSequenceString.AllocationSize` sums
+    // `Encoding.UTF8.GetByteCount(item)` with no per-element null guard, so one
+    // null in `customVocabulary` threw `ArgumentNullException` before Rust saw
+    // the call. On Windows that is a bare HTTP 500 with no body; here the
+    // middleware's `catch (ArgumentException)` turned it into a vague 400. It is
+    // now refused where the array is PARSED, with the same message a non-array
+    // gets, and the value never exists.
+    var nullTerm = await Post(ModeBody("Null term", extra: "\"customVocabulary\":[\"ok\",null]"));
+    Assert(nullTerm.StatusCode == HttpStatusCode.BadRequest, $"a null vocabulary term answered {(int)nullTerm.StatusCode}");
+    Assert(await FailureCode(nullTerm) == LocalApiErrorCodes.InvalidRequest, "a null vocabulary term answered outside the closed set");
+    // The middleware's `catch (ArgumentException)` replaces the message with
+    // this head's generic one, which is what every other wrong-typed value in a
+    // mode body gets. What matters is that the request is REFUSED with an
+    // envelope rather than crashing inside the FFI converter.
+    Assert(await FailureMessage(nullTerm) == "The request contains invalid or conflicting values.",
+        $"the null-term message is \"{await FailureMessage(nullTerm)}\"");
+    Assert((await modes.ListAsync()).All(item => item.Name != "Null term"), "a refused vocabulary still wrote a mode");
+    // A non-string element was already refused and still is.
+    var numberTerm = await Post(ModeBody("Number term", extra: "\"customVocabulary\":[\"ok\",7]"));
+    Assert(numberTerm.StatusCode == HttpStatusCode.BadRequest && await FailureCode(numberTerm) == LocalApiErrorCodes.InvalidRequest,
+        "a numeric vocabulary term is no longer refused as a wrong-typed value");
+    // And a clean list is still accepted.
+    Assert((await Post(ModeBody("Good terms", extra: "\"customVocabulary\":[\"ok\",\"fine\"]"))).StatusCode == HttpStatusCode.OK,
+        "a valid customVocabulary was refused");
+    // A null already IN STORAGE — backup import and the GUI write this column
+    // too — must not take an unrelated PATCH down either.
+    var good = (await modes.ListAsync()).Single(item => item.Name == "Good terms");
+    good.CustomVocabulary = ["ok", null!];
+    await modes.UpsertAsync(good);
+    var storedNull = await Patch(good.Id.ToString("D"), """{"language":"fr"}""");
+    Assert(storedNull.StatusCode == HttpStatusCode.OK && !await HasFailureEnvelope(storedNull),
+        "a PATCH failed because a STORED vocabulary term is null");
+
     var badMode = await Post(ModeBody("Bad post-processing", extra: "\"postProcessingMode\":7"));
     await AssertBusinessFailure(badMode, LocalApiErrorCodes.InvalidRequest, "postProcessingMode out of range");
     Assert(await FailureMessage(badMode) == "Mode 'postProcessingMode' must be 0, 1, or 2", "postProcessingMode message drifted from the shared core");
@@ -1249,6 +1283,17 @@ static async Task ApplicationBackendModeValidation()
     // over HTTP: a body that would have created a mode called "Default" before
     // #356 now fails, and fails as a request error rather than a catalog one.
     await AssertThrowsAsync<LocalApiFailureException>(() => backend.CreateModeAsync(Json("{}"), CancellationToken.None).AsTask());
+    // A null vocabulary term is refused at the PARSE, so it never reaches
+    // `FfiConverterSequenceString.AllocationSize`. Over HTTP the two answers are
+    // indistinguishable — `ArgumentNullException` IS an `ArgumentException`, and
+    // the middleware collapses both into the same 400 — so the exception TYPE is
+    // the only thing that says which side of the FFI boundary failed.
+    var nullTerm = await AssertThrowsAsync<ArgumentException>(() =>
+        backend.CreateModeAsync(Json(ModeBody("Null vocab", extra: "\"customVocabulary\":[\"ok\",null]")), CancellationToken.None).AsTask());
+    Assert(nullTerm is not ArgumentNullException,
+        "a null vocabulary term reached the FFI converter and threw inside it rather than being refused at the parse");
+    Assert(nullTerm.Message == "'customVocabulary' must be an array of strings.",
+        $"the null-term parse failure says \"{nullTerm.Message}\"");
     Assert((await modes.ListAsync()).Count(item => item.IsDefault) == 1, "create operations did not preserve exactly one default mode");
 }
 
@@ -1275,10 +1320,10 @@ static string ModeBody(string name, string? extra = null, string model = "base")
     {"name":{{JsonSerializer.Serialize(name)}},"preset":"hyper","language":"en","model":{{JsonSerializer.Serialize(model)}},"punctuation":true,"capitalization":true,"profanityFilter":false{{(extra is null ? "" : "," + extra)}}}
     """;
 
-static async Task AssertThrowsAsync<T>(Func<Task> action) where T : Exception
+static async Task<T> AssertThrowsAsync<T>(Func<Task> action) where T : Exception
 {
     try { await action(); }
-    catch (T) { return; }
+    catch (T caught) { return caught; }
     throw new InvalidOperationException($"Expected {typeof(T).Name}.");
 }
 

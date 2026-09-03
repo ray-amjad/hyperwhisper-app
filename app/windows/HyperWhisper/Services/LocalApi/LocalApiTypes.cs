@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
@@ -113,6 +114,79 @@ internal sealed class ModelsListResponse
 // MARK: - /modes -----------------------------------------------------------
 
 /// <summary>
+/// A JSON array of strings in which <c>null</c> is not a string.
+/// </summary>
+/// <remarks>
+/// <para>
+/// System.Text.Json erases nullable reference types unless
+/// <c>RespectNullableAnnotations</c> is set, which it is nowhere in this repo,
+/// so <c>["ok", null]</c> deserialises into <c>List&lt;string&gt;</c> with a
+/// null element. That element is not merely odd, it is unsendable: the
+/// generated <c>FfiConverterSequenceString.AllocationSize</c> sums
+/// <c>Encoding.UTF8.GetByteCount(item)</c> with no per-element guard, so the
+/// first null throws <see cref="ArgumentNullException"/> BEFORE Rust sees the
+/// call. None of this server's middlewares wrap <c>next()</c> and the host
+/// installs no <c>UseExceptionHandler</c>, so Kestrel answered a bare HTTP 500
+/// with no body — on a route whose whole contract is the 200 failure envelope
+/// (issue #356, review round 1).
+/// </para>
+/// <para>
+/// The guard belongs HERE, at the parse, rather than at the three call sites
+/// that hand a vocabulary to <c>hw-localapi</c>: a value that cannot cross the
+/// boundary should never be built in the first place, and a fourth call site
+/// added later inherits the guard instead of the crash. A null element is a
+/// wrong-typed value, so it gets this head's wrong-typed answer — HTTP 400
+/// <c>"Invalid JSON body"</c>, which is what <c>{"name":5}</c> already gets and
+/// what macOS answers for the same body, because <c>[String]</c> refuses it in
+/// <c>Codable</c>.
+/// </para>
+/// <para>
+/// A JSON <c>null</c> for the whole property is untouched: a converter's
+/// <c>HandleNull</c> is <c>false</c> for a reference type, so
+/// System.Text.Json assigns null without calling <see cref="Read"/>.
+/// </para>
+/// </remarks>
+internal sealed class NonNullStringListConverter : JsonConverter<List<string>>
+{
+    public override List<string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartArray)
+        {
+            throw new JsonException("Expected an array of strings.");
+        }
+        var items = new List<string>();
+        while (reader.Read())
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.EndArray:
+                    return items;
+                case JsonTokenType.String:
+                    items.Add(reader.GetString()!);
+                    break;
+                default:
+                    throw new JsonException("An array of strings cannot contain null or a non-string element.");
+            }
+        }
+        throw new JsonException("Expected an array of strings.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, List<string> value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteStartArray();
+        foreach (var item in value)
+        {
+            // Defensive on the way out too: a null that reached storage before
+            // this converter existed must not take the response down.
+            writer.WriteStringValue(item ?? "");
+        }
+        writer.WriteEndArray();
+    }
+}
+
+/// <summary>
 /// Full Mode JSON shape — every field on the Windows Mode entity, plus
 /// `useStreamingTranscription` (mapped to the Windows global Streaming setting
 /// because Windows no longer stores streaming as a per-mode flag). Used for both
@@ -155,7 +229,9 @@ internal sealed class ModeDto
     [JsonPropertyName("localEngine")] public string? LocalEngine { get; set; }
     [JsonPropertyName("localParakeetModel")] public string? LocalParakeetModel { get; set; }
     [JsonPropertyName("localPostProcessingModel")] public string? LocalPostProcessingModel { get; set; }
-    [JsonPropertyName("customVocabulary")] public List<string>? CustomVocabulary { get; set; }
+    [JsonPropertyName("customVocabulary")]
+    [JsonConverter(typeof(NonNullStringListConverter))]
+    public List<string>? CustomVocabulary { get; set; }
     [JsonPropertyName("providerType")] public string? ProviderType { get; set; }
 }
 
@@ -192,7 +268,9 @@ internal sealed class ModePatchDto
     [JsonPropertyName("localEngine")] public string? LocalEngine { get; set; }
     [JsonPropertyName("localParakeetModel")] public string? LocalParakeetModel { get; set; }
     [JsonPropertyName("localPostProcessingModel")] public string? LocalPostProcessingModel { get; set; }
-    [JsonPropertyName("customVocabulary")] public List<string>? CustomVocabulary { get; set; }
+    [JsonPropertyName("customVocabulary")]
+    [JsonConverter(typeof(NonNullStringListConverter))]
+    public List<string>? CustomVocabulary { get; set; }
     [JsonPropertyName("providerType")] public string? ProviderType { get; set; }
 }
 
