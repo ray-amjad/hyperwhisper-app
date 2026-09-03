@@ -223,7 +223,7 @@ public class PostProcessingService : IDisposable
 
                 using var cloudService = new HyperWhisperCloudService();
                 var cloudModel = CloudPostProcessingModelExtensions.FromString(mode.CloudPostProcessingModel);
-                var (response, servedModel) = await cloudService.PostProcessAsync(
+                var response = await cloudService.PostProcessAsync(
                     text,
                     fullPrompt,
                     cloudModel.ToLlmProviderHeader(),
@@ -241,20 +241,28 @@ public class PostProcessingService : IDisposable
                 // Record what RAN, not what the Mode stored (#314). This branch
                 // never reads `mode.LanguageModel` — the engine comes from
                 // `mode.CloudPostProcessingModel` — so echoing `LanguageModel`
-                // reported an unrelated field, not just a stale one.
+                // reported an unrelated field, not just a stale one. The model is
+                // the `X-LLM-Model` value sent above, falling back to the catalog
+                // model id when the catalog does not override it.
                 //
-                // PREFER WHAT THE BACKEND SERVED. The hosted /post-process route
-                // runs its OWN provider fallback — a 5xx on the primary provider,
-                // or a prompt-leakage reroute — and names the (provider, model)
-                // pair that actually answered in the `X-LLM-Provider` RESPONSE
-                // header. The `X-LLM-Model` value we sent is only what we ASKED
-                // for, so reporting it after a server-side reroute repeats #314
-                // one level deeper. Fall back to the requested value only when the
-                // header is absent (older backend, or a proxy stripped it).
+                // DELIBERATELY NOT the `X-LLM-Provider` RESPONSE header. The
+                // hosted route runs its own server-side fallback (a 5xx on the
+                // primary provider, or a prompt-leakage reroute) and names the
+                // pair that answered in that header — but the value is
+                // `servedLLMName(provider, model)`, a provider-prefixed DISPLAY
+                // label ("groq-gpt-oss-120b" for the model id
+                // "openai/gpt-oss-120b"), and it is set on EVERY 200, not only
+                // after a reroute. Reporting it here would make `model` speak two
+                // vocabularies — a catalog model id for BYOK/local/custom runs, a
+                // backend display label for hosted ones — and a client that feeds
+                // `model` back into a mode (`ModesEndpoints` takes it unvalidated)
+                // would write an id `LanguageModelInfo.GetById` cannot resolve.
+                // Until the backend exposes the served MODEL ID separately, a
+                // backend-side reroute stays invisible here; `openapi.yaml` says so.
                 return PostProcessingResult.Applied(
                     response,
                     PostProcessingProvider.HyperWhisperCloud.ToStringValue(),
-                    servedModel ?? cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId);
+                    cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId);
             }
             catch (OperationCanceledException)
             {

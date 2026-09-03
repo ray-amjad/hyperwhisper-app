@@ -391,16 +391,18 @@ static async Task TestResolvedModelIsReported()
     {
         HyperWhisperCloudModel = "groq:openai/gpt-oss-120b",
     });
-    // No `X-LLM-Provider` response header: fall back to the `X-LLM-Model` value
-    // we sent, matching what macOS and Windows report.
+    // The `X-LLM-Model` value we sent, matching what macOS and Windows report.
     Assert(cloudResult.Model == "openai/gpt-oss-120b", "cloud route did not report its X-LLM-Model value");
 
-    // Issue #314, one level deeper: the backend runs its OWN provider fallback
-    // (5xx on the primary, or a prompt-leakage reroute) and names the pair that
-    // really answered in the `X-LLM-Provider` RESPONSE header. That wins over the
-    // model we asked for — otherwise the response names a model that never saw
-    // the text, which is the same bug the requested-vs-stored fix just closed.
-    using var rerouted = Service(
+    // ONE VOCABULARY. The backend sets an `X-LLM-Provider` RESPONSE header on
+    // EVERY 200 — `servedLLMName(provider, model)`, a provider-prefixed DISPLAY
+    // label, not a model id: the pair (groq, "openai/gpt-oss-120b") is served as
+    // "groq-gpt-oss-120b". Reporting that as `model` would make the field speak
+    // the catalog vocabulary for BYOK/local/custom runs and the backend's display
+    // vocabulary for hosted ones. It is IGNORED here on purpose; a backend-side
+    // reroute is invisible in this field until the backend exposes a served MODEL
+    // ID of its own. See the open question on #314.
+    using var served = Service(
         new StubHandler(_ =>
         {
             var message = Json(HttpStatusCode.OK, "{\"corrected\":\"cloud result\"}");
@@ -408,12 +410,12 @@ static async Task TestResolvedModelIsReported()
             return Task.FromResult(message);
         }),
         cloudCredentials);
-    var reroutedResult = await rerouted.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud) with
+    var servedResult = await served.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud) with
     {
         HyperWhisperCloudModel = "groq:openai/gpt-oss-120b",
     });
-    Assert(reroutedResult.Model == "cerebras-gpt-oss-120b",
-        "cloud route reported the model it requested, not the one the backend served");
+    Assert(servedResult.Model == "openai/gpt-oss-120b",
+        "cloud route reported the backend's served display label as the model id");
 
     using var failing = Service(
         new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError))),
