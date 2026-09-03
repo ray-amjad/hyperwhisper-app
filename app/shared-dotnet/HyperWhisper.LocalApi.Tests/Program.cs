@@ -1247,6 +1247,28 @@ static async Task ApplicationBackendModeContract()
     // Renaming a mode to its own name is not a collision: the head filters its
     // own record out before it asks.
     Assert((await Patch(edge.Id.ToString("D"), """{"name":"EDGE"}""")).StatusCode == HttpStatusCode.OK, "a mode collided with itself");
+
+    // ...and the collision check runs ONLY on a real rename, because duplicate
+    // names are producible outside these two endpoints: nothing in the GUI or in
+    // backup import checks, and #356 WIDENED the comparison key, which enlarges
+    // the set of already-stored pairs that collide. A read-modify-write client
+    // that PATCHes the whole object back must not be told its own unchanged name
+    // is taken — that mode would be patchable only by omitting `name` entirely.
+    Assert((await Post(ModeBody("Twin"))).StatusCode == HttpStatusCode.OK, "the twin fixture could not be created");
+    Assert((await Post(ModeBody("Twin duplicate"))).StatusCode == HttpStatusCode.OK, "the twin fixture could not be created");
+    var duplicate = (await modes.ListAsync()).Single(item => item.Name == "Twin duplicate");
+    duplicate.Name = "Twin";
+    await modes.UpsertAsync(duplicate);
+    var twin = (await modes.ListAsync()).Single(item => item.Name == "Twin" && item.Id != duplicate.Id);
+    var readModifyWrite = await Patch(twin.Id.ToString("D"), """{"name":"Twin","sortOrder":5}""");
+    Assert(readModifyWrite.StatusCode == HttpStatusCode.OK && !await HasFailureEnvelope(readModifyWrite),
+        "a read-modify-write PATCH was refused as a collision with the duplicate of its own unchanged name");
+    Assert((await modes.ListAsync()).Single(item => item.Id == twin.Id).SortOrder == 5, "the read-modify-write PATCH did not apply");
+    // A body that never mentions `name` was the only way through before, and
+    // still works.
+    Assert((await Patch(twin.Id.ToString("D"), """{"sortOrder":6}""")).StatusCode == HttpStatusCode.OK, "a nameless PATCH was refused");
+    // A REAL rename onto a taken name is still refused.
+    await AssertBusinessFailure(await Patch(twin.Id.ToString("D"), """{"name":"Edge"}"""), LocalApiErrorCodes.ModeNameTaken, "a real rename onto a taken name");
 }
 
 static async Task ApplicationBackendModeValidation()

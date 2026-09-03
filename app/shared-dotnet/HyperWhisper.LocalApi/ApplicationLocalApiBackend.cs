@@ -299,6 +299,24 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     /// </remarks>
     private static void EnsureUniqueName(Mode mode, IReadOnlyList<Mode> existing, HwLocalApiModeOperation operation)
     {
+        // ONLY WHEN THE NAME IS ACTUALLY CHANGING (issue #356, review round 1).
+        // `existing` is a separate `ListAsync` materialisation, so its copy of
+        // this record still carries the STORED name; `mode` has already been
+        // patched. macOS has always had this guard (`newName != mode.name`) and
+        // Windows has it again — this head never did, and #356 widened the
+        // comparison key, which enlarges the set of already-stored pairs that
+        // collide. Duplicate names are producible: nothing outside these two
+        // endpoints checks, and backup import does not. Without the guard a mode
+        // that shares a name with another is patchable only by a body that never
+        // mentions `name` — and `ApplyModeDocument` leaves the stored name in
+        // place for exactly those bodies, so it would fail on all of them.
+        //
+        // A name whose comparison key is unchanged cannot introduce a NEW
+        // collision: the multiset of keys in storage is the same after the write
+        // as before it.
+        var storedName = existing.FirstOrDefault(item => item.Id == mode.Id)?.Name;
+        if (storedName is not null && HyperwhisperCoreMethods.LocalApiModeNameConflict(mode.Name, [storedName]))
+            return;
         var others = existing.Where(item => item.Id != mode.Id).Select(item => item.Name).ToList();
         if (HyperwhisperCoreMethods.LocalApiModeNameConflict(mode.Name, others))
             throw LocalApiFailureException.From(

@@ -251,14 +251,32 @@ internal static class ModesEndpoints
                 return LocalApiResponder.Shared(patchValidation);
             }
 
-            // Name uniqueness check — only when the caller is actually renaming.
+            // Name uniqueness check — ONLY WHEN THE CALLER IS ACTUALLY RENAMING.
             // The head still filters out the record it is writing, because only
             // the head knows which one that is; the comparison itself is shared.
+            //
+            // The "is this a rename" question is asked with the same shared key
+            // (issue #356, review round 1). Dropping it made a read-modify-write
+            // client — `GET /modes/{id}`, edit one field, `PATCH` the whole
+            // object back — compare its unchanged name against every OTHER
+            // stored mode, and duplicate names are producible on this head:
+            // `HyperWhisperDbContext` declares a NON-unique index on `Name`, and
+            // neither `ModeService.SaveMode`/`UpdateMode` nor
+            // `ModeEditorWindow` checks for a collision. A mode sharing a name
+            // with another became patchable only by omitting `name` entirely.
+            // macOS never lost its guard (`newName != mode.name`).
+            //
+            // A name whose comparison key is unchanged cannot introduce a new
+            // collision, because the multiset of keys in storage is the same
+            // after the write as before it — which is exactly why it is safe to
+            // skip, and why the skip uses the shared key rather than a fourth
+            // definition of "the same name".
             if (patch.Name is { } rawName)
             {
                 var trimmed = rawName.Trim();
-                if (HyperwhisperCoreMethods.LocalApiModeNameConflict(
+                if (PatchNameCollides(
                         trimmed,
+                        existing.Name,
                         ModeService.Instance.GetAllModes()
                             .Where(m => m.Id != existing.Id)
                             .Select(m => m.Name)
@@ -483,6 +501,39 @@ internal static class ModesEndpoints
                 System.Diagnostics.Debug.WriteLine($"Local API: ignoring unrecognised mode field '{key}'.");
             }
         }
+    }
+
+    /// <summary>
+    /// Whether a <c>PATCH</c> body's <c>name</c> collides with another stored
+    /// mode. <c>false</c> when the caller is not actually renaming.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Issue #356, review round 1. The "only when the caller is actually
+    /// renaming" half of this check was dropped when the collision rule moved
+    /// into <c>hw-localapi</c>. Without it a read-modify-write client — <c>GET
+    /// /modes/{id}</c>, change one field, <c>PATCH</c> the whole object back —
+    /// has its UNCHANGED name compared against every other stored mode, and
+    /// duplicate names are producible on this head:
+    /// <c>HyperWhisperDbContext</c> declares a NON-unique index on <c>Name</c>,
+    /// and neither <c>ModeService.SaveMode</c>/<c>UpdateMode</c> nor
+    /// <c>ModeEditorWindow</c> checks for a collision. A mode sharing a name
+    /// with another became patchable only by omitting <c>name</c> entirely.
+    /// macOS never lost its guard.
+    /// </para>
+    /// <para>
+    /// "Not actually renaming" is asked with the SAME shared comparison key, not
+    /// with a fourth definition of "the same name". That is sound as well as
+    /// tidy: if the comparison key does not change, the multiset of keys in
+    /// storage is identical after the write and before it, so the write cannot
+    /// introduce a collision that did not already exist.
+    /// </para>
+    /// </remarks>
+    internal static bool PatchNameCollides(string trimmedName, string storedName, IReadOnlyList<string> otherNames)
+    {
+        ArgumentNullException.ThrowIfNull(otherNames);
+        if (HyperwhisperCoreMethods.LocalApiModeNameConflict(trimmedName, [storedName])) return false;
+        return HyperwhisperCoreMethods.LocalApiModeNameConflict(trimmedName, otherNames.ToList());
     }
 
     private static string? ValidatePostProcessingSelection(Mode mode)

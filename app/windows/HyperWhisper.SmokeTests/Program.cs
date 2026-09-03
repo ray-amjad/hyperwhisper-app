@@ -6192,6 +6192,22 @@ internal static class Program
                 Assert(HyperwhisperCoreMethods.LocalApiModeNameTakenFailure("Work", HwLocalApiModeOperation.Patch).hint == null,
                     "the patch collision grew a hint this head has never sent");
 
+                // ...AND THE COLLISION CHECK RUNS ONLY ON A REAL RENAME (issue
+                // #356, review round 1). `HyperWhisperDbContext` declares a
+                // NON-unique index on `Name` and nothing outside these endpoints
+                // checks, so two modes named "Work" are producible from the GUI
+                // or a backup restore. A read-modify-write client PATCHing the
+                // whole object back must not be told its own unchanged name is
+                // taken — that mode would be patchable only by omitting `name`.
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
+                    "an unchanged name was reported as a collision with its own duplicate");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("  WORK ", "Work", ["Work"]),
+                    "a name that is unchanged under the shared comparison key was treated as a rename");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Personal", "Work", ["personal"]),
+                    "a real rename onto a taken name stopped being refused");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Personal", "Work", ["Archive"]),
+                    "a real rename onto a free name was refused");
+
                 // ITEM 3 — one alias table. `qwen3_asr` is this head's own
                 // response label; the trim is new here and could only ever
                 // accept a spelling this head refused.
