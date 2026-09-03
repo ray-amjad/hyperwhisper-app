@@ -277,7 +277,7 @@
     <!-- Live transcription gets its own page, as it does on Windows. Every value still belongs
          to the settings view model; this template only re-presents the streaming half of it. -->
     <DataTemplate DataType="vm:StreamingSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="StreamingScreen" Spacing="14" MaxWidth="720" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="StreamingScreen" Spacing="14" MaxWidth="560" HorizontalAlignment="Left">
         <TextBlock Text="{ReflectionBinding [settings.nav.general], Source={StaticResource Localization}}" Classes="fieldLabel"/>
         <Border Classes="card">
           <StackPanel>
@@ -551,8 +551,9 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:LocalApiSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="LocalApiScreen" MaxWidth="560" HorizontalAlignment="Left">
-        <TextBlock Text="{ReflectionBinding [settings.localApi.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
+      <ScrollViewer Classes="page"><StackPanel x:Name="LocalApiScreen" MaxWidth="720" HorizontalAlignment="Left">
+        <TextBlock Text="{ReflectionBinding [settings.localApi.title], Source={StaticResource Localization}}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+        <TextBlock Text="{ReflectionBinding [settings.localApi.blurb], Source={StaticResource Localization}}" FontSize="13" TextWrapping="Wrap" Foreground="{DynamicResource HwTextSecondaryBrush}" Margin="4,8,4,20"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
