@@ -41,7 +41,7 @@ PROVIDER_LABELS = {
     "anthropic":   "Anthropic",
     "gemini":      "Gemini",
     "groq":        "Groq",
-    "grok":        "Grok (xAI)",
+    "grok":        "Grok (SpaceXAI)",
     "cerebras":    "Cerebras",
     "local_llm":   "Local LLM",
     "hyperwhisper": "HyperWhisper (routed)",

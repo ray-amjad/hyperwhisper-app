@@ -8,7 +8,7 @@
 //  This view provides a standalone interface for configuring streaming transcription,
 //  which operates independently from the mode-based recording system. Users can:
 //  - Enable/disable streaming transcription
-//  - Choose a streaming provider (HyperWhisper Cloud, Deepgram, ElevenLabs, xAI)
+//  - Choose a streaming provider (HyperWhisper Cloud, Deepgram, ElevenLabs, SpaceXAI)
 //  - Configure provider-specific settings (model, fast formatting)
 //  - Customize the keyboard shortcut for activating streaming
 //  - Select the language for streaming transcription
@@ -19,7 +19,7 @@
 //  | HyperWhisper    | No      | Yes        | No              | No              |
 //  | Deepgram        | Yes     | Yes*       | Yes (Nova 3)    | Yes             |
 //  | ElevenLabs      | Yes     | No         | No              | No              |
-//  | xAI             | Yes     | Yes        | No              | No              |
+//  | SpaceXAI        | Yes     | Yes        | No              | No              |
 //
 //  *Deepgram vocabulary only works with explicit language (not auto-detect)
 
@@ -33,7 +33,7 @@ import FluidAudio
 ///
 /// LAYOUT ORDER (when streaming enabled):
 /// 1. Enable toggle
-/// 2. Provider picker (HyperWhisper Cloud | Deepgram | ElevenLabs | xAI)
+/// 2. Provider picker (HyperWhisper Cloud | Deepgram | ElevenLabs | SpaceXAI)
 /// 3. Model picker (Deepgram only: Nova 3 General | Nova 3 Medical)
 /// 4. Fast Formatting toggle (Deepgram only)
 /// 5. Warnings (API key missing, vocabulary unsupported, vocabulary auto-detect)

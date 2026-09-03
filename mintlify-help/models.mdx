@@ -132,7 +132,7 @@ HyperWhisper Cloud is built into the app. You need no API key and no separate ac
 | Tier | Powered by | Best for |
 | --- | --- | --- |
 | **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
-| **High** | Grok STT (xAI), Microsoft MAI-Transcribe, Google Gemini 3.5 Transcribe, Meta Muse Voice Transcribe | Good multilingual accuracy at low cost |
+| **High** | Grok STT (SpaceXAI), Microsoft MAI-Transcribe, Google Gemini 3.5 Transcribe, Meta Muse Voice Transcribe | Good multilingual accuracy at low cost |
 | **Medium** | Deepgram Nova-3, Groq Whisper Large v3 Turbo | Strong English accuracy. Groq adds sub-second latency |
 
 HyperWhisper Cloud gives you all 12 supported provider engines with no key. The other providers are Soniox, OpenAI, AssemblyAI, Mistral Voxtral, Gemini, and Meta Muse Voice Transcribe. Only ElevenLabs, Grok, Deepgram, and Groq have automatic failover to a backup provider. The other providers have no automatic failover. For pricing, cost examples, and language guidance, see [Providers](/choosing-a-provider).
@@ -149,7 +149,7 @@ You can use your own key if you hold API credits, if you want the free tier of a
 
 Supported providers for bring-your-own-key transcription:
 
-**OpenAI · Groq · Deepgram · AssemblyAI · ElevenLabs · Mistral · Soniox · Google Gemini · Google Gemini 3.5 Transcribe · xAI (Grok)**
+**OpenAI · Groq · Deepgram · AssemblyAI · ElevenLabs · Mistral · Soniox · Google Gemini · Google Gemini 3.5 Transcribe · SpaceXAI (Grok)**
 
 <Note>
   **Google Gemini** and **Google Gemini 3.5 Transcribe** are two different products of Google, on two different endpoints. Each has its own key slot in **Model Library → API Keys**. Gemini 3.5 Transcribe is a dedicated speech model, and it does not do post-processing. See [API Keys](/api-keys).
@@ -205,7 +205,7 @@ You can use cloud post-processing through HyperWhisper Cloud with no key, or wit
 | **Anthropic (Claude)** | Yes | Claude Haiku and Sonnet. High-quality reasoning |
 | **Google Gemini** | Yes | Gemini Flash and Pro. Efficient and multilingual |
 | **Groq** | Yes | Very fast inference with GPT OSS and Qwen models |
-| **xAI (Grok)** | Yes | Grok 4.3, Grok 4.5, and Grok 4.6. High accuracy with low latency |
+| **SpaceXAI (Grok)** | Yes | Grok 4.3, Grok 4.5, and Grok 4.6. High accuracy with low latency |
 | **Cerebras** | Yes | Very fast inference with GPT OSS 120B and Gemma 4 31B |
 | **Mistral** | Yes | Good for many languages. Mistral Small and Mistral Medium 3.5 |
 
@@ -226,7 +226,7 @@ The replacement is always a model of the same provider, except for the local Gem
 | Llama 3.1 8B (Cerebras) | Gemma 4 31B |
 | Qwen 3 235B Instruct (Cerebras) | GPT OSS 120B |
 | Z.ai GLM 4.7 (Cerebras) | GPT OSS 120B |
-| Grok 4 and Grok 4.1 Fast (xAI) | Grok 4.3 |
+| Grok 4 and Grok 4.1 Fast (SpaceXAI) | Grok 4.3 |
 | Gemma 3 12B and 27B (Gemini) | Gemini 2.5 Flash |
 | Gemini 2.0 Flash (Gemini) | Gemini 3.6 Flash |
 | Gemini 2.0 Flash Lite (Gemini) | Gemini 3.1 Flash Lite |

@@ -164,7 +164,7 @@
       },
       "apiKey": {
         "question": "需要为 API 访问付费吗？",
-        "answer": "以下提供商需要你自备 API 密钥：Groq、xAI Grok、OpenAI、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini。部分提供商会给新用户免费额度；Deepgram 提供 $200，AssemblyAI 提供 $50。长期来看，这比任何订阅都更划算。\n\n你也可以使用内置的 HyperWhisper Cloud，无需 API 密钥，按量计费。\n\n同时，本地离线模式不需要任何 API 密钥，而且完全免费。"
+        "answer": "以下提供商需要你自备 API 密钥：Groq、SpaceXAI Grok、OpenAI、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini。部分提供商会给新用户免费额度；Deepgram 提供 $200，AssemblyAI 提供 $50。长期来看，这比任何订阅都更划算。\n\n你也可以使用内置的 HyperWhisper Cloud，无需 API 密钥，按量计费。\n\n同时，本地离线模式不需要任何 API 密钥，而且完全免费。"
       },
       "languages": {
         "question": "支持哪些语言？",
@@ -180,11 +180,11 @@
       },
       "privacy": {
         "question": "我的隐私如何保障？",
-        "answer": "使用本地模式时，数据不会离开你的 Mac 或 Windows 电脑。\n\n使用云端转写时，数据会发送到你选择的云服务商（例如 OpenAI、Groq、xAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox 或 Google Gemini）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等网络抓包工具、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等网络监控工具，或阅读 [GitHub 上的源代码](https://github.com/ray-amjad/hyperwhisper-app) 自行验证。"
+        "answer": "使用本地模式时，数据不会离开你的 Mac 或 Windows 电脑。\n\n使用云端转写时，数据会发送到你选择的云服务商（例如 OpenAI、Groq、SpaceXAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox 或 Google Gemini）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等网络抓包工具、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等网络监控工具，或阅读 [GitHub 上的源代码](https://github.com/ray-amjad/hyperwhisper-app) 自行验证。"
       },
       "cloud": {
         "question": "什么是 HyperWhisper Cloud？",
-        "answer": "HyperWhisper Cloud 是内置的云端转录服务，专为想要快速上手、不太熟悉技术的用户打造。\n\n它采用即用即付的积分制。你最低只需充值 $5（每 $1 可换 1,000 积分），而且只在转录时才会消耗。你第一次购买积分时会自动创建你的 Account Key，因此无需再额外购买任何东西。\n    \n我们提供四种准确度等级：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）以及 Highest（Grok STT，新安装的默认值，由 xAI Grok STT 提供支持）。后处理会自动进行，默认使用 Grok 4.1 Fast non-reasoning。除了你消耗了多少积分之外，我们不存储任何其他数据，而且我们已在所有上游提供商处替你选择退出模型训练。详情请参阅我们的[数据隐私指南](https://hyperwhisper.com/docs/data-privacy)。\n\n积分按提供商自身的处理成本计费——转录不加价。结账时会加收固定 6% 的支付处理费，并以独立项目显示。未使用的积分将于 12 个月后过期（见下文）。\n\n为了让你安心，整个应用都采用 Apache-2.0 开源——包括 Cloud 后端在内。你可以[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)阅读在你的应用与我们代理连接的提供商之间运行的每一行代码。"
+        "answer": "HyperWhisper Cloud 是内置的云端转录服务，专为想要快速上手、不太熟悉技术的用户打造。\n\n它采用即用即付的积分制。你最低只需充值 $5（每 $1 可换 1,000 积分），而且只在转录时才会消耗。你第一次购买积分时会自动创建你的 Account Key，因此无需再额外购买任何东西。\n    \n我们提供四种准确度等级：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）以及 Highest（Grok STT，新安装的默认值，由 SpaceXAI Grok STT 提供支持）。后处理会自动进行，默认使用 Grok 4.1 Fast non-reasoning。除了你消耗了多少积分之外，我们不存储任何其他数据，而且我们已在所有上游提供商处替你选择退出模型训练。详情请参阅我们的[数据隐私指南](https://hyperwhisper.com/docs/data-privacy)。\n\n积分按提供商自身的处理成本计费——转录不加价。结账时会加收固定 6% 的支付处理费，并以独立项目显示。未使用的积分将于 12 个月后过期（见下文）。\n\n为了让你安心，整个应用都采用 Apache-2.0 开源——包括 Cloud 后端在内。你可以[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)阅读在你的应用与我们代理连接的提供商之间运行的每一行代码。"
       },
       "dataTraining": {
         "question": "我的语音数据会被用于训练 AI 模型吗？",

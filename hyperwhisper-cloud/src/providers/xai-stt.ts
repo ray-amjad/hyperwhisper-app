@@ -137,7 +137,7 @@ export async function transcribeWithXaiGrok(
     throw await providerHttpError(provider, response, startedAt, context, {
       label: 'Grok',
       authStatuses: [401, 403],
-      authMessage: 'xAI API key is invalid or unauthorized',
+      authMessage: 'SpaceXAI API key is invalid or unauthorized',
     });
   }
 

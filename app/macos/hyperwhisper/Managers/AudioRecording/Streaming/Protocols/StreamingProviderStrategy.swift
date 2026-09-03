@@ -227,7 +227,7 @@ protocol StreamingProviderStrategy {
 
     /// Human-readable label for this provider, used in history entries.
     ///
-    /// Examples: "HyperWhisper Cloud (Streaming)", "Deepgram (Streaming)", "ElevenLabs (Streaming)", "xAI (Streaming)"
+    /// Examples: "HyperWhisper Cloud (Streaming)", "Deepgram (Streaming)", "ElevenLabs (Streaming)", "SpaceXAI (Streaming)"
     var transcriptionProviderLabel: String { get }
 
     /// Whether this provider supports custom vocabulary boosting.

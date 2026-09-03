@@ -21,7 +21,7 @@
  *    rows the page shows when "Break down by model" is on.
  *
  * Names are never invented here. The page used to keep its own vendor-only
- * labels ("Microsoft MAI-Transcribe", "xAI Grok") because a provider row blends
+ * labels ("Microsoft MAI-Transcribe", "SpaceXAI Grok") because a provider row blends
  * every model of that provider and a label naming one model would be wrong for
  * most of the rows under it. That reasoning still holds — it is why the vendor
  * row is a vendor NAME and the model rows underneath are where models get named
