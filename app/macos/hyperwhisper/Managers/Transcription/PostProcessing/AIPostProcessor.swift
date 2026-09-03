@@ -1179,11 +1179,27 @@ class AIPostProcessor: ObservableObject {
                     // `mode.languageModel` — the engine comes from
                     // `mode.cloudPostProcessingModel` — so echoing the Mode's
                     // `languageModel` here reported an unrelated field, not just
-                    // a stale one. `llmModelHeader` is the `X-LLM-Model` value
-                    // sent above; fall back to the catalog model id when the
-                    // catalog does not override it.
+                    // a stale one.
+                    //
+                    // PREFER WHAT THE BACKEND SERVED. The hosted /post-process
+                    // route runs its OWN provider fallback — a 5xx on the primary
+                    // provider, or a prompt-leakage reroute — and names the
+                    // (provider, model) pair that actually answered in the
+                    // `X-LLM-Provider` RESPONSE header (`servedLLMName`, e.g.
+                    // "cerebras-gpt-oss-120b", "claude-haiku-4-5"). The
+                    // `X-LLM-Model` value we sent is only what we ASKED for, so
+                    // reporting it after a server-side reroute repeats #314 one
+                    // level deeper. Fall back to the requested value only when the
+                    // header is absent (older backend, or a proxy stripped it).
                     signal.resolvedProvider = PostProcessingProvider.hyperwhisper.rawValue
-                    signal.resolvedModel = cloudPPModel.llmModelHeader ?? cloudPPModel.modelId
+                    let servedModel = httpResponse
+                        .value(forHTTPHeaderField: "X-LLM-Provider")?
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let servedModel, !servedModel.isEmpty {
+                        signal.resolvedModel = servedModel
+                    } else {
+                        signal.resolvedModel = cloudPPModel.llmModelHeader ?? cloudPPModel.modelId
+                    }
                     return trimmedCorrected
                 }
 

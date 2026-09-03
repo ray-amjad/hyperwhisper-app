@@ -391,8 +391,29 @@ static async Task TestResolvedModelIsReported()
     {
         HyperWhisperCloudModel = "groq:openai/gpt-oss-120b",
     });
-    // The `X-LLM-Model` header value, matching what macOS and Windows report.
+    // No `X-LLM-Provider` response header: fall back to the `X-LLM-Model` value
+    // we sent, matching what macOS and Windows report.
     Assert(cloudResult.Model == "openai/gpt-oss-120b", "cloud route did not report its X-LLM-Model value");
+
+    // Issue #314, one level deeper: the backend runs its OWN provider fallback
+    // (5xx on the primary, or a prompt-leakage reroute) and names the pair that
+    // really answered in the `X-LLM-Provider` RESPONSE header. That wins over the
+    // model we asked for — otherwise the response names a model that never saw
+    // the text, which is the same bug the requested-vs-stored fix just closed.
+    using var rerouted = Service(
+        new StubHandler(_ =>
+        {
+            var message = Json(HttpStatusCode.OK, "{\"corrected\":\"cloud result\"}");
+            message.Headers.TryAddWithoutValidation("X-LLM-Provider", " cerebras-gpt-oss-120b ");
+            return Task.FromResult(message);
+        }),
+        cloudCredentials);
+    var reroutedResult = await rerouted.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud) with
+    {
+        HyperWhisperCloudModel = "groq:openai/gpt-oss-120b",
+    });
+    Assert(reroutedResult.Model == "cerebras-gpt-oss-120b",
+        "cloud route reported the model it requested, not the one the backend served");
 
     using var failing = Service(
         new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError))),

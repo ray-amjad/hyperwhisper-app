@@ -165,7 +165,7 @@ public sealed class CloudPostProcessingService : IDisposable
             request.SystemInfo,
             transcript));
 
-        var responseJson = await SendAsync(message, cancellationToken);
+        var (responseJson, _) = await SendAsync(message, cancellationToken);
         return Evaluate(
             responseJson,
             LlmPostProcessing.WireProtocolFor(provider.Value),
@@ -199,7 +199,7 @@ public sealed class CloudPostProcessingService : IDisposable
             transcript,
             CustomEndpoint: custom.EndpointUrl));
 
-        var responseJson = await SendAsync(message, cancellationToken);
+        var (responseJson, _) = await SendAsync(message, cancellationToken);
         return Evaluate(responseJson, PortableLlmWireProtocol.OpenAiChat, transcript,
             $"Custom endpoint · {model}", model);
     }
@@ -239,7 +239,7 @@ public sealed class CloudPostProcessingService : IDisposable
             LlmProviderHeader: route.Value.ProviderHeader,
             LlmModelHeader: route.Value.ModelHeader));
 
-        var responseJson = await SendAsync(message, cancellationToken);
+        var (responseJson, servedModel) = await SendAsync(message, cancellationToken);
         string corrected;
         try
         {
@@ -254,11 +254,18 @@ public sealed class CloudPostProcessingService : IDisposable
                 transcript, CloudPostProcessingFailureCode.RejectedResponse,
                 "HyperWhisper Cloud returned an invalid response.");
         }
-        // `ModelHeader` is the `X-LLM-Model` value actually sent — the same value
-        // the macOS and Windows heads now report for this provider (#314). The
-        // caller's stored `CloudPostProcessingModel` is only a catalog key, and
-        // `Resolve` falls back to the catalog default when it does not match.
-        return CloudPostProcessingResult.Applied(corrected, route.Value.Label, route.Value.ModelHeader);
+        // PREFER WHAT THE BACKEND SERVED. The hosted /post-process route runs its
+        // OWN provider fallback — a 5xx on the primary provider, or a
+        // prompt-leakage reroute — and names the (provider, model) pair that
+        // actually answered in the `X-LLM-Provider` RESPONSE header. `ModelHeader`
+        // is only the `X-LLM-Model` value we SENT, so reporting it after a
+        // server-side reroute repeats #314 one level deeper. Fall back to the
+        // requested value only when the header is absent (older backend, or a
+        // proxy stripped it); the caller's stored `CloudPostProcessingModel` is
+        // just a catalog key, and `Resolve` already substituted the catalog
+        // default when it did not match.
+        return CloudPostProcessingResult.Applied(
+            corrected, route.Value.Label, servedModel ?? route.Value.ModelHeader);
     }
 
     private static CloudPostProcessingResult Evaluate(
@@ -277,7 +284,15 @@ public sealed class CloudPostProcessingService : IDisposable
                 "The post-processing provider response was rejected.");
     }
 
-    private async Task<string> SendAsync(HttpRequestMessage message, CancellationToken cancellationToken)
+    /// <returns>
+    /// The response body, plus the value of the <c>X-LLM-Provider</c> RESPONSE
+    /// header when there is one. Only the HyperWhisper Cloud route sets that
+    /// header — it names the (provider, model) pair the backend actually served
+    /// after its own server-side fallback (#314) — so the BYOK and custom routes
+    /// get null and ignore it.
+    /// </returns>
+    private async Task<(string Body, string? ServedLlmName)> SendAsync(
+        HttpRequestMessage message, CancellationToken cancellationToken)
     {
         using var response = await _httpClient.SendAsync(
             message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -305,7 +320,17 @@ public sealed class CloudPostProcessingService : IDisposable
             }
             target.Write(buffer, 0, read);
         }
-        return new UTF8Encoding(false, true).GetString(target.GetBuffer(), 0, checked((int)target.Length));
+        var body = new UTF8Encoding(false, true).GetString(target.GetBuffer(), 0, checked((int)target.Length));
+        string? served = null;
+        if (response.Headers.TryGetValues("X-LLM-Provider", out var servedValues))
+        {
+            var value = servedValues.FirstOrDefault()?.Trim();
+            if (!string.IsNullOrEmpty(value))
+            {
+                served = value;
+            }
+        }
+        return (body, served);
     }
 
     private static PortableLlmProvider? MapProvider(CloudPostProcessingProvider provider) => provider switch

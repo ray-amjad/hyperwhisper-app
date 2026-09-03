@@ -726,9 +726,17 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
     /// <param name="text">Raw transcription text to correct.</param>
     /// <param name="prompt">System prompt for AI processing instructions.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>AI-corrected text.</returns>
+    /// <returns>
+    /// The AI-corrected text, plus the model the backend actually SERVED — the
+    /// <c>X-LLM-Provider</c> RESPONSE header, which the hosted route sets to the
+    /// (provider, model) pair that really answered after its own server-side
+    /// fallback. Null when the header is absent (older backend, stripping proxy),
+    /// and never set on the early-return path, where nothing was called at all.
+    /// The caller reports it as the resolved model (#314); <c>llmModelHeader</c>
+    /// is only what we asked for.
+    /// </returns>
     /// <exception cref="TranscriptionException">Thrown on API errors.</exception>
-    public async Task<string> PostProcessAsync(
+    public async Task<(string Text, string? ServedModel)> PostProcessAsync(
         string text,
         string prompt,
         string? llmProviderHeader = null,
@@ -736,7 +744,7 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(text))
-            return text;
+            return (text, null);
 
         // Get fresh credentials at request time (matches macOS behavior)
         var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
@@ -801,6 +809,18 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
                 var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
                 using var doc = JsonDocument.Parse(responseJson);
 
+                // The (provider, model) pair the backend actually answered with,
+                // after its own 5xx fallback / prompt-leakage reroute (#314).
+                string? servedModel = null;
+                if (response.Headers.TryGetValues("X-LLM-Provider", out var servedValues))
+                {
+                    var served = servedValues.FirstOrDefault()?.Trim();
+                    if (!string.IsNullOrEmpty(served))
+                    {
+                        servedModel = served;
+                    }
+                }
+
                 // Extract corrected text
                 if (doc.RootElement.TryGetProperty("corrected", out var correctedElement))
                 {
@@ -817,8 +837,9 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
 
                     LoggingService.Info("========== POST-PROCESS COMPLETE ==========");
                     LoggingService.Info($"  Output length: {corrected?.Length ?? 0} chars");
+                    LoggingService.Debug($"  Served by: {servedModel ?? "(no X-LLM-Provider header)"}");
 
-                    return corrected ?? text;
+                    return (corrected ?? text, servedModel);
                 }
 
                 throw new TranscriptionException(
