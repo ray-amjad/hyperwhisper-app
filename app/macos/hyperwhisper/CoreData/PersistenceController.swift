@@ -2186,12 +2186,21 @@ class PersistenceController: ObservableObject {
         // default (e.g. scribe_v2) instead of persisting a stale "whisper-1".
         mode?.postProcessingMode = postProcessingMode
 
+        // A provider this app DERIVES is written in its canonical cross-platform
+        // spelling — HyperWhisper Cloud is "hyperwhispercloud", the token Windows
+        // and the Linux/portable head already store. A provider the CALLER
+        // supplied is stored verbatim: the Local API contract on both heads is
+        // "tolerant on read, verbatim on write" (`ModesEndpoints.cs:106,397`
+        // normalise neither create nor patch), and a restore must round-trip a
+        // foreign head's string unchanged. Every reader folds the spellings back
+        // together through `PostProcessingProvider(rawValue:)`.
         if modeEnum == .local {
-            mode?.postProcessingProvider = PostProcessingProvider.localLLM.rawValue
+            mode?.postProcessingProvider = PostProcessingProvider.localLLM.storageValue
         } else if let provider = postProcessingProvider {
             mode?.postProcessingProvider = provider
         } else {
-            mode?.postProcessingProvider = modeEnum.defaultProvider?.rawValue ?? "hyperwhisper"
+            mode?.postProcessingProvider = modeEnum.defaultProvider?.storageValue
+                ?? PostProcessingProvider.hyperwhisper.storageValue
         }
         // An omitted spelling lands on the system region's variant, the same value
         // the GUI seeds into a new mode. Callers that forward an existing mode's

@@ -22,7 +22,73 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
     case mistral = "mistral"
     case localLLM = "local_llm"
 
+    /// Accepts every spelling of a provider id that any HyperWhisper head has
+    /// stored, and folds it onto the matching case.
+    ///
+    /// macOS has always stored HyperWhisper Cloud post-processing as
+    /// `"hyperwhisper"`. Windows and the Linux/portable head store
+    /// `"hyperwhispercloud"`, and older builds wrote `"hyperwhisper_cloud"`.
+    /// A universal `.hwbackup` carries the value verbatim — the exporter does
+    /// not fold it (`ApplicationBackupExport.cs`) — so restoring a Linux backup
+    /// on macOS used to land a token the synthesised initialiser rejected. That
+    /// failure is silent and partial: `AIPostProcessor` returns the raw
+    /// transcript while `ModeCard` and `ModePostProcessingSettings` still show
+    /// "HyperWhisper Cloud", because their `?? .hyperwhisper` fallbacks fire on
+    /// nil and hide the mismatch.
+    ///
+    /// Overriding `init?(rawValue:)` rather than adding a separate parser is
+    /// deliberate: the compiler routes all 20 existing
+    /// `PostProcessingProvider(rawValue:)` call sites through it, so no read
+    /// site can be missed here or re-introduced without the tolerance later.
+    ///
+    /// Mirrors `PostProcessingProviderExtensions.FromString`
+    /// (`app/windows/HyperWhisper/Models/PostProcessingProvider.cs`) and
+    /// `LinuxPostProcessingRouter.TryResolveProvider`, whose alias set is pinned
+    /// by `HyperWhisper.Linux.Composition.Tests`.
+    ///
+    /// Unrecognised values still return nil, so a `"custom:<uuid>"` endpoint
+    /// string keeps falling through to `CustomPostProcessingEndpoint` at the
+    /// call sites that check it first.
+    init?(rawValue: String) {
+        let normalized = rawValue
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        switch normalized {
+        case "hyperwhisper", "hyperwhispercloud", "hyperwhisper_cloud":
+            self = .hyperwhisper
+        default:
+            // Match against the declared raw values directly. Calling
+            // `PostProcessingProvider(rawValue:)` here would recurse forever —
+            // this IS that initialiser.
+            guard let match = Self.allCases.first(where: { $0.rawValue == normalized }) else {
+                return nil
+            }
+            self = match
+        }
+    }
+
     var id: String { rawValue }
+
+    /// The canonical cross-platform spelling to PERSIST for this provider.
+    ///
+    /// `rawValue` deliberately stays `"hyperwhisper"`: it is wired into API-key
+    /// setting names, `ProviderHealth` string keys and SwiftUI picker tags, and
+    /// re-canonicalising it would ripple through all of them. But the token the
+    /// three heads agree to *store* for HyperWhisper Cloud is
+    /// `"hyperwhispercloud"`, so use this wherever macOS itself chooses the
+    /// provider. A value supplied by a caller — Local API `POST`/`PATCH`, a
+    /// backup restore — is stored verbatim instead, matching Windows'
+    /// `ModesEndpoints` contract of "tolerant on read, verbatim on write".
+    ///
+    /// Mirrors `PostProcessingProviderExtensions.ToStringValue` on Windows.
+    var storageValue: String {
+        switch self {
+        case .hyperwhisper:
+            return "hyperwhispercloud"
+        default:
+            return rawValue
+        }
+    }
 
     /// Display name for the provider
     var displayName: String {

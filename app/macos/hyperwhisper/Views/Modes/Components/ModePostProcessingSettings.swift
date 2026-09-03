@@ -226,7 +226,7 @@ struct LanguageProcessingSettingsView: View {
                         || isCustomEndpointSelected {
                         lastDirectPostProcessingProvider = postProcessingProvider
                     }
-                    postProcessingProvider = PostProcessingProvider.hyperwhisper.rawValue
+                    postProcessingProvider = PostProcessingProvider.hyperwhisper.storageValue
                 } else {
                     // Restore a previously-chosen direct provider if it's still
                     // usable; otherwise seed the first available direct provider.

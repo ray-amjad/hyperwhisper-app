@@ -189,12 +189,14 @@ struct ModeEditorView: View {
             // Resolve post-processing provider — compute against the migrated
             // cloudProvider so legacy Azure/Google modes get the HW Cloud
             // post-processing default after migration.
-            let providerValue = mode.postProcessingProvider ?? processingMode.defaultProvider?.rawValue ?? "hyperwhisper"
+            let providerValue = mode.postProcessingProvider
+                ?? processingMode.defaultProvider?.storageValue
+                ?? PostProcessingProvider.hyperwhisper.storageValue
             let resolvedPostProvider: String = {
                 if initialCloudProvider == .hyperwhisper,
                    processingMode == .cloud,
                    mode.postProcessingProvider == nil {
-                    return PostProcessingProvider.hyperwhisper.rawValue
+                    return PostProcessingProvider.hyperwhisper.storageValue
                 }
                 return providerValue
             }()
@@ -229,7 +231,7 @@ struct ModeEditorView: View {
             _customInstructions = State(initialValue: "")
             _languageModel = State(initialValue: PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-5.6-luna")
             _postProcessingMode = State(initialValue: .cloud)
-            _postProcessingProvider = State(initialValue: PostProcessingProvider.hyperwhisper.rawValue)
+            _postProcessingProvider = State(initialValue: PostProcessingProvider.hyperwhisper.storageValue)
             _cloudProvider = State(initialValue: "hyperwhisper")
             // Recommended HyperWhisper Cloud defaults: ElevenLabs Scribe v2
             // transcription + Anthropic Claude Haiku 4.5 post-processing. Seed the
@@ -969,7 +971,13 @@ struct ModeEditorView: View {
 
                     guard postProcessingMode == .cloud else { return }
 
-                    if postProcessingProvider == PostProcessingProvider.hyperwhisper.rawValue {
+                    // Compare through the enum: a mode seeded or restored from
+                    // another head stores "hyperwhispercloud" for this provider,
+                    // and a raw-string match would leave post-processing pointed
+                    // at HyperWhisper Cloud after the user moved transcription
+                    // to a BYOK provider.
+                    let currentPostProvider = PostProcessingProvider(rawValue: postProcessingProvider)
+                    if currentPostProvider == .hyperwhisper {
                         postProcessingProvider = PostProcessingProvider.openai.rawValue
                     }
                 }

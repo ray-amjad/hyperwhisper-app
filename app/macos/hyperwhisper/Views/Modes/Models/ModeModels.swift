@@ -186,9 +186,9 @@ struct ModeData {
         if let provider = postProcessingProvider {
             self.postProcessingProvider = provider
         } else if let defaultProvider = postProcessingMode.defaultProvider {
-            self.postProcessingProvider = defaultProvider.rawValue
+            self.postProcessingProvider = defaultProvider.storageValue
         } else {
-            self.postProcessingProvider = PostProcessingProvider.hyperwhisper.rawValue
+            self.postProcessingProvider = PostProcessingProvider.hyperwhisper.storageValue
         }
     }
 
@@ -232,9 +232,9 @@ struct ModeData {
             if let provider = mode.postProcessingProvider {
                 self.postProcessingProvider = provider
             } else if let defaultProvider = processingMode.defaultProvider {
-                self.postProcessingProvider = defaultProvider.rawValue
+                self.postProcessingProvider = defaultProvider.storageValue
             } else {
-                self.postProcessingProvider = PostProcessingProvider.hyperwhisper.rawValue
+                self.postProcessingProvider = PostProcessingProvider.hyperwhisper.storageValue
             }
         }
         self.punctuation = mode.punctuation
