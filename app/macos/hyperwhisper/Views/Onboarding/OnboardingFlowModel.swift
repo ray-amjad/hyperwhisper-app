@@ -1104,7 +1104,6 @@ final class OnboardingFlowModel: ObservableObject {
         // remounts a step view and fires its `.onAppear` against a dead flow —
         // which for `.microphone` runs `beginMicrophoneStep()` and re-opens the
         // input device `finish()` just closed.
-        guard isLive else { return false }
         guard let previous = OnboardingStep(rawValue: step.rawValue - 1) else { return false }
         step = previous
         return true
