@@ -1,0 +1,39 @@
+<!--
+    THE ONBOARDING STAGE
+
+    The root of every one of the eight step pages, and the WPF spelling of
+    OnboardingView.swift:79-101:
+
+        GeometryReader { proxy in ScrollView { ZStack { stage }
+            .frame(minHeight: proxy.size.height) } }
+
+    The comment there spells out why it is not a plain fixed frame: every step is
+    laid out exactly as designed and vertically centred by its own spacers, and
+    the scroll view only engages once real content exceeds the sheet. "A Mac with
+    several virtual inputs listed on the microphone step, or a long dictation on
+    the try it step, would otherwise clip at both ends with no way to reach the
+    content."
+
+    A fixed 760 x 624 non-resizable WPF window has exactly the same overflow and
+    less forgiveness, so: MinHeight on the content grid tracks the ScrollViewer's
+    own ViewportHeight. Short steps stay centred and show no scrollbar; long ones
+    scroll. The progress hairline and the footer live in OnboardingWindow and stay
+    OUTSIDE this control, so Continue, Back and "Set Up Later" can never be
+    scrolled off screen.
+-->
+<UserControl x:Class="HyperWhisper.Views.Controls.Onboarding.OnboardingStage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer x:Name="StageScroll"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Focusable="False">
+        <Grid x:Name="StageGrid"
+              VerticalAlignment="Stretch"
+              MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+            <ContentPresenter Content="{Binding StageContent, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              VerticalAlignment="Center"
+                              HorizontalAlignment="Stretch"/>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

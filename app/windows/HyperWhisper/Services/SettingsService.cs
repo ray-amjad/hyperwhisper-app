@@ -159,6 +159,11 @@ public partial class SettingsService
         // Getting Started checklist
         public string? GettingStartedCompletedSteps { get; set; }
 
+        // First-run onboarding. NULLABLE IS LOAD-BEARING: null means "this install
+        // never wrote it", which ApplyDefaults turns into true only when there was
+        // no settings.json at all. Every pre-existing install defaults to false.
+        public bool? OnboardingPending { get; set; }
+
         // Parakeet engine feature flag
         public bool? ParakeetEnabled { get; set; }
 
@@ -962,6 +967,36 @@ public partial class SettingsService
             {
                 _settings.GettingStartedCompletedSteps = value;
                 Save();
+                NotifySettingsChanged();
+            }
+        }
+    }
+
+    // =========================================================================
+    // FIRST-RUN ONBOARDING
+    // =========================================================================
+
+    /// <summary>
+    /// Whether this install still owes the user the first-run onboarding flow.
+    ///
+    /// A genuine fresh install is born owing it (see ApplyDefaults); every
+    /// pre-existing settings.json defaults to false. It stays true until the flow
+    /// is completed, so an interrupted first run is re-offered on the next launch.
+    ///
+    /// Deliberately machine-local and therefore NOT in BuildBackupSettingsSnapshot,
+    /// for the same reason as LastSelectedMicrophone and LocalApiServerPersistedPort:
+    /// restoring a backup onto a new PC must not re-run, or skip, that PC's setup.
+    /// </summary>
+    public bool OnboardingPending
+    {
+        get => _settings.OnboardingPending ?? false;
+        set
+        {
+            if ((_settings.OnboardingPending ?? false) != value)
+            {
+                _settings.OnboardingPending = value;
+                Save();
+                LoggingService.Debug($"SettingsService: OnboardingPending set to: {value}");
                 NotifySettingsChanged();
             }
         }

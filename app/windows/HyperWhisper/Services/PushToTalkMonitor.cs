@@ -81,6 +81,9 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     private readonly LowLevelKeyboardProc _hookCallback;
     private IntPtr _hookId = IntPtr.Zero;
 
+    /// <summary>One line per process, not one per Start/Configure call.</summary>
+    private bool _loggedHookSuppressed;
+
     // =========================================================================
     // STATE MACHINE
     // =========================================================================
@@ -226,6 +229,20 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     private void EnsureHook()
     {
         if (_hookId != IntPtr.Zero) return;
+
+        // Same rule as KeyboardShortcutService: the hook is machine-global and
+        // per-process, so only the instance that owns global input installs it.
+        if (!SingleInstanceGuard.OwnsGlobalInput)
+        {
+            if (!_loggedHookSuppressed)
+            {
+                _loggedHookSuppressed = true;
+                LoggingService.Info(
+                    "PushToTalkMonitor: low-level keyboard hook suppressed - this is a secondary instance");
+            }
+            return;
+        }
+
         using var curProcess = System.Diagnostics.Process.GetCurrentProcess();
         using var curModule = curProcess.MainModule;
         _hookId = SetWindowsHookEx(

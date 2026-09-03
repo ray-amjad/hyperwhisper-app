@@ -2197,4 +2197,538 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
     <value>Use your own Meta Model API key for Muse batch transcription</value>
   </data>
+  <data name="onboarding.window.title" xml:space="preserve">
+    <value>Set up HyperWhisper</value>
+  </data>
+  <data name="onboarding.welcome.title" xml:space="preserve">
+    <value>Write at the speed of thought</value>
+  </data>
+  <data name="onboarding.welcome.subtitle" xml:space="preserve">
+    <value>HyperWhisper turns your voice into text in any app on your PC. Three things, then you are typing with your voice.</value>
+  </data>
+  <data name="onboarding.welcome.getStarted" xml:space="preserve">
+    <value>Get started</value>
+  </data>
+  <data name="onboarding.welcome.task1.title" xml:space="preserve">
+    <value>Choose how transcription runs</value>
+  </data>
+  <data name="onboarding.welcome.task1.caption" xml:space="preserve">
+    <value>In our cloud, on this PC, or through a provider account you already pay for.</value>
+  </data>
+  <data name="onboarding.welcome.task2.title" xml:space="preserve">
+    <value>Check your microphone</value>
+  </data>
+  <data name="onboarding.welcome.task2.caption" xml:space="preserve">
+    <value>Pick an input and watch the level move while you talk.</value>
+  </data>
+  <data name="onboarding.welcome.task3.title" xml:space="preserve">
+    <value>Make one recording</value>
+  </data>
+  <data name="onboarding.welcome.task3.caption" xml:space="preserve">
+    <value>Say a line, read the text back. That is the whole product.</value>
+  </data>
+  <data name="onboarding.welcome.note" xml:space="preserve">
+    <value>HyperWhisper listens only while a recording is running. Nothing is captured in the background.</value>
+  </data>
+  <data name="onboarding.permissions.title" xml:space="preserve">
+    <value>Two quick checks</value>
+  </data>
+  <data name="onboarding.permissions.subtitle" xml:space="preserve">
+    <value>HyperWhisper needs these to hear your voice and drop finished text where you are typing.</value>
+  </data>
+  <data name="onboarding.permissions.microphone.title" xml:space="preserve">
+    <value>Microphone</value>
+  </data>
+  <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
+    <value>Required. Audio is captured only while a recording is active.</value>
+  </data>
+  <data name="onboarding.permissions.grant" xml:space="preserve">
+    <value>Grant</value>
+  </data>
+  <data name="onboarding.permissions.granted" xml:space="preserve">
+    <value>Granted</value>
+  </data>
+  <data name="onboarding.permissions.open" xml:space="preserve">
+    <value>Open Settings</value>
+  </data>
+  <data name="onboarding.permissions.note" xml:space="preserve">
+    <value>The shortcut is optional. If another app already owns it, pick a different one now or later in Settings.</value>
+  </data>
+  <data name="onboarding.permissions.shortcut.title" xml:space="preserve">
+    <value>Your shortcut</value>
+  </data>
+  <data name="onboarding.permissions.shortcut.subtitle" xml:space="preserve">
+    <value>Optional. Press it in any app to start and stop a recording.</value>
+  </data>
+  <data name="onboarding.permissions.shortcut.registered" xml:space="preserve">
+    <value>Shortcut registered</value>
+  </data>
+  <data name="onboarding.permissions.shortcut.checking" xml:space="preserve">
+    <value>Checking the shortcut…</value>
+  </data>
+  <data name="onboarding.permissions.shortcut.conflict" xml:space="preserve">
+    <value>Shortcut not registered</value>
+  </data>
+  <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
+    <value>Choose a different shortcut</value>
+  </data>
+  <data name="onboarding.source.title" xml:space="preserve">
+    <value>How do you want to transcribe?</value>
+  </data>
+  <data name="onboarding.source.subtitle" xml:space="preserve">
+    <value>All three put the same text in the same place. They differ on speed, privacy, and who you pay.</value>
+  </data>
+  <data name="onboarding.source.cloud.title" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
+  <data name="onboarding.source.cloud.description" xml:space="preserve">
+    <value>Fastest to set up, best accuracy. Prepaid credits, no subscription.</value>
+  </data>
+  <data name="onboarding.source.onDevice.title" xml:space="preserve">
+    <value>On this PC</value>
+  </data>
+  <data name="onboarding.source.onDevice.description" xml:space="preserve">
+    <value>Private and free. Downloads a model once, then works with no network.</value>
+  </data>
+  <data name="onboarding.source.provider.title" xml:space="preserve">
+    <value>Your API Key</value>
+  </data>
+  <data name="onboarding.source.provider.description" xml:space="preserve">
+    <value>Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.</value>
+  </data>
+  <data name="onboarding.source.note" xml:space="preserve">
+    <value>Changing your mind later reruns this one step. Nothing else you set up is lost.</value>
+  </data>
+  <data name="onboarding.configure.cloud.title" xml:space="preserve">
+    <value>Activate HyperWhisper Cloud</value>
+  </data>
+  <data name="onboarding.configure.cloud.subtitle" xml:space="preserve">
+    <value>Enter your Cloud access key to connect this PC to your prepaid credits.</value>
+  </data>
+  <data name="onboarding.configure.cloud.placeholder" xml:space="preserve">
+    <value>Paste your access key</value>
+  </data>
+  <data name="onboarding.configure.cloud.getCredits" xml:space="preserve">
+    <value>Don't have a key? Get credits at hyperwhisper.com</value>
+  </data>
+  <data name="onboarding.configure.cloud.creditsCaption" xml:space="preserve">
+    <value>credits available</value>
+  </data>
+  <data name="onboarding.configure.cloud.note" xml:space="preserve">
+    <value>Credits are prepaid and shared across every PC signed in with this key. Idle time costs nothing.</value>
+  </data>
+  <data name="onboarding.configure.onDevice.title" xml:space="preserve">
+    <value>Choose a model</value>
+  </data>
+  <data name="onboarding.configure.onDevice.subtitle" xml:space="preserve">
+    <value>Larger models are more accurate and slower to download.</value>
+  </data>
+  <data name="onboarding.configure.onDevice.note" xml:space="preserve">
+    <value>Audio never leaves this PC. After the download it works on a plane.</value>
+  </data>
+  <data name="onboarding.configure.provider.title" xml:space="preserve">
+    <value>Connect your provider</value>
+  </data>
+  <data name="onboarding.configure.provider.subtitle" xml:space="preserve">
+    <value>Choose a provider and paste your API key. It is stored securely in Windows Credential Manager.</value>
+  </data>
+  <data name="onboarding.configure.provider.keyPlaceholder" xml:space="preserve">
+    <value>Paste your API key</value>
+  </data>
+  <data name="onboarding.configure.provider.keychainNote" xml:space="preserve">
+    <value>Stored securely in Windows Credential Manager.</value>
+  </data>
+  <data name="onboarding.configure.noSource.title" xml:space="preserve">
+    <value>Choose a transcription source first.</value>
+  </data>
+  <data name="onboarding.configure.noSource.caption" xml:space="preserve">
+    <value>Go back one step and pick where your speech should become text.</value>
+  </data>
+  <data name="onboarding.noSource.detail" xml:space="preserve">
+    <value>This step depends on the source you pick.</value>
+  </data>
+  <data name="onboarding.configure.cloud.testKey" xml:space="preserve">
+    <value>Test access key</value>
+  </data>
+  <data name="onboarding.configure.provider.testKey" xml:space="preserve">
+    <value>Test API key</value>
+  </data>
+  <data name="onboarding.configure.test.testing" xml:space="preserve">
+    <value>Testing…</value>
+  </data>
+  <data name="onboarding.configure.test.valid" xml:space="preserve">
+    <value>Access key valid</value>
+  </data>
+  <data name="onboarding.configure.test.healthy" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="onboarding.configure.test.unauthorized" xml:space="preserve">
+    <value>Provider rejected this key. Double-check it's still valid.</value>
+  </data>
+  <data name="onboarding.configure.test.unreachable" xml:space="preserve">
+    <value>Couldn't reach the provider. Check your internet, then test again.</value>
+  </data>
+  <data name="onboarding.model.parakeetV2.subtitle" xml:space="preserve">
+    <value>English only. Fastest on this PC.</value>
+  </data>
+  <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
+    <value>Multilingual. Same speed, larger download.</value>
+  </data>
+  <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
+    <value>Multilingual. Smallest download, lowest accuracy.</value>
+  </data>
+  <data name="onboarding.model.whisperTurbo.subtitle" xml:space="preserve">
+    <value>Multilingual. Most accurate offline option.</value>
+  </data>
+  <data name="onboarding.model.downloaded" xml:space="preserve">
+    <value>Downloaded</value>
+  </data>
+  <data name="onboarding.setup.cloud.title" xml:space="preserve">
+    <value>Activate your key</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
+    <value>Key verified, credits confirmed. Recordings will go to HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.activate" xml:space="preserve">
+    <value>Activate Cloud</value>
+  </data>
+  <data name="onboarding.setup.cloud.activating" xml:space="preserve">
+    <value>Activating…</value>
+  </data>
+  <data name="onboarding.setup.cloud.active" xml:space="preserve">
+    <value>Cloud key activated</value>
+  </data>
+  <data name="onboarding.setup.cloud.check.keyVerified" xml:space="preserve">
+    <value>Access key verified</value>
+  </data>
+  <data name="onboarding.setup.cloud.check.activated" xml:space="preserve">
+    <value>Account activated for this device</value>
+  </data>
+  <data name="onboarding.setup.cloud.check.creditsConfirmed" xml:space="preserve">
+    <value>Credits confirmed</value>
+  </data>
+  <data name="onboarding.setup.cloud.credits.caption" xml:space="preserve">
+    <value>credits, spent per minute of audio</value>
+  </data>
+  <data name="onboarding.setup.cloud.note" xml:space="preserve">
+    <value>Run low and HyperWhisper tells you before a recording, not after.</value>
+  </data>
+  <data name="onboarding.setup.onDevice.title" xml:space="preserve">
+    <value>Download your model</value>
+  </data>
+  <data name="onboarding.setup.onDevice.subtitle" xml:space="preserve">
+    <value>This happens once. Every recording after it runs offline.</value>
+  </data>
+  <data name="onboarding.setup.onDevice.download" xml:space="preserve">
+    <value>Download {0}</value>
+  </data>
+  <data name="onboarding.setup.onDevice.downloading" xml:space="preserve">
+    <value>Downloading… {0}%</value>
+  </data>
+  <data name="onboarding.setup.onDevice.ready" xml:space="preserve">
+    <value>Model ready</value>
+  </data>
+  <data name="onboarding.setup.onDevice.storedCaption" xml:space="preserve">
+    <value>stored on this PC</value>
+  </data>
+  <data name="onboarding.setup.onDevice.totalCaption" xml:space="preserve">
+    <value>total download</value>
+  </data>
+  <data name="onboarding.setup.onDevice.note" xml:space="preserve">
+    <value>The model stays on this PC, so your audio is transcribed here and never uploaded.</value>
+  </data>
+  <data name="onboarding.setup.provider.title" xml:space="preserve">
+    <value>Save your key</value>
+  </data>
+  <data name="onboarding.setup.provider.subtitle" xml:space="preserve">
+    <value>Windows holds it. HyperWhisper asks for it only when a recording needs transcribing.</value>
+  </data>
+  <data name="onboarding.setup.provider.save" xml:space="preserve">
+    <value>Save key</value>
+  </data>
+  <data name="onboarding.setup.provider.saved" xml:space="preserve">
+    <value>API key saved</value>
+  </data>
+  <data name="onboarding.setup.provider.check.validated" xml:space="preserve">
+    <value>Key validated against {0}</value>
+  </data>
+  <data name="onboarding.setup.provider.check.written" xml:space="preserve">
+    <value>Written to Windows Credential Manager</value>
+  </data>
+  <data name="onboarding.setup.provider.keychainItem" xml:space="preserve">
+    <value>HyperWhisper · {0} API key</value>
+  </data>
+  <data name="onboarding.setup.provider.keyHidden" xml:space="preserve">
+    <value>Stored, never shown again</value>
+  </data>
+  <data name="onboarding.setup.provider.note" xml:space="preserve">
+    <value>Delete it from Settings, Transcription and HyperWhisper stops calling the provider immediately.</value>
+  </data>
+  <data name="onboarding.setup.selectFirst" xml:space="preserve">
+    <value>Go back and make a selection first.</value>
+  </data>
+  <data name="onboarding.setup.noSource.title" xml:space="preserve">
+    <value>Nothing to set up.</value>
+  </data>
+  <data name="onboarding.setup.noSource.caption" xml:space="preserve">
+    <value>Go back and choose a transcription source.</value>
+  </data>
+  <data name="onboarding.setup.onDevice.error" xml:space="preserve">
+    <value>Download failed: {0}</value>
+  </data>
+  <data name="onboarding.setup.cloud.error" xml:space="preserve">
+    <value>Activation failed: {0}</value>
+  </data>
+  <data name="onboarding.setup.provider.error" xml:space="preserve">
+    <value>Could not save your key: {0}</value>
+  </data>
+  <data name="onboarding.setup.provider.saveFailed" xml:space="preserve">
+    <value>The key could not be written to Windows Credential Manager.</value>
+  </data>
+  <data name="onboarding.setup.model.notFound" xml:space="preserve">
+    <value>This model is not in the model library.</value>
+  </data>
+  <data name="onboarding.setup.model.downloadFailed" xml:space="preserve">
+    <value>The download did not finish.</value>
+  </data>
+  <data name="onboarding.mic.title" xml:space="preserve">
+    <value>Say something. Watch the bars.</value>
+  </data>
+  <data name="onboarding.mic.title.unavailable" xml:space="preserve">
+    <value>Check your microphone.</value>
+  </data>
+  <data name="onboarding.mic.subtitle" xml:space="preserve">
+    <value>If the level moves when you talk, HyperWhisper can hear you.</value>
+  </data>
+  <data name="onboarding.mic.device.systemDefault" xml:space="preserve">
+    <value>System Default</value>
+  </data>
+  <data name="onboarding.mic.device.followsSystem" xml:space="preserve">
+    <value>Follows Windows</value>
+  </data>
+  <data name="onboarding.mic.device.inUse" xml:space="preserve">
+    <value>In use</value>
+  </data>
+  <data name="onboarding.mic.levelHint" xml:space="preserve">
+    <value>Levels too low, or the wrong device listed?</value>
+  </data>
+  <data name="onboarding.mic.soundSettings" xml:space="preserve">
+    <value>Sound Settings</value>
+  </data>
+  <data name="onboarding.mic.note" xml:space="preserve">
+    <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
+  </data>
+  <data name="onboarding.mic.blocked" xml:space="preserve">
+    <value>Microphone access is turned off for desktop apps. Turn it on in Windows Settings, then come back to this step.</value>
+  </data>
+  <data name="onboarding.mic.none" xml:space="preserve">
+    <value>No microphone is connected. Plug one in and it shows up here on its own.</value>
+  </data>
+  <data name="onboarding.mic.enumerationFailed" xml:space="preserve">
+    <value>Windows could not list your audio devices. Check Sound settings, then come back to this step.</value>
+  </data>
+  <data name="onboarding.mic.meter.inactive" xml:space="preserve">
+    <value>No level to show yet.</value>
+  </data>
+  <data name="onboarding.mic.privacySettings" xml:space="preserve">
+    <value>Open privacy settings</value>
+  </data>
+  <data name="onboarding.test.title" xml:space="preserve">
+    <value>Make one recording.</value>
+  </data>
+  <data name="onboarding.tryIt.detail" xml:space="preserve">
+    <value>Press the shortcut, say the line, press it again.</value>
+  </data>
+  <data name="onboarding.tryIt.shortcutHint" xml:space="preserve">
+    <value>Press once to start, once more to stop.</value>
+  </data>
+  <data name="onboarding.tryIt.record" xml:space="preserve">
+    <value>Record</value>
+  </data>
+  <data name="onboarding.tryIt.recorded" xml:space="preserve">
+    <value>Recorded</value>
+  </data>
+  <data name="onboarding.tryIt.recordAgain" xml:space="preserve">
+    <value>Record again</value>
+  </data>
+  <data name="onboarding.test.stop" xml:space="preserve">
+    <value>Stop Recording</value>
+  </data>
+  <data name="onboarding.test.status.speak" xml:space="preserve">
+    <value>Speak now...</value>
+  </data>
+  <data name="onboarding.tryIt.trySaying" xml:space="preserve">
+    <value>Try saying</value>
+  </data>
+  <data name="onboarding.tryIt.sampleLine" xml:space="preserve">
+    <value>“HyperWhisper turns what I say into text, right where I am typing.”</value>
+  </data>
+  <data name="onboarding.try.transcript.heading" xml:space="preserve">
+    <value>What came back</value>
+  </data>
+  <data name="onboarding.tryIt.listening" xml:space="preserve">
+    <value>Listening</value>
+  </data>
+  <data name="onboarding.tryIt.empty" xml:space="preserve">
+    <value>Nothing yet. Start a recording to see the text land here.</value>
+  </data>
+  <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
+    <value>{0} words · {1}</value>
+  </data>
+  <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
+    <value>Shown here only, not pasted into other apps</value>
+  </data>
+  <data name="onboarding.tryIt.note" xml:space="preserve">
+    <value>Turn on auto paste later and the text lands at your cursor instead.</value>
+  </data>
+  <data name="onboarding.tryIt.sample.button" xml:space="preserve">
+    <value>Transcribe a sample clip</value>
+  </data>
+  <data name="onboarding.tryIt.sample.hint" xml:space="preserve">
+    <value>No microphone is connected, so HyperWhisper runs a short bundled clip through everything a real recording uses.</value>
+  </data>
+  <data name="onboarding.tryIt.sample.result" xml:space="preserve">
+    <value>From the bundled sample clip</value>
+  </data>
+  <data name="onboarding.tryIt.sample.transcribing" xml:space="preserve">
+    <value>Transcribing the sample…</value>
+  </data>
+  <data name="onboarding.tryIt.sample.missing" xml:space="preserve">
+    <value>The sample clip is missing from this build.</value>
+  </data>
+  <data name="onboarding.completion.title" xml:space="preserve">
+    <value>You are ready to dictate.</value>
+  </data>
+  <data name="onboarding.done.detail" xml:space="preserve">
+    <value>Press the shortcut in any app and start talking.</value>
+  </data>
+  <data name="onboarding.done.summary.transcription" xml:space="preserve">
+    <value>Transcription</value>
+  </data>
+  <data name="onboarding.done.summary.microphone" xml:space="preserve">
+    <value>Microphone</value>
+  </data>
+  <data name="onboarding.done.summary.textDelivery" xml:space="preserve">
+    <value>Text delivery</value>
+  </data>
+  <data name="onboarding.done.summary.shortcut" xml:space="preserve">
+    <value>Shortcut</value>
+  </data>
+  <data name="onboarding.done.summary.onDevice" xml:space="preserve">
+    <value>{0} · on this PC</value>
+  </data>
+  <data name="onboarding.done.summary.cloud" xml:space="preserve">
+    <value>{0} · {1} credits</value>
+  </data>
+  <data name="onboarding.done.summary.provider" xml:space="preserve">
+    <value>{0} · your own key</value>
+  </data>
+  <data name="onboarding.done.textDelivery.cursor" xml:space="preserve">
+    <value>Pastes at your cursor</value>
+  </data>
+  <data name="onboarding.done.textDelivery.clipboard" xml:space="preserve">
+    <value>Copied to clipboard</value>
+  </data>
+  <data name="onboarding.done.menuBarNote" xml:space="preserve">
+    <value>HyperWhisper lives in the system tray. Click it for history, modes, and everything above.</value>
+  </data>
+  <data name="onboarding.done.button" xml:space="preserve">
+    <value>Done Onboarding</value>
+  </data>
+  <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
+    <value>None connected</value>
+  </data>
+  <data name="onboarding.footer.continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="onboarding.footer.back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="onboarding.footer.reassurance.welcome" xml:space="preserve">
+    <value>Every answer can be changed later in Settings.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.permissions" xml:space="preserve">
+    <value>The shortcut can be changed later in Settings.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.source" xml:space="preserve">
+    <value>You can switch sources later in Settings.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.configure.cloud" xml:space="preserve">
+    <value>The key is stored in Windows Credential Manager.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.configure.onDevice" xml:space="preserve">
+    <value>More models live in the Model Library.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.configure.provider" xml:space="preserve">
+    <value>You can change providers later in Settings.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.setup.cloud" xml:space="preserve">
+    <value>Top up any time from your account.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.setup.onDevice" xml:space="preserve">
+    <value>Pausing the download will not lose progress.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.setup.provider" xml:space="preserve">
+    <value>Remove the key any time in Settings.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.microphone" xml:space="preserve">
+    <value>Input device is switchable at any time.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.tryIt" xml:space="preserve">
+    <value>The audio is discarded once the text is ready.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.done" xml:space="preserve">
+    <value>All of it is editable in Settings.</value>
+  </data>
+  <data name="onboarding.footer.reassurance.pickSource" xml:space="preserve">
+    <value>Pick a source to continue.</value>
+  </data>
+  <data name="onboarding.setupLater.button" xml:space="preserve">
+    <value>Set Up Later</value>
+  </data>
+  <data name="onboarding.progress.a11y" xml:space="preserve">
+    <value>Step {0} of {1}</value>
+  </data>
+  <data name="onboarding.a11y.percent" xml:space="preserve">
+    <value>{0} percent</value>
+  </data>
+  <data name="onboarding.a11y.downloadProgress" xml:space="preserve">
+    <value>Download progress</value>
+  </data>
+  <data name="onboarding.a11y.inputLevel" xml:space="preserve">
+    <value>Microphone input level</value>
+  </data>
+  <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
+    <value>Selected, {0}</value>
+  </data>
+  <data name="onboarding.a11y.notSelectedDetail" xml:space="preserve">
+    <value>Not selected, {0}</value>
+  </data>
+  <data name="onboarding.a11y.selectedInput" xml:space="preserve">
+    <value>Selected input</value>
+  </data>
+  <data name="onboarding.error.microphone.denied" xml:space="preserve">
+    <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
+  </data>
+  <data name="onboarding.menu.runAgain" xml:space="preserve">
+    <value>Run setup again</value>
+  </data>
+  <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
+    <value>Finish the current dictation before running setup again.</value>
+  </data>
+  <data name="onboarding.restore.mode.failed" xml:space="preserve">
+    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+  </data>
+  <data name="onboarding.apply.mode.failed" xml:space="preserve">
+    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+  </data>
+  <data name="onboarding.configure.test.unverified" xml:space="preserve">
+    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+  </data>
+  <data name="errors.textNotDelivered" xml:space="preserve">
+    <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
+  </data>
+  <data name="app.unknown.error" xml:space="preserve">
+    <value>Notika nezināma kļūda</value>
+  </data>
 </root>

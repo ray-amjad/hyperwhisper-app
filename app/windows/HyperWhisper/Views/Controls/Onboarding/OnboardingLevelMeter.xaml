@@ -1,0 +1,30 @@
+<!--
+    Thirty three bars fed by the idle metering preview on the audio seam. Each
+    published sample is pushed onto the right hand edge, so the row scrolls like a
+    waveform instead of pumping as one block. Mirrors
+    OnboardingFocusComponents.swift:531-567.
+
+    The inactive state is explicit and is drawn, not implied: on the dev box, and
+    on any machine with no capture device, a dead flat bar reads as a broken app.
+    When Active is false the bars collapse and a line of copy says so.
+-->
+<UserControl x:Class="HyperWhisper.Views.Controls.Onboarding.OnboardingLevelMeter"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:HyperWhisper.Localization"
+             Height="44">
+    <Grid>
+        <StackPanel x:Name="Bars"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"/>
+
+        <TextBlock x:Name="InactiveLabel"
+                   Text="{loc:Loc onboarding.mic.meter.inactive}"
+                   FontSize="12"
+                   Foreground="{DynamicResource TextTertiaryBrush}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Visibility="Collapsed"/>
+    </Grid>
+</UserControl>

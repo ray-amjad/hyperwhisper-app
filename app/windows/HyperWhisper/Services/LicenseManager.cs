@@ -222,6 +222,29 @@ public sealed class LicenseManager : INotifyPropertyChanged
             LoggingService.Info("LicenseManager: Activating license...");
 
             var result = await LicenseNetworkService.Instance.ValidateLicenseAsync(licenseKey, cancellationToken);
+
+            // A CANCELLED activation is not a verdict about the licence.
+            //
+            // LicenseNetworkService swallows OperationCanceledException and answers
+            // Failed(..., LicenseStatus.Invalid), and ProcessValidationResult writes
+            // whatever it is handed straight into the process-wide LicenseStatus. So
+            // a licensed user who pressed Activate in first run and then clicked
+            // Back, or Set Up Later, before the response landed had IsLicensed go
+            // false for the rest of the session: the sidebar flipped to the
+            // unlicensed layout and Credits went null, over a licence that is
+            // perfectly valid. Onboarding is the first caller that hands this method
+            // a token the UI routinely cancels; the settings page passes
+            // CancellationToken.None, which is why this could not happen before.
+            //
+            // A VALID result is still processed. If the activation reached the server
+            // before the cancel, recording it is strictly better than dropping it.
+            if (cancellationToken.IsCancellationRequested && !result.IsValid)
+            {
+                LoggingService.Info(
+                    "LicenseManager: activation was cancelled; leaving the stored licence state untouched");
+                return result;
+            }
+
             ProcessValidationResult(result);
 
             return result;
@@ -230,6 +253,24 @@ public sealed class LicenseManager : INotifyPropertyChanged
         {
             IsValidating = false;
         }
+    }
+
+    /// <summary>
+    /// Checks a license key WITHOUT activating it. Read only: it does not call
+    /// ProcessValidationResult, so LicenseStatus, CustomerEmail and LastError are
+    /// untouched, and the network service's probe path does not store the key or
+    /// write the validation cache either.
+    ///
+    /// This preserves the macOS invariant (LicenseManager.probeLicense) that the
+    /// onboarding "Test access key" button is a lookup and "Activate" is the one
+    /// explicit account action. Collapsing Test into ActivateLicenseAsync would
+    /// quietly change what pressing a button does.
+    /// </summary>
+    public Task<LicenseValidationResult> ProbeLicenseAsync(
+        string licenseKey,
+        CancellationToken cancellationToken = default)
+    {
+        return LicenseNetworkService.Instance.ProbeLicenseAsync(licenseKey, cancellationToken);
     }
 
     /// <summary>

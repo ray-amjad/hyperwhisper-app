@@ -1,0 +1,85 @@
+<!--
+    Step 3 of 8: choose a source. Mirrors OnboardingSourceViews.swift:133-191.
+
+    Three stacked tap-target cards, in macOS's order (HyperWhisper Cloud first,
+    because it is the fastest path to a working first recording), each with an
+    accent fill, an accent stroke and a success tick when chosen. Deliberately NOT
+    the app's segmented control: this is three doors, not three tabs, and each door
+    carries a sentence.
+-->
+<Page x:Class="HyperWhisper.Views.Pages.Onboarding.SourceStepPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      xmlns:onboarding="clr-namespace:HyperWhisper.Views.Controls.Onboarding"
+      Title="{loc:Loc onboarding.source.title}"
+      Background="Transparent">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HyperWhisper;component/Views/Controls/Onboarding/OnboardingResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <onboarding:OnboardingStage>
+        <StackPanel Width="{StaticResource OnboardingBodyWidth}"
+                    HorizontalAlignment="Left"
+                    Margin="{StaticResource OnboardingStageMargin}">
+
+            <Border Style="{StaticResource OnboardingGlyphTileStyle}">
+                <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE8FD;"/>
+            </Border>
+
+            <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
+                       Text="{loc:Loc onboarding.source.title}"/>
+            <TextBlock Style="{StaticResource OnboardingDetailStyle}"
+                       Text="{loc:Loc onboarding.source.subtitle}"/>
+
+            <ItemsControl ItemsSource="{Binding SourceOptions}" Margin="0,24,0,0">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource OnboardingSelectableCardStyle}"
+                                Command="{Binding DataContext.SelectSourceCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                CommandParameter="{Binding Kind}"
+                                AutomationProperties.Name="{Binding AccessibleName}"
+                                AutomationProperties.HelpText="{Binding Description}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Style="{StaticResource OnboardingRowGlyphStyle}"
+                                           Text="{Binding Glyph}"
+                                           Margin="0,0,12,0"/>
+
+                                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                    <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                               Text="{Binding Title}"/>
+                                    <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                               Text="{Binding Description}"/>
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="2"
+                                           Style="{StaticResource OnboardingCheckGlyphStyle}"
+                                           FontSize="16"
+                                           Visibility="{Binding IsSelected, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <StackPanel Style="{StaticResource OnboardingQuietNoteStyle}">
+                <TextBlock Style="{StaticResource OnboardingNoteGlyphStyle}"/>
+                <TextBlock Style="{StaticResource OnboardingNoteTextStyle}"
+                           Width="520"
+                           Text="{loc:Loc onboarding.source.note}"/>
+            </StackPanel>
+        </StackPanel>
+    </onboarding:OnboardingStage>
+</Page>

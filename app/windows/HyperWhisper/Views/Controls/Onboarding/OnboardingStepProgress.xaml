@@ -1,0 +1,16 @@
+<!--
+    Eight hairline segments, flush under the caption row. Mirrors
+    OnboardingFocusComponents.swift:61-86: current = accent, past = a quieter
+    accent, future = the neutral progress track. 3 tall, 2 gaps.
+
+    The segment count is OnboardingSteps.Count, not a literal 8, and the strip is
+    built in code-behind for that reason: renumbering the step enum must move the
+    hairline with it.
+-->
+<UserControl x:Class="HyperWhisper.Views.Controls.Onboarding.OnboardingStepProgress"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="3"
+             AutomationProperties.AutomationId="OnboardingStepProgress">
+    <UniformGrid x:Name="Segments" Rows="1"/>
+</UserControl>

@@ -57,10 +57,26 @@ public static class AppPaths
                 return ProductionCredentialResource;
             }
 
-            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(AppDataRoot))).ToLowerInvariant();
-            return $"{ProductionCredentialResource}.Test.{hash[..16]}";
+            return $"{ProductionCredentialResource}.Test.{AppDataRootHash}";
         }
     }
+
+    /// <summary>
+    /// A short, stable fingerprint of the RESOLVED app-data root.
+    ///
+    /// The one hashing scheme for "which profile is this". Extracted from
+    /// <see cref="CredentialResource"/> so a second per-profile namespace does
+    /// not invent its own: <see cref="SingleInstanceGuard"/> suffixes the
+    /// single-instance mutex and its activation window message with the same
+    /// 16 hex digits, so a scratch profile started with
+    /// <see cref="AppDataRootOverrideEnvironmentVariable"/> is a separate
+    /// INSTANCE rather than a refused duplicate.
+    ///
+    /// Callers must only append this when <see cref="IsAppDataRootOverridden"/>
+    /// is true, so the production names stay byte-identical.
+    /// </summary>
+    internal static string AppDataRootHash =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(AppDataRoot))).ToLowerInvariant()[..16];
 
     public static string Combine(params string[] segments)
     {

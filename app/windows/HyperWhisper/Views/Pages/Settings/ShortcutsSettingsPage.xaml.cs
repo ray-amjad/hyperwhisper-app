@@ -5,10 +5,10 @@ using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Views.Controls;
 
 namespace HyperWhisper.Views.Pages.Settings;
 
@@ -77,187 +77,52 @@ public partial class ShortcutsSettingsPage : Page
     private void LoadShortcutSettings()
     {
         var settings = _settingsService;
-        ToggleShortcutBox.Text = settings.ToggleShortcut.ToDisplayString();
-        CancelShortcutBox.Text = settings.CancelShortcut.ToDisplayString();
-        ChangeModeShortcutBox.Text = settings.ChangeModeShortcut.ToDisplayString();
-        StreamingShortcutBox.Text = settings.StreamingShortcut.ToDisplayString();
+        ToggleShortcutBox.DisplayText = settings.ToggleShortcut.ToDisplayString();
+        CancelShortcutBox.DisplayText = settings.CancelShortcut.ToDisplayString();
+        ChangeModeShortcutBox.DisplayText = settings.ChangeModeShortcut.ToDisplayString();
+        StreamingShortcutBox.DisplayText = settings.StreamingShortcut.ToDisplayString();
 
         SetPushToTalkModeSelection(settings.PushToTalk.Mode);
         SetPushToTalkModifierSelection(settings.PushToTalk.Modifier);
-        PushToTalkCustomBox.Text = settings.PushToTalk.CustomShortcut?.ToDisplayString()
+        PushToTalkCustomBox.DisplayText = settings.PushToTalk.CustomShortcut?.ToDisplayString()
             ?? Localization.Loc.S("settings.shortcuts.pushToTalk.unassigned");
         PushToTalkDoublePressBox.IsChecked = settings.PushToTalk.DoublePressLock;
     }
 
-    private void ShortcutBox_PreviewKeyDown(object sender, WpfKeyEventArgs e)
+    /// <summary>
+    /// A recorder captured a chord. It has already rejected single bare modifiers
+    /// and duplicates against the other three global shortcuts, so all that is left
+    /// is deciding where this role's value goes.
+    ///
+    /// The switch is what it always was; only the capture, the validation and the
+    /// error rendering moved out, into ShortcutRecorderBox, so the onboarding
+    /// Permissions step could host a recorder without a second copy of the rules.
+    /// </summary>
+    private void ShortcutBox_Captured(object sender, ShortcutCapturedEventArgs e)
     {
-        e.Handled = true;
-        if (sender is not WpfTextBox textBox) return;
-
-        var shortcut = BuildShortcutFromKeyEvent(e);
-        if (shortcut == null) return;
-
-        string role = textBox.Tag as string ?? "";
-
-        // VALIDATE: Reject unsafe single bare modifiers, but allow intentional
-        // multi-modifier chords such as Ctrl+Win.
-        if (shortcut.IsSingleBareModifier)
-        {
-            string errorMsg = "Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.";
-            ShowValidationError(role, errorMsg);
-            LoggingService.Debug($"Rejected single-modifier shortcut for {role}: {shortcut}");
-            return; // Don't save
-        }
-
-        // VALIDATE: Check for duplicates
-        string? validationError = ShortcutValidationService.ValidateDuplicate(
-            shortcut, role,
-            _settingsService.ToggleShortcut,
-            _settingsService.CancelShortcut,
-            _settingsService.ChangeModeShortcut,
-            _settingsService.StreamingShortcut
-        );
-
-        if (validationError != null)
-        {
-            ShowValidationError(role, validationError);
-            LoggingService.Warn($"Shortcut validation failed for {role}: {validationError}");
-            return; // Don't save
-        }
-
-        ClearValidationError(role);
-
-        // SAVE: No issues, proceed
-        switch (role)
+        switch (e.Role)
         {
             case "Toggle":
-                _settingsService.ToggleShortcut = shortcut;
-                textBox.Text = shortcut.ToDisplayString();
+                _settingsService.ToggleShortcut = e.Shortcut;
                 break;
             case "Cancel":
-                _settingsService.CancelShortcut = shortcut;
-                textBox.Text = shortcut.ToDisplayString();
+                _settingsService.CancelShortcut = e.Shortcut;
                 break;
             case "ChangeMode":
-                _settingsService.ChangeModeShortcut = shortcut;
-                textBox.Text = shortcut.ToDisplayString();
+                _settingsService.ChangeModeShortcut = e.Shortcut;
                 break;
             case "Streaming":
-                _settingsService.StreamingShortcut = shortcut;
-                textBox.Text = shortcut.ToDisplayString();
+                _settingsService.StreamingShortcut = e.Shortcut;
                 break;
             case "PushToTalkCustom":
                 UpdatePushToTalkSetting(p =>
                 {
-                    p.CustomShortcut = shortcut;
+                    p.CustomShortcut = e.Shortcut;
                     p.Mode = PushToTalkMode.Custom;
                 });
-                PushToTalkCustomBox.Text = shortcut.ToDisplayString();
                 SetPushToTalkModeSelection(PushToTalkMode.Custom);
                 UpdatePushToTalkVisibility();
                 break;
-        }
-    }
-
-    private void ShortcutBox_PreviewKeyUp(object sender, WpfKeyEventArgs e)
-    {
-        // Keep the capture field from leaking Win-key releases to WPF text input.
-        // The global hook still controls runtime shortcut suppression.
-        e.Handled = true;
-    }
-
-    private KeyboardShortcut? BuildShortcutFromKeyEvent(WpfKeyEventArgs e)
-    {
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (key == Key.None) return null;
-
-        var shortcut = new KeyboardShortcut
-        {
-            Control = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) || key is Key.LeftCtrl or Key.RightCtrl,
-            Alt = Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt) || key is Key.LeftAlt or Key.RightAlt,
-            Shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift) || key is Key.LeftShift or Key.RightShift,
-            Win = Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin) || key is Key.LWin or Key.RWin
-        };
-
-        if (!IsModifierKey(key))
-        {
-            shortcut.Key = key;
-        }
-
-        return shortcut;
-    }
-
-    private static bool IsModifierKey(Key key) =>
-        key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin;
-
-    // =========================================================================
-    // VALIDATION ERROR DISPLAY
-    // Shows inline error messages when shortcuts conflict.
-    // =========================================================================
-
-    private void ShowValidationError(string role, string errorMessage)
-    {
-        WpfTextBlock? errorTextBlock = role switch
-        {
-            "Toggle" => ToggleErrorText,
-            "Cancel" => CancelErrorText,
-            "ChangeMode" => ChangeModeErrorText,
-            "Streaming" => StreamingErrorText,
-            _ => null
-        };
-
-        if (errorTextBlock != null)
-        {
-            errorTextBlock.Text = errorMessage;
-            errorTextBlock.Visibility = Visibility.Visible;
-        }
-
-        // Optional: red border on textbox
-        WpfTextBox? textBox = role switch
-        {
-            "Toggle" => ToggleShortcutBox,
-            "Cancel" => CancelShortcutBox,
-            "ChangeMode" => ChangeModeShortcutBox,
-            "Streaming" => StreamingShortcutBox,
-            _ => null
-        };
-        if (textBox != null)
-        {
-            textBox.BorderBrush = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(0xFF, 0x55, 0x55));
-            textBox.BorderThickness = new Thickness(2);
-        }
-    }
-
-    private void ClearValidationError(string role)
-    {
-        WpfTextBlock? errorTextBlock = role switch
-        {
-            "Toggle" => ToggleErrorText,
-            "Cancel" => CancelErrorText,
-            "ChangeMode" => ChangeModeErrorText,
-            "Streaming" => StreamingErrorText,
-            _ => null
-        };
-
-        if (errorTextBlock != null)
-        {
-            errorTextBlock.Visibility = Visibility.Collapsed;
-            errorTextBlock.Text = "";
-        }
-
-        WpfTextBox? textBox = role switch
-        {
-            "Toggle" => ToggleShortcutBox,
-            "Cancel" => CancelShortcutBox,
-            "ChangeMode" => ChangeModeShortcutBox,
-            "Streaming" => StreamingShortcutBox,
-            _ => null
-        };
-        if (textBox != null)
-        {
-            textBox.ClearValue(System.Windows.Controls.Border.BorderBrushProperty);
-            textBox.ClearValue(System.Windows.Controls.Border.BorderThicknessProperty);
         }
     }
 
@@ -274,7 +139,7 @@ public partial class ShortcutsSettingsPage : Page
         {
             LoggingService.Warn($"Toggle shortcut is a single bare modifier ({_settingsService.ToggleShortcut.ToDisplayString()}). Auto-migrating to default.");
             _settingsService.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
-            ToggleShortcutBox.Text = _settingsService.ToggleShortcut.ToDisplayString();
+            ToggleShortcutBox.DisplayText = _settingsService.ToggleShortcut.ToDisplayString();
             migrated = true;
         }
 
@@ -283,7 +148,7 @@ public partial class ShortcutsSettingsPage : Page
         {
             LoggingService.Warn($"Cancel shortcut is a single bare modifier ({_settingsService.CancelShortcut.ToDisplayString()}). Auto-migrating to default.");
             _settingsService.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
-            CancelShortcutBox.Text = _settingsService.CancelShortcut.ToDisplayString();
+            CancelShortcutBox.DisplayText = _settingsService.CancelShortcut.ToDisplayString();
             migrated = true;
         }
 
@@ -292,7 +157,7 @@ public partial class ShortcutsSettingsPage : Page
         {
             LoggingService.Warn($"ChangeMode shortcut is a single bare modifier ({_settingsService.ChangeModeShortcut.ToDisplayString()}). Auto-migrating to default.");
             _settingsService.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
-            ChangeModeShortcutBox.Text = _settingsService.ChangeModeShortcut.ToDisplayString();
+            ChangeModeShortcutBox.DisplayText = _settingsService.ChangeModeShortcut.ToDisplayString();
             migrated = true;
         }
 
@@ -300,7 +165,7 @@ public partial class ShortcutsSettingsPage : Page
         {
             LoggingService.Warn($"Streaming shortcut is a single bare modifier ({_settingsService.StreamingShortcut.ToDisplayString()}). Auto-migrating to default.");
             _settingsService.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
-            StreamingShortcutBox.Text = _settingsService.StreamingShortcut.ToDisplayString();
+            StreamingShortcutBox.DisplayText = _settingsService.StreamingShortcut.ToDisplayString();
             migrated = true;
         }
 
