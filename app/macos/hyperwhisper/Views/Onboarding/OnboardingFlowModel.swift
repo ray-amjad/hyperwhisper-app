@@ -434,6 +434,15 @@ final class OnboardingFlowModel: ObservableObject {
     private var previousOpenDeviceID: String?
     /// The guarded commit boundary (bug 3). Flipped false the moment the flow is
     /// finished, so a late async completion can never write onboarding state.
+    ///
+    /// #321 widened that from late results to entries. Every method that writes
+    /// persistent state or moves the step machine re-checks `isLive` first —
+    /// `activateCloudLicense()`, `saveProviderKey()`, `selectDevice(id:)`,
+    /// `toggleTestRecording()` and `advance()` — because `finish()` has already
+    /// cleared the restore points, so nothing written after it can be rolled back.
+    /// Exit and cleanup paths (`back()`, `endTryItStep()`, `endMicrophoneStep()`,
+    /// `refreshPermissions()`) are deliberately NOT guarded: they legitimately run
+    /// after dismissal, and gating them would strand the microphone.
     private var isLive = true
 
     private enum TaskKey {
@@ -739,6 +748,10 @@ final class OnboardingFlowModel: ObservableObject {
     /// the user's single explicit action, so entitlement stays server enforced;
     /// nothing here shortcuts or fakes it.
     func activateCloudLicense() {
+        // #321: refuse a NEW activation started after the sheet exited. The inner
+        // check below covers an in-flight result landing late; this one covers the
+        // call that would reach `license.activate` in the first place.
+        guard isLive else { return }
         let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty, !isActivatingLicense else { return }
         isActivatingLicense = true
@@ -757,6 +770,8 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func saveProviderKey() {
+        // #321: a Keychain write after the flow closed has no restore point left.
+        guard isLive else { return }
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         captureProviderKeyRestorePoint(for: selectedProvider)
@@ -821,6 +836,10 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func selectDevice(id: String) {
+        // #321: the input device reaches SettingsManager immediately, and the
+        // capture flag below is cleared by `complete()`, so a late pick would be
+        // permanent.
+        guard isLive else { return }
         // A device can vanish between the menu being built and the pick landing.
         // Rejecting it here keeps a disconnected microphone out of the UI
         // selection and, more importantly, stops it from flipping the pending
@@ -859,6 +878,9 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func toggleTestRecording() {
+        // #321: `finish()` already called `stopRecordingForExit()`, so a toggle
+        // after it would START a recording with no sheet left to stop it.
+        guard isLive else { return }
         audio.toggleTestRecording()
     }
 
@@ -953,6 +975,12 @@ final class OnboardingFlowModel: ObservableObject {
 
     @discardableResult
     func advance() -> Bool {
+        // #321: kept separate from the gate below, because the reason differs.
+        // Stepping into `.tryIt` after completion runs `applyStagedSourceReversibly()`
+        // against a `restorePoint` that `complete()` already cleared, capturing a
+        // fresh one nobody will ever restore. `false` reads the same as always
+        // here: the user did not move forward.
+        guard isLive else { return false }
         guard canContinue,
               let next = OnboardingStep(rawValue: step.rawValue + 1) else { return false }
         // #315: the setup gate is positional, so a source that died after the
