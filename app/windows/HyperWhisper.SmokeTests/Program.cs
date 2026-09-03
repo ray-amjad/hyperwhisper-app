@@ -9009,8 +9009,8 @@ internal static class Program
                 // MainViewModel deliberately drops the Onboarding call site (a toast
                 // behind a modal is unreachable) and TranscriptionResult carries no
                 // warning field, so without this channel a 401 on the post-processing
-                // LLM showed a raw transcript under full success chrome. Five of the
-                // six seeded Modes post-process through a cloud LLM.
+                // LLM showed a raw transcript under full success chrome. The one
+                // seeded Mode post-processes through a cloud LLM.
                 var h = new OnboardingHarness();
                 h.StageInstalledOnDeviceModel();
                 h.AdvanceTo(OnboardingStep.TryIt);

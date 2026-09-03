@@ -1785,8 +1785,8 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
     /// <summary>
     /// A non-fatal warning about the current transcript, or null. Post-processing
-    /// that was SKIPPED (a 401, a timeout) still returns text, and five of the six
-    /// seeded Modes post-process through a cloud LLM, so without this the user
+    /// that was SKIPPED (a 401, a timeout) still returns text, and the one seeded
+    /// Mode post-processes through a cloud LLM, so without this the user
     /// reads a raw transcript under full success chrome and concludes the source
     /// works. The GUI's toast handler deliberately drops the Onboarding call site,
     /// because a toast behind a modal cannot be seen.

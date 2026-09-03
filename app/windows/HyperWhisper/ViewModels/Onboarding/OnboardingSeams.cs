@@ -483,7 +483,7 @@ public interface IOnboardingAudioGateway
     /// A non-fatal warning raised while producing the current transcript, or null.
     ///
     /// This exists because post-processing can be SKIPPED and still return text.
-    /// Five of the six seeded Modes post-process through a cloud LLM, so a 401 or a
+    /// The one seeded Mode post-processes through a cloud LLM, so a 401 or a
     /// timeout leaves the user looking at a raw, un-post-processed transcript under
     /// full success chrome and concluding the source works. The GUI's toast is the
     /// wrong surface behind a modal, and TranscriptionResult carries no warning

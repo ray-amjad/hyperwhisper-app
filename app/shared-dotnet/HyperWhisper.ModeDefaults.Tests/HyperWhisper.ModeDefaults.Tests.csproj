@@ -7,19 +7,35 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- Since #285 this harness also runs shared-conformance/mode-seed-vectors.json,
+       so it runs on Windows CI as well as in Linux CI's shared-dotnet sweep. The
+       native library it loads has a different name and a different cargo target
+       directory on each, so resolve both here rather than hard-coding the Linux
+       triple the way this project used to. Same block as
+       HyperWhisper.CatalogConformance.Tests. -->
+  <PropertyGroup>
+    <SharedCoreRoot>$(MSBuildThisFileDirectory)../../../shared-core-rs/target</SharedCoreRoot>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(SharedCoreRoot)/x86_64-pc-windows-msvc/release/hyperwhisper_core.dll</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(SharedCoreRoot)/release/libhyperwhisper_core.dylib</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="'$(SharedCoreNativeLibrary)' == ''">$(SharedCoreRoot)/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so</SharedCoreNativeLibrary>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.Application/HyperWhisper.Application.csproj" />
-    <None Include="../../../shared-app-classification/cloud-stt-catalog.json" Link="cloud-stt-catalog.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../../shared-app-classification/cloud-pp-catalog.json" Link="cloud-pp-catalog.json" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
-             Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
-      <Link>libhyperwhisper_core.so</Link>
+    <!-- The two shared catalogs used to be copied here for the seeder's own
+         JsonDocument parse. That parse is gone (#285); the catalogs are read
+         once, inside hw-catalog. What this suite needs instead is the
+         cross-platform contract file — the same one Rust and Swift run. -->
+    <Content Include="../../../shared-conformance/mode-seed-vectors.json"
+             Link="mode-seed-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(SharedCoreNativeLibrary)" Condition="Exists('$(SharedCoreNativeLibrary)')">
+      <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
-    <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
-           Text="Build shared-core-rs in release mode before running the portable mode-defaults tests." />
+    <Error Condition="!Exists('$(SharedCoreNativeLibrary)')"
+           Text="Build shared-core-rs in release mode before running the portable mode-defaults tests — expected $(SharedCoreNativeLibrary)." />
   </Target>
 </Project>
