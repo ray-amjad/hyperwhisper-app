@@ -375,98 +375,42 @@ struct LocalAPIBodyLimitTests {
 
 // MARK: - Production-source fixtures
 
-private enum ProductionSourceError: Error, CustomStringConvertible {
-    case unreadable(String)
-    case anchorNotFound(String)
-
-    var description: String {
-        switch self {
-        case .unreadable(let path):
-            return "Could not read production source at \(path)"
-        case .anchorNotFound(let anchor):
-            return """
-            Could not locate '\(anchor)' in LocalAPIBodyLimit.swift. It was probably renamed or \
-            moved — update the anchor in LocalAPIBodyLimitTests rather than deleting the check.
-            """
-        }
-    }
-}
+// The `#filePath` walk, the file read, the comment stripping and the anchor
+// slicing all live in `ProductionSource` — `LocalAPIFilePathCapTests` needs the
+// same four things, and two copies meant two independent guesses at how deep
+// `hyperwhisperTests` sits in the repo. What is left here is only which anchors
+// name which region of *this* file's subject.
 
 extension LocalAPIBodyLimitTests {
 
-    /// Repo root, derived from this file's own compile-time path.
-    fileprivate static var repoRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // hyperwhisperTests
-            .deletingLastPathComponent()  // macos
-            .deletingLastPathComponent()  // app
-            .deletingLastPathComponent()  // <repo root>
-    }
+    fileprivate static let bodyLimitPath =
+        "app/macos/hyperwhisper/Managers/LocalAPI/LocalAPIBodyLimit.swift"
+
+    fileprivate static var repoRoot: URL { ProductionSource.repoRoot }
 
     fileprivate static func contents(of url: URL) throws -> String {
-        guard let data = try? Data(contentsOf: url) else {
-            throw ProductionSourceError.unreadable(url.path)
-        }
-        return String(decoding: data, as: UTF8.self)
+        try ProductionSource.text(of: url)
     }
 
     fileprivate static func swiftFiles(under directory: URL) throws -> [URL] {
-        guard let walker = FileManager.default.enumerator(
-            at: directory,
-            includingPropertiesForKeys: nil
-        ) else {
-            throw ProductionSourceError.unreadable(directory.path)
-        }
-        return walker
-            .compactMap { $0 as? URL }
-            .filter { $0.pathExtension == "swift" }
-            .sorted { $0.path < $1.path }
+        try ProductionSource.swiftFiles(under: directory)
     }
 
     /// The body of `LocalAPIBodyLimit.read(_:)`, comment lines removed.
     fileprivate static func readFunctionBody() throws -> String {
-        try declaration(from: "static func read(", to: "static func drain")
+        try ProductionSource.slice(of: bodyLimitPath, from: "static func read(", to: "static func drain")
     }
 
     /// The body of `LocalAPIBodyLimit.drain(count:limit:chunks:)`, comment lines
     /// removed. Ends at the next declaration, `reservationFloor`.
     fileprivate static func drainFunctionBody() throws -> String {
-        try declaration(from: "static func drain", to: "static let reservationFloor")
-    }
-
-    /// The production source between two anchors, comment lines removed.
-    ///
-    /// Comments go first so a doc comment that *describes* the production wiring
-    /// cannot stand in for the wiring — the whole point is to read the code.
-    private static func declaration(from opening: String, to closing: String) throws -> String {
-        let path = "app/macos/hyperwhisper/Managers/LocalAPI/LocalAPIBodyLimit.swift"
-        let source = try contents(of: repoRoot.appendingPathComponent(path))
-        let code = source
-            .components(separatedBy: .newlines)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-            .joined(separator: "\n")
-
-        guard let start = code.range(of: opening) else {
-            throw ProductionSourceError.anchorNotFound(opening)
-        }
-        let rest = code[start.upperBound...]
-        guard let end = rest.range(of: closing) else {
-            throw ProductionSourceError.anchorNotFound(closing)
-        }
-        return String(rest[..<end.lowerBound])
+        try ProductionSource.slice(of: bodyLimitPath, from: "static func drain", to: "static let reservationFloor")
     }
 
     /// One `switch` arm out of `body`, from its `case` label to the next `case`
     /// label or the end.
     fileprivate static func arm(named label: String, in body: String) throws -> String {
-        guard let start = body.range(of: label) else {
-            throw ProductionSourceError.anchorNotFound(label)
-        }
-        let rest = body[start.upperBound...]
-        guard let end = rest.range(of: "case .") else {
-            return String(rest)
-        }
-        return String(rest[..<end.lowerBound])
+        try ProductionSource.switchArm(named: label, in: body, of: "LocalAPIBodyLimit.swift")
     }
 }
 

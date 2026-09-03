@@ -301,9 +301,11 @@ static async Task SharedSizeLimits()
 
     // Over MaxUploadBytes on the `file` path: PortableLocalApi.cs:340-341.
     // `JsonFileSecurity` already proves this refuses, but never checked what it
-    // says — and this is the one site macOS deliberately diverges from (it does
-    // not cap `file` at all), so the .NET wording is the only wording a caller
-    // can compare against. See the divergence note in TranscribeEndpoint.swift.
+    // says. macOS used to leave `file` uncapped; that divergence was raised as
+    // an open question and resolved as "cap macOS", so macOS now refuses the
+    // same file with the same message (`TranscribeEndpoint.uploadCapRefusal`).
+    // Both heads read it off `localApiUploadTooLargeFailure()`, and this is the
+    // assertion that keeps the .NET half of that agreement honest.
     var oversizedPath = Path.Combine(fixture.AllowedRoot, "oversized-for-limits.wav");
     await File.WriteAllBytesAsync(oversizedPath, new byte[5]);
     using var oversizedFile = JsonContent(
