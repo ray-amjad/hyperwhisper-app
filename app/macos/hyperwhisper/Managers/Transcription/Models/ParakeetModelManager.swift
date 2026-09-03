@@ -263,18 +263,21 @@ final class ParakeetModelManager: ObservableObject {
         }
         logger.info("Starting download for Parakeet \(String(describing: modelVersion))")
 
-        // `AsrModels.download` sweeps each component's raw fraction 0→1 in turn,
-        // so collapse them into one monotonic 0→1 fraction before publishing.
+        // FluidAudio reports one repository-wide, byte-weighted fraction for the whole
+        // transfer and then a compile tick per component; the aggregator maps that onto
+        // a single monotonic 0→1 fraction plus a coarse stage.
         let componentCount = modelVersion.hasFusedEncoder ? 3 : 4   // mirrors AsrModels.download's spec list
-        let aggregator = ComponentProgressAggregator(componentCount: componentCount)
+        let aggregator = ModelDownloadProgressAggregator(componentCount: componentCount)
 
         do {
-            // Aggregate FluidAudio's per-component sweeps into the published ring value.
             _ = try await AsrModels.download(
                 version: modelVersion,
                 progressHandler: { update in
+                    // FluidAudio calls this on an unspecified queue — hop to the main
+                    // actor before touching the aggregator or the controller.
                     Task { @MainActor in
-                        controller.report(modelId, fraction: aggregator.aggregate(update.fractionCompleted))
+                        let published = aggregator.aggregate(update)
+                        controller.report(modelId, fraction: published.fraction, stage: published.stage)
                     }
                 }
             )
@@ -348,21 +351,77 @@ final class ParakeetModelManager: ObservableObject {
     }
 }
 
-/// Collapses FluidAudio's per-component download progress into a single monotonic 0→1
-/// fraction. `AsrModels.download` fetches + CoreML-compiles each component
-/// (Preprocessor/Encoder/Decoder/Joint) in turn, restarting its handler at 0 per component;
-/// published raw, that fills the Model Library ring 3–4× per install. A backward jump in the
-/// raw fraction marks the next component. Created fresh per download (no persisted state).
+/// Collapses FluidAudio's download callbacks into a single monotonic 0→1 fraction plus a
+/// coarse `ModelDownloadStage`.
+///
+/// `AsrModels.download` calls `DownloadUtils.loadModels` once per component
+/// (Preprocessor/Encoder/Decoder/Joint), passing the same handler each time. Only the
+/// *first* of those calls transfers anything: `loadModels` checks the cache for the whole
+/// repository, so components 2…n find every file already on disk and emit their
+/// cache-hit/compile/done ticks in milliseconds. Dividing the transfer by the component
+/// count therefore squashed a four-minute download into the first 1/n of the progress bar
+/// (issue #312).
+///
+/// Instead we take FluidAudio's own repository-wide, byte-weighted download fraction —
+/// which occupies 0…0.5 of *its* range — and give it 0…0.9 of ours, reserving the last 0.1
+/// for the per-component compile passes. Created fresh per download (no persisted state).
 @MainActor
-final class ComponentProgressAggregator {
+final class ModelDownloadProgressAggregator {
+
+    /// Share of the published bar given to the transfer; the rest is the compile passes.
+    private static let downloadSpan = 0.9
+
     private let componentCount: Int
-    private var completed = 0
-    private var lastRaw = 0.0
+    private var completedComponents = 0
+    private var lastFraction = 0.0
+
     init(componentCount: Int) { self.componentCount = max(componentCount, 1) }
 
-    func aggregate(_ raw: Double) -> Double {
-        if raw + 0.1 < lastRaw { completed = min(completed + 1, componentCount - 1) } // reset → next component
-        lastRaw = raw
-        return (Double(completed) + min(max(raw, 0), 1)) / Double(componentCount)
+    func aggregate(
+        _ update: DownloadUtils.DownloadProgress
+    ) -> (fraction: Double, stage: ModelDownloadStage) {
+        var fraction = lastFraction
+        // No default: every branch assigns, so a FluidAudio bump that adds a phase
+        // fails to compile here instead of silently reporting the wrong stage.
+        let stage: ModelDownloadStage
+
+        switch update.phase {
+        case .listing:
+            // Listing the repository — nothing measurable yet, so hold the fraction.
+            stage = .preparing
+
+        case .downloading(let completedFiles, let totalFiles):
+            // FluidAudio's transfer occupies 0…0.5 of its own range and is already
+            // byte-weighted across every file in the repository. Rescale to 0…1, then
+            // onto our download span.
+            let transferred = min(max(update.fractionCompleted * 2.0, 0.0), 1.0)
+            fraction = transferred * Self.downloadSpan
+            // A cached component emits `.downloading(completedFiles: 0, totalFiles: 0)`,
+            // which is not a real file counter — report that as preparing.
+            if totalFiles > 0 {
+                stage = .downloading(completedFiles: completedFiles, totalFiles: totalFiles)
+            } else {
+                stage = .preparing
+            }
+
+        case .compiling:
+            // `loadModels` ends each component with a `.compiling` update at 1.0.
+            if update.fractionCompleted >= 1.0 {
+                completedComponents = min(completedComponents + 1, componentCount)
+            }
+            if completedComponents >= componentCount {
+                fraction = 1.0
+            } else {
+                fraction = Self.downloadSpan
+                    + (1.0 - Self.downloadSpan) * Double(completedComponents) / Double(componentCount)
+            }
+            stage = .processing
+        }
+
+        // Monotonic guard: the published fraction never moves backwards, whatever order
+        // the callbacks arrive in after the hop to the main actor.
+        fraction = max(fraction, lastFraction)
+        lastFraction = fraction
+        return (fraction, stage)
     }
 }
