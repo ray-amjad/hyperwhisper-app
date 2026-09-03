@@ -221,7 +221,11 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             if (mode is not null) mode.PostProcessingMode = 0;
             var started = Stopwatch.GetTimestamp();
             var result = await _workflow.TranscribeFileAsync(path, request, cancellationToken).ConfigureAwait(false);
-            if (!result.IsSuccess) throw new InvalidOperationException(result.Failure?.Message ?? "Transcription failed.");
+            // The failure's code AND its message both used to die here: the
+            // middleware's `catch (InvalidOperationException)` binds no
+            // variable, so every transcription failure on this head reached the
+            // wire as one fixed ENGINE_UNAVAILABLE string (issue #356 item 4).
+            if (!result.IsSuccess) throw LocalApiSharedFailure.TranscriptionFailure(result.Failure);
             succeeded = true;
             return new(
                 result.Text!,
@@ -697,11 +701,25 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     private static RecordingEntry ToRecording(Transcript item) => new(item.Id.ToString("D"), item.Text, item.Date, item.Duration, item.Mode, item.Status.ToString().ToLowerInvariant(), item.PostProcessedText, item.TranscribedText, item.TranscriptionProvider, item.PostProcessingProvider, item.AudioFilePath);
     private static RecordingState ToRecordingState(TranscriptionWorkflowSnapshot snapshot) => new(snapshot.State == TranscriptionWorkflowState.Recording, snapshot.State.ToString().ToLowerInvariant());
 
+    /// <summary>
+    /// The `/recording/*` routes' half of the same failure, through the same
+    /// mapping (issue #356 item 4).
+    /// </summary>
+    /// <remarks>
+    /// This did a partial two-way split of the same four-case enum —
+    /// <c>BackendUnavailable</c> became an <see cref="InvalidOperationException"/>
+    /// (HTTP 200 <c>ENGINE_UNAVAILABLE</c>) and everything else an
+    /// <see cref="ArgumentException"/> (HTTP 400 <c>INVALID_REQUEST</c>) — and
+    /// it discarded the message on both arms. Routing it through
+    /// <see cref="LocalApiSharedFailure.TranscriptionFailure"/> is what stops
+    /// the two paths drifting: a cancelled recording and a cancelled
+    /// `/transcribe` now answer with the same code and the same wording.
+    /// <c>BackendUnavailable</c> still reaches <c>ENGINE_UNAVAILABLE</c>, which
+    /// is what `/recording/toggle`'s existing assertion pins.
+    /// </remarks>
     private static void ThrowWorkflowFailure(PortableTranscriptionResult result)
     {
         if (result.IsSuccess) return;
-        if (result.Failure?.Code == PortableTranscriptionErrorCode.BackendUnavailable)
-            throw new InvalidOperationException("The recording workflow is unavailable.");
-        throw new ArgumentException("The recording workflow could not complete the requested transition.");
+        throw LocalApiSharedFailure.TranscriptionFailure(result.Failure);
     }
 }

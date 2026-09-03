@@ -45,6 +45,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("mode wire contract matches the shared core", ApplicationBackendModeContract)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
+    ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
 };
 foreach (var test in tests)
 {
@@ -869,11 +870,110 @@ static async Task ApplicationBackendErrors()
     using (var failedWorkflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new StaticTranscriber(success: false), history))
     {
         var failedBackend = new ApplicationLocalApiBackend(modes, history, failedWorkflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+        // `LocalApiFailureException`, not `InvalidOperationException`: the
+        // backend now hands the middleware the envelope the shared table wrote
+        // instead of throwing the one CLR type that collapsed every
+        // transcription failure onto ENGINE_UNAVAILABLE (issue #356 item 4).
         try { _ = await failedBackend.TranscribeAsync(new AudioUpload("failed.wav", "audio/wav", new byte[] { 7, 8, 9 }, null, null, null, "en"), CancellationToken.None); }
-        catch (InvalidOperationException) { }
+        catch (LocalApiFailureException) { }
         var failed = (await history.ListAsync()).Single(item => item.Status == HyperWhisper.Data.Entities.TranscriptStatus.Failed);
         Assert(failed.AudioFilePath is not null && File.Exists(failed.AudioFilePath), "retryable failed history points at deleted audio");
     }
+}
+
+/// <summary>
+/// A transcription that failed reaches the wire as the code and the message it
+/// actually carried (issue #356 item 4).
+/// </summary>
+/// <remarks>
+/// WHAT THIS WOULD HAVE CAUGHT. `ApplicationLocalApiBackend` threw
+/// `new InvalidOperationException(result.Failure?.Message ?? ...)` and the
+/// middleware's `catch (InvalidOperationException)` bound no variable, so all
+/// four `PortableTranscriptionErrorCode` values and every message
+/// `TranscriptionWorkflow` produced collapsed into HTTP 200
+/// `ENGINE_UNAVAILABLE` plus "The requested application capability is
+/// unavailable." A caller whose audio failed to transcribe was told the app has
+/// no capability, and a cancelled caller was told the same. Nothing in this
+/// suite asserted otherwise, which is why it survived: the only transcription
+/// assertion used `UnavailableTranscriber`, whose `BackendUnavailable` really
+/// is `ENGINE_UNAVAILABLE`, so the collapsed answer looked right.
+///
+/// That case stays exactly where it is, in `ApplicationBackendErrors`, as the
+/// regression guard that this change did not shift the mapping.
+/// </remarks>
+static async Task PortableTranscriptionFailuresReachTheWire()
+{
+    static MultipartFormDataContent Clip()
+    {
+        var form = new MultipartFormDataContent();
+        form.Add(new ByteArrayContent([1, 2, 3]), "audio", "clip.wav");
+        return form;
+    }
+
+    static async Task Assert357(
+        IRecordedAudioTranscriber transcriber,
+        IAudioInputDeviceService devices,
+        Func<HttpClient, Task<HttpResponseMessage>> call,
+        string code,
+        string message,
+        string what)
+    {
+        using var paths = new TempPaths();
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), devices, transcriber, history);
+        // Without this the workflow has no selected device and every
+        // `/recording/*` call short-circuits on `BackendUnavailable` before it
+        // ever reaches the recorder.
+        workflow.RefreshDevices();
+        var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+        await using var fixture = await Fixture.Create(backend: backend);
+        fixture.Authenticate();
+        var response = await call(fixture.Client);
+        await AssertBusinessFailure(response, code, what);
+        var actual = await FailureMessage(response);
+        Assert(actual == message, $"{what}: expected \"{message}\", got \"{actual}\"");
+    }
+
+    // A transcription that RAN and failed: TRANSCRIPTION_FAILED, and the
+    // generic row passes the workflow's own text through verbatim. This used to
+    // be ENGINE_UNAVAILABLE plus a fixed string that named neither.
+    await Assert357(
+        new StaticTranscriber(success: false),
+        new NoDevices(),
+        async client => { using var form = Clip(); return await client.PostAsync("/transcribe", form); },
+        LocalApiErrorCodes.TranscriptionFailed,
+        "expected failure",
+        "failed transcription");
+
+    // A cancelled transcription: TIMEOUT. `CANCELLED` was never in the closed
+    // fourteen and `TIMEOUT` is the documented code for running out of time,
+    // which is the split the middleware's own `OperationCanceledException` arm
+    // already made.
+    await Assert357(
+        new CancelledTranscriber(),
+        new NoDevices(),
+        async client => { using var form = Clip(); return await client.PostAsync("/transcribe", form); },
+        LocalApiErrorCodes.Timeout,
+        "Transcription was cancelled.",
+        "cancelled transcription");
+
+    // The `/recording/*` routes reach the same table through
+    // `ThrowWorkflowFailure`, which did a partial two-way split of the SAME
+    // enum — `BackendUnavailable` became HTTP 200 ENGINE_UNAVAILABLE and
+    // everything else HTTP 400 INVALID_REQUEST — and dropped the message on
+    // both arms. A recorder that will not start is a TRANSCRIPTION_FAILED and
+    // now says why. `ApplicationBackendErrors` keeps the `BackendUnavailable`
+    // half of this route, unchanged.
+    await Assert357(
+        new StaticTranscriber(success: true),
+        new TestDevices(),
+        client => client.PostAsync("/recording/toggle", content: null),
+        LocalApiErrorCodes.TranscriptionFailed,
+        "unavailable",
+        "recording start failure");
 }
 
 static async Task ApplicationBackendModeRouting()
@@ -1467,6 +1567,18 @@ sealed class StaticTranscriber(bool success) : IRecordedAudioTranscriber
         => Task.FromResult(success
             ? PortableTranscriptionResult.Success("portable result", "Static")
             : PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.TranscriptionFailed, "expected failure", "Static"));
+}
+
+/// <summary>
+/// The one `PortableTranscriptionErrorCode` no other fake produces. `Cancelled`
+/// and `TranscriptionFailed` answered the same code as `BackendUnavailable`
+/// until the shared table was wired in (issue #356 item 4).
+/// </summary>
+sealed class CancelledTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "Cancelling");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.", "Cancelling"));
 }
 
 sealed class CapturingTranscriber : IRecordedAudioTranscriber
