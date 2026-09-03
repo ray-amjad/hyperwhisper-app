@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "فشل التفعيل: %@";
 "onboarding.setup.provider.error" = "تعذّر حفظ مفتاحك: %@";
 "onboarding.setup.provider.saveFailed" = "تعذّرت كتابة المفتاح في سلسلة مفاتيحك.";
+"onboarding.setup.stopped.onDevice" = "تعذّر إكمال الإعداد: لم يعد %@ مثبّتًا على جهاز Mac هذا. نزّله مرة أخرى للمتابعة.";
+"onboarding.setup.stopped.cloud" = "تعذّر إكمال الإعداد: لم يعد جهاز Mac هذا مفعّلًا لـ HyperWhisper Cloud. فعّله مرة أخرى في الأسفل، أو ارجع خطوة واحدة لإدخال مفتاح الوصول.";
+"onboarding.setup.stopped.provider" = "تعذّر إكمال الإعداد: لم يعد مفتاح %@ محفوظًا على جهاز Mac هذا. احفظه مرة أخرى للمتابعة.";
 "onboarding.setup.provider.check.validated" = "تم التحقق من المفتاح مقابل %@";
 "onboarding.setup.provider.check.written" = "تمت كتابته في سلسلة مفاتيح تسجيل الدخول";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · مفتاح API لـ %@";

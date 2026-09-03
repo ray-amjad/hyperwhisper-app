@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktivointi epäonnistui: %@";
 "onboarding.setup.provider.error" = "Avaintasi ei voitu tallentaa: %@";
 "onboarding.setup.provider.saveFailed" = "Avainta ei voitu kirjoittaa avainnippuusi.";
+"onboarding.setup.stopped.onDevice" = "Määritystä ei voitu viimeistellä: %@ ei ole enää asennettuna tälle Macille. Lataa se uudelleen jatkaaksesi.";
+"onboarding.setup.stopped.cloud" = "Määritystä ei voitu viimeistellä: tätä Macia ei ole enää aktivoitu HyperWhisper Cloudia varten. Aktivoi se uudelleen alta tai palaa askel taaksepäin ja syötä käyttöavaimesi.";
+"onboarding.setup.stopped.provider" = "Määritystä ei voitu viimeistellä: %@-avaintasi ei ole enää tallennettu tälle Macille. Tallenna se uudelleen jatkaaksesi.";
 "onboarding.setup.provider.check.validated" = "Avain vahvistettu palveluntarjoajaa %@ vasten";
 "onboarding.setup.provider.check.written" = "Kirjoitettu kirjautumisen avainnippuun";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API-avain";

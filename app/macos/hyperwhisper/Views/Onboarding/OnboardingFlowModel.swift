@@ -313,6 +313,60 @@ final class OnboardingFlowModel: ObservableObject {
     /// Parakeet download failures, license activation failures, and Keychain
     /// write failures, whichever matches the selected source.
     @Published private(set) var setupErrorMessage: String?
+    /// #315: true once a bounce has sent the user BACK to `.setup` because the
+    /// source they had already set up stopped working. Armed only by
+    /// `bounceToSetupIfSourceUnusable()`, and disarmed by every `select(...)`,
+    /// because a note about the previous source must not survive picking a new
+    /// one. Read through `selectedSourceStoppedWorking`, never directly.
+    @Published private(set) var wasSentBackToSetup = false
+
+    /// #315: the setup step has nothing else that can explain a bounce.
+    /// `setupErrorMessage` only republishes failures this flow PRODUCED — a
+    /// download that failed, an activation that was refused, a Keychain write
+    /// that was denied — and none of the three bounce triggers is one of those:
+    /// the model was deleted from under us, the license lapsed server side, the
+    /// Keychain entry went away. So the setup card renders a dedicated note off
+    /// this instead, and the user is told what broke and what to do about it.
+    ///
+    /// ANDed with the gate rather than cleared by hand, so fixing the source
+    /// takes the note away and the note can never outlive the failure it names.
+    /// `!isRepairingSelectedSource` extends the same idea to the repair itself:
+    /// the note asks for one action, so it goes quiet for exactly as long as
+    /// that action is running and comes straight back if it does not land.
+    var selectedSourceStoppedWorking: Bool {
+        wasSentBackToSetup
+            && step == .setup
+            && !isSelectedSourceUsable
+            && !isRepairingSelectedSource
+    }
+
+    /// #315: true while the user is part way through the exact action the bounce
+    /// note asks for. A 474 MB re-download leaves the gate shut for minutes, so
+    /// without this the card renders a progress bar and, under it, a red note
+    /// telling the user to start the download they are visibly already running.
+    ///
+    /// Derived from live state rather than latched off the button press, so the
+    /// note is suppressed and not spent: a download that fails or is cancelled,
+    /// or an activation the server refuses, puts the source back in the state
+    /// the note describes and the note reappears with it. Latching would have
+    /// dropped the user back into the silent dead end this whole change exists
+    /// to remove.
+    ///
+    /// `.yourProvider` has no in-flight state to wait on: the setup card's only
+    /// button is `saveProviderKey()`, which writes the Keychain and republishes
+    /// its own error synchronously, so the gate has already re-read by the time
+    /// the next frame draws. (`isTestingKey` belongs to `.configure`, a step the
+    /// bounce note is never rendered on.)
+    private var isRepairingSelectedSource: Bool {
+        switch selectedSource {
+        case .onDevice:
+            return isSelectedModelDownloading()
+        case .hyperwhisperCloud:
+            return isActivatingLicense
+        case .yourProvider, nil:
+            return false
+        }
+    }
 
     // MARK: Microphone
 
@@ -490,6 +544,10 @@ final class OnboardingFlowModel: ObservableObject {
     func select(source: TranscriptionSource) {
         guard selectedSource != source else { return }
         selectedSource = source
+        // #315: the bounce note names the source that stopped working. Choosing
+        // a different one makes it a statement about something the user is no
+        // longer setting up.
+        wasSentBackToSetup = false
         keyValidated = false
         licenseTestPassed = nil
         providerTestHealth = nil
@@ -504,12 +562,14 @@ final class OnboardingFlowModel: ObservableObject {
     func select(model: OnboardingModelSelection) {
         guard selectedModel != model else { return }
         selectedModel = model
+        wasSentBackToSetup = false
         refreshSetupError()
     }
 
     func select(provider: CloudProvider) {
         guard selectedProvider != provider else { return }
         selectedProvider = provider
+        wasSentBackToSetup = false
         // A masked key typed for one provider must never be saved under another.
         apiKeyInput = ""
         invalidateProviderValidation()
@@ -847,10 +907,41 @@ final class OnboardingFlowModel: ObservableObject {
         }
     }
 
+    /// #315: one bounce policy, one implementation. An unusable source must
+    /// never reach production state, and a user whose source stopped working is
+    /// sent to the step that can explain and fix it rather than being blocked
+    /// where nothing on screen is about transcription sources.
+    ///
+    /// Gated on `selectedSource` rather than on `isSelectedSourceUsable` alone:
+    /// with no source chosen there is nothing to protect, and completing from an
+    /// early step has to keep closing the flow cleanly. `stagedSource` is nil
+    /// exactly when `selectedSource` is, so this is the same condition without
+    /// building the staged struct only to nil-test it.
+    ///
+    /// - Returns: true when the caller must refuse what it was about to do.
+    private func bounceToSetupIfSourceUnusable() -> Bool {
+        guard selectedSource != nil, !isSelectedSourceUsable else { return false }
+        step = .setup
+        // Republishes whatever failure the flow itself last recorded. None of
+        // the three bounce triggers produces one, which is why the note the user
+        // actually reads comes from `selectedSourceStoppedWorking` below.
+        refreshSetupError()
+        wasSentBackToSetup = true
+        return true
+    }
+
     @discardableResult
     func advance() -> Bool {
         guard canContinue,
               let next = OnboardingStep(rawValue: step.rawValue + 1) else { return false }
+        // #315: the setup gate is positional, so a source that died after the
+        // user passed it still reached Try It. Suppressing the write there is
+        // not enough — the test recording would then run through their PREVIOUS
+        // production configuration and read as a pass. Refuse the transition and
+        // send them back. Checked before `step = next` so `stepDidChange()` is
+        // never entered re-entrantly; the return value stays honest ("the user
+        // did not move forward") even though `step` changed.
+        if next == .tryIt, bounceToSetupIfSourceUnusable() { return false }
         step = next
         stepDidChange()
         return true
@@ -914,7 +1005,11 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     private func applyStagedSourceReversibly() {
-        guard let staged = stagedSource else { return }
+        // #315: usability is a precondition of the WRITE, not of a step
+        // transition. Both callers now re-check it and bounce the user to
+        // `.setup` first, so nothing reachable returns here — this is the
+        // backstop that stops a future third caller reintroducing the bug.
+        guard isSelectedSourceUsable, let staged = stagedSource else { return }
         if restorePoint == nil {
             restorePoint = committer.captureRestorePoint()
         }
@@ -923,8 +1018,18 @@ final class OnboardingFlowModel: ObservableObject {
 
     /// Explicit completion. The staged configuration becomes production state and
     /// there is nothing left to roll back.
-    func complete() {
-        guard isLive else { return }
+    ///
+    /// Returns false when completion was refused: either the flow has already
+    /// closed, or the setup gate has shut since the user passed it. In the second
+    /// case nothing is committed and the flow is sent back to `.setup` to fix it,
+    /// so the caller must keep the sheet open.
+    @discardableResult
+    func complete() -> Bool {
+        guard isLive else { return false }
+        // #315: the gate was only ever checked on the way out of `.setup`, so a
+        // model deleted or a license deactivated during the last two steps still
+        // became the user's default and failed on their first real dictation.
+        if bounceToSetupIfSourceUnusable() { return false }
         applyStagedSourceReversibly()
         restorePoint = nil
         providerKeyRestorePoints.removeAll()
@@ -932,6 +1037,7 @@ final class OnboardingFlowModel: ObservableObject {
         previousDeviceID = nil
         previousOpenDeviceID = nil
         finish()
+        return true
     }
 
     /// Set Up Later. Bug 1: every reversible write this flow made is put back, so

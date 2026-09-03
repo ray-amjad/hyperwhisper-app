@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Falha na ativação: %@";
 "onboarding.setup.provider.error" = "Não foi possível guardar a sua chave: %@";
 "onboarding.setup.provider.saveFailed" = "Não foi possível escrever a chave no seu Chaveiro.";
+"onboarding.setup.stopped.onDevice" = "Não foi possível concluir a configuração: %@ já não está instalado neste Mac. Transfira-o novamente para continuar.";
+"onboarding.setup.stopped.cloud" = "Não foi possível concluir a configuração: este Mac já não está ativado para o HyperWhisper Cloud. Ative-o novamente abaixo ou recue um passo para introduzir a sua chave de acesso.";
+"onboarding.setup.stopped.provider" = "Não foi possível concluir a configuração: a sua chave %@ já não está guardada neste Mac. Guarde-a novamente para continuar.";
 "onboarding.setup.provider.check.validated" = "Chave validada em %@";
 "onboarding.setup.provider.check.written" = "Escrita no chaveiro de início de sessão";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · chave API %@";

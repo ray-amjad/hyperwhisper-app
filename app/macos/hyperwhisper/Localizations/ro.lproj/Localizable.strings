@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Activare eșuată: %@";
 "onboarding.setup.provider.error" = "Cheia nu a putut fi salvată: %@";
 "onboarding.setup.provider.saveFailed" = "Cheia nu a putut fi scrisă în Breloc.";
+"onboarding.setup.stopped.onDevice" = "Configurarea nu a putut fi finalizată: %@ nu mai este instalat pe acest Mac. Descarcă-l din nou pentru a continua.";
+"onboarding.setup.stopped.cloud" = "Configurarea nu a putut fi finalizată: acest Mac nu mai este activat pentru HyperWhisper Cloud. Activează-l din nou mai jos sau întoarce-te cu un pas pentru a introduce cheia ta de acces.";
+"onboarding.setup.stopped.provider" = "Configurarea nu a putut fi finalizată: cheia ta %@ nu mai este salvată pe acest Mac. Salveaz-o din nou pentru a continua.";
 "onboarding.setup.provider.check.validated" = "Cheie validată la %@";
 "onboarding.setup.provider.check.written" = "Scrisă în breloc-ul de conectare";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · cheie API %@";

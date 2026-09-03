@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "เปิดใช้งานล้มเหลว: %@";
 "onboarding.setup.provider.error" = "ไม่สามารถบันทึกคีย์ของคุณได้: %@";
 "onboarding.setup.provider.saveFailed" = "ไม่สามารถบันทึกคีย์ลงใน Keychain ของคุณได้";
+"onboarding.setup.stopped.onDevice" = "ตั้งค่าไม่สำเร็จ: %@ ไม่ได้ติดตั้งอยู่บน Mac เครื่องนี้แล้ว ดาวน์โหลดอีกครั้งเพื่อดำเนินการต่อ";
+"onboarding.setup.stopped.cloud" = "ตั้งค่าไม่สำเร็จ: Mac เครื่องนี้ไม่ได้เปิดใช้งานสำหรับ HyperWhisper Cloud แล้ว เปิดใช้งานอีกครั้งด้านล่าง หรือย้อนกลับหนึ่งขั้นตอนเพื่อป้อนคีย์การเข้าถึงของคุณ";
+"onboarding.setup.stopped.provider" = "ตั้งค่าไม่สำเร็จ: คีย์ %@ ของคุณไม่ได้บันทึกอยู่บน Mac เครื่องนี้แล้ว บันทึกอีกครั้งเพื่อดำเนินการต่อ";
 "onboarding.setup.provider.check.validated" = "ตรวจสอบคีย์กับ %@ แล้ว";
 "onboarding.setup.provider.check.written" = "บันทึกลงใน Keychain สำหรับการเข้าสู่ระบบแล้ว";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · คีย์ API %@";

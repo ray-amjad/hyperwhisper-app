@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktivasi gagal: %@";
 "onboarding.setup.provider.error" = "Kunci Anda tidak dapat disimpan: %@";
 "onboarding.setup.provider.saveFailed" = "Kunci tidak dapat ditulis ke Keychain Anda.";
+"onboarding.setup.stopped.onDevice" = "Penyiapan tidak dapat diselesaikan: %@ tidak lagi terpasang di Mac ini. Unduh lagi untuk melanjutkan.";
+"onboarding.setup.stopped.cloud" = "Penyiapan tidak dapat diselesaikan: Mac ini tidak lagi diaktifkan untuk HyperWhisper Cloud. Aktifkan lagi di bawah, atau kembali satu langkah untuk memasukkan kunci akses Anda.";
+"onboarding.setup.stopped.provider" = "Penyiapan tidak dapat diselesaikan: kunci %@ Anda tidak lagi tersimpan di Mac ini. Simpan lagi untuk melanjutkan.";
 "onboarding.setup.provider.check.validated" = "Kunci divalidasi terhadap %@";
 "onboarding.setup.provider.check.written" = "Ditulis ke login keychain";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · Kunci API %@";

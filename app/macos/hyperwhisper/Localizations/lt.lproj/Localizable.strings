@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Aktyvacija nepavyko: %@";
 "onboarding.setup.provider.error" = "Nepavyko išsaugoti jūsų rakto: %@";
 "onboarding.setup.provider.saveFailed" = "Nepavyko įrašyti rakto į jūsų raktų grandinę.";
+"onboarding.setup.stopped.onDevice" = "Nepavyko užbaigti sąrankos: %@ nebėra įdiegtas šiame Mac. Atsisiųskite jį iš naujo, kad galėtumėte tęsti.";
+"onboarding.setup.stopped.cloud" = "Nepavyko užbaigti sąrankos: šis Mac nebėra aktyvuotas HyperWhisper Cloud paslaugai. Aktyvuokite jį iš naujo žemiau arba grįžkite vienu žingsniu atgal ir įveskite savo prieigos raktą.";
+"onboarding.setup.stopped.provider" = "Nepavyko užbaigti sąrankos: jūsų %@ raktas nebėra išsaugotas šiame Mac. Išsaugokite jį iš naujo, kad galėtumėte tęsti.";
 "onboarding.setup.provider.check.validated" = "Raktas patvirtintas su %@";
 "onboarding.setup.provider.check.written" = "Įrašyta į prisijungimo raktų grandinę";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API raktas";

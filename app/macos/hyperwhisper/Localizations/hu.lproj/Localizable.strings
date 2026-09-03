@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Az aktiválás sikertelen: %@";
 "onboarding.setup.provider.error" = "A kulcsod mentése sikertelen: %@";
 "onboarding.setup.provider.saveFailed" = "A kulcsot nem sikerült beírni a Kulcskarikádba.";
+"onboarding.setup.stopped.onDevice" = "A beállítás nem fejeződhetett be: a(z) %@ már nincs telepítve erre a Macre. Töltsd le újra a folytatáshoz.";
+"onboarding.setup.stopped.cloud" = "A beállítás nem fejeződhetett be: ez a Mac már nincs aktiválva a HyperWhisper Cloudhoz. Aktiváld újra alább, vagy lépj vissza egyet a hozzáférési kulcsod megadásához.";
+"onboarding.setup.stopped.provider" = "A beállítás nem fejeződhetett be: a(z) %@ kulcsod már nincs elmentve erre a Macre. Mentsd el újra a folytatáshoz.";
 "onboarding.setup.provider.check.validated" = "Kulcs ellenőrizve ezzel: %@";
 "onboarding.setup.provider.check.written" = "Beírva a bejelentkezési kulcskarikába";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API-kulcs";

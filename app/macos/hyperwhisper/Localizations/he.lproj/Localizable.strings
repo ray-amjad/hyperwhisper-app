@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "ההפעלה נכשלה: %@";
 "onboarding.setup.provider.error" = "לא ניתן היה לשמור את המפתח שלכם: %@";
 "onboarding.setup.provider.saveFailed" = "לא ניתן היה לכתוב את המפתח למחזיק המפתחות שלכם.";
+"onboarding.setup.stopped.onDevice" = "לא ניתן היה להשלים את ההגדרה: %@ כבר לא מותקן על ה-Mac הזה. הורידו אותו שוב כדי להמשיך.";
+"onboarding.setup.stopped.cloud" = "לא ניתן היה להשלים את ההגדרה: ה-Mac הזה כבר לא מופעל עבור HyperWhisper Cloud. הפעילו אותו שוב למטה, או חזרו שלב אחד אחורה כדי להזין את מפתח הגישה שלכם.";
+"onboarding.setup.stopped.provider" = "לא ניתן היה להשלים את ההגדרה: מפתח %@ שלכם כבר לא שמור על ה-Mac הזה. שמרו אותו שוב כדי להמשיך.";
 "onboarding.setup.provider.check.validated" = "המפתח אומת מול %@";
 "onboarding.setup.provider.check.written" = "נכתב למחזיק המפתחות של ההתחברות";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · מפתח API של %@";

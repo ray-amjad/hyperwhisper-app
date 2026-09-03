@@ -944,6 +944,507 @@ struct OnboardingCompletionTests {
     }
 }
 
+// MARK: - Re-checking the setup gate before the commit
+
+/// The setup gate used to be positional: checked on the way out of `.setup` and
+/// never again, so a model deleted or a license deactivated during the last two
+/// steps still became the user's default. These pin the two places production
+/// state can be written — completion, and entry to Try It — against a source that
+/// stopped being usable after the user passed the gate honestly.
+@MainActor
+struct OnboardingCompletionGateTests {
+    @Test func completeBouncesToSetupWhenTheModelDisappearedAfterTheGate() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        #expect(h.committer.applied.count == 1)
+
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.complete(), "a source that cannot transcribe must not be committed")
+        #expect(h.flow.step == .setup)
+        #expect(h.committer.applied.count == 1, "only the reversible Try It write, no second commit")
+        #expect(h.committer.markCompletedCount == 0)
+        #expect(h.committer.returnHomeCount == 0)
+        #expect(h.flow.isLiveForTesting, "the flow stays open so the user can fix the source")
+        #expect(h.flow.hasPendingProductionWrite)
+        #expect(!h.flow.canContinue)
+    }
+
+    /// The reachable trigger: a license can be deactivated server side between the
+    /// setup step and the finish, and the try it step makes that window minutes wide.
+    @Test func completeBouncesToSetupWhenTheCloudLicenceWentInactiveAfterTheGate() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+        h.flow.licenseKeyInput = "key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .setup)
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+        #expect(h.committer.applied.count == 1)
+
+        h.license.isActive = false
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.step == .setup)
+        #expect(h.committer.applied.count == 1)
+        #expect(h.committer.markCompletedCount == 0)
+        #expect(h.committer.returnHomeCount == 0)
+        #expect(h.flow.isLiveForTesting)
+        #expect(!h.flow.canContinue)
+    }
+
+    /// The half of the gate no other test moves: `validatedProviders` still holds
+    /// the provider while the Keychain entry behind it has gone.
+    @Test func completeBouncesToSetupWhenTheProviderKeyVanishedAfterTheGate() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+        h.flow.apiKeyInput = "sk-test"
+        h.flow.testProviderKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+        #expect(h.committer.applied.count == 1)
+
+        h.providerKeys.stored[.openai] = nil
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.step == .setup)
+        #expect(h.committer.applied.count == 1)
+        #expect(h.committer.markCompletedCount == 0)
+        #expect(h.committer.returnHomeCount == 0)
+        #expect(h.flow.isLiveForTesting)
+        #expect(!h.flow.canContinue)
+    }
+
+    /// Called directly rather than through `Harness.advance(to:)`, which asserts
+    /// that every call moved forward — the bounce deliberately does not.
+    @Test func advanceBouncesToSetupWhenTheSourceDiedBeforeTryIt() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.advance())
+        #expect(h.flow.step == .setup,
+                "Try It must record through the source the user set up, so a dead source is sent back rather than skipped past")
+        #expect(h.committer.applied.isEmpty)
+        #expect(h.committer.productionState == FakeCommitter.seed)
+        #expect(!h.flow.canContinue)
+        #expect(h.flow.isLiveForTesting)
+    }
+
+    @Test func fixingTheSourceAfterABounceLetsCompletionCommit() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+
+        #expect(h.flow.complete())
+        #expect(h.committer.applied.last?.source == .onDevice)
+        #expect(h.committer.applied.last?.model == FakeCatalog.parakeet.id)
+        #expect(h.committer.productionState.contains(FakeCatalog.parakeet.id))
+        #expect(h.committer.restoreCount == 0)
+        #expect(h.committer.markCompletedCount == 1)
+        #expect(!h.flow.hasPendingProductionWrite)
+        #expect(!h.flow.isLiveForTesting)
+    }
+
+    /// The point of refusing the transition rather than silently suppressing the
+    /// write: once the source is fixed, Try It records through the fixed source.
+    @Test func fixingTheSourceAfterAnAdvanceBounceRecordsThroughTheNewSource() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.advance())
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+        h.advance(to: .tryIt)
+
+        #expect(h.committer.applied.count == 1)
+        #expect(h.committer.applied.last?.model == FakeCatalog.parakeet.id)
+        #expect(h.committer.productionState != FakeCommitter.seed)
+    }
+
+    /// The bounce deliberately leaves the Try It write applied, because the user is
+    /// about to walk forward through Try It again and it has to record through the
+    /// source they just fixed. Set Up Later must still put everything back.
+    @Test func bouncingBackKeepsTheReversibleWriteRollbackable() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+
+        h.flow.deferSetup()
+
+        #expect(h.committer.restoreCount == 1)
+        #expect(h.committer.productionState == FakeCommitter.seed)
+        #expect(!h.flow.hasPendingProductionWrite)
+    }
+}
+
+// MARK: - The bounce has to explain itself
+
+/// A bounce rewinds the sheet by up to three steps and leaves Continue disabled.
+/// If nothing on screen says why, that is a worse experience than the bug it
+/// replaced, so these pin the explanation as hard as the refusal itself: without
+/// them, a regression that armed no note at all would pass every test above.
+@MainActor
+struct OnboardingBounceExplanationTests {
+    @Test func theOnDeviceBounceTellsTheUserWhyTheyWereSentBack() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking,
+                "the setup card renders its note off this, and nothing else on the step explains the rewind")
+        // Why the note has to be its own surface rather than another
+        // `setupErrorMessage`: that property only republishes failures this flow
+        // PRODUCED, and a model deleted from under us is not one of them.
+        #expect(h.flow.setupErrorMessage == nil,
+                "no download failed, so the download-error channel has nothing to say here")
+    }
+
+    @Test func theCloudBounceTellsTheUserWhyTheyWereSentBack() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+        h.flow.licenseKeyInput = "key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .setup)
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+
+        h.license.isActive = false
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+        #expect(h.flow.setupErrorMessage == nil,
+                "activation succeeded; the licence lapsed afterwards, so there is no activation error to show")
+    }
+
+    @Test func theProviderBounceTellsTheUserWhyTheyWereSentBack() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+        h.flow.apiKeyInput = "sk-test"
+        h.flow.testProviderKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+
+        h.providerKeys.stored[.openai] = nil
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+        #expect(h.flow.setupErrorMessage == nil,
+                "the key was written successfully; it vanished afterwards, so there is no Keychain error to show")
+    }
+
+    /// The other bounce site. Same note, because the user lands on the same step
+    /// with the same disabled Continue.
+    @Test func theAdvanceBounceTellsTheUserWhyTheyWereSentBack() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.advance())
+        #expect(h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// Reaching `.setup` the ordinary way is not a bounce. A first-run user who
+    /// has simply not downloaded the model yet must not be told their source
+    /// stopped working.
+    @Test func arrivingAtSetupNormallyShowsNoBounceNote() {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .onDevice)
+        h.advance(to: .setup)
+
+        #expect(h.flow.step == .setup)
+        #expect(!h.flow.isSelectedSourceUsable, "the gate is shut, but nothing has been taken away")
+        #expect(!h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// The note is derived from the gate, not stored, so fixing the source takes
+    /// it away with no separate bookkeeping to forget.
+    @Test func fixingTheSourceTakesTheBounceNoteAway() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// The note names one source. Picking a different one makes it a statement
+    /// about something the user is no longer setting up.
+    @Test func choosingADifferentSourceTakesTheBounceNoteAway() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+
+        h.flow.select(source: .hyperwhisperCloud)
+
+        #expect(!h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// A bounce off a later step, then forward again, then a second bounce: the
+    /// note has to come back rather than be spent by the first one.
+    @Test func aSecondBounceArmsTheNoteAgain() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.advance())
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+        h.advance(to: .done)
+        #expect(!h.flow.selectedSourceStoppedWorking)
+
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+    }
+}
+
+// MARK: - The bounce note goes quiet while it is being obeyed
+
+/// Review round 2, finding 1. The note prescribes exactly one action, and the
+/// gate it is derived from cannot reopen until that action finishes — a 474 MB
+/// Parakeet download takes minutes. Without these, the card renders a progress
+/// bar at "37%" with a red note underneath telling the user to start the
+/// download they are watching. Suppressed, never spent: every test here also
+/// pins that the note comes back if the repair does not land.
+@MainActor
+struct OnboardingBounceNoteDuringRepairTests {
+    /// The exact scenario in the finding: deleted model, bounce, press Download.
+    @Test func theOnDeviceNoteIsSilentWhileTheReDownloadRuns() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+
+        h.flow.startSelectedModelDownload()
+        #expect(h.catalog.startedDownloads == [FakeCatalog.parakeet.id])
+        // What the real managers publish once the transfer is under way. The
+        // gate stays shut for the whole of it: nothing is installed yet.
+        h.catalog.downloading.insert(FakeCatalog.parakeet.id)
+        h.catalog.progresses[FakeCatalog.parakeet.id] = 0.37
+
+        #expect(!h.flow.isSelectedSourceUsable, "still not installed, so the gate is still shut")
+        #expect(!h.flow.selectedSourceStoppedWorking,
+                "the note must not ask for the download that is on screen behind it")
+    }
+
+    /// Suppressed, not spent. A cancelled or failed transfer puts the user back
+    /// in exactly the state the note describes, so the note has to return.
+    @Test func theOnDeviceNoteReturnsIfTheReDownloadNeverLands() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+
+        h.flow.startSelectedModelDownload()
+        h.catalog.downloading.insert(FakeCatalog.parakeet.id)
+        #expect(!h.flow.selectedSourceStoppedWorking)
+
+        // The download drops out without installing anything.
+        h.catalog.downloading.remove(FakeCatalog.parakeet.id)
+
+        #expect(h.flow.selectedSourceStoppedWorking,
+                "the source is unusable again, so the instruction is live again")
+    }
+
+    /// The download that does land closes the gate's own condition, so the note
+    /// goes away for the original reason rather than for the in-flight one.
+    @Test func theOnDeviceNoteStaysAwayOnceTheReDownloadFinishes() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+
+        h.flow.startSelectedModelDownload()
+        h.catalog.downloading.insert(FakeCatalog.parakeet.id)
+        h.catalog.downloading.remove(FakeCatalog.parakeet.id)
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+
+        #expect(h.flow.isSelectedSourceUsable)
+        #expect(!h.flow.selectedSourceStoppedWorking)
+        #expect(h.flow.complete(), "and the commit the bounce refused now goes through")
+    }
+
+    /// Same shape on the cloud card: the note names Activate, and the Activate
+    /// button spends the whole round trip showing a spinner.
+    @Test func theCloudNoteIsSilentWhileActivationIsInFlight() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+        h.flow.licenseKeyInput = "key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .setup)
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+
+        h.license.isActive = false
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+
+        // Re-activate, and hold the call at its suspension point.
+        h.license.gateActivation = true
+        h.flow.activateCloudLicense()
+        let task = h.flow.lastAsyncTaskForTesting
+        await Task.yield()
+
+        #expect(h.flow.isActivatingLicense)
+        #expect(!h.flow.isSelectedSourceUsable)
+        #expect(!h.flow.selectedSourceStoppedWorking,
+                "the button is already spinning; the note must not repeat its own label back")
+
+        h.license.release()
+        await task?.value
+
+        #expect(h.flow.isSelectedSourceUsable)
+        #expect(!h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// A refused re-activation is the cloud version of a failed download.
+    @Test func theCloudNoteReturnsWhenActivationIsRefused() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+        h.flow.licenseKeyInput = "key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .setup)
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+
+        h.license.isActive = false
+        #expect(!h.flow.complete())
+
+        h.license.activateOutcome = OnboardingLicenseOutcome(isValid: false, errorMessage: "declined")
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+
+        #expect(!h.flow.isActivatingLicense)
+        #expect(h.flow.selectedSourceStoppedWorking,
+                "activation came back refused, so the instruction is live again")
+    }
+
+    /// The BYOK card's only action, `saveProviderKey()`, is synchronous, so it
+    /// has no in-flight window to sit through — and the suppression must be per
+    /// source, not a global "something is busy". A model download running for a
+    /// source the user is not setting up cannot silence this note.
+    @Test func theProviderNoteIsNotSilencedByUnrelatedDownloadActivity() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+        h.flow.apiKeyInput = "sk-test"
+        h.flow.testProviderKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+
+        h.providerKeys.stored[.openai] = nil
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+
+        h.catalog.downloading.insert(FakeCatalog.parakeet.id)
+
+        #expect(h.flow.selectedSourceStoppedWorking,
+                "an on-device download says nothing about a missing Keychain entry")
+    }
+
+    /// Suppression is scoped to the source too on the way in: a cloud activation
+    /// in flight cannot quiet an on-device note.
+    @Test func theOnDeviceNoteIsNotSilencedByAnInFlightActivation() async {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+
+        h.license.gateActivation = true
+        h.flow.licenseKeyInput = "key"
+        h.flow.activateCloudLicense()
+        let task = h.flow.lastAsyncTaskForTesting
+        await Task.yield()
+
+        #expect(h.flow.isActivatingLicense)
+        #expect(h.flow.selectedSourceStoppedWorking,
+                "the selected source is on-device; a licence call is not its repair")
+
+        h.license.release()
+        await task?.value
+    }
+}
+
+/// The bounce copy is authored in `Base.lproj` and synced into all 39 sibling
+/// locales (review round 2, finding 2). These pin the Base entries, which are
+/// what `String.localized` falls back to for any locale that ever drifts (see
+/// `LocalizationFallbackTests`).
+struct OnboardingBounceCopyTests {
+    private let keys = [
+        "onboarding.setup.stopped.onDevice",
+        "onboarding.setup.stopped.cloud",
+        "onboarding.setup.stopped.provider"
+    ]
+
+    @Test func everyBounceNoteKeyResolvesToRealCopy() throws {
+        let base = try #require(BaseLocalizationBundle.resolve(in: .main))
+        for key in keys {
+            let value = try #require(base.localizedValueIfPresent(forKey: key),
+                                     "\(key) is missing from Base.lproj")
+            #expect(value != key)
+            #expect(key.localized != key, "\(key) renders as its own identifier")
+        }
+    }
+
+    /// Both parameterised notes are rendered through `localized(arguments:)`.
+    /// Drop the placeholder and `String(format:)` silently discards the model or
+    /// provider name, leaving copy that names nothing.
+    @Test func theParameterisedBounceNotesKeepTheirPlaceholder() throws {
+        let base = try #require(BaseLocalizationBundle.resolve(in: .main))
+        for key in ["onboarding.setup.stopped.onDevice", "onboarding.setup.stopped.provider"] {
+            let value = try #require(base.localizedValueIfPresent(forKey: key))
+            #expect(value.contains("%@"), "\(key) no longer interpolates its name")
+        }
+    }
+}
+
 // MARK: - Late async completion (bug 3)
 
 @MainActor

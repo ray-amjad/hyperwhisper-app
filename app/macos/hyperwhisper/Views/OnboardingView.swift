@@ -525,9 +525,13 @@ struct OnboardingFlowContainer: View {
     }
 
     /// Explicit completion: the staged source becomes production state.
+    ///
+    /// #315: completion is refused when the chosen source stopped working during
+    /// the last two steps, and the flow puts itself back on `.setup` so the user
+    /// can fix it. Dismissing here regardless would tear down the flow with the
+    /// Try It write still applied and nothing left alive to roll it back.
     private func completeOnboarding() {
-        flow.complete()
-        isPresented = false
+        if flow.complete() { isPresented = false }
     }
 
     /// Set Up Later: anything already written is rolled back first, so the app is

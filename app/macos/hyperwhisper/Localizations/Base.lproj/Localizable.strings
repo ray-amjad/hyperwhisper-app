@@ -358,6 +358,15 @@
 "onboarding.setup.provider.error" = "Could not save your key: %@";
 "onboarding.setup.provider.saveFailed" = "The key could not be written to your Keychain.";
 
+// Set up · sent back here because the source stopped working after the user
+// passed this step (#315). These are complete sentences, not fragments framed
+// by the wrappers above, because nothing failed inside the app: the model was
+// deleted, the license lapsed server side, or the Keychain entry went away.
+// Each one names the action that gets the user moving again.
+"onboarding.setup.stopped.onDevice" = "Setup could not finish: %@ is no longer installed on this Mac. Download it again to continue.";
+"onboarding.setup.stopped.cloud" = "Setup could not finish: this Mac is no longer activated for HyperWhisper Cloud. Activate it again below, or go back one step to enter your access key.";
+"onboarding.setup.stopped.provider" = "Setup could not finish: your %@ key is no longer saved on this Mac. Save it again to continue.";
+
 // Step 6 · Microphone
 "onboarding.mic.title" = "Say something. Watch the bars.";
 "onboarding.mic.subtitle" = "If the level moves when you talk, HyperWhisper can hear you.";

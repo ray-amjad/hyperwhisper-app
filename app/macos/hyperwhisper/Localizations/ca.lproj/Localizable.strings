@@ -545,6 +545,9 @@
 "onboarding.setup.cloud.error" = "Ha fallat l'activació: %@";
 "onboarding.setup.provider.error" = "No s'ha pogut desar la teva clau: %@";
 "onboarding.setup.provider.saveFailed" = "No s'ha pogut escriure la clau al teu Clauer.";
+"onboarding.setup.stopped.onDevice" = "La configuració no s'ha pogut completar: %@ ja no està instal·lat en aquest Mac. Torna a baixar-lo per continuar.";
+"onboarding.setup.stopped.cloud" = "La configuració no s'ha pogut completar: aquest Mac ja no està activat per a HyperWhisper Cloud. Torna a activar-lo a sota o torna un pas enrere per introduir la teva clau d'accés.";
+"onboarding.setup.stopped.provider" = "La configuració no s'ha pogut completar: la teva clau de %@ ja no està desada en aquest Mac. Torna a desar-la per continuar.";
 "onboarding.setup.provider.check.validated" = "Clau validada amb %@";
 "onboarding.setup.provider.check.written" = "Escrita al clauer d'inici de sessió";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · clau API de %@";
