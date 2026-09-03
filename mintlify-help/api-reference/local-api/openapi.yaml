@@ -470,7 +470,7 @@ components:
       properties:
         file:
           type: string
-          description: Absolute filesystem path. Mutually exclusive with audio_base64.
+          description: Absolute filesystem path. Mutually exclusive with audio_base64. Refused above the 48 MiB audio limit.
         audio_base64:
           type: string
           description: base64-encoded audio bytes. Pair with mime_type.
