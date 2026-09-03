@@ -125,6 +125,7 @@ enum PostProcessEndpoint {
         let labels = responseLabels(
             storedProvider: working.mode.postProcessingProvider,
             storedModel: working.mode.languageModel,
+            storedProcessingMode: working.mode.postProcessingMode,
             resolvedProvider: mutationSignal.resolvedProvider,
             resolvedModel: mutationSignal.resolvedModel
         )
@@ -169,18 +170,38 @@ enum PostProcessEndpoint {
     /// An empty resolved model is treated as absent: `""` is "no answer", not an
     /// answer. When nothing ran at all, `model` can still be `""` — that is
     /// honest, and `post_processed: false` already says so.
+    ///
+    /// NOTHING-RAN FALLS BACK THE SAME WAY THE ROUTER DOES. `storedProcessingMode`
+    /// is `Mode.postProcessingMode`, and the stored-provider fallback below is the
+    /// same three-step resolution as the two existing copies
+    /// (`TranscriptionProviderRouter.checkPostProcessingProviderHealth` and
+    /// `TranscriptionPipeline+Transcription`): a `.local` mode is `local_llm`
+    /// whatever the stored string says, and an unset stored provider takes the
+    /// processing mode's own default rather than an unconditional `hyperwhisper`.
+    /// Reading `postProcessingProvider` alone answered `hyperwhisper` for a local
+    /// mode with no stored provider, which is a provider the same mode would never
+    /// have routed to.
     static func responseLabels(
         storedProvider: String?,
         storedModel: String?,
+        storedProcessingMode: Int16,
         resolvedProvider: String?,
         resolvedModel: String?
     ) -> (provider: String, model: String) {
         let stored = storedProvider?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let resolved = resolvedProvider?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let processingMode = PostProcessingMode(rawValue: storedProcessingMode) ?? .off
 
         let provider: String
         if resolved.isEmpty {
-            provider = stored.isEmpty ? PostProcessingProvider.hyperwhisper.rawValue : stored
+            if processingMode == .local {
+                provider = PostProcessingProvider.localLLM.rawValue
+            } else if !stored.isEmpty {
+                provider = stored
+            } else {
+                provider = processingMode.defaultProvider?.rawValue
+                    ?? PostProcessingProvider.hyperwhisper.rawValue
+            }
         } else if !stored.isEmpty, stored.caseInsensitiveCompare(resolved) == .orderedSame {
             provider = stored
         } else {
