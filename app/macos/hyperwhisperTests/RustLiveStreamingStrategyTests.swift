@@ -269,21 +269,20 @@ struct RustLiveStreamingStrategyTests {
         )
         let steps = strategy.stopSequence()
 
-        #expect(steps.count == 3)
-        guard case let .sendText(text) = steps.first else {
-            Issue.record("expected a sendText step first")
+        // COUNT INSIDE THE GUARD, not in an `#expect` above it. `#expect`
+        // records an Issue and CONTINUES, so a shape regression would fall
+        // through to `steps[1]` and trap on "Index out of range" — which aborts
+        // the whole swift-testing binary and loses every other case in this
+        // suite, turning one readable failure into a silent run.
+        guard steps.count == 3,
+              case let .sendText(text) = steps[0],
+              case let .waitForSessionComplete(timeout) = steps[1],
+              case .closeWebSocket = steps[2] else {
+            Issue.record("unexpected HyperWhisper Cloud stop shape: \(steps)")
             return
         }
         #expect(text == #"{"type":"stop"}"#)
-        guard case let .waitForSessionComplete(timeout) = steps[1] else {
-            Issue.record("expected a bounded waitForSessionComplete")
-            return
-        }
         #expect(timeout == 10.0)
-        guard case .closeWebSocket = steps[2] else {
-            Issue.record("expected the socket to be closed by us")
-            return
-        }
     }
 
     @Test("Deepgram's stop waits half a second BETWEEN Finalize and CloseStream")
@@ -294,8 +293,11 @@ struct RustLiveStreamingStrategyTests {
         let (strategy, _) = try connected(.deepgram, config())
         let steps = strategy.stopSequence()
 
-        #expect(steps.count == 4)
-        guard case let .sendText(finalize) = steps[0],
+        // The count is a guard condition, not an `#expect` above one — see
+        // `hyperWhisperCloudStopSequence` for why a non-halting count check in
+        // front of an index is how one shape regression aborts the suite.
+        guard steps.count == 4,
+              case let .sendText(finalize) = steps[0],
               case let .wait(gap) = steps[1],
               case let .sendText(close) = steps[2],
               case .closeWebSocket = steps[3] else {
@@ -463,9 +465,33 @@ struct RustLiveStreamingStrategyTests {
                 ) == nil,
                 "\(provider.rawValue) transcribes on-device and must open no socket at all"
             )
-            #expect(strategy.startMessages(config: config()).isEmpty)
-            #expect(strategy.webSocketSubprotocols(config: config()) == nil)
         }
+
+        // THE CONTRAST IS THE ASSERTION. The two reads that used to sit here —
+        // `startMessages(config:).isEmpty` and `webSocketSubprotocols(config:)
+        // == nil` — could not fail: both answer off `currentConnect`, which a
+        // refused `buildWebSocketURL` never assigns, so they reduced to
+        // `[].isEmpty` and `nil == nil` and passed with the fix reverted. Worse,
+        // they could not fail even in principle: HyperWhisper Cloud sends no
+        // start frames and uses no subprotocols, so they read empty and nil on
+        // the very session the refusal exists to prevent.
+        //
+        // What CAN fail is the contrast. Same class, same credentials, same
+        // relay, and the only difference is the provider: the arms above must
+        // refuse where this one connects. Revert `coreProvider`'s `nil` arms and
+        // the two `#expect`s above go red, because the on-device strategies then
+        // build exactly the URL this one does.
+        let cloud = RustLiveStreamingStrategy(
+            provider: .hyperwhisperCloud,
+            baseURL: "https://relay.test",
+            cloudTier: "deepgramNova3"
+        )
+        #expect(
+            cloud.buildWebSocketURL(
+                config: config(licenseKey: "HW-1", deviceId: "dev-1", apiKey: "sk-test")
+            ) != nil,
+            "the contrast is void unless these credentials DO open a Cloud socket"
+        )
 
         #expect(RustLiveStreamingStrategy.coreProvider(.parakeetLocal) == nil)
         #expect(RustLiveStreamingStrategy.coreProvider(.nemotronLocal) == nil)
@@ -613,15 +639,16 @@ struct RustLiveStreamingStrategyTests {
         let (strategy, _) = try connected(.gemini, config(apiKey: "AIza-test"))
         let steps = strategy.stopSequence()
 
-        guard case let .sendText(text) = steps.first else {
-            Issue.record("expected audio_stream_end first")
+        // `steps.first` is safe on its own; `steps[1]` behind a non-halting
+        // check is not — see `hyperWhisperCloudStopSequence`. One guard, count
+        // first.
+        guard steps.count >= 2,
+              case let .sendText(text) = steps[0],
+              case let .waitForSessionComplete(timeout) = steps[1] else {
+            Issue.record("unexpected Gemini stop shape: \(steps)")
             return
         }
         #expect(text == #"{"realtime_input":{"audio_stream_end":true}}"#)
-        guard case let .waitForSessionComplete(timeout) = steps[1] else {
-            Issue.record("the wait must stay bounded")
-            return
-        }
         #expect(timeout > 0 && timeout <= 10.0)
     }
 
