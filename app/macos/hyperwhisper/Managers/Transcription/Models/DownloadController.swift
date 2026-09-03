@@ -65,11 +65,31 @@ final class DownloadController<Key: Hashable>: ObservableObject {
     /// at 0.01 so the progress bar renders immediately, retains the cancellable `Task`,
     /// and tears everything down when `work` returns (success, error, or
     /// cancel — `work` is expected to swallow `CancellationError`).
-    func start(_ key: Key, _ work: @escaping (DownloadController) async -> Void) {
+    ///
+    /// `initialStage` is the stage to publish on that same first frame. Issue #312:
+    /// `downloading.insert` makes a reader render the download *now*, and a reader
+    /// that decides "percentage or indeterminate" from the stage would otherwise see
+    /// `nil` and print the 0.01 seed as a hard "1%" — the exact symptom the issue is
+    /// about — until the manager's first callback has hopped to the main actor and
+    /// cleared any throttle downstream.
+    ///
+    /// It is a caller opt-in rather than an unconditional seed so that
+    /// `stage[key] == nil` keeps meaning "this manager has no stage to give" —
+    /// which is what `LiveOnboardingModelCatalog.stage(for:)` and the
+    /// `OnboardingModelCatalog.stage(for:)` default both rely on. A manager that
+    /// never reports a stage (Qwen3) passes nothing and its key stays stage-free.
+    func start(
+        _ key: Key,
+        initialStage: ModelDownloadStage? = nil,
+        _ work: @escaping (DownloadController) async -> Void
+    ) {
         guard tasks[key] == nil, !downloading.contains(key) else { return }
         downloading.insert(key)
         // Seed at 0.01 so the progress bar renders before the first progress callback.
         progress[key] = 0.01
+        if let initialStage {
+            stage[key] = initialStage
+        }
         tasks[key] = Task { [weak self] in
             guard let self else { return }
             await work(self)
@@ -88,10 +108,20 @@ final class DownloadController<Key: Hashable>: ObservableObject {
     ///
     /// `stage` defaults to `nil` so a caller that has no stage to give (Qwen3)
     /// keeps working unchanged; `nil` leaves any previously reported stage alone.
+    ///
+    /// Both dictionaries are written only on a real change. `@Published` fires
+    /// `objectWillChange` on every assignment, identical value or not, and both
+    /// values repeat a lot: FluidAudio holds `completedFiles` fixed for the whole
+    /// of one file, and every fraction under the floor clamps onto the same 0.01.
+    /// Monotonicity is the aggregator's job, not this clamp's, so skipping a
+    /// no-op write changes nothing else.
     func report(_ key: Key, fraction: Double, stage: ModelDownloadStage? = nil) {
         guard downloading.contains(key) else { return }
-        progress[key] = min(max(fraction, 0.01), 1.0)
-        if let stage {
+        let clamped = min(max(fraction, 0.01), 1.0)
+        if progress[key] != clamped {
+            progress[key] = clamped
+        }
+        if let stage, self.stage[key] != stage {
             self.stage[key] = stage
         }
     }

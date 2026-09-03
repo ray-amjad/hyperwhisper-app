@@ -227,7 +227,12 @@ final class ParakeetModelManager: ObservableObject {
             errorMessage = "Unknown Parakeet model: \(modelId)"
             return
         }
-        downloads.start(canonicalModelId) { [weak self] controller in
+        // Issue #312: seed the stage on the same frame as the 0.01 progress seed.
+        // The card renders the moment `downloading` publishes, and without a stage
+        // there it would print "Downloading... 1%" over a determinate bar until
+        // FluidAudio's first callback lands — the reported symptom, on every
+        // download's first frame.
+        downloads.start(canonicalModelId, initialStage: .preparing) { [weak self] controller in
             await self?.runDownload(canonicalModelId, controller)
         }
     }

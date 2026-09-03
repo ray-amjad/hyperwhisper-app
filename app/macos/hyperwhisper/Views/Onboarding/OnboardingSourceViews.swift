@@ -632,7 +632,7 @@ struct OnboardingSetupView: View {
             let downloading = flow.isSelectedModelDownloading()
             let progress = flow.selectedModelProgress()
             let stage = flow.selectedModelStage()
-            let indeterminate = Self.isIndeterminate(stage)
+            let indeterminate = Self.isIndeterminate(stage: stage, progress: progress)
 
             OnboardingCard {
                 OnboardingCardRow {
@@ -769,9 +769,19 @@ struct OnboardingSetupView: View {
     /// holds 90% for the entire ANE encoder compile. Both are #312 — relocating
     /// the frozen number from 1% to 90% would not have fixed it.
     ///
-    /// `nil` — an engine with no stage — keeps today's percentage.
-    private static func isIndeterminate(_ stage: ModelDownloadStage?) -> Bool {
-        guard let stage else { return false }
+    /// `nil` — an engine with no stage — keeps today's percentage, but only when
+    /// the fraction really is one. `WhisperModelManager` publishes
+    /// `-Double(totalBytesWritten)` with the comment "Negative indicates
+    /// indeterminate" when the server sends no `Content-Length`
+    /// (`WhisperModelManager.swift:518`), and `LiveOnboardingModelCatalog` passes
+    /// it through verbatim, so the determinate branch rendered "-48213504%" over
+    /// an empty bar. An unusable fraction gets the indeterminate bar too — the
+    /// same answer, for the same reason, on the one engine whose download really
+    /// is unmeasurable. Nothing in `WhisperModelManager` is touched.
+    private static func isIndeterminate(stage: ModelDownloadStage?, progress: Double) -> Bool {
+        guard let stage else {
+            return !(progress.isFinite && progress >= 0.0 && progress <= 1.0)
+        }
         // Listed case by case rather than a bare `return true` so that adding a
         // `ModelDownloadStage` forces a decision here instead of inheriting one.
         switch stage {
@@ -785,7 +795,11 @@ struct OnboardingSetupView: View {
     /// FluidAudio counts files it has *finished*, so the one in flight is the
     /// next one; the `min` stops the very last callback reading "23 of 22".
     private static func downloadPhaseText(_ stage: ModelDownloadStage?) -> String {
-        guard let stage else { return "onboarding.setup.onDevice.preparing".localized }
+        // No stage and yet indeterminate: the only route here is an engine whose
+        // fraction is unusable — Whisper against a server that sent no
+        // `Content-Length`. Bytes are moving and nothing else is known, so
+        // "Downloading..." is the whole of the honest answer.
+        guard let stage else { return "onboarding.setup.onDevice.downloadingPill".localized }
         switch stage {
         case .preparing:
             return "onboarding.setup.onDevice.preparing".localized
@@ -802,6 +816,12 @@ struct OnboardingSetupView: View {
     /// percentage while there is no percentage to be honest about.
     private static func downloadPillText(stage: ModelDownloadStage?, progress: Double) -> String {
         guard let stage else {
+            // Whisper. A usable fraction keeps today's "Downloading... 42%"; the
+            // negative "size unknown" sentinel drops the number rather than
+            // printing it.
+            if isIndeterminate(stage: nil, progress: progress) {
+                return "onboarding.setup.onDevice.downloadingPill".localized
+            }
             return "onboarding.setup.onDevice.downloading".localized(arguments: Int(progress * 100))
         }
         switch stage {
