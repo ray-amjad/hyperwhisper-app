@@ -552,8 +552,10 @@
 
     <DataTemplate DataType="vm:LocalApiSettingsViewModel">
       <ScrollViewer Classes="page"><StackPanel x:Name="LocalApiScreen" MaxWidth="720" HorizontalAlignment="Left">
-        <TextBlock Text="{ReflectionBinding [settings.localApi.title], Source={StaticResource Localization}}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
-        <TextBlock Text="{ReflectionBinding [settings.localApi.blurb], Source={StaticResource Localization}}" FontSize="13" TextWrapping="Wrap" Foreground="{DynamicResource HwTextSecondaryBrush}" Margin="4,8,4,20"/>
+        <!-- Windows prints settings.localApi.blurb here. That string names a Windows path for
+             the port file, so Linux keeps the title alone and shows the real path in its own
+             field below. -->
+        <TextBlock Text="{ReflectionBinding [settings.localApi.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
