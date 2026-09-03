@@ -118,8 +118,18 @@ enum PostProcessEndpoint {
             )
         }
 
-        let providerLabel = working.mode.postProcessingProvider ?? "hyperwhisper"
-        let modelLabel = working.mode.languageModel ?? ""
+        // Report the provider and model that ACTUALLY ran (issue #314), not the
+        // ones stored on the Mode — every fallback inside `AIPostProcessor`
+        // happens after the Mode was read. `preset` is not remapped anywhere, so
+        // it still comes straight off the working Mode.
+        let labels = responseLabels(
+            storedProvider: working.mode.postProcessingProvider,
+            storedModel: working.mode.languageModel,
+            resolvedProvider: mutationSignal.resolvedProvider,
+            resolvedModel: mutationSignal.resolvedModel
+        )
+        let providerLabel = labels.provider
+        let modelLabel = labels.model
         let presetLabel = working.mode.preset ?? "hyper"
 
         if working.isTransient { cleanupTransientMode(working.mode) }
@@ -134,6 +144,53 @@ enum PostProcessEndpoint {
             post_processed: didPostProcess
         )
         return LocalAPIResponder.ok(response)
+    }
+
+    // MARK: - Response Labels
+
+    /// Decide the `provider` and `model` fields of the response body: what
+    /// actually ran, falling back to the working Mode's stored values only when
+    /// nothing ran (issue #314).
+    ///
+    /// `AIPostProcessor` writes the resolved pair onto the request-scoped
+    /// `MutationSignal` at — and only at — the four sites that also set
+    /// `didMutate`, so a non-nil resolved value already means "an LLM produced
+    /// this text". No separate `didMutate` cross-check is needed here, and a run
+    /// that picked a model and then failed cannot leave a stale label behind.
+    ///
+    /// PROVIDER SPELLING IS PRESERVED. When the caller's stored provider names
+    /// the same provider that ran, the caller's own spelling is echoed back
+    /// verbatim, so this field changes ONLY in the cases that are the bug — a
+    /// genuine provider substitution. (macOS stores the same
+    /// `PostProcessingProvider.rawValue` strings it puts on the wire, so today
+    /// only case differs; Windows has a real divergence here, which is why the
+    /// rule is stated rather than assumed.)
+    ///
+    /// An empty resolved model is treated as absent: `""` is "no answer", not an
+    /// answer. When nothing ran at all, `model` can still be `""` — that is
+    /// honest, and `post_processed: false` already says so.
+    static func responseLabels(
+        storedProvider: String?,
+        storedModel: String?,
+        resolvedProvider: String?,
+        resolvedModel: String?
+    ) -> (provider: String, model: String) {
+        let stored = storedProvider?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolved = resolvedProvider?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        let provider: String
+        if resolved.isEmpty {
+            provider = stored.isEmpty ? PostProcessingProvider.hyperwhisper.rawValue : stored
+        } else if !stored.isEmpty, stored.caseInsensitiveCompare(resolved) == .orderedSame {
+            provider = stored
+        } else {
+            provider = resolved
+        }
+
+        let resolvedModelValue = resolvedModel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let model = resolvedModelValue.isEmpty ? (storedModel ?? "") : resolvedModelValue
+
+        return (provider, model)
     }
 
     // MARK: - Working Mode

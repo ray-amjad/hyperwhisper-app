@@ -34,6 +34,29 @@ final class MutationSignal {
     /// segments. Left `false` for the single-segment path and for the in-app
     /// pipeline's multi-segment branch, which doesn't need this distinction.
     var anyPartialFailure: Bool = false
+
+    /// The provider and model that ACTUALLY produced the returned text — not the
+    /// ones stored on the Mode (issue #314). Every fallback inside this file
+    /// (deprecated-model remap, provider-default substitution, installed-local-model
+    /// substitution, the id `ensureLocalRuntimeRunning` really loaded) happens
+    /// AFTER the Mode was read, so a caller that echoes `mode.languageModel` names
+    /// a model that never saw the text.
+    ///
+    /// Both are written ONLY at the sites that also set `didMutate = true`, so
+    /// `resolvedModel != nil` means "an LLM ran, and this is what it was" — a run
+    /// that resolves a model and then fails leaves no stale label behind, and a
+    /// reader needs no separate `didMutate` cross-check. Left `nil` when nothing
+    /// ran; readers then fall back to the Mode's stored labels.
+    ///
+    /// `resolvedProvider` speaks the same vocabulary as `Mode.postProcessingProvider`
+    /// — a `PostProcessingProvider.rawValue` (`"anthropic"`, `"local_llm"`, …) or a
+    /// `custom:<uuid>` string — so the Local API can put it on the wire unchanged.
+    var resolvedProvider: String?
+
+    /// See `resolvedProvider`. The post-fallback model id, e.g. the
+    /// `claude-haiku-4-5` that replaced a deprecated id, or the local GGUF id
+    /// llama-server actually loaded.
+    var resolvedModel: String?
 }
 
 /// AI Post-Processor for transcribed text
@@ -416,6 +439,12 @@ class AIPostProcessor: ObservableObject {
                     AppLogger.transcription.info("AI post-processing completed successfully")
                     AppLogger.network.info("Response from \(provider.displayName, privacy: .public): \(evaluation.text.count, privacy: .public) characters")
                     self.didMutateLastRun = true; signal.didMutate = true
+                    // Record what RAN, not what the Mode stored (#314). This is
+                    // the post-fallback `languageModel`: the deprecated-id remap
+                    // and the provider-default substitution both happened above,
+                    // and it is the id that went into the request body.
+                    signal.resolvedProvider = provider.rawValue
+                    signal.resolvedModel = languageModel
                     return evaluation.text
                 } else {
                     // Log error response and map to appropriate error type
@@ -527,6 +556,15 @@ class AIPostProcessor: ObservableObject {
             // isolation, mirroring how `PostProcessingService.cs` tracks
             // `anyApplied`/`anyFailed` per segment on the Windows side.
             var anyFailed = false
+            // Resolved provider/model (#314) are aggregated FIRST-NON-NIL rather
+            // than last-write-wins: every segment shares one `mode`, so they can
+            // only disagree if a provider fell back differently mid-request, and
+            // the first segment that actually ran is the honest answer for the
+            // response as a whole. A disagreement is logged, never asserted —
+            // `assert` is compiled out in release, and crashing a working
+            // transcription over a label would be worse than the mislabel.
+            var resolvedProvider: String?
+            var resolvedModel: String?
             for segment in segments {
                 let completed = processed.joined(separator: "\n\n")
                 let segmentSignal = MutationSignal()
@@ -542,6 +580,24 @@ class AIPostProcessor: ObservableObject {
                 )
                 anyMutated = anyMutated || segmentSignal.didMutate
                 anyFailed = anyFailed || !segmentSignal.didMutate
+                if let segmentProvider = segmentSignal.resolvedProvider {
+                    if let resolvedProvider {
+                        if resolvedProvider != segmentProvider {
+                            AppLogger.transcription.warning("Segments disagree on the post-processing provider that ran — reporting the first (\(resolvedProvider, privacy: .public)), saw \(segmentProvider, privacy: .public)")
+                        }
+                    } else {
+                        resolvedProvider = segmentProvider
+                    }
+                }
+                if let segmentModel = segmentSignal.resolvedModel {
+                    if let resolvedModel {
+                        if resolvedModel != segmentModel {
+                            AppLogger.transcription.warning("Segments disagree on the post-processing model that ran — reporting the first (\(resolvedModel, privacy: .public)), saw \(segmentModel, privacy: .public)")
+                        }
+                    } else {
+                        resolvedModel = segmentModel
+                    }
+                }
                 processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
             }
             // Segments here are always non-empty (`splitOnDictatedBreaks` filters
@@ -552,6 +608,8 @@ class AIPostProcessor: ObservableObject {
             // and would already make `anyMutated` false overall.
             signal.didMutate = anyMutated
             signal.anyPartialFailure = anyMutated && anyFailed
+            signal.resolvedProvider = resolvedProvider
+            signal.resolvedModel = resolvedModel
         } else {
             // No per-call sink: this is the single in-app live-recording caller,
             // which post-processes one recording at a time and never overlaps
@@ -595,6 +653,12 @@ class AIPostProcessor: ObservableObject {
     ///   shared state. Defaults to `nil`, which preserves the historical
     ///   behavior of calling the shared `onStreamingTextUpdate` property.
     func performAIPostProcessingStreaming(text: String, mode: Mode?, applicationContext: ApplicationContext? = nil, mutationSignal: MutationSignal? = nil, streamingTextUpdate: ((String) -> Void)? = nil) async throws -> String {
+        // This method hands `signal` UNCHANGED to the custom-endpoint, the
+        // HyperWhisper Cloud and the non-streaming methods below (and to the
+        // late non-streaming fallback in the catch block). Each of those writes
+        // `resolvedProvider`/`resolvedModel` only on its own success, so the
+        // last write is by definition the call that produced the returned text.
+        // That is deliberate — do not "fix" it into a first-write-wins guard.
         let signal = mutationSignal ?? MutationSignal()
         didMutateLastRun = false
         // Route every in-function streaming update through this local helper
@@ -922,6 +986,12 @@ class AIPostProcessor: ObservableObject {
             AppLogger.transcription.info("Streaming AI post-processing completed successfully")
             AppLogger.network.info("Streamed response from \(provider.displayName, privacy: .public): \(evaluation.text.count, privacy: .public) characters")
             didMutateLastRun = true; signal.didMutate = true
+            // Record what RAN (#314). `provider` is `.localLLM` by construction
+            // here, and `languageModel` is the id llama-server actually loaded —
+            // `ensureRunning` above may have swapped it for another installed
+            // GGUF, which is exactly the substitution the Mode cannot see.
+            signal.resolvedProvider = provider.rawValue
+            signal.resolvedModel = languageModel
             return evaluation.text
         } catch let cancel as CancellationError {
             // Cooperative cancellation; ensure we drop streaming flag and propagate
@@ -1105,6 +1175,15 @@ class AIPostProcessor: ObservableObject {
                     AppLogger.transcription.info("HyperWhisper Cloud post-processing completed successfully")
                     AppLogger.network.info("Response: \(trimmedCorrected.count, privacy: .public) characters")
                     self.didMutateLastRun = true; signal.didMutate = true
+                    // Record what RAN (#314). This branch never reads
+                    // `mode.languageModel` — the engine comes from
+                    // `mode.cloudPostProcessingModel` — so echoing the Mode's
+                    // `languageModel` here reported an unrelated field, not just
+                    // a stale one. `llmModelHeader` is the `X-LLM-Model` value
+                    // sent above; fall back to the catalog model id when the
+                    // catalog does not override it.
+                    signal.resolvedProvider = PostProcessingProvider.hyperwhisper.rawValue
+                    signal.resolvedModel = cloudPPModel.llmModelHeader ?? cloudPPModel.modelId
                     return trimmedCorrected
                 }
 
@@ -1316,6 +1395,13 @@ class AIPostProcessor: ObservableObject {
                     AppLogger.transcription.info("Custom endpoint post-processing completed successfully")
                     AppLogger.network.info("Response from \(endpoint.name, privacy: .public): \(evaluation.text.count, privacy: .public) characters")
                     self.didMutateLastRun = true; signal.didMutate = true
+                    // Record what RAN (#314). The provider stays the caller's own
+                    // `custom:<uuid>` string — that IS the resolved provider, and
+                    // it is the wire vocabulary. `verdict.model` is the model the
+                    // lenient validator repaired to and that went into the request,
+                    // which can differ from the endpoint's stored `modelName`.
+                    signal.resolvedProvider = providerString
+                    signal.resolvedModel = verdict.model
                     return evaluation.text
                 }
 
