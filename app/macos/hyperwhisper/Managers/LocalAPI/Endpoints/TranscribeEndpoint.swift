@@ -269,48 +269,38 @@ enum TranscribeEndpoint {
                 allowListedPath: allowListedPath,
                 fileIdentity: fileIdentity
             )
-            // SIZE (issue #375): the `file` path is deliberately NOT capped at
-            // `localApiMaxUploadBytes()`, unlike the `audio_base64` branch below.
+            // SIZE (issue #375): the `file` path IS capped at
+            // `localApiMaxUploadBytes()`, like the `audio_base64` branch below.
+            // That is parity with `PortableLocalApi.ReadAllowedFileAsync`
+            // (`PortableLocalApi.cs:340-341`), which answers `Failure(200,
+            // INVALID_REQUEST, "Audio exceeds the configured upload limit.")`
+            // for the same file; the open question #405 left — cap macOS, or
+            // lift the .NET cap? — was resolved as "cap macOS".
             //
-            // Be clear about what that is: a per-head DIVERGENCE on a documented
-            // field, and one this change introduces. The .NET head does cap it —
-            // `PortableLocalApi.ReadAllowedFileAsync` at :340-341 answers
-            // `Failure(200, INVALID_REQUEST, "Audio exceeds the configured upload
-            // limit.")` when `input.Length > options.MaxUploadBytes`, and that is
-            // the head the two numbers were copied from. So for the same request,
-            // a 60 MiB local recording, macOS transcribes and Linux refuses. It is
-            // called out per-head in the "Request limits" section of
-            // `mintlify-help/api-reference/local-api/overview.mdx`, so a client
-            // integrator can at least see it; it is not hidden, but it is not
-            // parity either. `hw-localapi::limits`'s own module doc names exactly
-            // this shape of outcome — one head's number, another head's answer —
-            // as the failure it exists to prevent.
+            // The honest caveat: .NET buffers the file whole (`new
+            // MemoryStream((int)input.Length)`, `PortableLocalApi.cs:342`) so
+            // there the cap is a memory guard, while `stageValidatedAudioFile`
+            // streams through a 1 MiB window and never holds the recording.
+            // This cap buys no memory back on macOS. It exists so the same
+            // request gets the same answer from every head, nothing else.
             //
-            // The case for leaving it uncapped: `stageValidatedAudioFile` copies
-            // through a 1 MiB window into a temp file and never holds the
-            // recording in memory, so a cap here buys no memory back. It would
-            // only stop a user transcribing a long recording they already have on
-            // disk. The amplification #375 reports is the buffered base64 payload,
-            // not this. The .NET head's cap is not gratuitous either, for the
-            // mirror-image reason: its `file` path DOES buffer whole
-            // (`new MemoryStream((int)input.Length)`, `PortableLocalApi.cs:342`),
-            // so there the cap is the memory guard it is everywhere else. The two
-            // heads diverge because their implementations do.
-            //
-            // The case against: parity is the point of the change, and "which
-            // head am I talking to" is not a question a documented field should
-            // make a caller ask.
-            //
-            // Unresolved on purpose — it is a product call, not a code call. It
-            // is written up as an open question in the implementation notes for
-            // this change: cap macOS to match .NET, or lift the .NET cap? Either
-            // answer is a wire change on one of the two heads.
+            // The check lives in `stageValidatedAudioFile`, on the descriptor
+            // that function already validated — see the note there. .NET also
+            // refuses an empty file first (`input.Length <= 0` → 400 "Audio must
+            // not be empty."); macOS still has no equivalent, and that stays a
+            // separate wire change rather than a rider on the cap.
             let stagedFile: StagedAudioFile
             do {
                 stagedFile = try Self.stageValidatedAudioFile(
                     validatedPath,
                     fileExtension: allowListedPath.resolvedURL.pathExtension.isEmpty ? "wav" : allowListedPath.resolvedURL.pathExtension
                 )
+            } catch let inputError as APIInputError {
+                // The over-cap refusal is already the answer to send. Letting it
+                // fall into the arm below would flatten a 200 + INVALID_REQUEST
+                // into FILE_ACCESS_DENIED and tell the caller to check
+                // permissions on a file they can read perfectly well.
+                throw inputError
             } catch {
                 throw APIInputError(
                     code: .fileAccessDenied,
@@ -396,6 +386,16 @@ enum TranscribeEndpoint {
         do {
             let input = try Self.openValidatedAudioFile(source)
             defer { try? input.close() }
+
+            // SIZE (issue #375): read off the descriptor `openValidatedAudioFile`
+            // just walked and identity-checked, never a fresh `FileManager` stat
+            // of the caller's path. Statting the path again would reopen the very
+            // swap window the `O_NOFOLLOW` walk closes, and could measure a file
+            // other than the one about to be staged. Placed before the copy loop
+            // so an over-cap file costs one `fstat`, not a full streamed copy.
+            if try Self.fileSize(forFileDescriptor: input.fileDescriptor) > localApiMaxUploadBytes() {
+                throw Self.uploadTooLargeError()
+            }
 
             guard FileManager.default.createFile(
                 atPath: stagedFile.fileURL.path,
@@ -569,6 +569,21 @@ enum TranscribeEndpoint {
             throw Self.currentPOSIXError()
         }
         return FileIdentity(device: UInt64(statInfo.st_dev), inode: UInt64(statInfo.st_ino))
+    }
+
+    /// The size of the file behind an already-open descriptor, for the `file`
+    /// upload cap.
+    ///
+    /// `st_size` is a signed `off_t`, so it is clamped rather than converted: a
+    /// negative value would trap the `UInt64` initializer, and a trap on a
+    /// network-facing path is a process abort. Same reasoning
+    /// `LocalAPIBodyLimit`'s counter gives for saturating instead of overflowing.
+    private static func fileSize(forFileDescriptor fd: CInt) throws -> UInt64 {
+        var statInfo = stat()
+        guard fstat(fd, &statInfo) == 0 else {
+            throw Self.currentPOSIXError()
+        }
+        return UInt64(max(0, Int64(statInfo.st_size)))
     }
 
     private static func relativePathComponents(for url: URL, inside root: URL) -> [String] {

@@ -82,7 +82,7 @@ The server refuses a request that is too large:
 | Limit | Value | What it measures |
 | --- | --- | --- |
 | Request body | 50 MiB (52,428,800 bytes) | The whole body: the JSON envelope or the multipart wrapper, and everything inside it |
-| Audio | 48 MiB (50,331,648 bytes) | One piece of audio that the server holds in memory |
+| Audio | 48 MiB (50,331,648 bytes) | One piece of audio: an `audio_base64` payload, a `file` path, or a multipart `audio` part |
 
 A refusal is a business failure, not a protocol failure. The server returns
 **HTTP 200** with this envelope:
@@ -109,21 +109,22 @@ when you put audio in the JSON body. A payload above it gets `Request exceeds
 the configured limit.`, never the audio message.
 
 To send more audio than that, keep it out of the JSON body: use a `file` path,
-or a multipart `audio` part on Linux. Neither travels as base64. The list below
-gives the limit that each platform applies to each one.
+or a multipart `audio` part on Linux. Neither travels as base64, so the audio
+limit of 48 MiB is the one that applies to them. The list below gives the limit
+that each platform applies to each one.
 
 Each platform applies the limits differently:
 
 - **macOS** applies the request limit to every route that reads a body, and
-  always answers with the HTTP 200 envelope. Its audio limit is out of reach:
-  macOS applies it only to the decoded bytes of `audio_base64`, where the
-  request limit refuses the payload first. macOS accepts no multipart request,
-  and the audio limit does not apply to a `file` path, because the server reads
-  that file from disk in small pieces. So a `file` path is how you transcribe
-  audio above 37.5 MiB on macOS, at any size.
+  always answers with the HTTP 200 envelope. It applies the audio limit to
+  `audio_base64` and to a `file` path. For `audio_base64` the limit is out of
+  reach, because the request limit refuses the payload first; for a `file` path
+  it is reachable, and a file above 48 MiB gets `Audio exceeds the configured
+  upload limit.` macOS accepts no multipart request. So a `file` path is how you
+  transcribe audio between 37.5 MiB and 48 MiB on macOS.
 - **Linux** applies both limits, and both are reachable. It applies the audio
   limit to a multipart `audio` part and to a `file` path as well as to
-  `audio_base64`, so a `file` path above 48 MiB is refused here but accepted on
+  `audio_base64`. A `file` path above 48 MiB gets the same refusal here as on
   macOS. Only `/transcribe` answers with the HTTP 200 envelope. On the other
   routes, the web server stops the body itself and returns a bare **413** with
   no envelope.
