@@ -806,6 +806,58 @@ struct AppcastSelectionTests {
         #expect(releases[1].bulletPoints.map { String($0.characters) } == ["first in document order"])
     }
 
+    /// The `limit:` cap keeps the same items it would have kept when it was
+    /// applied *after* the map to `AppcastItem`.
+    ///
+    /// `fetchReleases` used to build an `AppcastItem` for all 77 releases of the
+    /// live feed — 77 `releaseNotesParse` FFI calls and 77 `AttributedString`s —
+    /// and then keep 5. The cap now runs on the core's answer instead. That is
+    /// only safe because the core has already filtered, deduplicated and ordered
+    /// by then, and the map is one-to-one and order-preserving, so `prefix` on
+    /// either side of it selects the same releases. The second `#expect` below
+    /// is that equivalence, asserted rather than assumed; the fixture puts
+    /// document order, date order and a duplicate version all in disagreement so
+    /// a cap that ran at the wrong point could not agree by accident.
+    @Test func theCapKeepsTheSameReleasesWhicheverSideOfTheMapItRunsOn() throws {
+        let fixture = feed("""
+                <item>
+                    <title>1.0.0</title>
+                    <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+                    <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>oldest, but FIRST in the feed</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>3.0.0</title>
+                    <pubDate>Sun, 06 Sep 2026 00:00:00 +0000</pubDate>
+                    <sparkle:shortVersionString>3.0.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>newest</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>1.0.0</title>
+                    <pubDate>Mon, 07 Sep 2026 00:00:00 +0000</pubDate>
+                    <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>duplicate version, newest date — dropped by dedupe</li></ul>]]></description>
+                </item>
+                <item>
+                    <title>2.0.0</title>
+                    <pubDate>Fri, 04 Sep 2026 00:00:00 +0000</pubDate>
+                    <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+                    <description><![CDATA[<ul><li>middle</li></ul>]]></description>
+                </item>
+        """))
+
+        let capped = try AppcastParser.selectReleases(from: fixture, limit: 2)
+        let uncapped = try AppcastParser.selectReleases(from: fixture)
+
+        #expect(uncapped.map(\.version) == ["3.0.0", "2.0.0", "1.0.0"])
+        #expect(capped == Array(uncapped.prefix(2)))
+        #expect(capped.map(\.version) == ["3.0.0", "2.0.0"])
+
+        // A cap larger than the list is not an error, and `nil` means all of them.
+        let overCap = try AppcastParser.selectReleases(from: fixture, limit: 99)
+        #expect(overCap == uncapped)
+    }
+
     /// `sparkle:shortVersionString` wins over `sparkle:version` and `<title>`.
     /// On the live macOS feed all three agree except `sparkle:version`, which is
     /// the build number — reading it as the version would show "116".

@@ -19,7 +19,7 @@
 //  So there is NO filter, sort or dedupe below. Re-applying a rule here would
 //  let this head drift again, which is the whole defect #353 closes. What stays
 //  native is what is genuinely per-head: the XML reader itself (no XML crate in
-//  the core, by design), the URL, the 60-second cache and `prefix(maxReleases)`.
+//  the core, by design), the URL, the 60-second cache and the `maxReleases` cap.
 //
 //  Architecture:
 //  - Singleton pattern with shared instance
@@ -123,20 +123,26 @@ class AppcastParser: NSObject {
             throw AppcastError.httpError(statusCode: httpResponse.statusCode)
         }
 
-        // Parse XML and apply the shared selection rules
+        // Parse XML and apply the shared selection rules.
+        //
+        // The cap stays native and stays HERE, before the cache, exactly as
+        // before — Windows caps per call instead, so sharing this would force
+        // one head to change its cache shape for no gain (#353, decision D6).
+        // It is handed to `selectReleases` rather than applied to its result
+        // because the core has already filtered, deduplicated and sorted by the
+        // time it returns: the first five of its answer are the five this head
+        // renders, whether the cap is applied before or after the map to
+        // `AppcastItem`. Applying it after meant building 77 `AppcastItem`s —
+        // 77 `releaseNotesParse` FFI calls and 77 `AttributedString`s — to keep
+        // five.
         logger.debug("📝 AppcastParser: Parsing XML data (\(data.count) bytes)")
-        let releases = try AppcastParser.selectReleases(from: data)
-
-        // Limit to max releases. The cap stays native and stays here, BEFORE the
-        // cache, exactly as before — Windows caps per call instead, so sharing
-        // this would force one head to change its cache shape for no gain.
-        let limitedReleases = Array(releases.prefix(maxReleases))
+        let limitedReleases = try AppcastParser.selectReleases(from: data, limit: maxReleases)
 
         // Cache results
         cachedReleases = limitedReleases
         lastCacheUpdate = Date()
 
-        logger.debug("✅ AppcastParser: Successfully selected \(limitedReleases.count) of \(releases.count) releases")
+        logger.debug("✅ AppcastParser: Successfully selected \(limitedReleases.count) releases (cap \(self.maxReleases))")
         return limitedReleases
     }
 
@@ -160,12 +166,23 @@ class AppcastParser: NSObject {
     /// deduplicated and newest first.
     ///
     /// One `appcastSelectReleases` call does all of that. Nothing here re-filters,
-    /// re-sorts or re-dedupes the result, and the cap is deliberately not applied
-    /// here — `fetchReleases` owns it.
-    static func selectReleases(from data: Data) throws -> [AppcastItem] {
+    /// re-sorts or re-dedupes the result.
+    ///
+    /// - Parameter limit: How many releases to keep, or `nil` for all of them.
+    ///   The *policy* still belongs to `fetchReleases`, which is the only caller
+    ///   that passes a number (D6 keeps the cap native and pre-cache on this
+    ///   head); this parameter only moves where the cap is *applied*. It is
+    ///   applied to the core's answer, before the map — the core has already
+    ///   filtered, deduplicated and ordered, so the first `limit` releases are
+    ///   the same items either way, and each `AppcastItem` this avoids building
+    ///   is a `releaseNotesParse` FFI call plus an `AttributedString`.
+    static func selectReleases(from data: Data, limit: Int? = nil) throws -> [AppcastItem] {
         let entries = try feedEntries(from: data)
 
-        return appcastSelectReleases(entries: entries).map { release in
+        let releases = appcastSelectReleases(entries: entries)
+        let selected = limit.map { Array(releases.prefix($0)) } ?? releases
+
+        return selected.map { release in
             AppcastItem(
                 version: release.version,
                 // `buildNumber` is this head's only native-only field (#353,
@@ -232,9 +249,6 @@ private class AppcastXMLParser: NSObject, XMLParserDelegate {
     /// Parsed feed entries (accumulated during parsing), in document order
     private var entries: [HwAppcastFeedEntry] = []
 
-    /// Current element being parsed
-    private var currentElement: String?
-
     /// Current item being accumulated
     private var currentTitle: String?
     private var currentPubDate: String?
@@ -277,7 +291,6 @@ private class AppcastXMLParser: NSObject, XMLParserDelegate {
                 namespaceURI: String?,
                 qualifiedName qName: String?,
                 attributes attributeDict: [String : String] = [:]) {
-        currentElement = elementName
         characterBuffer = ""
 
         // Start of new item
@@ -369,7 +382,6 @@ private class AppcastXMLParser: NSObject, XMLParserDelegate {
         }
 
         characterBuffer = ""
-        currentElement = nil
     }
 
     /// Called when parser encounters an error
