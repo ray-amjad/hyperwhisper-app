@@ -575,9 +575,17 @@ final class OnboardingFlowModel: ObservableObject {
 
     func requestMicrophonePermission() {
         // #321: guarded on its own as well as through `handleMicrophoneAction()`,
-        // because it is a public entry point in its own right. A prompt answered
-        // after the exit returns at the inner check below, which is BEFORE the
-        // `taskBox.clear`, so the key is orphaned until `deinit`.
+        // because it is a public entry point in its own right. Without it, a call
+        // landing after the exit puts a system permission prompt on screen for a
+        // flow that has already gone home, and the answer arrives for a sheet the
+        // user closed.
+        //
+        // What it is NOT about: there is no taskBox key to leak either way.
+        // `finish()` calls `taskBox.cancelAll()`, which empties the dictionary
+        // BEFORE cancelling, so a continuation that returns at the inner check
+        // below — before `taskBox.clear` — has nothing left to clear. Do not add
+        // cleanup for that, and do not move the `clear` above the `isLive` check:
+        // that would reopen the late-write path this guard exists to close.
         guard isLive else { return }
         let task = Task { [weak self] in
             guard let self else { return }
@@ -596,8 +604,14 @@ final class OnboardingFlowModel: ObservableObject {
     func handleAccessibilityAction() {
         // #321: `waitForAccessibilityPermission` appends to a completion list and
         // unconditionally restarts a deadline that AccessibilityHelper shares with
-        // its other consumers, so an orphan onboarding poll outlives the sheet and
-        // holds that shared timer open.
+        // its other consumers, so a poll STARTED after the exit would outlive the
+        // sheet and hold that shared timer open.
+        //
+        // Scope, stated so nobody over-reads it: that is all this guard does. A
+        // poll started while the flow was live is never `track()`ed into
+        // `taskBox`, so `finish()`'s `cancelAll()` does not reach it and it still
+        // runs to its own deadline after the sheet is gone. That gap is older than
+        // #321 and is not closed here.
         guard isLive else { return }
         permissions.openAccessibilitySettings()
         isPollingForAccessibility = true
@@ -831,7 +845,9 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func saveProviderKey() {
-        // #321: a Keychain write after the flow closed has no restore point left.
+        // #321: a Keychain write after the flow closed is permanent. The capture
+        // below would still record a restore point, but both exits have already
+        // emptied `providerKeyRestorePoints`, so nothing would ever consume it.
         guard isLive else { return }
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
@@ -875,10 +891,16 @@ final class OnboardingFlowModel: ObservableObject {
     // MARK: - Microphone step
 
     func beginMicrophoneStep() {
-        // #321: this OPENS the input device. `deferSetup()` has just restored the
-        // device the user had before onboarding, so re-entering the step after the
-        // exit would undo that restore. The `end` counterpart below is deliberately
-        // NOT guarded — it is the release, and it has to keep working.
+        // #321: this re-OPENS the input device. `finish()` has just called
+        // `stopInputLevelPreview()`; `startInputLevelPreview()` below starts it
+        // again, so a re-entry after the exit leaves the microphone live behind a
+        // sheet the user already closed.
+        //
+        // Precisely NOT the reason: it does not undo `deferSetup()`'s device
+        // restore. Nothing here calls `selectDevice`, so the preview reopens on
+        // whatever `rollback()` restored, not on the onboarding pick. The `end`
+        // counterpart below is deliberately NOT guarded — it is the release, and
+        // it is what closes the device again on `.onDisappear`.
         guard isLive else { return }
         audio.refreshDevices()
         audio.refreshMicrophonePermission()
@@ -1072,7 +1094,8 @@ final class OnboardingFlowModel: ObservableObject {
         // carries no liveness gate of its own (`showsBack: flow.step != .welcome`).
         // The stage is keyed on `.id(flow.step)`, so moving the step machine here
         // remounts a step view and fires its `.onAppear` against a dead flow —
-        // which for `.microphone` re-opens the device the rollback just restored.
+        // which for `.microphone` runs `beginMicrophoneStep()` and re-opens the
+        // input device `finish()` just closed.
         guard isLive else { return false }
         guard let previous = OnboardingStep(rawValue: step.rawValue - 1) else { return false }
         step = previous
