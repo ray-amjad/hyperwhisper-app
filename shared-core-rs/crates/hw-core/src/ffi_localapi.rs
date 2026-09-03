@@ -45,6 +45,21 @@
 //! there would mean adding a `JSONSerialization` pass to the head this sandbox
 //! cannot build. That is not the `lib.rs:36-42` failure of exporting something
 //! no head can call — each names its real call sites in its doc comment.
+//!
+//! # The transcription failure table (#356 item 4)
+//!
+//! [`local_api_map_transcription_error`] is the **only** export item 4 adds.
+//! `HwLocalApiTranscriptionFailureReason::code` and the reason list are not
+//! exported: a head hands a reason in and reads the `HwLocalApiFailure` that
+//! comes back, so a separate code getter or an enumeration would be an export
+//! with no call site — the `lib.rs:36-42` rule again.
+//!
+//! Its hint is a parameter on three of its twenty-five rows, for the same
+//! reason [`local_api_unauthorized_failure`]'s is: the string names the
+//! platform's own product surface (`Settings → API Keys` on macOS, the
+//! `Model Library API keys manager` on Windows) and no shared string is right
+//! on both. On the other twenty-two the wording is the crate's and the
+//! parameter is ignored.
 
 /// The three request headers the DNS-rebind guard reads. Mirrors
 /// `hw_localapi::OriginHeaders`.
@@ -780,6 +795,191 @@ pub fn local_api_mode_name_taken_failure(
     hw_localapi::mode_name_taken_failure(&name, operation.into()).into()
 }
 
+/// Why a transcription failed. Mirrors
+/// `hw_localapi::TranscriptionFailureReason`.
+///
+/// An **input** enum: the union of macOS's `TranscriptionError`, Windows's
+/// `TranscriptionErrorCode` and the portable head's
+/// `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
+/// fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
+/// `transcription.rs` says so and a unit test walks all 25 to prove it.
+///
+/// Each head keeps its own error type and maps it onto this on the way to the
+/// wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HwLocalApiTranscriptionFailureReason {
+    /// macOS `.modelNotDownloaded`; Windows `ModelNotLoaded`.
+    ModelNotInstalled,
+    /// Windows `OnnxModelFileMissing`.
+    ModelFilesMissing,
+    /// macOS `.modelProtected`.
+    ModelProtected,
+    /// macOS `.apiKeyMissing`; Windows `ApiKeyMissing`.
+    ApiKeyMissing,
+    /// macOS `.unauthorized` (except the HyperWhisper Cloud 403); Windows
+    /// `Unauthorized`.
+    ApiKeyInvalid,
+    /// macOS `.cloudAccountRequired`; Windows `CloudAccountRequired`.
+    CloudAccountRequired,
+    /// macOS `.unauthorized(provider: "HyperWhisper Cloud", statusCode: 403)`
+    /// — the abuse guard, which must not be reported as a key problem.
+    CloudRequestForbidden,
+    /// macOS `.audioFileNotFound`; Windows `AudioFileNotFound`.
+    AudioFileNotFound,
+    /// macOS `.invalidAudioFormat` / `.audioConversionFailed`; Windows
+    /// `UnsupportedFormat`.
+    AudioDecodeFailed,
+    /// macOS `.audioFileTooLarge`; Windows `FileTooLarge`.
+    AudioFileTooLarge,
+    /// macOS `.invalidRequest`; Windows `InvalidRequest`; portable
+    /// `InvalidRequest`.
+    InvalidRequest,
+    /// macOS `.rateLimited`; Windows `RateLimited`.
+    RateLimited,
+    /// macOS `.quotaExceeded` / `.insufficientCredits`; Windows
+    /// `QuotaExceeded`.
+    QuotaExceeded,
+    /// macOS `.timeout`.
+    Timeout,
+    /// Windows `Cancelled`; portable `Cancelled`.
+    Cancelled,
+    /// macOS `.providerNotAvailable`; Windows `ProviderUnavailable`; portable
+    /// `BackendUnavailable`.
+    EngineUnavailable,
+    /// macOS `.transientNetwork`; Windows `NetworkError`.
+    NetworkUnavailable,
+    /// Windows `DaemonStartFailed`.
+    EngineStartFailed,
+    /// Windows `DaemonCrashed`.
+    EngineCrashed,
+    /// Windows `DaemonTimeout`.
+    EngineTimeout,
+    /// macOS `.localSpeechModelEvicted`.
+    LocalModelEvicted,
+    /// macOS `.invalidResponse`.
+    InvalidProviderResponse,
+    /// macOS `.serverError`.
+    ProviderServerError,
+    /// macOS `.noSpeechDetected`; Windows `NoSpeechDetected`.
+    NoSpeechDetected,
+    /// The `default:` arm of both tables, and the portable head's
+    /// `TranscriptionFailed`. Put the head's own text in
+    /// [`HwLocalApiTranscriptionFailureParams::detail`].
+    TranscriptionFailed,
+}
+
+impl From<HwLocalApiTranscriptionFailureReason> for hw_localapi::TranscriptionFailureReason {
+    fn from(reason: HwLocalApiTranscriptionFailureReason) -> Self {
+        use hw_localapi::TranscriptionFailureReason as Reason;
+        match reason {
+            HwLocalApiTranscriptionFailureReason::ModelNotInstalled => Reason::ModelNotInstalled,
+            HwLocalApiTranscriptionFailureReason::ModelFilesMissing => Reason::ModelFilesMissing,
+            HwLocalApiTranscriptionFailureReason::ModelProtected => Reason::ModelProtected,
+            HwLocalApiTranscriptionFailureReason::ApiKeyMissing => Reason::ApiKeyMissing,
+            HwLocalApiTranscriptionFailureReason::ApiKeyInvalid => Reason::ApiKeyInvalid,
+            HwLocalApiTranscriptionFailureReason::CloudAccountRequired => {
+                Reason::CloudAccountRequired
+            }
+            HwLocalApiTranscriptionFailureReason::CloudRequestForbidden => {
+                Reason::CloudRequestForbidden
+            }
+            HwLocalApiTranscriptionFailureReason::AudioFileNotFound => Reason::AudioFileNotFound,
+            HwLocalApiTranscriptionFailureReason::AudioDecodeFailed => Reason::AudioDecodeFailed,
+            HwLocalApiTranscriptionFailureReason::AudioFileTooLarge => Reason::AudioFileTooLarge,
+            HwLocalApiTranscriptionFailureReason::InvalidRequest => Reason::InvalidRequest,
+            HwLocalApiTranscriptionFailureReason::RateLimited => Reason::RateLimited,
+            HwLocalApiTranscriptionFailureReason::QuotaExceeded => Reason::QuotaExceeded,
+            HwLocalApiTranscriptionFailureReason::Timeout => Reason::Timeout,
+            HwLocalApiTranscriptionFailureReason::Cancelled => Reason::Cancelled,
+            HwLocalApiTranscriptionFailureReason::EngineUnavailable => Reason::EngineUnavailable,
+            HwLocalApiTranscriptionFailureReason::NetworkUnavailable => Reason::NetworkUnavailable,
+            HwLocalApiTranscriptionFailureReason::EngineStartFailed => Reason::EngineStartFailed,
+            HwLocalApiTranscriptionFailureReason::EngineCrashed => Reason::EngineCrashed,
+            HwLocalApiTranscriptionFailureReason::EngineTimeout => Reason::EngineTimeout,
+            HwLocalApiTranscriptionFailureReason::LocalModelEvicted => Reason::LocalModelEvicted,
+            HwLocalApiTranscriptionFailureReason::InvalidProviderResponse => {
+                Reason::InvalidProviderResponse
+            }
+            HwLocalApiTranscriptionFailureReason::ProviderServerError => {
+                Reason::ProviderServerError
+            }
+            HwLocalApiTranscriptionFailureReason::NoSpeechDetected => Reason::NoSpeechDetected,
+            HwLocalApiTranscriptionFailureReason::TranscriptionFailed => {
+                Reason::TranscriptionFailed
+            }
+        }
+    }
+}
+
+/// The runtime values the message and hint interpolate. Mirrors
+/// `hw_localapi::TranscriptionFailureParams`.
+///
+/// All seven are optional and every row has a wording for the absent case, so a
+/// head that knows only the reason still gets a complete sentence. A blank or
+/// whitespace-only string counts as absent.
+#[derive(uniffi::Record)]
+pub struct HwLocalApiTranscriptionFailureParams {
+    /// The provider or engine display name — `"OpenAI"`, `"HyperWhisper
+    /// Cloud"`, `"Parakeet"`.
+    pub provider: Option<String>,
+    /// Free text from the failure itself: macOS's `reason` / `details` /
+    /// `message` associated values, Windows's `ex.Message`, the portable head's
+    /// `PortableTranscriptionFailure.Message`.
+    pub detail: Option<String>,
+    /// The model involved, for the two model-shaped reasons.
+    pub model: Option<String>,
+    /// The provider's byte limit, for `AudioFileTooLarge`.
+    pub limit_bytes: Option<u64>,
+    /// The HTTP status the provider returned, for `ProviderServerError`.
+    pub http_status: Option<u16>,
+    /// The provider's `Retry-After`, in seconds, for `RateLimited`.
+    pub retry_after_seconds: Option<u32>,
+    /// The head's own hint. Used **only** by `ApiKeyMissing`, `ApiKeyInvalid`
+    /// and `CloudAccountRequired`, whose hint has to name a product surface:
+    /// macOS's `Settings → API Keys` against Windows's
+    /// `Model Library API keys manager`. Ignored for every other reason — the
+    /// wording there is the crate's, which is the whole point of item 4.
+    pub hint: Option<String>,
+}
+
+impl From<HwLocalApiTranscriptionFailureParams> for hw_localapi::TranscriptionFailureParams {
+    fn from(params: HwLocalApiTranscriptionFailureParams) -> Self {
+        hw_localapi::TranscriptionFailureParams {
+            provider: params.provider,
+            detail: params.detail,
+            model: params.model,
+            limit_bytes: params.limit_bytes,
+            http_status: params.http_status,
+            retry_after_seconds: params.retry_after_seconds,
+            hint: params.hint,
+        }
+    }
+}
+
+/// The one `(code, message, hint)` table for a transcription failure — HTTP
+/// 200, always, carrying one of the closed fourteen.
+///
+/// **Call sites: all three heads.** macOS's
+/// `LocalAPIResponder.mapTranscriptionError`
+/// (`LocalAPIErrors.swift:130-198`) and Windows's
+/// `LocalApiResponder.MapTranscriptionException` (`LocalApiErrors.cs:84-147`)
+/// each become a mapping from their own error type onto
+/// [`HwLocalApiTranscriptionFailureReason`] plus params, then one call to this.
+/// The portable head, which has no table at all and today collapses all four
+/// `PortableTranscriptionErrorCode` values into one fixed `ENGINE_UNAVAILABLE`
+/// string, gains one through `LocalApiSharedFailure`.
+///
+/// Do not confuse the name with `RustCoreMapping.mapTranscriptionError`
+/// (`RustRetry.swift:344`), which maps a Rust `HwTranscriptionError` into the
+/// Swift `TranscriptionError` and is *upstream* of this.
+#[uniffi::export]
+pub fn local_api_map_transcription_error(
+    reason: HwLocalApiTranscriptionFailureReason,
+    params: HwLocalApiTranscriptionFailureParams,
+) -> HwLocalApiFailure {
+    hw_localapi::map_transcription_error(reason.into(), &params.into()).into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1295,6 +1495,90 @@ mod tests {
             local_api_mode_name_taken_failure("Work".to_string(), HwLocalApiModeOperation::Patch);
         assert_eq!(patch.hint, None);
         assert!(patch.json.contains(r#""code":"MODE_NAME_TAKEN""#));
+    }
+
+    /// The transcription table crosses the boundary with its status, its code
+    /// and its interpolated text intact — including the hint slot the head
+    /// fills and the twenty-two rows where it does not.
+    #[test]
+    fn the_transcription_table_crosses_the_boundary() {
+        fn params() -> HwLocalApiTranscriptionFailureParams {
+            HwLocalApiTranscriptionFailureParams {
+                provider: None,
+                detail: None,
+                model: None,
+                limit_bytes: None,
+                http_status: None,
+                retry_after_seconds: None,
+                hint: None,
+            }
+        }
+
+        let byok = local_api_map_transcription_error(
+            HwLocalApiTranscriptionFailureReason::ApiKeyMissing,
+            HwLocalApiTranscriptionFailureParams {
+                provider: Some("OpenAI".to_string()),
+                hint: Some("Add the API key in Settings → API Keys.".to_string()),
+                ..params()
+            },
+        );
+        assert_eq!(byok.http_status, 200);
+        assert_eq!(byok.code, HwLocalApiErrorCode::MissingApiKey);
+        assert_eq!(byok.message, "API key for OpenAI is missing.");
+        assert_eq!(
+            byok.hint.as_deref(),
+            Some("Add the API key in Settings → API Keys.")
+        );
+        assert!(byok.json.contains(r#""code":"MISSING_API_KEY""#));
+
+        // A row whose hint is the crate's: the head's hint does not displace it.
+        let network = local_api_map_transcription_error(
+            HwLocalApiTranscriptionFailureReason::NetworkUnavailable,
+            HwLocalApiTranscriptionFailureParams {
+                detail: Some("timed out after 30s".to_string()),
+                hint: Some("Something the head made up.".to_string()),
+                ..params()
+            },
+        );
+        assert_eq!(network.code, HwLocalApiErrorCode::EngineUnavailable);
+        assert_eq!(network.message, "Network error: timed out after 30s");
+        assert_eq!(
+            network.hint.as_deref(),
+            Some("Check connectivity and retry.")
+        );
+
+        // The numeric slots survive the boundary as numbers, not as text.
+        let too_large = local_api_map_transcription_error(
+            HwLocalApiTranscriptionFailureReason::AudioFileTooLarge,
+            HwLocalApiTranscriptionFailureParams {
+                provider: Some("OpenAI".to_string()),
+                limit_bytes: Some(26_214_400),
+                ..params()
+            },
+        );
+        assert_eq!(too_large.code, HwLocalApiErrorCode::InvalidRequest);
+        assert_eq!(
+            too_large.message,
+            "Audio file exceeds OpenAI limit (26214400 bytes)."
+        );
+
+        // The portable head's four cases, which today collapse into one.
+        assert_eq!(
+            local_api_map_transcription_error(
+                HwLocalApiTranscriptionFailureReason::Cancelled,
+                params()
+            )
+            .code,
+            HwLocalApiErrorCode::Timeout
+        );
+        assert_eq!(
+            local_api_map_transcription_error(
+                HwLocalApiTranscriptionFailureReason::EngineUnavailable,
+                params()
+            )
+            .message,
+            "The transcription engine is unavailable."
+        );
     }
 
     #[test]

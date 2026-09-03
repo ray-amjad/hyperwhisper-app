@@ -10,7 +10,7 @@
 //!
 //! # What is here, and what is not
 //!
-//! Seven things, and only seven:
+//! Eight things, and only eight:
 //!
 //! * [`check_origin`] — the DNS-rebind guard, which **only macOS shipped**. Two
 //!   of three platforms served every route, including the unauthenticated
@@ -40,10 +40,16 @@
 //!   [`mode_name_taken_failure`] — the Mode body's key union, the create-only
 //!   required set, the value bounds, and what "the same name" means. See
 //!   `mode.rs` (#356 items 2 and 5).
+//! * [`map_transcription_error`] and [`TranscriptionFailureReason`] — the one
+//!   `(code, message, hint)` table for a transcription failure, replacing two
+//!   divergent native tables and the portable head's *absence* of one. The
+//!   reason enum is the union of the three heads' own error types and maps
+//!   onto the closed 14; **it adds no error code**. See `transcription.rs`
+//!   (#356 item 4).
+//!
 //!
 //! Deliberately NOT here: routing, JSON body parsing, file reads, the
-//! `audio_base64` buffer itself and its decode, `map_transcription_error`'s
-//! message table, pagination — and, since review, **the size comparisons
+//! `audio_base64` buffer itself and its decode, pagination — and, since review, **the size comparisons
 //! themselves**. An earlier revision exported
 //! `exceeds_request_limit`, `exceeds_upload_limit` and
 //! `exceeds_base64_upload_limit`; no head can call them, because macOS compares
@@ -81,7 +87,15 @@
 //!    portable head, a much richer rule on Windows that reaches into
 //!    `CustomEndpointManager` and `PlatformHelper`, and nothing at all on
 //!    macOS. All three keep their own.
+//! 5. **A hint that names a product surface, and per-endpoint validation
+//!    text.** [`map_transcription_error`] takes its hint as a parameter on the
+//!    three rows where macOS says `Settings → API Keys` and Windows says
+//!    `Model Library API keys manager` — the same slot, two different menus.
+//!    And it covers the *transcription* table only: roughly 125 other sites
+//!    across the three heads build a `(code, message, hint)` triple inline in
+//!    endpoint validation, and #356 names three tables, not the whole surface.
 //!
+
 //! # Panic-free by construction
 //!
 //! The workspace release profile sets `panic = "abort"`, and every input here
@@ -124,6 +138,7 @@ mod mode;
 mod origin;
 mod sha256;
 mod token;
+mod transcription;
 
 pub use auth::{authorize, bearer_token, AUTHORIZATION_HEADER};
 pub use engine::{resolve_engine_alias, EngineId, ALL_ENGINE_IDS};
@@ -146,6 +161,10 @@ pub use origin::{check_origin, OriginDecision, OriginHeaders};
 pub use token::{
     base64url_encode, generate_token, is_well_formed_token, token_fingerprint, TokenError,
     TOKEN_ENTROPY_BYTES, TOKEN_LENGTH,
+};
+pub use transcription::{
+    map_transcription_error, TranscriptionFailureParams, TranscriptionFailureReason,
+    ALL_TRANSCRIPTION_FAILURE_REASONS,
 };
 
 #[cfg(test)]

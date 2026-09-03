@@ -3328,6 +3328,176 @@ public func FfiConverterTypeHwLocalApiOriginHeaders_lower(_ value: HwLocalApiOri
 
 
 /**
+ * The runtime values the message and hint interpolate. Mirrors
+ * `hw_localapi::TranscriptionFailureParams`.
+ *
+ * All seven are optional and every row has a wording for the absent case, so a
+ * head that knows only the reason still gets a complete sentence. A blank or
+ * whitespace-only string counts as absent.
+ */
+public struct HwLocalApiTranscriptionFailureParams {
+    /**
+     * The provider or engine display name — `"OpenAI"`, `"HyperWhisper
+     * Cloud"`, `"Parakeet"`.
+     */
+    public var provider: String?
+    /**
+     * Free text from the failure itself: macOS's `reason` / `details` /
+     * `message` associated values, Windows's `ex.Message`, the portable head's
+     * `PortableTranscriptionFailure.Message`.
+     */
+    public var detail: String?
+    /**
+     * The model involved, for the two model-shaped reasons.
+     */
+    public var model: String?
+    /**
+     * The provider's byte limit, for `AudioFileTooLarge`.
+     */
+    public var limitBytes: UInt64?
+    /**
+     * The HTTP status the provider returned, for `ProviderServerError`.
+     */
+    public var httpStatus: UInt16?
+    /**
+     * The provider's `Retry-After`, in seconds, for `RateLimited`.
+     */
+    public var retryAfterSeconds: UInt32?
+    /**
+     * The head's own hint. Used **only** by `ApiKeyMissing`, `ApiKeyInvalid`
+     * and `CloudAccountRequired`, whose hint has to name a product surface:
+     * macOS's `Settings → API Keys` against Windows's
+     * `Model Library API keys manager`. Ignored for every other reason — the
+     * wording there is the crate's, which is the whole point of item 4.
+     */
+    public var hint: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The provider or engine display name — `"OpenAI"`, `"HyperWhisper
+         * Cloud"`, `"Parakeet"`.
+         */provider: String?, 
+        /**
+         * Free text from the failure itself: macOS's `reason` / `details` /
+         * `message` associated values, Windows's `ex.Message`, the portable head's
+         * `PortableTranscriptionFailure.Message`.
+         */detail: String?, 
+        /**
+         * The model involved, for the two model-shaped reasons.
+         */model: String?, 
+        /**
+         * The provider's byte limit, for `AudioFileTooLarge`.
+         */limitBytes: UInt64?, 
+        /**
+         * The HTTP status the provider returned, for `ProviderServerError`.
+         */httpStatus: UInt16?, 
+        /**
+         * The provider's `Retry-After`, in seconds, for `RateLimited`.
+         */retryAfterSeconds: UInt32?, 
+        /**
+         * The head's own hint. Used **only** by `ApiKeyMissing`, `ApiKeyInvalid`
+         * and `CloudAccountRequired`, whose hint has to name a product surface:
+         * macOS's `Settings → API Keys` against Windows's
+         * `Model Library API keys manager`. Ignored for every other reason — the
+         * wording there is the crate's, which is the whole point of item 4.
+         */hint: String?) {
+        self.provider = provider
+        self.detail = detail
+        self.model = model
+        self.limitBytes = limitBytes
+        self.httpStatus = httpStatus
+        self.retryAfterSeconds = retryAfterSeconds
+        self.hint = hint
+    }
+}
+
+
+
+extension HwLocalApiTranscriptionFailureParams: Equatable, Hashable {
+    public static func ==(lhs: HwLocalApiTranscriptionFailureParams, rhs: HwLocalApiTranscriptionFailureParams) -> Bool {
+        if lhs.provider != rhs.provider {
+            return false
+        }
+        if lhs.detail != rhs.detail {
+            return false
+        }
+        if lhs.model != rhs.model {
+            return false
+        }
+        if lhs.limitBytes != rhs.limitBytes {
+            return false
+        }
+        if lhs.httpStatus != rhs.httpStatus {
+            return false
+        }
+        if lhs.retryAfterSeconds != rhs.retryAfterSeconds {
+            return false
+        }
+        if lhs.hint != rhs.hint {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(provider)
+        hasher.combine(detail)
+        hasher.combine(model)
+        hasher.combine(limitBytes)
+        hasher.combine(httpStatus)
+        hasher.combine(retryAfterSeconds)
+        hasher.combine(hint)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiTranscriptionFailureParams: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiTranscriptionFailureParams {
+        return
+            try HwLocalApiTranscriptionFailureParams(
+                provider: FfiConverterOptionString.read(from: &buf), 
+                detail: FfiConverterOptionString.read(from: &buf), 
+                model: FfiConverterOptionString.read(from: &buf), 
+                limitBytes: FfiConverterOptionUInt64.read(from: &buf), 
+                httpStatus: FfiConverterOptionUInt16.read(from: &buf), 
+                retryAfterSeconds: FfiConverterOptionUInt32.read(from: &buf), 
+                hint: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLocalApiTranscriptionFailureParams, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.provider, into: &buf)
+        FfiConverterOptionString.write(value.detail, into: &buf)
+        FfiConverterOptionString.write(value.model, into: &buf)
+        FfiConverterOptionUInt64.write(value.limitBytes, into: &buf)
+        FfiConverterOptionUInt16.write(value.httpStatus, into: &buf)
+        FfiConverterOptionUInt32.write(value.retryAfterSeconds, into: &buf)
+        FfiConverterOptionString.write(value.hint, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiTranscriptionFailureParams_lift(_ buf: RustBuffer) throws -> HwLocalApiTranscriptionFailureParams {
+    return try FfiConverterTypeHwLocalApiTranscriptionFailureParams.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiTranscriptionFailureParams_lower(_ value: HwLocalApiTranscriptionFailureParams) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiTranscriptionFailureParams.lower(value)
+}
+
+
+/**
  * The three persisted mode fields the diagnostic groups and facets on. Mirrors
  * `no_speech::ModeIdentity`.
  *
@@ -10588,6 +10758,327 @@ extension HwLocalApiTokenError: Foundation.LocalizedError {
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * Why a transcription failed. Mirrors
+ * `hw_localapi::TranscriptionFailureReason`.
+ *
+ * An **input** enum: the union of macOS's `TranscriptionError`, Windows's
+ * `TranscriptionErrorCode` and the portable head's
+ * `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
+ * fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
+ * `transcription.rs` says so and a unit test walks all 25 to prove it.
+ *
+ * Each head keeps its own error type and maps it onto this on the way to the
+ * wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
+ */
+
+public enum HwLocalApiTranscriptionFailureReason {
+    
+    /**
+     * macOS `.modelNotDownloaded`; Windows `ModelNotLoaded`.
+     */
+    case modelNotInstalled
+    /**
+     * Windows `OnnxModelFileMissing`.
+     */
+    case modelFilesMissing
+    /**
+     * macOS `.modelProtected`.
+     */
+    case modelProtected
+    /**
+     * macOS `.apiKeyMissing`; Windows `ApiKeyMissing`.
+     */
+    case apiKeyMissing
+    /**
+     * macOS `.unauthorized` (except the HyperWhisper Cloud 403); Windows
+     * `Unauthorized`.
+     */
+    case apiKeyInvalid
+    /**
+     * macOS `.cloudAccountRequired`; Windows `CloudAccountRequired`.
+     */
+    case cloudAccountRequired
+    /**
+     * macOS `.unauthorized(provider: "HyperWhisper Cloud", statusCode: 403)`
+     * — the abuse guard, which must not be reported as a key problem.
+     */
+    case cloudRequestForbidden
+    /**
+     * macOS `.audioFileNotFound`; Windows `AudioFileNotFound`.
+     */
+    case audioFileNotFound
+    /**
+     * macOS `.invalidAudioFormat` / `.audioConversionFailed`; Windows
+     * `UnsupportedFormat`.
+     */
+    case audioDecodeFailed
+    /**
+     * macOS `.audioFileTooLarge`; Windows `FileTooLarge`.
+     */
+    case audioFileTooLarge
+    /**
+     * macOS `.invalidRequest`; Windows `InvalidRequest`; portable
+     * `InvalidRequest`.
+     */
+    case invalidRequest
+    /**
+     * macOS `.rateLimited`; Windows `RateLimited`.
+     */
+    case rateLimited
+    /**
+     * macOS `.quotaExceeded` / `.insufficientCredits`; Windows
+     * `QuotaExceeded`.
+     */
+    case quotaExceeded
+    /**
+     * macOS `.timeout`.
+     */
+    case timeout
+    /**
+     * Windows `Cancelled`; portable `Cancelled`.
+     */
+    case cancelled
+    /**
+     * macOS `.providerNotAvailable`; Windows `ProviderUnavailable`; portable
+     * `BackendUnavailable`.
+     */
+    case engineUnavailable
+    /**
+     * macOS `.transientNetwork`; Windows `NetworkError`.
+     */
+    case networkUnavailable
+    /**
+     * Windows `DaemonStartFailed`.
+     */
+    case engineStartFailed
+    /**
+     * Windows `DaemonCrashed`.
+     */
+    case engineCrashed
+    /**
+     * Windows `DaemonTimeout`.
+     */
+    case engineTimeout
+    /**
+     * macOS `.localSpeechModelEvicted`.
+     */
+    case localModelEvicted
+    /**
+     * macOS `.invalidResponse`.
+     */
+    case invalidProviderResponse
+    /**
+     * macOS `.serverError`.
+     */
+    case providerServerError
+    /**
+     * macOS `.noSpeechDetected`; Windows `NoSpeechDetected`.
+     */
+    case noSpeechDetected
+    /**
+     * The `default:` arm of both tables, and the portable head's
+     * `TranscriptionFailed`. Put the head's own text in
+     * [`HwLocalApiTranscriptionFailureParams::detail`].
+     */
+    case transcriptionFailed
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiTranscriptionFailureReason: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiTranscriptionFailureReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiTranscriptionFailureReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .modelNotInstalled
+        
+        case 2: return .modelFilesMissing
+        
+        case 3: return .modelProtected
+        
+        case 4: return .apiKeyMissing
+        
+        case 5: return .apiKeyInvalid
+        
+        case 6: return .cloudAccountRequired
+        
+        case 7: return .cloudRequestForbidden
+        
+        case 8: return .audioFileNotFound
+        
+        case 9: return .audioDecodeFailed
+        
+        case 10: return .audioFileTooLarge
+        
+        case 11: return .invalidRequest
+        
+        case 12: return .rateLimited
+        
+        case 13: return .quotaExceeded
+        
+        case 14: return .timeout
+        
+        case 15: return .cancelled
+        
+        case 16: return .engineUnavailable
+        
+        case 17: return .networkUnavailable
+        
+        case 18: return .engineStartFailed
+        
+        case 19: return .engineCrashed
+        
+        case 20: return .engineTimeout
+        
+        case 21: return .localModelEvicted
+        
+        case 22: return .invalidProviderResponse
+        
+        case 23: return .providerServerError
+        
+        case 24: return .noSpeechDetected
+        
+        case 25: return .transcriptionFailed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiTranscriptionFailureReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .modelNotInstalled:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .modelFilesMissing:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .modelProtected:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .apiKeyMissing:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .apiKeyInvalid:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .cloudAccountRequired:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .cloudRequestForbidden:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .audioFileNotFound:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .audioDecodeFailed:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .audioFileTooLarge:
+            writeInt(&buf, Int32(10))
+        
+        
+        case .invalidRequest:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .rateLimited:
+            writeInt(&buf, Int32(12))
+        
+        
+        case .quotaExceeded:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .timeout:
+            writeInt(&buf, Int32(14))
+        
+        
+        case .cancelled:
+            writeInt(&buf, Int32(15))
+        
+        
+        case .engineUnavailable:
+            writeInt(&buf, Int32(16))
+        
+        
+        case .networkUnavailable:
+            writeInt(&buf, Int32(17))
+        
+        
+        case .engineStartFailed:
+            writeInt(&buf, Int32(18))
+        
+        
+        case .engineCrashed:
+            writeInt(&buf, Int32(19))
+        
+        
+        case .engineTimeout:
+            writeInt(&buf, Int32(20))
+        
+        
+        case .localModelEvicted:
+            writeInt(&buf, Int32(21))
+        
+        
+        case .invalidProviderResponse:
+            writeInt(&buf, Int32(22))
+        
+        
+        case .providerServerError:
+            writeInt(&buf, Int32(23))
+        
+        
+        case .noSpeechDetected:
+            writeInt(&buf, Int32(24))
+        
+        
+        case .transcriptionFailed:
+            writeInt(&buf, Int32(25))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiTranscriptionFailureReason_lift(_ buf: RustBuffer) throws -> HwLocalApiTranscriptionFailureReason {
+    return try FfiConverterTypeHwLocalApiTranscriptionFailureReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiTranscriptionFailureReason_lower(_ value: HwLocalApiTranscriptionFailureReason) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiTranscriptionFailureReason.lower(value)
+}
+
+
+
+extension HwLocalApiTranscriptionFailureReason: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * What a no-speech failure is reported as, if anything. Mirrors
  * `no_speech::NoSpeechOutcome`; variant order matches the Windows enum.
  */
@@ -15198,6 +15689,32 @@ public func localApiIsWellFormedToken(token: String) -> Bool {
 })
 }
 /**
+ * The one `(code, message, hint)` table for a transcription failure — HTTP
+ * 200, always, carrying one of the closed fourteen.
+ *
+ * **Call sites: all three heads.** macOS's
+ * `LocalAPIResponder.mapTranscriptionError`
+ * (`LocalAPIErrors.swift:130-198`) and Windows's
+ * `LocalApiResponder.MapTranscriptionException` (`LocalApiErrors.cs:84-147`)
+ * each become a mapping from their own error type onto
+ * [`HwLocalApiTranscriptionFailureReason`] plus params, then one call to this.
+ * The portable head, which has no table at all and today collapses all four
+ * `PortableTranscriptionErrorCode` values into one fixed `ENGINE_UNAVAILABLE`
+ * string, gains one through `LocalApiSharedFailure`.
+ *
+ * Do not confuse the name with `RustCoreMapping.mapTranscriptionError`
+ * (`RustRetry.swift:344`), which maps a Rust `HwTranscriptionError` into the
+ * Swift `TranscriptionError` and is *upstream* of this.
+ */
+public func localApiMapTranscriptionError(reason: HwLocalApiTranscriptionFailureReason, params: HwLocalApiTranscriptionFailureParams) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_map_transcription_error(
+        FfiConverterTypeHwLocalApiTranscriptionFailureReason.lower(reason),
+        FfiConverterTypeHwLocalApiTranscriptionFailureParams.lower(params),$0
+    )
+})
+}
+/**
  * The longest base64 string that can decode to
  * [`local_api_max_upload_bytes`] or fewer bytes.
  *
@@ -16773,6 +17290,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token() != 22695) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_map_transcription_error() != 40386) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_local_api_max_base64_length_for_upload() != 19309) {

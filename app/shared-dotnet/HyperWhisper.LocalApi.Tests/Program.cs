@@ -44,6 +44,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
     ,("mode wire contract matches the shared core", ApplicationBackendModeContract)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
+    ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
 };
 foreach (var test in tests)
 {
@@ -156,6 +157,68 @@ static Task ErrorCodeParity()
         Assert(uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiErrorCodeFromWireValue(outside) is null,
             $"{outside} decoded as a closed-set code");
     }
+    return Task.CompletedTask;
+}
+
+/// <summary>
+/// The `(code, message, hint)` table for a transcription failure is the shared
+/// core's (issue #356 item 4). This head has no call site for it yet — routing
+/// `PortableTranscriptionErrorCode` through it is the next phase — so what this
+/// pins is the boundary itself: the regenerated C# binding compiles, the FFI
+/// checksum matches the loaded `libhyperwhisper_core.so`, and the four cases
+/// this head has to reach land on the codes the plan says they do.
+/// </summary>
+static Task SharedTranscriptionFailures()
+{
+    static uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureParams Params(
+        string? provider = null, string? detail = null, string? hint = null) =>
+        new(provider, detail, null, null, null, null, hint);
+
+    static uniffi.hyperwhisper_core.HwLocalApiFailure Map(
+        uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason reason,
+        uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureParams parameters) =>
+        uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiMapTranscriptionError(reason, parameters);
+
+    static string Wire(uniffi.hyperwhisper_core.HwLocalApiErrorCode code) =>
+        uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(code);
+
+    // The four `PortableTranscriptionErrorCode` values, and the code each one
+    // reaches. All four collapse into a single fixed ENGINE_UNAVAILABLE string
+    // on this head today, which is what the next phase removes.
+    var portable = new[]
+    {
+        (uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason.InvalidRequest, LocalApiErrorCodes.InvalidRequest),
+        (uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason.EngineUnavailable, LocalApiErrorCodes.EngineUnavailable),
+        (uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason.TranscriptionFailed, LocalApiErrorCodes.TranscriptionFailed),
+        (uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason.Cancelled, LocalApiErrorCodes.Timeout)
+    };
+    foreach (var (reason, expected) in portable)
+    {
+        var failure = Map(reason, Params(detail: "the workflow said so"));
+        Assert(failure.httpStatus == 200, $"{reason} carries HTTP {failure.httpStatus}, not the mandated 200");
+        Assert(Wire(failure.code) == expected, $"{reason} maps to {Wire(failure.code)}, not {expected}");
+        Assert(LocalApiErrorCodes.All.Contains(Wire(failure.code), StringComparer.Ordinal),
+            $"{reason} left the closed set with {Wire(failure.code)}");
+        Assert(failure.message.Length > 0, $"{reason} produced an empty message");
+    }
+
+    // The interpolation slots render, and the hint is the crate's on a row that
+    // does not name a product surface.
+    var network = Map(
+        uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason.NetworkUnavailable,
+        Params(detail: "connection reset", hint: "a hint this head made up"));
+    Assert(network.message == "Network error: connection reset", $"network message drifted: {network.message}");
+    Assert(network.hint == "Check connectivity and retry.", $"network hint drifted: {network.hint}");
+
+    // And it is the head's on the three rows that do — the API-key location is
+    // a different menu on every platform.
+    var apiKey = Map(
+        uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason.ApiKeyMissing,
+        Params(provider: "OpenAI", hint: "Add the API key in the Model Library API keys manager."));
+    Assert(apiKey.message == "API key for OpenAI is missing.", $"api-key message drifted: {apiKey.message}");
+    Assert(apiKey.hint == "Add the API key in the Model Library API keys manager.",
+        $"the platform hint did not pass through: {apiKey.hint}");
+
     return Task.CompletedTask;
 }
 

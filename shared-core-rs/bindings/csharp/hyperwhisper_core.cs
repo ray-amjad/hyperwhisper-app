@@ -1292,6 +1292,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2050,6 +2052,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(RustBuffer @token,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_map_transcription_error(RustBuffer @reason,RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3286,6 +3292,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_map_transcription_error(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4700,6 +4710,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token();
             if (checksum != 22695) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token` checksum `22695`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_map_transcription_error();
+            if (checksum != 40386) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_map_transcription_error` checksum `40386`, library returned `{checksum}`");
             }
         }
         {
@@ -7324,6 +7340,120 @@ class FfiConverterTypeHwLocalApiOriginHeaders: FfiConverterRustBuffer<HwLocalApi
             FfiConverterOptionalString.INSTANCE.Write(value.@host, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@origin, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@secFetchSite, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The runtime values the message and hint interpolate. Mirrors
+/// `hw_localapi::TranscriptionFailureParams`.
+///
+/// All seven are optional and every row has a wording for the absent case, so a
+/// head that knows only the reason still gets a complete sentence. A blank or
+/// whitespace-only string counts as absent.
+/// </summary>
+/// <param name="provider">
+/// The provider or engine display name — `"OpenAI"`, `"HyperWhisper
+/// Cloud"`, `"Parakeet"`.
+/// </param>
+/// <param name="detail">
+/// Free text from the failure itself: macOS's `reason` / `details` /
+/// `message` associated values, Windows's `ex.Message`, the portable head's
+/// `PortableTranscriptionFailure.Message`.
+/// </param>
+/// <param name="model">
+/// The model involved, for the two model-shaped reasons.
+/// </param>
+/// <param name="limit_bytes">
+/// The provider's byte limit, for `AudioFileTooLarge`.
+/// </param>
+/// <param name="http_status">
+/// The HTTP status the provider returned, for `ProviderServerError`.
+/// </param>
+/// <param name="retry_after_seconds">
+/// The provider's `Retry-After`, in seconds, for `RateLimited`.
+/// </param>
+/// <param name="hint">
+/// The head's own hint. Used **only** by `ApiKeyMissing`, `ApiKeyInvalid`
+/// and `CloudAccountRequired`, whose hint has to name a product surface:
+/// macOS's `Settings → API Keys` against Windows's
+/// `Model Library API keys manager`. Ignored for every other reason — the
+/// wording there is the crate's, which is the whole point of item 4.
+/// </param>
+internal record HwLocalApiTranscriptionFailureParams (
+    /// <summary>
+    /// The provider or engine display name — `"OpenAI"`, `"HyperWhisper
+    /// Cloud"`, `"Parakeet"`.
+    /// </summary>
+    string? @provider, 
+    /// <summary>
+    /// Free text from the failure itself: macOS's `reason` / `details` /
+    /// `message` associated values, Windows's `ex.Message`, the portable head's
+    /// `PortableTranscriptionFailure.Message`.
+    /// </summary>
+    string? @detail, 
+    /// <summary>
+    /// The model involved, for the two model-shaped reasons.
+    /// </summary>
+    string? @model, 
+    /// <summary>
+    /// The provider's byte limit, for `AudioFileTooLarge`.
+    /// </summary>
+    ulong? @limitBytes, 
+    /// <summary>
+    /// The HTTP status the provider returned, for `ProviderServerError`.
+    /// </summary>
+    ushort? @httpStatus, 
+    /// <summary>
+    /// The provider's `Retry-After`, in seconds, for `RateLimited`.
+    /// </summary>
+    uint? @retryAfterSeconds, 
+    /// <summary>
+    /// The head's own hint. Used **only** by `ApiKeyMissing`, `ApiKeyInvalid`
+    /// and `CloudAccountRequired`, whose hint has to name a product surface:
+    /// macOS's `Settings → API Keys` against Windows's
+    /// `Model Library API keys manager`. Ignored for every other reason — the
+    /// wording there is the crate's, which is the whole point of item 4.
+    /// </summary>
+    string? @hint
+) {
+}
+
+class FfiConverterTypeHwLocalApiTranscriptionFailureParams: FfiConverterRustBuffer<HwLocalApiTranscriptionFailureParams> {
+    public static FfiConverterTypeHwLocalApiTranscriptionFailureParams INSTANCE = new FfiConverterTypeHwLocalApiTranscriptionFailureParams();
+
+    public override HwLocalApiTranscriptionFailureParams Read(BigEndianStream stream) {
+        return new HwLocalApiTranscriptionFailureParams(
+            @provider: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @detail: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @model: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @limitBytes: FfiConverterOptionalUInt64.INSTANCE.Read(stream),
+            @httpStatus: FfiConverterOptionalUInt16.INSTANCE.Read(stream),
+            @retryAfterSeconds: FfiConverterOptionalUInt32.INSTANCE.Read(stream),
+            @hint: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLocalApiTranscriptionFailureParams value) {
+        return 0
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@provider)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@detail)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@model)
+            + FfiConverterOptionalUInt64.INSTANCE.AllocationSize(value.@limitBytes)
+            + FfiConverterOptionalUInt16.INSTANCE.AllocationSize(value.@httpStatus)
+            + FfiConverterOptionalUInt32.INSTANCE.AllocationSize(value.@retryAfterSeconds)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@hint);
+    }
+
+    public override void Write(HwLocalApiTranscriptionFailureParams value, BigEndianStream stream) {
+            FfiConverterOptionalString.INSTANCE.Write(value.@provider, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@detail, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@model, stream);
+            FfiConverterOptionalUInt64.INSTANCE.Write(value.@limitBytes, stream);
+            FfiConverterOptionalUInt16.INSTANCE.Write(value.@httpStatus, stream);
+            FfiConverterOptionalUInt32.INSTANCE.Write(value.@retryAfterSeconds, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@hint, stream);
     }
 }
 
@@ -11648,6 +11778,158 @@ class FfiConverterTypeHwLocalApiTokenError : FfiConverterRustBuffer<HwLocalApiTo
         }
     }
 }
+
+
+
+
+
+/// <summary>
+/// Why a transcription failed. Mirrors
+/// `hw_localapi::TranscriptionFailureReason`.
+///
+/// An **input** enum: the union of macOS's `TranscriptionError`, Windows's
+/// `TranscriptionErrorCode` and the portable head's
+/// `PortableTranscriptionErrorCode`. Every variant maps onto one of the closed
+/// fourteen [`HwLocalApiErrorCode`]s, so #356 item 4 adds no error code —
+/// `transcription.rs` says so and a unit test walks all 25 to prove it.
+///
+/// Each head keeps its own error type and maps it onto this on the way to the
+/// wire. Nothing here replaces `TranscriptionError` or `TranscriptionException`.
+/// </summary>
+internal enum HwLocalApiTranscriptionFailureReason: int {
+    
+    /// <summary>
+    /// macOS `.modelNotDownloaded`; Windows `ModelNotLoaded`.
+    /// </summary>
+    ModelNotInstalled,
+    /// <summary>
+    /// Windows `OnnxModelFileMissing`.
+    /// </summary>
+    ModelFilesMissing,
+    /// <summary>
+    /// macOS `.modelProtected`.
+    /// </summary>
+    ModelProtected,
+    /// <summary>
+    /// macOS `.apiKeyMissing`; Windows `ApiKeyMissing`.
+    /// </summary>
+    ApiKeyMissing,
+    /// <summary>
+    /// macOS `.unauthorized` (except the HyperWhisper Cloud 403); Windows
+    /// `Unauthorized`.
+    /// </summary>
+    ApiKeyInvalid,
+    /// <summary>
+    /// macOS `.cloudAccountRequired`; Windows `CloudAccountRequired`.
+    /// </summary>
+    CloudAccountRequired,
+    /// <summary>
+    /// macOS `.unauthorized(provider: "HyperWhisper Cloud", statusCode: 403)`
+    /// — the abuse guard, which must not be reported as a key problem.
+    /// </summary>
+    CloudRequestForbidden,
+    /// <summary>
+    /// macOS `.audioFileNotFound`; Windows `AudioFileNotFound`.
+    /// </summary>
+    AudioFileNotFound,
+    /// <summary>
+    /// macOS `.invalidAudioFormat` / `.audioConversionFailed`; Windows
+    /// `UnsupportedFormat`.
+    /// </summary>
+    AudioDecodeFailed,
+    /// <summary>
+    /// macOS `.audioFileTooLarge`; Windows `FileTooLarge`.
+    /// </summary>
+    AudioFileTooLarge,
+    /// <summary>
+    /// macOS `.invalidRequest`; Windows `InvalidRequest`; portable
+    /// `InvalidRequest`.
+    /// </summary>
+    InvalidRequest,
+    /// <summary>
+    /// macOS `.rateLimited`; Windows `RateLimited`.
+    /// </summary>
+    RateLimited,
+    /// <summary>
+    /// macOS `.quotaExceeded` / `.insufficientCredits`; Windows
+    /// `QuotaExceeded`.
+    /// </summary>
+    QuotaExceeded,
+    /// <summary>
+    /// macOS `.timeout`.
+    /// </summary>
+    Timeout,
+    /// <summary>
+    /// Windows `Cancelled`; portable `Cancelled`.
+    /// </summary>
+    Cancelled,
+    /// <summary>
+    /// macOS `.providerNotAvailable`; Windows `ProviderUnavailable`; portable
+    /// `BackendUnavailable`.
+    /// </summary>
+    EngineUnavailable,
+    /// <summary>
+    /// macOS `.transientNetwork`; Windows `NetworkError`.
+    /// </summary>
+    NetworkUnavailable,
+    /// <summary>
+    /// Windows `DaemonStartFailed`.
+    /// </summary>
+    EngineStartFailed,
+    /// <summary>
+    /// Windows `DaemonCrashed`.
+    /// </summary>
+    EngineCrashed,
+    /// <summary>
+    /// Windows `DaemonTimeout`.
+    /// </summary>
+    EngineTimeout,
+    /// <summary>
+    /// macOS `.localSpeechModelEvicted`.
+    /// </summary>
+    LocalModelEvicted,
+    /// <summary>
+    /// macOS `.invalidResponse`.
+    /// </summary>
+    InvalidProviderResponse,
+    /// <summary>
+    /// macOS `.serverError`.
+    /// </summary>
+    ProviderServerError,
+    /// <summary>
+    /// macOS `.noSpeechDetected`; Windows `NoSpeechDetected`.
+    /// </summary>
+    NoSpeechDetected,
+    /// <summary>
+    /// The `default:` arm of both tables, and the portable head's
+    /// `TranscriptionFailed`. Put the head's own text in
+    /// [`HwLocalApiTranscriptionFailureParams::detail`].
+    /// </summary>
+    TranscriptionFailed
+}
+
+class FfiConverterTypeHwLocalApiTranscriptionFailureReason: FfiConverterRustBuffer<HwLocalApiTranscriptionFailureReason> {
+    public static FfiConverterTypeHwLocalApiTranscriptionFailureReason INSTANCE = new FfiConverterTypeHwLocalApiTranscriptionFailureReason();
+
+    public override HwLocalApiTranscriptionFailureReason Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiTranscriptionFailureReason), value)) {
+            return (HwLocalApiTranscriptionFailureReason)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiTranscriptionFailureReason.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiTranscriptionFailureReason value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiTranscriptionFailureReason value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
 
 
 
@@ -16481,6 +16763,32 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(FfiConverterString.INSTANCE.Lower(@token), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The one `(code, message, hint)` table for a transcription failure — HTTP
+    /// 200, always, carrying one of the closed fourteen.
+    ///
+    /// **Call sites: all three heads.** macOS's
+    /// `LocalAPIResponder.mapTranscriptionError`
+    /// (`LocalAPIErrors.swift:130-198`) and Windows's
+    /// `LocalApiResponder.MapTranscriptionException` (`LocalApiErrors.cs:84-147`)
+    /// each become a mapping from their own error type onto
+    /// [`HwLocalApiTranscriptionFailureReason`] plus params, then one call to this.
+    /// The portable head, which has no table at all and today collapses all four
+    /// `PortableTranscriptionErrorCode` values into one fixed `ENGINE_UNAVAILABLE`
+    /// string, gains one through `LocalApiSharedFailure`.
+    ///
+    /// Do not confuse the name with `RustCoreMapping.mapTranscriptionError`
+    /// (`RustRetry.swift:344`), which maps a Rust `HwTranscriptionError` into the
+    /// Swift `TranscriptionError` and is *upstream* of this.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiMapTranscriptionError(HwLocalApiTranscriptionFailureReason @reason, HwLocalApiTranscriptionFailureParams @params) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_map_transcription_error(FfiConverterTypeHwLocalApiTranscriptionFailureReason.INSTANCE.Lower(@reason), FfiConverterTypeHwLocalApiTranscriptionFailureParams.INSTANCE.Lower(@params), ref _status)
 ));
     }
 
