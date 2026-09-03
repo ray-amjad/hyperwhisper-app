@@ -363,7 +363,7 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
         case .deepgram: return "Deepgram"
         case .elevenLabs: return "ElevenLabs"
         case .openAI: return "OpenAI"
-        case .xai: return "xAI"
+        case .xai: return "SpaceXAI"
         case .gemini: return "Gemini 3.5 Transcribe"
         case .parakeetLocal: return "Parakeet (On-Device)"
         case .nemotronLocal: return "Nemotron 3.5 (On-Device)"

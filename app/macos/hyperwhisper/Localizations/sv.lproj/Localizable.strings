@@ -766,7 +766,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediter/min";
 "modes.cloudAccuracy.grokStt.label" = "Högsta (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Hög (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flerspråkig, med stöd för anpassad ordlista.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Hög (Microsoft MAI-Transcribe 1.5)";

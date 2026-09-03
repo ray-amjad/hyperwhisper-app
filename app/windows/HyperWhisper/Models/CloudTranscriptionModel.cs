@@ -432,7 +432,7 @@ public static class CloudTranscriptionModels
         {
             Id = "",
             DisplayName = "Grok Speech-to-Text",
-            Description = "xAI Grok speech-to-text (single implicit model)",
+            Description = "SpaceXAI Grok speech-to-text (single implicit model)",
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
             IsPopular = true

@@ -120,7 +120,7 @@ final class XAIStreamingStrategy: StreamingProviderStrategy {
             return .sessionComplete(durationSeconds: message.duration ?? 0, creditsUsed: 0)
 
         case "error":
-            return .error(message: message.message ?? "xAI streaming transcription failed")
+            return .error(message: message.message ?? "SpaceXAI streaming transcription failed")
 
         default:
             logger.debug("xAI unrecognized message type: \(message.type, privacy: .public)")
@@ -136,7 +136,7 @@ final class XAIStreamingStrategy: StreamingProviderStrategy {
         ]
     }
 
-    var transcriptionProviderLabel: String { "xAI (Streaming)" }
+    var transcriptionProviderLabel: String { "SpaceXAI (Streaming)" }
 
     var supportsVocabulary: Bool { true }
 }

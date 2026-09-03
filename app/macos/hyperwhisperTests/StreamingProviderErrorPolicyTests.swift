@@ -234,7 +234,7 @@ struct StreamingProviderErrorPolicyTests {
     @Test func xaiStrategyFallbackWordingIsTransient() {
         // XAIStreamingStrategy's fallback when the error frame carries no message.
         let outcome = StreamingProviderErrorPolicy.outcome(
-            forProviderMessage: "xAI streaming transcription failed"
+            forProviderMessage: "SpaceXAI streaming transcription failed"
         )
 
         #expect(outcome == .transient)

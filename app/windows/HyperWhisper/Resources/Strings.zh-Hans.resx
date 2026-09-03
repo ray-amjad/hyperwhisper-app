@@ -676,7 +676,7 @@
     <value>Cerebras 超快速推理，用于文本增强</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
-    <value>xAI Grok 语音转文字 API</value>
+    <value>SpaceXAI Grok 语音转文字 API</value>
   </data>
 
   <!-- Settings - Output -->
@@ -1035,7 +1035,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - 精度最高，速度较慢</value>
+    <value>SpaceXAI Grok STT - 精度最高，速度较慢</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>此提供商不支持自定义词汇。</value>
@@ -1128,7 +1128,7 @@
     <value>欧洲 AI 提供商，支持多语言</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
-    <value>xAI Grok 语音转文字（批量 HTTP）</value>
+    <value>SpaceXAI Grok 语音转文字（批量 HTTP）</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
     <value>快速、准确的转写 - 无需 API 密钥</value>
@@ -1696,7 +1696,7 @@
     <value>Live</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>xAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok models for text enhancement</value>
   </data>
   <data name="settings.nav.streaming" xml:space="preserve">
     <value>流式转写</value>
@@ -1753,7 +1753,7 @@
     <value>提供商</value>
   </data>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
-    <value>xAI</value>
+    <value>SpaceXAI</value>
   </data>
   <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
     <value>Gemini 3.5 Transcribe</value>
@@ -1774,10 +1774,10 @@
     <value>使用您的 HyperWhisper Cloud 点数。无需单独的 API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>已配置 xAI API 密钥。</value>
+    <value>已配置 SpaceXAI API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>xAI 流式转写需要在模型的 API 密钥管理器中配置 Grok API 密钥。</value>
+    <value>SpaceXAI 流式转写需要在模型的 API 密钥管理器中配置 Grok API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
     <value>Gemini API key is configured.</value>

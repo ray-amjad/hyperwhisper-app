@@ -766,7 +766,7 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Hoogste (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Hoog (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Meertalig, met ondersteuning voor aangepaste woordenlijsten.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe 1.5)";

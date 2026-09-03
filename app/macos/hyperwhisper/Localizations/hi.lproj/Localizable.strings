@@ -766,7 +766,7 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ क्रेडिट/मिनट";
 "modes.cloudAccuracy.grokStt.label" = "सर्वोच्च (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.geminiTranscribe.label" = "उच्च (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. बहुभाषी, कस्टम शब्दावली समर्थन के साथ।";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe 1.5)";

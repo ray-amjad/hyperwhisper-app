@@ -676,7 +676,7 @@
     <value>Inferencia ultrarrápida de Cerebras para mejora de texto</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
-    <value>API de xAI Grok de voz a texto</value>
+    <value>API de SpaceXAI Grok de voz a texto</value>
   </data>
 
   <!-- Settings - Output -->
@@ -1035,7 +1035,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - máxima precisión, más lento</value>
+    <value>SpaceXAI Grok STT - máxima precisión, más lento</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Este proveedor no admite vocabulario personalizado.</value>
@@ -1128,7 +1128,7 @@
     <value>Proveedor de IA europeo con soporte multilingüe</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
-    <value>xAI Grok voz a texto (HTTP por lotes)</value>
+    <value>SpaceXAI Grok voz a texto (HTTP por lotes)</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
     <value>Transcripción rápida y precisa - sin clave de API requerida</value>
@@ -1696,7 +1696,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>Live</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>xAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok models for text enhancement</value>
   </data>
   <data name="settings.nav.streaming" xml:space="preserve">
     <value>Transcripción en directo</value>
@@ -1753,7 +1753,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>Proveedor</value>
   </data>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
-    <value>xAI</value>
+    <value>SpaceXAI</value>
   </data>
   <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
     <value>Gemini 3.5 Transcribe</value>
@@ -1774,10 +1774,10 @@ Puede volver a descargarlo más tarde.</value>
     <value>Usa tus créditos de HyperWhisper Cloud. No se requiere una clave de API separada.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>La clave de API de xAI está configurada.</value>
+    <value>La clave de API de SpaceXAI está configurada.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>La transmisión de xAI requiere una clave de API de Grok en el administrador de claves de API de Modelos.</value>
+    <value>La transmisión de SpaceXAI requiere una clave de API de Grok en el administrador de claves de API de Modelos.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
     <value>Gemini API key is configured.</value>

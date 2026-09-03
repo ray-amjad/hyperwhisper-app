@@ -676,7 +676,7 @@
     <value>Cerebrasの超高速推論によるテキスト補正</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
-    <value>xAI Grok 音声テキスト変換 API</value>
+    <value>SpaceXAI Grok 音声テキスト変換 API</value>
   </data>
 
   <!-- Settings - Output -->
@@ -1035,7 +1035,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - 最高精度、低速</value>
+    <value>SpaceXAI Grok STT - 最高精度、低速</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>このプロバイダーではカスタム語彙はサポートされていません。</value>
@@ -1128,7 +1128,7 @@
     <value>多言語サポートを備えたヨーロッパのAIプロバイダー</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
-    <value>xAI Grok 音声テキスト変換（バッチ HTTP）</value>
+    <value>SpaceXAI Grok 音声テキスト変換（バッチ HTTP）</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
     <value>高速・高精度な文字起こし - APIキー不要</value>
@@ -1696,7 +1696,7 @@
     <value>Live</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>xAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok models for text enhancement</value>
   </data>
   <data name="settings.nav.streaming" xml:space="preserve">
     <value>ストリーミング</value>
@@ -1753,7 +1753,7 @@
     <value>プロバイダー</value>
   </data>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
-    <value>xAI</value>
+    <value>SpaceXAI</value>
   </data>
   <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
     <value>Gemini 3.5 Transcribe</value>
@@ -1774,10 +1774,10 @@
     <value>HyperWhisper Cloud のクレジットを使用します。別の API キーは不要です。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>xAI APIキーが設定されています。</value>
+    <value>SpaceXAI APIキーが設定されています。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>xAIストリーミングには、モデルのAPIキーマネージャーでGrok APIキーが必要です。</value>
+    <value>SpaceXAIストリーミングには、モデルのAPIキーマネージャーでGrok APIキーが必要です。</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
     <value>Gemini API key is configured.</value>

@@ -766,7 +766,7 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ кредита/мин";
 "modes.cloudAccuracy.grokStt.label" = "Най-висока (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Висока (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Многоезичен, с поддръжка на персонализиран речник.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe 1.5)";
