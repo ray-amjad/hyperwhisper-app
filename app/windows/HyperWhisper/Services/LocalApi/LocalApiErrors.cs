@@ -114,11 +114,24 @@ internal static class LocalApiResponder
             reason,
             new HwLocalApiTranscriptionFailureParams(
                 @provider: ex.ProviderName,
-                // `GetUserMessage()` for a code with no arm of its own is just
-                // `Message`, and the generic row is the only one that renders
-                // the detail as the whole message — so the fallback text this
-                // head has always sent survives.
-                @detail: ex.GetUserMessage(),
+                // `ex.Message`, which is what the crate's doc asks this head for
+                // — NOT `GetUserMessage()` (issue #356, review round 1).
+                // `GetUserMessage()` is a finished sentence written for a WPF
+                // toast, and several rows interpolate `detail` MID-sentence, so
+                // it doubled: `NetworkError` rendered "Network error: Network
+                // error. Check your internet connection and try again.", and
+                // `ProviderUnavailable` with provider "AssemblyAI" rendered
+                // "AssemblyAI is unavailable: AssemblyAI is temporarily
+                // unavailable. Try again later or use local transcription." —
+                // the name stuttering and the advice duplicating the row's own
+                // `hint`, which item 4 deliberately moved INTO `hint`.
+                //
+                // Nothing is lost on the generic row. Every
+                // `TranscriptionErrorCode` that has an arm in
+                // `GetUserMessage()` has a reason of its own in `ReasonFor`, so
+                // the only codes that reach `TranscriptionFailed` are the ones
+                // whose `GetUserMessage()` is the `_ => Message` arm.
+                @detail: ex.Message,
                 @model: null,
                 @limitBytes: null,
                 // Filled because this head has it. No reason this head can

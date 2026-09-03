@@ -211,6 +211,20 @@ static Task SharedTranscriptionFailures()
     Assert(network.message == "Network error: connection reset", $"network message drifted: {network.message}");
     Assert(network.hint == "Check connectivity and retry.", $"network hint drifted: {network.hint}");
 
+    // `EngineUnavailable` interpolates BOTH slots mid-sentence. That is what
+    // made Windows's `detail` bug visible: a head that passes a finished
+    // sentence there stutters the provider name and repeats the row's own hint
+    // inside the message (issue #356 item 4, review round 1). `detail` is raw
+    // failure text — macOS's associated value, Windows's `ex.Message`, this
+    // head's `PortableTranscriptionFailure.Message` — never a composed one.
+    var engine = Map(
+        uniffi.hyperwhisper_core.HwLocalApiTranscriptionFailureReason.EngineUnavailable,
+        Params(provider: "AssemblyAI", detail: "503 from the edge"));
+    Assert(engine.message == "AssemblyAI is unavailable: 503 from the edge", $"engine message drifted: {engine.message}");
+    Assert(engine.hint == "Try again later, or pick a different engine.", $"engine hint drifted: {engine.hint}");
+    Assert(!engine.message.Contains(engine.hint!, StringComparison.Ordinal),
+        "the EngineUnavailable message repeats its own hint; the detail slot is carrying a composed sentence");
+
     // And it is the head's on the three rows that do — the API-key location is
     // a different menu on every platform.
     var apiKey = Map(

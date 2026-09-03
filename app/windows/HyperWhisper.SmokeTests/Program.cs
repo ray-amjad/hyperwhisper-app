@@ -6240,6 +6240,42 @@ internal static class Program
                 }
             });
 
+            Run("the transcription detail slot carries ex.Message, not the toast sentence", () =>
+            {
+                // ISSUE #356 ITEM 4, REVIEW ROUND 1. `MapTranscriptionException`
+                // passed `ex.GetUserMessage()` into the crate's `detail` slot —
+                // a finished sentence written for a WPF toast — and several rows
+                // interpolate `detail` MID-sentence, so the wire doubled. The
+                // crate's own doc (`transcription.rs`) specifies this head's
+                // `ex.Message`, and macOS and the portable head both pass a raw
+                // associated value.
+                var network = LocalApiResponder.MapTranscriptionException(
+                    new TranscriptionException(TranscriptionErrorCode.NetworkError, "connection reset by peer"));
+                Assert(network.message == "Network error: connection reset by peer",
+                    $"the NetworkError message is \"{network.message}\"");
+                Assert(!network.message.Contains("Check your internet connection", StringComparison.Ordinal),
+                    "the NetworkError message still carries the toast sentence GetUserMessage() builds");
+                Assert(network.hint == "Check connectivity and retry.",
+                    "the NetworkError hint is no longer the shared row's");
+
+                var unavailable = LocalApiResponder.MapTranscriptionException(
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "503 from the edge", "AssemblyAI"));
+                Assert(unavailable.message == "AssemblyAI is unavailable: 503 from the edge",
+                    $"the ProviderUnavailable message is \"{unavailable.message}\"");
+                Assert(!unavailable.message.Contains("temporarily unavailable", StringComparison.Ordinal)
+                        && !unavailable.message.Contains("use local transcription", StringComparison.Ordinal),
+                    "the ProviderUnavailable message still stutters the provider name and duplicates the row's hint");
+
+                // The generic row loses nothing: every code with an arm in
+                // `GetUserMessage()` has a reason of its own, so the only codes
+                // that reach `TRANSCRIPTION_FAILED` are the ones whose
+                // `GetUserMessage()` is the `_ => Message` arm.
+                var generic = LocalApiResponder.MapTranscriptionException(
+                    new TranscriptionException(TranscriptionErrorCode.Unknown, "something specific went wrong"));
+                Assert(generic.message.Contains("something specific went wrong", StringComparison.Ordinal),
+                    $"the generic row lost this head's own detail text: \"{generic.message}\"");
+            });
+
             SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             Run("the audio_base64 guards refuse an oversized clip before decoding it", () =>
