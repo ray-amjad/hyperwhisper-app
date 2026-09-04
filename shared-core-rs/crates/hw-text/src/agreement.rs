@@ -20,7 +20,7 @@
 //! asserted in `agreement_engines_disagree_on_when_a_stable_pass_commits`, so it
 //! cannot move silently.
 //!
-//! Two Unicode notes, both deliberate:
+//! Three Unicode notes, all deliberate:
 //!
 //! * [`BoundedAgreement`] counts its size cap in **UTF-16 code units**, because
 //!   the C# original caps on `string.Length`. Japanese is ~3 UTF-8 bytes per
@@ -30,11 +30,22 @@
 //!   surrogate is neither a letter nor a digit). [`normalize_bounded_word`]
 //!   reproduces that, including the drop, rather than silently widening the
 //!   comparison.
+//! * The macOS normalizer is the opposite case: Swift's `String.filter` iterates
+//!   **grapheme clusters** and `String ==` is **canonical equivalence**, so
+//!   [`normalize_timed_text`] segments and NFC-normalizes to keep the two units
+//!   of comparison Swift's. The two normalizers are therefore not
+//!   interchangeable and must not be merged — see each one's doc comment.
+//!
+//! The two Unicode crates this module pulls into `hw-text` (whose written policy
+//! is "no deps beyond regex") exist only for that third note. They are already
+//! linked by `hw-core` and `hw-phonetic`, so nothing new reaches the artifact.
 
 use std::fmt;
 use std::sync::OnceLock;
 
 use regex::Regex;
+use unicode_normalization::UnicodeNormalization;
+use unicode_segmentation::UnicodeSegmentation;
 
 // =============================================================================
 // Shared pieces
@@ -96,20 +107,55 @@ fn is_letter_or_digit(c: char) -> bool {
     letter_or_digit_re().is_match(c.encode_utf8(&mut buf))
 }
 
-/// macOS `TimedWord.normalize` (`WordAgreementEngine.swift:31-36`): lowercase
-/// the **whole** string (so Swift's final-sigma rule applies), map `-` to a
-/// space, keep letters/digits/whitespace, then trim.
+/// macOS `TimedWord.normalize` (the `private static func normalize` on Swift
+/// `TimedWord`, deleted by this PR — see `WordAgreementEngine.swift` at
+/// `03cbc92`): lowercase the **whole** string (so Swift's final-sigma rule
+/// applies), map `-` to a space, keep letters/digits/whitespace, then trim.
 ///
 /// Interior whitespace is deliberately **not** collapsed — the Swift original
 /// does not collapse it either.
+///
+/// Two Swift semantics that a naive per-`char` port loses, and that the results
+/// of this function are compared under (`PairwiseAgreement::observe`):
+///
+/// * **The filter unit is a grapheme cluster, not a scalar.** Swift
+///   `filter { $0.isLetter || $0.isNumber || $0.isWhitespace }` runs over
+///   `Character`, and each of those three properties reads the **first scalar**
+///   of the cluster, keeping or dropping the whole cluster with it. Filtering
+///   per scalar instead drops combining marks that are not themselves
+///   `Alphabetic` — Devanagari virama (U+094D), Thai tone marks (U+0E48-U+0E4B)
+///   — so `कर्म` and `करम` would normalize alike and a prefix the decoder never
+///   agreed on would be committed.
+/// * **Equality is canonical, not bytewise.** Swift `String ==` compares under
+///   canonical equivalence, so a precomposed `é` (U+00E9) from one pass equals a
+///   decomposed `é` (U+0065 U+0301) from the next; the words are rebuilt from
+///   sub-word tokens, so both forms really do occur. Rust `String ==` is
+///   bytewise, so the canonical form is applied **here** instead — NFC on the
+///   way out makes every later `==` canonical for free.
+///
+/// The `.nfc()` + `graphemes(true)` pairing is the same shape
+/// `hw-core`'s `ffi_backup::normalize_mode_name` uses to reproduce Swift string
+/// handling.
+///
+/// Residual divergence, unchanged from the per-scalar port: Rust
+/// `char::is_numeric` is the `N*` categories where Swift `isNumber` is
+/// `numericType != nil`, which also covers a handful of `Lo` ideographic
+/// numerals — every one of which is `Alphabetic` and so kept by the first test
+/// anyway.
 fn normalize_timed_text(text: &str) -> String {
-    let lowered = text.to_lowercase();
-    let kept: String = lowered
-        .chars()
-        .map(|c| if c == '-' { ' ' } else { c })
-        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+    let replaced = text.to_lowercase().replace('-', " ");
+    let kept: String = replaced
+        .graphemes(true)
+        .filter(|cluster| cluster.chars().next().is_some_and(is_swift_word_character))
         .collect();
-    kept.trim().to_string()
+    kept.trim().nfc().collect()
+}
+
+/// Swift `Character.isLetter || .isNumber || .isWhitespace`, read off the first
+/// scalar of a cluster as Swift reads it. `char::is_alphabetic` is the Unicode
+/// `Alphabetic` property, which is what Swift's `isLetter` reports.
+fn is_swift_word_character(first_scalar: char) -> bool {
+    first_scalar.is_alphabetic() || first_scalar.is_numeric() || first_scalar.is_whitespace()
 }
 
 /// Daemon `NormalizeWord` (`LiveEngineSession.cs:214-215`): `ToLowerInvariant()`
@@ -998,6 +1044,75 @@ mod tests {
         assert_eq!(normalize_timed_text("a - b"), "a   b");
         assert_eq!(normalize_timed_text("...!"), "");
         assert_eq!(normalize_timed_text("日本語。"), "日本語");
+    }
+
+    /// Swift filters per `Character`, and `Character.isLetter` reads the FIRST
+    /// scalar of the cluster, so a combining mark that is not itself
+    /// `Alphabetic` rides along with the base it attaches to. A per-scalar
+    /// filter drops it, which would make two words the decoder spelled
+    /// differently normalize alike and commit a prefix that never agreed.
+    #[test]
+    fn agreement_normalizer_keeps_combining_marks_with_their_base() {
+        // Devanagari: कर्म is क र ् म — U+094D (virama) is `Mn`, not
+        // `Other_Alphabetic`, so a per-scalar filter erases it.
+        let with_virama = "\u{0915}\u{0930}\u{094D}\u{092E}";
+        let without_virama = "\u{0915}\u{0930}\u{092E}";
+        assert_eq!(normalize_timed_text(with_virama), with_virama);
+        assert_ne!(
+            normalize_timed_text(with_virama),
+            normalize_timed_text(without_virama)
+        );
+
+        // Thai tone marks, same shape.
+        let with_tone = "\u{0E01}\u{0E48}";
+        assert_eq!(normalize_timed_text(with_tone), with_tone);
+        assert_ne!(
+            normalize_timed_text(with_tone),
+            normalize_timed_text("\u{0E01}")
+        );
+
+        // A cluster whose first scalar fails the test is dropped whole, marks
+        // and all — Swift drops the `Character`, not just its base.
+        assert_eq!(normalize_timed_text("\u{0021}\u{0301}"), "");
+    }
+
+    /// Two passes that spell the same word with different Unicode composition
+    /// must still agree, because Swift `String ==` is canonical equivalence.
+    /// NFC in the normalizer is what makes the later bytewise `==` canonical.
+    #[test]
+    fn agreement_normalizer_is_canonically_equivalent() {
+        let precomposed = "caf\u{00E9}";
+        let decomposed = "cafe\u{0301}";
+        assert_ne!(precomposed, decomposed);
+        assert_eq!(
+            normalize_timed_text(precomposed),
+            normalize_timed_text(decomposed)
+        );
+
+        // And end to end: the composition flips every pass, yet the prefix
+        // keeps accumulating and the fourth pass still commits.
+        let spellings = [precomposed, decomposed];
+        let mut engine = PairwiseAgreement::new(PairwiseConfig::default());
+        let mut confirmed = String::new();
+        for pass in 0..4 {
+            let words = make_words(
+                &[
+                    "this",
+                    "is",
+                    "me",
+                    "testing",
+                    spellings[pass % 2],
+                    "to",
+                    "make",
+                    "sure",
+                    "it",
+                    "works",
+                ],
+                0.95,
+            );
+            confirmed = engine.observe(&words, 0.95).newly_confirmed_text;
+        }
+        assert_eq!(confirmed, format!("this is me testing {decomposed} to make"));
     }
 
     #[test]
