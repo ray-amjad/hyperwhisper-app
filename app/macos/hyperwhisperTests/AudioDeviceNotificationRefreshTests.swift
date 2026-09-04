@@ -75,6 +75,7 @@ private final class NotificationScanProbe: @unchecked Sendable {
 }
 
 @MainActor
+@Suite(.serialized)
 struct AudioDeviceNotificationRefreshTests {
     private static func waitUntil(
         _ condition: @escaping @Sendable () -> Bool
@@ -104,7 +105,7 @@ struct AudioDeviceNotificationRefreshTests {
         await Self.waitUntil { probe.calls == 1 }
 
         // Reaching this assertion while the fake scan is blocked proves the main actor yielded.
-        #expect(Thread.isMainThread)
+        MainActor.assertIsolated()
         #expect(probe.didRunOnMainThread == false)
 
         scanGate.release()
