@@ -778,8 +778,8 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Kõrge (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Mitmekeelne, kohandatud sõnavara toega.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 Azure Speech kaudu. 43 keelt koos kontekstipõhise kohandusega.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe Azure Speech kaudu. Kuni 60 keelt koos kontekstipõhise kohandusega.";
 
 "modes.create.title" = "Loo uus režiim";
 "modes.create.subtitle" = "Konfigureeri kohandatud transkriptsiooni profiil";

@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Највећа тачност са споријом обработком. Најбоља за важне транскрипције.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Visoka (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Višejezično, sa podrškom za prilagođeni rečnik.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 preko Azure Speech. 43 jezika uz kontekstualno prilagođavanje.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe preko Azure Speech. Do 60 jezika uz kontekstualno prilagođavanje.";
 
 "modes.create.title" = "Направи Нови Режим";
 "modes.create.subtitle" = "Конфигуриши прилагођени профил транскрипције";

@@ -484,6 +484,21 @@ public sealed class ModelLibraryManager
         ["gemini-3.6-flash"]                  = (2, 4),
         ["gemini-3-flash-preview"]            = (2, 1),
         ["gemini-3.1-pro-preview"]            = (1, 5),
+        // Microsoft (HyperWhisper Cloud routed tier). MAI-Transcribe is
+        // comparably accurate to the slow high-accuracy models but returns in a
+        // single multipart round-trip (~5s), which is what earns the 4 on speed.
+        // v2 keeps 1.5's bars rather than raising them: Microsoft claims it is
+        // both faster and more accurate, but that is a vendor figure on vendor
+        // audio and these bars are our own. Both rows are needed, not just the
+        // new one — a missing id falls back to (3, 3), so listing only v2 would
+        // rank 1.5 below Groq Whisper Turbo and disagree with macOS, which
+        // deliberately gives the two models equal bars.
+        //
+        // `chirp_3` is the one row macOS still has and this table does not; it
+        // is a Google tier this change does not touch, so it is left as
+        // pre-existing drift rather than folded in here.
+        ["mai-transcribe-2"]                  = (4, 5),
+        ["mai-transcribe-1.5"]                = (4, 5),
     };
 
     private static readonly Dictionary<string, (int speed, int accuracy)> WhisperRatings = new()

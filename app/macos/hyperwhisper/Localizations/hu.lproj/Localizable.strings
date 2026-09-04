@@ -778,8 +778,8 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Magas (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Többnyelvű, egyéni szótár támogatásával.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Magas (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 az Azure Speech szolgáltatáson keresztül. 43 nyelv, kontextusalapú súlyozással.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Magas (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe az Azure Speech szolgáltatáson keresztül. Akár 60 nyelv, kontextusalapú súlyozással.";
 
 "modes.create.title" = "Új mód létrehozása";
 "modes.create.subtitle" = "Egyéni átírási profil konfigurálása";

@@ -778,8 +778,8 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Hoog (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Meertalig, met ondersteuning voor aangepaste woordenlijsten.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 talen met contextuele afstemming.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Tot 60 talen met contextuele afstemming.";
 
 "modes.create.title" = "Nieuwe modus maken";
 "modes.create.subtitle" = "Configureer een aangepast transcriptieprofiel";

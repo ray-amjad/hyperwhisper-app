@@ -778,8 +778,8 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Há (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Fjöltyngt, með stuðningi við sérsniðinn orðaforða.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 í gegnum Azure Speech. 43 tungumál með samhengisaðlögun.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe í gegnum Azure Speech. Allt að 60 tungumál með samhengisaðlögun.";
 
 "modes.create.title" = "Búa til nýjan ham";
 "modes.create.subtitle" = "Stilltu sérsniðna afritunarnotendaupplýsingu";

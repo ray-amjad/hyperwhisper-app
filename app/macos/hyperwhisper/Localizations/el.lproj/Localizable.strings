@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Υψηλή (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Πολύγλωσσο, με υποστήριξη προσαρμοσμένου λεξιλογίου.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 μέσω Azure Speech. 43 γλώσσες με προσαρμογή βάσει συμφραζομένων.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe μέσω Azure Speech. Έως 60 γλώσσες με προσαρμογή βάσει συμφραζομένων.";
 
 "modes.create.title" = "Δημιουργία Νέας Λειτουργίας";
 "modes.create.subtitle" = "Διαμόρφωση ενός προσαρμοσμένου προφίλ μεταγραφής";

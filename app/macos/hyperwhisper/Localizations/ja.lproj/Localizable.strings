@@ -784,8 +784,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高精度、処理は遅め。重要な文字起こしに最適。";
 "modes.cloudAccuracy.geminiTranscribe.label" = "高 (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。多言語に対応し、カスタム語彙を利用できます。";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "高 (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 経由の Microsoft MAI-Transcribe 1.5。43 言語に対応し、文脈バイアスを利用できます。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高 (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 経由の Microsoft MAI-Transcribe。最大 60 言語に対応し、文脈バイアスを利用できます。";
 
 "modes.create.title" = "新しいモードを作成";
 "modes.create.subtitle" = "カスタム文字起こしプロファイルを設定します";

@@ -778,8 +778,8 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Aukštas (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "„Google Gemini 3.5 Transcribe“. Daugiakalbis, palaiko tinkintą žodyną.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 per Azure Speech. 43 kalbos su kontekstiniu pritaikymu.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe per Azure Speech. Iki 60 kalbų su kontekstiniu pritaikymu.";
 
 "modes.create.title" = "Sukurti naują režimą";
 "modes.create.subtitle" = "Sukonfigūruokite pasirinktą transkriptsiniu profilį";

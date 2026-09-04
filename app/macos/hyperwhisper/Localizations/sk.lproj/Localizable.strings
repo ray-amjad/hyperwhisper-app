@@ -778,8 +778,8 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Vysoká (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Viacjazyčný, s podporou vlastného slovníka.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Vysoká (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 cez Azure Speech. 43 jazykov s kontextovým prispôsobením.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Vysoká (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe cez Azure Speech. Až 60 jazykov s kontextovým prispôsobením.";
 
 "modes.create.title" = "Vytvoriť nový režim";
 "modes.create.subtitle" = "Konfigurovať vlastný profil prepisu";

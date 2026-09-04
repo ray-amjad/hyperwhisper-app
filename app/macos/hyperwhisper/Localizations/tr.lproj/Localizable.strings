@@ -778,8 +778,8 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Yüksek (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Çok dilli, özel sözcük dağarcığı desteğiyle.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Yüksek (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech üzerinden Microsoft MAI-Transcribe 1.5. Bağlamsal yönlendirme ile 43 dil.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Yüksek (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech üzerinden Microsoft MAI-Transcribe. Bağlamsal yönlendirme ile en fazla 60 dil.";
 
 "modes.create.title" = "Yeni Mod Oluştur";
 "modes.create.subtitle" = "Özel transkripsiyon profilini yapılandır";
