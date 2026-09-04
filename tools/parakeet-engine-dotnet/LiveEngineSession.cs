@@ -138,7 +138,7 @@ internal sealed class LiveEngineSession : IDisposable
 /// two ports of the same paper. This type is only the adapter: it keeps the
 /// daemon-facing surface — the constructor, <see cref="Preview"/>,
 /// <see cref="Observe"/>, <see cref="Finish"/> and the
-/// <see cref="InvalidOperationException"/> message that reaches the wire —
+/// <see cref="InvalidOperationException"/> thrown at the cap —
 /// exactly as it was, which is why the harness in
 /// <c>parakeet-engine-dotnet.Tests</c> did not change with it.
 /// </para>
@@ -148,13 +148,20 @@ internal sealed class BoundedWordAgreement : IDisposable
     private readonly HwBoundedAgreementSession _session;
 
     /// <summary>
-    /// The preview the last <see cref="Observe"/> or <see cref="Finish"/>
-    /// returned. The core's <c>preview()</c> accessor exists but must not be
-    /// called from here: <c>LiveEngineSession.Decode</c> and the sub-interval
-    /// early return read <see cref="Preview"/> on <em>every</em> <c>audio</c>
-    /// request, and the value is a pure function of state that only those two
-    /// calls change — so caching what they returned is exactly equivalent and
-    /// keeps the audio path off the FFI entirely.
+    /// What the core's <c>preview()</c> would return right now, without asking
+    /// it. The accessor exists but must not be called on the audio path:
+    /// <c>LiveEngineSession.Decode</c> and the sub-interval early return read
+    /// <see cref="Preview"/> on <em>every</em> <c>audio</c> request, and the
+    /// value is a pure function of state that only <see cref="Observe"/> and
+    /// <see cref="Finish"/> change — so caching what those two returned is
+    /// exactly equivalent and keeps the audio path off the FFI entirely.
+    /// <para>
+    /// "What those two returned" is not the whole story, which is what
+    /// <see cref="Apply"/> exists to handle: a failed call also changes state.
+    /// The rule this field keeps is the stronger one the
+    /// <c>Join(_committed.Concat(...))</c> property it replaced had for free —
+    /// it always reflects current engine state, on every path.
+    /// </para>
     /// </summary>
     private string _preview = "";
 
@@ -169,11 +176,32 @@ internal sealed class BoundedWordAgreement : IDisposable
     public void Dispose() => _session.Dispose();
 
     /// <summary>
-    /// Run one core call, cache its preview and translate its failure. The
-    /// generated <c>HwStreamException.LimitExceeded</c> carries no message of
-    /// its own, and <c>Program</c>'s live handler reports the exception text
-    /// verbatim, so the daemon's original string is restored here rather than
-    /// left to the binding.
+    /// Run one core call, cache its preview and translate its failure.
+    /// <para>
+    /// <b>A cap failure is not atomic.</b> The core commits word by word and
+    /// stops at the first word that will not fit, so the words before it stay
+    /// committed and the hypothesis that triggered the failure has already been
+    /// taken — <c>HwBoundedAgreementSession.Observe</c>'s doc says so, and
+    /// <c>bounded_session_limit_exceeded_still_moves_the_preview</c> pins it.
+    /// The cache is therefore refreshed from <c>preview()</c> before the
+    /// rethrow. It has to be: <c>Program</c>'s <c>audio</c> handler logs the
+    /// exception, answers <c>"Live audio could not be processed"</c> and keeps
+    /// the session alive, so every later sub-interval request reads this field
+    /// again. Skipping the refresh leaves the daemon serving a pre-failure
+    /// transcript for the rest of the recording. One accessor call per failed
+    /// request is not a per-request FFI call: the success path, which is every
+    /// request that matters, still never touches the core twice.
+    /// </para>
+    /// <para>
+    /// The rethrow re-supplies the message because the generated
+    /// <c>HwStreamException.LimitExceeded</c> is <c>base()</c> with no message
+    /// at all. It does <em>not</em> reach the wire: all three live handlers
+    /// (<c>start</c>, <c>audio</c>, <c>finish</c>) write fixed strings, and only
+    /// the non-live transcribe handler echoes <c>ex.Message</c>, which this type
+    /// never reaches. What the message serves is the log line beside each of
+    /// those — <c>LogError($"Live audio failed: {ex.Message}")</c> — which
+    /// without it records a cap failure as an empty reason.
+    /// </para>
     /// </summary>
     private LiveEngineUpdate Apply(Func<HwStreamUpdate> call)
     {
@@ -184,6 +212,7 @@ internal sealed class BoundedWordAgreement : IDisposable
         }
         catch (HwStreamException.LimitExceeded)
         {
+            _preview = _session.Preview();
             throw new InvalidOperationException("Live transcript exceeded the 512 KiB limit");
         }
         _preview = update.preview;
