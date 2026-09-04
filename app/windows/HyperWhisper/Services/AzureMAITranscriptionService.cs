@@ -12,6 +12,18 @@ namespace HyperWhisper.Services;
 
 public class AzureMAITranscriptionService : RoutedTranscriptionServiceBase
 {
+    /// <param name="requestedModelId">
+    /// The mode's <c>cloudTranscriptionModel</c> for this one request. Passed at
+    /// construction rather than set on a shared instance: this provider serves
+    /// two models at two prices, so a model that could be overwritten by a
+    /// concurrent request is a billing bug. See
+    /// <c>RoutedTranscriptionServiceBase.RequestedModelId</c>.
+    /// </param>
+    public AzureMAITranscriptionService(string? requestedModelId = null)
+        : base(requestedModelId)
+    {
+    }
+
     public override string Name => "Microsoft MAI-Transcribe";
 
     /// <summary>
