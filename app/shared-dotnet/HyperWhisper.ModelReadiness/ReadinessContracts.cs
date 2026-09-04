@@ -20,6 +20,30 @@ public enum ReadinessState
     Unsupported,
 }
 
+/// <param name="SupportedLanguages">
+/// Language codes in ONE code space: for a cloud STT row, the provider's raw
+/// upstream codes exactly as <c>cloud-stt-catalog.json</c> declares them
+/// (<c>nb</c>, <c>fil</c>, Deepgram's <c>multi</c> and <c>ar-AE</c>); for a local
+/// row, the model's own list. Never the folded picker space — a caller matching
+/// against this list must use the same codes the catalog uses, and every cloud
+/// row must answer that question the same way. It is PROVIDER-level for cloud
+/// rows, so where a provider's models differ it is the union; see
+/// <paramref name="ModelLanguageCount"/> for the per-model figure.
+/// </param>
+/// <param name="ModelLanguageCount">
+/// How many languages THIS model supports, when that differs from
+/// <paramref name="SupportedLanguages"/>.Count — i.e. when the provider's models
+/// do not share one table. Null means "the provider list is this model's list".
+///
+/// A COUNT and not a code list, deliberately. The only per-model language data
+/// in the tree (<c>shared-models/models-catalog.json</c>) is written in the
+/// FOLDED PICKER code space, and putting those codes into
+/// <paramref name="SupportedLanguages"/> made one field answer in two spaces:
+/// the Azure rows said <c>no</c> where every other row says <c>nb</c>, so a
+/// caller feeding it catalog-native codes silently got a different answer for
+/// one vendor. A count carries the fact the Model Library actually shows without
+/// carrying a code space with it.
+/// </param>
 public sealed record ModelCapability(
     string Key,
     string DisplayName,
@@ -40,7 +64,8 @@ public sealed record ModelCapability(
     bool ByokEligible = false,
     Uri? Endpoint = null,
     string? CredentialAccount = null,
-    bool RequiresCredential = true);
+    bool RequiresCredential = true,
+    int? ModelLanguageCount = null);
 
 public sealed record CustomEndpointDefinition(
     Guid Id,

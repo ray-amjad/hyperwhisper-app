@@ -108,14 +108,14 @@ public static class UnifiedModelCatalog
                 var modelId = model.@id;
                 var modelName = Required(model.@displayName, "displayName");
                 var vocab = model.@supportsCustomVocabulary ?? vocabDefault;
-                var modelLanguages = ModelLanguageCodes(providerId, modelId, languages);
                 result.Add(new ModelCapability(
                     $"cloud/stt/{providerId}/{NormalizeEmpty(modelId)}", $"{display} — {modelName}",
                     sttProvider, modelId, ModelDeployment.Cloud, ModelWorkload.Voice,
-                    ModelSurface.BatchTranscription, vocab, allLanguages, modelLanguages, streaming,
+                    ModelSurface.BatchTranscription, vocab, allLanguages, languages, streaming,
                     CloudTierEligible: access.@cloudTierEligible,
                     ByokEligible: access.@byokEligible,
-                    CredentialAccount: CredentialAccountFor(sttProvider)));
+                    CredentialAccount: CredentialAccountFor(sttProvider),
+                    ModelLanguageCount: ModelLanguageCount(providerId, modelId, languages)));
             }
         }
     }
@@ -256,20 +256,27 @@ public static class UnifiedModelCatalog
     ///
     /// <c>cloud-stt-catalog.json</c>'s <c>languages.codes</c> is provider-level
     /// by schema. For <c>azureMaiTranscribe</c> it is the UNION of
-    /// MAI-Transcribe 2's 60 locales and 1.5's 42, so handing it to every model
-    /// row makes the Model Library claim MAI-Transcribe 1.5 transcribes Hebrew
-    /// and <c>SupportsLanguage("he")</c> answer true for it. The per-model split
-    /// lives only in <c>models-catalog.json</c> — the same data the Windows Mode
-    /// editor and macOS <c>STTLanguageTemplates</c> narrow on.
+    /// MAI-Transcribe 2's 60 locales and 1.5's 42, so publishing its LENGTH as
+    /// every model's language count made the Model Library tell a 1.5 user the
+    /// model speaks 18 languages it cannot transcribe. The per-model split lives
+    /// only in <c>models-catalog.json</c> — the same data the Windows Mode editor
+    /// and macOS <c>STTLanguageTemplates</c> narrow on.
     ///
     /// Deliberately a short opt-in list rather than "always prefer the per-model
-    /// set". The two files use different CODE SPACES: this file's rows are raw
-    /// upstream codes (Deepgram's include <c>multi</c> and region variants like
-    /// <c>ar-AE</c>), models-catalog's are folded picker codes. Swapping the
-    /// space wholesale would change what <c>SupportsLanguage("en-US")</c> answers
-    /// for four other vendors, none of which this change is about. Deepgram and
-    /// AssemblyAI do have the same provider-level over-claim (a medical model
-    /// listed as if it spoke every language) — pre-existing, and recorded as an
+    /// set", and deliberately a COUNT rather than a code list. The two files use
+    /// different CODE SPACES: this file's rows are raw upstream codes (Deepgram's
+    /// include <c>multi</c> and region variants like <c>ar-AE</c>, Azure's include
+    /// <c>nb</c> and <c>fil</c>), models-catalog's are folded picker codes
+    /// (<c>no</c>, <c>tl</c>). Putting the folded codes into
+    /// <c>SupportedLanguages</c> for these two rows only — which is what an
+    /// earlier cut of this fix did — left one field answering in two spaces, so
+    /// <c>SupportsLanguage(azureRow, "nb")</c> flipped from true to false while
+    /// every other vendor's row kept the catalog space. A count carries the fact
+    /// the Model Library shows and takes no code space with it.
+    ///
+    /// Deepgram and AssemblyAI have the same provider-level over-claim in
+    /// <c>SupportedLanguages</c> (an English-only medical model listed as if it
+    /// spoke all 88) — pre-existing, unchanged by this file, and recorded as an
     /// open question rather than fixed here.
     /// </summary>
     private static readonly Dictionary<string, string> PerModelLanguageProviders =
@@ -279,17 +286,21 @@ public static class UnifiedModelCatalog
         };
 
     /// <summary>
-    /// Language codes for ONE cloud STT model: the per-model set where the
-    /// catalog pair above says the models differ, otherwise the provider list
-    /// unchanged. A model the per-model file does not carry (a stale id, a new
-    /// row landing in one file first) also keeps the provider list, so a row
-    /// never ends up claiming NO languages.
+    /// How many languages ONE cloud STT model supports, or null when the
+    /// provider list already is this model's list. A model the per-model file
+    /// does not carry (a stale id, a new row landing in one file first) also
+    /// answers null, so a row never ends up claiming NO languages.
+    ///
+    /// Null is also returned when the per-model figure equals the provider's, so
+    /// the field means "this model differs" and never merely restates the list.
     /// </summary>
-    private static IReadOnlyList<string> ModelLanguageCodes(
+    private static int? ModelLanguageCount(
         string providerId, string modelId, IReadOnlyList<string> providerCodes)
-        => PerModelLanguageProviders.TryGetValue(providerId, out var modelsCatalogKey)
-            ? SharedCoreBridge.SharedModelVoiceLanguageCodes(modelsCatalogKey, modelId) ?? providerCodes
-            : providerCodes;
+    {
+        if (!PerModelLanguageProviders.TryGetValue(providerId, out var modelsCatalogKey)) return null;
+        var codes = SharedCoreBridge.SharedModelVoiceLanguageCodes(modelsCatalogKey, modelId);
+        return codes is null || codes.Count == providerCodes.Count ? null : codes.Count;
+    }
 
     private static string Required(string? value, string property)
         => string.IsNullOrWhiteSpace(value)
