@@ -122,7 +122,8 @@ final class NemotronProvider: TranscriptionProvider {
             logger.info("Nemotron \(variant.rawValue, privacy: .public) shared models ready")
             await clearBrokenFlag(for: modelId)
         } catch {
-            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to initialize Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to initialize Nemotron runtime")
@@ -167,11 +168,11 @@ final class NemotronProvider: TranscriptionProvider {
         // PRE-FLIGHT FILE VALIDATION (matches Parakeet path):
         let fm = FileManager.default
         guard fm.fileExists(atPath: audioURL.path) else {
-            logger.error("Audio file not found: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("Nemotron audio file not found")
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio file not found")
         }
         guard fm.isReadableFile(atPath: audioURL.path) else {
-            logger.error("Audio file not readable: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("Nemotron audio file not readable")
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio file is not readable")
         }
         if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
@@ -189,7 +190,8 @@ final class NemotronProvider: TranscriptionProvider {
         do {
             shared = try await runtime.currentShared(for: variant)
         } catch {
-            logger.error("Failed to load Nemotron \(variant.rawValue, privacy: .public) shared models: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to load Nemotron \(variant.rawValue, privacy: .public) shared models; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to load Nemotron runtime")
@@ -209,7 +211,8 @@ final class NemotronProvider: TranscriptionProvider {
         do {
             try await manager.loadFromShared(shared)
         } catch {
-            logger.error("loadFromShared failed for Nemotron \(variant.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("loadFromShared failed for Nemotron \(variant.rawValue, privacy: .public); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await manager.cleanup()
             await flagBroken(for: modelId)
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Failed to load Nemotron runtime")
@@ -220,7 +223,8 @@ final class NemotronProvider: TranscriptionProvider {
         do {
             samples = try Self.loadAudioSamples(from: audioURL)
         } catch {
-            logger.error("Audio conversion failed: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Nemotron audio conversion failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await manager.cleanup()
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Audio conversion failed: \(error.localizedDescription)")
         }
@@ -259,33 +263,32 @@ final class NemotronProvider: TranscriptionProvider {
             }
 
             let errorDescription = error.localizedDescription
-            let errorType = String(describing: type(of: error))
-            logger.error("Nemotron \(variant.rawValue, privacy: .public) transcription failed: \(errorType, privacy: .public) - \(errorDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Nemotron \(variant.rawValue, privacy: .public) transcription failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
 
-            var diagnostic: [String: Any] = [
-                "errorType": errorType,
-                "errorDescription": errorDescription,
-                "variant": variant.rawValue,
-                "modelId": modelId,
-                // Not the file NAME: the import flow makes it the user's own
-                // document name. The extension is the diagnostic part.
-                "audioFileExtension": audioURL.pathExtension
-            ]
-            if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
-               let size = attrs[.size] as? Int64 {
-                diagnostic["fileSizeBytes"] = size
+            if AppLogger.isErrorLoggingEnabled {
+                var diagnostic: [String: Any] = [
+                    "errorDomain": nsError.domain,
+                    "errorCode": nsError.code,
+                    "variant": variant.rawValue,
+                    "modelId": modelId,
+                    "audioFileExtension": audioURL.pathExtension,
+                ]
+                if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
+                   let size = attrs[.size] as? Int64 {
+                    diagnostic["fileSizeBytes"] = size
+                }
+                diagnostic["languageParam"] = language ?? "nil"
+                diagnostic["modeLanguage"] = mode?.language ?? "nil"
+                diagnostic["modeModel"] = mode?.model ?? "nil"
+                diagnostic["vocabularyCount"] = vocabulary.count
+                SentryService.addBreadcrumb(
+                    message: "Nemotron transcription error",
+                    category: "nemotron.transcription",
+                    level: .error,
+                    data: diagnostic
+                )
             }
-            diagnostic["languageParam"] = language ?? "nil"
-            diagnostic["modeLanguage"] = mode?.language ?? "nil"
-            diagnostic["modeModel"] = mode?.model ?? "nil"
-            diagnostic["vocabularyCount"] = vocabulary.count
-
-            SentryService.addBreadcrumb(
-                message: "Nemotron transcription error",
-                category: "nemotron.transcription",
-                level: .error,
-                data: diagnostic
-            )
 
             throw TranscriptionError.providerNotAvailable(provider: "Nemotron", reason: "Transcription failed: \(errorDescription)")
         }
