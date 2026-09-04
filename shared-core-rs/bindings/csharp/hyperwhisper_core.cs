@@ -5130,14 +5130,14 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish();
-            if (checksum != 58592) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish` checksum `58592`, library returned `{checksum}`");
+            if (checksum != 15216) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish` checksum `15216`, library returned `{checksum}`");
             }
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe();
-            if (checksum != 45323) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe` checksum `45323`, library returned `{checksum}`");
+            if (checksum != 29490) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe` checksum `29490`, library returned `{checksum}`");
             }
         }
         {
@@ -5536,10 +5536,14 @@ class FfiConverterByteArray: FfiConverterRustBuffer<byte[]> {
 /// the daemon builds one of these per recording and disposes it — mirroring
 /// `LiveEngineSession`, which owns the engine for exactly one session.
 ///
-/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
-/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
-/// a raw handle to, and dropping the last reference without disposing leaks it
-/// for the life of the process.
+/// Disposal differs by head, and only one head has to act. The Rust side is an
+/// `Arc` the platform holds a raw handle to. In **Swift** the generated class
+/// frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+/// last reference is enough and there is nothing to call. In **C#** the class is
+/// `IDisposable` (with a finalizer as a backstop), so a consumer should
+/// `Dispose` it to release the handle deterministically rather than whenever the
+/// GC gets to it — which is what `LiveEngineSession` wires into its dispose
+/// action.
 ///
 /// Thread safety is a plain `Mutex`, not a re-entrant one: the decode loop and
 /// the stop path both reach the same instance. No method calls another through
@@ -5549,14 +5553,24 @@ internal interface IHwBoundedAgreementSession {
     /// <summary>
     /// The final decode. Mirrors C# `Finish`: the unconfirmed tail is committed
     /// with its overlap against the already-committed text removed.
+    ///
+    /// The cap is checked per word here too, so `LimitExceeded` carries the same
+    /// non-atomic guarantee as [`HwBoundedAgreementSession::observe`]: the words
+    /// that fit before the throw are already committed.
     /// </summary>
     /// <exception cref="HwStreamException"></exception>
     HwStreamUpdate Finish(string @finalHypothesis);
     /// <summary>
     /// One decoded hypothesis. Mirrors C# `Observe`.
     ///
-    /// Fails only when the transcript would cross the cap, and the engine is
-    /// left untouched when it does.
+    /// Fails only when the transcript would cross the cap. **The failure is not
+    /// atomic**, and deliberately so: the C# original commits word by word and
+    /// throws on the first word that would not fit, so words accepted before the
+    /// throw stay committed and the hypothesis that triggered it has already been
+    /// pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
+    /// `LimitExceeded` to see what survived; do not assume the call was a no-op.
+    /// The daemon treats the error as fatal to the session, which is why the
+    /// partial state is never observed in practice.
     /// </summary>
     /// <exception cref="HwStreamException"></exception>
     HwStreamUpdate Observe(string @hypothesis);
@@ -5579,10 +5593,14 @@ internal interface IHwBoundedAgreementSession {
 /// the daemon builds one of these per recording and disposes it — mirroring
 /// `LiveEngineSession`, which owns the engine for exactly one session.
 ///
-/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
-/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
-/// a raw handle to, and dropping the last reference without disposing leaks it
-/// for the life of the process.
+/// Disposal differs by head, and only one head has to act. The Rust side is an
+/// `Arc` the platform holds a raw handle to. In **Swift** the generated class
+/// frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+/// last reference is enough and there is nothing to call. In **C#** the class is
+/// `IDisposable` (with a finalizer as a backstop), so a consumer should
+/// `Dispose` it to release the handle deterministically rather than whenever the
+/// GC gets to it — which is what `LiveEngineSession` wires into its dispose
+/// action.
 ///
 /// Thread safety is a plain `Mutex`, not a re-entrant one: the decode loop and
 /// the stop path both reach the same instance. No method calls another through
@@ -5698,6 +5716,10 @@ internal class HwBoundedAgreementSession : IHwBoundedAgreementSession, IDisposab
     /// <summary>
     /// The final decode. Mirrors C# `Finish`: the unconfirmed tail is committed
     /// with its overlap against the already-committed text removed.
+    ///
+    /// The cap is checked per word here too, so `LimitExceeded` carries the same
+    /// non-atomic guarantee as [`HwBoundedAgreementSession::observe`]: the words
+    /// that fit before the throw are already committed.
     /// </summary>
     /// <exception cref="HwStreamException"></exception>
     public HwStreamUpdate Finish(string @finalHypothesis) {
@@ -5711,8 +5733,14 @@ internal class HwBoundedAgreementSession : IHwBoundedAgreementSession, IDisposab
     /// <summary>
     /// One decoded hypothesis. Mirrors C# `Observe`.
     ///
-    /// Fails only when the transcript would cross the cap, and the engine is
-    /// left untouched when it does.
+    /// Fails only when the transcript would cross the cap. **The failure is not
+    /// atomic**, and deliberately so: the C# original commits word by word and
+    /// throws on the first word that would not fit, so words accepted before the
+    /// throw stay committed and the hypothesis that triggered it has already been
+    /// pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
+    /// `LimitExceeded` to see what survived; do not assume the call was a no-op.
+    /// The daemon treats the error as fatal to the session, which is why the
+    /// partial state is never observed in practice.
     /// </summary>
     /// <exception cref="HwStreamException"></exception>
     public HwStreamUpdate Observe(string @hypothesis) {
@@ -6090,10 +6118,13 @@ class FfiConverterTypeHwLiveSession: FfiConverter<HwLiveSession, IntPtr> {
 /// the state the constructor left it in so the next recording can reuse the
 /// object.
 ///
-/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
-/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
-/// a raw handle to, and dropping the last reference without disposing leaks it
-/// for the life of the process.
+/// Disposal differs by head, and only one head has to act. The Rust side is an
+/// `Arc` the platform holds a raw handle to. In **Swift** the generated class
+/// frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+/// last reference is enough and there is nothing to call. In **C#** the class is
+/// `IDisposable` (with a finalizer as a backstop), so a consumer should
+/// `Dispose` it to release the handle deterministically rather than whenever the
+/// GC gets to it.
 ///
 /// Thread safety is a plain `Mutex`, not a re-entrant one: the decode timer and
 /// the stop path both reach the same instance. No method calls another through
@@ -6131,10 +6162,13 @@ internal interface IHwWordAgreementSession {
 /// the state the constructor left it in so the next recording can reuse the
 /// object.
 ///
-/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
-/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
-/// a raw handle to, and dropping the last reference without disposing leaks it
-/// for the life of the process.
+/// Disposal differs by head, and only one head has to act. The Rust side is an
+/// `Arc` the platform holds a raw handle to. In **Swift** the generated class
+/// frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+/// last reference is enough and there is nothing to call. In **C#** the class is
+/// `IDisposable` (with a finalizer as a backstop), so a consumer should
+/// `Dispose` it to release the handle deterministically rather than whenever the
+/// GC gets to it.
 ///
 /// Thread safety is a plain `Mutex`, not a re-entrant one: the decode timer and
 /// the stop path both reach the same instance. No method calls another through
@@ -6944,7 +6978,7 @@ class FfiConverterTypeHttpResponse: FfiConverterRustBuffer<HttpResponse> {
 /// macOS `AgreementConfig`. Mirrors `hw_text::PairwiseConfig`.
 ///
 /// `transcribeIntervalSeconds` is deliberately absent: it schedules the Swift
-/// decode timer (`ParakeetStreamingSession.swift:140`) and never reaches the
+/// pass timer in `ParakeetStreamingSession.start()` and never reaches the
 /// engine. The Swift struct keeps the field; it just does not cross here.
 ///
 /// The counts are `u32` because UniFFI has no `usize`; they are widened on the

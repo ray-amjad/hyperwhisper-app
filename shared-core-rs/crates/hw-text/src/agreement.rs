@@ -14,7 +14,8 @@
 //! identical pass vs the third) and in their failure mode (infallible vs a
 //! throwing size cap). Closing that drift needs product decisions plus per-word
 //! times and confidence that the daemon's sherpa `OfflineRecognizer` path does
-//! not produce (`LiveEngineSession.cs:75` yields text only) — a separate issue.
+//! not produce (`LiveEngineSession.CreateRollingOffline`'s decode closure yields
+//! `stream.Result.Text` and nothing else) — a separate issue.
 //! What is shared is what is genuinely common: the word normalizers, the
 //! common-prefix helper and the tests that pin each policy. The drift itself is
 //! asserted in `agreement_engines_disagree_on_when_a_stable_pass_commits`, so it
@@ -158,8 +159,10 @@ fn is_swift_word_character(first_scalar: char) -> bool {
     first_scalar.is_alphabetic() || first_scalar.is_numeric() || first_scalar.is_whitespace()
 }
 
-/// Daemon `NormalizeWord` (`LiveEngineSession.cs:214-215`): `ToLowerInvariant()`
-/// then keep `char.IsLetterOrDigit` over UTF-16 code units.
+/// Daemon `NormalizeWord` (the `private static string NormalizeWord` on
+/// `LiveEngineSession`, deleted by this PR — see `LiveEngineSession.cs` at
+/// `03cbc92`): `ToLowerInvariant()` then keep `char.IsLetterOrDigit` over UTF-16
+/// code units.
 ///
 /// Lowercasing is per-`char`, not per-string, because `ToLowerInvariant` applies
 /// no context-sensitive rule; `str::to_lowercase` would lower a final `Σ` to `ς`
@@ -197,8 +200,8 @@ const BOUNDARY_CONFIDENCE_WORDS: usize = 3;
 /// macOS `AgreementConfig`.
 ///
 /// `transcribeIntervalSeconds` is deliberately absent: its only reader is
-/// `ParakeetStreamingSession.swift:140`, which schedules the decode timer. It
-/// never reaches the engine.
+/// `ParakeetStreamingSession.start()`, which turns it into the pass timer's
+/// sleep interval. It never reaches the engine.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PairwiseConfig {
     pub token_confirmations_needed: usize,
@@ -244,8 +247,9 @@ pub struct PairwiseOutcome {
 /// `is_first_pass` burns the first pass without counting it, so a **fourth**
 /// identical pass is what commits, not the third. That is not a bug being
 /// carried over blindly; it is what the shipping macOS test
-/// (`hyperwhisperTests.swift:31-54`) asserts, and `agreement_commits_on_the_fourth_identical_pass`
-/// pins it here.
+/// `agreementEngineCommitsStableSpeechWithoutSentenceEnders`
+/// (`hyperwhisperTests.swift`) asserts, and
+/// `agreement_commits_on_the_fourth_identical_pass` pins it here.
 #[derive(Debug)]
 pub struct PairwiseAgreement {
     config: PairwiseConfig,
@@ -352,7 +356,9 @@ impl PairwiseAgreement {
             self.confirmed_end_time = last.end_time;
         }
         // Reads the just-updated `confirmed_end_time` when the hypothesis is
-        // empty (`WordAgreementEngine.swift:143`).
+        // empty — Swift `hypothesisStartTime = hypothesis.first?.startTime ??
+        // confirmedEndTime` in `processTranscriptionResult`, deleted by this PR
+        // (see `WordAgreementEngine.swift` at `03cbc92`).
         self.hypothesis_start_time = hypothesis
             .first()
             .map_or(self.confirmed_end_time, |word| word.start_time);
@@ -740,7 +746,7 @@ mod tests {
 
     // -- macOS helpers --------------------------------------------------------
 
-    /// `hyperwhisperTests.swift:56-66` `makeWords`.
+    /// `makeWords` from `hyperwhisperTests.swift`.
     fn make_words(texts: &[&str], confidence: f32) -> Vec<TimedWord> {
         texts
             .iter()
@@ -763,8 +769,9 @@ mod tests {
 
     // -- macOS: the shipping test -------------------------------------------
 
-    /// The exact scenario of `hyperwhisperTests.swift:31-54`, including the fact
-    /// that the third identical pass commits nothing.
+    /// The exact scenario of `hyperwhisperTests.swift`'s
+    /// `agreementEngineCommitsStableSpeechWithoutSentenceEnders`, including the
+    /// fact that the third identical pass commits nothing.
     #[test]
     fn agreement_commits_on_the_fourth_identical_pass() {
         let mut engine = PairwiseAgreement::new(PairwiseConfig::default());

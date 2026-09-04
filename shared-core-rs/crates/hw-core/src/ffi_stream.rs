@@ -52,7 +52,7 @@ impl From<HwTimedWord> for leaf::TimedWord {
 /// macOS `AgreementConfig`. Mirrors `hw_text::PairwiseConfig`.
 ///
 /// `transcribeIntervalSeconds` is deliberately absent: it schedules the Swift
-/// decode timer (`ParakeetStreamingSession.swift:140`) and never reaches the
+/// pass timer in `ParakeetStreamingSession.start()` and never reaches the
 /// engine. The Swift struct keeps the field; it just does not cross here.
 ///
 /// The counts are `u32` because UniFFI has no `usize`; they are widened on the
@@ -123,10 +123,13 @@ impl From<leaf::PairwiseOutcome> for HwAgreementPass {
 /// the state the constructor left it in so the next recording can reuse the
 /// object.
 ///
-/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
-/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
-/// a raw handle to, and dropping the last reference without disposing leaks it
-/// for the life of the process.
+/// Disposal differs by head, and only one head has to act. The Rust side is an
+/// `Arc` the platform holds a raw handle to. In **Swift** the generated class
+/// frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+/// last reference is enough and there is nothing to call. In **C#** the class is
+/// `IDisposable` (with a finalizer as a backstop), so a consumer should
+/// `Dispose` it to release the handle deterministically rather than whenever the
+/// GC gets to it.
 ///
 /// Thread safety is a plain `Mutex`, not a re-entrant one: the decode timer and
 /// the stop path both reach the same instance. No method calls another through
@@ -255,10 +258,14 @@ impl From<leaf::AgreementError> for HwStreamError {
 /// the daemon builds one of these per recording and disposes it — mirroring
 /// `LiveEngineSession`, which owns the engine for exactly one session.
 ///
-/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
-/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
-/// a raw handle to, and dropping the last reference without disposing leaks it
-/// for the life of the process.
+/// Disposal differs by head, and only one head has to act. The Rust side is an
+/// `Arc` the platform holds a raw handle to. In **Swift** the generated class
+/// frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+/// last reference is enough and there is nothing to call. In **C#** the class is
+/// `IDisposable` (with a finalizer as a backstop), so a consumer should
+/// `Dispose` it to release the handle deterministically rather than whenever the
+/// GC gets to it — which is what `LiveEngineSession` wires into its dispose
+/// action.
 ///
 /// Thread safety is a plain `Mutex`, not a re-entrant one: the decode loop and
 /// the stop path both reach the same instance. No method calls another through
@@ -304,8 +311,14 @@ impl HwBoundedAgreementSession {
 
     /// One decoded hypothesis. Mirrors C# `Observe`.
     ///
-    /// Fails only when the transcript would cross the cap, and the engine is
-    /// left untouched when it does.
+    /// Fails only when the transcript would cross the cap. **The failure is not
+    /// atomic**, and deliberately so: the C# original commits word by word and
+    /// throws on the first word that would not fit, so words accepted before the
+    /// throw stay committed and the hypothesis that triggered it has already been
+    /// pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
+    /// `LimitExceeded` to see what survived; do not assume the call was a no-op.
+    /// The daemon treats the error as fatal to the session, which is why the
+    /// partial state is never observed in practice.
     pub fn observe(&self, hypothesis: String) -> Result<HwStreamUpdate, HwStreamError> {
         self.locked()
             .observe(&hypothesis)
@@ -315,6 +328,10 @@ impl HwBoundedAgreementSession {
 
     /// The final decode. Mirrors C# `Finish`: the unconfirmed tail is committed
     /// with its overlap against the already-committed text removed.
+    ///
+    /// The cap is checked per word here too, so `LimitExceeded` carries the same
+    /// non-atomic guarantee as [`HwBoundedAgreementSession::observe`]: the words
+    /// that fit before the throw are already committed.
     pub fn finish(&self, final_hypothesis: String) -> Result<HwStreamUpdate, HwStreamError> {
         self.locked()
             .finish(&final_hypothesis)
