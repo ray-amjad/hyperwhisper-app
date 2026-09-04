@@ -164,7 +164,18 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     defaultModel: 'mai-transcribe-1.5',
     fallbackChain: ['azure-mai'],
     async: false,
-    models: [{ id: 'mai-transcribe-1.5', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 }],
+    // ORDER MATTERS: `estimatedUsdPerMinute` falls back to `models[0]` (not to
+    // `defaultModel`) for an unresolved model id, so the DEARER model has to
+    // stay first or a bad model string would under-reserve.
+    //
+    // v2 actually bills $0.10/hr (≈ $0.001667/min), but its reservation figure
+    // is deliberately the 1.5 rate: $0.10/hr is a limited-time offer, and
+    // over-reserving is what the reservation is for. This survives the offer
+    // ending without a code change.
+    models: [
+      { id: 'mai-transcribe-1.5', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 },
+      { id: 'mai-transcribe-2', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 },
+    ],
   },
   'google-chirp': {
     id: 'google-chirp',

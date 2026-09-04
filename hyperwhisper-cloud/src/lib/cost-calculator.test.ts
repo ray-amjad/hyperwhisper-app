@@ -443,6 +443,18 @@ describe('flat per-audio-minute STT rates', () => {
     expect(computeAzureMaiTranscriptionCost(0)).toBe(0);
   });
 
+  test('Azure MAI bills per model, and an unknown model bills at the dearer rate', () => {
+    // 1.5 is $0.006/min; v2 is published at $0.10/hour (a limited-time offer).
+    expect(computeAzureMaiTranscriptionCost(60, 'mai-transcribe-1.5')).toBeCloseTo(0.006, 6);
+    expect(computeAzureMaiTranscriptionCost(3600, 'mai-transcribe-2')).toBeCloseTo(0.10, 6);
+    expect(computeAzureMaiTranscriptionCost(60, 'mai-transcribe-2')).toBeCloseTo(0.10 / 60, 6);
+
+    // Absent or unrecognised model falls back to 1.5 — the dearer of the two,
+    // so a bad model string can never under-bill.
+    expect(computeAzureMaiTranscriptionCost(60)).toBeCloseTo(0.006, 6);
+    expect(computeAzureMaiTranscriptionCost(60, 'mai-transcribe-99')).toBeCloseTo(0.006, 6);
+  });
+
   test('AssemblyAI sync bills its own $0.45/hr rate, above every async tier', () => {
     // The sync product always runs universal-3-5-pro and publishes a higher
     // rate than the async tiers. Reserving at the async rate would under-bill.

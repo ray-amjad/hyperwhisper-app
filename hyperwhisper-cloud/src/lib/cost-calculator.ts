@@ -24,8 +24,18 @@ const GROQ_WHISPER_MIN_BILLABLE_SECONDS = 10;
 // xAI Grok STT Pricing (USD)
 const XAI_STT_COST_PER_AUDIO_HOUR = 0.10;
 
-// Microsoft MAI-Transcribe 1.5 (Azure Speech) Pricing (USD)
-const AZURE_MAI_COST_PER_AUDIO_MINUTE = 0.006;
+// Microsoft MAI-Transcribe (Azure Speech) Pricing (USD) — per-model.
+// 1.5 bills $0.006/min. v2 is published at $0.10 per hour of audio
+// (≈ $0.001667/min), which Microsoft describes as a LIMITED-TIME OFFER running
+// until the end of the year — revisit this rate, and the 1.67 credits/min it
+// backs in cloud-stt-catalog.json, when the offer ends.
+// Refs: https://microsoft.ai/models/mai-transcribe-2/
+//       https://microsoft.ai/news/mai-transcribe-2-is-the-fastest-most-accurate-and-cheapest-speech-recognition-model-in-the-world/
+const AZURE_MAI_COST_PER_AUDIO_MINUTE: Record<string, number> = {
+  'mai-transcribe-1.5': 0.006,
+  'mai-transcribe-2': 0.10 / 60,
+};
+const AZURE_MAI_FALLBACK_COST_PER_AUDIO_MINUTE = AZURE_MAI_COST_PER_AUDIO_MINUTE['mai-transcribe-1.5'];
 
 // Google Cloud Speech-to-Text V2 Chirp 3 Pricing (USD)
 const GOOGLE_CHIRP_COST_PER_AUDIO_MINUTE = 0.016;
@@ -277,8 +287,12 @@ export function computeXaiTranscriptionCost(durationSeconds: number): number {
   return roundUsd(raw);
 }
 
-export function computeAzureMaiTranscriptionCost(durationSeconds: number): number {
-  return computeLinearPerMinuteCost(durationSeconds, AZURE_MAI_COST_PER_AUDIO_MINUTE);
+export function computeAzureMaiTranscriptionCost(durationSeconds: number, model?: string): number {
+  // Unknown/absent model bills at the 1.5 rate — the dearer of the two, so a
+  // model string we don't recognise cannot under-bill.
+  const perMinute = (model ? AZURE_MAI_COST_PER_AUDIO_MINUTE[model] : undefined)
+    ?? AZURE_MAI_FALLBACK_COST_PER_AUDIO_MINUTE;
+  return computeLinearPerMinuteCost(durationSeconds, perMinute);
 }
 
 export function computeGoogleChirpTranscriptionCost(durationSeconds: number): number {

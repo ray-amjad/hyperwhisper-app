@@ -242,7 +242,18 @@ async function callOpenAI(
   return { status: response.status, transcript: data?.text ?? '', detected: data?.language };
 }
 
-async function callAzureMai(audio: Buffer, locale: string | null): Promise<CallResult> {
+// Mirrors AZURE_MAI_WIRE_MODELS in src/providers/azure-mai.ts: 1.5 goes out
+// lowercase, v2 in the doc's own capitalisation.
+const AZURE_PROBE_WIRE_MODELS: Record<string, string> = {
+  'mai-transcribe-1.5': 'mai-transcribe-1.5',
+  'mai-transcribe-2': 'MAI-Transcribe-2',
+};
+
+async function callAzureMai(
+  audio: Buffer,
+  locale: string | null,
+  model: string = 'mai-transcribe-1.5',
+): Promise<CallResult> {
   const region = env('AZURE_PROBE_REGION') ?? 'eastus';
   const key =
     env(`AZURE_SPEECH_KEY_${region.toUpperCase()}`) ??
@@ -250,9 +261,14 @@ async function callAzureMai(audio: Buffer, locale: string | null): Promise<CallR
     env('AZURE_SPEECH_KEY_NORTHEUROPE') ??
     env('AZURE_SPEECH_KEY_SOUTHEASTASIA');
 
-  const definition: Record<string, unknown> = {
-    enhancedMode: { enabled: true, model: 'mai-transcribe-1.5' },
+  const enhancedMode: Record<string, unknown> = {
+    enabled: true,
+    model: AZURE_PROBE_WIRE_MODELS[model] ?? model,
   };
+  // Match the adapter: v2's upstream default is `verbatim`, so it sends `clean`.
+  if (model === 'mai-transcribe-2') enhancedMode.modelOptions = { transcribeStyle: 'clean' };
+
+  const definition: Record<string, unknown> = { enhancedMode };
   if (locale) definition.locales = [locale];
 
   const form = new FormData();
@@ -374,13 +390,17 @@ function openaiRow(
   };
 }
 
-function azureRow(locale: string | null, question: string): ProbeRow {
+function azureRow(
+  locale: string | null,
+  question: string,
+  model: string = 'mai-transcribe-1.5',
+): ProbeRow {
   return {
     provider: 'azure-mai',
-    sent: locale ? `locales: ["${locale}"]` : 'locales omitted',
+    sent: `${model} · ${locale ? `locales: ["${locale}"]` : 'locales omitted'}`,
     question,
     requires: ['AZURE_SPEECH_KEY_EASTUS'],
-    call: audio => callAzureMai(audio, locale),
+    call: audio => callAzureMai(audio, locale, model),
   };
 }
 
@@ -442,6 +462,17 @@ const ROWS: ProbeRow[] = [
   azureRow('nb', 'the code Azure documents for Norwegian'),
   azureRow('zz', 'unknown code — hard fail or ignored?'),
   azureRow(null, 'baseline auto-detect'),
+
+  // --- azure-mai v2: the per-model language split is the whole point here.
+  // `he` is v2-only, so it must bite on v2 and fail on 1.5; `or` we send
+  // upstream but drop from the picker; `fil`/`tl` is the fold we unfold.
+  azureRow('en', 'baseline on v2', 'mai-transcribe-2'),
+  azureRow('he', 'v2-only code — does it bite on v2?', 'mai-transcribe-2'),
+  azureRow('he', 'the same code on 1.5 — expected to be unlisted', 'mai-transcribe-1.5'),
+  azureRow('or', 'listed upstream on both, dropped from our picker', 'mai-transcribe-2'),
+  azureRow('fil', 'the code Azure documents for Filipino', 'mai-transcribe-2'),
+  azureRow('tl', 'the code our picker sends for Filipino', 'mai-transcribe-2'),
+  azureRow('zz', 'unknown code on v2 — hard fail or ignored?', 'mai-transcribe-2'),
 
   // --- elevenlabs: Tagalog naming, plus the 639-3 question. ---
   elevenRow('en', 'baseline'),

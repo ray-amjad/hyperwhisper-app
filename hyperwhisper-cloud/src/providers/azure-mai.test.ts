@@ -193,6 +193,74 @@ describe('transcribeWithAzureMai — request shape', () => {
     expect(lastDefinition.phraseList).toBeUndefined();
   });
 
+  test('sends the exact definition body each model wants, and 1.5 is unchanged', async () => {
+    let lastDefinition: any;
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      lastDefinition = JSON.parse(await (form.get('definition') as Blob).text());
+      return successResponse();
+    }) as unknown as typeof fetch;
+
+    // 1.5 — byte-for-byte what shipped before v2 existed. Lowercase wire model,
+    // no modelOptions at all.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+      model: 'mai-transcribe-1.5',
+    });
+    expect(lastDefinition).toEqual({
+      enhancedMode: { enabled: true, model: 'mai-transcribe-1.5' },
+    });
+
+    // No model at all resolves to the same 1.5 body — an already-shipped client
+    // that sends no X-STT-Model must not move.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav');
+    expect(lastDefinition).toEqual({
+      enhancedMode: { enabled: true, model: 'mai-transcribe-1.5' },
+    });
+
+    // v2 — the doc's capitalisation, and transcribeStyle NESTED inside
+    // enhancedMode. No `diarization` (a top-level sibling upstream) and no
+    // `timestamps`: both change the response shape the parser reads.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+      model: 'mai-transcribe-2',
+    });
+    expect(lastDefinition).toEqual({
+      enhancedMode: {
+        enabled: true,
+        model: 'MAI-Transcribe-2',
+        modelOptions: { transcribeStyle: 'clean' },
+      },
+    });
+    expect(lastDefinition.diarization).toBeUndefined();
+    expect(lastDefinition.enhancedMode.modelOptions.timestamps).toBeUndefined();
+  });
+
+  test('resolves locales against the model that ran, not a single shared list', async () => {
+    let lastDefinition: any;
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      lastDefinition = JSON.parse(await (form.get('definition') as Blob).text());
+      return successResponse();
+    }) as unknown as typeof fetch;
+
+    // Hebrew is on v2's table only. On 1.5 it must fall to auto-detect rather
+    // than pin Azure to a locale that model does not have.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', 'he', undefined, {
+      model: 'mai-transcribe-2',
+    });
+    expect(lastDefinition.locales).toEqual(['he']);
+
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', 'he', undefined, {
+      model: 'mai-transcribe-1.5',
+    });
+    expect(lastDefinition.locales).toBeUndefined();
+
+    // The picker's `tl` unfolds to the `fil` Azure documents.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', 'tl', undefined, {
+      model: 'mai-transcribe-2',
+    });
+    expect(lastDefinition.locales).toEqual(['fil']);
+  });
+
   test('sends the definition part as application/json (Azure rejects text/plain)', async () => {
     let definitionType = '';
     globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
