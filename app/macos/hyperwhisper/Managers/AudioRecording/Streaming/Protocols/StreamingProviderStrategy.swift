@@ -140,11 +140,14 @@ struct StreamingSessionConfig {
     /// Language code (e.g., "en", "ja"). nil = auto-detect
     let language: String?
 
-    /// Comma-separated vocabulary terms for boosting. Consumed by every strategy
-    /// whose `supportsVocabulary` is true (HW Cloud, Deepgram, xAI).
+    /// Comma-separated vocabulary terms for boosting. Consumed for every
+    /// provider the shared capability table answers `liveSupportsVocabulary`
+    /// for — HW Cloud, Deepgram, xAI and Gemini; not ElevenLabs or OpenAI.
+    /// The split, the sanitize, the de-dupe and the cap are the core's
+    /// (`hw_net::helpers::keyword_boost_terms`), not this struct's.
     let vocabulary: String?
 
-    /// API key for direct providers (Deepgram/ElevenLabs/xAI)
+    /// API key for direct providers (Deepgram/ElevenLabs/OpenAI/xAI/Gemini)
     let apiKey: String?
 
     /// Deepgram model ID (e.g., "nova-3-general", "nova-3-medical")
@@ -244,6 +247,21 @@ protocol StreamingProviderStrategy {
     /// and may not emit an explicit "session started" event immediately.
     var sessionStartsOnWebSocketOpen: Bool { get }
 
+    /// Whether a `.sessionComplete` event means the SESSION is over even when the
+    /// client has not asked to stop yet.
+    ///
+    /// True for every provider that emits its completion once, at the end of the
+    /// session. False for Gemini, which emits `serverContent.generationComplete`
+    /// at every TURN boundary: before the client asks to stop, that frame means
+    /// "this utterance is finished", not "the session is finished". Acting on it
+    /// releases the stop sequence's wait early and drops the LAST utterance.
+    ///
+    /// Answered by the strategy rather than decided in the client so the rule
+    /// comes off the shared capability table (`liveCompleteEndsSessionBeforeStop`)
+    /// and cannot drift from the Windows and Linux heads, which key on the same
+    /// bit (`StreamingTranscriptionClient.cs:648-678`).
+    var completeEndsSessionBeforeStop: Bool { get }
+
     /// Called each time an audio chunk is about to be sent.
     ///
     /// USE CASE: Deepgram requires a KeepAlive heartbeat if no audio
@@ -285,6 +303,13 @@ extension StreamingProviderStrategy {
 
     /// Default: provider must emit explicit session started event
     var sessionStartsOnWebSocketOpen: Bool { false }
+
+    /// Default: a completion event ends the session, whenever it arrives.
+    ///
+    /// This is the behaviour every strategy in this app had before the bit
+    /// existed, and it is correct for five of the six providers. Only a strategy
+    /// whose provider emits a completion per TURN overrides it.
+    var completeEndsSessionBeforeStop: Bool { true }
 
     /// Default cloud streaming capture format.
     var audioSampleRate: Double { 16000 }

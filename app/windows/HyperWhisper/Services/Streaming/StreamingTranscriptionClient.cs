@@ -634,6 +634,19 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 Raise(LiveTranscriptChanged, finalText);
                 return;
 
+            // ONE FRAME, TWO HALVES - and the completion half answers to the same
+            // turn-boundary rule as the standalone SessionComplete below.
+            //
+            // Gemini answers audio_stream_end with a single serverContent carrying
+            // the last committed segment AND generationComplete, and the shared core
+            // reports both halves (hw-net live/gemini.rs). Ungated, that same frame
+            // arriving mid-dictation would end the session at a pause and drop the
+            // last utterance - the exact fault the SessionComplete gate below exists
+            // to prevent. The TEXT half is committed either way: a turn's committed
+            // segment belongs in the document whether or not the turn was the last.
+            //
+            // Inert for the other five vendors, which answer
+            // CompleteEndsSessionBeforeStop == true.
             case StreamingProviderEvent.FinalTranscriptAndSessionComplete complete:
                 var completeSegment = AppendFinalTranscript(complete.Text);
                 CurrentPartial = string.Empty;
@@ -641,6 +654,13 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 if (!string.IsNullOrWhiteSpace(completeSegment))
                     Raise(FinalTranscriptSegmentReceived, completeSegment);
                 Raise(FinalTranscriptChanged, completedFinalText);
+                if (!_strategy.CompleteEndsSessionBeforeStop &&
+                    State != StreamingConnectionState.Disconnecting)
+                {
+                    LoggingService.Debug(
+                        $"StreamingTranscriptionClient: turn boundary from {_strategy.TranscriptionProviderLabel} rode in on a final, session continues");
+                    return;
+                }
                 _sessionCompletedTcs?.TrySetResult();
                 Raise(SessionCompleted, complete.DurationSeconds, complete.CreditsUsed);
                 return;

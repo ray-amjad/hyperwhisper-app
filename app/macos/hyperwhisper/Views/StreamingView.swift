@@ -585,7 +585,7 @@ struct StreamingView: View {
         publish: @escaping () -> Void
     ) -> Binding<String> {
         Binding(
-            get: { HyperWhisperCloudStrategy.normalizedCloudTier(read()) },
+            get: { StreamingCloudTier.normalizedCloudTier(read()) },
             set: {
                 publish()
                 write($0)
@@ -601,9 +601,9 @@ struct StreamingView: View {
     /// honours vocabulary terms. True for Deepgram Nova-3, which silently drops
     /// `keyterm` in auto-detect; false for Gemini, which accepts
     /// `custom_vocabulary` there. Applying Deepgram's rule to every tier would
-    /// warn wrongly — and, worse, the strategy would withhold the terms.
+    /// warn wrongly — and, worse, the socket would withhold the terms.
     private var cloudTierRequiresLanguageForVocabulary: Bool {
-        HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary(settingsManager.streamingCloudTier)
+        StreamingCloudTier.tierRequiresLanguageForVocabulary(settingsManager.streamingCloudTier)
     }
 
     // MARK: - Fast Formatting Section (Deepgram Only)
@@ -653,7 +653,8 @@ struct StreamingView: View {
     private var warningsSection: some View {
         // WARNING: Some realtime APIs have no vocabulary boosting capability.
         // xAI is NOT in this list — its WebSocket takes repeated `keyterm` query
-        // items (see XAIStreamingStrategy).
+        // items (see `hw_net::live::xai`, and the shared capability table
+        // `liveSupportsVocabulary` answers from).
         if (selectedProvider == .elevenLabs || selectedProvider == .openAI) && hasVocabularyItems {
             warningRow(
                 message: String(format: "streaming.warning.vocabUnsupported".localized, selectedProvider.displayName)
