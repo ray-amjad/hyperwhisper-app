@@ -350,7 +350,7 @@ describe('azure-mai', () => {
   });
 
   test('scopes the locale table to the model that ran', () => {
-    // Hebrew is on v2's 60-code table and not on 1.5's 42-code one. Sending it
+    // Hebrew is on v2's 60-code table and not on 1.5's 43-code one. Sending it
     // on 1.5 would pin that model to a locale it does not document, so it has
     // to fall to auto-detect instead.
     expect(resolve('azure-mai', 'mai-transcribe-2', 'he')).toBe('he');
@@ -360,6 +360,19 @@ describe('azure-mai', () => {
     expect(resolve('azure-mai', 'mai-transcribe-1.5', 'af')).toBeNull();
     expect(resolve('azure-mai', 'mai-transcribe-2', 'yue')).toBe('yue');
     expect(resolve('azure-mai', 'mai-transcribe-1.5', 'yue')).toBeNull();
+  });
+
+  test('Chinese resolves on BOTH models, not only on v2', () => {
+    // Microsoft's table lists `zh` in the MAI-Transcribe-1.5 column too (43
+    // rows), and our 1.5 set omitted it, so a Mode pinned to Chinese on the 1.5
+    // tier sent no `locales` and fell to auto-detect. `zh` is the one code the
+    // two columns share that we had on only one side.
+    expect(resolve('azure-mai', 'mai-transcribe-1.5', 'zh')).toBe('zh');
+    expect(resolve('azure-mai', 'mai-transcribe-2', 'zh')).toBe('zh');
+    // Region variants strip to the same code on both.
+    expect(resolve('azure-mai', 'mai-transcribe-1.5', 'zh-CN')).toBe('zh');
+    // And the unknown-model fallback (1.5's table) now carries it as well.
+    expect(resolve('azure-mai', 'mai-transcribe-99', 'zh')).toBe('zh');
   });
 
   test('unfolds the picker code for Filipino onto the code Azure documents', () => {
@@ -513,7 +526,7 @@ describe('catalog parity — VALUE space (cloud-stt-catalog.json)', () => {
   test('the UNION of the Azure per-model locale sets matches the catalog exactly', async () => {
     // `azureMaiTranscribe.languages.codes` is provider-level, so since
     // MAI-Transcribe-2 landed it is the union of the two model tables (60
-    // codes), not either one of them. Asserting 1.5's 42 against it would fail;
+    // codes), not either one of them. Asserting 1.5's 43 against it would fail;
     // asserting the union still catches a code added on one side only.
     const codes = await upstreamCodes('azureMaiTranscribe');
     const union = new Set(

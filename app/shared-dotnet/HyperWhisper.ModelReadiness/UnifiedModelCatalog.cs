@@ -256,9 +256,9 @@ public static class UnifiedModelCatalog
     ///
     /// <c>cloud-stt-catalog.json</c>'s <c>languages.codes</c> is provider-level
     /// by schema. For <c>azureMaiTranscribe</c> it is the UNION of
-    /// MAI-Transcribe 2's 60 locales and 1.5's 42, so publishing its LENGTH as
+    /// MAI-Transcribe 2's 60 locales and 1.5's 43, so publishing its LENGTH as
     /// every model's language count made the Model Library tell a 1.5 user the
-    /// model speaks 18 languages it cannot transcribe. The per-model split lives
+    /// model speaks 17 languages it cannot transcribe. The per-model split lives
     /// only in <c>models-catalog.json</c> — the same data the Windows Mode editor
     /// and macOS <c>STTLanguageTemplates</c> narrow on.
     ///

@@ -447,7 +447,7 @@ public static class CloudTranscriptionModels
     /// Microsoft MAI-Transcribe 2 and 1.5 via Azure Speech / Foundry. Routed
     /// through the Fly /transcribe service with X-STT-Provider: azure-mai and
     /// X-STT-Model set to the id below. The two models do NOT share a language
-    /// set — v2 documents 60 codes to 1.5's 42 — so the Mode editor's language
+    /// set — v2 documents 60 codes to 1.5's 43 — so the Mode editor's language
     /// picker narrows per model, not per tier; see ModeEditorWindow.xaml.cs.
     /// </summary>
     public static readonly CloudTranscriptionModel[] MicrosoftAzureSpeech = new[]
@@ -468,7 +468,7 @@ public static class CloudTranscriptionModels
         {
             Id = "mai-transcribe-1.5",
             DisplayName = "MAI-Transcribe 1.5 (Preview)",
-            Description = "Microsoft's 42-language transcription model with contextual biasing.",
+            Description = "Microsoft's 43-language transcription model with contextual biasing.",
             Provider = CloudTranscriptionProvider.MicrosoftAzureSpeech,
             PricePerMinute = 0.006m,
             IsPopular = true

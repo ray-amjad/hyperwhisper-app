@@ -128,7 +128,7 @@ static Task TestCloudSttPerModelLanguagesAsync()
     // PER-MODEL COUNT. The split travels here instead, and only where the models
     // really differ: `null` means "the provider list is this model's list", so a
     // vendor with one table adds no noise.
-    Equal(41, v15.ModelLanguageCount);
+    Equal(42, v15.ModelLanguageCount);
     Equal(59, v2.ModelLanguageCount);
     foreach (var row in rows.Where(x => x.ProviderId != "azure-mai"))
     {
@@ -198,7 +198,7 @@ static Task TestCloudSttLanguageCountAsync()
 
             // The vendor figure is an UPPER BOUND on what the app can offer: the
             // picker can only show a language `hw-catalog`'s language table
-            // knows, so Azure's 60 becomes 59 (no Odia row) and 42 becomes 41.
+            // knows, so Azure's 60 becomes 59 (no Odia row) and 43 becomes 42.
             // The app must never claim MORE than the vendor publishes.
             var appCount = row.ModelLanguageCount ?? row.SupportedLanguages.Count;
             True(appCount <= declared[index],

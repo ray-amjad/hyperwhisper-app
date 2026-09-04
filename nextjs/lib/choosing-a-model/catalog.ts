@@ -288,11 +288,11 @@ const CLOUD_MODELS_RAW = [
   // above CLOUD_MODELS_RAW forbids this column. Fill these in from the board
   // when Artificial Analysis publishes the row.
   { id: "azureMaiTranscribe:mai-transcribe-2", name: "MAI-Transcribe 2", vendorLabel: "Microsoft MAI-Transcribe", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-2", credits: 1.67, wer: null, speedFactor: null, languages: 60, streaming: false, customVocabulary: true, preview: true, isDefault: true, byok: false },
-  // 42, not the provider row's 60: `languages.codes` on `azureMaiTranscribe` is
+  // 43, not the provider row's 60: `languages.codes` on `azureMaiTranscribe` is
   // the UNION of the two models' tables, and this column is per MODEL. The
   // catalog states each model's own figure in `models[].languageCount`, which is
   // what `choosing-a-model-catalog.test.ts` checks these two against.
-  { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: false },
+  { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 43, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: false },
   // Both figures read from the non-streaming leaderboard on 2026-08-28, a later
   // pull than the rest of this column. Artificial Analysis re-runs the board, so
   // any row is only as current as its pull date and the column now holds two of

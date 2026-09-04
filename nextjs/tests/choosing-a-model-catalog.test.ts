@@ -508,12 +508,12 @@ test("documented language counts match the catalog", async () => {
     assert.ok(provider, `no catalog provider for ${model.id}`);
 
     // `languages.count` is PROVIDER-level. Where a provider's models do not
-    // share a table — azureMaiTranscribe's 60 vs 42 — `languages.codes` is
+    // share a table — azureMaiTranscribe's 60 vs 43 — `languages.codes` is
     // their union and each model row states its own `languageCount`. This
     // column is per MODEL, so the row's own figure wins whenever the catalog
     // gives one. Comparing every row to the provider number, which is what
     // this test used to do, cannot see per-model drift for ANY provider: it
-    // certified MAI-Transcribe 1.5 as supporting 18 languages it cannot
+    // certified MAI-Transcribe 1.5 as supporting 17 languages it cannot
     // transcribe, because the union was the only number it could read.
     const perModel = provider.models?.find(
       (entry: { id: string }) => entry.id === model.modelId,

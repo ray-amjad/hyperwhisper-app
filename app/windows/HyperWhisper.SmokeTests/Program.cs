@@ -5572,8 +5572,8 @@ internal static class Program
 
                 Assert(!v15.SupportsAll && !v2.SupportsAll,
                     "an Azure model lost its per-model language set - the picker would fall back to every language");
-                Assert(v15.Codes.Count == 41,
-                    $"mai-transcribe-1.5 should carry 41 picker codes, got {v15.Codes.Count}");
+                Assert(v15.Codes.Count == 42,
+                    $"mai-transcribe-1.5 should carry 42 picker codes, got {v15.Codes.Count}");
                 Assert(v2.Codes.Count == 59,
                     $"mai-transcribe-2 should carry 59 picker codes, got {v2.Codes.Count}");
 
@@ -5583,6 +5583,14 @@ internal static class Program
                     "Hebrew must be v2-only - if both or neither carry it the per-model split is not being read");
                 Assert(v2.Supports("tl") && v2.Supports("yue") && v2.Supports("zh"),
                     "v2 lost one of the codes the upstream->picker fold produces (fil->tl, yue, zh)");
+
+                // `zh` (Chinese simplified) is on BOTH upstream columns and was
+                // missing from 1.5's list until 2026-09-04, so Chinese on the
+                // 1.5 tier sent no locale and fell to auto-detect. It is the one
+                // shared code the split got wrong, so it gets its own assertion
+                // rather than relying on the subset check below.
+                Assert(v15.Supports("zh"),
+                    "mai-transcribe-1.5 lost Chinese - Microsoft lists `zh` in the 1.5 column too");
 
                 // The fold drops Odia on BOTH: upstream lists `or`, the shared
                 // language catalog has no row for it, so no picker can offer it.
