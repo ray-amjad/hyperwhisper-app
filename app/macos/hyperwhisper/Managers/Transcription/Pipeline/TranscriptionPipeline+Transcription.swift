@@ -526,7 +526,7 @@ extension TranscriptionPipeline {
 
                     if shouldCaptureTranscriptionErrorInSentry(error) {
                         SentryService.capture(
-                            error: error,
+                            error: Self.sentrySafeTranscriptionError(error),
                             message: "TranscriptionPipeline.transcribeWithDetails failed",
                             extras: extras,
                             tags: errorTags,
