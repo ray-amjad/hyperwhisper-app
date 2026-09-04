@@ -2,14 +2,12 @@
 // Handles preflight credit checks and post-usage deduction
 
 import type { AuthContext } from './auth';
-import { BYTES_PER_MINUTE_ESTIMATE, CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
+import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
+import { estimateAudioSecondsFromSize } from '../lib/audio-duration';
 import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
 import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { cacheLicense } from '../lib/redis';
-
-// Minimum encoded bitrate expected from clients for conservative credit estimation.
-const MIN_ESTIMATED_SECONDS = 10;
 
 export type CreditsResult =
   | { ok: true }
@@ -19,10 +17,7 @@ export interface CreditEstimateOptions {
   costEstimators?: Array<(durationSeconds: number) => number>;
 }
 
-export function estimateAudioSecondsFromSize(sizeBytes: number): number {
-  const estimatedMinutes = sizeBytes / BYTES_PER_MINUTE_ESTIMATE;
-  return Math.max(MIN_ESTIMATED_SECONDS, estimatedMinutes * 60);
-}
+export { estimateAudioSecondsFromSize };
 
 export function estimateCreditsFromSize(sizeBytes: number, options: CreditEstimateOptions = {}): number {
   const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
