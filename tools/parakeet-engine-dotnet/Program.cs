@@ -476,9 +476,11 @@ internal sealed class EngineSession : IDisposable
     /// from two copies of the same loop.
     /// </para>
     /// <para>
-    /// <see cref="_segmentJoin"/> still feeds the rolling-offline live path's
-    /// <c>BoundedWordAgreement</c>, which is the streaming word-agreement engine
-    /// #286 leaves open and is out of scope here.
+    /// <see cref="_segmentJoin"/> also feeds the rolling-offline live path's
+    /// <c>BoundedWordAgreement</c>, which is now a thin adapter over the core's
+    /// <c>HwBoundedAgreementSession</c> — so the join policy and the streaming
+    /// agreement engine both come from <c>hw_text</c>, and the same string is
+    /// the daemon's only remaining input to either.
     /// </para>
     /// </summary>
     private string JoinSegments(List<string> parts) => JoinSegments(_options.Language, parts);
