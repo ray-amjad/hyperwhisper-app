@@ -236,6 +236,30 @@ struct AudioDeviceNotificationRefreshTests {
         #expect(probe.calls == 2)
     }
 
+    @Test func missingSelectedDeviceDoesNotKeepItsOldActiveName() async {
+        let selected = notificationFirstDevice
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { selectedUID in
+                AudioDeviceNotificationSnapshot(
+                    devices: [],
+                    systemDefaultDeviceUID: nil,
+                    selectedDeviceUID: selectedUID,
+                    inputVolumeScalar: nil,
+                    activeInputDeviceIdentifier: nil,
+                    activeInputDeviceName: nil
+                )
+            }
+        )
+        manager.selectedDevice = selected
+
+        await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+
+        #expect(manager.selectedDevice == nil)
+        #expect(manager.activeInputDeviceIdentifier == nil)
+        #expect(manager.activeInputDeviceName == "audio.device.default".localized)
+    }
+
     @Test func selectionChangeDuringScanKeepsNewerSelectionState() async {
         let scanGate = NotificationScanGate()
         let probe = NotificationScanProbe()

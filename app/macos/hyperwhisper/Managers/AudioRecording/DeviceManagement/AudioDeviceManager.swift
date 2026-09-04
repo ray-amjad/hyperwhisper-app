@@ -369,10 +369,13 @@ class AudioDeviceManager {
 
         // Do not let an old scan replace metrics that belong to a newer user selection.
         if selectedDevice?.uid == snapshot.selectedDeviceUID {
+            let capturedSelectionStillExists = snapshot.selectedDeviceUID.map { selectedUID in
+                snapshot.devices.contains(where: { $0.uid == selectedUID })
+            } ?? true
             inputVolumeScalar = snapshot.inputVolumeScalar
             activeInputDeviceIdentifier = snapshot.activeInputDeviceIdentifier
             activeInputDeviceName = snapshot.activeInputDeviceName
-                ?? selectedDevice?.name
+                ?? (capturedSelectionStillExists ? selectedDevice?.name : nil)
                 ?? "audio.device.default".localized
         }
 
