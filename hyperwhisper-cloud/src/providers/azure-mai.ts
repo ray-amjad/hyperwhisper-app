@@ -18,6 +18,7 @@
 import { AZURE_MAI_MAX_BYTES } from '../lib/constants';
 import { computeAzureMaiTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -32,7 +33,15 @@ import {
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
 
-const DEFAULT_MODEL = 'mai-transcribe-1.5';
+// What this adapter runs when the caller names no model.
+//
+// Read from the registry, never restated: `/transcribe` resolves the model
+// before it dispatches (`resolveModel` in `routes/transcribe.ts`), so in
+// production `context.model` is always one of the ids below and this only
+// covers a direct call. Restating a literal here made the file disagree with
+// `stt-models.ts` — it said 1.5 while the registry said 2 — and the disagreement
+// was invisible because neither fallback could be reached.
+const DEFAULT_MODEL = getProviderDef('azure-mai').defaultModel;
 
 // Internal model id → the string Azure wants in `enhancedMode.model`.
 //
@@ -134,8 +143,14 @@ export async function transcribeWithAzureMai(
 
   const url = `https://${azureRegion}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15`;
 
-  const model = context.model || DEFAULT_MODEL;
-  const wireModel = AZURE_MAI_WIRE_MODELS[model] ?? AZURE_MAI_WIRE_MODELS[DEFAULT_MODEL];
+  // Normalise to a KNOWN id, so the wire string, the `transcribeStyle` branch,
+  // the locale table and the billed rate all describe the same model. Taking
+  // `context.model` verbatim and only falling back on the wire lookup could
+  // send v2's wire string with 1.5's request shape.
+  const model = context.model && context.model in AZURE_MAI_WIRE_MODELS
+    ? context.model
+    : DEFAULT_MODEL;
+  const wireModel = AZURE_MAI_WIRE_MODELS[model];
 
   const resolvedLocale = resolveProviderLanguage({
     provider, model, language, context,

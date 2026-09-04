@@ -180,7 +180,14 @@ Without the secret, Chirp falls back to inline-only and 413s any audio > 9.5 MB.
 
 <important if="you are touching azure-mai.ts or anything that routes audio to Azure MAI-Transcribe">
 
-MAI-Transcribe 1.5 accepts only **WAV, MP3, FLAC**. Anything else (m4a, mp4, webm, opus, ogg, aac, wma) throws `UnsupportedAudioFormatError` BEFORE the multipart upload is built and surfaces as HTTP **415**. Logs `provider.unsupported_audio_format`. Client implication: macOS/Windows must pre-convert non-accepted formats before sending — usually to WAV.
+`azure-mai` serves **two models**, chosen by `X-STT-Model`: `mai-transcribe-2` (the registry default, $0.10/hr — a Microsoft limited-time offer) and `mai-transcribe-1.5` ($0.006/min). A client that sends no `X-STT-Model` is migrated onto v2 — that is what `defaultModel` in `stt-models.ts` means, and `azure-mai.ts` READS that field rather than restating it, so the two cannot disagree.
+
+The two differ on the wire and the difference is not cosmetic:
+- Wire model string: `mai-transcribe-1.5` stays lowercase (that is what shipped and works); v2 is `MAI-Transcribe-2`, the doc's capitalisation. An explicit two-entry map, never a case transform.
+- v2 only sends `enhancedMode.modelOptions.transcribeStyle: "clean"`. v2's upstream default flipped to `verbatim`, so omitting it would start returning "um"/"uh" to dictation users. Do NOT add `diarization` (a top-level sibling) or `modelOptions.timestamps` — both change the response shape, and the parser reads `combinedPhrases[0].text`.
+- Locales differ: 60 for v2, 42 for 1.5 (`AZURE_MAI_MODEL_LOCALES` in `lib/language-codes.ts`), and the rates differ (`cost-calculator.ts`). Both are keyed on the resolved model, so a model added to the registry needs a row in each.
+
+Both models accept only **WAV, MP3, FLAC**. Anything else (m4a, mp4, webm, opus, ogg, aac, wma) throws `UnsupportedAudioFormatError` BEFORE the multipart upload is built and surfaces as HTTP **415**. Logs `provider.unsupported_audio_format`. Client implication: macOS/Windows must pre-convert non-accepted formats before sending — usually to WAV.
 
 Upload cap: 300 MB. Larger payloads throw `AudioTooLargeError('Azure MAI', ...)` at entry → HTTP 413.
 
