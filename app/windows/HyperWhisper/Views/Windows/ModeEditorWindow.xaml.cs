@@ -2668,6 +2668,72 @@ public partial class ModeEditorWindow : Window
                 return;
             }
 
+            // HyperWhisper Cloud Azure MAI tier: the two models do NOT share a
+            // language set. mai-transcribe-2 documents 60 locales, 1.5 only 42,
+            // and `cloud-stt-catalog.json`'s provider-level `languages.codes` is
+            // their UNION — so the tier-keyed fallback below would offer a 1.5
+            // user the 18 codes only v2 has, and Azure would silently fall back
+            // to auto-detect on each of them. The per-model split lives in
+            // `shared-models/models-catalog.json` (`supportedLanguages`), which
+            // is the same data macOS reads through STTLanguageTemplates; reading
+            // it over the FFI here keeps the two heads on one source rather than
+            // retyping the list.
+            //
+            // Deliberately scoped to Azure. The tier branch below is NOT
+            // generalised to per-model for every provider: nova-3-medical's
+            // English-only clamp already sits above with its own vendor-confirmed
+            // reasoning, and no other tier's per-model `supportedLanguages` rows
+            // have been validated against these branches.
+            if (isHyperWhisperCloud
+                && cloudProvider == CloudTranscriptionProvider.MicrosoftAzureSpeech)
+            {
+                var azureSupport = Services.SharedModelsCatalog.GetLanguageSupport(
+                    Services.SharedModelsCatalog.CatalogKey(CloudTranscriptionProvider.MicrosoftAzureSpeech),
+                    CatalogKind.Voice,
+                    effectiveModelId);
+
+                // SupportsAll means the catalog does not carry this id — a stale
+                // saved model, say. Fall through to the tier branch, which is
+                // today's behaviour, so the picker degrades rather than empties.
+                if (!azureSupport.SupportsAll && azureSupport.Codes.Count > 0)
+                {
+                    var allowedAzure = new HashSet<string>(azureSupport.Codes, StringComparer.OrdinalIgnoreCase)
+                    {
+                        "auto",
+                    };
+
+                    var filteredAzure = new List<LanguageInfo>();
+                    foreach (var lang in LanguageInfo.AllLanguages)
+                    {
+                        if (allowedAzure.Contains(lang.Code)) filteredAzure.Add(lang);
+                    }
+
+                    // Same safety net as the tier branch: never show a near-empty
+                    // picker, fall through to the full list instead.
+                    if (filteredAzure.Count > 2)
+                    {
+                        var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+
+                        LanguageCombo.Items.Clear();
+                        foreach (var lang in filteredAzure)
+                        {
+                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
+                        }
+
+                        bool found = false;
+                        if (!string.IsNullOrEmpty(currentLang))
+                        {
+                            foreach (ComboBoxItem item in LanguageCombo.Items)
+                            {
+                                if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
+                            }
+                        }
+                        if (!found) SelectLanguage("auto");
+                        return;
+                    }
+                }
+            }
+
             // HyperWhisper Cloud tiers without a dedicated branch above
             // (Deepgram, OpenAI, ElevenLabs, …): filter to the routed tier's
             // catalog-declared languages. The catalog stores upstream-native codes

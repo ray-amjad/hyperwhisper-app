@@ -5474,6 +5474,57 @@ internal static class Program
                 }
             });
 
+            Run("the Azure MAI language picker narrows per model, not per tier", () =>
+            {
+                // The Mode editor's Azure branch (ModeEditorWindow.xaml.cs) is WPF
+                // UI with no unit-test home, so pin the DATA it reads instead.
+                //
+                // The two Azure models have different language sets, and
+                // cloud-stt-catalog.json's provider-level `languages.codes` is
+                // their UNION — so a tier-keyed filter would offer a 1.5 user the
+                // 18 codes only v2 has, and Azure would silently auto-detect on
+                // each of them. `models-catalog.json` is the only file that
+                // carries the split; this is the assertion that keeps it honest.
+                var key = HyperWhisper.Services.SharedModelsCatalog.CatalogKey(
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech);
+
+                var v15 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-1.5");
+                var v2 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-2");
+
+                Assert(!v15.SupportsAll && !v2.SupportsAll,
+                    "an Azure model lost its per-model language set - the picker would fall back to every language");
+                Assert(v15.Codes.Count == 41,
+                    $"mai-transcribe-1.5 should carry 41 picker codes, got {v15.Codes.Count}");
+                Assert(v2.Codes.Count == 59,
+                    $"mai-transcribe-2 should carry 59 picker codes, got {v2.Codes.Count}");
+
+                // `he` (Hebrew) is the code that proves the split is real: v2
+                // lists it, 1.5 does not.
+                Assert(v2.Supports("he") && !v15.Supports("he"),
+                    "Hebrew must be v2-only - if both or neither carry it the per-model split is not being read");
+                Assert(v2.Supports("tl") && v2.Supports("yue") && v2.Supports("zh"),
+                    "v2 lost one of the codes the upstream->picker fold produces (fil->tl, yue, zh)");
+
+                // The fold drops Odia on BOTH: upstream lists `or`, the shared
+                // language catalog has no row for it, so no picker can offer it.
+                Assert(!v2.Supports("or") && !v15.Supports("or"),
+                    "`or` (Odia) reached a picker set - it has no shared language-catalog row");
+
+                // 1.5's set must be a strict subset of v2's, or one of the two
+                // lists was hand-edited rather than folded from the same source.
+                foreach (var code in v15.Codes)
+                {
+                    Assert(v2.Codes.Contains(code),
+                        $"mai-transcribe-1.5 carries '{code}' but mai-transcribe-2 does not - the two lists have diverged");
+                }
+
+                // And the tier default is v2, which is what the picker preselects.
+                Assert(CloudSttCatalog.Shared.DefaultModelIdForId("azureMaiTranscribe") == "mai-transcribe-2",
+                    "the azureMaiTranscribe tier default is no longer mai-transcribe-2");
+            });
+
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
             {
                 // Configure ONLY the new key. The LEGACY `gemini` post-processing

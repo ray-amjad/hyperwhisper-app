@@ -237,7 +237,7 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
             CloudTranscriptionProvider.HyperWhisperCloud => "",
             CloudTranscriptionProvider.Grok => "",
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-1.5",
+            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-2",
             CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
             _ => "whisper-1"
         };

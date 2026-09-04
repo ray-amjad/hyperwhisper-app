@@ -510,9 +510,26 @@ describe('google-chirp locale tables (no longer catalog-backed)', () => {
 });
 
 describe('catalog parity — VALUE space (cloud-stt-catalog.json)', () => {
-  test('the Azure locale set matches the catalog exactly', async () => {
+  test('the UNION of the Azure per-model locale sets matches the catalog exactly', async () => {
+    // `azureMaiTranscribe.languages.codes` is provider-level, so since
+    // MAI-Transcribe-2 landed it is the union of the two model tables (60
+    // codes), not either one of them. Asserting 1.5's 42 against it would fail;
+    // asserting the union still catches a code added on one side only.
     const codes = await upstreamCodes('azureMaiTranscribe');
-    expect([...__tables.AZURE_MAI_LOCALES].sort()).toEqual([...codes].sort());
+    const union = new Set(
+      Object.values(__tables.AZURE_MAI_MODEL_LOCALES).flatMap(set => [...set]),
+    );
+    expect([...union].sort()).toEqual([...codes].sort());
+  });
+
+  test('no Azure model claims a locale the catalog union omits', async () => {
+    // The other direction, per model — the union assertion above is satisfied
+    // by a code sitting in either table, so this pins which table it may be in.
+    const codes = new Set(await upstreamCodes('azureMaiTranscribe'));
+    for (const [model, set] of Object.entries(__tables.AZURE_MAI_MODEL_LOCALES)) {
+      const strays = [...set].filter(code => !codes.has(code)).sort();
+      expect({ model, strays }).toEqual({ model, strays: [] });
+    }
   });
 
   test('every Azure alias target is a code some Azure model lists', () => {

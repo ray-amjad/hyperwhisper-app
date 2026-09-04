@@ -2,7 +2,7 @@
 //  AzureMAIProvider.swift
 //  hyperwhisper
 //
-//  Microsoft MAI-Transcribe 1.5 via HyperWhisper Cloud.
+//  Microsoft MAI-Transcribe (2 and 1.5) via HyperWhisper Cloud.
 //
 //  This provider routes through the Fly transcribe service (same path as
 //  HyperWhisperCloudProvider) but pins `X-STT-Provider: azure-mai` so the

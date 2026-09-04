@@ -161,7 +161,11 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   },
   'azure-mai': {
     id: 'azure-mai',
-    defaultModel: 'mai-transcribe-1.5',
+    // What an already-shipped client that sends no `X-STT-Model` gets. Flipped
+    // in the same change as the catalog row and every native registry, never
+    // ahead of them — moving it alone would migrate those users onto v2 before
+    // any client, doc or price table said so.
+    defaultModel: 'mai-transcribe-2',
     fallbackChain: ['azure-mai'],
     async: false,
     // ORDER MATTERS: `estimatedUsdPerMinute` falls back to `models[0]` (not to

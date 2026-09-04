@@ -824,8 +824,8 @@
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanced speed and accuracy. Recommended for most users.";
 "modes.cloudAccuracy.grokStt.label" = "High (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - high-accuracy transcription with strong multilingual coverage.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "High (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 languages with contextual biasing.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "High (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Up to 60 languages with contextual biasing.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "High (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingual, with custom vocabulary support.";
 "modes.cloudAccuracy.elevenLabsScribeV2.label" = "Highest (ElevenLabs Scribe v2)";

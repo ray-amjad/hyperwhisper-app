@@ -59,7 +59,7 @@ public enum CloudTranscriptionProvider
     /// <summary>xAI Grok speech-to-text (batch HTTP).</summary>
     Grok = 11,
 
-    /// <summary>Microsoft MAI-Transcribe 1.5 via Azure Speech (HyperWhisper Cloud only).</summary>
+    /// <summary>Microsoft MAI-Transcribe (2 and 1.5) via Azure Speech (HyperWhisper Cloud only).</summary>
     MicrosoftAzureSpeech = 12,
 
     /// <summary>Google Cloud Speech-to-Text V2 Chirp 3 (HyperWhisper Cloud only).</summary>
