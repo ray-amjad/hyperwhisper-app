@@ -52,6 +52,13 @@ enum HyperWhisperRoutedTranscription {
         language: String?,
         mode: Mode?,
         vocabulary: [Vocabulary],
+        // `X-STT-Model`. nil → omitted, and the backend picks its own default.
+        // A routed provider that serves more than one model MUST pass this: the
+        // routed builders read `routedModel` and never `model`, so the caller's
+        // model choice has no other way onto the wire. `AzureMAIProvider` passes
+        // a catalog-validated id; `GoogleChirpProvider` passes nil because
+        // catalog v8 retired its entry, leaving nothing to validate against.
+        routedModel: String? = nil,
         licenseManager: LicenseManager,
         creditManager: HyperWhisperCloudManager
     ) async throws -> String {
@@ -110,6 +117,7 @@ enum HyperWhisperRoutedTranscription {
                 licenseKey: isLicensed ? identifier : nil,
                 deviceID: isLicensed ? nil : identifier,
                 routedProvider: providerHeader,
+                routedModel: routedModel,
                 // Opt-out only: the core sends `X-Latency-Opt-Out: 1` when this
                 // is false and nothing at all when it is true. `isEnabled` is
                 // the opt-out, so it inverts.

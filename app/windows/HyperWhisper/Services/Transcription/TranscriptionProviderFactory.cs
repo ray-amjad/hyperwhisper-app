@@ -114,10 +114,13 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.Meta => ConfigureAndReturn(_meta.Value, apiKey!, effectiveModelId),
             CloudTranscriptionProvider.HyperWhisperCloud => ConfigureHyperWhisperCloud(_hyperWhisperCloud.Value),
             CloudTranscriptionProvider.Grok => ConfigureAndReturn(_grok.Value, apiKey!, effectiveModelId),
-            // HW-Cloud-routed providers — no per-request configuration; the
-            // service is a thin wrapper around HyperWhisperRoutedTranscriptionClient.
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => _azureMai.Value,
-            CloudTranscriptionProvider.GoogleSpeech => _googleChirp.Value,
+            // HW-Cloud-routed providers — no API key, but the selected model
+            // still has to reach the request: it travels as X-STT-Model, which
+            // the routed client only sends when the service resolves one. Azure
+            // MAI serves two models at two prices, so an unconfigured service
+            // silently ran the backend default instead of the user's choice.
+            CloudTranscriptionProvider.MicrosoftAzureSpeech => ConfigureRouted(_azureMai.Value, effectiveModelId),
+            CloudTranscriptionProvider.GoogleSpeech => ConfigureRouted(_googleChirp.Value, effectiveModelId),
             _ => throw new ArgumentException($"Unknown cloud provider: {providerType}")
         };
     }
@@ -211,6 +214,17 @@ public class TranscriptionProviderFactory : IDisposable
     private static ITranscriptionProvider ConfigureAndReturn(ApiKeyTranscriptionServiceBase service, string apiKey, string modelId)
     {
         service.Configure(apiKey, modelId);
+        return service;
+    }
+
+    /// <summary>
+    /// Per-request configuration for a HW-Cloud-routed provider. There is no API
+    /// key to set — only the mode's model id, which the service validates
+    /// against its own catalog entry before it becomes <c>X-STT-Model</c>.
+    /// </summary>
+    private static ITranscriptionProvider ConfigureRouted(RoutedTranscriptionServiceBase service, string? modelId)
+    {
+        service.RequestedModelId = modelId;
         return service;
     }
 

@@ -50,6 +50,26 @@ public abstract class RoutedTranscriptionServiceBase : ITranscriptionProvider, I
     /// </summary>
     protected abstract string SttProviderHeader { get; }
 
+    /// <summary>
+    /// The mode's stored <c>cloudTranscriptionModel</c>, set by
+    /// <c>TranscriptionProviderFactory.GetConfiguredCloudProvider</c> before
+    /// every request — the same per-request configuration
+    /// <c>ApiKeyTranscriptionServiceBase</c> takes through <c>Configure</c>.
+    /// Null means "no selection"; <see cref="ResolveRoutedModel"/> decides what
+    /// that means for the concrete provider.
+    /// </summary>
+    public string? RequestedModelId { get; set; }
+
+    /// <summary>
+    /// The <c>X-STT-Model</c> value for this request, or null to let the
+    /// backend choose. Null by default: a routed provider that serves exactly
+    /// one model has nothing to say here, and a provider whose catalog entry
+    /// was retired has nothing to validate against (GoogleChirp). Overridden by
+    /// <c>AzureMAITranscriptionService</c>, which serves two models at two
+    /// different prices, so an unsent model silently swaps the user's choice.
+    /// </summary>
+    public virtual string? ResolveRoutedModel() => null;
+
     public Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
@@ -66,7 +86,8 @@ public abstract class RoutedTranscriptionServiceBase : ITranscriptionProvider, I
             audioPath,
             language,
             vocabulary,
-            cancellationToken);
+            cancellationToken,
+            model: ResolveRoutedModel());
     }
 
     // Implements IDisposable to satisfy TranscriptionProviderFactory's

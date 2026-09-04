@@ -5474,6 +5474,35 @@ internal static class Program
                 }
             });
 
+            Run("the standalone Azure MAI service sends the mode's model as X-STT-Model", () =>
+            {
+                // AzureMAITranscriptionService routes to the same HW Cloud
+                // /transcribe proxy as the HyperWhisper Cloud tier, where the
+                // model travels ONLY as X-STT-Model (hw-net builds that header
+                // from `routed_model`, never from `model`). Before this was
+                // wired the service sent nothing, so a mode pinned to
+                // mai-transcribe-1.5 transcribed and billed as mai-transcribe-2.
+                var azure = new HyperWhisper.Services.AzureMAITranscriptionService();
+
+                azure.RequestedModelId = "mai-transcribe-1.5";
+                Assert(azure.ResolveRoutedModel() == "mai-transcribe-1.5",
+                    "a mode pinned to mai-transcribe-1.5 did not resolve that model for X-STT-Model");
+
+                azure.RequestedModelId = "mai-transcribe-2";
+                Assert(azure.ResolveRoutedModel() == "mai-transcribe-2",
+                    "a mode pinned to mai-transcribe-2 did not resolve that model for X-STT-Model");
+
+                // A stale id (the field is shared with the BYOK path) degrades to
+                // the catalog default rather than earning a backend 400.
+                azure.RequestedModelId = "whisper-1";
+                Assert(azure.ResolveRoutedModel() == "mai-transcribe-2",
+                    "a stale Azure model id did not fall back to the catalog default");
+
+                azure.RequestedModelId = null;
+                Assert(azure.ResolveRoutedModel() == "mai-transcribe-2",
+                    "an unset Azure model did not fall back to the catalog default");
+            });
+
             Run("the Azure MAI language picker narrows per model, not per tier", () =>
             {
                 // The Mode editor's Azure branch (ModeEditorWindow.xaml.cs) is WPF
