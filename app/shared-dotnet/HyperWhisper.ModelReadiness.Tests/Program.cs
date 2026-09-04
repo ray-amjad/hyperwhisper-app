@@ -9,6 +9,7 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("local catalog maps every managed model", TestLocalCatalogAsync),
     ("cloud STT maps every provider model", TestCloudSttCoverageAsync),
+    ("cloud STT rows never over-claim a sibling model's languages", TestCloudSttPerModelLanguagesAsync),
     ("streaming catalog maps every supported provider", TestStreamingCoverageAsync),
     ("post-processing maps shared model catalogs", TestPostProcessingCoverageAsync),
     ("custom endpoints are isolated rows", TestCustomEndpointsAsync),
@@ -72,6 +73,41 @@ static Task TestCloudSttCoverageAsync()
     {
         True(row.Workload == ModelWorkload.Voice && row.CredentialAccount is not null);
         True(row.CloudTierEligible || row.ByokEligible);
+    }
+    return Task.CompletedTask;
+}
+
+/// <summary>
+/// `cloud-stt-catalog.json`'s `languages.codes` is PROVIDER-level. For Azure MAI
+/// it is the UNION of the two models' sets, so handing it to every model row —
+/// which is what this builder used to do — made the Model Library claim
+/// MAI-Transcribe 1.5 transcribes Hebrew, and `SupportsLanguage("he")` answer
+/// true for it. The per-model split lives in `shared-models/models-catalog.json`.
+/// </summary>
+static Task TestCloudSttPerModelLanguagesAsync()
+{
+    var rows = Load().Where(x => x.Surface == ModelSurface.BatchTranscription
+        && x.Deployment == ModelDeployment.Cloud).ToArray();
+
+    var v15 = rows.Single(x => x.ModelId == "mai-transcribe-1.5");
+    var v2 = rows.Single(x => x.ModelId == "mai-transcribe-2");
+
+    Equal(41, v15.SupportedLanguages.Count);
+    Equal(59, v2.SupportedLanguages.Count);
+
+    // Hebrew is the code that proves the split: v2 lists it, 1.5 does not.
+    True(v2.SupportedLanguages.Contains("he"));
+    True(!v15.SupportedLanguages.Contains("he"));
+    True(!v15.SupportsAllLanguages && !v2.SupportsAllLanguages);
+
+    // Every other provider keeps the provider-level list untouched — this
+    // narrowing is opt-in per provider, because the two files use different
+    // code spaces (see UnifiedModelCatalog.PerModelLanguageProviders).
+    var deepgram = rows.Where(x => x.ProviderId == "deepgram").ToArray();
+    True(deepgram.Length > 1);
+    foreach (var row in deepgram)
+    {
+        Equal(deepgram[0].SupportedLanguages.Count, row.SupportedLanguages.Count);
     }
     return Task.CompletedTask;
 }

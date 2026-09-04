@@ -5554,6 +5554,37 @@ internal static class Program
                     "the azureMaiTranscribe tier default is no longer mai-transcribe-2");
             });
 
+            Run("the Mode editor's per-model Azure language branch is reachable", () =>
+            {
+                // The data assertions above passed for a whole review round while
+                // the branch that reads them could not execute:
+                // ResolveEffectiveCloudProviderAndModel resolved the HW Cloud tier
+                // through FromIdentifier, which has no `azure-mai` arm, so the
+                // branch's `cloudProvider == MicrosoftAzureSpeech` guard was never
+                // true and the picker fell to the tier branch — the 60-code union.
+                // This is the trace, asserted step by step, so a rename or a
+                // dropped arm fails here instead of silently un-filtering.
+                var sttProvider = CloudSttCatalog.Shared.SttProviderForId("azureMaiTranscribe");
+                Assert(sttProvider == "azure-mai",
+                    $"azureMaiTranscribe's sttProvider is '{sttProvider}', not 'azure-mai'");
+                Assert(CloudTranscriptionProviderExtensions.FromCatalogSttProvider(sttProvider)
+                        == CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    "the catalog's azure-mai sttProvider no longer resolves to MicrosoftAzureSpeech - "
+                    + "the Mode editor's per-model Azure language branch is unreachable again");
+
+                // Every HW Cloud tier must resolve to a real provider, or its
+                // provider-keyed branches are dead the same way. Derived from the
+                // catalog, so a new tier is covered the day it lands.
+                foreach (var entry in CloudSttCatalog.Shared.CloudTierEligibleProviders())
+                {
+                    var resolved = CloudTranscriptionProviderExtensions.FromCatalogSttProvider(
+                        CloudSttCatalog.Shared.SttProviderForId(entry.Id));
+                    Assert(resolved != CloudTranscriptionProvider.None,
+                        $"HW Cloud tier '{entry.Id}' resolves to no provider enum; every "
+                        + "provider-keyed branch in the Mode editor is skipped for it");
+                }
+            });
+
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
             {
                 // Configure ONLY the new key. The LEGACY `gemini` post-processing

@@ -616,10 +616,13 @@ public partial class ModeEditorWindow : Window
     /// provider is "hyperwhisper", but the real upstream provider is the selected
     /// accuracy tier's X-STT-Provider value and the model is the selected tier
     /// model (CloudTierModelCombo). For every other (BYOK) provider the model is
-    /// the CloudModelCombo selection. Tiers whose upstream provider has no enum
-    /// mapping (azure-mai / google-chirp / gemini → None) resolve to
-    /// <see cref="CloudTranscriptionProvider.None"/>, so callers fall through to
-    /// their default (full language list) branch. <paramref name="modelId"/> is
+    /// the CloudModelCombo selection. The tier's X-STT-Provider value is mapped
+    /// through <see cref="CloudTranscriptionProviderExtensions.FromCatalogSttProvider"/>,
+    /// which is the only function that knows the catalog-only spellings
+    /// (<c>azure-mai</c>, <c>gemini-transcribe</c>); a tier the catalog does not
+    /// name still resolves to <see cref="CloudTranscriptionProvider.None"/>, so
+    /// callers fall through to their default (full language list) branch.
+    /// <paramref name="modelId"/> is
     /// never null (empty string when unselected, matching the X-STT-Model
     /// "provider default" convention).
     /// </summary>
@@ -632,7 +635,13 @@ public partial class ModeEditorWindow : Window
         {
             var tierId = SelectedCloudTierId();
             var sttProvider = Services.AppClassification.CloudSttCatalog.Shared.SttProviderForId(tierId);
-            provider = CloudTranscriptionProviderExtensions.FromIdentifier(sttProvider);
+            // FromCatalogSttProvider, NOT FromIdentifier: the catalog's
+            // `sttProvider` is the backend dispatch key, a different namespace
+            // from the identifiers we persist. `azure-mai` and
+            // `gemini-transcribe` have no spelling in that other namespace, so
+            // FromIdentifier answered None and every provider-keyed branch below
+            // was skipped for those two tiers.
+            provider = CloudTranscriptionProviderExtensions.FromCatalogSttProvider(sttProvider);
             modelId = (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? string.Empty;
             return;
         }

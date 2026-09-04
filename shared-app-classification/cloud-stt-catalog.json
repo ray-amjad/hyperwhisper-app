@@ -1,6 +1,6 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
-  "version": 11,
+  "version": 12,
   "updated": "2026-09-04",
   "providers": [
     {
@@ -138,8 +138,8 @@
       "sttProvider": "azure-mai",
       "access": { "cloudTierEligible": true, "byokEligible": false },
       "models": [
-        { "id": "mai-transcribe-2", "displayName": "MAI-Transcribe 2", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": true, "supportsCustomVocabulary": true },
-        { "id": "mai-transcribe-1.5", "displayName": "MAI-Transcribe 1.5", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "mai-transcribe-2", "displayName": "MAI-Transcribe 2", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": true, "supportsCustomVocabulary": true, "languageCount": 60 },
+        { "id": "mai-transcribe-1.5", "displayName": "MAI-Transcribe 1.5", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "languageCount": 42 }
       ],
       "modelsCaveat": "`displayName` is the family name (\"Microsoft MAI-Transcribe\"), not a model name — `UnifiedModelCatalog` renders Linux Model Library rows as `{displayName} — {modelName}`, so a versioned family name would read \"MAI-Transcribe 1.5 — MAI-Transcribe 2\". MAI-Transcribe-2's 1.67 credits/min encodes Microsoft's $0.10/hour, which the launch post calls a limited-time offer until the end of the year; revisit the rate here and in `cost-calculator.ts` when it ends.",
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
@@ -157,7 +157,7 @@
         "autoDetectCaveat": "Default is multi-lingual mode; pass `locales` to force a single language.",
         "codeFormat": "ISO-639-1 (with 3-letter codes for `fil`, `yue`)",
         "codes": ["af","ar","as","az","bg","bn","bs","ca","cs","da","de","el","en","es","et","fa","fi","fil","fr","gl","gu","he","hi","hu","hy","id","is","it","ja","kk","kn","ko","lt","lv","mk","ml","mr","ms","nb","ne","nl","or","pa","pl","pt","ro","ru","sk","sl","sv","sw","ta","te","th","tr","uk","ur","vi","yue","zh"],
-        "notes": "UNION of the two models — the tables differ by 18 codes and this field is provider-level. `mai-transcribe-2` supports all 60. `mai-transcribe-1.5` supports 42 of them: the 60 minus `af`, `az`, `bs`, `fa`, `fil`, `gl`, `he`, `hy`, `is`, `kk`, `lv`, `mk`, `ms`, `ne`, `sw`, `ur`, `yue`, `zh`. The per-model split lives in `shared-models/models-catalog.json` (`supportedLanguages`), which is what the macOS and Windows language pickers narrow on; clients that filter at provider level would over-offer on 1.5. Microsoft's table now also lists `zh` for 1.5 (43 rows in that column), which our 1.5 set does NOT yet carry — held back pending separate verification so this change leaves 1.5 byte-identical."
+        "notes": "UNION of the two models — the tables differ by 18 codes and this field is provider-level. Each model row carries its own `languageCount`, which is what any per-model surface must quote. `mai-transcribe-2` supports all 60. `mai-transcribe-1.5` supports 42 of them: the 60 minus `af`, `az`, `bs`, `fa`, `fil`, `gl`, `he`, `hy`, `is`, `kk`, `lv`, `mk`, `ms`, `ne`, `sw`, `ur`, `yue`, `zh`. The per-model CODE LISTS live in `shared-models/models-catalog.json` (`supportedLanguages`), which is what the macOS and Windows language pickers and the Linux Model Library narrow on; a client that filters on this provider-level array over-offers on 1.5. Microsoft's table now also lists `zh` for 1.5 (43 rows in that column), which our 1.5 set does NOT yet carry — held back pending separate verification so this change leaves 1.5 byte-identical."
       },
       "acceptedFormats": ["wav","mp3","flac"],
       "acceptedFormatsCaveat": "HARD restriction — WAV/MP3/FLAC only. Anything else (m4a/mp4/webm/ogg/aac/opus/wma) is rejected with HTTP 415. Client must pre-convert.",
