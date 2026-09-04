@@ -366,7 +366,17 @@ impl PairwiseAgreement {
         // The remaining hypothesis words already appeared in this pass, so their
         // count starts at 1.
         self.consecutive_agreement_count = usize::from(!hypothesis.is_empty());
-        self.previous_normalized = normalized_texts(hypothesis);
+        // `previous_normalized` was replaced with this pass's own normalized
+        // words above, before any of the early returns, so dropping the
+        // confirmed prefix leaves exactly `normalized_texts(hypothesis)` without
+        // normalizing those words a second time. Pinned by
+        // `agreement_commit_drains_the_confirmed_prefix_from_the_previous_pass`.
+        //
+        // `.min(len)` because this crate is `panic = "abort"` and `drain` panics
+        // on an out-of-range end; `confirm_up_to` cannot exceed `words.len()`
+        // here, so the clamp never fires.
+        let drop_up_to = confirm_up_to.min(self.previous_normalized.len());
+        self.previous_normalized.drain(..drop_up_to);
         self.is_first_pass = hypothesis.is_empty();
 
         self.make_result(hypothesis, newly_confirmed)
@@ -805,6 +815,22 @@ mod tests {
         assert_eq!(fourth.confirmed_end_time, 6.5);
         assert_eq!(fourth.hypothesis_start_time, 7.0);
         assert_eq!(engine.confirmed_text(), "this is me testing out to make");
+    }
+
+    /// White-box pin for the drain in the committing path: after a commit the
+    /// retained previous pass must be exactly the normalized hypothesis, which
+    /// is what re-normalizing it used to produce. A future edit that stops
+    /// storing this pass's own words in `previous_normalized` before the early
+    /// returns breaks this, loudly.
+    #[test]
+    fn agreement_commit_drains_the_confirmed_prefix_from_the_previous_pass() {
+        let mut engine = PairwiseAgreement::new(PairwiseConfig::default());
+        let words = ten_words();
+        for _ in 0..4 {
+            let _ = engine.observe(&words, 0.95);
+        }
+        let hypothesis = words.get(7..).expect("ten words confirm the first seven");
+        assert_eq!(engine.previous_normalized, normalized_texts(hypothesis));
     }
 
     /// After a commit the retained hypothesis is the previous pass, so the same
