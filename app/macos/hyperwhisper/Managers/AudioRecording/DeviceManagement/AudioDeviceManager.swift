@@ -27,6 +27,12 @@ struct AudioDeviceNotificationScanReport: Sendable {
     let didPublish: Bool
 }
 
+private struct AudioDeviceNotificationRefreshRequest: Sendable {
+    let generation: Int
+    let origin: AudioDeviceManager.DeviceScanOrigin
+    let selectedDeviceUID: String?
+}
+
 /// High-level audio device management
 ///
 /// **Purpose:**
@@ -106,6 +112,11 @@ class AudioDeviceManager {
     private let notificationSnapshotProvider: NotificationSnapshotProvider
     private let notificationScanReporter: NotificationScanReporter?
     private var notificationRefreshGeneration = 0
+    /// Keep route-change bursts bounded without making one blocked HAL read a process-wide gate.
+    /// Two reads may run at once; further callbacks collapse into the newest pending request.
+    private let maximumConcurrentNotificationScans = 2
+    private var activeNotificationScanCount = 0
+    private var pendingNotificationRefresh: AudioDeviceNotificationRefreshRequest?
 
     init(
         registerNotificationListeners: Bool = true,
@@ -198,7 +209,7 @@ class AudioDeviceManager {
             // CoreAudio reads can block in mach_msg during a route change. The task enters the
             // main actor only to capture and publish state; the complete read runs detached.
             Task { @MainActor in
-                await self.refreshAvailableDevicesFromNotification(reason: origin)
+                self.requestNotificationRefresh(reason: origin)
             }
         }
 
@@ -252,35 +263,78 @@ class AudioDeviceManager {
     /// Run one read-only notification scan away from the main actor, then publish only
     /// if no newer notification scan has completed first. Public/manual scans remain
     /// synchronous because launch restoration and selection depend on that contract.
-    private func refreshAvailableDevicesFromNotification(reason: DeviceScanOrigin) async {
+    private func makeNotificationRefreshRequest(reason: DeviceScanOrigin) -> AudioDeviceNotificationRefreshRequest {
         notificationRefreshGeneration += 1
-        let generation = notificationRefreshGeneration
-        let selectedUID = selectedDevice?.uid
-        let scanStart = Date()
+        return AudioDeviceNotificationRefreshRequest(
+            generation: notificationRefreshGeneration,
+            origin: reason,
+            selectedDeviceUID: selectedDevice?.uid
+        )
+    }
 
-        AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(reason.rawValue, privacy: .public))")
+    private func requestNotificationRefresh(reason: DeviceScanOrigin) {
+        let request = makeNotificationRefreshRequest(reason: reason)
+        guard activeNotificationScanCount < maximumConcurrentNotificationScans else {
+            pendingNotificationRefresh = request
+            return
+        }
+
+        startNotificationRefresh(request)
+    }
+
+    private func startNotificationRefresh(_ request: AudioDeviceNotificationRefreshRequest) {
+        activeNotificationScanCount += 1
+        Task { @MainActor in
+            await performNotificationRefresh(request)
+            activeNotificationScanCount -= 1
+
+            if let pendingNotificationRefresh,
+               activeNotificationScanCount < maximumConcurrentNotificationScans {
+                self.pendingNotificationRefresh = nil
+                startNotificationRefresh(pendingNotificationRefresh)
+            }
+        }
+    }
+
+    private func performNotificationRefresh(_ request: AudioDeviceNotificationRefreshRequest) async {
+
+        AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(request.origin.rawValue, privacy: .public))")
 
         let provider = notificationSnapshotProvider
         let snapshot = await offMainActor {
-            provider(selectedUID)
+            provider(request.selectedDeviceUID)
         }
 
-        let didPublish = generation == notificationRefreshGeneration
+        let didPublish = request.generation == notificationRefreshGeneration
         if didPublish {
             applyNotificationSnapshot(snapshot)
         }
 
         reportNotificationScan(
             snapshot,
-            reason: reason,
-            durationMs: Int(Date().timeIntervalSince(scanStart) * 1000),
+            reason: request.origin,
+            durationMs: 0,
             didPublish: didPublish
         )
     }
 
     /// Internal entry point for hardware-free notification refresh tests.
     func refreshAvailableDevicesFromNotificationForTesting(reason: DeviceScanOrigin) async {
-        await refreshAvailableDevicesFromNotification(reason: reason)
+        await performNotificationRefresh(makeNotificationRefreshRequest(reason: reason))
+    }
+
+    /// Internal entry points for burst and synchronous-scan ordering tests.
+    func requestNotificationRefreshForTesting(reason: DeviceScanOrigin) {
+        requestNotificationRefresh(reason: reason)
+    }
+
+    func invalidateNotificationRefreshesForTesting() {
+        invalidateNotificationRefreshes()
+    }
+
+    private func invalidateNotificationRefreshes() {
+        notificationRefreshGeneration += 1
+        pendingNotificationRefresh = nil
     }
 
     nonisolated static func readNotificationSnapshot(
@@ -401,6 +455,8 @@ class AudioDeviceManager {
     /// - When device list may have changed (device connected/disconnected)
     /// - When refreshing UI
     func updateAvailableDevices(reason: DeviceScanOrigin = .manual) {
+        // A synchronous scan is authoritative over every notification read that started earlier.
+        invalidateNotificationRefreshes()
         let scanStart = Date()
         AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(reason.rawValue, privacy: .public))")
 

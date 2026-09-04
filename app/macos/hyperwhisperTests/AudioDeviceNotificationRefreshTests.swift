@@ -42,6 +42,8 @@ private final class NotificationScanGate: @unchecked Sendable {
 private final class NotificationScanProbe: @unchecked Sendable {
     private struct State {
         var calls = 0
+        var activeCalls = 0
+        var maximumActiveCalls = 0
         var didRunOnMainThread = false
         var reports: [AudioDeviceNotificationScanReport] = []
     }
@@ -50,14 +52,21 @@ private final class NotificationScanProbe: @unchecked Sendable {
 
     var calls: Int { state.withLock { $0.calls } }
     var didRunOnMainThread: Bool { state.withLock { $0.didRunOnMainThread } }
+    var maximumActiveCalls: Int { state.withLock { $0.maximumActiveCalls } }
     var reports: [AudioDeviceNotificationScanReport] { state.withLock { $0.reports } }
 
     func beginCall() -> Int {
         state.withLock {
             $0.calls += 1
+            $0.activeCalls += 1
+            $0.maximumActiveCalls = max($0.maximumActiveCalls, $0.activeCalls)
             $0.didRunOnMainThread = $0.didRunOnMainThread || Thread.isMainThread
             return $0.calls
         }
+    }
+
+    func endCall() {
+        state.withLock { $0.activeCalls -= 1 }
     }
 
     func record(_ report: AudioDeviceNotificationScanReport) {
@@ -138,6 +147,63 @@ struct AudioDeviceNotificationRefreshTests {
         #expect(probe.reports.contains(where: { $0.didPublish }))
         #expect(probe.reports.contains(where: { !$0.didPublish }))
         #expect(probe.reports.allSatisfy { $0.durationMs >= 0 })
+    }
+
+    @Test func notificationBurstKeepsAtMostTwoScansAndCoalescesPendingWork() async {
+        let probe = NotificationScanProbe()
+        let scanGate = NotificationScanGate()
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { _ in
+                _ = probe.beginCall()
+                scanGate.wait()
+                probe.endCall()
+                return notificationSnapshot(devices: [notificationFirstDevice])
+            },
+            notificationScanReporter: { report in probe.record(report) }
+        )
+
+        for _ in 0..<100 {
+            manager.requestNotificationRefreshForTesting(reason: .coreAudioDeviceList)
+        }
+
+        await Self.waitUntil { probe.calls == 2 }
+        #expect(probe.maximumActiveCalls == 2)
+
+        scanGate.release()
+        scanGate.release()
+        await Self.waitUntil { probe.calls == 3 }
+        scanGate.release()
+        await Self.waitUntil { probe.reports.count == 3 }
+
+        #expect(probe.calls == 3)
+        #expect(probe.maximumActiveCalls == 2)
+        #expect(probe.reports.filter(\.didPublish).count == 1)
+    }
+
+    @Test func synchronousScanInvalidatesAnOlderNotificationResult() async {
+        let probe = NotificationScanProbe()
+        let scanGate = NotificationScanGate()
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { _ in
+                _ = probe.beginCall()
+                scanGate.wait()
+                return notificationSnapshot(devices: [notificationFirstDevice])
+            },
+            notificationScanReporter: { report in probe.record(report) }
+        )
+
+        let refresh = Task {
+            await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        }
+        await Self.waitUntil { probe.calls == 1 }
+        manager.invalidateNotificationRefreshesForTesting()
+        scanGate.release()
+        await refresh.value
+
+        #expect(manager.availableDevices.isEmpty)
+        #expect(probe.reports.map(\.didPublish) == [false])
     }
 
     @Test func missingSelectedDeviceInvalidatesOnceWithoutCoreAudio() async {
