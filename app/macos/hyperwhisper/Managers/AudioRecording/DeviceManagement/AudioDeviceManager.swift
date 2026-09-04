@@ -38,6 +38,35 @@ private struct TimedAudioDeviceNotificationSnapshot: Sendable {
     let durationMs: Int
 }
 
+/// CoreAudio property reads are synchronous IPC and can block inside `mach_msg`.
+/// Use a concurrent Dispatch queue so one blocked read does not occupy a Swift
+/// cooperative-executor thread and prevent the second bounded scan from starting.
+private let audioDeviceNotificationScanQueue = DispatchQueue(
+    label: "com.hyperwhisper.audio-device-notification-scan",
+    qos: .userInitiated,
+    attributes: .concurrent
+)
+
+private func readAudioDeviceNotificationSnapshot(
+    selectedDeviceUID: String?,
+    provider: @escaping @Sendable (String?) -> AudioDeviceNotificationSnapshot
+) async -> TimedAudioDeviceNotificationSnapshot {
+    await withCheckedContinuation { continuation in
+        audioDeviceNotificationScanQueue.async {
+            let start = DispatchTime.now().uptimeNanoseconds
+            let snapshot = provider(selectedDeviceUID)
+            let elapsedNanoseconds = DispatchTime.now().uptimeNanoseconds - start
+            let durationMs = Int(min(elapsedNanoseconds / 1_000_000, UInt64(Int.max)))
+            continuation.resume(
+                returning: TimedAudioDeviceNotificationSnapshot(
+                    snapshot: snapshot,
+                    durationMs: durationMs
+                )
+            )
+        }
+    }
+}
+
 /// High-level audio device management
 ///
 /// **Purpose:**
@@ -308,13 +337,10 @@ class AudioDeviceManager {
         AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(request.origin.rawValue, privacy: .public))")
 
         let provider = notificationSnapshotProvider
-        let timedSnapshot = await offMainActor {
-            let start = DispatchTime.now().uptimeNanoseconds
-            let snapshot = provider(request.selectedDeviceUID)
-            let elapsedNanoseconds = DispatchTime.now().uptimeNanoseconds - start
-            let durationMs = Int(min(elapsedNanoseconds / 1_000_000, UInt64(Int.max)))
-            return TimedAudioDeviceNotificationSnapshot(snapshot: snapshot, durationMs: durationMs)
-        }
+        let timedSnapshot = await readAudioDeviceNotificationSnapshot(
+            selectedDeviceUID: request.selectedDeviceUID,
+            provider: provider
+        )
         let snapshot = timedSnapshot.snapshot
 
         let didPublish = request.generation > notificationRefreshCompletionWatermark
