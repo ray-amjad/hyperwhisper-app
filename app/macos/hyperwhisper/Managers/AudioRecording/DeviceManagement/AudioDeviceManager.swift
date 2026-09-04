@@ -146,8 +146,9 @@ class AudioDeviceManager {
     private let notificationSnapshotProvider: NotificationSnapshotProvider
     private let notificationScanReporter: NotificationScanReporter?
     private var notificationRefreshGeneration = 0
-    /// The newest notification generation that published, or that a synchronous scan invalidated.
-    /// A scan can publish after a newer request starts, but never after a newer result or sync scan wins.
+    /// The newest notification generation that published, or that later work invalidated.
+    /// Two active scans may publish in completion order. Once a burst creates pending work,
+    /// only that newest coalesced request may publish.
     private var notificationRefreshCompletionWatermark = 0
     /// Keep route-change bursts bounded without making one blocked HAL read a process-wide gate.
     /// Two reads may run at once; further callbacks collapse into the newest pending request.
@@ -312,6 +313,12 @@ class AudioDeviceManager {
     private func requestNotificationRefresh(reason: DeviceScanOrigin) {
         let request = makeNotificationRefreshRequest(reason: reason)
         guard activeNotificationScanCount < maximumConcurrentNotificationScans else {
+            // A third request turns this into a burst. Supersede both active reads while
+            // leaving the newest pending generation eligible to publish when it runs.
+            notificationRefreshCompletionWatermark = max(
+                notificationRefreshCompletionWatermark,
+                request.generation - 1
+            )
             pendingNotificationRefresh = request
             return
         }
