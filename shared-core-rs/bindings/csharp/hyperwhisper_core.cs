@@ -1272,6 +1272,26 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1279,6 +1299,30 @@ static class _UniFFILib {
         
         UniffiCallbackInterfaceKeyValueStore.Register();
         }
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr uniffi_hyperwhisper_core_fn_clone_hwboundedagreementsession(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_hyperwhisper_core_fn_free_hwboundedagreementsession(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr uniffi_hyperwhisper_core_fn_constructor_hwboundedagreementsession_new(RustBuffer @join,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_finish(IntPtr @ptr,RustBuffer @finalHypothesis,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_observe(IntPtr @ptr,RustBuffer @hypothesis,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_preview(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr uniffi_hyperwhisper_core_fn_clone_hwlivesession(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
@@ -1318,6 +1362,30 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_stop_sequence(IntPtr @ptr,ulong @nowMs,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr uniffi_hyperwhisper_core_fn_clone_hwwordagreementsession(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_hyperwhisper_core_fn_free_hwwordagreementsession(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr uniffi_hyperwhisper_core_fn_constructor_hwwordagreementsession_new(RustBuffer @config,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_confirmed_text(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_observe(IntPtr @ptr,RustBuffer @words,float @passConfidence,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_reset(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3513,6 +3581,18 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_preview(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect(
     );
 
@@ -3541,6 +3621,18 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_confirmed_text(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_observe(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_reset(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get(
     );
 
@@ -3553,7 +3645,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_constructor_hwboundedagreementsession_new(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_constructor_hwwordagreementsession_new(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -5029,6 +5129,24 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish();
+            if (checksum != 58592) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish` checksum `58592`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe();
+            if (checksum != 45323) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe` checksum `45323`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_preview();
+            if (checksum != 58427) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_preview` checksum `58427`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect();
             if (checksum != 14844) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect` checksum `14844`, library returned `{checksum}`");
@@ -5071,6 +5189,24 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_confirmed_text();
+            if (checksum != 21300) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_confirmed_text` checksum `21300`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_observe();
+            if (checksum != 27794) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_observe` checksum `27794`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_reset();
+            if (checksum != 35155) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_reset` checksum `35155`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get();
             if (checksum != 51792) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get` checksum `51792`, library returned `{checksum}`");
@@ -5089,9 +5225,21 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_constructor_hwboundedagreementsession_new();
+            if (checksum != 54930) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_constructor_hwboundedagreementsession_new` checksum `54930`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new();
             if (checksum != 27481) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new` checksum `27481`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_constructor_hwwordagreementsession_new();
+            if (checksum != 60590) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_constructor_hwwordagreementsession_new` checksum `60590`, library returned `{checksum}`");
             }
         }
     }
@@ -5375,6 +5523,248 @@ class FfiConverterByteArray: FfiConverterRustBuffer<byte[]> {
     public override void Write(byte[] value, BigEndianStream stream) {
         stream.WriteInt(value.Length);
         stream.WriteBytes(value);
+    }
+}
+
+
+
+/// <summary>
+/// The parakeet daemon's streaming agreement engine: LocalAgreement-3 over the
+/// last three retained hypotheses, with a size cap.
+///
+/// The lifecycle is `new` → `observe`\* → `finish`. There is no `reset`, because
+/// the daemon builds one of these per recording and disposes it — mirroring
+/// `LiveEngineSession`, which owns the engine for exactly one session.
+///
+/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
+/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+/// a raw handle to, and dropping the last reference without disposing leaks it
+/// for the life of the process.
+///
+/// Thread safety is a plain `Mutex`, not a re-entrant one: the decode loop and
+/// the stop path both reach the same instance. No method calls another through
+/// the FFI, so there is nothing to re-enter.
+/// </summary>
+internal interface IHwBoundedAgreementSession {
+    /// <summary>
+    /// The final decode. Mirrors C# `Finish`: the unconfirmed tail is committed
+    /// with its overlap against the already-committed text removed.
+    /// </summary>
+    /// <exception cref="HwStreamException"></exception>
+    HwStreamUpdate Finish(string @finalHypothesis);
+    /// <summary>
+    /// One decoded hypothesis. Mirrors C# `Observe`.
+    ///
+    /// Fails only when the transcript would cross the cap, and the engine is
+    /// left untouched when it does.
+    /// </summary>
+    /// <exception cref="HwStreamException"></exception>
+    HwStreamUpdate Observe(string @hypothesis);
+    /// <summary>
+    /// The committed prefix plus the newest hypothesis.
+    ///
+    /// **Do not call this on a per-audio-chunk path.** `observe` and `finish`
+    /// already return the same string in `HwStreamUpdate::preview`; a caller
+    /// that polls per chunk must cache what they returned, which is why
+    /// `LiveEngineSession.cs` reads a field rather than an accessor. This exists
+    /// for a caller that has no recent update to cache.
+    /// </summary>
+    string Preview();
+}
+/// <summary>
+/// The parakeet daemon's streaming agreement engine: LocalAgreement-3 over the
+/// last three retained hypotheses, with a size cap.
+///
+/// The lifecycle is `new` → `observe`\* → `finish`. There is no `reset`, because
+/// the daemon builds one of these per recording and disposes it — mirroring
+/// `LiveEngineSession`, which owns the engine for exactly one session.
+///
+/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
+/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+/// a raw handle to, and dropping the last reference without disposing leaks it
+/// for the life of the process.
+///
+/// Thread safety is a plain `Mutex`, not a re-entrant one: the decode loop and
+/// the stop path both reach the same instance. No method calls another through
+/// the FFI, so there is nothing to re-enter.
+/// </summary>
+internal class HwBoundedAgreementSession : IHwBoundedAgreementSession, IDisposable {
+    protected IntPtr pointer;
+    private int _wasDestroyed = 0;
+    private long _callCounter = 1;
+
+    public HwBoundedAgreementSession(IntPtr pointer) {
+        this.pointer = pointer;
+    }
+
+    ~HwBoundedAgreementSession() {
+        Destroy();
+    }
+    /// <summary>
+    /// Build an engine that joins words with `join`.
+    ///
+    /// `join` is the session's only degree of freedom, matching the daemon's
+    /// `new BoundedWordAgreement(join)`: `" "` for spaced languages and `""` for
+    /// the continuous scripts (`hw_text::is_no_space_language`). Everything else
+    /// — three confirmations, eight minimum words, three trailing words, the
+    /// 512 KiB cap — is fixed, exactly as it is in C#.
+    ///
+    /// An exported constructor for the same reason
+    /// [`HwWordAgreementSession::new`] is one: without it a consumer can name
+    /// the type and never instantiate it.
+    /// </summary>
+    public HwBoundedAgreementSession(string @join) :
+        this(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_constructor_hwboundedagreementsession_new(FfiConverterString.INSTANCE.Lower(@join), ref _status)
+)) {}
+
+    protected void FreeRustArcPtr() {
+        _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
+            _UniFFILib.uniffi_hyperwhisper_core_fn_free_hwboundedagreementsession(this.pointer, ref status);
+        });
+    }
+
+    protected IntPtr CloneRustArcPtr() {
+        return _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
+            return _UniFFILib.uniffi_hyperwhisper_core_fn_clone_hwboundedagreementsession(this.pointer, ref status);
+        });
+    }
+
+    public void Destroy()
+    {
+        // Only allow a single call to this method.
+        if (Interlocked.CompareExchange(ref _wasDestroyed, 1, 0) == 0)
+        {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (Interlocked.Decrement(ref _callCounter) == 0)
+            {
+                FreeRustArcPtr();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        Destroy();
+        GC.SuppressFinalize(this); // Suppress finalization to avoid unnecessary GC overhead.
+    }
+
+    private void IncrementCallCounter() 
+    {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        long count;
+        do
+        {
+            count = Interlocked.Read(ref _callCounter);
+            if (count == 0L) throw new System.ObjectDisposedException(String.Format("'{0}' object has already been destroyed", this.GetType().Name));
+            if (count == long.MaxValue) throw new System.OverflowException(String.Format("'{0}' call counter would overflow", this.GetType().Name));
+
+        } while (Interlocked.CompareExchange(ref _callCounter, count + 1, count) != count);
+    }
+
+    private void DecrementCallCounter() 
+    {
+        // This decrement always matches the increment we performed above.
+        if (Interlocked.Decrement(ref _callCounter) == 0) {
+            FreeRustArcPtr();
+        }
+    }
+
+    internal void CallWithPointer(Action<IntPtr> action)
+    {
+        IncrementCallCounter();
+        try {
+            action(CloneRustArcPtr());
+        }
+        finally {
+            DecrementCallCounter();
+        }
+    }
+
+    internal T CallWithPointer<T>(Func<IntPtr, T> func)
+    {   
+        IncrementCallCounter();
+        try {
+            return func(CloneRustArcPtr());
+        }
+        finally {
+            DecrementCallCounter();
+        }
+    }
+
+    
+    /// <summary>
+    /// The final decode. Mirrors C# `Finish`: the unconfirmed tail is committed
+    /// with its overlap against the already-committed text removed.
+    /// </summary>
+    /// <exception cref="HwStreamException"></exception>
+    public HwStreamUpdate Finish(string @finalHypothesis) {
+        return CallWithPointer(thisPtr => FfiConverterTypeHwStreamUpdate.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwStreamError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_finish(thisPtr, FfiConverterString.INSTANCE.Lower(@finalHypothesis), ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// One decoded hypothesis. Mirrors C# `Observe`.
+    ///
+    /// Fails only when the transcript would cross the cap, and the engine is
+    /// left untouched when it does.
+    /// </summary>
+    /// <exception cref="HwStreamException"></exception>
+    public HwStreamUpdate Observe(string @hypothesis) {
+        return CallWithPointer(thisPtr => FfiConverterTypeHwStreamUpdate.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwStreamError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_observe(thisPtr, FfiConverterString.INSTANCE.Lower(@hypothesis), ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// The committed prefix plus the newest hypothesis.
+    ///
+    /// **Do not call this on a per-audio-chunk path.** `observe` and `finish`
+    /// already return the same string in `HwStreamUpdate::preview`; a caller
+    /// that polls per chunk must cache what they returned, which is why
+    /// `LiveEngineSession.cs` reads a field rather than an accessor. This exists
+    /// for a caller that has no recent update to cache.
+    /// </summary>
+    public string Preview() {
+        return CallWithPointer(thisPtr => FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_preview(thisPtr,  ref _status)
+)));
+    }
+    
+    
+
+    
+}
+class FfiConverterTypeHwBoundedAgreementSession: FfiConverter<HwBoundedAgreementSession, IntPtr> {
+    public static FfiConverterTypeHwBoundedAgreementSession INSTANCE = new FfiConverterTypeHwBoundedAgreementSession();
+
+
+    public override IntPtr Lower(HwBoundedAgreementSession value) {
+        return value.CallWithPointer(thisPtr => thisPtr);
+    }
+
+    public override HwBoundedAgreementSession Lift(IntPtr value) {
+        return new HwBoundedAgreementSession(value);
+    }
+
+    public override HwBoundedAgreementSession Read(BigEndianStream stream) {
+        return Lift(new IntPtr(stream.ReadLong()));
+    }
+
+    public override int AllocationSize(HwBoundedAgreementSession value) {
+        return 8;
+    }
+
+    public override void Write(HwBoundedAgreementSession value, BigEndianStream stream) {
+        stream.WriteLong(Lower(value).ToInt64());
     }
 }
 
@@ -5686,6 +6076,241 @@ class FfiConverterTypeHwLiveSession: FfiConverter<HwLiveSession, IntPtr> {
     }
 
     public override void Write(HwLiveSession value, BigEndianStream stream) {
+        stream.WriteLong(Lower(value).ToInt64());
+    }
+}
+
+
+
+/// <summary>
+/// The macOS streaming agreement engine: one pass in, the confirmed/hypothesis
+/// split out.
+///
+/// The lifecycle is `new` → `observe`\* → `reset`, where `reset` returns it to
+/// the state the constructor left it in so the next recording can reuse the
+/// object.
+///
+/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
+/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+/// a raw handle to, and dropping the last reference without disposing leaks it
+/// for the life of the process.
+///
+/// Thread safety is a plain `Mutex`, not a re-entrant one: the decode timer and
+/// the stop path both reach the same instance. No method calls another through
+/// the FFI, so there is nothing to re-enter.
+/// </summary>
+internal interface IHwWordAgreementSession {
+    /// <summary>
+    /// The confirmed prefix, space-joined.
+    ///
+    /// [`HwWordAgreementSession::observe`] already returns this inside
+    /// `full_text`; this is for a caller that needs the confirmed half alone,
+    /// off the audio path.
+    /// </summary>
+    string ConfirmedText();
+    /// <summary>
+    /// One decode pass. Mirrors Swift
+    /// `processTranscriptionResult(words:resultConfidence:)`.
+    ///
+    /// `pass_confidence` is the whole pass's score, separate from the per-word
+    /// confidences: a pass below `min_pass_confidence` is still shown as
+    /// hypothesis, but it resets the agreement counter.
+    /// </summary>
+    HwAgreementPass Observe(List<HwTimedWord> @words, float @passConfidence);
+    /// <summary>
+    /// Forget every pass this engine has seen, including the confirmed prefix
+    /// and both cached times. What lets one object serve consecutive recordings.
+    /// </summary>
+    void Reset();
+}
+/// <summary>
+/// The macOS streaming agreement engine: one pass in, the confirmed/hypothesis
+/// split out.
+///
+/// The lifecycle is `new` → `observe`\* → `reset`, where `reset` returns it to
+/// the state the constructor left it in so the next recording can reuse the
+/// object.
+///
+/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
+/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+/// a raw handle to, and dropping the last reference without disposing leaks it
+/// for the life of the process.
+///
+/// Thread safety is a plain `Mutex`, not a re-entrant one: the decode timer and
+/// the stop path both reach the same instance. No method calls another through
+/// the FFI, so there is nothing to re-enter.
+/// </summary>
+internal class HwWordAgreementSession : IHwWordAgreementSession, IDisposable {
+    protected IntPtr pointer;
+    private int _wasDestroyed = 0;
+    private long _callCounter = 1;
+
+    public HwWordAgreementSession(IntPtr pointer) {
+        this.pointer = pointer;
+    }
+
+    ~HwWordAgreementSession() {
+        Destroy();
+    }
+    /// <summary>
+    /// Build an engine for `config`.
+    ///
+    /// An exported constructor, not a `word_agreement_session_new(config)` free
+    /// function: a `#[uniffi::Object]` gets no foreign constructor unless one is
+    /// exported, and without it a consumer can name the type and never
+    /// instantiate it. This renders as `new HwWordAgreementSession(config)` in
+    /// C# and `HwWordAgreementSession(config:)` in Swift.
+    /// </summary>
+    public HwWordAgreementSession(HwAgreementConfig @config) :
+        this(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_constructor_hwwordagreementsession_new(FfiConverterTypeHwAgreementConfig.INSTANCE.Lower(@config), ref _status)
+)) {}
+
+    protected void FreeRustArcPtr() {
+        _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
+            _UniFFILib.uniffi_hyperwhisper_core_fn_free_hwwordagreementsession(this.pointer, ref status);
+        });
+    }
+
+    protected IntPtr CloneRustArcPtr() {
+        return _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
+            return _UniFFILib.uniffi_hyperwhisper_core_fn_clone_hwwordagreementsession(this.pointer, ref status);
+        });
+    }
+
+    public void Destroy()
+    {
+        // Only allow a single call to this method.
+        if (Interlocked.CompareExchange(ref _wasDestroyed, 1, 0) == 0)
+        {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (Interlocked.Decrement(ref _callCounter) == 0)
+            {
+                FreeRustArcPtr();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        Destroy();
+        GC.SuppressFinalize(this); // Suppress finalization to avoid unnecessary GC overhead.
+    }
+
+    private void IncrementCallCounter() 
+    {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        long count;
+        do
+        {
+            count = Interlocked.Read(ref _callCounter);
+            if (count == 0L) throw new System.ObjectDisposedException(String.Format("'{0}' object has already been destroyed", this.GetType().Name));
+            if (count == long.MaxValue) throw new System.OverflowException(String.Format("'{0}' call counter would overflow", this.GetType().Name));
+
+        } while (Interlocked.CompareExchange(ref _callCounter, count + 1, count) != count);
+    }
+
+    private void DecrementCallCounter() 
+    {
+        // This decrement always matches the increment we performed above.
+        if (Interlocked.Decrement(ref _callCounter) == 0) {
+            FreeRustArcPtr();
+        }
+    }
+
+    internal void CallWithPointer(Action<IntPtr> action)
+    {
+        IncrementCallCounter();
+        try {
+            action(CloneRustArcPtr());
+        }
+        finally {
+            DecrementCallCounter();
+        }
+    }
+
+    internal T CallWithPointer<T>(Func<IntPtr, T> func)
+    {   
+        IncrementCallCounter();
+        try {
+            return func(CloneRustArcPtr());
+        }
+        finally {
+            DecrementCallCounter();
+        }
+    }
+
+    
+    /// <summary>
+    /// The confirmed prefix, space-joined.
+    ///
+    /// [`HwWordAgreementSession::observe`] already returns this inside
+    /// `full_text`; this is for a caller that needs the confirmed half alone,
+    /// off the audio path.
+    /// </summary>
+    public string ConfirmedText() {
+        return CallWithPointer(thisPtr => FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_confirmed_text(thisPtr,  ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// One decode pass. Mirrors Swift
+    /// `processTranscriptionResult(words:resultConfidence:)`.
+    ///
+    /// `pass_confidence` is the whole pass's score, separate from the per-word
+    /// confidences: a pass below `min_pass_confidence` is still shown as
+    /// hypothesis, but it resets the agreement counter.
+    /// </summary>
+    public HwAgreementPass Observe(List<HwTimedWord> @words, float @passConfidence) {
+        return CallWithPointer(thisPtr => FfiConverterTypeHwAgreementPass.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_observe(thisPtr, FfiConverterSequenceTypeHwTimedWord.INSTANCE.Lower(@words), FfiConverterFloat.INSTANCE.Lower(@passConfidence), ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// Forget every pass this engine has seen, including the confirmed prefix
+    /// and both cached times. What lets one object serve consecutive recordings.
+    /// </summary>
+    public void Reset() {
+        CallWithPointer(thisPtr =>
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_reset(thisPtr,  ref _status)
+));
+    }
+    
+    
+    
+
+    
+}
+class FfiConverterTypeHwWordAgreementSession: FfiConverter<HwWordAgreementSession, IntPtr> {
+    public static FfiConverterTypeHwWordAgreementSession INSTANCE = new FfiConverterTypeHwWordAgreementSession();
+
+
+    public override IntPtr Lower(HwWordAgreementSession value) {
+        return value.CallWithPointer(thisPtr => thisPtr);
+    }
+
+    public override HwWordAgreementSession Lift(IntPtr value) {
+        return new HwWordAgreementSession(value);
+    }
+
+    public override HwWordAgreementSession Read(BigEndianStream stream) {
+        return Lift(new IntPtr(stream.ReadLong()));
+    }
+
+    public override int AllocationSize(HwWordAgreementSession value) {
+        return 8;
+    }
+
+    public override void Write(HwWordAgreementSession value, BigEndianStream stream) {
         stream.WriteLong(Lower(value).ToInt64());
     }
 }
@@ -6310,6 +6935,138 @@ class FfiConverterTypeHttpResponse: FfiConverterRustBuffer<HttpResponse> {
             FfiConverterUInt16.INSTANCE.Write(value.@status, stream);
             FfiConverterSequenceTypeHeader.INSTANCE.Write(value.@headers, stream);
             FfiConverterByteArray.INSTANCE.Write(value.@body, stream);
+    }
+}
+
+
+
+/// <summary>
+/// macOS `AgreementConfig`. Mirrors `hw_text::PairwiseConfig`.
+///
+/// `transcribeIntervalSeconds` is deliberately absent: it schedules the Swift
+/// decode timer (`ParakeetStreamingSession.swift:140`) and never reaches the
+/// engine. The Swift struct keeps the field; it just does not cross here.
+///
+/// The counts are `u32` because UniFFI has no `usize`; they are widened on the
+/// way in, which is lossless on every target this ships to.
+/// </summary>
+/// <param name="min_pass_confidence">
+/// Passes below this show as hypothesis but do not count toward
+/// confirmation.
+/// </param>
+/// <param name="min_word_confidence">
+/// Every word in the last three positions before the confirmation boundary
+/// must meet this.
+/// </param>
+internal record HwAgreementConfig (
+    uint @tokenConfirmationsNeeded, 
+    uint @minWordsToConfirm, 
+    uint @minWordsToConfirmWithoutPunctuation, 
+    uint @trailingWordsToHoldWithoutPunctuation, 
+    /// <summary>
+    /// Passes below this show as hypothesis but do not count toward
+    /// confirmation.
+    /// </summary>
+    float @minPassConfidence, 
+    /// <summary>
+    /// Every word in the last three positions before the confirmation boundary
+    /// must meet this.
+    /// </summary>
+    float @minWordConfidence
+) {
+}
+
+class FfiConverterTypeHwAgreementConfig: FfiConverterRustBuffer<HwAgreementConfig> {
+    public static FfiConverterTypeHwAgreementConfig INSTANCE = new FfiConverterTypeHwAgreementConfig();
+
+    public override HwAgreementConfig Read(BigEndianStream stream) {
+        return new HwAgreementConfig(
+            @tokenConfirmationsNeeded: FfiConverterUInt32.INSTANCE.Read(stream),
+            @minWordsToConfirm: FfiConverterUInt32.INSTANCE.Read(stream),
+            @minWordsToConfirmWithoutPunctuation: FfiConverterUInt32.INSTANCE.Read(stream),
+            @trailingWordsToHoldWithoutPunctuation: FfiConverterUInt32.INSTANCE.Read(stream),
+            @minPassConfidence: FfiConverterFloat.INSTANCE.Read(stream),
+            @minWordConfidence: FfiConverterFloat.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwAgreementConfig value) {
+        return 0
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@tokenConfirmationsNeeded)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@minWordsToConfirm)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@minWordsToConfirmWithoutPunctuation)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@trailingWordsToHoldWithoutPunctuation)
+            + FfiConverterFloat.INSTANCE.AllocationSize(value.@minPassConfidence)
+            + FfiConverterFloat.INSTANCE.AllocationSize(value.@minWordConfidence);
+    }
+
+    public override void Write(HwAgreementConfig value, BigEndianStream stream) {
+            FfiConverterUInt32.INSTANCE.Write(value.@tokenConfirmationsNeeded, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@minWordsToConfirm, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@minWordsToConfirmWithoutPunctuation, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@trailingWordsToHoldWithoutPunctuation, stream);
+            FfiConverterFloat.INSTANCE.Write(value.@minPassConfidence, stream);
+            FfiConverterFloat.INSTANCE.Write(value.@minWordConfidence, stream);
+    }
+}
+
+
+
+/// <summary>
+/// What one pass produced. Mirrors `hw_text::PairwiseOutcome`.
+///
+/// The two times are **returned** on every pass, committing or not, so a caller
+/// can assign its cached properties unconditionally.
+/// `ParakeetStreamingSession.swift` reads both at three points per pass; taking
+/// them from this record keeps every one of those reads off the FFI.
+/// </summary>
+/// <param name="full_text">
+/// Confirmed text plus the current hypothesis, space-joined, with empty
+/// parts dropped.
+/// </param>
+/// <param name="newly_confirmed_text">
+/// What this pass confirmed, or `""`.
+/// </param>
+internal record HwAgreementPass (
+    /// <summary>
+    /// Confirmed text plus the current hypothesis, space-joined, with empty
+    /// parts dropped.
+    /// </summary>
+    string @fullText, 
+    /// <summary>
+    /// What this pass confirmed, or `""`.
+    /// </summary>
+    string @newlyConfirmedText, 
+    double @confirmedEndTime, 
+    double @hypothesisStartTime
+) {
+}
+
+class FfiConverterTypeHwAgreementPass: FfiConverterRustBuffer<HwAgreementPass> {
+    public static FfiConverterTypeHwAgreementPass INSTANCE = new FfiConverterTypeHwAgreementPass();
+
+    public override HwAgreementPass Read(BigEndianStream stream) {
+        return new HwAgreementPass(
+            @fullText: FfiConverterString.INSTANCE.Read(stream),
+            @newlyConfirmedText: FfiConverterString.INSTANCE.Read(stream),
+            @confirmedEndTime: FfiConverterDouble.INSTANCE.Read(stream),
+            @hypothesisStartTime: FfiConverterDouble.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwAgreementPass value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@fullText)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@newlyConfirmedText)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@confirmedEndTime)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@hypothesisStartTime);
+    }
+
+    public override void Write(HwAgreementPass value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@fullText, stream);
+            FfiConverterString.INSTANCE.Write(value.@newlyConfirmedText, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@confirmedEndTime, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@hypothesisStartTime, stream);
     }
 }
 
@@ -7910,6 +8667,99 @@ class FfiConverterTypeHwStatsTranscript: FfiConverterRustBuffer<HwStatsTranscrip
             FfiConverterUInt32.INSTANCE.Write(value.@wordCount, stream);
             FfiConverterDouble.INSTANCE.Write(value.@durationSeconds, stream);
             FfiConverterTypeHwTranscriptStatus.INSTANCE.Write(value.@status, stream);
+    }
+}
+
+
+
+/// <summary>
+/// What one `observe`/`finish` produced. Mirrors `hw_text::Update`, and the
+/// daemon's `LiveEngineUpdate`.
+/// </summary>
+/// <param name="preview">
+/// The committed prefix plus the newest hypothesis — the whole live
+/// transcript to display.
+/// </param>
+/// <param name="committed">
+/// Only what this call newly committed, or `""`.
+/// </param>
+internal record HwStreamUpdate (
+    /// <summary>
+    /// The committed prefix plus the newest hypothesis — the whole live
+    /// transcript to display.
+    /// </summary>
+    string @preview, 
+    /// <summary>
+    /// Only what this call newly committed, or `""`.
+    /// </summary>
+    string @committed
+) {
+}
+
+class FfiConverterTypeHwStreamUpdate: FfiConverterRustBuffer<HwStreamUpdate> {
+    public static FfiConverterTypeHwStreamUpdate INSTANCE = new FfiConverterTypeHwStreamUpdate();
+
+    public override HwStreamUpdate Read(BigEndianStream stream) {
+        return new HwStreamUpdate(
+            @preview: FfiConverterString.INSTANCE.Read(stream),
+            @committed: FfiConverterString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwStreamUpdate value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@preview)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@committed);
+    }
+
+    public override void Write(HwStreamUpdate value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@preview, stream);
+            FfiConverterString.INSTANCE.Write(value.@committed, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One decoded word with its timings and confidence. Mirrors
+/// `hw_text::TimedWord`, and Swift's `TimedWord`.
+///
+/// The `f64` times and `f32` confidence keep the Swift split as it is, so
+/// `WordAgreementEngine` maps its own struct across with no numeric conversion.
+/// </summary>
+internal record HwTimedWord (
+    string @text, 
+    double @startTime, 
+    double @endTime, 
+    float @confidence
+) {
+}
+
+class FfiConverterTypeHwTimedWord: FfiConverterRustBuffer<HwTimedWord> {
+    public static FfiConverterTypeHwTimedWord INSTANCE = new FfiConverterTypeHwTimedWord();
+
+    public override HwTimedWord Read(BigEndianStream stream) {
+        return new HwTimedWord(
+            @text: FfiConverterString.INSTANCE.Read(stream),
+            @startTime: FfiConverterDouble.INSTANCE.Read(stream),
+            @endTime: FfiConverterDouble.INSTANCE.Read(stream),
+            @confidence: FfiConverterFloat.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwTimedWord value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@text)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@startTime)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@endTime)
+            + FfiConverterFloat.INSTANCE.AllocationSize(value.@confidence);
+    }
+
+    public override void Write(HwTimedWord value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@text, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@startTime, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@endTime, stream);
+            FfiConverterFloat.INSTANCE.Write(value.@confidence, stream);
     }
 }
 
@@ -11832,6 +12682,71 @@ class FfiConverterTypeHwPttTimerAction: FfiConverterRustBuffer<HwPttTimerAction>
 
 
 /// <summary>
+/// Why a bounded session refused a hypothesis. Mirrors
+/// `hw_text::AgreementError`.
+///
+/// One arm on purpose: the engine is otherwise infallible. `Display` is
+/// hand-written to match the leaf's message, the same way [`crate::HwLiveError`]
+/// does, so hw-core needs no extra dependency — and the wording is the daemon's
+/// verbatim, because that string reaches the Local API wire.
+/// </summary>
+internal class HwStreamException: UniffiException {
+    HwStreamException() : base() {}
+    HwStreamException(String @Message) : base(@Message) {}
+
+    // Each variant is a nested class
+    
+    /// <summary>
+    /// The live transcript would exceed the 512 KiB cap.
+    /// </summary>
+    public class LimitExceeded : HwStreamException {
+        public LimitExceeded() : base() {}
+    }
+    
+    
+
+    
+}
+
+class FfiConverterTypeHwStreamError : FfiConverterRustBuffer<HwStreamException>, CallStatusErrorHandler<HwStreamException> {
+    public static FfiConverterTypeHwStreamError INSTANCE = new FfiConverterTypeHwStreamError();
+
+    public override HwStreamException Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwStreamException.LimitExceeded();
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwStreamError.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwStreamException value) {
+        switch (value) {
+
+            case HwStreamException.LimitExceeded variant_value:
+                return 4;
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwStreamError.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwStreamException value, BigEndianStream stream) {
+        switch (value) {
+            case HwStreamException.LimitExceeded variant_value:
+                stream.WriteInt(1);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwStreamError.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+/// <summary>
 /// The persisted status of a transcript row. Mirrors
 /// `hw_stats::TranscriptStatus`.
 ///
@@ -13474,6 +14389,48 @@ class FfiConverterSequenceTypeHwStatsTranscript: FfiConverterRustBuffer<List<HwS
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwStatsTranscript.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwTimedWord: FfiConverterRustBuffer<List<HwTimedWord>> {
+    public static FfiConverterSequenceTypeHwTimedWord INSTANCE = new FfiConverterSequenceTypeHwTimedWord();
+
+    public override List<HwTimedWord> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwTimedWord>(length);
+        var readFn = FfiConverterTypeHwTimedWord.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwTimedWord> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwTimedWord.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwTimedWord> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwTimedWord.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
