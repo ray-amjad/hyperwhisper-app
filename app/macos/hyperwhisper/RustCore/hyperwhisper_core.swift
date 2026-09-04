@@ -595,6 +595,281 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 /**
+ * The parakeet daemon's streaming agreement engine: LocalAgreement-3 over the
+ * last three retained hypotheses, with a size cap.
+ *
+ * The lifecycle is `new` → `observe`\* → `finish`. There is no `reset`, because
+ * the daemon builds one of these per recording and disposes it — mirroring
+ * `LiveEngineSession`, which owns the engine for exactly one session.
+ *
+ * Disposal differs by head, and only one head has to act. The Rust side is an
+ * `Arc` the platform holds a raw handle to. In **Swift** the generated class
+ * frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+ * last reference is enough and there is nothing to call. In **C#** the class is
+ * `IDisposable` (with a finalizer as a backstop), so a consumer should
+ * `Dispose` it to release the handle deterministically rather than whenever the
+ * GC gets to it — which is what `LiveEngineSession` wires into its dispose
+ * action.
+ *
+ * Thread safety is a plain `Mutex`, not a re-entrant one: the decode loop and
+ * the stop path both reach the same instance. No method calls another through
+ * the FFI, so there is nothing to re-enter.
+ */
+public protocol HwBoundedAgreementSessionProtocol : AnyObject {
+    
+    /**
+     * The final decode. Mirrors C# `Finish`: the unconfirmed tail is committed
+     * with its overlap against the already-committed text removed.
+     *
+     * The cap is checked per word here too, so `LimitExceeded` carries the same
+     * non-atomic guarantee as [`HwBoundedAgreementSession::observe`]: the words
+     * that fit before the throw are already committed.
+     */
+    func finish(finalHypothesis: String) throws  -> HwStreamUpdate
+    
+    /**
+     * One decoded hypothesis. Mirrors C# `Observe`.
+     *
+     * Fails only when the transcript would cross the cap. **The failure is not
+     * atomic**, and deliberately so: the C# original commits word by word and
+     * throws on the first word that would not fit, so words accepted before the
+     * throw stay committed and the hypothesis that triggered it has already been
+     * pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
+     * `LimitExceeded` to see what survived; do not assume the call was a no-op.
+     *
+     * The daemon does **not** end the session on this error: its `audio`
+     * handler logs it, answers with a fixed message and keeps the session
+     * serving the next request. So a caller that caches `preview` off the
+     * updates — as `LiveEngineSession.cs` must, to keep the audio path off the
+     * FFI — has to refresh that cache from
+     * [`HwBoundedAgreementSession::preview`] in its failure path, or it serves
+     * a transcript the engine has already moved past. Pinned by
+     * `bounded_session_limit_exceeded_still_moves_the_preview`.
+     */
+    func observe(hypothesis: String) throws  -> HwStreamUpdate
+    
+    /**
+     * The committed prefix plus the newest hypothesis.
+     *
+     * **Do not call this on a per-audio-chunk path.** `observe` and `finish`
+     * already return the same string in `HwStreamUpdate::preview`; a caller
+     * that polls per chunk must cache what they returned, which is why
+     * `LiveEngineSession.cs` reads a field rather than an accessor. This exists
+     * for a caller that has no recent update to cache.
+     */
+    func preview()  -> String
+    
+}
+
+/**
+ * The parakeet daemon's streaming agreement engine: LocalAgreement-3 over the
+ * last three retained hypotheses, with a size cap.
+ *
+ * The lifecycle is `new` → `observe`\* → `finish`. There is no `reset`, because
+ * the daemon builds one of these per recording and disposes it — mirroring
+ * `LiveEngineSession`, which owns the engine for exactly one session.
+ *
+ * Disposal differs by head, and only one head has to act. The Rust side is an
+ * `Arc` the platform holds a raw handle to. In **Swift** the generated class
+ * frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+ * last reference is enough and there is nothing to call. In **C#** the class is
+ * `IDisposable` (with a finalizer as a backstop), so a consumer should
+ * `Dispose` it to release the handle deterministically rather than whenever the
+ * GC gets to it — which is what `LiveEngineSession` wires into its dispose
+ * action.
+ *
+ * Thread safety is a plain `Mutex`, not a re-entrant one: the decode loop and
+ * the stop path both reach the same instance. No method calls another through
+ * the FFI, so there is nothing to re-enter.
+ */
+open class HwBoundedAgreementSession:
+    HwBoundedAgreementSessionProtocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_hyperwhisper_core_fn_clone_hwboundedagreementsession(self.pointer, $0) }
+    }
+    /**
+     * Build an engine that joins words with `join`.
+     *
+     * `join` is the session's only degree of freedom, matching the daemon's
+     * `new BoundedWordAgreement(join)`: `" "` for spaced languages and `""` for
+     * the continuous scripts (`hw_text::is_no_space_language`). Everything else
+     * — three confirmations, eight minimum words, three trailing words, the
+     * 512 KiB cap — is fixed, exactly as it is in C#.
+     *
+     * An exported constructor for the same reason
+     * [`HwWordAgreementSession::new`] is one: without it a consumer can name
+     * the type and never instantiate it.
+     */
+public convenience init(join: String) {
+    let pointer =
+        try! rustCall() {
+    uniffi_hyperwhisper_core_fn_constructor_hwboundedagreementsession_new(
+        FfiConverterString.lower(join),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_hyperwhisper_core_fn_free_hwboundedagreementsession(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * The final decode. Mirrors C# `Finish`: the unconfirmed tail is committed
+     * with its overlap against the already-committed text removed.
+     *
+     * The cap is checked per word here too, so `LimitExceeded` carries the same
+     * non-atomic guarantee as [`HwBoundedAgreementSession::observe`]: the words
+     * that fit before the throw are already committed.
+     */
+open func finish(finalHypothesis: String)throws  -> HwStreamUpdate {
+    return try  FfiConverterTypeHwStreamUpdate.lift(try rustCallWithError(FfiConverterTypeHwStreamError.lift) {
+    uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_finish(self.uniffiClonePointer(),
+        FfiConverterString.lower(finalHypothesis),$0
+    )
+})
+}
+    
+    /**
+     * One decoded hypothesis. Mirrors C# `Observe`.
+     *
+     * Fails only when the transcript would cross the cap. **The failure is not
+     * atomic**, and deliberately so: the C# original commits word by word and
+     * throws on the first word that would not fit, so words accepted before the
+     * throw stay committed and the hypothesis that triggered it has already been
+     * pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
+     * `LimitExceeded` to see what survived; do not assume the call was a no-op.
+     *
+     * The daemon does **not** end the session on this error: its `audio`
+     * handler logs it, answers with a fixed message and keeps the session
+     * serving the next request. So a caller that caches `preview` off the
+     * updates — as `LiveEngineSession.cs` must, to keep the audio path off the
+     * FFI — has to refresh that cache from
+     * [`HwBoundedAgreementSession::preview`] in its failure path, or it serves
+     * a transcript the engine has already moved past. Pinned by
+     * `bounded_session_limit_exceeded_still_moves_the_preview`.
+     */
+open func observe(hypothesis: String)throws  -> HwStreamUpdate {
+    return try  FfiConverterTypeHwStreamUpdate.lift(try rustCallWithError(FfiConverterTypeHwStreamError.lift) {
+    uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_observe(self.uniffiClonePointer(),
+        FfiConverterString.lower(hypothesis),$0
+    )
+})
+}
+    
+    /**
+     * The committed prefix plus the newest hypothesis.
+     *
+     * **Do not call this on a per-audio-chunk path.** `observe` and `finish`
+     * already return the same string in `HwStreamUpdate::preview`; a caller
+     * that polls per chunk must cache what they returned, which is why
+     * `LiveEngineSession.cs` reads a field rather than an accessor. This exists
+     * for a caller that has no recent update to cache.
+     */
+open func preview() -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwboundedagreementsession_preview(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwBoundedAgreementSession: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = HwBoundedAgreementSession
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> HwBoundedAgreementSession {
+        return HwBoundedAgreementSession(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: HwBoundedAgreementSession) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwBoundedAgreementSession {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: HwBoundedAgreementSession, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBoundedAgreementSession_lift(_ pointer: UnsafeMutableRawPointer) throws -> HwBoundedAgreementSession {
+    return try FfiConverterTypeHwBoundedAgreementSession.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBoundedAgreementSession_lower(_ value: HwBoundedAgreementSession) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeHwBoundedAgreementSession.lower(value)
+}
+
+
+
+
+/**
  * One live-streaming session: a config in, and every value the platform's
  * socket loop needs out.
  *
@@ -892,6 +1167,240 @@ public func FfiConverterTypeHwLiveSession_lift(_ pointer: UnsafeMutableRawPointe
 #endif
 public func FfiConverterTypeHwLiveSession_lower(_ value: HwLiveSession) -> UnsafeMutableRawPointer {
     return FfiConverterTypeHwLiveSession.lower(value)
+}
+
+
+
+
+/**
+ * The macOS streaming agreement engine: one pass in, the confirmed/hypothesis
+ * split out.
+ *
+ * The lifecycle is `new` → `observe`\* → `reset`, where `reset` returns it to
+ * the state the constructor left it in so the next recording can reuse the
+ * object.
+ *
+ * Disposal differs by head, and only one head has to act. The Rust side is an
+ * `Arc` the platform holds a raw handle to. In **Swift** the generated class
+ * frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+ * last reference is enough and there is nothing to call. In **C#** the class is
+ * `IDisposable` (with a finalizer as a backstop), so a consumer should
+ * `Dispose` it to release the handle deterministically rather than whenever the
+ * GC gets to it.
+ *
+ * Thread safety is a plain `Mutex`, not a re-entrant one: the decode timer and
+ * the stop path both reach the same instance. No method calls another through
+ * the FFI, so there is nothing to re-enter.
+ */
+public protocol HwWordAgreementSessionProtocol : AnyObject {
+    
+    /**
+     * The confirmed prefix, space-joined.
+     *
+     * [`HwWordAgreementSession::observe`] already returns this inside
+     * `full_text`; this is for a caller that needs the confirmed half alone,
+     * off the audio path.
+     */
+    func confirmedText()  -> String
+    
+    /**
+     * One decode pass. Mirrors Swift
+     * `processTranscriptionResult(words:resultConfidence:)`.
+     *
+     * `pass_confidence` is the whole pass's score, separate from the per-word
+     * confidences: a pass below `min_pass_confidence` is still shown as
+     * hypothesis, but it resets the agreement counter.
+     */
+    func observe(words: [HwTimedWord], passConfidence: Float)  -> HwAgreementPass
+    
+    /**
+     * Forget every pass this engine has seen, including the confirmed prefix
+     * and both cached times. What lets one object serve consecutive recordings.
+     */
+    func reset() 
+    
+}
+
+/**
+ * The macOS streaming agreement engine: one pass in, the confirmed/hypothesis
+ * split out.
+ *
+ * The lifecycle is `new` → `observe`\* → `reset`, where `reset` returns it to
+ * the state the constructor left it in so the next recording can reuse the
+ * object.
+ *
+ * Disposal differs by head, and only one head has to act. The Rust side is an
+ * `Arc` the platform holds a raw handle to. In **Swift** the generated class
+ * frees that handle in its own `deinit`, so ARC is the disposal: releasing the
+ * last reference is enough and there is nothing to call. In **C#** the class is
+ * `IDisposable` (with a finalizer as a backstop), so a consumer should
+ * `Dispose` it to release the handle deterministically rather than whenever the
+ * GC gets to it.
+ *
+ * Thread safety is a plain `Mutex`, not a re-entrant one: the decode timer and
+ * the stop path both reach the same instance. No method calls another through
+ * the FFI, so there is nothing to re-enter.
+ */
+open class HwWordAgreementSession:
+    HwWordAgreementSessionProtocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_hyperwhisper_core_fn_clone_hwwordagreementsession(self.pointer, $0) }
+    }
+    /**
+     * Build an engine for `config`.
+     *
+     * An exported constructor, not a `word_agreement_session_new(config)` free
+     * function: a `#[uniffi::Object]` gets no foreign constructor unless one is
+     * exported, and without it a consumer can name the type and never
+     * instantiate it. This renders as `new HwWordAgreementSession(config)` in
+     * C# and `HwWordAgreementSession(config:)` in Swift.
+     */
+public convenience init(config: HwAgreementConfig) {
+    let pointer =
+        try! rustCall() {
+    uniffi_hyperwhisper_core_fn_constructor_hwwordagreementsession_new(
+        FfiConverterTypeHwAgreementConfig.lower(config),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_hyperwhisper_core_fn_free_hwwordagreementsession(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * The confirmed prefix, space-joined.
+     *
+     * [`HwWordAgreementSession::observe`] already returns this inside
+     * `full_text`; this is for a caller that needs the confirmed half alone,
+     * off the audio path.
+     */
+open func confirmedText() -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_confirmed_text(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * One decode pass. Mirrors Swift
+     * `processTranscriptionResult(words:resultConfidence:)`.
+     *
+     * `pass_confidence` is the whole pass's score, separate from the per-word
+     * confidences: a pass below `min_pass_confidence` is still shown as
+     * hypothesis, but it resets the agreement counter.
+     */
+open func observe(words: [HwTimedWord], passConfidence: Float) -> HwAgreementPass {
+    return try!  FfiConverterTypeHwAgreementPass.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_observe(self.uniffiClonePointer(),
+        FfiConverterSequenceTypeHwTimedWord.lower(words),
+        FfiConverterFloat.lower(passConfidence),$0
+    )
+})
+}
+    
+    /**
+     * Forget every pass this engine has seen, including the confirmed prefix
+     * and both cached times. What lets one object serve consecutive recordings.
+     */
+open func reset() {try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwwordagreementsession_reset(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwWordAgreementSession: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = HwWordAgreementSession
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> HwWordAgreementSession {
+        return HwWordAgreementSession(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: HwWordAgreementSession) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwWordAgreementSession {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: HwWordAgreementSession, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwWordAgreementSession_lift(_ pointer: UnsafeMutableRawPointer) throws -> HwWordAgreementSession {
+    return try FfiConverterTypeHwWordAgreementSession.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwWordAgreementSession_lower(_ value: HwWordAgreementSession) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeHwWordAgreementSession.lower(value)
 }
 
 
@@ -1814,6 +2323,234 @@ public func FfiConverterTypeHttpResponse_lift(_ buf: RustBuffer) throws -> HttpR
 #endif
 public func FfiConverterTypeHttpResponse_lower(_ value: HttpResponse) -> RustBuffer {
     return FfiConverterTypeHttpResponse.lower(value)
+}
+
+
+/**
+ * macOS `AgreementConfig`. Mirrors `hw_text::PairwiseConfig`.
+ *
+ * `transcribeIntervalSeconds` is deliberately absent: it schedules the Swift
+ * pass timer in `ParakeetStreamingSession.start()` and never reaches the
+ * engine. The Swift struct keeps the field; it just does not cross here.
+ *
+ * The counts are `u32` because UniFFI has no `usize`; they are widened on the
+ * way in, which is lossless on every target this ships to.
+ */
+public struct HwAgreementConfig {
+    public var tokenConfirmationsNeeded: UInt32
+    public var minWordsToConfirm: UInt32
+    public var minWordsToConfirmWithoutPunctuation: UInt32
+    public var trailingWordsToHoldWithoutPunctuation: UInt32
+    /**
+     * Passes below this show as hypothesis but do not count toward
+     * confirmation.
+     */
+    public var minPassConfidence: Float
+    /**
+     * Every word in the last three positions before the confirmation boundary
+     * must meet this.
+     */
+    public var minWordConfidence: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(tokenConfirmationsNeeded: UInt32, minWordsToConfirm: UInt32, minWordsToConfirmWithoutPunctuation: UInt32, trailingWordsToHoldWithoutPunctuation: UInt32, 
+        /**
+         * Passes below this show as hypothesis but do not count toward
+         * confirmation.
+         */minPassConfidence: Float, 
+        /**
+         * Every word in the last three positions before the confirmation boundary
+         * must meet this.
+         */minWordConfidence: Float) {
+        self.tokenConfirmationsNeeded = tokenConfirmationsNeeded
+        self.minWordsToConfirm = minWordsToConfirm
+        self.minWordsToConfirmWithoutPunctuation = minWordsToConfirmWithoutPunctuation
+        self.trailingWordsToHoldWithoutPunctuation = trailingWordsToHoldWithoutPunctuation
+        self.minPassConfidence = minPassConfidence
+        self.minWordConfidence = minWordConfidence
+    }
+}
+
+
+
+extension HwAgreementConfig: Equatable, Hashable {
+    public static func ==(lhs: HwAgreementConfig, rhs: HwAgreementConfig) -> Bool {
+        if lhs.tokenConfirmationsNeeded != rhs.tokenConfirmationsNeeded {
+            return false
+        }
+        if lhs.minWordsToConfirm != rhs.minWordsToConfirm {
+            return false
+        }
+        if lhs.minWordsToConfirmWithoutPunctuation != rhs.minWordsToConfirmWithoutPunctuation {
+            return false
+        }
+        if lhs.trailingWordsToHoldWithoutPunctuation != rhs.trailingWordsToHoldWithoutPunctuation {
+            return false
+        }
+        if lhs.minPassConfidence != rhs.minPassConfidence {
+            return false
+        }
+        if lhs.minWordConfidence != rhs.minWordConfidence {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(tokenConfirmationsNeeded)
+        hasher.combine(minWordsToConfirm)
+        hasher.combine(minWordsToConfirmWithoutPunctuation)
+        hasher.combine(trailingWordsToHoldWithoutPunctuation)
+        hasher.combine(minPassConfidence)
+        hasher.combine(minWordConfidence)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwAgreementConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwAgreementConfig {
+        return
+            try HwAgreementConfig(
+                tokenConfirmationsNeeded: FfiConverterUInt32.read(from: &buf), 
+                minWordsToConfirm: FfiConverterUInt32.read(from: &buf), 
+                minWordsToConfirmWithoutPunctuation: FfiConverterUInt32.read(from: &buf), 
+                trailingWordsToHoldWithoutPunctuation: FfiConverterUInt32.read(from: &buf), 
+                minPassConfidence: FfiConverterFloat.read(from: &buf), 
+                minWordConfidence: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwAgreementConfig, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.tokenConfirmationsNeeded, into: &buf)
+        FfiConverterUInt32.write(value.minWordsToConfirm, into: &buf)
+        FfiConverterUInt32.write(value.minWordsToConfirmWithoutPunctuation, into: &buf)
+        FfiConverterUInt32.write(value.trailingWordsToHoldWithoutPunctuation, into: &buf)
+        FfiConverterFloat.write(value.minPassConfidence, into: &buf)
+        FfiConverterFloat.write(value.minWordConfidence, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAgreementConfig_lift(_ buf: RustBuffer) throws -> HwAgreementConfig {
+    return try FfiConverterTypeHwAgreementConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAgreementConfig_lower(_ value: HwAgreementConfig) -> RustBuffer {
+    return FfiConverterTypeHwAgreementConfig.lower(value)
+}
+
+
+/**
+ * What one pass produced. Mirrors `hw_text::PairwiseOutcome`.
+ *
+ * The two times are **returned** on every pass, committing or not, so a caller
+ * can assign its cached properties unconditionally.
+ * `ParakeetStreamingSession.swift` reads both at three points per pass; taking
+ * them from this record keeps every one of those reads off the FFI.
+ */
+public struct HwAgreementPass {
+    /**
+     * Confirmed text plus the current hypothesis, space-joined, with empty
+     * parts dropped.
+     */
+    public var fullText: String
+    /**
+     * What this pass confirmed, or `""`.
+     */
+    public var newlyConfirmedText: String
+    public var confirmedEndTime: Double
+    public var hypothesisStartTime: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Confirmed text plus the current hypothesis, space-joined, with empty
+         * parts dropped.
+         */fullText: String, 
+        /**
+         * What this pass confirmed, or `""`.
+         */newlyConfirmedText: String, confirmedEndTime: Double, hypothesisStartTime: Double) {
+        self.fullText = fullText
+        self.newlyConfirmedText = newlyConfirmedText
+        self.confirmedEndTime = confirmedEndTime
+        self.hypothesisStartTime = hypothesisStartTime
+    }
+}
+
+
+
+extension HwAgreementPass: Equatable, Hashable {
+    public static func ==(lhs: HwAgreementPass, rhs: HwAgreementPass) -> Bool {
+        if lhs.fullText != rhs.fullText {
+            return false
+        }
+        if lhs.newlyConfirmedText != rhs.newlyConfirmedText {
+            return false
+        }
+        if lhs.confirmedEndTime != rhs.confirmedEndTime {
+            return false
+        }
+        if lhs.hypothesisStartTime != rhs.hypothesisStartTime {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(fullText)
+        hasher.combine(newlyConfirmedText)
+        hasher.combine(confirmedEndTime)
+        hasher.combine(hypothesisStartTime)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwAgreementPass: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwAgreementPass {
+        return
+            try HwAgreementPass(
+                fullText: FfiConverterString.read(from: &buf), 
+                newlyConfirmedText: FfiConverterString.read(from: &buf), 
+                confirmedEndTime: FfiConverterDouble.read(from: &buf), 
+                hypothesisStartTime: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwAgreementPass, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.fullText, into: &buf)
+        FfiConverterString.write(value.newlyConfirmedText, into: &buf)
+        FfiConverterDouble.write(value.confirmedEndTime, into: &buf)
+        FfiConverterDouble.write(value.hypothesisStartTime, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAgreementPass_lift(_ buf: RustBuffer) throws -> HwAgreementPass {
+    return try FfiConverterTypeHwAgreementPass.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAgreementPass_lower(_ value: HwAgreementPass) -> RustBuffer {
+    return FfiConverterTypeHwAgreementPass.lower(value)
 }
 
 
@@ -4662,6 +5399,179 @@ public func FfiConverterTypeHwStatsTranscript_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeHwStatsTranscript_lower(_ value: HwStatsTranscript) -> RustBuffer {
     return FfiConverterTypeHwStatsTranscript.lower(value)
+}
+
+
+/**
+ * What one `observe`/`finish` produced. Mirrors `hw_text::Update`, and the
+ * daemon's `LiveEngineUpdate`.
+ */
+public struct HwStreamUpdate {
+    /**
+     * The committed prefix plus the newest hypothesis — the whole live
+     * transcript to display.
+     */
+    public var preview: String
+    /**
+     * Only what this call newly committed, or `""`.
+     */
+    public var committed: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The committed prefix plus the newest hypothesis — the whole live
+         * transcript to display.
+         */preview: String, 
+        /**
+         * Only what this call newly committed, or `""`.
+         */committed: String) {
+        self.preview = preview
+        self.committed = committed
+    }
+}
+
+
+
+extension HwStreamUpdate: Equatable, Hashable {
+    public static func ==(lhs: HwStreamUpdate, rhs: HwStreamUpdate) -> Bool {
+        if lhs.preview != rhs.preview {
+            return false
+        }
+        if lhs.committed != rhs.committed {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(preview)
+        hasher.combine(committed)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwStreamUpdate: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwStreamUpdate {
+        return
+            try HwStreamUpdate(
+                preview: FfiConverterString.read(from: &buf), 
+                committed: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwStreamUpdate, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.preview, into: &buf)
+        FfiConverterString.write(value.committed, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwStreamUpdate_lift(_ buf: RustBuffer) throws -> HwStreamUpdate {
+    return try FfiConverterTypeHwStreamUpdate.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwStreamUpdate_lower(_ value: HwStreamUpdate) -> RustBuffer {
+    return FfiConverterTypeHwStreamUpdate.lower(value)
+}
+
+
+/**
+ * One decoded word with its timings and confidence. Mirrors
+ * `hw_text::TimedWord`, and Swift's `TimedWord`.
+ *
+ * The `f64` times and `f32` confidence keep the Swift split as it is, so
+ * `WordAgreementEngine` maps its own struct across with no numeric conversion.
+ */
+public struct HwTimedWord {
+    public var text: String
+    public var startTime: Double
+    public var endTime: Double
+    public var confidence: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(text: String, startTime: Double, endTime: Double, confidence: Float) {
+        self.text = text
+        self.startTime = startTime
+        self.endTime = endTime
+        self.confidence = confidence
+    }
+}
+
+
+
+extension HwTimedWord: Equatable, Hashable {
+    public static func ==(lhs: HwTimedWord, rhs: HwTimedWord) -> Bool {
+        if lhs.text != rhs.text {
+            return false
+        }
+        if lhs.startTime != rhs.startTime {
+            return false
+        }
+        if lhs.endTime != rhs.endTime {
+            return false
+        }
+        if lhs.confidence != rhs.confidence {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(text)
+        hasher.combine(startTime)
+        hasher.combine(endTime)
+        hasher.combine(confidence)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwTimedWord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwTimedWord {
+        return
+            try HwTimedWord(
+                text: FfiConverterString.read(from: &buf), 
+                startTime: FfiConverterDouble.read(from: &buf), 
+                endTime: FfiConverterDouble.read(from: &buf), 
+                confidence: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwTimedWord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterDouble.write(value.startTime, into: &buf)
+        FfiConverterDouble.write(value.endTime, into: &buf)
+        FfiConverterFloat.write(value.confidence, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwTimedWord_lift(_ buf: RustBuffer) throws -> HwTimedWord {
+    return try FfiConverterTypeHwTimedWord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwTimedWord_lower(_ value: HwTimedWord) -> RustBuffer {
+    return FfiConverterTypeHwTimedWord.lower(value)
 }
 
 
@@ -11134,6 +12044,69 @@ extension HwPttTimerAction: Equatable, Hashable {}
 
 
 
+
+/**
+ * Why a bounded session refused a hypothesis. Mirrors
+ * `hw_text::AgreementError`.
+ *
+ * One arm on purpose: the engine is otherwise infallible. `Display` is
+ * hand-written to match the leaf's message, the same way [`crate::HwLiveError`]
+ * does, so hw-core needs no extra dependency — and the wording is the daemon's
+ * verbatim, because that string reaches the Local API wire.
+ */
+public enum HwStreamError {
+
+    
+    
+    /**
+     * The live transcript would exceed the 512 KiB cap.
+     */
+    case LimitExceeded
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwStreamError: FfiConverterRustBuffer {
+    typealias SwiftType = HwStreamError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwStreamError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .LimitExceeded
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwStreamError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .LimitExceeded:
+            writeInt(&buf, Int32(1))
+        
+        }
+    }
+}
+
+
+extension HwStreamError: Equatable, Hashable {}
+
+extension HwStreamError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -12562,6 +13535,31 @@ fileprivate struct FfiConverterSequenceTypeHwStatsTranscript: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwStatsTranscript.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwTimedWord: FfiConverterRustBuffer {
+    typealias SwiftType = [HwTimedWord]
+
+    public static func write(_ value: [HwTimedWord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwTimedWord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwTimedWord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwTimedWord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwTimedWord.read(from: &buf))
         }
         return seq
     }
@@ -16242,6 +17240,15 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json() != 59780) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish() != 15216) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe() != 36063) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_preview() != 58427) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect() != 14844) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -16263,6 +17270,15 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_stop_sequence() != 60526) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_confirmed_text() != 21300) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_observe() != 27794) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwwordagreementsession_reset() != 35155) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get() != 51792) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -16272,7 +17288,13 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_method_keyvaluestore_delete() != 15555) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_constructor_hwboundedagreementsession_new() != 54930) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new() != 27481) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_constructor_hwwordagreementsession_new() != 60590) {
         return InitializationResult.apiChecksumMismatch
     }
 

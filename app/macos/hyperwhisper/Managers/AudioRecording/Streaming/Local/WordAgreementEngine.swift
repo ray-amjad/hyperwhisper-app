@@ -7,6 +7,12 @@
 //  passes agree, a 3-sentence-ender punctuation rule is satisfied, and
 //  the last 3 boundary words each exceed the confidence floor.
 //
+//  That algorithm now lives in Rust — `hw_text::PairwiseAgreement`, reached
+//  through `HwWordAgreementSession` — so macOS and the Linux Parakeet daemon
+//  share one implementation (#286). Word normalization moved with it. What
+//  stays here is the macOS-only half: rebuilding whole words from FluidAudio's
+//  sub-word token timings.
+//
 
 import FluidAudio
 import Foundation
@@ -15,24 +21,15 @@ import Foundation
 
 struct TimedWord {
     let text: String
-    let normalizedText: String
     let startTime: Double
     let endTime: Double
     let confidence: Float
 
     init(text: String, startTime: Double, endTime: Double, confidence: Float = 1.0) {
         self.text = text
-        self.normalizedText = Self.normalize(text)
         self.startTime = startTime
         self.endTime = endTime
         self.confidence = confidence
-    }
-
-    private static func normalize(_ text: String) -> String {
-        String(text.lowercased()
-            .replacingOccurrences(of: "-", with: " ")
-            .filter { $0.isLetter || $0.isNumber || $0.isWhitespace })
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -53,101 +50,73 @@ struct AgreementResult {
     let newlyConfirmedText: String
 }
 
+// `AgreementConfig` keeps its `Int` counts; the FFI record takes `UInt32`.
+// Clamp rather than convert, so a negative or out-of-range value cannot trap:
+// every count is only ever compared against a word count, which makes 0 and
+// `UInt32.max` bounds that behave exactly as the `Int` they replace did.
+private func ffiCount(_ value: Int) -> UInt32 {
+    UInt32(clamping: value)
+}
+
 // MARK: - Word Agreement Engine
 
 @available(macOS 13.0, *)
 final class WordAgreementEngine {
 
-    private let config: AgreementConfig
-
-    private var confirmedWords: [TimedWord] = []
-    private var previousWords: [TimedWord] = []
-    private var consecutiveAgreementCount: Int = 0
-    private var isFirstPass: Bool = true
+    // Every pass of state lives behind this handle. The Swift binding is
+    // reference-counted, so `deinit` frees the Rust `Arc` — nothing to dispose.
+    private let session: HwWordAgreementSession
 
     private(set) var confirmedEndTime: Double = 0.0
     // Start time of the first unconfirmed word; used as the audio seek/trim point after confirmation.
     private(set) var hypothesisStartTime: Double = 0.0
 
     var confirmedText: String {
-        confirmedWords.map(\.text).joined(separator: " ")
+        session.confirmedText()
     }
 
     init(config: AgreementConfig = AgreementConfig()) {
-        self.config = config
+        // `transcribeIntervalSeconds` deliberately does not cross: it drives the
+        // decode timer in ParakeetStreamingSession and never reached the engine.
+        session = HwWordAgreementSession(config: HwAgreementConfig(
+            tokenConfirmationsNeeded: ffiCount(config.tokenConfirmationsNeeded),
+            minWordsToConfirm: ffiCount(config.minWordsToConfirm),
+            minWordsToConfirmWithoutPunctuation: ffiCount(config.minWordsToConfirmWithoutPunctuation),
+            trailingWordsToHoldWithoutPunctuation: ffiCount(config.trailingWordsToHoldWithoutPunctuation),
+            minPassConfidence: config.minPassConfidence,
+            minWordConfidence: config.minWordConfidence
+        ))
     }
 
     func reset() {
-        confirmedWords = []
-        previousWords = []
-        consecutiveAgreementCount = 0
-        isFirstPass = true
+        session.reset()
         confirmedEndTime = 0.0
         hypothesisStartTime = 0.0
     }
 
     // Compare current pass words against previous pass to find stable agreements.
     func processTranscriptionResult(words: [TimedWord], resultConfidence: Float = 1.0) -> AgreementResult {
-        guard !words.isEmpty else {
-            return makeResult(hypothesisWords: [], newlyConfirmedWords: [])
-        }
+        let pass = session.observe(
+            words: words.map {
+                HwTimedWord(
+                    text: $0.text,
+                    startTime: $0.startTime,
+                    endTime: $0.endTime,
+                    confidence: $0.confidence
+                )
+            },
+            passConfidence: resultConfidence
+        )
 
-        if isFirstPass {
-            isFirstPass = false
-            previousWords = words
-            return makeResult(hypothesisWords: words, newlyConfirmedWords: [])
-        }
+        // Returned on every pass, committing or not, so ParakeetStreamingSession's
+        // three reads of these two stay on Swift properties instead of the FFI.
+        confirmedEndTime = pass.confirmedEndTime
+        hypothesisStartTime = pass.hypothesisStartTime
 
-        // Low-confidence pass: show as hypothesis but don't count toward agreement.
-        if resultConfidence < config.minPassConfidence {
-            consecutiveAgreementCount = 0
-            previousWords = words
-            return makeResult(hypothesisWords: words, newlyConfirmedWords: [])
-        }
-
-        let commonPrefix = findLongestCommonPrefix(current: words, previous: previousWords)
-        previousWords = words
-
-        if commonPrefix.count >= config.minWordsToConfirm {
-            consecutiveAgreementCount += 1
-        } else {
-            consecutiveAgreementCount = 0
-            return makeResult(hypothesisWords: words, newlyConfirmedWords: [])
-        }
-
-        guard consecutiveAgreementCount >= config.tokenConfirmationsNeeded else {
-            return makeResult(hypothesisWords: words, newlyConfirmedWords: [])
-        }
-
-        let confirmUpTo = confirmationWordCount(words: Array(words.prefix(commonPrefix.count)))
-
-        guard confirmUpTo > 0 else {
-            return makeResult(hypothesisWords: words, newlyConfirmedWords: [])
-        }
-
-        // All 3 words at the confirmation boundary must meet the minimum confidence threshold.
-        let boundaryWords = Array(words.prefix(confirmUpTo).suffix(3))
-        let minBoundaryConfidence = boundaryWords.map(\.confidence).min() ?? 1.0
-        guard minBoundaryConfidence >= config.minWordConfidence else {
-            return makeResult(hypothesisWords: words, newlyConfirmedWords: [])
-        }
-
-        let newlyConfirmed = Array(words.prefix(confirmUpTo))
-        let hypothesis = Array(words.dropFirst(confirmUpTo))
-
-        confirmedWords.append(contentsOf: newlyConfirmed)
-        if let lastConfirmed = newlyConfirmed.last {
-            confirmedEndTime = lastConfirmed.endTime
-        }
-
-        hypothesisStartTime = hypothesis.first?.startTime ?? confirmedEndTime
-
-        // Remaining hypothesis words already appeared in this pass, so start their count at 1.
-        consecutiveAgreementCount = hypothesis.isEmpty ? 0 : 1
-        previousWords = hypothesis
-        isFirstPass = hypothesis.isEmpty
-
-        return makeResult(hypothesisWords: hypothesis, newlyConfirmedWords: newlyConfirmed)
+        return AgreementResult(
+            fullText: pass.fullText,
+            newlyConfirmedText: pass.newlyConfirmedText
+        )
     }
 
     // MARK: - Token-to-Word Merging
@@ -317,64 +286,6 @@ final class WordAgreementEngine {
     }
 
     // MARK: - Private
-
-    private func findLongestCommonPrefix(current: [TimedWord], previous: [TimedWord]) -> [TimedWord] {
-        let minCount = min(current.count, previous.count)
-        var prefixLength = 0
-
-        for i in 0..<minCount {
-            if current[i].normalizedText == previous[i].normalizedText {
-                prefixLength = i + 1
-            } else {
-                break
-            }
-        }
-
-        return Array(current.prefix(prefixLength))
-    }
-
-    // Confirms at sentence boundaries; needs 3 enders, keeps last 2 sentences as hypothesis.
-    private func confirmationWordCount(words: [TimedWord]) -> Int {
-        guard !words.isEmpty else { return 0 }
-        let sentenceEnders: Set<Character> = [".", "!", "?", ";"]
-        var punctuationIndices: [Int] = []
-        for i in 0..<words.count {
-            if let lastChar = words[i].text.last, sentenceEnders.contains(lastChar) {
-                punctuationIndices.append(i)
-            }
-        }
-
-        if punctuationIndices.count >= 3 {
-            let cutIndex = punctuationIndices[punctuationIndices.count - 3]
-            let confirmCount = cutIndex + 1
-            if confirmCount >= config.minWordsToConfirm {
-                return confirmCount
-            }
-        }
-
-        let trailingWordsToHold = max(1, config.trailingWordsToHoldWithoutPunctuation)
-        guard words.count >= config.minWordsToConfirmWithoutPunctuation else { return 0 }
-
-        let fallbackConfirmCount = words.count - trailingWordsToHold
-        guard fallbackConfirmCount >= config.minWordsToConfirm else { return 0 }
-        return fallbackConfirmCount
-    }
-
-    private func makeResult(hypothesisWords: [TimedWord], newlyConfirmedWords: [TimedWord]) -> AgreementResult {
-        let confirmedText = confirmedWords.map(\.text).joined(separator: " ")
-        let hypothesisText = hypothesisWords.map(\.text).joined(separator: " ")
-        let newlyConfirmedText = newlyConfirmedWords.map(\.text).joined(separator: " ")
-
-        var fullParts: [String] = []
-        if !confirmedText.isEmpty { fullParts.append(confirmedText) }
-        if !hypothesisText.isEmpty { fullParts.append(hypothesisText) }
-        let fullText = fullParts.joined(separator: " ")
-
-        return AgreementResult(
-            fullText: fullText,
-            newlyConfirmedText: newlyConfirmedText
-        )
-    }
 
     private static func stripWordBoundaryPrefix(_ token: String) -> String {
         var stripped = token

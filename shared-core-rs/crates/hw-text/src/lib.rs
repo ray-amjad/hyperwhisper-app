@@ -9,6 +9,7 @@
 //! `build_system_info`) is M1b — it needs platform runtime values (time, locale,
 //! host) passed in and has its own cross-platform divergences.
 
+mod agreement;
 mod autocapitalize;
 pub mod completion;
 pub mod prompt;
@@ -16,6 +17,10 @@ mod smart_spacing;
 mod text_processing;
 mod vocab;
 
+pub use agreement::{
+    AgreementError, BoundedAgreement, BoundedConfig, PairwiseAgreement, PairwiseConfig,
+    PairwiseOutcome, TimedWord, Update,
+};
 pub use autocapitalize::{apply_autocapitalize, CursorContext};
 pub use prompt::{
     build_system_info, build_system_prompt, sanitize_vocabulary_word, AppType, EnglishSpelling,
