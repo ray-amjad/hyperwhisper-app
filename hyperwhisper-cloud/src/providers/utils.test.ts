@@ -10,6 +10,7 @@ import {
   isExplicitLanguage,
   providerHttpError,
   readErrorBodyPreview,
+  readRequiredJsonString,
   splitVocabularyTerms,
   upstreamDurationOrNull,
 } from './utils';
@@ -260,6 +261,34 @@ describe('readErrorBodyPreview', () => {
   test('returns a placeholder when the body cannot be read', async () => {
     const unreadable = { text: () => { throw new Error('stream already used'); } } as unknown as Response;
     expect(await readErrorBodyPreview(unreadable)).toBe('<unreadable>');
+  });
+});
+
+describe('readRequiredJsonString', () => {
+  const options = {
+    provider: 'TestProvider',
+    field: 'job_id',
+    malformedMessage: 'malformed create response',
+    missingMessage: 'create returned no job id',
+  };
+
+  test('returns the required field', async () => {
+    const response = Response.json({ job_id: 'job-123' });
+    expect(await readRequiredJsonString(response, options)).toBe('job-123');
+  });
+
+  test('preserves the malformed JSON error', async () => {
+    const response = new Response('{');
+    await expect(readRequiredJsonString(response, options)).rejects.toThrow(
+      'TestProvider unavailable: malformed create response',
+    );
+  });
+
+  test('preserves the missing-field error', async () => {
+    const response = Response.json({ other: 'value' });
+    await expect(readRequiredJsonString(response, options)).rejects.toThrow(
+      'TestProvider unavailable: create returned no job id',
+    );
   });
 });
 

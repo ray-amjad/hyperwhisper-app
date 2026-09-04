@@ -575,3 +575,34 @@ export async function readErrorBodyPreview(response: Response): Promise<string> 
     return '<unreadable>';
   }
 }
+
+/**
+ * Read a required string field from a successful upstream JSON response.
+ *
+ * Async job providers use the same two failure modes: unreadable JSON is a
+ * malformed response, while valid JSON without the required field is a
+ * provider-specific missing-field response. Keep those messages at the call
+ * site while sharing the response parsing and field check.
+ */
+export async function readRequiredJsonString(
+  response: Response,
+  options: {
+    provider: string;
+    field: string;
+    malformedMessage: string;
+    missingMessage: string;
+  },
+): Promise<string> {
+  let value: string;
+  try {
+    value = ((await response.json()) as Record<string, string | undefined>)[options.field] || '';
+  } catch {
+    throw new ProviderUnavailableError(options.provider, options.malformedMessage);
+  }
+
+  if (!value) {
+    throw new ProviderUnavailableError(options.provider, options.missingMessage);
+  }
+
+  return value;
+}
