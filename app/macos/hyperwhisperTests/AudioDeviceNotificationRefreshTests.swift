@@ -149,6 +149,44 @@ struct AudioDeviceNotificationRefreshTests {
         #expect(probe.reports.allSatisfy { $0.durationMs >= 0 })
     }
 
+    @Test func olderNotificationPublishesWhileNewerScanIsStillBlocked() async {
+        let probe = NotificationScanProbe()
+        let firstScanGate = NotificationScanGate()
+        let secondScanGate = NotificationScanGate()
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { _ in
+                let call = probe.beginCall()
+                if call == 1 {
+                    firstScanGate.wait()
+                    return notificationSnapshot(devices: [notificationFirstDevice])
+                }
+                secondScanGate.wait()
+                return notificationSnapshot(devices: [notificationSecondDevice])
+            },
+            notificationScanReporter: { report in probe.record(report) }
+        )
+
+        let firstRefresh = Task {
+            await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        }
+        await Self.waitUntil { probe.calls == 1 }
+        let secondRefresh = Task {
+            await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDefaultInput)
+        }
+        await Self.waitUntil { probe.calls == 2 }
+
+        firstScanGate.release()
+        await firstRefresh.value
+        #expect(manager.availableDevices == [notificationFirstDevice])
+        #expect(probe.reports.map(\.didPublish) == [true])
+
+        secondScanGate.release()
+        await secondRefresh.value
+        #expect(manager.availableDevices == [notificationSecondDevice])
+        #expect(probe.reports.map(\.didPublish) == [true, true])
+    }
+
     @Test func notificationBurstKeepsAtMostTwoScansAndCoalescesPendingWork() async {
         let probe = NotificationScanProbe()
         let scanGate = NotificationScanGate()
@@ -204,6 +242,38 @@ struct AudioDeviceNotificationRefreshTests {
 
         #expect(manager.availableDevices.isEmpty)
         #expect(probe.reports.map(\.didPublish) == [false])
+    }
+
+    @Test func synchronousScanInvalidatesAllStartedNotificationResults() async {
+        let probe = NotificationScanProbe()
+        let scanGate = NotificationScanGate()
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { _ in
+                _ = probe.beginCall()
+                scanGate.wait()
+                return notificationSnapshot(devices: [notificationFirstDevice])
+            },
+            notificationScanReporter: { report in probe.record(report) }
+        )
+
+        let firstRefresh = Task {
+            await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        }
+        let secondRefresh = Task {
+            await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDefaultInput)
+        }
+        await Self.waitUntil { probe.calls == 2 }
+
+        manager.invalidateNotificationRefreshesForTesting()
+        scanGate.release()
+        scanGate.release()
+        await firstRefresh.value
+        await secondRefresh.value
+
+        #expect(manager.availableDevices.isEmpty)
+        #expect(probe.reports.count == 2)
+        #expect(probe.reports.allSatisfy { !$0.didPublish })
     }
 
     @Test func scanDurationExcludesDelayBeforeMainActorCanResume() async {

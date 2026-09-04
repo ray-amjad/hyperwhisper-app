@@ -117,6 +117,9 @@ class AudioDeviceManager {
     private let notificationSnapshotProvider: NotificationSnapshotProvider
     private let notificationScanReporter: NotificationScanReporter?
     private var notificationRefreshGeneration = 0
+    /// The newest notification generation that published, or that a synchronous scan invalidated.
+    /// A scan can publish after a newer request starts, but never after a newer result or sync scan wins.
+    private var notificationRefreshCompletionWatermark = 0
     /// Keep route-change bursts bounded without making one blocked HAL read a process-wide gate.
     /// Two reads may run at once; further callbacks collapse into the newest pending request.
     private let maximumConcurrentNotificationScans = 2
@@ -293,8 +296,7 @@ class AudioDeviceManager {
             await performNotificationRefresh(request)
             activeNotificationScanCount -= 1
 
-            if let pendingNotificationRefresh,
-               activeNotificationScanCount < maximumConcurrentNotificationScans {
+            if let pendingNotificationRefresh {
                 self.pendingNotificationRefresh = nil
                 startNotificationRefresh(pendingNotificationRefresh)
             }
@@ -315,8 +317,9 @@ class AudioDeviceManager {
         }
         let snapshot = timedSnapshot.snapshot
 
-        let didPublish = request.generation == notificationRefreshGeneration
+        let didPublish = request.generation > notificationRefreshCompletionWatermark
         if didPublish {
+            notificationRefreshCompletionWatermark = request.generation
             applyNotificationSnapshot(snapshot)
         }
 
@@ -344,6 +347,7 @@ class AudioDeviceManager {
 
     private func invalidateNotificationRefreshes() {
         notificationRefreshGeneration += 1
+        notificationRefreshCompletionWatermark = notificationRefreshGeneration
         pendingNotificationRefresh = nil
     }
 
@@ -363,14 +367,23 @@ class AudioDeviceManager {
             return enumeration.deviceIDsByUID[selectedDeviceUID]
         }()
         let activeDeviceID = selectedDeviceID ?? defaultDeviceID
+        let activeDevice = {
+            if selectedDeviceID != nil, let selectedDeviceUID {
+                return devices.first(where: { $0.uid == selectedDeviceUID })
+            }
+            guard let defaultDeviceUID else { return nil }
+            return devices.first(where: { $0.uid == defaultDeviceUID })
+        }()
 
         return AudioDeviceNotificationSnapshot(
             devices: devices,
             systemDefaultDeviceUID: defaultDeviceUID,
             selectedDeviceUID: selectedDeviceUID,
             inputVolumeScalar: activeDeviceID.flatMap(CoreAudioDeviceHelper.readInputVolumeScalar),
-            activeInputDeviceIdentifier: activeDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceUID),
-            activeInputDeviceName: activeDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceName)
+            activeInputDeviceIdentifier: activeDevice?.uid
+                ?? activeDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceUID),
+            activeInputDeviceName: activeDevice?.name
+                ?? activeDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceName)
         )
     }
 
