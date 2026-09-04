@@ -147,7 +147,13 @@ export async function transcribeWithAzureMai(
   // the locale table and the billed rate all describe the same model. Taking
   // `context.model` verbatim and only falling back on the wire lookup could
   // send v2's wire string with 1.5's request shape.
-  const model = context.model && context.model in AZURE_MAI_WIRE_MODELS
+  //
+  // `Object.hasOwn`, not `in`: `in` walks the prototype chain, so a model id of
+  // `constructor` or `toString` would pass the guard and hand a FUNCTION to the
+  // wire string below. The HTTP route resolves the model before dispatch today,
+  // so this is only reachable by a direct adapter call — but the guard is the
+  // thing standing between a caller-supplied string and the request body.
+  const model = context.model && Object.hasOwn(AZURE_MAI_WIRE_MODELS, context.model)
     ? context.model
     : DEFAULT_MODEL;
   const wireModel = AZURE_MAI_WIRE_MODELS[model];

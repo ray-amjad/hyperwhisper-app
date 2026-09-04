@@ -290,7 +290,14 @@ export function computeXaiTranscriptionCost(durationSeconds: number): number {
 export function computeAzureMaiTranscriptionCost(durationSeconds: number, model?: string): number {
   // Unknown/absent model bills at the 1.5 rate — the dearer of the two, so a
   // model string we don't recognise cannot under-bill.
-  const perMinute = (model ? AZURE_MAI_COST_PER_AUDIO_MINUTE[model] : undefined)
+  //
+  // `Object.hasOwn` rather than a bare index: `AZURE_MAI_COST_PER_AUDIO_MINUTE
+  // ['constructor']` is the Object constructor, not undefined, so `?? fallback`
+  // would not fire and the rate would be a FUNCTION — `costUsd: NaN` on the
+  // invoice instead of an over-bill.
+  const perMinute = (model && Object.hasOwn(AZURE_MAI_COST_PER_AUDIO_MINUTE, model)
+    ? AZURE_MAI_COST_PER_AUDIO_MINUTE[model]
+    : undefined)
     ?? AZURE_MAI_FALLBACK_COST_PER_AUDIO_MINUTE;
   return computeLinearPerMinuteCost(durationSeconds, perMinute);
 }

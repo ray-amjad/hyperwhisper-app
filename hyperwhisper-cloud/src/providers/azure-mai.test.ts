@@ -169,6 +169,18 @@ describe('transcribeWithAzureMai — request shape', () => {
       expect(wireFor[registryModel.id]).toBeDefined();
       expect(lastDefinition.enhancedMode.model).toBe(wireFor[registryModel.id]);
     }
+
+    // An inherited Object.prototype key is not a model. With `in` instead of
+    // `Object.hasOwn` the guard passed and `enhancedMode.model` became the
+    // Object constructor itself.
+    for (const proto of ['constructor', 'toString', 'hasOwnProperty']) {
+      await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+        model: proto,
+      });
+      expect(lastDefinition.enhancedMode.model).toBe('MAI-Transcribe-2');
+      // ...and it takes the DEFAULT model's request shape, not a half-applied one.
+      expect(lastDefinition.enhancedMode.modelOptions).toEqual({ transcribeStyle: 'clean' });
+    }
   });
 
   test('sends a monolingual locale for an explicit non-auto language, and no locales for auto/absent', async () => {

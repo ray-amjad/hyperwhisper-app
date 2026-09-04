@@ -37,6 +37,7 @@ import {
   usdToCredits,
   type GroqUsage,
 } from './cost-calculator';
+import { getProviderDef } from './stt-models';
 
 describe('new STT provider cost functions', () => {
   test('Mistral Voxtral bills $0.003/min', () => {
@@ -453,6 +454,28 @@ describe('flat per-audio-minute STT rates', () => {
     // so a bad model string can never under-bill.
     expect(computeAzureMaiTranscriptionCost(60)).toBeCloseTo(0.006, 6);
     expect(computeAzureMaiTranscriptionCost(60, 'mai-transcribe-99')).toBeCloseTo(0.006, 6);
+
+    // An inherited Object.prototype key is an unrecognised model, not a rate.
+    // A bare index lookup returns the Object constructor for 'constructor', so
+    // `?? fallback` never fires and the invoice reads NaN.
+    for (const proto of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+      expect(computeAzureMaiTranscriptionCost(60, proto)).toBeCloseTo(0.006, 6);
+    }
+  });
+
+  test('every model the registry routes to azure-mai has a billing rate', () => {
+    // Sibling of azure-mai.test.ts's "every model the registry routes here has
+    // a wire string". That map is guarded; this one was not, so a third MAI
+    // model added to `stt-models.ts` would have shipped billing silently at
+    // 1.5's rate — the reservation would be right and the charge wrong.
+    const models = getProviderDef('azure-mai').models;
+    expect(models.length).toBeGreaterThan(1);
+    for (const model of models) {
+      // The published rate for a model the registry knows must equal the rate
+      // that model reserves at, to the cent-per-hour.
+      expect(computeAzureMaiTranscriptionCost(3600, model.id))
+        .toBeCloseTo(model.estimatedUsdPerMinute * 60, 6);
+    }
   });
 
   test('AssemblyAI sync bills its own $0.45/hr rate, above every async tier', () => {
