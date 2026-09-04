@@ -317,8 +317,15 @@ impl HwBoundedAgreementSession {
     /// throw stay committed and the hypothesis that triggered it has already been
     /// pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
     /// `LimitExceeded` to see what survived; do not assume the call was a no-op.
-    /// The daemon treats the error as fatal to the session, which is why the
-    /// partial state is never observed in practice.
+    ///
+    /// The daemon does **not** end the session on this error: its `audio`
+    /// handler logs it, answers with a fixed message and keeps the session
+    /// serving the next request. So a caller that caches `preview` off the
+    /// updates — as `LiveEngineSession.cs` must, to keep the audio path off the
+    /// FFI — has to refresh that cache from
+    /// [`HwBoundedAgreementSession::preview`] in its failure path, or it serves
+    /// a transcript the engine has already moved past. Pinned by
+    /// `bounded_session_limit_exceeded_still_moves_the_preview`.
     pub fn observe(&self, hypothesis: String) -> Result<HwStreamUpdate, HwStreamError> {
         self.locked()
             .observe(&hypothesis)
@@ -461,5 +468,51 @@ mod tests {
             "Live transcript exceeded the 512 KiB limit"
         );
         assert_eq!(session.preview(), "");
+    }
+
+    /// A `LimitExceeded` is **not** a no-op, so the preview a caller cached from
+    /// the last successful update is stale the moment one is thrown: the
+    /// hypothesis that triggered it has been pushed, and part of the commit may
+    /// already have landed. This is the invariant that obliges
+    /// `BoundedWordAgreement.Apply` to re-read `preview()` in its `catch`.
+    ///
+    /// The other cap test above takes the *atomic* path — one word longer than
+    /// the whole budget is refused by `observe`'s up-front projection before any
+    /// state moves. This one takes the path through `append_committed`.
+    #[test]
+    fn bounded_session_limit_exceeded_still_moves_the_preview() {
+        // Ten words of 45,000 UTF-16 units each. The joined hypothesis is
+        // 450,009 units, under the 512 KiB (524,288) cap, so every pass clears
+        // `observe`'s up-front check. Inside `append_committed` the budget is
+        // re-measured per word against the committed text *plus* the untrimmed
+        // hypothesis: the first committed word projects to 495,010 and fits,
+        // the second to 540,011 and does not.
+        let session = HwBoundedAgreementSession::new(" ".to_string());
+        let hypothesis = (0u8..10)
+            .map(|index| format!("{}{}", char::from(b'a' + index), "x".repeat(44_999)))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let first = session
+            .observe(hypothesis.clone())
+            .expect("the first pass fits");
+        let second = session
+            .observe(hypothesis.clone())
+            .expect("the second pass fits");
+        assert_eq!(second.preview, first.preview);
+        assert_eq!(second.preview.encode_utf16().count(), 450_009);
+
+        // The third pass agrees, so it commits seven words — and runs out of
+        // budget on the second of them.
+        let Err(error) = session.observe(hypothesis) else {
+            panic!("the third pass must commit a word and then hit the cap");
+        };
+        assert!(matches!(error, HwStreamError::LimitExceeded));
+
+        // One word did land, and the failed pass is still the newest
+        // hypothesis, so the live preview is a word longer than the one the
+        // caller cached.
+        assert_eq!(session.preview().encode_utf16().count(), 495_010);
+        assert_ne!(session.preview(), second.preview);
     }
 }

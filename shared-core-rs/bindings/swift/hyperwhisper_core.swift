@@ -636,8 +636,15 @@ public protocol HwBoundedAgreementSessionProtocol : AnyObject {
      * throw stay committed and the hypothesis that triggered it has already been
      * pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
      * `LimitExceeded` to see what survived; do not assume the call was a no-op.
-     * The daemon treats the error as fatal to the session, which is why the
-     * partial state is never observed in practice.
+     *
+     * The daemon does **not** end the session on this error: its `audio`
+     * handler logs it, answers with a fixed message and keeps the session
+     * serving the next request. So a caller that caches `preview` off the
+     * updates — as `LiveEngineSession.cs` must, to keep the audio path off the
+     * FFI — has to refresh that cache from
+     * [`HwBoundedAgreementSession::preview`] in its failure path, or it serves
+     * a transcript the engine has already moved past. Pinned by
+     * `bounded_session_limit_exceeded_still_moves_the_preview`.
      */
     func observe(hypothesis: String) throws  -> HwStreamUpdate
     
@@ -771,8 +778,15 @@ open func finish(finalHypothesis: String)throws  -> HwStreamUpdate {
      * throw stay committed and the hypothesis that triggered it has already been
      * pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
      * `LimitExceeded` to see what survived; do not assume the call was a no-op.
-     * The daemon treats the error as fatal to the session, which is why the
-     * partial state is never observed in practice.
+     *
+     * The daemon does **not** end the session on this error: its `audio`
+     * handler logs it, answers with a fixed message and keeps the session
+     * serving the next request. So a caller that caches `preview` off the
+     * updates — as `LiveEngineSession.cs` must, to keep the audio path off the
+     * FFI — has to refresh that cache from
+     * [`HwBoundedAgreementSession::preview`] in its failure path, or it serves
+     * a transcript the engine has already moved past. Pinned by
+     * `bounded_session_limit_exceeded_still_moves_the_preview`.
      */
 open func observe(hypothesis: String)throws  -> HwStreamUpdate {
     return try  FfiConverterTypeHwStreamUpdate.lift(try rustCallWithError(FfiConverterTypeHwStreamError.lift) {
@@ -17229,7 +17243,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_finish() != 15216) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe() != 29490) {
+    if (uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe() != 36063) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_preview() != 58427) {

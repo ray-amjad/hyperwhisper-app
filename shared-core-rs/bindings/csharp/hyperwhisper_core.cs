@@ -5136,8 +5136,8 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe();
-            if (checksum != 29490) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe` checksum `29490`, library returned `{checksum}`");
+            if (checksum != 36063) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwboundedagreementsession_observe` checksum `36063`, library returned `{checksum}`");
             }
         }
         {
@@ -5569,8 +5569,15 @@ internal interface IHwBoundedAgreementSession {
     /// throw stay committed and the hypothesis that triggered it has already been
     /// pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
     /// `LimitExceeded` to see what survived; do not assume the call was a no-op.
-    /// The daemon treats the error as fatal to the session, which is why the
-    /// partial state is never observed in practice.
+    ///
+    /// The daemon does **not** end the session on this error: its `audio`
+    /// handler logs it, answers with a fixed message and keeps the session
+    /// serving the next request. So a caller that caches `preview` off the
+    /// updates — as `LiveEngineSession.cs` must, to keep the audio path off the
+    /// FFI — has to refresh that cache from
+    /// [`HwBoundedAgreementSession::preview`] in its failure path, or it serves
+    /// a transcript the engine has already moved past. Pinned by
+    /// `bounded_session_limit_exceeded_still_moves_the_preview`.
     /// </summary>
     /// <exception cref="HwStreamException"></exception>
     HwStreamUpdate Observe(string @hypothesis);
@@ -5739,8 +5746,15 @@ internal class HwBoundedAgreementSession : IHwBoundedAgreementSession, IDisposab
     /// throw stay committed and the hypothesis that triggered it has already been
     /// pushed and trimmed. Read [`HwBoundedAgreementSession::preview`] after a
     /// `LimitExceeded` to see what survived; do not assume the call was a no-op.
-    /// The daemon treats the error as fatal to the session, which is why the
-    /// partial state is never observed in practice.
+    ///
+    /// The daemon does **not** end the session on this error: its `audio`
+    /// handler logs it, answers with a fixed message and keeps the session
+    /// serving the next request. So a caller that caches `preview` off the
+    /// updates — as `LiveEngineSession.cs` must, to keep the audio path off the
+    /// FFI — has to refresh that cache from
+    /// [`HwBoundedAgreementSession::preview`] in its failure path, or it serves
+    /// a transcript the engine has already moved past. Pinned by
+    /// `bounded_session_limit_exceeded_still_moves_the_preview`.
     /// </summary>
     /// <exception cref="HwStreamException"></exception>
     public HwStreamUpdate Observe(string @hypothesis) {
