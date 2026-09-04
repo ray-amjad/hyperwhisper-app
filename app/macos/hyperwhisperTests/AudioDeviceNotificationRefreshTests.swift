@@ -206,6 +206,38 @@ struct AudioDeviceNotificationRefreshTests {
         #expect(probe.reports.map(\.didPublish) == [false])
     }
 
+    @Test func scanDurationExcludesDelayBeforeMainActorCanResume() async {
+        let probe = NotificationScanProbe()
+        let providerGate = NotificationScanGate()
+        let mainActorGate = NotificationScanGate()
+        let manager = AudioDeviceManager(
+            registerNotificationListeners: false,
+            notificationSnapshotProvider: { _ in
+                _ = probe.beginCall()
+                providerGate.wait()
+                return notificationSnapshot(devices: [notificationFirstDevice])
+            },
+            notificationScanReporter: { report in probe.record(report) }
+        )
+
+        let refresh = Task {
+            await manager.refreshAvailableDevicesFromNotificationForTesting(reason: .coreAudioDeviceList)
+        }
+        await Self.waitUntil { probe.calls == 1 }
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(20)) {
+            providerGate.release()
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(150)) {
+            mainActorGate.release()
+        }
+        mainActorGate.wait()
+        await refresh.value
+
+        #expect(probe.reports.count == 1)
+        #expect(probe.reports[0].durationMs < 100)
+    }
+
     @Test func missingSelectedDeviceInvalidatesOnceWithoutCoreAudio() async {
         let selected = notificationFirstDevice
         let probe = NotificationScanProbe()

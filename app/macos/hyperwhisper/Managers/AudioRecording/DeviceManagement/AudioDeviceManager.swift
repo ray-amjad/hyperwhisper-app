@@ -33,6 +33,11 @@ private struct AudioDeviceNotificationRefreshRequest: Sendable {
     let selectedDeviceUID: String?
 }
 
+private struct TimedAudioDeviceNotificationSnapshot: Sendable {
+    let snapshot: AudioDeviceNotificationSnapshot
+    let durationMs: Int
+}
+
 /// High-level audio device management
 ///
 /// **Purpose:**
@@ -76,7 +81,7 @@ class AudioDeviceManager {
     // 1. During init() we register CoreAudio property listeners for the device roster and default input.
     // 2. CoreAudio fires those listeners any time hardware is added/removed or the default input changes.
     // 3. Callbacks arrive on deviceListenerQueue (background) so we avoid touching UI state off the main thread.
-    // 4. Each callback schedules updateAvailableDevices() on @MainActor, guaranteeing safe @Published updates.
+    // 4. Each callback starts a bounded read off-main, then publishes the newest result on @MainActor.
     // 5. SwiftUI views react immediately, so the microphone picker/menu reflects AirPods the moment they connect.
     // Threading: CoreAudio may invoke listeners on arbitrary threads; confining them to our serial queue keeps
     // ordering deterministic while still offloading processing away from the audio subsystem.
@@ -301,9 +306,14 @@ class AudioDeviceManager {
         AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(request.origin.rawValue, privacy: .public))")
 
         let provider = notificationSnapshotProvider
-        let snapshot = await offMainActor {
-            provider(request.selectedDeviceUID)
+        let timedSnapshot = await offMainActor {
+            let start = DispatchTime.now().uptimeNanoseconds
+            let snapshot = provider(request.selectedDeviceUID)
+            let elapsedNanoseconds = DispatchTime.now().uptimeNanoseconds - start
+            let durationMs = Int(min(elapsedNanoseconds / 1_000_000, UInt64(Int.max)))
+            return TimedAudioDeviceNotificationSnapshot(snapshot: snapshot, durationMs: durationMs)
         }
+        let snapshot = timedSnapshot.snapshot
 
         let didPublish = request.generation == notificationRefreshGeneration
         if didPublish {
@@ -313,7 +323,7 @@ class AudioDeviceManager {
         reportNotificationScan(
             snapshot,
             reason: request.origin,
-            durationMs: 0,
+            durationMs: timedSnapshot.durationMs,
             didPublish: didPublish
         )
     }
@@ -340,7 +350,8 @@ class AudioDeviceManager {
     nonisolated static func readNotificationSnapshot(
         selectedDeviceUID: String?
     ) -> AudioDeviceNotificationSnapshot {
-        let devices = CoreAudioDeviceHelper.fetchCoreAudioInputDevices()
+        let enumeration = CoreAudioDeviceHelper.fetchCoreAudioInputDevicesWithIDs()
+        let devices = enumeration.devices
         let defaultDeviceID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
         let defaultDeviceUID = defaultDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceUID)
 
@@ -349,7 +360,7 @@ class AudioDeviceManager {
                   devices.contains(where: { $0.uid == selectedDeviceUID }) else {
                 return nil
             }
-            return CoreAudioDeviceHelper.findAudioDeviceID(byUID: selectedDeviceUID)
+            return enumeration.deviceIDsByUID[selectedDeviceUID]
         }()
         let activeDeviceID = selectedDeviceID ?? defaultDeviceID
 
@@ -406,36 +417,14 @@ class AudioDeviceManager {
         durationMs: Int,
         didPublish: Bool
     ) {
-        if AppLogger.isErrorLoggingEnabled {
-            SentryService.addBreadcrumb(
-                message: "Audio device change detected",
-                category: "audio.devices",
-                data: [
-                    "reason": reason.rawValue,
-                    "deviceCount": snapshot.devices.count,
-                    "defaultDeviceUID": snapshot.systemDefaultDeviceUID ?? "unknown",
-                    "activeDeviceName": snapshot.activeInputDeviceName ?? "audio.device.default".localized
-                ]
-            )
-        }
-
-        if durationMs > 250 {
-            AppLogger.audio.warning("⚠️ 📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(snapshot.devices.count)")
-            if AppLogger.isErrorLoggingEnabled {
-                SentryService.addBreadcrumb(
-                    message: "Slow audio device scan",
-                    category: "audio.devices",
-                    level: .warning,
-                    data: [
-                        "reason": reason.rawValue,
-                        "durationMs": durationMs,
-                        "deviceCount": snapshot.devices.count
-                    ]
-                )
-            }
-        } else {
-            AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(snapshot.devices.count)")
-        }
+        finishDeviceScan(
+            reason: reason,
+            durationMs: durationMs,
+            deviceCount: snapshot.devices.count,
+            defaultDeviceUID: snapshot.systemDefaultDeviceUID,
+            activeDeviceName: snapshot.activeInputDeviceName ?? "audio.device.default".localized,
+            didPublish: didPublish
+        )
 
         notificationScanReporter?(
             AudioDeviceNotificationScanReport(
@@ -444,6 +433,56 @@ class AudioDeviceManager {
                 didPublish: didPublish
             )
         )
+    }
+
+    /// Keep synchronous and notification scans on one telemetry contract.
+    private func finishDeviceScan(
+        reason: DeviceScanOrigin,
+        durationMs: Int,
+        deviceCount: Int,
+        defaultDeviceUID: String?,
+        activeDeviceName: String,
+        didPublish: Bool? = nil
+    ) {
+        if AppLogger.isErrorLoggingEnabled,
+           reason == .coreAudioDeviceList || reason == .coreAudioDefaultInput {
+            var changeData: [String: Any] = [
+                "reason": reason.rawValue,
+                "deviceCount": deviceCount,
+                "defaultDeviceUID": defaultDeviceUID ?? "unknown",
+                "activeDeviceName": activeDeviceName
+            ]
+            if let didPublish {
+                changeData["didPublish"] = didPublish
+            }
+            SentryService.addBreadcrumb(
+                message: "Audio device change detected",
+                category: "audio.devices",
+                data: changeData
+            )
+        }
+
+        if durationMs > 250 {
+            AppLogger.audio.warning("⚠️ 📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(deviceCount)")
+            if AppLogger.isErrorLoggingEnabled {
+                var slowData: [String: Any] = [
+                    "reason": reason.rawValue,
+                    "durationMs": durationMs,
+                    "deviceCount": deviceCount
+                ]
+                if let didPublish {
+                    slowData["didPublish"] = didPublish
+                }
+                SentryService.addBreadcrumb(
+                    message: "Slow audio device scan",
+                    category: "audio.devices",
+                    level: .warning,
+                    data: slowData
+                )
+            }
+        } else {
+            AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(deviceCount)")
+        }
     }
 
     /// Update list of available audio devices
@@ -497,38 +536,14 @@ class AudioDeviceManager {
 
         updateInputVolumeMetrics()
 
-        if AppLogger.isErrorLoggingEnabled,
-           reason == .coreAudioDeviceList || reason == .coreAudioDefaultInput {
-            SentryService.addBreadcrumb(
-                message: "Audio device change detected",
-                category: "audio.devices",
-                data: [
-                    "reason": reason.rawValue,
-                    "deviceCount": self.availableDevices.count,
-                    "defaultDeviceUID": self.systemDefaultDeviceUID ?? "unknown",
-                    "activeDeviceName": self.activeInputDeviceName
-                ]
-            )
-        }
-
         let durationMs = Int(Date().timeIntervalSince(scanStart) * 1000)
-        if durationMs > 250 {
-            AppLogger.audio.warning("⚠️ 📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(self.availableDevices.count)")
-            if AppLogger.isErrorLoggingEnabled {
-                SentryService.addBreadcrumb(
-                    message: "Slow audio device scan",
-                    category: "audio.devices",
-                    level: .warning,
-                    data: [
-                        "reason": reason.rawValue,
-                        "durationMs": durationMs,
-                        "deviceCount": self.availableDevices.count
-                    ]
-                )
-            }
-        } else {
-            AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(self.availableDevices.count)")
-        }
+        finishDeviceScan(
+            reason: reason,
+            durationMs: durationMs,
+            deviceCount: availableDevices.count,
+            defaultDeviceUID: systemDefaultDeviceUID,
+            activeDeviceName: activeInputDeviceName
+        )
     }
 
     // MARK: - Device Selection
