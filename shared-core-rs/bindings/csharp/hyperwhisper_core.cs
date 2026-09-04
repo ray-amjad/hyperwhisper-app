@@ -1272,6 +1272,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1358,6 +1362,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_app_type_prompt_value(RustBuffer @appType,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_appcast_parse_pub_date(RustBuffer @value,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_appcast_select_releases(RustBuffer @entries,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2557,6 +2569,14 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_appcast_parse_pub_date(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_appcast_select_releases(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_append_trailing_space(
     );
 
@@ -3592,6 +3612,18 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_app_type_prompt_value();
             if (checksum != 40715) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_app_type_prompt_value` checksum `40715`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_appcast_parse_pub_date();
+            if (checksum != 49242) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_appcast_parse_pub_date` checksum `49242`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_appcast_select_releases();
+            if (checksum != 22526) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_appcast_select_releases` checksum `22526`, library returned `{checksum}`");
             }
         }
         {
@@ -6310,6 +6342,194 @@ class FfiConverterTypeHttpResponse: FfiConverterRustBuffer<HttpResponse> {
             FfiConverterUInt16.INSTANCE.Write(value.@status, stream);
             FfiConverterSequenceTypeHeader.INSTANCE.Write(value.@headers, stream);
             FfiConverterByteArray.INSTANCE.Write(value.@body, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One raw `<item>`, exactly as a native XML reader found it. Mirrors
+/// `hw_releasenotes::FeedEntry`.
+///
+/// **No rules applied.** Every field is the feed's own text, untrimmed, and
+/// `None` means the element was absent rather than empty. A reader that decides
+/// anything for itself is drift waiting to happen.
+/// </summary>
+/// <param name="title">
+/// `<title>`. Free-form prose: `2.46.0` on the macOS feed,
+/// `1.11.0 (ARM64)` on the Windows one.
+/// </param>
+/// <param name="sparkle_version">
+/// `sparkle:version` — the machine build identifier.
+/// </param>
+/// <param name="sparkle_short_version_string">
+/// `sparkle:shortVersionString` — the human-readable version.
+/// </param>
+/// <param name="pub_date">
+/// `<pubDate>`, as RFC 2822 text.
+/// </param>
+/// <param name="description">
+/// `<description>` — the inline release notes, HTML.
+/// </param>
+/// <param name="has_release_notes_link">
+/// Whether `sparkle:releaseNotesLink` was present. On macOS that is
+/// `item.Element(sparkle + "releaseNotesLink") != null`; the head sets the
+/// flag and Rust decides what it means.
+/// </param>
+internal record HwAppcastFeedEntry (
+    /// <summary>
+    /// `<title>`. Free-form prose: `2.46.0` on the macOS feed,
+    /// `1.11.0 (ARM64)` on the Windows one.
+    /// </summary>
+    string? @title, 
+    /// <summary>
+    /// `sparkle:version` — the machine build identifier.
+    /// </summary>
+    string? @sparkleVersion, 
+    /// <summary>
+    /// `sparkle:shortVersionString` — the human-readable version.
+    /// </summary>
+    string? @sparkleShortVersionString, 
+    /// <summary>
+    /// `<pubDate>`, as RFC 2822 text.
+    /// </summary>
+    string? @pubDate, 
+    /// <summary>
+    /// `<description>` — the inline release notes, HTML.
+    /// </summary>
+    string? @description, 
+    /// <summary>
+    /// Whether `sparkle:releaseNotesLink` was present. On macOS that is
+    /// `item.Element(sparkle + "releaseNotesLink") != null`; the head sets the
+    /// flag and Rust decides what it means.
+    /// </summary>
+    bool @hasReleaseNotesLink
+) {
+}
+
+class FfiConverterTypeHwAppcastFeedEntry: FfiConverterRustBuffer<HwAppcastFeedEntry> {
+    public static FfiConverterTypeHwAppcastFeedEntry INSTANCE = new FfiConverterTypeHwAppcastFeedEntry();
+
+    public override HwAppcastFeedEntry Read(BigEndianStream stream) {
+        return new HwAppcastFeedEntry(
+            @title: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @sparkleVersion: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @sparkleShortVersionString: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @pubDate: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @description: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @hasReleaseNotesLink: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwAppcastFeedEntry value) {
+        return 0
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@title)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@sparkleVersion)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@sparkleShortVersionString)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@pubDate)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@description)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@hasReleaseNotesLink);
+    }
+
+    public override void Write(HwAppcastFeedEntry value, BigEndianStream stream) {
+            FfiConverterOptionalString.INSTANCE.Write(value.@title, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@sparkleVersion, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@sparkleShortVersionString, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@pubDate, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@description, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@hasReleaseNotesLink, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One selected, normalised release, ready to render. Mirrors
+/// `hw_releasenotes::Release`.
+/// </summary>
+/// <param name="version">
+/// The resolved version, trimmed and non-empty.
+/// </param>
+/// <param name="build_number">
+/// The raw `sparkle:version`, trimmed, for macOS's
+/// `AppcastItem.buildNumber`. Windows has no such field. A passthrough, not
+/// a rule.
+/// </param>
+/// <param name="pub_date_epoch_secs">
+/// Seconds since the Unix epoch, and **0 when `<pubDate>` was absent, blank
+/// or unparseable** — which sorts the entry last rather than first.
+/// 
+/// Not an `Option`: that would turn `pubDate` into `Date?` / `DateTime?` on
+/// both heads and ripple into their formatters and equality, for an input
+/// that has never occurred in 129 committed feed items. `i64` seconds also
+/// keeps this side of the boundary clock-free, per `ffi_license.rs`.
+/// 
+/// The Rust side bounds the year to `1..=9999`, which is what stops
+/// Windows' `DateTimeOffset.FromUnixTimeSeconds` throwing on a hostile
+/// feed.
+/// </param>
+/// <param name="release_notes">
+/// The inline release notes, trimmed and non-empty. Feed this straight to
+/// `release_notes_parse`.
+/// </param>
+internal record HwAppcastRelease (
+    /// <summary>
+    /// The resolved version, trimmed and non-empty.
+    /// </summary>
+    string @version, 
+    /// <summary>
+    /// The raw `sparkle:version`, trimmed, for macOS's
+    /// `AppcastItem.buildNumber`. Windows has no such field. A passthrough, not
+    /// a rule.
+    /// </summary>
+    string? @buildNumber, 
+    /// <summary>
+    /// Seconds since the Unix epoch, and **0 when `<pubDate>` was absent, blank
+    /// or unparseable** — which sorts the entry last rather than first.
+    ///
+    /// Not an `Option`: that would turn `pubDate` into `Date?` / `DateTime?` on
+    /// both heads and ripple into their formatters and equality, for an input
+    /// that has never occurred in 129 committed feed items. `i64` seconds also
+    /// keeps this side of the boundary clock-free, per `ffi_license.rs`.
+    ///
+    /// The Rust side bounds the year to `1..=9999`, which is what stops
+    /// Windows' `DateTimeOffset.FromUnixTimeSeconds` throwing on a hostile
+    /// feed.
+    /// </summary>
+    long @pubDateEpochSecs, 
+    /// <summary>
+    /// The inline release notes, trimmed and non-empty. Feed this straight to
+    /// `release_notes_parse`.
+    /// </summary>
+    string @releaseNotes
+) {
+}
+
+class FfiConverterTypeHwAppcastRelease: FfiConverterRustBuffer<HwAppcastRelease> {
+    public static FfiConverterTypeHwAppcastRelease INSTANCE = new FfiConverterTypeHwAppcastRelease();
+
+    public override HwAppcastRelease Read(BigEndianStream stream) {
+        return new HwAppcastRelease(
+            @version: FfiConverterString.INSTANCE.Read(stream),
+            @buildNumber: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @pubDateEpochSecs: FfiConverterInt64.INSTANCE.Read(stream),
+            @releaseNotes: FfiConverterString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwAppcastRelease value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@version)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@buildNumber)
+            + FfiConverterInt64.INSTANCE.AllocationSize(value.@pubDateEpochSecs)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@releaseNotes);
+    }
+
+    public override void Write(HwAppcastRelease value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@version, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@buildNumber, stream);
+            FfiConverterInt64.INSTANCE.Write(value.@pubDateEpochSecs, stream);
+            FfiConverterString.INSTANCE.Write(value.@releaseNotes, stream);
     }
 }
 
@@ -13187,6 +13407,90 @@ class FfiConverterSequenceTypeHeader: FfiConverterRustBuffer<List<Header>> {
 
 
 
+class FfiConverterSequenceTypeHwAppcastFeedEntry: FfiConverterRustBuffer<List<HwAppcastFeedEntry>> {
+    public static FfiConverterSequenceTypeHwAppcastFeedEntry INSTANCE = new FfiConverterSequenceTypeHwAppcastFeedEntry();
+
+    public override List<HwAppcastFeedEntry> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwAppcastFeedEntry>(length);
+        var readFn = FfiConverterTypeHwAppcastFeedEntry.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwAppcastFeedEntry> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwAppcastFeedEntry.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwAppcastFeedEntry> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwAppcastFeedEntry.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwAppcastRelease: FfiConverterRustBuffer<List<HwAppcastRelease>> {
+    public static FfiConverterSequenceTypeHwAppcastRelease INSTANCE = new FfiConverterSequenceTypeHwAppcastRelease();
+
+    public override List<HwAppcastRelease> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwAppcastRelease>(length);
+        var readFn = FfiConverterTypeHwAppcastRelease.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwAppcastRelease> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwAppcastRelease.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwAppcastRelease> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwAppcastRelease.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer<List<HwBlock>> {
     public static FfiConverterSequenceTypeHwBlock INSTANCE = new FfiConverterSequenceTypeHwBlock();
 
@@ -13986,6 +14290,43 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_app_type_prompt_value(FfiConverterTypeHwAppType.INSTANCE.Lower(@appType), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Parse an RFC 2822 `<pubDate>` into seconds since the Unix epoch, or `None`
+    /// when it is not a date this accepts.
+    ///
+    /// Exported separately so each head's own suite can pin the malformed-date case
+    /// without building a whole feed, and so a future caller does not re-implement
+    /// it. It is culture-free by construction: fixed English month abbreviations,
+    /// offset-aware, no locale and no clock — which is the fix for Windows'
+    /// `DateTime.TryParse` under `CurrentCulture`.
+    /// </summary>
+    public static long? AppcastParsePubDate(string @value) {
+        return FfiConverterOptionalInt64.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_appcast_parse_pub_date(FfiConverterString.INSTANCE.Lower(@value), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Turn a feed's `<item>`s, **in document order**, into the releases the update
+    /// UI renders: filter, then dedupe, then a stable newest-first sort.
+    ///
+    /// The caller must not re-filter, re-dedupe or re-sort the result — a leftover
+    /// `.Where` or `.OrderByDescending` in a head is exactly the drift this
+    /// replaces. The result carries no cap: `prefix(5)` on macOS and
+    /// `Take(maxCount)` on Windows stay native, because the two heads cap at
+    /// different points relative to their caches. Windows' `IsLatest` stays native
+    /// too — it means "index 0 of this list", not a property of a feed entry.
+    /// </summary>
+    public static List<HwAppcastRelease> AppcastSelectReleases(List<HwAppcastFeedEntry> @entries) {
+        return FfiConverterSequenceTypeHwAppcastRelease.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_appcast_select_releases(FfiConverterSequenceTypeHwAppcastFeedEntry.INSTANCE.Lower(@entries), ref _status)
 ));
     }
 

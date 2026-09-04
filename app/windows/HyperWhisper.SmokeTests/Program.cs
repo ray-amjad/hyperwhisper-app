@@ -4845,6 +4845,301 @@ internal static class Program
                     "Copy() no longer shares the parsed bullets");
             });
 
+            // =================================================================
+            // AppcastService — the XML→items step, shared with macOS (#353)
+            //
+            // The service is a facade now: XDocument in, raw HwAppcastFeedEntry
+            // values out in document order, one AppcastSelectReleases call, and
+            // a map back to AppcastItem. Which field the version comes from,
+            // which entries are dropped, how duplicates collapse and how the
+            // list is ordered are decided in hw-releasenotes for this head and
+            // macOS both.
+            //
+            // These checks pin the FACADE WIRING, not the rules — the rules have
+            // their own tests in Rust. The differential below is the one that
+            // matters to a user: the live feed must still produce exactly the
+            // list this head shipped before the change.
+            // =================================================================
+
+            Run("AppcastService replays the live appcast-windows.xml to the same 15 releases as before #353", () =>
+            {
+                var doc = System.Xml.Linq.XDocument.Load(LiveWindowsAppcastPath());
+                Assert(doc.Descendants("item").Count() == 30,
+                    $"expected the live feed to carry 30 items (15 versions x 2 architectures), got "
+                        + $"{doc.Descendants("item").Count()}");
+
+                var actual = AppcastService.SelectReleases(doc);
+                var baseline = SelectReleasesTheWayMainDid(doc);
+
+                // 30 arch-paired items collapse to 15 releases. If this number
+                // moves, either the feed grew a version or a selection rule
+                // changed — both want a human to look.
+                Assert(baseline.Count == 15, $"the pre-#353 pipeline no longer yields 15 releases, got {baseline.Count}");
+                Assert(actual.Count == baseline.Count,
+                    $"expected {baseline.Count} releases, got {actual.Count}");
+
+                for (var i = 0; i < baseline.Count; i++)
+                {
+                    Assert(actual[i].Version == baseline[i].Version,
+                        $"release {i}: expected version '{baseline[i].Version}', got '{actual[i].Version}'");
+                    Assert(actual[i].PubDate == baseline[i].PubDate,
+                        $"release {i} ({baseline[i].Version}): expected {baseline[i].PubDate:o}, got {actual[i].PubDate:o}");
+                    Assert(actual[i].PubDate.Kind == baseline[i].PubDate.Kind,
+                        $"release {i}: DateTimeKind changed from {baseline[i].PubDate.Kind} to {actual[i].PubDate.Kind}"
+                            + " — FormattedDate renders the value as it stands, so this shifts every displayed date");
+                    Assert(actual[i].FormattedDate == baseline[i].FormattedDate,
+                        $"release {i}: the rendered date changed from '{baseline[i].FormattedDate}' to '{actual[i].FormattedDate}'");
+                    // Trimmed, and deliberately: the shared step trims the
+                    // <description> (macOS already did), where this head used
+                    // to hand the CDATA's raw .Value straight to the parser.
+                    // Inert — the block parser skips leading whitespace before
+                    // <h2> — so the RENDERED note below has to be identical.
+                    Assert(actual[i].ReleaseNotes == baseline[i].ReleaseNotes.Trim(),
+                        $"release {i} ({baseline[i].Version}): the release-notes HTML changed by more than trimming");
+                    Assert(RunText(actual[i].ReleaseTitle) == RunText(baseline[i].ReleaseTitle),
+                        $"release {i} ({baseline[i].Version}): the rendered title changed from "
+                            + $"'{RunText(baseline[i].ReleaseTitle)}' to '{RunText(actual[i].ReleaseTitle)}'");
+                    Assert(actual[i].BulletPoints.Select(RunText)
+                            .SequenceEqual(baseline[i].BulletPoints.Select(RunText)),
+                        $"release {i} ({baseline[i].Version}): the rendered bullets changed");
+                }
+
+                // The newest release is index 0, which is the only thing
+                // IsLatest means — and the reason the flag stays native.
+                Assert(actual[0].Version == "1.11.0", $"expected 1.11.0 at the top, got '{actual[0].Version}'");
+                Assert(actual.Select(r => r.PubDate).SequenceEqual(actual.Select(r => r.PubDate).OrderByDescending(d => d)),
+                    "the returned list is not newest-first");
+            });
+
+            Run("AppcastService re-applies no selection rule of its own", () =>
+            {
+                // Document order deliberately disagrees with date order, and
+                // there is a duplicate version whose FIRST entry has no notes.
+                // Only the shared pipeline's order — filter, then dedupe, then
+                // sort — gives the answer below. A leftover .Where/.GroupBy/
+                // .OrderByDescending in the facade produces a different list.
+                var doc = System.Xml.Linq.XDocument.Parse("""
+                    <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+                      <channel>
+                        <title>HyperWhisper for Windows</title>
+                        <item>
+                          <title>2.0.0 (ARM64)</title>
+                          <pubDate>Tue, 06 Jan 2026 00:00:00 +0000</pubDate>
+                          <sparkle:version>2.0.0</sparkle:version>
+                          <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+                          <description>   </description>
+                        </item>
+                        <item>
+                          <title>2.0.0 (x64)</title>
+                          <pubDate>Tue, 06 Jan 2026 00:00:00 +0000</pubDate>
+                          <sparkle:version>2.0.0</sparkle:version>
+                          <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+                          <description>&lt;ul&gt;&lt;li&gt;kept&lt;/li&gt;&lt;/ul&gt;</description>
+                        </item>
+                        <item>
+                          <title>3.0.0 (x64)</title>
+                          <pubDate>Fri, 06 Feb 2026 00:00:00 +0000</pubDate>
+                          <sparkle:version>3.0.0</sparkle:version>
+                          <sparkle:shortVersionString>3.0.0</sparkle:shortVersionString>
+                          <description>&lt;ul&gt;&lt;li&gt;newest&lt;/li&gt;&lt;/ul&gt;</description>
+                        </item>
+                        <item>
+                          <title>1.0.0 (x64)</title>
+                          <pubDate>Mon, 06 Apr 2026 00:00:00 +0000</pubDate>
+                          <sparkle:version>1.0.0</sparkle:version>
+                          <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+                          <sparkle:releaseNotesLink>https://example.com/notes.html</sparkle:releaseNotesLink>
+                          <description>&lt;ul&gt;&lt;li&gt;never rendered&lt;/li&gt;&lt;/ul&gt;</description>
+                        </item>
+                      </channel>
+                    </rss>
+                    """);
+
+                var releases = AppcastService.SelectReleases(doc);
+
+                // 1.0.0 is dropped despite being newest and carrying a
+                // <description>: a releaseNotesLink means the notes live
+                // somewhere the card cannot fetch.
+                Assert(releases.Select(r => r.Version).SequenceEqual(["3.0.0", "2.0.0"]),
+                    $"got: {string.Join(", ", releases.Select(r => r.Version))}");
+
+                // Filter-before-dedupe: the empty-<description> 2.0.0 came
+                // first in the document. Dedupe-before-filter would have kept
+                // it and then dropped the whole version.
+                Assert(RunText(releases[1].BulletPoints[0]) == "kept",
+                    $"expected the second 2.0.0 entry to survive, got '{RunText(releases[1].BulletPoints[0])}'");
+
+                // The <channel><title> must not leak in as a version.
+                Assert(releases.All(r => r.Version != "HyperWhisper for Windows"),
+                    "the channel title was read as a version");
+            });
+
+            Run("AppcastService maps the shared epoch to a LOCAL DateTime, so no displayed date shifts", () =>
+            {
+                // The old DateTime.TryParse on an offset-bearing string returned
+                // Kind = Local, and FormattedDate renders the value as it
+                // stands. UtcDateTime here would silently move every date in
+                // the Recent Updates list by the machine's UTC offset.
+                const string pubDate = "Sun, 16 Aug 2026 04:17:53 +0000";
+                var doc = System.Xml.Linq.XDocument.Parse(
+                    "<rss xmlns:sparkle=\"http://www.andymatuschak.org/xml-namespaces/sparkle\"><channel><item>"
+                    + "<title>9.9.9 (x64)</title><pubDate>" + pubDate + "</pubDate>"
+                    + "<sparkle:version>9.9.9</sparkle:version>"
+                    + "<sparkle:shortVersionString>9.9.9</sparkle:shortVersionString>"
+                    + "<description>&lt;ul&gt;&lt;li&gt;x&lt;/li&gt;&lt;/ul&gt;</description>"
+                    + "</item></channel></rss>");
+
+                var release = AppcastService.SelectReleases(doc).Single();
+
+                DateTime.TryParse(pubDate, CultureInfo.InvariantCulture, out var expected);
+                Assert(release.PubDate == expected,
+                    $"expected {expected:o} (Kind={expected.Kind}), got {release.PubDate:o} (Kind={release.PubDate.Kind})");
+                Assert(release.PubDate.Kind == DateTimeKind.Local,
+                    $"expected DateTimeKind.Local, got {release.PubDate.Kind}");
+
+                // An unparseable date is epoch 0, and the entry SURVIVES rather
+                // than being dropped or stamped with "now" — it just sorts last.
+                var broken = System.Xml.Linq.XDocument.Parse(
+                    "<rss xmlns:sparkle=\"http://www.andymatuschak.org/xml-namespaces/sparkle\"><channel><item>"
+                    + "<title>9.9.9 (x64)</title><pubDate>not a date</pubDate>"
+                    + "<sparkle:version>9.9.9</sparkle:version>"
+                    + "<sparkle:shortVersionString>9.9.9</sparkle:shortVersionString>"
+                    + "<description>&lt;ul&gt;&lt;li&gt;x&lt;/li&gt;&lt;/ul&gt;</description>"
+                    + "</item></channel></rss>");
+                var brokenRelease = AppcastService.SelectReleases(broken).Single();
+                Assert(brokenRelease.PubDate == DateTimeOffset.FromUnixTimeSeconds(0).LocalDateTime,
+                    $"expected the Unix epoch for an unparseable pubDate, got {brokenRelease.PubDate:o}");
+            });
+
+            Run("The appcast date parse no longer depends on CurrentCulture — #353's user-visible fix", () =>
+            {
+                // MEASURED, not asserted from reading the source. `main` called
+                // DateTime.TryParse(pubDateStr, out var pubDate) with no
+                // CultureInfo and no DateTimeStyles, so the feed's English
+                // RFC 2822 day and month names were read through whatever
+                // culture the user's Windows is set to.
+                const string sample = "Wed, 02 Sep 2026 12:06:28 +0000";
+                const long sampleEpoch = 1788350788L;   // 2026-09-02T12:06:28Z
+
+                var original = CultureInfo.CurrentCulture;
+                var measurements = new List<(string Culture, bool MainOk, long MainTicks,
+                    long? Shared, int SharedCount, string SharedTopVersion, long SharedTopTicks,
+                    int MainCount, string MainTopVersion, long MainTopTicks, string MainFormatted)>();
+                try
+                {
+                    foreach (var name in new[] { "en-US", "en-GB", "de-DE", "fr-FR", "ja-JP", "ar-SA", "th-TH", "ru-RU" })
+                    {
+                        CultureInfo.CurrentCulture = new CultureInfo(name);
+
+                        // main's call, verbatim: no CultureInfo, no DateTimeStyles.
+                        var mainOk = DateTime.TryParse(sample, out var mainValue);
+
+                        // The shared path, through the same FFI entry point the
+                        // facade uses.
+                        var shared = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.AppcastParsePubDate(sample);
+
+                        // And the whole live feed, end to end, under this culture.
+                        var doc = System.Xml.Linq.XDocument.Load(LiveWindowsAppcastPath());
+                        var live = AppcastService.SelectReleases(doc);
+                        var mainLive = SelectReleasesTheWayMainDid(doc);
+
+                        // What the card would actually SHOW under main. Guarded,
+                        // because this is itself a finding: FormattedDate is
+                        // PubDate.ToString("MMM d, yyyy"), and a DateTime.MinValue
+                        // — which is what main's failed parse leaves behind —
+                        // cannot be formatted at all in a calendar that does not
+                        // reach back to year 1.
+                        string mainFormatted;
+                        try
+                        {
+                            mainFormatted = mainLive.Count > 0 ? mainLive[0].FormattedDate : "(none)";
+                        }
+                        catch (Exception ex)
+                        {
+                            mainFormatted = "THREW " + ex.GetType().Name;
+                        }
+
+                        // Ticks, not formatted strings: formatting under the
+                        // culture being measured is the very thing that can
+                        // throw, and this list must survive to be printed.
+                        measurements.Add((name, mainOk, mainValue.Ticks, shared,
+                            live.Count,
+                            live.Count > 0 ? live[0].Version : "(none)",
+                            live.Count > 0 ? live[0].PubDate.Ticks : 0,
+                            mainLive.Count,
+                            mainLive.Count > 0 ? mainLive[0].Version : "(none)",
+                            mainLive.Count > 0 ? mainLive[0].PubDate.Ticks : 0,
+                            mainFormatted));
+                    }
+                }
+                finally
+                {
+                    CultureInfo.CurrentCulture = original;
+                }
+
+                // Print BEFORE asserting: the measurement is the point, and a
+                // failed assertion further down must not swallow it.
+                static string Day(long ticks) =>
+                    new DateTime(ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+                foreach (var m in measurements)
+                {
+                    Console.WriteLine($"       [measured] {m.Culture,-5}"
+                        + $" main.TryParse={(m.MainOk ? "ok" : "FAILED")}->{Day(m.MainTicks)}"
+                        + $" | shared={m.Shared}"
+                        + $" | live main: {m.MainCount} rel, top {m.MainTopVersion}@{Day(m.MainTopTicks)}, shows '{m.MainFormatted}'"
+                        + $" | live shared: {m.SharedCount} rel, top {m.SharedTopVersion}@{Day(m.SharedTopTicks)}");
+                }
+
+                // THE CLAIM: the shared parse is the same number in every
+                // culture, and the live feed comes out the same list. Asserted
+                // regardless of what main happens to do — main's columns above
+                // are recorded, not relied on.
+                foreach (var m in measurements)
+                {
+                    Assert(m.Shared == sampleEpoch,
+                        $"AppcastParsePubDate returned {m.Shared} under {m.Culture}, expected {sampleEpoch}"
+                            + " — the shared parse must not depend on CurrentCulture");
+                    Assert(m.SharedCount == 15,
+                        $"the live feed produced {m.SharedCount} releases under {m.Culture}, expected 15");
+                    Assert(m.SharedTopVersion == "1.11.0" && Day(m.SharedTopTicks).StartsWith("2026-", StringComparison.Ordinal),
+                        $"under {m.Culture} the newest release came out as {m.SharedTopVersion}@{Day(m.SharedTopTicks)}");
+
+                    // And the card renders. Under ar-SA this is what main could
+                    // not do, because a failed parse leaves DateTime.MinValue
+                    // and the Umm al-Qura calendar starts in 1900.
+                    CultureInfo.CurrentCulture = new CultureInfo(m.Culture);
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Load(LiveWindowsAppcastPath());
+                        var rendered = AppcastService.SelectReleases(doc)[0].FormattedDate;
+                        Assert(!string.IsNullOrWhiteSpace(rendered),
+                            $"FormattedDate came out blank under {m.Culture}");
+                    }
+                    finally
+                    {
+                        CultureInfo.CurrentCulture = original;
+                    }
+                }
+            });
+
+            Run("A wrong day-of-week in the feed no longer collapses a release to 1/1/0001", () =>
+            {
+                // 02 Sep 2026 is a Wednesday. The live feed's own comment warns
+                // that a wrong day-of-week "causes date to parse as 0001-01-01
+                // and crashes the UI" — because DateTime.TryParse VALIDATES the
+                // redundant token. The shared parser ignores it, so a typo in
+                // the day name is no longer a broken release card.
+                const string wrongDay = "Mon, 02 Sep 2026 12:06:28 +0000";
+                var mainOk = DateTime.TryParse(wrongDay, CultureInfo.InvariantCulture, out var mainValue);
+                var shared = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.AppcastParsePubDate(wrongDay);
+
+                Console.WriteLine($"       [measured] wrong day-of-week: main parsed={mainOk} value={mainValue:yyyy-MM-dd} | shared={shared}");
+
+                Assert(shared == 1788350788L,
+                    $"the shared parser should ignore the day-of-week token, got {shared}");
+            });
+
             Run("Every cloudTierEligible catalog id has a CloudAccuracyTier case", () =>
             {
                 // shared-app-classification/AGENTS.md documents catalog edits as
@@ -9806,6 +10101,58 @@ internal static class Program
     /// </summary>
     private static string RunText(IReadOnlyList<HtmlRun> runs)
         => string.Concat(runs.Select(run => run.Text));
+
+    /// <summary>
+    /// The live Windows appcast, copied next to the test binary from
+    /// <c>nextjs/public/appcast-windows.xml</c> — the very file the shipped app
+    /// fetches over HTTP.
+    /// </summary>
+    private static string LiveWindowsAppcastPath()
+        => Path.Combine(AppContext.BaseDirectory, "appcast-windows.xml");
+
+    /// <summary>
+    /// The pre-#353 XML→items pipeline, copied verbatim off <c>main</c>'s
+    /// <c>AppcastService.GetRecentReleasesAsync</c>.
+    /// </summary>
+    /// <remarks>
+    /// The differential oracle, and the reason this dead code lives in the test
+    /// project rather than nowhere: #353's claim is that moving the selection
+    /// rules into the shared core changes nothing a Windows user sees, and the
+    /// only way to show that is to run both pipelines over the real feed and
+    /// compare. Keep it byte-for-byte as it was — including the bare
+    /// <c>DateTime.TryParse</c> with no <see cref="CultureInfo"/>, which is the
+    /// culture dependence the change removes and which the culture check
+    /// measures directly.
+    /// </remarks>
+    private static List<AppcastItem> SelectReleasesTheWayMainDid(System.Xml.Linq.XDocument doc)
+    {
+        System.Xml.Linq.XNamespace sparkle = "http://www.andymatuschak.org/xml-namespaces/sparkle";
+
+        return doc.Descendants("item")
+            .Select(item =>
+            {
+                var version = item.Element(sparkle + "version")?.Value
+                              ?? item.Element(sparkle + "shortVersionString")?.Value
+                              ?? "";
+                var pubDateStr = item.Element("pubDate")?.Value ?? "";
+                DateTime.TryParse(pubDateStr, out var pubDate);
+                var releaseNotes = item.Element(sparkle + "releaseNotesLink") != null
+                    ? ""
+                    : item.Element("description")?.Value ?? "";
+
+                return new AppcastItem
+                {
+                    Version = version,
+                    PubDate = pubDate,
+                    ReleaseNotes = releaseNotes
+                };
+            })
+            .Where(i => !string.IsNullOrEmpty(i.Version) && i.HasReleaseNotes)
+            .GroupBy(i => i.Version)
+            .Select(g => g.First())
+            .OrderByDescending(i => i.PubDate)
+            .ToList();
+    }
 
     /// <summary>
     /// Compares one field of a backup-vectors.json expectation against the value the

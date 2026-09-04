@@ -101,4 +101,57 @@ fuzz_target!(|data: &[u8]| {
         .title
         .iter()
         .all(|block| block.kind == hw_releasenotes::BlockKind::Heading));
+
+    // The selection layer (#353), over the same corpus. Its input is remote too
+    // — a `<pubDate>` is attacker-influenced text and the date arithmetic is
+    // hand-written, so this is where an unchecked `*` or a bad slice index
+    // would abort the app.
+    if let Some(secs) = hw_releasenotes::parse_pub_date(&html) {
+        // The bound is what stops Windows' `DateTimeOffset.FromUnixTimeSeconds`
+        // throwing, so assert the range rather than merely that we did not
+        // panic. It is asserted on the RETURNED instant, exactly as the parser
+        // applies it — an earlier version of this assertion widened the range
+        // by a day at each end to allow for the zone offset, which is precisely
+        // the defect: a `-0100` on 9999-12-31 produced a value .NET cannot
+        // hold, and this assertion passed it.
+        assert!(
+            (hw_releasenotes::MIN_REPRESENTABLE_EPOCH_SECS
+                ..=hw_releasenotes::MAX_REPRESENTABLE_EPOCH_SECS)
+                .contains(&secs),
+            "date out of the DateTimeOffset-representable range: {html:?} -> {secs}"
+        );
+    }
+
+    // One entry per input, with the same string in every field: the cheapest
+    // way to reach every branch of the version chain and the drop rules from a
+    // flat byte string. Two copies, so dedupe and the stable sort run too.
+    let entry = || hw_releasenotes::FeedEntry {
+        title: Some(html.to_string()),
+        sparkle_version: Some(html.to_string()),
+        sparkle_short_version_string: Some(html.to_string()),
+        pub_date: Some(html.to_string()),
+        description: Some(html.to_string()),
+        has_release_notes_link: false,
+    };
+    let releases = hw_releasenotes::select_releases(vec![entry(), entry()]);
+
+    // Post-conditions the heads rely on: at most one release per version, and
+    // never an empty version or empty notes — both heads render these without
+    // checking.
+    assert!(
+        releases.len() <= 1,
+        "dedupe let a duplicate version through"
+    );
+    for release in &releases {
+        assert!(!release.version.is_empty());
+        assert!(!release.release_notes.is_empty());
+        // ASCII whitespace, matching the crate's own trim predicate — U+00A0 is
+        // whitespace to `str::trim` but deliberately not to this crate.
+        let ascii = |c: char| c.is_ascii_whitespace();
+        assert_eq!(release.version.trim_matches(ascii), release.version);
+        assert_eq!(
+            release.release_notes.trim_matches(ascii),
+            release.release_notes
+        );
+    }
 });
