@@ -17,7 +17,7 @@
   <Window.DataTemplates>
     <DataTemplate DataType="vm:HomeViewModel">
       <ScrollViewer x:Name="HomeScreen" Classes="page">
-      <StackPanel Spacing="18" MaxWidth="980" HorizontalAlignment="Left">
+      <StackPanel Spacing="18" MaxWidth="980" HorizontalAlignment="Stretch">
         <!-- Stat strip, four cells across one card, as the Windows dashboard opens. -->
         <Border Classes="card" Padding="24,18">
           <Grid ColumnDefinitions="*,*,*,*">
@@ -44,7 +44,7 @@
         <StackPanel Spacing="8">
           <Button x:Name="HomeStartRecordingButton" Classes="rowAction" Click="OnStartRecording">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="14">
-              <Border Width="38" Height="38" CornerRadius="19" Background="{StaticResource HwTileHomeBrush}"><Path Data="{StaticResource HwIconStreaming}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border>
+              <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepRecordFill}"><Path Data="{StaticResource HwIconStreaming}" Fill="{StaticResource HwStepRecordGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
               <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.recording.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.recording.description], Source={StaticResource Localization}}" Classes="caption"/>
@@ -55,7 +55,7 @@
           </Button>
           <Button Classes="rowAction" Click="OnGoToShortcuts">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-              <Border Width="38" Height="38" CornerRadius="19" Background="{StaticResource HwTileSettingsBrush}"><Path Data="{StaticResource HwIconKeyboard}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border>
+              <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepShortcutFill}"><Path Data="{StaticResource HwIconKeyboard}" Fill="{StaticResource HwStepShortcutGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
               <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.shortcuts.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.shortcuts.description], Source={StaticResource Localization}}" Classes="caption"/>
@@ -65,7 +65,7 @@
           </Button>
           <Button Classes="rowAction" Click="OnGoToModes">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-              <Border Width="38" Height="38" CornerRadius="19" Background="{StaticResource HwTileModesBrush}"><Path Data="{StaticResource HwIconModes}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border>
+              <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepModeFill}"><Path Data="{StaticResource HwIconModes}" Fill="{StaticResource HwStepModeGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
               <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.mode.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.mode.description], Source={StaticResource Localization}}" Classes="caption"/>
@@ -75,7 +75,7 @@
           </Button>
           <Button Classes="rowAction" Click="OnGoToVocabulary">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-              <Border Width="38" Height="38" CornerRadius="19" Background="{StaticResource HwTileVocabularyBrush}"><Path Data="{StaticResource HwIconVocabulary}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border>
+              <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepVocabularyFill}"><Path Data="{StaticResource HwIconVocabulary}" Fill="{StaticResource HwStepVocabularyGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
               <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.vocabulary.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.vocabulary.description], Source={StaticResource Localization}}" Classes="caption"/>
@@ -203,7 +203,7 @@
     </DataTemplate>
     <DataTemplate DataType="vm:VocabularyViewModel">
       <ScrollViewer x:Name="VocabularyScreen" Classes="page">
-      <StackPanel Spacing="14" MaxWidth="980" HorizontalAlignment="Left">
+      <StackPanel Spacing="14" MaxWidth="980" HorizontalAlignment="Stretch">
         <!-- Windows uses one wide field with the action hinted inside it. -->
         <Border Classes="card" Padding="8">
           <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
@@ -234,27 +234,26 @@
       <StackPanel Spacing="16" MaxWidth="720">
         <!-- Windows lays the modes out as a two column grid with the create button on the header
              row. The editor drops in under the grid here instead of opening as a dialog. -->
-        <Grid ColumnDefinitions="*,Auto">
-          <Button Grid.Column="1" x:Name="ModeNewButton" Classes="accent" Content="{ReflectionBinding [modes.header.create], Source={StaticResource Localization}}" Command="{Binding NewCommand}"/>
-        </Grid>
-        <ItemsControl ItemsSource="{Binding Items}" Margin="-4,0">
-          <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
+        <ListBox Classes="modeGrid" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" Margin="-4,0">
+          <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
             <DataTemplate x:DataType="data:Mode">
-              <Button Classes="rowAction modeCard" Click="OnSelectMode" Tag="{Binding}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="4">
-                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="7">
-                  <TextBlock Text="{Binding Name}" Classes="rowTitle" FontSize="15"/>
-                  <Path Grid.Column="1" Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Top"/>
-                  <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Language}" Classes="caption"/>
-                  <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
-                    <Border Classes="keyChip"><TextBlock Text="{Binding ProviderType}" FontSize="11" Foreground="{DynamicResource HwAccentBrush}"/></Border>
-                    <Border Classes="keyChip" IsVisible="{Binding Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"><TextBlock Text="{Binding Model}" FontSize="11" Foreground="{DynamicResource HwSuccessBrush}"/></Border>
-                  </StackPanel>
-                </Grid>
-              </Button>
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="7">
+                <TextBlock Text="{Binding Name}" Classes="rowTitle modeName" FontSize="15"/>
+                <Path Grid.Column="1" Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Top"/>
+                <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource HwIconGlobe}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding Language}" Classes="caption"/>
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+                  <Border Classes="keyChip"><TextBlock Text="{Binding ProviderType}" FontSize="11" Foreground="{DynamicResource HwAccentBrush}"/></Border>
+                  <Border Classes="keyChip" IsVisible="{Binding CloudProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"><TextBlock Text="{Binding CloudProvider}" FontSize="11" Foreground="{DynamicResource HwSuccessBrush}"/></Border>
+                  <Border Classes="keyChip" IsVisible="{Binding Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"><TextBlock Text="{Binding Model}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}"/></Border>
+                </StackPanel>
+              </Grid>
             </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+          </ListBox.ItemTemplate>
+        </ListBox>
         <StackPanel Classes="emptyState" IsVisible="{Binding !Items.Count}">
           <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="34" Height="34" Opacity="0.5"/>
           <TextBlock Text="{ReflectionBinding [linux.empty.modes.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
@@ -283,38 +282,41 @@
           <StackPanel>
             <Border Classes="settingRow">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <StackPanel Spacing="2">
+                <StackPanel Spacing="2" Orientation="Horizontal">
+                  <Path Data="{StaticResource HwIconStreaming}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                  <StackPanel Spacing="2" VerticalAlignment="Center">
                   <TextBlock Text="{ReflectionBinding [settings.streaming.enable.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
                   <TextBlock Text="{ReflectionBinding [linux.ui.credentials.are.loaded.from.the.secure.credentials.page.and.9110957e], Source={StaticResource Localization}}" Classes="caption"/>
+                  </StackPanel>
                 </StackPanel>
                 <CheckBox Grid.Column="1" x:Name="StreamingEnabledToggle" IsChecked="{Binding Settings.StreamingEnabled}" VerticalAlignment="Center"/>
               </Grid>
             </Border>
-            <Border Classes="settingRow">
+            <Border Classes="settingRow" IsVisible="{Binding Settings.StreamingEnabled}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <TextBlock Text="{ReflectionBinding [settings.streaming.provider.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <ComboBox Grid.Column="1" x:Name="StreamingProviderChoice" MinWidth="200" ItemsSource="{Binding Settings.StreamingProviders}" SelectedItem="{Binding Settings.StreamingProvider}"/>
               </Grid>
             </Border>
-            <Border Classes="settingRow" IsVisible="{Binding Settings.StreamingUsesHyperWhisperCloud}">
+            <Border Classes="settingRow" IsVisible="{Binding Settings.StreamingCloudTierRowVisible}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <TextBlock Text="{ReflectionBinding [settings.streaming.cloudTier.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <ComboBox Grid.Column="1" x:Name="StreamingCloudTierChoice" MinWidth="200" ItemsSource="{Binding Settings.StreamingCloudTiers}" SelectedItem="{Binding Settings.StreamingCloudTier}"/>
               </Grid>
             </Border>
-            <Border Classes="settingRow">
+            <Border Classes="settingRow" IsVisible="{Binding Settings.StreamingEnabled}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <TextBlock Text="{ReflectionBinding [settings.streaming.language.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <TextBox Grid.Column="1" x:Name="StreamingLanguageInput" MinWidth="200" Text="{Binding Settings.StreamingLanguage}" PlaceholderText="auto"/>
               </Grid>
             </Border>
-            <Border Classes="settingRow">
+            <Border Classes="settingRow" IsVisible="{Binding Settings.StreamingEnabled}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <TextBlock Text="{ReflectionBinding [linux.ui.provider.model.optional], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <TextBox Grid.Column="1" x:Name="StreamingModelInput" MinWidth="200" Text="{Binding Settings.StreamingModel}"/>
               </Grid>
             </Border>
-            <Border Classes="settingRow last">
+            <Border Classes="settingRow last" IsVisible="{Binding Settings.StreamingEnabled}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <TextBlock Text="{ReflectionBinding [settings.streaming.fastFormatting.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
                 <CheckBox Grid.Column="1" x:Name="StreamingFastFormattingToggle" IsChecked="{Binding Settings.StreamingFastFormatting}" VerticalAlignment="Center"/>
@@ -738,14 +740,12 @@
                      Text="{Binding SearchText}" PlaceholderText="{ReflectionBinding [linux.ui.search.model.provider.or.id], Source={StaticResource Localization}}"/>
           </Grid>
         </Border>
-        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8" Margin="0,0,0,12">
-          <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding DeploymentFilters}" SelectedItem="{Binding DeploymentFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.deployments], Source={StaticResource Localization}}"/>
-          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding WorkloadFilters}" SelectedItem="{Binding WorkloadFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.workloads], Source={StaticResource Localization}}"/>
-          <ComboBox Grid.Column="2" HorizontalAlignment="Stretch" ItemsSource="{Binding SurfaceFilters}" SelectedItem="{Binding SurfaceFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.surfaces], Source={StaticResource Localization}}"/>
-          <ComboBox Grid.Column="3" HorizontalAlignment="Stretch" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort}"/>
-          <StackPanel Grid.Row="1" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-            <Button x:Name="ModelRefreshVisibleButton" Content="{ReflectionBinding [linux.ui.refresh.visible.rows], Source={StaticResource Localization}}" Command="{Binding RefreshVisibleReadinessCommand}"/>
-            <Button x:Name="ModelAccountButton" Content="{ReflectionBinding [linux.ui.open.cloud.account], Source={StaticResource Localization}}" Click="OnModelAccountAction"/>
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+          <ComboBox MinWidth="150" ItemsSource="{Binding DeploymentFilters}" SelectedItem="{Binding DeploymentFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.deployments], Source={StaticResource Localization}}"/>
+          <ComboBox Grid.Column="1" MinWidth="150" ItemsSource="{Binding WorkloadFilters}" SelectedItem="{Binding WorkloadFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.workloads], Source={StaticResource Localization}}"/>
+          <ComboBox Grid.Column="2" MinWidth="150" ItemsSource="{Binding SurfaceFilters}" SelectedItem="{Binding SurfaceFilter}" PlaceholderText="{ReflectionBinding [linux.ui.all.surfaces], Source={StaticResource Localization}}"/>
+          <ComboBox Grid.Column="3" MinWidth="150" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort}"/>
+          <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
             <Button x:Name="ModelCredentialButton" Content="{ReflectionBinding [linux.ui.api.keys], Source={StaticResource Localization}}" Click="OnModelCredentialAction"/>
           </StackPanel>
         </Grid>
@@ -760,7 +760,7 @@
         <ListBox Grid.Row="3" x:Name="ModelList" Classes="plain flush" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <Border BorderBrush="{DynamicResource HwSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="12,8">
+              <Border BorderBrush="{DynamicResource HwSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="12,5">
                 <Grid ColumnDefinitions="*,110,150,196">
                   <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                     <Border Width="28" Height="28" CornerRadius="7" Background="{DynamicResource HwHoverBackgroundBrush}" VerticalAlignment="Center">
@@ -794,6 +794,8 @@
               <Button x:Name="ModelDeleteButton" Content="{ReflectionBinding [common.delete], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}"/>
               <Button x:Name="ModelUseForLiveButton" Content="{ReflectionBinding [linux.ui.use.for.live.transcription], Source={StaticResource Localization}}" Command="{Binding UseForLiveStreamingCommand}"/>
               <Button x:Name="ModelRefreshButton" Content="{ReflectionBinding [linux.ui.refresh.selected.readiness], Source={StaticResource Localization}}" Command="{Binding RefreshReadinessCommand}"/>
+              <Button x:Name="ModelRefreshVisibleButton" Content="{ReflectionBinding [linux.ui.refresh.visible.rows], Source={StaticResource Localization}}" Command="{Binding RefreshVisibleReadinessCommand}"/>
+              <Button x:Name="ModelAccountButton" Content="{ReflectionBinding [linux.ui.open.cloud.account], Source={StaticResource Localization}}" Click="OnModelAccountAction"/>
             </WrapPanel>
           </StackPanel>
         </Border>
@@ -1055,10 +1057,13 @@
          hairline under it, and the Settings pages add a second column of sub-pages. -->
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
       <Border x:Name="PageHeader" Padding="30,22,30,18" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
-        <StackPanel Spacing="3">
-          <TextBlock x:Name="PageTitle" Text="{Binding PageTitle}" Classes="pageTitle"/>
-          <TextBlock x:Name="PageSubtitle" Classes="caption"/>
-        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Spacing="3">
+            <TextBlock x:Name="PageTitle" Text="{Binding PageTitle}" Classes="pageTitle"/>
+            <TextBlock x:Name="PageSubtitle" Classes="caption"/>
+          </StackPanel>
+          <Button Grid.Column="1" x:Name="PageActionButton" Classes="accent" VerticalAlignment="Center" IsVisible="False" Click="OnPageAction"/>
+        </Grid>
       </Border>
       <Border x:Name="PlatformNotice" Grid.Row="1" Classes="notice" Margin="30,14,30,0" Padding="12,7" IsVisible="False">
         <TextBlock x:Name="PlatformStatusText" Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #PlatformStatusText.Text}"/>

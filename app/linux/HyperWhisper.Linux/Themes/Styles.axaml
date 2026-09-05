@@ -133,7 +133,7 @@
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="CornerRadius" Value="10"/>
-    <Setter Property="Padding" Value="16,13"/>
+    <Setter Property="Padding" Value="18,21"/>
     <Setter Property="MinHeight" Value="0"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -147,10 +147,39 @@
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
-  <Style Selector="Button.modeCard /template/ ContentPresenter#PART_ContentPresenter">
+  <!-- The mode grid is a list, so the active card gets the accent border for free, the way the
+       Windows grid marks the mode in use. -->
+  <Style Selector="ListBox.modeGrid">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem">
+    <Setter Property="Margin" Value="4"/>
+    <Setter Property="Padding" Value="18,16"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding" Value="18,16"/>
+    <Setter Property="CornerRadius" Value="10"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem:selected TextBlock.modeName">
+    <Setter Property="Foreground" Value="{DynamicResource HwAccentBrush}"/>
   </Style>
 
   <Style Selector="Border.keyChip">
@@ -230,6 +259,17 @@
   <Style Selector="ListBox.plain ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
     <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+
+  <!-- The model table marks the current row with a hairline tint, the way the Windows table does. -->
+  <Style Selector="ListBox.flush ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
   </Style>
 
   <!-- Buttons -->

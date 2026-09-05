@@ -352,7 +352,7 @@
     <value>Use a separate hotkey to transcribe continuously and paste final speech segments into the active application.</value>
   </data>
   <data name="linux.ui.minutes.short" xml:space="preserve">
-    <value>min</value>
+    <value>minutes</value>
   </data>
   <data name="linux.empty.modes.title" xml:space="preserve">
     <value>No modes yet</value>

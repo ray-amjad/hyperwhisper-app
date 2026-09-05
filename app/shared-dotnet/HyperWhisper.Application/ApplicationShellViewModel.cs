@@ -189,7 +189,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             "shortcuts" => (Text("settings.nav.shortcuts", "Shortcuts"), Shortcuts),
             "appearance" => (Text("settings.nav.appearance", "Appearance"), Appearance),
             "streaming" => (Text("settings.nav.streaming", "Streaming"), Streaming),
-            "models" when Models is not null => (Text("settings.section.models", "Models"), Models),
+            "models" when Models is not null => (Text("settings.nav.models", "Model Library"), Models),
             "backup" => (Text("settings.nav.backup", "Backup"), Backup),
             "credentials" when Credentials is not null => (Text("linux.ui.provider.credentials", "Credentials"), Credentials),
             "account" when Account is not null => (Text("linux.ui.cloud.account", "Cloud account"), Account),

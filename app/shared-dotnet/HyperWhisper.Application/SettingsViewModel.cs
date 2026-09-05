@@ -104,7 +104,9 @@ public sealed class SettingsViewModel : ViewModelBase
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Append(_toggleShortcutKey ?? string.Empty)
                 .Where(part => !string.IsNullOrWhiteSpace(part))
-                .Select(part => char.ToUpperInvariant(part[0]) + part[1..]);
+                .Select(part => char.ToUpperInvariant(part[0]) + part[1..])
+                // Windows writes the modifier short, so the two apps read the same.
+                .Select(part => part is "Control" ? "Ctrl" : part);
             return string.Join("+", parts);
         }
     }
@@ -144,7 +146,11 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool HideFromClipboardHistory { get => _hideFromClipboardHistory; set => Set(ref _hideFromClipboardHistory, value); }
     public double ClipboardRestoreDelaySeconds { get => _clipboardRestoreDelaySeconds; set => Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, 0, 60)); }
     public bool StoreWordTimestamps { get => _storeWordTimestamps; set => Set(ref _storeWordTimestamps, value); }
-    public bool StreamingEnabled { get => _streamingEnabled; set => Set(ref _streamingEnabled, value); }
+    public bool StreamingEnabled
+    {
+        get => _streamingEnabled;
+        set { if (Set(ref _streamingEnabled, value)) Notify(nameof(StreamingCloudTierRowVisible)); }
+    }
     public string StreamingProvider
     {
         get => _streamingProvider;
@@ -153,6 +159,7 @@ public sealed class SettingsViewModel : ViewModelBase
             if (Set(ref _streamingProvider, NormalizeStreamingProvider(value)))
             {
                 Notify(nameof(StreamingUsesHyperWhisperCloud));
+                Notify(nameof(StreamingCloudTierRowVisible));
             }
         }
     }
@@ -160,6 +167,9 @@ public sealed class SettingsViewModel : ViewModelBase
     /// <summary>Gates the cloud live-vendor picker; the tier is meaningless for every other provider.</summary>
     public bool StreamingUsesHyperWhisperCloud =>
         string.Equals(_streamingProvider, "hyperwhisper", StringComparison.Ordinal);
+
+    /// <summary>The Streaming page hides every provider row until streaming is on, as Windows does.</summary>
+    public bool StreamingCloudTierRowVisible => _streamingEnabled && StreamingUsesHyperWhisperCloud;
     public string StreamingLanguage { get => _streamingLanguage; set => Set(ref _streamingLanguage, string.IsNullOrWhiteSpace(value) ? "auto" : value.Trim()); }
     public string StreamingModel { get => _streamingModel; set => Set(ref _streamingModel, value?.Trim() ?? string.Empty); }
     public string StreamingCloudTier { get => _streamingCloudTier; set => Set(ref _streamingCloudTier, NormalizeStreamingCloudTier(value)); }

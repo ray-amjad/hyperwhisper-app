@@ -1109,6 +1109,12 @@ public partial class MainWindow : Window
             // of those carries its own title, and History runs edge to edge.
             var ownsItsHeader = pageId is "home" or "history" || inSettings;
             if (PageHeader is not null) PageHeader.IsVisible = !ownsItsHeader;
+            // Windows puts the one primary action of a page on the header row, beside the title.
+            if (PageActionButton is not null)
+            {
+                PageActionButton.IsVisible = pageId == "modes";
+                if (pageId == "modes") PageActionButton.Content = _localization["modes.header.create"];
+            }
             if (PageContent is not null)
                 PageContent.Margin = pageId == "history" ? new Thickness(0)
                     : inSettings ? new Thickness(24, 24, 24, 0)
@@ -1147,9 +1153,12 @@ public partial class MainWindow : Window
     private void OnGoToModes(object? sender, RoutedEventArgs e) => GoTo("modes");
     private void OnGoToVocabulary(object? sender, RoutedEventArgs e) => GoTo("vocabulary");
 
-    private void OnSelectMode(object? sender, RoutedEventArgs e)
+    /// <summary>Runs the one primary action of the current page, from the header row.</summary>
+    private void OnPageAction(object? sender, RoutedEventArgs e)
     {
-        if (sender is Control { Tag: Mode mode }) _viewModel.Modes.Selected = mode;
+        if (_currentPageId != "modes") return;
+        var command = _viewModel.Modes.NewCommand;
+        if (command.CanExecute(null)) command.Execute(null);
     }
 
     private static void Select(ListBox list, string tag)
@@ -1331,6 +1340,8 @@ public partial class MainWindow : Window
                     "SettingsLocalWhisperRuntimeStatus", "SettingsLocalLlmBackend", "SettingsLocalLlmCpuFallback"],
                 ["streaming"] = ["StreamingEnabledToggle", "StreamingProviderChoice", "StreamingLanguageInput"]
             };
+            // The Streaming page hides its provider rows until streaming is on, as Windows does.
+            _viewModel.Settings.StreamingEnabled = true;
             foreach (var section in settingsSections)
             {
                 _viewModel.Navigate(section.Key);
