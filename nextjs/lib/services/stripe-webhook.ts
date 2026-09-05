@@ -110,7 +110,7 @@ export async function handleLicensePurchase(
       insertError &&
       typeof insertError === "object" &&
       "code" in insertError &&
-      (insertError as { code: string }).code === "23505"
+      insertError.code === "23505"
     ) {
       console.log("License already inserted by concurrent request");
       return;
@@ -370,7 +370,7 @@ async function handleCreditMint(
         insertError &&
         typeof insertError === "object" &&
         "code" in insertError &&
-        (insertError as { code: string }).code === "23505"
+        insertError.code === "23505"
       ) {
         console.log("License already inserted by concurrent request");
         license = await findAccountByStripeSession(session.id);

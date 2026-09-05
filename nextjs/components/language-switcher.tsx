@@ -57,8 +57,8 @@ export const LanguageSwitcher = () => {
         selectedKeys={[locale]}
         selectionMode="single"
         onSelectionChange={(keys) => {
-          const selected = Array.from(keys)[0] as string;
-          if (selected) handleLanguageChange(selected);
+          const selected = Array.from(keys)[0];
+          if (typeof selected === "string") handleLanguageChange(selected);
         }}
       >
         {localeOptions.map((option) => (
