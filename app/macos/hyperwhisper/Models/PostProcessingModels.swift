@@ -213,6 +213,13 @@ struct PostProcessingModels {
             provider: .gemini
         ),
         PostProcessingModel(
+            id: "gemini-3.8-flash",
+            displayName: "Gemini 3.8 Flash",
+            isAvailable: true,
+            description: "Latest flash model, frontier performance for agentic tasks",
+            provider: .gemini
+        ),
+        PostProcessingModel(
             id: "gemini-3.5-flash-lite",
             displayName: "Gemini 3.5 Flash Lite",
             isAvailable: true,

@@ -54,7 +54,7 @@ static Task TestModelRegistry()
         [CloudPostProcessingProvider.Anthropic] = 4,
         [CloudPostProcessingProvider.Groq] = 3,
         [CloudPostProcessingProvider.Grok] = 3,
-        [CloudPostProcessingProvider.Gemini] = 10,
+        [CloudPostProcessingProvider.Gemini] = 11,
         [CloudPostProcessingProvider.Cerebras] = 2,
         [CloudPostProcessingProvider.Mistral] = 2,
     };

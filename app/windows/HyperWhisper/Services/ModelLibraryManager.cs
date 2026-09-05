@@ -550,6 +550,7 @@ public sealed class ModelLibraryManager
         ["gemini-3.5-flash"]                              = (2, 5),
         ["gemini-3.6-flash"]                              = (2, 5),
         ["gemini-3.7-flash"]                              = (2, 5),
+        ["gemini-3.8-flash"]                              = (2, 5),
         ["gemini-2.5-flash-lite"]                         = (4, 5),
         ["gemini-3.5-flash-lite"]                         = (5, 4),
         ["gemini-2.5-pro"]                                = (2, 4),

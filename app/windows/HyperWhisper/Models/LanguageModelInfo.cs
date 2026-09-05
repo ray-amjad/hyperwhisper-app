@@ -92,6 +92,7 @@ public class LanguageModelInfo
         new("gemini-3.5-flash", "Gemini 3.5 Flash", PostProcessingProvider.Gemini, "Most intelligent flash, frontier agentic performance"),
         new("gemini-3.6-flash", "Gemini 3.6 Flash", PostProcessingProvider.Gemini, "Capable flash model, frontier performance for agentic tasks"),
         new("gemini-3.7-flash", "Gemini 3.7 Flash", PostProcessingProvider.Gemini, "Latest flash model, frontier performance for agentic tasks"),
+        new("gemini-3.8-flash", "Gemini 3.8 Flash", PostProcessingProvider.Gemini, "Latest flash model, frontier performance for agentic tasks"),
         new("gemini-2.5-flash", "Gemini 2.5 Flash", PostProcessingProvider.Gemini, "Fast and efficient"),
         new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fastest"),
         new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite", PostProcessingProvider.Gemini, "Latest lightweight flash, fast and cost-efficient"),
