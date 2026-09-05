@@ -161,10 +161,29 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   },
   'azure-mai': {
     id: 'azure-mai',
-    defaultModel: 'mai-transcribe-1.5',
+    // What an already-shipped client that sends no `X-STT-Model` gets. Flipped
+    // in the same change as the catalog row and every native registry, never
+    // ahead of them — moving it alone would migrate those users onto v2 before
+    // any client, doc or price table said so.
+    defaultModel: 'mai-transcribe-2',
     fallbackChain: ['azure-mai'],
     async: false,
-    models: [{ id: 'mai-transcribe-1.5', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 }],
+    // Each row reserves at the rate it actually bills. v2's $0.001667/min is
+    // $0.10/hr, Microsoft's limited-time offer, and it must match
+    // `AZURE_MAI_COST_PER_AUDIO_MINUTE` in `cost-calculator.ts` — when the offer
+    // ends BOTH move, because the charge is computed from that file either way.
+    //
+    // v2 used to reserve at 1.5's 0.006 as insurance against the offer ending.
+    // That bought nothing (the charge would have been wrong regardless) and cost
+    // something real: `validateCredits` REFUSES when the balance is under the
+    // estimate, so a user with 15 credits was turned away from a 4-minute
+    // request that bills ~6.7 — at the 1.67 credits/min the catalog and the docs
+    // advertise for this exact model. Fail-closed for an UNKNOWN model id is now
+    // `dearestUsdPerMinute`, which does not need this array in any order.
+    models: [
+      { id: 'mai-transcribe-1.5', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 },
+      { id: 'mai-transcribe-2', supportsVocabulary: true, estimatedUsdPerMinute: 0.10 / 60 },
+    ],
   },
   'google-chirp': {
     id: 'google-chirp',
@@ -418,6 +437,23 @@ export function resolveModel(provider: SttProviderId, requested?: string): Model
 }
 
 /**
+ * The dearest rate any of a provider's models can bill at.
+ *
+ * The fail-closed answer for a model id `resolveModel` could not resolve: hold
+ * enough for the worst case, because we do not yet know what will run. This
+ * used to read `models[0]`, which made ARRAY ORDER a billing invariant — every
+ * multi-model provider had to keep its dearest model first or a bad model
+ * string under-reserved, and an under-reservation lets a request deduct more
+ * than was held for it. Taking the maximum states the property directly, so a
+ * model row can be added or reordered without reading this function first.
+ */
+function dearestModel(provider: SttProviderId): SttModelDef {
+  return PROVIDERS[provider].models.reduce(
+    (dearest, model) => (model.estimatedUsdPerMinute > dearest.estimatedUsdPerMinute ? model : dearest),
+  );
+}
+
+/**
  * Preflight USD/min for a (provider, model), including the medical add-on where
  * the provider meters it. Used only for the credit reservation; actual cost is
  * computed from the upstream response in the adapter.
@@ -429,21 +465,21 @@ export function estimatedUsdPerMinute(
   keyterms: boolean = false,
 ): number {
   const resolution = resolveModel(provider, model);
-  const base = resolution.ok
-    ? resolution.model.estimatedUsdPerMinute
-    : PROVIDERS[provider].models[0].estimatedUsdPerMinute;
+  // One row answers both the rate and the add-on question, so the two can never
+  // describe different models on the unresolved path.
+  const priced = resolution.ok ? resolution.model : dearestModel(provider);
+  const base = priced.estimatedUsdPerMinute;
 
   if (provider === 'elevenlabs') {
     // Keyterm prompting adds +20% on base, scribe_v2 only (scribe_v1 has no biasing).
-    const resolvedModel = resolution.ok ? resolution.model.id : PROVIDERS.elevenlabs.models[0].id;
-    return (keyterms && resolvedModel === 'scribe_v2') ? base * (1 + ELEVENLABS_KEYTERMS_SURCHARGE) : base;
+    return (keyterms && priced.id === 'scribe_v2') ? base * (1 + ELEVENLABS_KEYTERMS_SURCHARGE) : base;
   }
 
   if (provider !== 'assemblyai') {
     return base;
   }
 
-  const resolvedModel = resolution.ok ? resolution.model.id : PROVIDERS.assemblyai.models[0].id;
+  const resolvedModel = priced.id;
   const medicalAddon = medical ? ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE : 0;
   // Keyterms add-on only applies to the Universal-3.x Pro tier (free/beta on universal-2).
   const keytermsAddon = (keyterms && resolvedModel === 'universal-3-5-pro')

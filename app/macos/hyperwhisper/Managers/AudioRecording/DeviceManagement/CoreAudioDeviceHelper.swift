@@ -44,6 +44,13 @@ import CoreAudio
 /// They require proper audio permissions and may fail if hardware is unavailable.
 class CoreAudioDeviceHelper {
 
+    /// One CoreAudio device-list pass with the native IDs needed for follow-up reads.
+    /// Keeping the mapping avoids enumerating the complete list again for a selected UID.
+    struct InputDeviceEnumeration: Sendable {
+        let devices: [AudioDevice]
+        let deviceIDsByUID: [String: AudioDeviceID]
+    }
+
     // MARK: - Stream Format Info
 
     /// Lightweight representation of an input stream format.
@@ -147,7 +154,12 @@ class CoreAudioDeviceHelper {
     /// This is a relatively expensive operation (5-50ms depending on device count).
     /// Cache results when possible instead of calling repeatedly.
     nonisolated static func fetchCoreAudioInputDevices() -> [AudioDevice] {
+        fetchCoreAudioInputDevicesWithIDs().devices
+    }
+
+    nonisolated static func fetchCoreAudioInputDevicesWithIDs() -> InputDeviceEnumeration {
         var result: [AudioDevice] = []
+        var deviceIDsByUID: [String: AudioDeviceID] = [:]
 
         // STEP 1: Get all audio devices from system
         var address = AudioObjectPropertyAddress(
@@ -166,7 +178,7 @@ class CoreAudioDeviceHelper {
         )
 
         guard status == noErr, dataSize >= UInt32(MemoryLayout<AudioObjectID>.size) else {
-            return []
+            return InputDeviceEnumeration(devices: [], deviceIDsByUID: [:])
         }
 
         let count = Int(dataSize) / MemoryLayout<AudioObjectID>.size
@@ -181,7 +193,9 @@ class CoreAudioDeviceHelper {
             &deviceIDs
         )
 
-        guard status == noErr else { return [] }
+        guard status == noErr else {
+            return InputDeviceEnumeration(devices: [], deviceIDsByUID: [:])
+        }
 
         // STEP 2: Filter for input devices and extract metadata
         for dev in deviceIDs {
@@ -252,9 +266,10 @@ class CoreAudioDeviceHelper {
             }
 
             result.append(AudioDevice(id: uid, name: deviceName, uid: uid))
+            deviceIDsByUID[uid] = dev
         }
 
-        return result
+        return InputDeviceEnumeration(devices: result, deviceIDsByUID: deviceIDsByUID)
     }
 
     // MARK: - System Default Device

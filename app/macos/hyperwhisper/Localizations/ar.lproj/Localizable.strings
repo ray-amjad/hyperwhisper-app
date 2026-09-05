@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "نزّل نموذجك";
 "onboarding.setup.onDevice.download" = "تنزيل %@";
 "onboarding.setup.onDevice.downloading" = "جارٍ التنزيل… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "جارٍ التنزيل…";
+"onboarding.setup.onDevice.preparing" = "جارٍ تحضير التنزيل…";
+"onboarding.setup.onDevice.downloadingFile" = "جارٍ تنزيل الملف %1$d من %2$d";
+"onboarding.setup.onDevice.optimizing" = "جارٍ تحسين النموذج لجهاز Mac هذا. أوشك على الانتهاء.";
+"onboarding.setup.onDevice.optimizingPill" = "جارٍ التحسين…";
+"onboarding.setup.onDevice.firstRunHint" = "يستغرق التنزيل الأول بضع دقائق. يمكنك ترك هذه النافذة مفتوحة.";
 "onboarding.setup.onDevice.ready" = "النموذج جاهز";
 "onboarding.setup.cloud.title" = "فعّل مفتاحك";
 "onboarding.setup.cloud.activate" = "تفعيل Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "فشل التفعيل: %@";
 "onboarding.setup.provider.error" = "تعذّر حفظ مفتاحك: %@";
 "onboarding.setup.provider.saveFailed" = "تعذّرت كتابة المفتاح في سلسلة مفاتيحك.";
+"onboarding.setup.stopped.onDevice" = "تعذّر إكمال الإعداد: لم يعد %@ مثبّتًا على جهاز Mac هذا. نزّله مرة أخرى للمتابعة.";
+"onboarding.setup.stopped.cloud" = "تعذّر إكمال الإعداد: لم يعد جهاز Mac هذا مفعّلًا لـ HyperWhisper Cloud. فعّله مرة أخرى في الأسفل، أو ارجع خطوة واحدة لإدخال مفتاح الوصول.";
+"onboarding.setup.stopped.provider" = "تعذّر إكمال الإعداد: لم يعد مفتاح %@ محفوظًا على جهاز Mac هذا. احفظه مرة أخرى للمتابعة.";
 "onboarding.setup.provider.check.validated" = "تم التحقق من المفتاح مقابل %@";
 "onboarding.setup.provider.check.written" = "تمت كتابته في سلسلة مفاتيح تسجيل الدخول";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · مفتاح API لـ %@";
@@ -766,11 +775,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ رصيد/دقيقة";
 "modes.cloudAccuracy.grokStt.label" = "الأعلى (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "مرتفع (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. متعدد اللغات مع دعم المفردات المخصصة.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "مرتفع (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 عبر Azure Speech. 43 لغة مع توجيه سياقي.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "مرتفع (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe عبر Azure Speech. حتى 60 لغة مع توجيه سياقي.";
 
 "modes.create.title" = "إنشاء وضع جديد";
 "modes.create.subtitle" = "تكوين ملف تعريف نسخ مخصص";

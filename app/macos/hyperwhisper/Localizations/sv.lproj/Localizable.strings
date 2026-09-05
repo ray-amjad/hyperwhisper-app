@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Ladda ner din modell";
 "onboarding.setup.onDevice.download" = "Ladda ner %@";
 "onboarding.setup.onDevice.downloading" = "Laddar ner… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Laddar ner…";
+"onboarding.setup.onDevice.preparing" = "Förbereder nedladdning…";
+"onboarding.setup.onDevice.downloadingFile" = "Laddar ner fil %1$d av %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modellen optimeras för den här Macen. Nästan klart.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimerar…";
+"onboarding.setup.onDevice.firstRunHint" = "Den första nedladdningen tar några minuter. Du kan lämna det här fönstret öppet.";
 "onboarding.setup.onDevice.ready" = "Modellen är klar";
 "onboarding.setup.cloud.title" = "Aktivera din nyckel";
 "onboarding.setup.cloud.activate" = "Aktivera Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Aktiveringen misslyckades: %@";
 "onboarding.setup.provider.error" = "Kunde inte spara din nyckel: %@";
 "onboarding.setup.provider.saveFailed" = "Nyckeln kunde inte skrivas till din nyckelring.";
+"onboarding.setup.stopped.onDevice" = "Konfigurationen kunde inte slutföras: %@ är inte längre installerad på den här Mac:en. Ladda ned den igen för att fortsätta.";
+"onboarding.setup.stopped.cloud" = "Konfigurationen kunde inte slutföras: den här Mac:en är inte längre aktiverad för HyperWhisper Cloud. Aktivera den igen nedan, eller gå tillbaka ett steg för att ange din åtkomstnyckel.";
+"onboarding.setup.stopped.provider" = "Konfigurationen kunde inte slutföras: din %@-nyckel är inte längre sparad på den här Mac:en. Spara den igen för att fortsätta.";
 "onboarding.setup.provider.check.validated" = "Nyckel validerad mot %@";
 "onboarding.setup.provider.check.written" = "Skriven till inloggningsnyckelringen";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API-nyckel";
@@ -766,11 +775,11 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediter/min";
 "modes.cloudAccuracy.grokStt.label" = "Högsta (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Hög (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flerspråkig, med stöd för anpassad ordlista.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hög (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 språk med kontextuell anpassning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hög (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Upp till 60 språk med kontextuell anpassning.";
 
 "modes.create.title" = "Skapa nytt läge";
 "modes.create.subtitle" = "Konfigurera en anpassad transkriptionsprofil";

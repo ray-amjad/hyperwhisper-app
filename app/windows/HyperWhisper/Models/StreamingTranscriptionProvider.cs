@@ -41,7 +41,7 @@ public static class StreamingTranscriptionProviderExtensions
         StreamingTranscriptionProvider.Deepgram => "Deepgram",
         StreamingTranscriptionProvider.ElevenLabs => "ElevenLabs",
         StreamingTranscriptionProvider.OpenAI => "OpenAI",
-        StreamingTranscriptionProvider.Xai => "xAI",
+        StreamingTranscriptionProvider.Xai => "SpaceXAI",
         StreamingTranscriptionProvider.GeminiTranscribe => "Gemini 3.5 Transcribe",
         _ => "HyperWhisper Cloud"
     };

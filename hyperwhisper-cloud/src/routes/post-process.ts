@@ -10,7 +10,7 @@ import { buildCorrectionRequest } from '../providers/groq-llm';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
-import { validateAuth } from '../middleware/auth';
+import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { logEvent } from '../lib/logging';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
@@ -114,10 +114,13 @@ export async function postProcessRoute(c: Context) {
     licenseKey: body.account_key || body.license_key,
   });
   if (!authResult.ok) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'auth_failed' });
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: 'auth_failed',
+      ...authDiagnosticsForLog(authResult.diagnostics),
+    });
     return authResult.response;
   }
-  logEvent(requestId, startTime, 'post_process.auth_done');
+  logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(authResult.diagnostics));
 
   const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS, clientIP);
   if (!creditCheck.ok) {

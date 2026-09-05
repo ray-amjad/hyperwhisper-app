@@ -604,6 +604,16 @@ struct OnboardingSetupView: View {
                     .disabled(flow.isActivatingLicense
                               || flow.licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
+                    // #315: the user was sent back here from a later step. The
+                    // copy names Back explicitly, because a user who reached
+                    // `.configure` on an already-active license never typed a
+                    // key, so the Activate button above stays disabled for them
+                    // and Back is the only way to a working licence.
+                    if flow.selectedSourceStoppedWorking {
+                        OnboardingErrorNote(text: "onboarding.setup.stopped.cloud".localized)
+                            .padding(.top, DesignConstants.Spacing.medium)
+                    }
+
                     if let error = flow.setupErrorMessage {
                         OnboardingErrorNote(text: "onboarding.setup.cloud.error".localized(arguments: error))
                             .padding(.top, DesignConstants.Spacing.medium)
@@ -631,6 +641,8 @@ struct OnboardingSetupView: View {
             let ready = flow.isSelectedModelInstalled()
             let downloading = flow.isSelectedModelDownloading()
             let progress = flow.selectedModelProgress()
+            let stage = flow.selectedModelStage()
+            let indeterminate = OnboardingDownloadCopy.isIndeterminate(stage: stage, progress: progress)
 
             OnboardingCard {
                 OnboardingCardRow {
@@ -650,7 +662,7 @@ struct OnboardingSetupView: View {
                         )
                     } else if downloading {
                         OnboardingStatusPill(
-                            text: "onboarding.setup.onDevice.downloading".localized(arguments: Int(progress * 100)),
+                            text: OnboardingDownloadCopy.pillText(stage: stage, progress: progress),
                             tone: .accent
                         )
                     } else {
@@ -669,22 +681,72 @@ struct OnboardingSetupView: View {
                             caption: "onboarding.setup.onDevice.storedCaption".localized
                         )
                     } else if downloading {
-                        Text("\(Int(progress * 100))%")
-                            .font(.system(size: 30, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
+                        // Issue #312. For an engine that reports a stage there is no
+                        // fraction worth printing at any point of the download: the
+                        // transfer sits on its 0.01 floor until a whole file lands,
+                        // and the compile tail that follows is a staircase that pins
+                        // the number at 90% for the whole of the slow ANE encoder
+                        // compile. So the phase line and an indeterminate bar carry
+                        // the entire download, which also means this card never swaps
+                        // between the two shapes mid-download.
+                        if indeterminate {
+                            let phase = OnboardingDownloadCopy.phaseText(stage)
+                            Text(phase)
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.7)
+                                .multilineTextAlignment(.leading)
+                                .frame(
+                                    maxWidth: .infinity,
+                                    minHeight: Self.headingHeight,
+                                    maxHeight: Self.headingHeight,
+                                    alignment: .topLeading
+                                )
 
-                        OnboardingProgressBar(value: progress)
-                            .padding(.top, DesignConstants.Spacing.medium)
+                            OnboardingIndeterminateProgressBar(accessibilityValue: phase)
+                                .padding(.top, DesignConstants.Spacing.medium)
+                        } else {
+                            Text("\(Int(progress * 100))%")
+                                .font(.system(size: 30, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .frame(
+                                    maxWidth: .infinity,
+                                    minHeight: Self.headingHeight,
+                                    maxHeight: Self.headingHeight,
+                                    alignment: .topLeading
+                                )
+
+                            OnboardingProgressBar(value: progress)
+                                .padding(.top, DesignConstants.Spacing.medium)
+                        }
 
                         // The managers publish a fraction, not bytes or a rate, so
                         // the reference's "409 MB of 620 MB" and "40s left" are
-                        // reduced to the one figure that is actually known.
+                        // reduced to the one figure that is actually known. Shown in
+                        // both branches: it is the only hard number on this step.
                         OnboardingBigNumber(
                             value: model.size,
                             caption: "onboarding.setup.onDevice.totalCaption".localized,
                             compact: true
                         )
                             .padding(.top, DesignConstants.Spacing.medium)
+
+                        // Reassurance, only for an engine that reports a stage. A
+                        // four minute wait behind a still indicator reads as a hang,
+                        // and this says out loud that it is not one. `nil` — every
+                        // engine that reports no stage, Whisper included — gets the
+                        // card exactly as it was.
+                        //
+                        // For an engine that does report a stage this note is present
+                        // in *every* stage and carries the *same* string in every
+                        // stage, so it cannot appear, disappear or change its line
+                        // count as the download moves. It is the last thing in the
+                        // card, so any of those would move the card's bottom edge.
+                        if let hint = OnboardingDownloadCopy.hintText(stage) {
+                            OnboardingQuietNote(text: hint)
+                        }
                     } else {
                         Button(action: flow.startSelectedModelDownload) {
                             Label(
@@ -694,6 +756,17 @@ struct OnboardingSetupView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
+                    }
+
+                    // #315: sent back here because the model was removed after
+                    // the user cleared this step. No download failed, so the
+                    // note below cannot fire and this one has to.
+                    if flow.selectedSourceStoppedWorking {
+                        OnboardingErrorNote(
+                            text: "onboarding.setup.stopped.onDevice"
+                                .localized(arguments: model.displayName)
+                        )
+                        .padding(.top, DesignConstants.Spacing.medium)
                     }
 
                     // Bug 2: a failed download is surfaced for BOTH engines, in
@@ -714,6 +787,34 @@ struct OnboardingSetupView: View {
             }
         }
     }
+
+    // MARK: Download card layout
+
+    /// The height reserved for the big heading in **both** branches of the
+    /// download card, so neither a swap between them nor a stage transition
+    /// inside the indeterminate branch can resize the card.
+    ///
+    /// Two lines of the 17 pt rounded semibold phase line, not one line of the
+    /// 30 pt percentage. The phase line runs from "Downloading file 22 of 22" to
+    /// "Optimizing the model for this Mac. Almost done.", and how many lines the
+    /// longer of those needs is a property of the locale — `de` and `ru` are the
+    /// ones that wrap. A floor (`minHeight` alone) does not help there, because a
+    /// floor still lets the taller string win; the frame therefore pins
+    /// `minHeight` and `maxHeight` to the same value and the text is clamped to
+    /// `lineLimit(2)` with a minimum scale factor, so a third line shrinks to
+    /// fit instead of growing the card.
+    ///
+    /// It cannot be measured from this sandbox. If it is a few points out the
+    /// only cost is a card slightly taller or shorter than intended, equally in
+    /// both branches and in every stage — which is the property that matters.
+    private static let headingHeight: CGFloat = 44
+
+    // The four decisions this card makes about what to show — whether to print a
+    // percentage at all, and the three strings — moved out to
+    // `OnboardingDownloadCopy`. They were `private static` here, which put the
+    // whole user-visible half of issue #312 (including the negative-progress
+    // path) out of reach of every test. See OnboardingDownloadCopy.swift.
+
 
     // MARK: Your own API key, save + verify
 
@@ -759,6 +860,15 @@ struct OnboardingSetupView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .disabled(flow.apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    // #315: sent back here because the Keychain entry went away.
+                    if flow.selectedSourceStoppedWorking {
+                        OnboardingErrorNote(
+                            text: "onboarding.setup.stopped.provider"
+                                .localized(arguments: flow.selectedProvider.displayName)
+                        )
+                        .padding(.top, DesignConstants.Spacing.medium)
+                    }
 
                     if let error = flow.setupErrorMessage {
                         OnboardingErrorNote(text: "onboarding.setup.provider.error".localized(arguments: error))

@@ -124,6 +124,30 @@ async function recordTimeouts<T>(run: (delays: number[]) => Promise<T>): Promise
   }
 }
 
+async function runWithFastPollClock<T>(run: () => Promise<T>): Promise<T> {
+  let nowMs = 0;
+  const originalNow = performance.now;
+  const originalSetTimeout = globalThis.setTimeout;
+
+  performance.now = () => nowMs;
+  globalThis.setTimeout = ((handler: (...args: unknown[]) => void, delay?: number, ...args: unknown[]) => {
+    const timeoutMs = delay ?? 0;
+    if (timeoutMs === 500 || timeoutMs === 750) {
+      nowMs += timeoutMs;
+      handler(...args);
+      return 0;
+    }
+    return originalSetTimeout(handler, timeoutMs, ...args);
+  }) as typeof setTimeout;
+
+  try {
+    return await run();
+  } finally {
+    performance.now = originalNow;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
 /**
  * Swaps `console.log` for the duration of `run` and returns the details object of
  * the `provider.no_speech` event it logged. Same swap-the-global idiom as
@@ -678,5 +702,70 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
       submit: [45_000, 45_000],
       poll: [8_000],
     });
+  });
+
+  test('transient 429 and 5xx poll responses stay inside the operation and keep the 8s per-poll budget', async () => {
+    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
+    gcsConfigured = true;
+    const pollTimeouts: number[] = [];
+    let pollAttempt = 0;
+
+    await recordTimeouts(async (delays) => {
+      fetchHandler = (url) => {
+        if (url.includes(':batchRecognize')) {
+          return Response.json({ name: 'operations/transient-polls' });
+        }
+        pollTimeouts.push(delays.at(-1)!);
+        pollAttempt += 1;
+        if (pollAttempt === 1) return new Response('rate limited', { status: 429 });
+        if (pollAttempt === 2) return new Response('unavailable', { status: 503 });
+        return completedBatchResponse('recovered transcript');
+      };
+
+      const result = await transcribeWithGoogleChirp(bigAudio(), 'audio/wav');
+      expect(result.text).toBe('recovered transcript');
+    });
+
+    expect(pollTimeouts).toEqual([8_000, 8_000, 8_000]);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith(':cancel'),
+    )).toBe(false);
+  });
+
+  test('a pending operation stops at the 300s deadline, cancels the operation, and deletes its scratch audio', async () => {
+    gcsConfigured = true;
+    let pollAttempts = 0;
+    let cancelCalls = 0;
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+
+    try {
+      await runWithFastPollClock(async () => {
+        fetchHandler = (url) => {
+          if (url.includes(':batchRecognize')) {
+            return Response.json({ name: 'operations/never-finishes' });
+          }
+          if (url.endsWith(':cancel')) {
+            cancelCalls += 1;
+            return new Response(null, { status: 200 });
+          }
+          pollAttempts += 1;
+          return Response.json({ done: false });
+        };
+
+        await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+          .rejects.toThrow('batchRecognize did not complete within 300000ms');
+      });
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(pollAttempts).toBe(400);
+    expect(cancelCalls).toBe(1);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+    const timeoutEvent = logged.find(([name]) => name === 'provider.batch_timeout');
+    expect(timeoutEvent?.[1]).toMatchObject({ attempts: 400, deadlineMs: 300_000 });
   });
 });

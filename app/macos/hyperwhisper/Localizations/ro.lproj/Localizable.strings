@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Descarcă-ți modelul";
 "onboarding.setup.onDevice.download" = "Descarcă %@";
 "onboarding.setup.onDevice.downloading" = "Se descarcă… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Se descarcă…";
+"onboarding.setup.onDevice.preparing" = "Se pregătește descărcarea…";
+"onboarding.setup.onDevice.downloadingFile" = "Se descarcă fișierul %1$d din %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modelul este optimizat pentru acest Mac. Aproape gata.";
+"onboarding.setup.onDevice.optimizingPill" = "Se optimizează…";
+"onboarding.setup.onDevice.firstRunHint" = "Prima descărcare durează câteva minute. Poți lăsa această fereastră deschisă.";
 "onboarding.setup.onDevice.ready" = "Model pregătit";
 "onboarding.setup.cloud.title" = "Activează-ți cheia";
 "onboarding.setup.cloud.activate" = "Activează Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Activare eșuată: %@";
 "onboarding.setup.provider.error" = "Cheia nu a putut fi salvată: %@";
 "onboarding.setup.provider.saveFailed" = "Cheia nu a putut fi scrisă în Breloc.";
+"onboarding.setup.stopped.onDevice" = "Configurarea nu a putut fi finalizată: %@ nu mai este instalat pe acest Mac. Descarcă-l din nou pentru a continua.";
+"onboarding.setup.stopped.cloud" = "Configurarea nu a putut fi finalizată: acest Mac nu mai este activat pentru HyperWhisper Cloud. Activează-l din nou mai jos sau întoarce-te cu un pas pentru a introduce cheia ta de acces.";
+"onboarding.setup.stopped.provider" = "Configurarea nu a putut fi finalizată: cheia ta %@ nu mai este salvată pe acest Mac. Salveaz-o din nou pentru a continua.";
 "onboarding.setup.provider.check.validated" = "Cheie validată la %@";
 "onboarding.setup.provider.check.written" = "Scrisă în breloc-ul de conectare";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · cheie API %@";
@@ -766,11 +775,11 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credite/min";
 "modes.cloudAccuracy.grokStt.label" = "Cel mai înalt (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Ridicată (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingv, cu suport pentru vocabular personalizat.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Ridicată (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 prin Azure Speech. 43 de limbi, cu adaptare contextuală.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Ridicată (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe prin Azure Speech. Până la 60 de limbi, cu adaptare contextuală.";
 
 "modes.create.title" = "Creați mod nou";
 "modes.create.subtitle" = "Configurați un profil de transcriere personalizat";

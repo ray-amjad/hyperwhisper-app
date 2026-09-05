@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Last ned modellen din";
 "onboarding.setup.onDevice.download" = "Last ned %@";
 "onboarding.setup.onDevice.downloading" = "Laster ned… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Laster ned…";
+"onboarding.setup.onDevice.preparing" = "Forbereder nedlasting…";
+"onboarding.setup.onDevice.downloadingFile" = "Laster ned fil %1$d av %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modellen optimaliseres for denne Macen. Nesten ferdig.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimaliserer…";
+"onboarding.setup.onDevice.firstRunHint" = "Den første nedlastingen tar noen minutter. Du kan la dette vinduet stå åpent.";
 "onboarding.setup.onDevice.ready" = "Modell klar";
 "onboarding.setup.cloud.title" = "Aktiver nøkkelen din";
 "onboarding.setup.cloud.activate" = "Aktiver Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Aktivering mislyktes: %@";
 "onboarding.setup.provider.error" = "Kunne ikke lagre nøkkelen din: %@";
 "onboarding.setup.provider.saveFailed" = "Nøkkelen kunne ikke skrives til nøkkelringen din.";
+"onboarding.setup.stopped.onDevice" = "Oppsettet kunne ikke fullføres: %@ er ikke lenger installert på denne Mac-en. Last den ned på nytt for å fortsette.";
+"onboarding.setup.stopped.cloud" = "Oppsettet kunne ikke fullføres: denne Mac-en er ikke lenger aktivert for HyperWhisper Cloud. Aktiver den på nytt nedenfor, eller gå ett steg tilbake for å skrive inn tilgangsnøkkelen din.";
+"onboarding.setup.stopped.provider" = "Oppsettet kunne ikke fullføres: %@-nøkkelen din er ikke lenger lagret på denne Mac-en. Lagre den på nytt for å fortsette.";
 "onboarding.setup.provider.check.validated" = "Nøkkel validert mot %@";
 "onboarding.setup.provider.check.written" = "Skrevet til innloggingsnøkkelringen";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API-nøkkel";
@@ -766,11 +775,11 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditter/min";
 "modes.cloudAccuracy.grokStt.label" = "Høyest (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Høy (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flerspråklig, med støtte for tilpasset ordforråd.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høy (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 språk med kontekstuell tilpasning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høy (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Opptil 60 språk med kontekstuell tilpasning.";
 
 "modes.create.title" = "Opprett ny modus";
 "modes.create.subtitle" = "Konfigurer en tilpasset transkirpsjonsprofil";

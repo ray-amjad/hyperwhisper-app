@@ -619,7 +619,7 @@
     <value>Cerebras ultra-fast inference for text enhancement</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
-    <value>xAI Grok kõne-tekstiks API</value>
+    <value>SpaceXAI Grok kõne-tekstiks API</value>
   </data>
 
   <!-- Settings - Output -->
@@ -947,7 +947,7 @@ Seda toimingut ei saa tagasi võtta.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1040,7 +1040,7 @@ Seda toimingut ei saa tagasi võtta.</value>
     <value>European AI provider with multilingual support</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
-    <value>xAI Grok kõne tekstiks (pakettide HTTP)</value>
+    <value>SpaceXAI Grok kõne tekstiks (pakettide HTTP)</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
     <value>Fast, accurate transcription - no API key required</value>
@@ -1697,7 +1697,7 @@ You can re-download it later.</value>
     <value>Track your HyperWhisper Cloud balance and usage</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>xAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok models for text enhancement</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
     <value>Autocapitalize Insert</value>
@@ -1796,10 +1796,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -1889,7 +1889,7 @@ You can re-download it later.</value>
     <value>OpenAI</value>
   </data>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
-    <value>xAI</value>
+    <value>SpaceXAI</value>
   </data>
   <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
     <value>Gemini 3.5 Transcribe</value>
@@ -1916,10 +1916,10 @@ You can re-download it later.</value>
     <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>xAI API key is configured.</value>
+    <value>SpaceXAI API key is configured.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>xAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+    <value>SpaceXAI streaming requires a Grok API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
     <value>Gemini API key is configured.</value>
@@ -2198,532 +2198,532 @@ You can re-download it later.</value>
     <value>Use your own Meta Model API key for Muse batch transcription</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
-    <value>Set up HyperWhisper</value>
+    <value>HyperWhisperi seadistamine</value>
   </data>
   <data name="onboarding.welcome.title" xml:space="preserve">
-    <value>Write at the speed of thought</value>
+    <value>Kirjuta mõttekiirusel</value>
   </data>
   <data name="onboarding.welcome.subtitle" xml:space="preserve">
-    <value>HyperWhisper turns your voice into text in any app on your PC. Three things, then you are typing with your voice.</value>
+    <value>HyperWhisper muudab su hääle tekstiks mis tahes rakenduses selles arvutis. Kolm asja ja sa kirjutadki häälega.</value>
   </data>
   <data name="onboarding.welcome.getStarted" xml:space="preserve">
-    <value>Get started</value>
+    <value>Alusta</value>
   </data>
   <data name="onboarding.welcome.task1.title" xml:space="preserve">
-    <value>Choose how transcription runs</value>
+    <value>Vali, kuidas transkribeerimine toimub</value>
   </data>
   <data name="onboarding.welcome.task1.caption" xml:space="preserve">
-    <value>In our cloud, on this PC, or through a provider account you already pay for.</value>
+    <value>Meie pilves, selles arvutis või juba makstud teenusepakkuja konto kaudu.</value>
   </data>
   <data name="onboarding.welcome.task2.title" xml:space="preserve">
-    <value>Check your microphone</value>
+    <value>Kontrolli oma mikrofoni</value>
   </data>
   <data name="onboarding.welcome.task2.caption" xml:space="preserve">
-    <value>Pick an input and watch the level move while you talk.</value>
+    <value>Vali sisend ja jälgi, kuidas tase liigub, kui räägid.</value>
   </data>
   <data name="onboarding.welcome.task3.title" xml:space="preserve">
-    <value>Make one recording</value>
+    <value>Tee üks salvestus</value>
   </data>
   <data name="onboarding.welcome.task3.caption" xml:space="preserve">
-    <value>Say a line, read the text back. That is the whole product.</value>
+    <value>Ütle üks lause, loe tekst üle. See ongi kogu toode.</value>
   </data>
   <data name="onboarding.welcome.note" xml:space="preserve">
-    <value>HyperWhisper listens only while a recording is running. Nothing is captured in the background.</value>
+    <value>HyperWhisper kuulab ainult siis, kui salvestus käib. Taustal ei salvestata midagi.</value>
   </data>
   <data name="onboarding.permissions.title" xml:space="preserve">
-    <value>Two quick checks</value>
+    <value>Kaks kiiret kontrolli</value>
   </data>
   <data name="onboarding.permissions.subtitle" xml:space="preserve">
-    <value>HyperWhisper needs these to hear your voice and drop finished text where you are typing.</value>
+    <value>HyperWhisper vajab neid, et kuulata su häält ja kleepida teksti sinna, kuhu kirjutad.</value>
   </data>
   <data name="onboarding.permissions.microphone.title" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Required. Audio is captured only while a recording is active.</value>
+    <value>Et saaksime su häält kuulda.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
-    <value>Grant</value>
+    <value>Luba</value>
   </data>
   <data name="onboarding.permissions.granted" xml:space="preserve">
-    <value>Granted</value>
+    <value>Lubatud</value>
   </data>
   <data name="onboarding.permissions.open" xml:space="preserve">
-    <value>Open Settings</value>
+    <value>Ava seaded</value>
   </data>
   <data name="onboarding.permissions.note" xml:space="preserve">
-    <value>The shortcut is optional. If another app already owns it, pick a different one now or later in Settings.</value>
+    <value>Kiirklahv on valikuline. Kui see on juba mõne teise rakenduse päralt, vali kohe teine või hiljem Seadetes.</value>
   </data>
   <data name="onboarding.permissions.shortcut.title" xml:space="preserve">
-    <value>Your shortcut</value>
+    <value>Sinu kiirklahv</value>
   </data>
   <data name="onboarding.permissions.shortcut.subtitle" xml:space="preserve">
-    <value>Optional. Press it in any app to start and stop a recording.</value>
+    <value>Valikuline. Vajuta seda mis tahes rakenduses, et salvestust alustada ja lõpetada.</value>
   </data>
   <data name="onboarding.permissions.shortcut.registered" xml:space="preserve">
-    <value>Shortcut registered</value>
+    <value>Kiirklahv registreeritud</value>
   </data>
   <data name="onboarding.permissions.shortcut.checking" xml:space="preserve">
-    <value>Checking the shortcut…</value>
+    <value>Kiirklahvi kontrollimine…</value>
   </data>
   <data name="onboarding.permissions.shortcut.conflict" xml:space="preserve">
-    <value>Shortcut not registered</value>
+    <value>Kiirklahv pole registreeritud</value>
   </data>
   <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
-    <value>Choose a different shortcut</value>
+    <value>Vali teine kiirklahv</value>
   </data>
   <data name="onboarding.source.title" xml:space="preserve">
-    <value>How do you want to transcribe?</value>
+    <value>Kuidas soovid transkribeerida?</value>
   </data>
   <data name="onboarding.source.subtitle" xml:space="preserve">
-    <value>All three put the same text in the same place. They differ on speed, privacy, and who you pay.</value>
+    <value>Režiim ühendab transkriptsiooniallika sinu vormingueelistustega. Vali allikas, et alustada — hiljem saad lisada rohkem.</value>
   </data>
   <data name="onboarding.source.cloud.title" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.source.cloud.description" xml:space="preserve">
-    <value>Fastest to set up, best accuracy. Prepaid credits, no subscription.</value>
+    <value>Kiireim ja täpseim. Ettemakstud krediidid, tsentraalne arveldus — kohalikku mudelit pole vaja alla laadida.</value>
   </data>
   <data name="onboarding.source.onDevice.title" xml:space="preserve">
-    <value>On this PC</value>
+    <value>Selles arvutis</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Private and free. Downloads a model once, then works with no network.</value>
+    <value>Töötab täielikult su Macis. Tasuta, privaatne, toimib ka võrguühenduseta — miski ei lahku sinu seadmest.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
-    <value>Your API Key</value>
+    <value>Sinu API võti</value>
   </data>
   <data name="onboarding.source.provider.description" xml:space="preserve">
-    <value>Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.</value>
+    <value>Kasuta oma OpenAI, Deepgrami või Groqi kontot. Sina kontrollid võtit ja arveldust.</value>
   </data>
   <data name="onboarding.source.note" xml:space="preserve">
-    <value>Changing your mind later reruns this one step. Nothing else you set up is lost.</value>
+    <value>Kui muudad hiljem meelt, korratakse ainult seda üht sammu. Muu, mille oled seadistanud, ei kao.</value>
   </data>
   <data name="onboarding.configure.cloud.title" xml:space="preserve">
-    <value>Activate HyperWhisper Cloud</value>
+    <value>Aktiveeri HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.configure.cloud.subtitle" xml:space="preserve">
-    <value>Enter your Cloud access key to connect this PC to your prepaid credits.</value>
+    <value>Sisesta oma Cloud juurdepääsuvõti, et ühendada see arvuti oma ettemakstud krediitidega.</value>
   </data>
   <data name="onboarding.configure.cloud.placeholder" xml:space="preserve">
-    <value>Paste your access key</value>
+    <value>Kleebi oma juurdepääsuvõti</value>
   </data>
   <data name="onboarding.configure.cloud.getCredits" xml:space="preserve">
-    <value>Don't have a key? Get credits at hyperwhisper.com</value>
+    <value>Võtit pole? Hangi krediite aadressilt hyperwhisper.com</value>
   </data>
   <data name="onboarding.configure.cloud.creditsCaption" xml:space="preserve">
-    <value>credits available</value>
+    <value>krediiti saadaval</value>
   </data>
   <data name="onboarding.configure.cloud.note" xml:space="preserve">
-    <value>Credits are prepaid and shared across every PC signed in with this key. Idle time costs nothing.</value>
+    <value>Krediidid on ette makstud ja jagatud kõigi arvutite vahel, mis on selle võtmega sisse logitud. Jõudeaeg ei maksa midagi.</value>
   </data>
   <data name="onboarding.configure.onDevice.title" xml:space="preserve">
-    <value>Choose a model</value>
+    <value>Vali mudel</value>
   </data>
   <data name="onboarding.configure.onDevice.subtitle" xml:space="preserve">
-    <value>Larger models are more accurate and slower to download.</value>
+    <value>Vali allalaaditav häälemudel. Suuremad mudelid on täpsemad, kuid võtavad rohkem ruumi.</value>
   </data>
   <data name="onboarding.configure.onDevice.note" xml:space="preserve">
-    <value>Audio never leaves this PC. After the download it works on a plane.</value>
+    <value>Heli ei lahku kunagi sellest arvutist. Pärast allalaadimist töötab see ka lennukis.</value>
   </data>
   <data name="onboarding.configure.provider.title" xml:space="preserve">
-    <value>Connect your provider</value>
+    <value>Ühenda oma pakkuja</value>
   </data>
   <data name="onboarding.configure.provider.subtitle" xml:space="preserve">
-    <value>Choose a provider and paste your API key. It is stored securely in Windows Credential Manager.</value>
+    <value>Vali pakkuja ja kleebi oma API võti. See salvestatakse turvaliselt Windowsi mandaadihaldurisse.</value>
   </data>
   <data name="onboarding.configure.provider.keyPlaceholder" xml:space="preserve">
-    <value>Paste your API key</value>
+    <value>Kleebi oma API võti</value>
   </data>
   <data name="onboarding.configure.provider.keychainNote" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>Salvestatud turvaliselt Windowsi mandaadihaldurisse.</value>
   </data>
   <data name="onboarding.configure.noSource.title" xml:space="preserve">
-    <value>Choose a transcription source first.</value>
+    <value>Vali kõigepealt transkribeerimise allikas.</value>
   </data>
   <data name="onboarding.configure.noSource.caption" xml:space="preserve">
-    <value>Go back one step and pick where your speech should become text.</value>
+    <value>Mine samm tagasi ja vali, kuhu su kõne tekstiks muutub.</value>
   </data>
   <data name="onboarding.noSource.detail" xml:space="preserve">
-    <value>This step depends on the source you pick.</value>
+    <value>See samm sõltub valitud allikast.</value>
   </data>
   <data name="onboarding.configure.cloud.testKey" xml:space="preserve">
-    <value>Test access key</value>
+    <value>Testi juurdepääsuvõtit</value>
   </data>
   <data name="onboarding.configure.provider.testKey" xml:space="preserve">
-    <value>Test API key</value>
+    <value>Testi API võtit</value>
   </data>
   <data name="onboarding.configure.test.testing" xml:space="preserve">
-    <value>Testing…</value>
+    <value>Testimine…</value>
   </data>
   <data name="onboarding.configure.test.valid" xml:space="preserve">
-    <value>Access key valid</value>
+    <value>Juurdepääsuvõti on kehtiv</value>
   </data>
   <data name="onboarding.configure.test.healthy" xml:space="preserve">
-    <value>Connected</value>
+    <value>Ühendatud</value>
   </data>
   <data name="onboarding.configure.test.unauthorized" xml:space="preserve">
-    <value>Provider rejected this key. Double-check it's still valid.</value>
+    <value>Pakkuja keeldus sellest võtmest. Kontrolli, kas see on endiselt kehtiv.</value>
   </data>
   <data name="onboarding.configure.test.unreachable" xml:space="preserve">
-    <value>Couldn't reach the provider. Check your internet, then test again.</value>
+    <value>Pakkujaga ei saanud ühendust. Kontrolli internetiühendust ja proovi uuesti.</value>
   </data>
   <data name="onboarding.model.parakeetV2.subtitle" xml:space="preserve">
-    <value>English only. Fastest on this PC.</value>
+    <value>Ainult inglise keel. Kiireim selles arvutis.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingual. Same speed, larger download.</value>
+    <value>Mitmekeelne · 25 keelt</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
-    <value>Multilingual. Smallest download, lowest accuracy.</value>
+    <value>Mitmekeelne · minimaalne mahukus</value>
   </data>
   <data name="onboarding.model.whisperTurbo.subtitle" xml:space="preserve">
-    <value>Multilingual. Most accurate offline option.</value>
+    <value>Mitmekeelne · täpseim Whisper</value>
   </data>
   <data name="onboarding.model.downloaded" xml:space="preserve">
-    <value>Downloaded</value>
+    <value>Alla laaditud</value>
   </data>
   <data name="onboarding.setup.cloud.title" xml:space="preserve">
-    <value>Activate your key</value>
+    <value>Aktiveeri oma võti</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
-    <value>Key verified, credits confirmed. Recordings will go to HyperWhisper Cloud.</value>
+    <value>Võti kinnitatud, krediidid kinnitatud. Salvestused lähevad HyperWhisper Cloud'i.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
-    <value>Activate Cloud</value>
+    <value>Aktiveeri Cloud</value>
   </data>
   <data name="onboarding.setup.cloud.activating" xml:space="preserve">
-    <value>Activating…</value>
+    <value>Aktiveerimine…</value>
   </data>
   <data name="onboarding.setup.cloud.active" xml:space="preserve">
-    <value>Cloud key activated</value>
+    <value>Cloud võti aktiveeritud</value>
   </data>
   <data name="onboarding.setup.cloud.check.keyVerified" xml:space="preserve">
-    <value>Access key verified</value>
+    <value>Ligipääsuvõti kinnitatud</value>
   </data>
   <data name="onboarding.setup.cloud.check.activated" xml:space="preserve">
-    <value>Account activated for this device</value>
+    <value>Konto aktiveeritud selle seadme jaoks</value>
   </data>
   <data name="onboarding.setup.cloud.check.creditsConfirmed" xml:space="preserve">
-    <value>Credits confirmed</value>
+    <value>Krediidid kinnitatud</value>
   </data>
   <data name="onboarding.setup.cloud.credits.caption" xml:space="preserve">
-    <value>credits, spent per minute of audio</value>
+    <value>krediiti, kulub minuti heli kohta</value>
   </data>
   <data name="onboarding.setup.cloud.note" xml:space="preserve">
-    <value>Run low and HyperWhisper tells you before a recording, not after.</value>
+    <value>Kui krediidid hakkavad otsa saama, ütleb HyperWhisper seda enne salvestust, mitte pärast.</value>
   </data>
   <data name="onboarding.setup.onDevice.title" xml:space="preserve">
-    <value>Download your model</value>
+    <value>Laadi mudel alla</value>
   </data>
   <data name="onboarding.setup.onDevice.subtitle" xml:space="preserve">
-    <value>This happens once. Every recording after it runs offline.</value>
+    <value>See juhtub ainult üks kord. Iga järgnev salvestus töötab võrguühenduseta.</value>
   </data>
   <data name="onboarding.setup.onDevice.download" xml:space="preserve">
-    <value>Download {0}</value>
+    <value>Laadi alla {0}</value>
   </data>
   <data name="onboarding.setup.onDevice.downloading" xml:space="preserve">
-    <value>Downloading… {0}%</value>
+    <value>Allalaadimine… {0}%</value>
   </data>
   <data name="onboarding.setup.onDevice.ready" xml:space="preserve">
-    <value>Model ready</value>
+    <value>Mudel on valmis</value>
   </data>
   <data name="onboarding.setup.onDevice.storedCaption" xml:space="preserve">
-    <value>stored on this PC</value>
+    <value>salvestatud sellesse arvutisse</value>
   </data>
   <data name="onboarding.setup.onDevice.totalCaption" xml:space="preserve">
-    <value>total download</value>
+    <value>allalaadimine kokku</value>
   </data>
   <data name="onboarding.setup.onDevice.note" xml:space="preserve">
-    <value>The model stays on this PC, so your audio is transcribed here and never uploaded.</value>
+    <value>Mudel jääb sellesse arvutisse, nii et sinu heli transkribeeritakse siin ja seda ei laadita kunagi üles.</value>
   </data>
   <data name="onboarding.setup.provider.title" xml:space="preserve">
-    <value>Save your key</value>
+    <value>Salvesta oma võti</value>
   </data>
   <data name="onboarding.setup.provider.subtitle" xml:space="preserve">
-    <value>Windows holds it. HyperWhisper asks for it only when a recording needs transcribing.</value>
+    <value>Windows hoiab seda. HyperWhisper küsib seda ainult siis, kui salvestust on vaja transkribeerida.</value>
   </data>
   <data name="onboarding.setup.provider.save" xml:space="preserve">
-    <value>Save key</value>
+    <value>Salvesta võti</value>
   </data>
   <data name="onboarding.setup.provider.saved" xml:space="preserve">
-    <value>API key saved</value>
+    <value>API võti salvestatud</value>
   </data>
   <data name="onboarding.setup.provider.check.validated" xml:space="preserve">
-    <value>Key validated against {0}</value>
+    <value>Võti kinnitatud teenusega {0}</value>
   </data>
   <data name="onboarding.setup.provider.check.written" xml:space="preserve">
-    <value>Written to Windows Credential Manager</value>
+    <value>Kirjutatud Windowsi mandaadihaldurisse</value>
   </data>
   <data name="onboarding.setup.provider.keychainItem" xml:space="preserve">
-    <value>HyperWhisper · {0} API key</value>
+    <value>HyperWhisper · {0} API võti</value>
   </data>
   <data name="onboarding.setup.provider.keyHidden" xml:space="preserve">
-    <value>Stored, never shown again</value>
+    <value>Salvestatud, enam ei kuvata</value>
   </data>
   <data name="onboarding.setup.provider.note" xml:space="preserve">
-    <value>Delete it from Settings, Transcription and HyperWhisper stops calling the provider immediately.</value>
+    <value>Kustuta see jaotisest Seaded, Transkribeerimine ja HyperWhisper lõpetab kohe teenusepakkuja poole pöördumise.</value>
   </data>
   <data name="onboarding.setup.selectFirst" xml:space="preserve">
-    <value>Go back and make a selection first.</value>
+    <value>Mine tagasi ja tee esmalt valik.</value>
   </data>
   <data name="onboarding.setup.noSource.title" xml:space="preserve">
-    <value>Nothing to set up.</value>
+    <value>Pole midagi seadistada.</value>
   </data>
   <data name="onboarding.setup.noSource.caption" xml:space="preserve">
-    <value>Go back and choose a transcription source.</value>
+    <value>Mine tagasi ja vali transkribeerimise allikas.</value>
   </data>
   <data name="onboarding.setup.onDevice.error" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>Allalaadimine ebaõnnestus: {0}</value>
   </data>
   <data name="onboarding.setup.cloud.error" xml:space="preserve">
-    <value>Activation failed: {0}</value>
+    <value>Aktiveerimine ebaõnnestus: {0}</value>
   </data>
   <data name="onboarding.setup.provider.error" xml:space="preserve">
-    <value>Could not save your key: {0}</value>
+    <value>Sinu võtit ei õnnestunud salvestada: {0}</value>
   </data>
   <data name="onboarding.setup.provider.saveFailed" xml:space="preserve">
-    <value>The key could not be written to Windows Credential Manager.</value>
+    <value>Võtit ei õnnestunud Windowsi mandaadihaldurisse kirjutada.</value>
   </data>
   <data name="onboarding.setup.model.notFound" xml:space="preserve">
-    <value>This model is not in the model library.</value>
+    <value>Seda mudelit ei ole mudelikogus.</value>
   </data>
   <data name="onboarding.setup.model.downloadFailed" xml:space="preserve">
-    <value>The download did not finish.</value>
+    <value>Allalaadimine ei lõppenud.</value>
   </data>
   <data name="onboarding.mic.title" xml:space="preserve">
-    <value>Say something. Watch the bars.</value>
+    <value>Seadista oma mikrofon</value>
   </data>
   <data name="onboarding.mic.title.unavailable" xml:space="preserve">
-    <value>Check your microphone.</value>
+    <value>Kontrolli oma mikrofoni.</value>
   </data>
   <data name="onboarding.mic.subtitle" xml:space="preserve">
-    <value>If the level moves when you talk, HyperWhisper can hear you.</value>
+    <value>Vali oma sisend ja kontrolli, et taseme riba liigub, kui räägid.</value>
   </data>
   <data name="onboarding.mic.device.systemDefault" xml:space="preserve">
-    <value>System Default</value>
+    <value>Süsteemi vaikeseade</value>
   </data>
   <data name="onboarding.mic.device.followsSystem" xml:space="preserve">
-    <value>Follows Windows</value>
+    <value>Järgib Windowsi</value>
   </data>
   <data name="onboarding.mic.device.inUse" xml:space="preserve">
-    <value>In use</value>
+    <value>Kasutusel</value>
   </data>
   <data name="onboarding.mic.levelHint" xml:space="preserve">
-    <value>Levels too low, or the wrong device listed?</value>
+    <value>Tase liiga madal või vale seade valitud?</value>
   </data>
   <data name="onboarding.mic.soundSettings" xml:space="preserve">
-    <value>Sound Settings</value>
+    <value>Heliseaded</value>
   </data>
   <data name="onboarding.mic.note" xml:space="preserve">
-    <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
+    <value>Süsteemi vaikeseade järgib seda, mida Windows parajasti kasutab, sealhulgas hiljem ühendatud peakomplekti.</value>
   </data>
   <data name="onboarding.mic.blocked" xml:space="preserve">
-    <value>Microphone access is turned off for desktop apps. Turn it on in Windows Settings, then come back to this step.</value>
+    <value>Mikrofoni juurdepääs on lauaarvuti rakenduste jaoks välja lülitatud. Lülita see Windowsi sätetes sisse ja tule selle sammu juurde tagasi.</value>
   </data>
   <data name="onboarding.mic.none" xml:space="preserve">
-    <value>No microphone is connected. Plug one in and it shows up here on its own.</value>
+    <value>Ühtegi mikrofoni pole ühendatud. Ühenda see ja see ilmub siia iseenesest.</value>
   </data>
   <data name="onboarding.mic.enumerationFailed" xml:space="preserve">
-    <value>Windows could not list your audio devices. Check Sound settings, then come back to this step.</value>
+    <value>Windows ei suutnud sinu heliseadmeid loetleda. Kontrolli heliseadeid ja tule selle sammu juurde tagasi.</value>
   </data>
   <data name="onboarding.mic.meter.inactive" xml:space="preserve">
-    <value>No level to show yet.</value>
+    <value>Taset pole veel näidata.</value>
   </data>
   <data name="onboarding.mic.privacySettings" xml:space="preserve">
-    <value>Open privacy settings</value>
+    <value>Ava privaatsusseaded</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Make one recording.</value>
+    <value>Kõik on valmis, alustame esimest salvestust</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
-    <value>Press the shortcut, say the line, press it again.</value>
+    <value>Vajuta otseteed, ütle lause, vajuta uuesti.</value>
   </data>
   <data name="onboarding.tryIt.shortcutHint" xml:space="preserve">
-    <value>Press once to start, once more to stop.</value>
+    <value>Vajuta üks kord alustamiseks, veel kord lõpetamiseks.</value>
   </data>
   <data name="onboarding.tryIt.record" xml:space="preserve">
-    <value>Record</value>
+    <value>Salvesta</value>
   </data>
   <data name="onboarding.tryIt.recorded" xml:space="preserve">
-    <value>Recorded</value>
+    <value>Salvestatud</value>
   </data>
   <data name="onboarding.tryIt.recordAgain" xml:space="preserve">
-    <value>Record again</value>
+    <value>Salvesta uuesti</value>
   </data>
   <data name="onboarding.test.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>Lõpeta salvestamine</value>
   </data>
   <data name="onboarding.test.status.speak" xml:space="preserve">
-    <value>Speak now...</value>
+    <value>Räägi nüüd...</value>
   </data>
   <data name="onboarding.tryIt.trySaying" xml:space="preserve">
-    <value>Try saying</value>
+    <value>Proovi öelda</value>
   </data>
   <data name="onboarding.tryIt.sampleLine" xml:space="preserve">
-    <value>“HyperWhisper turns what I say into text, right where I am typing.”</value>
+    <value>„HyperWhisper muudab kõik, mida ma ütlen, tekstiks täpselt seal, kus ma parajasti kirjutan.”</value>
   </data>
   <data name="onboarding.try.transcript.heading" xml:space="preserve">
-    <value>What came back</value>
+    <value>Sa ütlesid</value>
   </data>
   <data name="onboarding.tryIt.listening" xml:space="preserve">
-    <value>Listening</value>
+    <value>Kuulan</value>
   </data>
   <data name="onboarding.tryIt.empty" xml:space="preserve">
-    <value>Nothing yet. Start a recording to see the text land here.</value>
+    <value>Veel pole midagi. Alusta salvestust, et näha, kuidas tekst siia ilmub.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} words · {1}</value>
+    <value>{0} sõna · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
-    <value>Shown here only, not pasted into other apps</value>
+    <value>Kuvatakse ainult siin — ei kleebita teistesse rakendustesse</value>
   </data>
   <data name="onboarding.tryIt.note" xml:space="preserve">
-    <value>Turn on auto paste later and the text lands at your cursor instead.</value>
+    <value>Lülita hiljem sisse automaatne kleepimine ja tekst ilmub hoopis kursori juurde.</value>
   </data>
   <data name="onboarding.tryIt.sample.button" xml:space="preserve">
-    <value>Transcribe a sample clip</value>
+    <value>Transkribeeri näidisklipp</value>
   </data>
   <data name="onboarding.tryIt.sample.hint" xml:space="preserve">
-    <value>No microphone is connected, so HyperWhisper runs a short bundled clip through everything a real recording uses.</value>
+    <value>Ühtegi mikrofoni pole ühendatud, seega laseb HyperWhisper lühikese kaasasoleva klipi läbi kõige, mida päris salvestus kasutab.</value>
   </data>
   <data name="onboarding.tryIt.sample.result" xml:space="preserve">
-    <value>From the bundled sample clip</value>
+    <value>Kaasasolevast näidisklipist</value>
   </data>
   <data name="onboarding.tryIt.sample.transcribing" xml:space="preserve">
-    <value>Transcribing the sample…</value>
+    <value>Näidise transkribeerimine…</value>
   </data>
   <data name="onboarding.tryIt.sample.missing" xml:space="preserve">
-    <value>The sample clip is missing from this build.</value>
+    <value>Näidisklipp puudub selles versioonis.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>You are ready to dictate.</value>
+    <value>Olete valmis!</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
-    <value>Press the shortcut in any app and start talking.</value>
+    <value>Vajuta otseteed mis tahes rakenduses ja hakka rääkima.</value>
   </data>
   <data name="onboarding.done.summary.transcription" xml:space="preserve">
-    <value>Transcription</value>
+    <value>Transkribeerimine</value>
   </data>
   <data name="onboarding.done.summary.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofon</value>
   </data>
   <data name="onboarding.done.summary.textDelivery" xml:space="preserve">
-    <value>Text delivery</value>
+    <value>Teksti edastamine</value>
   </data>
   <data name="onboarding.done.summary.shortcut" xml:space="preserve">
-    <value>Shortcut</value>
+    <value>Otsetee</value>
   </data>
   <data name="onboarding.done.summary.onDevice" xml:space="preserve">
-    <value>{0} · on this PC</value>
+    <value>{0} · selles arvutis</value>
   </data>
   <data name="onboarding.done.summary.cloud" xml:space="preserve">
-    <value>{0} · {1} credits</value>
+    <value>{0} · {1} krediiti</value>
   </data>
   <data name="onboarding.done.summary.provider" xml:space="preserve">
-    <value>{0} · your own key</value>
+    <value>{0} · sinu enda võti</value>
   </data>
   <data name="onboarding.done.textDelivery.cursor" xml:space="preserve">
-    <value>Pastes at your cursor</value>
+    <value>Kleebitakse kursori juurde</value>
   </data>
   <data name="onboarding.done.textDelivery.clipboard" xml:space="preserve">
-    <value>Copied to clipboard</value>
+    <value>Kopeeritud lõikelauale</value>
   </data>
   <data name="onboarding.done.menuBarNote" xml:space="preserve">
-    <value>HyperWhisper lives in the system tray. Click it for history, modes, and everything above.</value>
+    <value>HyperWhisper elab tegumiriba salves. Klõpsa sellel ajaloo, režiimide ja kõige eelneva jaoks.</value>
   </data>
   <data name="onboarding.done.button" xml:space="preserve">
-    <value>Done Onboarding</value>
+    <value>Lõpeta sisseelamine</value>
   </data>
   <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
-    <value>None connected</value>
+    <value>Ühtegi pole ühendatud</value>
   </data>
   <data name="onboarding.footer.continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>Jätka</value>
   </data>
   <data name="onboarding.footer.back" xml:space="preserve">
-    <value>Back</value>
+    <value>Tagasi</value>
   </data>
   <data name="onboarding.footer.reassurance.welcome" xml:space="preserve">
-    <value>Every answer can be changed later in Settings.</value>
+    <value>Iga vastust saab hiljem seadetes muuta.</value>
   </data>
   <data name="onboarding.footer.reassurance.permissions" xml:space="preserve">
-    <value>The shortcut can be changed later in Settings.</value>
+    <value>Kiirklahvi saab hiljem Seadetes muuta.</value>
   </data>
   <data name="onboarding.footer.reassurance.source" xml:space="preserve">
-    <value>You can switch sources later in Settings.</value>
+    <value>Allikat saad hiljem seadetes vahetada.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.cloud" xml:space="preserve">
-    <value>The key is stored in Windows Credential Manager.</value>
+    <value>Võti hoitakse Windowsi mandaadihalduris.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.onDevice" xml:space="preserve">
-    <value>More models live in the Model Library.</value>
+    <value>Rohkem mudeleid leiad Mudelite Teegist.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.provider" xml:space="preserve">
-    <value>You can change providers later in Settings.</value>
+    <value>Teenusepakkujat saad hiljem seadetes muuta.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.cloud" xml:space="preserve">
-    <value>Top up any time from your account.</value>
+    <value>Lae krediite juurde igal ajal oma kontolt.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.onDevice" xml:space="preserve">
-    <value>Pausing the download will not lose progress.</value>
+    <value>Allalaadimise peatamine ei kaota edenemist.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.provider" xml:space="preserve">
-    <value>Remove the key any time in Settings.</value>
+    <value>Eemalda võti igal ajal seadetest.</value>
   </data>
   <data name="onboarding.footer.reassurance.microphone" xml:space="preserve">
-    <value>Input device is switchable at any time.</value>
+    <value>Sisendseadet saab igal ajal vahetada.</value>
   </data>
   <data name="onboarding.footer.reassurance.tryIt" xml:space="preserve">
-    <value>The audio is discarded once the text is ready.</value>
+    <value>Heli kustutatakse kohe, kui tekst on valmis.</value>
   </data>
   <data name="onboarding.footer.reassurance.done" xml:space="preserve">
-    <value>All of it is editable in Settings.</value>
+    <value>Kõike saab seadetes muuta.</value>
   </data>
   <data name="onboarding.footer.reassurance.pickSource" xml:space="preserve">
-    <value>Pick a source to continue.</value>
+    <value>Jätkamiseks vali allikas.</value>
   </data>
   <data name="onboarding.setupLater.button" xml:space="preserve">
-    <value>Set Up Later</value>
+    <value>Seadista hiljem</value>
   </data>
   <data name="onboarding.progress.a11y" xml:space="preserve">
-    <value>Step {0} of {1}</value>
+    <value>Samm {0} {1}-st</value>
   </data>
   <data name="onboarding.a11y.percent" xml:space="preserve">
-    <value>{0} percent</value>
+    <value>{0} protsenti</value>
   </data>
   <data name="onboarding.a11y.downloadProgress" xml:space="preserve">
-    <value>Download progress</value>
+    <value>Allalaadimise edenemine</value>
   </data>
   <data name="onboarding.a11y.inputLevel" xml:space="preserve">
-    <value>Microphone input level</value>
+    <value>Mikrofoni sisendi tase</value>
   </data>
   <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
-    <value>Selected, {0}</value>
+    <value>Valitud, {0}</value>
   </data>
   <data name="onboarding.a11y.notSelectedDetail" xml:space="preserve">
-    <value>Not selected, {0}</value>
+    <value>Valimata, {0}</value>
   </data>
   <data name="onboarding.a11y.selectedInput" xml:space="preserve">
-    <value>Selected input</value>
+    <value>Valitud sisend</value>
   </data>
   <data name="onboarding.error.microphone.denied" xml:space="preserve">
-    <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
+    <value>Mikrofoni luba keelduti. Palun anna luba Windowsi sätetes.</value>
   </data>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
-    <value>Run setup again</value>
+    <value>Käivita seadistus uuesti</value>
   </data>
   <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
-    <value>Finish the current dictation before running setup again.</value>
+    <value>Lõpeta praegune dikteerimine, enne kui seadistuse uuesti käivitad.</value>
   </data>
   <data name="onboarding.restore.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+    <value>HyperWhisper ei suutnud taastada sinu eelmist vaikerežiimi. Ava Režiimid, et selle seadeid kontrollida.</value>
   </data>
   <data name="onboarding.apply.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+    <value>HyperWhisper ei suutnud sinu valikut salvestada. Midagi ei muudetud. Proovi uuesti või vali Seadista hiljem.</value>
   </data>
   <data name="onboarding.configure.test.unverified" xml:space="preserve">
-    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+    <value>API võti salvestatud. Sellel pakkujal pole võimalust võtit ilma transkribeerimiseta kontrollida, seega kontrollitakse seda esimesel dikteerimisel.</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>

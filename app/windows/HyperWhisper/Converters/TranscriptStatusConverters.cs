@@ -202,7 +202,7 @@ public class ProviderNameDisplayConverter : IValueConverter
             "anthropic" => "Anthropic",
             "groq" => "Groq",
             "grok" => "Grok",
-            "xai" => "xAI",
+            "xai" or "spacexai" => "SpaceXAI",
             "elevenlabs" or "eleven labs" or "eleven_labs" => "ElevenLabs",
             "deepgram" => "Deepgram",
             "gemini" or "google gemini" => "Google Gemini",

@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Завантажте вашу модель";
 "onboarding.setup.onDevice.download" = "Завантажити %@";
 "onboarding.setup.onDevice.downloading" = "Завантаження… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Завантаження…";
+"onboarding.setup.onDevice.preparing" = "Підготовка завантаження…";
+"onboarding.setup.onDevice.downloadingFile" = "Завантаження файлу %1$d з %2$d";
+"onboarding.setup.onDevice.optimizing" = "Модель оптимізується для цього Mac. Майже готово.";
+"onboarding.setup.onDevice.optimizingPill" = "Оптимізація…";
+"onboarding.setup.onDevice.firstRunHint" = "Перше завантаження триває кілька хвилин. Це вікно можна залишити відкритим.";
 "onboarding.setup.onDevice.ready" = "Модель готова";
 "onboarding.setup.cloud.title" = "Активуйте ваш ключ";
 "onboarding.setup.cloud.activate" = "Активувати Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Не вдалося активувати: %@";
 "onboarding.setup.provider.error" = "Не вдалося зберегти ваш ключ: %@";
 "onboarding.setup.provider.saveFailed" = "Не вдалося записати ключ у вашу Зв'язку ключів.";
+"onboarding.setup.stopped.onDevice" = "Не вдалося завершити налаштування: %@ більше не встановлено на цьому Mac. Завантажте його ще раз, щоб продовжити.";
+"onboarding.setup.stopped.cloud" = "Не вдалося завершити налаштування: цей Mac більше не активовано для HyperWhisper Cloud. Активуйте його ще раз нижче або поверніться на крок назад, щоб ввести ключ доступу.";
+"onboarding.setup.stopped.provider" = "Не вдалося завершити налаштування: ваш ключ %@ більше не збережено на цьому Mac. Збережіть його ще раз, щоб продовжити.";
 "onboarding.setup.provider.check.validated" = "Ключ перевірено щодо %@";
 "onboarding.setup.provider.check.written" = "Записано у в'язку ключів для входу";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · API-ключ %@";
@@ -766,11 +775,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Найвища точність з повільнішою обробкою. Найкраще для важливих транскрипцій.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ кредитів/хв";
 "modes.cloudAccuracy.grokStt.label" = "Найвища (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Найвища точність з повільнішою обробкою. Найкраще для важливих транскрипцій.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Найвища точність з повільнішою обробкою. Найкраще для важливих транскрипцій.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Висока (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Багатомовна модель із підтримкою власного словника.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 через Azure Speech. 43 мови з контекстним підлаштуванням.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe через Azure Speech. До 60 мов з контекстним підлаштуванням.";
 
 "modes.create.title" = "Створити новий режим";
 "modes.create.subtitle" = "Налаштуйте спеціальний профіль транскрипції";

@@ -523,6 +523,124 @@ struct OnboardingProgressBar: View {
     }
 }
 
+/// The indeterminate sibling of `OnboardingProgressBar`, for a download where
+/// work is definitely happening but no trustworthy fraction exists (issue #312:
+/// FluidAudio emits nothing usable until a whole file lands, and its compile
+/// tail is a four-step staircase, so a number in either would read as frozen).
+///
+/// Built from the same `GeometryReader` + `Capsule` + `frame(height: 6)` as
+/// `OnboardingProgressBar` rather than from `ProgressView(.linear)`. The two
+/// swap places inside a card that pins no height of its own, so anything but
+/// identical layout resizes the card and everything below it at the swap — and
+/// the system bar takes AppKit's intrinsic height, which is not 6 pt and cannot
+/// be pinned to 6 pt without risking a clipped animation.
+struct OnboardingIndeterminateProgressBar: View {
+    /// What VoiceOver reads as this bar's value. There is no percentage to read,
+    /// so the caller hands over the live phase line ("Downloading file 12 of 22")
+    /// instead of one constant string for the whole four minutes.
+    ///
+    /// Required, with no default. The one construction site always has a better
+    /// value than any constant this could fall back to, so a default here was
+    /// unreachable code — and the `onboarding.a11y.inProgress` key that backed it
+    /// was dead in all 40 `.lproj`, which is worse than an unused parameter
+    /// because a translator still has to look at it.
+    let accessibilityValue: String
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var sweeping = false
+
+    /// Width of the travelling highlight, as a share of the track.
+    private static let sweepShare: CGFloat = 0.35
+
+    var body: some View {
+        GeometryReader { proxy in
+            let trackWidth = proxy.size.width
+            let sweepWidth = trackWidth * Self.sweepShare
+            ZStack(alignment: .leading) {
+                Capsule().fill(OnboardingStyle.fill)
+
+                // One capsule for both cases, never inserted and never removed.
+                //
+                // Under Reduce Motion it is a full width, dimmed, still fill —
+                // AppKit's own bar honours the setting for free, a hand written
+                // sweep has to be asked, and the phase line above carries the
+                // "something is happening". Otherwise it is the travelling
+                // highlight.
+                //
+                // Both of the travel's ends are wholly *inside* the
+                // `clipShape(Capsule())` below, and the resting end (`sweeping ==
+                // false`) is what renders before `startSweep` has run. The old
+                // range was `-sweepWidth ... trackWidth`, so the resting position
+                // sat entirely outside the clip: a sweep that had not started, or
+                // that could never start because Reduce Motion happened to read
+                // `true` on the one `onAppear`, rendered as an empty grey track.
+                // This card carries no percentage either, so that is four minutes
+                // with no number and no movement — issue #312 back in its worst
+                // form. Nothing here is allowed to be invisible.
+                //
+                // `autoreverses: true` is what lets the range stay on screen: the
+                // highlight travels to the far end and back rather than sliding
+                // off the right edge and teleporting to the left, so there is no
+                // seam that needs hiding off-screen. And keeping the capsule in
+                // the hierarchy in both cases means the offset always has a value
+                // to animate *from*, including when Reduce Motion is switched off
+                // in the middle of a download.
+                Capsule()
+                    .fill(Color.accentColor.opacity(reduceMotion ? 0.45 : 1.0))
+                    .frame(width: reduceMotion ? trackWidth : sweepWidth)
+                    .offset(x: (sweeping && !reduceMotion) ? trackWidth - sweepWidth : 0)
+            }
+            .clipShape(Capsule())
+            .onAppear { startSweep() }
+            // The sweep used to be started only from `onAppear`, gated on the
+            // value of `reduceMotion` read at that one instant, with nothing to
+            // recover it afterwards. Two ways that leaves the bar dead for the
+            // rest of a four minute download: the user turns Reduce Motion off in
+            // System Settings mid-download, or SwiftUI delivers the accessibility
+            // environment value after this view's first `onAppear`.
+            .onChange(of: reduceMotion) { _, isReduced in
+                if isReduced {
+                    stopSweep()
+                } else {
+                    startSweep()
+                }
+            }
+        }
+        // Identical to `OnboardingProgressBar`, on purpose. See the note above.
+        .frame(height: 6)
+        .accessibilityElement()
+        .accessibilityLabel("onboarding.a11y.downloadProgress".localized)
+        .accessibilityValue(accessibilityValue)
+    }
+
+    /// Put the highlight into its repeating travel, unless Reduce Motion says no.
+    ///
+    /// Safe to call more than once: `sweeping` is already `true` on the second
+    /// call, so the state does not change and SwiftUI has nothing to re-animate.
+    private func startSweep() {
+        guard !reduceMotion else { return }
+        guard !sweeping else { return }
+        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+            sweeping = true
+        }
+    }
+
+    /// Take the highlight back to its resting end and leave it there.
+    ///
+    /// Explicitly outside any animation: this runs because the user asked for
+    /// less motion, so animating the way back would be the one thing not to do.
+    /// The `reduceMotion` branch above is what is actually on screen afterwards;
+    /// resetting `sweeping` is what lets `startSweep` run again if the setting is
+    /// turned off later.
+    private func stopSweep() {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            sweeping = false
+        }
+    }
+}
+
 // MARK: - Level meter
 
 /// Thirty three bars fed by the real idle metering session on

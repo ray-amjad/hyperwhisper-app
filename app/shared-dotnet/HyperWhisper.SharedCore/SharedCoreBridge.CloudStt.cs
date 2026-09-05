@@ -29,6 +29,29 @@ public static partial class SharedCoreBridge
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 
+    /// <summary>
+    /// PER-MODEL supported language codes from <c>shared-models/models-catalog.json</c>,
+    /// or null when that file carries no explicit list for the model (a wildcard
+    /// row, a <c>supportsAllLanguages</c> row, or no row at all) and the caller
+    /// should keep whatever broader set it already has.
+    ///
+    /// This is a DIFFERENT file and a different code space from
+    /// <c>cloud-stt-catalog.json</c>'s <c>languages.codes</c>: that field is
+    /// PROVIDER-level and holds upstream's own codes, this one is per model and
+    /// folded to the picker space. Where a provider's models disagree — Azure
+    /// MAI's 60 vs 42 — only this one can answer "what does THIS model do".
+    ///
+    /// <paramref name="provider"/> is the models-catalog provider key
+    /// (<c>microsoftAzureSpeech</c>), not the cloud-stt entry id
+    /// (<c>azureMaiTranscribe</c>) and not the <c>sttProvider</c> dispatch key
+    /// (<c>azure-mai</c>). The three namespaces are deliberately separate.
+    /// </summary>
+    public static IReadOnlyList<string>? SharedModelVoiceLanguageCodes(string provider, string? modelId)
+    {
+        var support = HyperwhisperCoreMethods.ModelsLanguageSupport(provider, HwKind.Voice, modelId ?? "");
+        return support.@supportsAll || support.@codes.Count == 0 ? null : support.@codes;
+    }
+
     public static CloudSttFileConstraints? CloudSttFileLimits(string tierId)
     {
         var entry = HyperwhisperCoreMethods.CloudSttEntry(tierId);

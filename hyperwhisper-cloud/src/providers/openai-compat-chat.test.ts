@@ -417,7 +417,9 @@ describe('upstream error propagation', () => {
     handler = () => new Response('upstream exploded', { status: 500 });
 
     expect(errorProvider(await captureError(() => requestGroqChat(PAYLOAD, 'req-1')))).toBe('groq');
-    expect(errorProvider(await captureError(() => requestXaiGrokChat(PAYLOAD, 'req-1')))).toBe('grok');
+    const grokError = await captureError(() => requestXaiGrokChat(PAYLOAD, 'req-1'));
+    expect(errorProvider(grokError)).toBe('grok');
+    expect((grokError as Error).message).toBe('SpaceXAI Grok chat failed with status 500');
     expect(errorProvider(await captureError(() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-mini')))).toBe('openai');
     expect(errorProvider(await captureError(() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash')))).toBe('gemini');
     expect(errorProvider(await captureError(() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest')))).toBe('mistral');

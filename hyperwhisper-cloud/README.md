@@ -30,8 +30,8 @@ All endpoints are served from `transcribe-prod-v2.hyperwhisper.com` (production)
 |---|---|---|---|
 | `GET` | `/health` | Fly.io health probe | `src/index.ts` |
 | `GET` | `/warmup` | Pre-warm TLS/HTTP2 on hotkey-down (no-op 204) | `src/index.ts` |
-| `POST` | `/transcribe` | Audio → text via Deepgram / Groq / ElevenLabs / xAI Grok | `src/routes/transcribe.ts` |
-| `POST` | `/post-process` | Text cleanup via Cerebras / Groq / Anthropic / xAI | `src/routes/post-process.ts` |
+| `POST` | `/transcribe` | Audio → text via Deepgram / Groq / ElevenLabs / SpaceXAI Grok | `src/routes/transcribe.ts` |
+| `POST` | `/post-process` | Text cleanup via Cerebras / Groq / Anthropic / SpaceXAI | `src/routes/post-process.ts` |
 | `POST` | `/assistant` | Screen-aware vision chat (SSE stream) | `src/routes/assistant.ts` |
 | `GET` | `/usage` | Query credit balance and daily quota | `src/routes/usage.ts` |
 | `GET` | `/ws/streaming-deepgram` | WebSocket streaming transcription (Deepgram passthrough) | `src/routes/ws-streaming-deepgram.ts` |
@@ -44,8 +44,8 @@ HyperWhisper app
       ▼
 Fly.io Anycast ──► Nearest of 17 regions (production)
       │
-      ├─► Deepgram / Groq / ElevenLabs / xAI / Meta  (speech-to-text)
-      ├─► Cerebras / Groq / Anthropic / xAI          (post-process LLM)
+      ├─► Deepgram / Groq / ElevenLabs / SpaceXAI / Meta  (speech-to-text)
+      ├─► Cerebras / Groq / Anthropic / SpaceXAI          (post-process LLM)
       ├─► Anthropic Claude                           (Assistant vision)
       │
       ├─► Upstash Redis      (license cache, trial credits, IP quotas, IP blocks)
@@ -77,7 +77,7 @@ The service is a proxy. Once a request reaches the upstream provider, that provi
 - `deepgram.ts` — Deepgram Nova-3 (default). `mip_opt_out=true` is set on every request.
 - `groq.ts` — Groq Whisper Large v3.
 - `elevenlabs.ts` — ElevenLabs Scribe v2.
-- `xai-stt.ts` — xAI Grok STT.
+- `xai-stt.ts` — SpaceXAI Grok STT.
 - `meta.ts` — Meta Muse Voice Transcribe 1.0 through the Meta Model API batch endpoint.
 
 **Post-processing LLMs** (`src/providers/`)
@@ -85,7 +85,7 @@ The service is a proxy. Once a request reaches the upstream provider, that provi
 - `cerebras.ts` — Cerebras `gpt-oss-120b` (default).
 - `groq-llm.ts` — Groq `gpt-oss-120b`.
 - `anthropic.ts` — Anthropic Claude Haiku 4.5.
-- `xai-llm.ts` — xAI Grok.
+- `xai-llm.ts` — SpaceXAI Grok.
 
 **Assistant mode**
 

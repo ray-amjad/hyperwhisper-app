@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Laadi mudel alla";
 "onboarding.setup.onDevice.download" = "Laadi alla %@";
 "onboarding.setup.onDevice.downloading" = "Allalaadimine… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Allalaadimine…";
+"onboarding.setup.onDevice.preparing" = "Allalaadimise ettevalmistamine…";
+"onboarding.setup.onDevice.downloadingFile" = "Laaditakse alla fail %1$d / %2$d";
+"onboarding.setup.onDevice.optimizing" = "Mudelit optimeeritakse selle Maci jaoks. Peaaegu valmis.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimeerimine…";
+"onboarding.setup.onDevice.firstRunHint" = "Esimene allalaadimine võtab paar minutit. Võid selle akna lahti jätta.";
 "onboarding.setup.onDevice.ready" = "Mudel on valmis";
 "onboarding.setup.cloud.title" = "Aktiveeri oma võti";
 "onboarding.setup.cloud.activate" = "Aktiveeri Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Aktiveerimine ebaõnnestus: %@";
 "onboarding.setup.provider.error" = "Sinu võtit ei õnnestunud salvestada: %@";
 "onboarding.setup.provider.saveFailed" = "Võtit ei õnnestunud sinu Võtmehoidjasse kirjutada.";
+"onboarding.setup.stopped.onDevice" = "Seadistust ei õnnestunud lõpetada: %@ pole enam sellesse Maci installitud. Laadi see uuesti alla, et jätkata.";
+"onboarding.setup.stopped.cloud" = "Seadistust ei õnnestunud lõpetada: see Mac pole enam HyperWhisper Cloudi jaoks aktiveeritud. Aktiveeri see allpool uuesti või mine üks samm tagasi ja sisesta oma pääsuvõti.";
+"onboarding.setup.stopped.provider" = "Seadistust ei õnnestunud lõpetada: sinu %@ võti pole enam sellesse Maci salvestatud. Salvesta see uuesti, et jätkata.";
 "onboarding.setup.provider.check.validated" = "Võti kinnitatud teenusega %@";
 "onboarding.setup.provider.check.written" = "Kirjutatud sisselogimise võtmehoidjasse";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API võti";
@@ -766,11 +775,11 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediiti/min";
 "modes.cloudAccuracy.grokStt.label" = "Kõrgeim (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Kõrge (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Mitmekeelne, kohandatud sõnavara toega.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 Azure Speech kaudu. 43 keelt koos kontekstipõhise kohandusega.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe Azure Speech kaudu. Kuni 60 keelt koos kontekstipõhise kohandusega.";
 
 "modes.create.title" = "Loo uus režiim";
 "modes.create.subtitle" = "Konfigureeri kohandatud transkriptsiooni profiil";

@@ -82,9 +82,9 @@ public class LanguageModelInfo
         new("qwen/qwen3.6-27b", "Qwen 3.6 27B", PostProcessingProvider.Groq, "Latest Qwen, strong quality-to-speed ratio"),
 
         // xAI Grok Models
-        new("grok-4.3", "Grok 4.3", PostProcessingProvider.Grok, "xAI Grok 4.3 with reasoning disabled for low-latency text enhancement"),
-        new("grok-4.5", "Grok 4.5", PostProcessingProvider.Grok, "xAI Grok 4.5 with reasoning disabled for low-latency text enhancement"),
-        new("grok-4.6", "Grok 4.6", PostProcessingProvider.Grok, "xAI Grok 4.6 with a 500k context window and reasoning disabled for low-latency text enhancement"),
+        new("grok-4.3", "Grok 4.3", PostProcessingProvider.Grok, "SpaceXAI Grok 4.3 with reasoning disabled for low-latency text enhancement"),
+        new("grok-4.5", "Grok 4.5", PostProcessingProvider.Grok, "SpaceXAI Grok 4.5 with reasoning disabled for low-latency text enhancement"),
+        new("grok-4.6", "Grok 4.6", PostProcessingProvider.Grok, "SpaceXAI Grok 4.6 with a 500k context window and reasoning disabled for low-latency text enhancement"),
 
         // Google Gemini Models
         // Fast and efficient models via OpenAI-compatible endpoint

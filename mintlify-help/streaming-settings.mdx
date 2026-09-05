@@ -55,7 +55,7 @@ The **Engine** section is visible only after you turn on streaming. Open this se
 | Deepgram | Yes | Yes (explicit language only) | Yes — Nova 3 |
 | ElevenLabs | Yes | No | No |
 | OpenAI | Yes | No | No |
-| xAI | Yes | Yes | No |
+| SpaceXAI | Yes | Yes | No |
 | Gemini 3.5 Transcribe | Yes | Yes | No |
 | Parakeet (On-Device) | No | No | V3 (Multilingual) / V2 (English) |
 | Nemotron 3.5 (On-Device) | No | No | Multilingual / Latin |
@@ -71,19 +71,19 @@ The provider list is not the same on each platform:
 | Platform | Providers |
 | --- | --- |
 | macOS | All eight |
-| Windows | HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, xAI, Gemini 3.5 Transcribe |
+| Windows | HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, SpaceXAI, Gemini 3.5 Transcribe |
 | Linux | All eight |
 
 On Linux, the two on-device providers run through the same Parakeet engine process that Linux uses for batch transcription.
 
 <Note>
-  On Linux, the provider picker shows the internal identifiers, not the display names: `deepgram`, `elevenlabs`, `openai`, `grok` (xAI), `geminiTranscribe` (Gemini 3.5 Transcribe), `hyperwhisper` (HyperWhisper Cloud), `parakeetLocal`, and `nemotronLocal`. The default is `deepgram`, and not HyperWhisper Cloud. Linux reads the provider key from the **Credentials** page and never keeps it in the settings file.
+  On Linux, the provider picker shows the internal identifiers, not the display names: `deepgram`, `elevenlabs`, `openai`, `grok` (SpaceXAI), `geminiTranscribe` (Gemini 3.5 Transcribe), `hyperwhisper` (HyperWhisper Cloud), `parakeetLocal`, and `nemotronLocal`. The default is `deepgram`, and not HyperWhisper Cloud. Linux reads the provider key from the **Credentials** page and never keeps it in the settings file.
 
   You can also select a local model in the **Unified model library**. Select an installed streaming model, then click **Use for live transcription**. HyperWhisper turns on streaming and sets the provider and the model for you.
 </Note>
 
 <Note>
-  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud, Deepgram, xAI and Gemini 3.5 Transcribe. For Deepgram you must set an explicit language; xAI and Gemini 3.5 Transcribe accept the terms with any language, including Automatic. For HyperWhisper Cloud the rule follows the live engine: Deepgram Nova 3 needs an explicit language, and Gemini 3.5 Transcribe does not. ElevenLabs and OpenAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those two providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). Cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. This is the same rule on macOS and Windows. Linux sends every vocabulary word as a boosting hint, and it does not remove a word that has a replacement.
+  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud, Deepgram, SpaceXAI and Gemini 3.5 Transcribe. For Deepgram you must set an explicit language; SpaceXAI and Gemini 3.5 Transcribe accept the terms with any language, including Automatic. For HyperWhisper Cloud the rule follows the live engine: Deepgram Nova 3 needs an explicit language, and Gemini 3.5 Transcribe does not. ElevenLabs and OpenAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those two providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). Cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. This is the same rule on macOS and Windows. Linux sends every vocabulary word as a boosting hint, and it does not remove a word that has a replacement.
 </Note>
 
 ## HyperWhisper Cloud Live Engine
@@ -172,7 +172,7 @@ The **Language** setting tells the provider which language to expect. An explici
 
 <Tabs>
   <Tab title="macOS">
-    The language picker appears in the **Language** section, below the Engine card. The available choices depend on the provider that you select. For cloud providers, the **Automatic** option lets the server detect the language from your audio. When you select **Automatic**, vocabulary boosting is off for HyperWhisper Cloud and Deepgram. It stays on for xAI.
+    The language picker appears in the **Language** section, below the Engine card. The available choices depend on the provider that you select. For cloud providers, the **Automatic** option lets the server detect the language from your audio. When you select **Automatic**, vocabulary boosting is off for HyperWhisper Cloud and Deepgram. It stays on for SpaceXAI.
 
     For Parakeet V2, the language is always English, and the picker is off. For Parakeet V3 and the two Nemotron variants, the picker shows only the languages that the model supports.
   </Tab>

@@ -11,6 +11,13 @@ crate-type = ["lib"]
 [dependencies]
 # The plan's constraint: no deps beyond regex for the text module.
 regex = "1"
+# Two exceptions to that constraint, both required to reproduce Swift `String`
+# semantics in `agreement::normalize_timed_text` (#286, review round 1):
+# `String.filter` runs over grapheme clusters and `String ==` is canonical
+# equivalence. Neither is new to the shipped artifact — `hw-core` (ffi_backup)
+# and `hw-phonetic` already link both, so this adds no crate to the build graph.
+unicode-normalization = "0.1"
+unicode-segmentation = "1"
 
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }

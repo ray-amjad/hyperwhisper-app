@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "ดาวน์โหลดโมเดลของคุณ";
 "onboarding.setup.onDevice.download" = "ดาวน์โหลด %@";
 "onboarding.setup.onDevice.downloading" = "กำลังดาวน์โหลด… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "กำลังดาวน์โหลด…";
+"onboarding.setup.onDevice.preparing" = "กำลังเตรียมการดาวน์โหลด…";
+"onboarding.setup.onDevice.downloadingFile" = "กำลังดาวน์โหลดไฟล์ที่ %1$d จาก %2$d";
+"onboarding.setup.onDevice.optimizing" = "กำลังปรับโมเดลให้เหมาะกับ Mac เครื่องนี้ ใกล้เสร็จแล้ว";
+"onboarding.setup.onDevice.optimizingPill" = "กำลังปรับให้เหมาะสม…";
+"onboarding.setup.onDevice.firstRunHint" = "การดาวน์โหลดครั้งแรกใช้เวลาสองสามนาที คุณเปิดหน้าต่างนี้ทิ้งไว้ได้";
 "onboarding.setup.onDevice.ready" = "โมเดลพร้อมใช้งาน";
 "onboarding.setup.cloud.title" = "เปิดใช้งานคีย์ของคุณ";
 "onboarding.setup.cloud.activate" = "เปิดใช้งาน Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "เปิดใช้งานล้มเหลว: %@";
 "onboarding.setup.provider.error" = "ไม่สามารถบันทึกคีย์ของคุณได้: %@";
 "onboarding.setup.provider.saveFailed" = "ไม่สามารถบันทึกคีย์ลงใน Keychain ของคุณได้";
+"onboarding.setup.stopped.onDevice" = "ตั้งค่าไม่สำเร็จ: %@ ไม่ได้ติดตั้งอยู่บน Mac เครื่องนี้แล้ว ดาวน์โหลดอีกครั้งเพื่อดำเนินการต่อ";
+"onboarding.setup.stopped.cloud" = "ตั้งค่าไม่สำเร็จ: Mac เครื่องนี้ไม่ได้เปิดใช้งานสำหรับ HyperWhisper Cloud แล้ว เปิดใช้งานอีกครั้งด้านล่าง หรือย้อนกลับหนึ่งขั้นตอนเพื่อป้อนคีย์การเข้าถึงของคุณ";
+"onboarding.setup.stopped.provider" = "ตั้งค่าไม่สำเร็จ: คีย์ %@ ของคุณไม่ได้บันทึกอยู่บน Mac เครื่องนี้แล้ว บันทึกอีกครั้งเพื่อดำเนินการต่อ";
 "onboarding.setup.provider.check.validated" = "ตรวจสอบคีย์กับ %@ แล้ว";
 "onboarding.setup.provider.check.written" = "บันทึกลงใน Keychain สำหรับการเข้าสู่ระบบแล้ว";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · คีย์ API %@";
@@ -766,11 +775,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ เครดิต/นาที";
 "modes.cloudAccuracy.grokStt.label" = "สูงสุด (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
 "modes.cloudAccuracy.geminiTranscribe.label" = "สูง (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe รองรับหลายภาษา พร้อมคำศัพท์ที่กำหนดเอง";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "สูง (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 ผ่าน Azure Speech รองรับ 43 ภาษา พร้อมการปรับตามบริบท";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "สูง (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe ผ่าน Azure Speech รองรับสูงสุด 60 ภาษา พร้อมการปรับตามบริบท";
 
 "modes.create.title" = "สร้างโหมดใหม่";
 "modes.create.subtitle" = "กำหนดค่าโปรไฟล์การสัญลักษณ์ที่กำหนดเอง";

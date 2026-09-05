@@ -9,6 +9,64 @@ import Foundation
 import Combine
 import CoreAudio
 
+/// The immutable result of one read-only scan started by a CoreAudio notification.
+/// Keeping the selected UID in the value lets the main actor reject metrics captured
+/// for a selection that changed while CoreAudio was blocked.
+struct AudioDeviceNotificationSnapshot: Sendable {
+    let devices: [AudioDevice]
+    let systemDefaultDeviceUID: String?
+    let selectedDeviceUID: String?
+    let inputVolumeScalar: Float?
+    let activeInputDeviceIdentifier: String?
+    let activeInputDeviceName: String?
+}
+
+struct AudioDeviceNotificationScanReport: Sendable {
+    let origin: AudioDeviceManager.DeviceScanOrigin
+    let durationMs: Int
+    let didPublish: Bool
+}
+
+private struct AudioDeviceNotificationRefreshRequest: Sendable {
+    let generation: Int
+    let origin: AudioDeviceManager.DeviceScanOrigin
+    let selectedDeviceUID: String?
+}
+
+private struct TimedAudioDeviceNotificationSnapshot: Sendable {
+    let snapshot: AudioDeviceNotificationSnapshot
+    let durationMs: Int
+}
+
+/// CoreAudio property reads are synchronous IPC and can block inside `mach_msg`.
+/// Use a concurrent Dispatch queue so one blocked read does not occupy a Swift
+/// cooperative-executor thread and prevent the second bounded scan from starting.
+private let audioDeviceNotificationScanQueue = DispatchQueue(
+    label: "com.hyperwhisper.audio-device-notification-scan",
+    qos: .userInitiated,
+    attributes: .concurrent
+)
+
+private func readAudioDeviceNotificationSnapshot(
+    selectedDeviceUID: String?,
+    provider: @escaping @Sendable (String?) -> AudioDeviceNotificationSnapshot
+) async -> TimedAudioDeviceNotificationSnapshot {
+    await withCheckedContinuation { continuation in
+        audioDeviceNotificationScanQueue.async {
+            let start = DispatchTime.now().uptimeNanoseconds
+            let snapshot = provider(selectedDeviceUID)
+            let elapsedNanoseconds = DispatchTime.now().uptimeNanoseconds - start
+            let durationMs = Int(min(elapsedNanoseconds / 1_000_000, UInt64(Int.max)))
+            continuation.resume(
+                returning: TimedAudioDeviceNotificationSnapshot(
+                    snapshot: snapshot,
+                    durationMs: durationMs
+                )
+            )
+        }
+    }
+}
+
 /// High-level audio device management
 ///
 /// **Purpose:**
@@ -32,8 +90,11 @@ import CoreAudio
 @MainActor
 class AudioDeviceManager {
 
+    typealias NotificationSnapshotProvider = @Sendable (String?) -> AudioDeviceNotificationSnapshot
+    typealias NotificationScanReporter = @MainActor @Sendable (AudioDeviceNotificationScanReport) -> Void
+
     /// Describes why a device scan was triggered so slow scans can be correlated later.
-    enum DeviceScanOrigin: String {
+    enum DeviceScanOrigin: String, Sendable {
         case manual = "manual"
         case initialBootstrap = "initial_bootstrap"
         case coreAudioDeviceList = "coreaudio.device_list"
@@ -49,7 +110,7 @@ class AudioDeviceManager {
     // 1. During init() we register CoreAudio property listeners for the device roster and default input.
     // 2. CoreAudio fires those listeners any time hardware is added/removed or the default input changes.
     // 3. Callbacks arrive on deviceListenerQueue (background) so we avoid touching UI state off the main thread.
-    // 4. Each callback schedules updateAvailableDevices() on @MainActor, guaranteeing safe @Published updates.
+    // 4. Each callback starts a bounded read off-main, then publishes the newest result on @MainActor.
     // 5. SwiftUI views react immediately, so the microphone picker/menu reflects AirPods the moment they connect.
     // Threading: CoreAudio may invoke listeners on arbitrary threads; confining them to our serial queue keeps
     // ordering deterministic while still offloading processing away from the audio subsystem.
@@ -82,8 +143,30 @@ class AudioDeviceManager {
     /// Callback invoked whenever a previously selected device disappears and we fall back to system default.
     var onSelectedDeviceInvalidated: ((AudioDevice) -> Void)?
 
-    init() {
-        registerForCoreAudioNotifications()
+    private let notificationSnapshotProvider: NotificationSnapshotProvider
+    private let notificationScanReporter: NotificationScanReporter?
+    private var notificationRefreshGeneration = 0
+    /// The newest notification generation that published, or that later work invalidated.
+    /// Two active scans may publish in completion order. Once a burst creates pending work,
+    /// only that newest coalesced request may publish.
+    private var notificationRefreshCompletionWatermark = 0
+    /// Keep route-change bursts bounded without making one blocked HAL read a process-wide gate.
+    /// Two reads may run at once; further callbacks collapse into the newest pending request.
+    private let maximumConcurrentNotificationScans = 2
+    private var activeNotificationScanCount = 0
+    private var pendingNotificationRefresh: AudioDeviceNotificationRefreshRequest?
+
+    init(
+        registerNotificationListeners: Bool = true,
+        notificationSnapshotProvider: @escaping NotificationSnapshotProvider = AudioDeviceManager.readNotificationSnapshot,
+        notificationScanReporter: NotificationScanReporter? = nil
+    ) {
+        self.notificationSnapshotProvider = notificationSnapshotProvider
+        self.notificationScanReporter = notificationScanReporter
+
+        if registerNotificationListeners {
+            registerForCoreAudioNotifications()
+        }
     }
 
     deinit {
@@ -161,10 +244,10 @@ class AudioDeviceManager {
 
         let listenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             guard let self else { return }
-            // Fire-and-forget Task is acceptable because updateAvailableDevices() is idempotent and cheap;
-            // CoreAudio may coalesce notifications, and we prefer not to block the callback queue.
+            // CoreAudio reads can block in mach_msg during a route change. The task enters the
+            // main actor only to capture and publish state; the complete read runs detached.
             Task { @MainActor in
-                self.updateAvailableDevices(reason: origin)
+                self.requestNotificationRefresh(reason: origin)
             }
         }
 
@@ -215,6 +298,239 @@ class AudioDeviceManager {
 
     // MARK: - Device Enumeration
 
+    /// Run one read-only notification scan away from the main actor, then publish only
+    /// if no newer notification scan has completed first. Public/manual scans remain
+    /// synchronous because launch restoration and selection depend on that contract.
+    private func makeNotificationRefreshRequest(reason: DeviceScanOrigin) -> AudioDeviceNotificationRefreshRequest {
+        notificationRefreshGeneration += 1
+        return AudioDeviceNotificationRefreshRequest(
+            generation: notificationRefreshGeneration,
+            origin: reason,
+            selectedDeviceUID: selectedDevice?.uid
+        )
+    }
+
+    private func requestNotificationRefresh(reason: DeviceScanOrigin) {
+        let request = makeNotificationRefreshRequest(reason: reason)
+        guard activeNotificationScanCount < maximumConcurrentNotificationScans else {
+            // A third request turns this into a burst. Supersede both active reads while
+            // leaving the newest pending generation eligible to publish when it runs.
+            notificationRefreshCompletionWatermark = max(
+                notificationRefreshCompletionWatermark,
+                request.generation - 1
+            )
+            pendingNotificationRefresh = request
+            return
+        }
+
+        startNotificationRefresh(request)
+    }
+
+    private func startNotificationRefresh(_ request: AudioDeviceNotificationRefreshRequest) {
+        activeNotificationScanCount += 1
+        Task { @MainActor in
+            await performNotificationRefresh(request)
+            activeNotificationScanCount -= 1
+
+            if let pendingNotificationRefresh {
+                self.pendingNotificationRefresh = nil
+                startNotificationRefresh(pendingNotificationRefresh)
+            }
+        }
+    }
+
+    private func performNotificationRefresh(_ request: AudioDeviceNotificationRefreshRequest) async {
+
+        AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(request.origin.rawValue, privacy: .public))")
+
+        let provider = notificationSnapshotProvider
+        let timedSnapshot = await readAudioDeviceNotificationSnapshot(
+            selectedDeviceUID: request.selectedDeviceUID,
+            provider: provider
+        )
+        let snapshot = timedSnapshot.snapshot
+
+        let didPublish = request.generation > notificationRefreshCompletionWatermark
+        if didPublish {
+            notificationRefreshCompletionWatermark = request.generation
+            applyNotificationSnapshot(snapshot)
+        }
+
+        reportNotificationScan(
+            snapshot,
+            reason: request.origin,
+            durationMs: timedSnapshot.durationMs,
+            didPublish: didPublish
+        )
+    }
+
+    /// Internal entry point for hardware-free notification refresh tests.
+    func refreshAvailableDevicesFromNotificationForTesting(reason: DeviceScanOrigin) async {
+        await performNotificationRefresh(makeNotificationRefreshRequest(reason: reason))
+    }
+
+    /// Internal entry points for burst and synchronous-scan ordering tests.
+    func requestNotificationRefreshForTesting(reason: DeviceScanOrigin) {
+        requestNotificationRefresh(reason: reason)
+    }
+
+    func invalidateNotificationRefreshesForTesting() {
+        invalidateNotificationRefreshes()
+    }
+
+    private func invalidateNotificationRefreshes() {
+        notificationRefreshGeneration += 1
+        notificationRefreshCompletionWatermark = notificationRefreshGeneration
+        pendingNotificationRefresh = nil
+    }
+
+    nonisolated static func readNotificationSnapshot(
+        selectedDeviceUID: String?
+    ) -> AudioDeviceNotificationSnapshot {
+        let enumeration = CoreAudioDeviceHelper.fetchCoreAudioInputDevicesWithIDs()
+        let devices = enumeration.devices
+        let defaultDeviceID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+        let defaultDeviceUID = defaultDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceUID)
+
+        let selectedDeviceID: AudioDeviceID? = {
+            guard let selectedDeviceUID,
+                  devices.contains(where: { $0.uid == selectedDeviceUID }) else {
+                return nil
+            }
+            return enumeration.deviceIDsByUID[selectedDeviceUID]
+        }()
+        let activeDeviceID = selectedDeviceID ?? defaultDeviceID
+        let activeDevice = {
+            if selectedDeviceID != nil, let selectedDeviceUID {
+                return devices.first(where: { $0.uid == selectedDeviceUID })
+            }
+            guard let defaultDeviceUID else { return nil }
+            return devices.first(where: { $0.uid == defaultDeviceUID })
+        }()
+
+        return AudioDeviceNotificationSnapshot(
+            devices: devices,
+            systemDefaultDeviceUID: defaultDeviceUID,
+            selectedDeviceUID: selectedDeviceUID,
+            inputVolumeScalar: activeDeviceID.flatMap(CoreAudioDeviceHelper.readInputVolumeScalar),
+            activeInputDeviceIdentifier: activeDevice?.uid
+                ?? activeDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceUID),
+            activeInputDeviceName: activeDevice?.name
+                ?? activeDeviceID.flatMap(CoreAudioDeviceHelper.copyDeviceName)
+        )
+    }
+
+    private func applyNotificationSnapshot(_ snapshot: AudioDeviceNotificationSnapshot) {
+        availableDevices = snapshot.devices
+        systemDefaultDeviceUID = snapshot.systemDefaultDeviceUID
+
+        // Do not let an old scan replace metrics that belong to a newer user selection.
+        if selectedDevice?.uid == snapshot.selectedDeviceUID {
+            let capturedSelectionStillExists = snapshot.selectedDeviceUID.map { selectedUID in
+                snapshot.devices.contains(where: { $0.uid == selectedUID })
+            } ?? true
+            inputVolumeScalar = snapshot.inputVolumeScalar
+            activeInputDeviceIdentifier = snapshot.activeInputDeviceIdentifier
+            activeInputDeviceName = snapshot.activeInputDeviceName
+                ?? (capturedSelectionStillExists ? selectedDevice?.name : nil)
+                ?? "audio.device.default".localized
+        }
+
+        // Re-check current state. A selected device can change while the detached scan runs.
+        if let selected = selectedDevice,
+           selected.uid == snapshot.selectedDeviceUID,
+           snapshot.devices.contains(where: { $0.uid == selected.uid }) == false {
+            AppLogger.audio.warning("Selected microphone \(selected.name, privacy: .public) disappeared - reverting to system default")
+            selectedDevice = nil
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Selected audio device invalidated",
+                    category: "audio.devices",
+                    level: .warning,
+                    data: [
+                        "selectedDeviceName": selected.name,
+                        "selectedDeviceUID": selected.uid
+                    ]
+                )
+            }
+            onSelectedDeviceInvalidated?(selected)
+        }
+    }
+
+    private func reportNotificationScan(
+        _ snapshot: AudioDeviceNotificationSnapshot,
+        reason: DeviceScanOrigin,
+        durationMs: Int,
+        didPublish: Bool
+    ) {
+        finishDeviceScan(
+            reason: reason,
+            durationMs: durationMs,
+            deviceCount: snapshot.devices.count,
+            defaultDeviceUID: snapshot.systemDefaultDeviceUID,
+            activeDeviceName: snapshot.activeInputDeviceName ?? "audio.device.default".localized,
+            didPublish: didPublish
+        )
+
+        notificationScanReporter?(
+            AudioDeviceNotificationScanReport(
+                origin: reason,
+                durationMs: durationMs,
+                didPublish: didPublish
+            )
+        )
+    }
+
+    /// Keep synchronous and notification scans on one telemetry contract.
+    private func finishDeviceScan(
+        reason: DeviceScanOrigin,
+        durationMs: Int,
+        deviceCount: Int,
+        defaultDeviceUID: String?,
+        activeDeviceName: String,
+        didPublish: Bool? = nil
+    ) {
+        if AppLogger.isErrorLoggingEnabled,
+           reason == .coreAudioDeviceList || reason == .coreAudioDefaultInput {
+            var changeData: [String: Any] = [
+                "reason": reason.rawValue,
+                "deviceCount": deviceCount,
+                "defaultDeviceUID": defaultDeviceUID ?? "unknown",
+                "activeDeviceName": activeDeviceName
+            ]
+            if let didPublish {
+                changeData["didPublish"] = didPublish
+            }
+            SentryService.addBreadcrumb(
+                message: "Audio device change detected",
+                category: "audio.devices",
+                data: changeData
+            )
+        }
+
+        if durationMs > 250 {
+            AppLogger.audio.warning("⚠️ 📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(deviceCount)")
+            if AppLogger.isErrorLoggingEnabled {
+                var slowData: [String: Any] = [
+                    "reason": reason.rawValue,
+                    "durationMs": durationMs,
+                    "deviceCount": deviceCount
+                ]
+                if let didPublish {
+                    slowData["didPublish"] = didPublish
+                }
+                SentryService.addBreadcrumb(
+                    message: "Slow audio device scan",
+                    category: "audio.devices",
+                    level: .warning,
+                    data: slowData
+                )
+            }
+        } else {
+            AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(deviceCount)")
+        }
+    }
+
     /// Update list of available audio devices
     ///
     /// **What This Does:**
@@ -227,6 +543,8 @@ class AudioDeviceManager {
     /// - When device list may have changed (device connected/disconnected)
     /// - When refreshing UI
     func updateAvailableDevices(reason: DeviceScanOrigin = .manual) {
+        // A synchronous scan is authoritative over every notification read that started earlier.
+        invalidateNotificationRefreshes()
         let scanStart = Date()
         AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(reason.rawValue, privacy: .public))")
 
@@ -264,38 +582,14 @@ class AudioDeviceManager {
 
         updateInputVolumeMetrics()
 
-        if AppLogger.isErrorLoggingEnabled,
-           reason == .coreAudioDeviceList || reason == .coreAudioDefaultInput {
-            SentryService.addBreadcrumb(
-                message: "Audio device change detected",
-                category: "audio.devices",
-                data: [
-                    "reason": reason.rawValue,
-                    "deviceCount": self.availableDevices.count,
-                    "defaultDeviceUID": self.systemDefaultDeviceUID ?? "unknown",
-                    "activeDeviceName": self.activeInputDeviceName
-                ]
-            )
-        }
-
         let durationMs = Int(Date().timeIntervalSince(scanStart) * 1000)
-        if durationMs > 250 {
-            AppLogger.audio.warning("⚠️ 📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(self.availableDevices.count)")
-            if AppLogger.isErrorLoggingEnabled {
-                SentryService.addBreadcrumb(
-                    message: "Slow audio device scan",
-                    category: "audio.devices",
-                    level: .warning,
-                    data: [
-                        "reason": reason.rawValue,
-                        "durationMs": durationMs,
-                        "deviceCount": self.availableDevices.count
-                    ]
-                )
-            }
-        } else {
-            AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(self.availableDevices.count)")
-        }
+        finishDeviceScan(
+            reason: reason,
+            durationMs: durationMs,
+            deviceCount: availableDevices.count,
+            defaultDeviceUID: systemDefaultDeviceUID,
+            activeDeviceName: activeInputDeviceName
+        )
     }
 
     // MARK: - Device Selection

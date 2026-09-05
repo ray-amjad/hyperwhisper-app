@@ -432,7 +432,7 @@ public static class CloudTranscriptionModels
         {
             Id = "",
             DisplayName = "Grok Speech-to-Text",
-            Description = "xAI Grok speech-to-text (single implicit model)",
+            Description = "SpaceXAI Grok speech-to-text (single implicit model)",
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
             IsPopular = true
@@ -444,16 +444,31 @@ public static class CloudTranscriptionModels
     // =========================================================================
 
     /// <summary>
-    /// Microsoft MAI-Transcribe 1.5 via Azure Speech / Foundry. Routed through
-    /// the Fly /transcribe service with X-STT-Provider: azure-mai.
+    /// Microsoft MAI-Transcribe 2 and 1.5 via Azure Speech / Foundry. Routed
+    /// through the Fly /transcribe service with X-STT-Provider: azure-mai and
+    /// X-STT-Model set to the id below. The two models do NOT share a language
+    /// set — v2 documents 60 codes to 1.5's 42 — so the Mode editor's language
+    /// picker narrows per model, not per tier; see ModeEditorWindow.xaml.cs.
     /// </summary>
     public static readonly CloudTranscriptionModel[] MicrosoftAzureSpeech = new[]
     {
         new CloudTranscriptionModel
         {
+            Id = "mai-transcribe-2",
+            DisplayName = "MAI-Transcribe 2 (Preview)",
+            Description = "Microsoft's 60-language transcription model with contextual biasing.",
+            Provider = CloudTranscriptionProvider.MicrosoftAzureSpeech,
+            // $0.10 per hour of audio — a limited-time offer Microsoft has
+            // announced through the end of the year. Revisit alongside
+            // AZURE_MAI_COST_PER_AUDIO_MINUTE in the Cloud backend.
+            PricePerMinute = 0.10m / 60m,
+            IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
             Id = "mai-transcribe-1.5",
             DisplayName = "MAI-Transcribe 1.5 (Preview)",
-            Description = "Microsoft's 43-language transcription model with contextual biasing.",
+            Description = "Microsoft's 42-language transcription model with contextual biasing.",
             Provider = CloudTranscriptionProvider.MicrosoftAzureSpeech,
             PricePerMinute = 0.006m,
             IsPopular = true
@@ -705,7 +720,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
             CloudTranscriptionProvider.HyperWhisperCloud => HyperWhisperCloudSentinel.Id,
             CloudTranscriptionProvider.Grok => "",
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-1.5",
+            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-2",
             CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
             _ => null
         };

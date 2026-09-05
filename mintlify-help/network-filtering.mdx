@@ -162,7 +162,7 @@ HyperWhisper uses these endpoints:
 - `https://api.elevenlabs.io/v1/models` - Model availability checks
 - `wss://api.elevenlabs.io/v1/speech-to-text/realtime` - [Streaming transcription](/streaming-settings) with ElevenLabs as the streaming provider
 
-### xAI Grok
+### SpaceXAI Grok
 
 If you configured **Grok** in Model Library → API Keys, whitelist these domains:
 
@@ -279,9 +279,9 @@ If you configured **Mistral** for post-processing, whitelist these domains:
 HyperWhisper uses this endpoint:
 - `https://api.mistral.ai/v1/chat/completions` - Text post-processing
 
-### xAI Grok
+### SpaceXAI Grok
 
-If you configured **Grok** for post-processing, use the xAI domains from the previous section.
+If you configured **Grok** for post-processing, use the SpaceXAI domains from the previous section.
 
 ### Local Gemma (Offline)
 
@@ -394,7 +394,7 @@ If the `curl` commands work but HyperWhisper does not, the probable cause is SSL
 2. **License Keys**: HyperWhisper sends them only to `hyperwhisper.com` for validation. HTTPS encrypts the data
 3. **Audio Data**:
    - **HyperWhisper Cloud**: HyperWhisper sends the audio to `transcribe-prod-v2.hyperwhisper.com` on the Fly.io edge network. The service processes the audio in memory and writes no audio to disk. For more information, see [Data Privacy](/data-privacy)
-   - **Third-party providers**: HyperWhisper sends the audio directly to the API of the provider, for example xAI Grok, OpenAI, Groq, or Deepgram. The privacy policy of the provider applies
+   - **Third-party providers**: HyperWhisper sends the audio directly to the API of the provider, for example SpaceXAI Grok, OpenAI, Groq, or Deepgram. The privacy policy of the provider applies
    - **Local models**: The audio stays on your device. The transcription is fully offline and private
 
 ### Network Security

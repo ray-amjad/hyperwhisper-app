@@ -96,6 +96,20 @@ final class LiveOnboardingModelCatalog: OnboardingModelCatalog {
         }
     }
 
+    /// Issue #312. Only the Parakeet path has a stage to give: `ParakeetModelManager`
+    /// translates FluidAudio's `DownloadPhase` into `ModelDownloadStage` and puts it
+    /// on the shared `DownloadController`. `WhisperModelManager` publishes a fraction
+    /// and nothing else, so `nil` here is deliberate — it keeps Whisper's card on
+    /// exactly the rendering it has today.
+    func stage(for model: OnboardingModelSelection) -> ModelDownloadStage? {
+        switch model.kind {
+        case .whisper:
+            return nil
+        case .parakeet:
+            return parakeet.downloads.stage[model.id]
+        }
+    }
+
     func startDownload(_ model: OnboardingModelSelection) {
         switch model.kind {
         case .whisper:
@@ -130,6 +144,10 @@ final class LiveOnboardingModelCatalog: OnboardingModelCatalog {
         let throttled: [AnyPublisher<Void, Never>] = [
             whisper.$downloadProgress.map { _ in () }.eraseToAnyPublisher(),
             parakeet.downloads.$progress.map { _ in () }.eraseToAnyPublisher(),
+            // Issue #312: the stage changes without the fraction moving (the whole
+            // download sits inside one stage), so it needs its own tick or the
+            // phase line never refreshes.
+            parakeet.downloads.$stage.map { _ in () }.eraseToAnyPublisher(),
         ].map {
             $0.throttle(for: .milliseconds(200), scheduler: DispatchQueue.main, latest: true)
                 .eraseToAnyPublisher()

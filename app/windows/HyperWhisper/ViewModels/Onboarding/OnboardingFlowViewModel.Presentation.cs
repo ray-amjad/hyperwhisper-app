@@ -683,7 +683,7 @@ public sealed partial class OnboardingFlowViewModel
 
         OnboardingSourceKind.HyperWhisperCloud =>
             HasCredits
-                ? Loc.S("onboarding.done.summary.cloud", Loc.S("onboarding.source.cloud.title"), CreditsFormatted)
+                ? Loc.S("onboarding.done.summary.cloud", Loc.S("onboarding.source.cloud.title"), CreditsCountFormatted)
                 : Loc.S("onboarding.source.cloud.title"),
 
         OnboardingSourceKind.YourProvider =>
@@ -787,6 +787,7 @@ public sealed partial class OnboardingFlowViewModel
             },
             [nameof(HasCredits)] = new[] { nameof(AreCreditsConfirmed), nameof(SourceSummary) },
             [nameof(CreditsFormatted)] = new[] { nameof(SourceSummary) },
+            [nameof(CreditsCountFormatted)] = new[] { nameof(SourceSummary) },
             [nameof(DeviceOptions)] = new[] { nameof(DeviceRows) },
             [nameof(SelectedDeviceId)] = new[] { nameof(DeviceRows) },
             [nameof(DeviceAvailability)] = new[]

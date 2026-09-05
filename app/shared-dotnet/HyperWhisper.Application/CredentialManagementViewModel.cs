@@ -75,7 +75,7 @@ public sealed class CredentialManagementViewModel : ViewModelBase
         ("ElevenLabsApiKey", "ElevenLabs API key"), ("MistralApiKey", "Mistral API key"),
         ("SonioxApiKey", "Soniox API key"), ("GeminiApiKey", "Gemini API key"),
         ("GeminiTranscribeApiKey", "Gemini 3.5 Transcribe API key"),
-        ("GrokApiKey", "xAI/Grok API key"),
+        ("GrokApiKey", "SpaceXAI/Grok API key"),
         ("MetaApiKey", "Meta Model API key")
     ];
 }

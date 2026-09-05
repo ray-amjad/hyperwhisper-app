@@ -619,7 +619,7 @@
     <value>Cerebras ultra-fast inference for text enhancement</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
-    <value>xAI Grok konuşmadan metne API</value>
+    <value>SpaceXAI Grok konuşmadan metne API</value>
   </data>
 
   <!-- Settings - Output -->
@@ -947,7 +947,7 @@ Bu işlem geri alınamaz.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1040,7 +1040,7 @@ Bu işlem geri alınamaz.</value>
     <value>European AI provider with multilingual support</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
-    <value>xAI Grok konuşmadan metne (toplu HTTP)</value>
+    <value>SpaceXAI Grok konuşmadan metne (toplu HTTP)</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
     <value>Fast, accurate transcription - no API key required</value>
@@ -1697,7 +1697,7 @@ You can re-download it later.</value>
     <value>Track your HyperWhisper Cloud balance and usage</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>xAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok models for text enhancement</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
     <value>Autocapitalize Insert</value>
@@ -1796,10 +1796,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -1889,7 +1889,7 @@ You can re-download it later.</value>
     <value>OpenAI</value>
   </data>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
-    <value>xAI</value>
+    <value>SpaceXAI</value>
   </data>
   <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
     <value>Gemini 3.5 Transcribe</value>
@@ -1916,10 +1916,10 @@ You can re-download it later.</value>
     <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>xAI API key is configured.</value>
+    <value>SpaceXAI API key is configured.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>xAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+    <value>SpaceXAI streaming requires a Grok API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
     <value>Gemini API key is configured.</value>
@@ -2198,532 +2198,532 @@ You can re-download it later.</value>
     <value>Use your own Meta Model API key for Muse batch transcription</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
-    <value>Set up HyperWhisper</value>
+    <value>HyperWhisper'ı kur</value>
   </data>
   <data name="onboarding.welcome.title" xml:space="preserve">
-    <value>Write at the speed of thought</value>
+    <value>Düşünce hızında yazın</value>
   </data>
   <data name="onboarding.welcome.subtitle" xml:space="preserve">
-    <value>HyperWhisper turns your voice into text in any app on your PC. Three things, then you are typing with your voice.</value>
+    <value>HyperWhisper, sesinizi bu PC'deki herhangi bir uygulamada metne dönüştürür. Üç adım, sonra sesinizle yazıyorsunuz.</value>
   </data>
   <data name="onboarding.welcome.getStarted" xml:space="preserve">
-    <value>Get started</value>
+    <value>Başlayın</value>
   </data>
   <data name="onboarding.welcome.task1.title" xml:space="preserve">
-    <value>Choose how transcription runs</value>
+    <value>Transkripsiyonun nasıl çalışacağını seçin</value>
   </data>
   <data name="onboarding.welcome.task1.caption" xml:space="preserve">
-    <value>In our cloud, on this PC, or through a provider account you already pay for.</value>
+    <value>Bulutumuzda, bu PC'de veya zaten ödediğiniz bir sağlayıcı hesabı üzerinden.</value>
   </data>
   <data name="onboarding.welcome.task2.title" xml:space="preserve">
-    <value>Check your microphone</value>
+    <value>Mikrofonunuzu kontrol edin</value>
   </data>
   <data name="onboarding.welcome.task2.caption" xml:space="preserve">
-    <value>Pick an input and watch the level move while you talk.</value>
+    <value>Bir giriş seçin ve konuşurken seviyenin hareket ettiğini izleyin.</value>
   </data>
   <data name="onboarding.welcome.task3.title" xml:space="preserve">
-    <value>Make one recording</value>
+    <value>Bir kayıt yapın</value>
   </data>
   <data name="onboarding.welcome.task3.caption" xml:space="preserve">
-    <value>Say a line, read the text back. That is the whole product.</value>
+    <value>Bir cümle söyleyin, metni geri okuyun. Ürünün tamamı bu.</value>
   </data>
   <data name="onboarding.welcome.note" xml:space="preserve">
-    <value>HyperWhisper listens only while a recording is running. Nothing is captured in the background.</value>
+    <value>HyperWhisper yalnızca bir kayıt çalışırken dinler. Arka planda hiçbir şey kaydedilmez.</value>
   </data>
   <data name="onboarding.permissions.title" xml:space="preserve">
-    <value>Two quick checks</value>
+    <value>İki hızlı kontrol</value>
   </data>
   <data name="onboarding.permissions.subtitle" xml:space="preserve">
-    <value>HyperWhisper needs these to hear your voice and drop finished text where you are typing.</value>
+    <value>HyperWhisper, sesinizi duymak ve yazdığınız yere metin yapıştırmak için bunlara ihtiyaç duyar.</value>
   </data>
   <data name="onboarding.permissions.microphone.title" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Required. Audio is captured only while a recording is active.</value>
+    <value>Sesinizi duyabilmemiz için.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
-    <value>Grant</value>
+    <value>İzin ver</value>
   </data>
   <data name="onboarding.permissions.granted" xml:space="preserve">
-    <value>Granted</value>
+    <value>İzin verildi</value>
   </data>
   <data name="onboarding.permissions.open" xml:space="preserve">
-    <value>Open Settings</value>
+    <value>Ayarları Aç</value>
   </data>
   <data name="onboarding.permissions.note" xml:space="preserve">
-    <value>The shortcut is optional. If another app already owns it, pick a different one now or later in Settings.</value>
+    <value>Kısayol isteğe bağlıdır. Başka bir uygulama onu zaten kullanıyorsa şimdi farklı bir tane seçin ya da sonra Ayarlar'dan değiştirin.</value>
   </data>
   <data name="onboarding.permissions.shortcut.title" xml:space="preserve">
-    <value>Your shortcut</value>
+    <value>Kısayolunuz</value>
   </data>
   <data name="onboarding.permissions.shortcut.subtitle" xml:space="preserve">
-    <value>Optional. Press it in any app to start and stop a recording.</value>
+    <value>İsteğe bağlı. Kaydı başlatmak ve durdurmak için herhangi bir uygulamada buna basın.</value>
   </data>
   <data name="onboarding.permissions.shortcut.registered" xml:space="preserve">
-    <value>Shortcut registered</value>
+    <value>Kısayol kaydedildi</value>
   </data>
   <data name="onboarding.permissions.shortcut.checking" xml:space="preserve">
-    <value>Checking the shortcut…</value>
+    <value>Kısayol kontrol ediliyor…</value>
   </data>
   <data name="onboarding.permissions.shortcut.conflict" xml:space="preserve">
-    <value>Shortcut not registered</value>
+    <value>Kısayol kaydedilmedi</value>
   </data>
   <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
-    <value>Choose a different shortcut</value>
+    <value>Farklı bir kısayol seçin</value>
   </data>
   <data name="onboarding.source.title" xml:space="preserve">
-    <value>How do you want to transcribe?</value>
+    <value>Nasıl transkript etmek istersiniz?</value>
   </data>
   <data name="onboarding.source.subtitle" xml:space="preserve">
-    <value>All three put the same text in the same place. They differ on speed, privacy, and who you pay.</value>
+    <value>Bir Mod, bir transkripsiyon kaynağını biçimlendirme tercihlerinizle birleştirir. Başlamak için bir kaynak seçin — daha sonra başka kaynaklar da ekleyebilirsiniz.</value>
   </data>
   <data name="onboarding.source.cloud.title" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.source.cloud.description" xml:space="preserve">
-    <value>Fastest to set up, best accuracy. Prepaid credits, no subscription.</value>
+    <value>En hızlı ve en doğru. Ön ödemeli krediler, merkezi faturalandırma — indirilecek yerel model yok.</value>
   </data>
   <data name="onboarding.source.onDevice.title" xml:space="preserve">
-    <value>On this PC</value>
+    <value>Bu PC'de</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Private and free. Downloads a model once, then works with no network.</value>
+    <value>Tamamen Mac'inizde çalışır. Ücretsiz, gizli, çevrimdışı çalışır — hiçbir şey cihazınızdan asla dışarı çıkmaz.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
-    <value>Your API Key</value>
+    <value>API Anahtarınız</value>
   </data>
   <data name="onboarding.source.provider.description" xml:space="preserve">
-    <value>Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.</value>
+    <value>Kendi OpenAI, Deepgram veya Groq hesabınızı kullanın. Anahtarı ve faturalandırmayı siz kontrol edersiniz.</value>
   </data>
   <data name="onboarding.source.note" xml:space="preserve">
-    <value>Changing your mind later reruns this one step. Nothing else you set up is lost.</value>
+    <value>Fikrinizi daha sonra değiştirirseniz yalnızca bu adım yeniden çalışır. Ayarladığınız başka hiçbir şey kaybolmaz.</value>
   </data>
   <data name="onboarding.configure.cloud.title" xml:space="preserve">
-    <value>Activate HyperWhisper Cloud</value>
+    <value>HyperWhisper Cloud'u Etkinleştirin</value>
   </data>
   <data name="onboarding.configure.cloud.subtitle" xml:space="preserve">
-    <value>Enter your Cloud access key to connect this PC to your prepaid credits.</value>
+    <value>Bu PC'yi ön ödemeli kredilerinize bağlamak için Cloud erişim anahtarınızı girin.</value>
   </data>
   <data name="onboarding.configure.cloud.placeholder" xml:space="preserve">
-    <value>Paste your access key</value>
+    <value>Erişim anahtarınızı yapıştırın</value>
   </data>
   <data name="onboarding.configure.cloud.getCredits" xml:space="preserve">
-    <value>Don't have a key? Get credits at hyperwhisper.com</value>
+    <value>Anahtarınız yok mu? hyperwhisper.com adresinden kredi alın</value>
   </data>
   <data name="onboarding.configure.cloud.creditsCaption" xml:space="preserve">
-    <value>credits available</value>
+    <value>kredi mevcut</value>
   </data>
   <data name="onboarding.configure.cloud.note" xml:space="preserve">
-    <value>Credits are prepaid and shared across every PC signed in with this key. Idle time costs nothing.</value>
+    <value>Krediler ön ödemelidir ve bu anahtarla oturum açan her PC arasında paylaşılır. Boşta geçen süre hiçbir şeye mal olmaz.</value>
   </data>
   <data name="onboarding.configure.onDevice.title" xml:space="preserve">
-    <value>Choose a model</value>
+    <value>Bir model seçin</value>
   </data>
   <data name="onboarding.configure.onDevice.subtitle" xml:space="preserve">
-    <value>Larger models are more accurate and slower to download.</value>
+    <value>İndirilecek bir ses modeli seçin. Daha büyük modeller daha doğrudur ancak daha fazla yer kaplar.</value>
   </data>
   <data name="onboarding.configure.onDevice.note" xml:space="preserve">
-    <value>Audio never leaves this PC. After the download it works on a plane.</value>
+    <value>Ses bu PC'den asla çıkmaz. İndirmeden sonra uçakta bile çalışır.</value>
   </data>
   <data name="onboarding.configure.provider.title" xml:space="preserve">
-    <value>Connect your provider</value>
+    <value>Sağlayıcınızı bağlayın</value>
   </data>
   <data name="onboarding.configure.provider.subtitle" xml:space="preserve">
-    <value>Choose a provider and paste your API key. It is stored securely in Windows Credential Manager.</value>
+    <value>Bir sağlayıcı seçin ve API anahtarınızı yapıştırın. Windows Kimlik Bilgileri Yöneticisi'nde güvenli şekilde saklanır.</value>
   </data>
   <data name="onboarding.configure.provider.keyPlaceholder" xml:space="preserve">
-    <value>Paste your API key</value>
+    <value>API anahtarınızı yapıştırın</value>
   </data>
   <data name="onboarding.configure.provider.keychainNote" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>Windows Kimlik Bilgileri Yöneticisi'nde güvenli şekilde saklanır.</value>
   </data>
   <data name="onboarding.configure.noSource.title" xml:space="preserve">
-    <value>Choose a transcription source first.</value>
+    <value>Önce bir transkripsiyon kaynağı seçin.</value>
   </data>
   <data name="onboarding.configure.noSource.caption" xml:space="preserve">
-    <value>Go back one step and pick where your speech should become text.</value>
+    <value>Bir adım geri gidin ve konuşmanızın nerede metne dönüşeceğini seçin.</value>
   </data>
   <data name="onboarding.noSource.detail" xml:space="preserve">
-    <value>This step depends on the source you pick.</value>
+    <value>Bu adım seçtiğiniz kaynağa bağlıdır.</value>
   </data>
   <data name="onboarding.configure.cloud.testKey" xml:space="preserve">
-    <value>Test access key</value>
+    <value>Erişim Anahtarını Test Et</value>
   </data>
   <data name="onboarding.configure.provider.testKey" xml:space="preserve">
-    <value>Test API key</value>
+    <value>API Anahtarını Test Et</value>
   </data>
   <data name="onboarding.configure.test.testing" xml:space="preserve">
-    <value>Testing…</value>
+    <value>Test ediliyor…</value>
   </data>
   <data name="onboarding.configure.test.valid" xml:space="preserve">
-    <value>Access key valid</value>
+    <value>Geçerli erişim anahtarı</value>
   </data>
   <data name="onboarding.configure.test.healthy" xml:space="preserve">
-    <value>Connected</value>
+    <value>Bağlandı</value>
   </data>
   <data name="onboarding.configure.test.unauthorized" xml:space="preserve">
-    <value>Provider rejected this key. Double-check it's still valid.</value>
+    <value>Sağlayıcı bu anahtarı reddetti. Hâlâ geçerli olduğundan emin olun.</value>
   </data>
   <data name="onboarding.configure.test.unreachable" xml:space="preserve">
-    <value>Couldn't reach the provider. Check your internet, then test again.</value>
+    <value>Sağlayıcıya ulaşılamadı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.</value>
   </data>
   <data name="onboarding.model.parakeetV2.subtitle" xml:space="preserve">
-    <value>English only. Fastest on this PC.</value>
+    <value>Yalnızca İngilizce. Bu PC'de en hızlısı.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingual. Same speed, larger download.</value>
+    <value>Çok dilli · 25 dil</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
-    <value>Multilingual. Smallest download, lowest accuracy.</value>
+    <value>Çok dilli · minik boyut</value>
   </data>
   <data name="onboarding.model.whisperTurbo.subtitle" xml:space="preserve">
-    <value>Multilingual. Most accurate offline option.</value>
+    <value>Çok dilli · en doğru Whisper</value>
   </data>
   <data name="onboarding.model.downloaded" xml:space="preserve">
-    <value>Downloaded</value>
+    <value>İndirildi</value>
   </data>
   <data name="onboarding.setup.cloud.title" xml:space="preserve">
-    <value>Activate your key</value>
+    <value>Anahtarınızı etkinleştirin</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
-    <value>Key verified, credits confirmed. Recordings will go to HyperWhisper Cloud.</value>
+    <value>Anahtar doğrulandı, krediler onaylandı. Kayıtlar HyperWhisper Cloud'a gidecek.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
-    <value>Activate Cloud</value>
+    <value>Cloud'u Etkinleştir</value>
   </data>
   <data name="onboarding.setup.cloud.activating" xml:space="preserve">
-    <value>Activating…</value>
+    <value>Etkinleştiriliyor…</value>
   </data>
   <data name="onboarding.setup.cloud.active" xml:space="preserve">
-    <value>Cloud key activated</value>
+    <value>Cloud anahtarı etkinleştirildi</value>
   </data>
   <data name="onboarding.setup.cloud.check.keyVerified" xml:space="preserve">
-    <value>Access key verified</value>
+    <value>Erişim anahtarı doğrulandı</value>
   </data>
   <data name="onboarding.setup.cloud.check.activated" xml:space="preserve">
-    <value>Account activated for this device</value>
+    <value>Hesap bu cihaz için etkinleştirildi</value>
   </data>
   <data name="onboarding.setup.cloud.check.creditsConfirmed" xml:space="preserve">
-    <value>Credits confirmed</value>
+    <value>Krediler onaylandı</value>
   </data>
   <data name="onboarding.setup.cloud.credits.caption" xml:space="preserve">
-    <value>credits, spent per minute of audio</value>
+    <value>kredi, dakika başına ses için harcanır</value>
   </data>
   <data name="onboarding.setup.cloud.note" xml:space="preserve">
-    <value>Run low and HyperWhisper tells you before a recording, not after.</value>
+    <value>Krediniz azaldığında HyperWhisper size kayıttan önce haber verir, sonra değil.</value>
   </data>
   <data name="onboarding.setup.onDevice.title" xml:space="preserve">
-    <value>Download your model</value>
+    <value>Modelinizi indirin</value>
   </data>
   <data name="onboarding.setup.onDevice.subtitle" xml:space="preserve">
-    <value>This happens once. Every recording after it runs offline.</value>
+    <value>Bu yalnızca bir kez olur. Bundan sonraki her kayıt çevrimdışı çalışır.</value>
   </data>
   <data name="onboarding.setup.onDevice.download" xml:space="preserve">
-    <value>Download {0}</value>
+    <value>{0} İndir</value>
   </data>
   <data name="onboarding.setup.onDevice.downloading" xml:space="preserve">
-    <value>Downloading… {0}%</value>
+    <value>İndiriliyor… {0}%</value>
   </data>
   <data name="onboarding.setup.onDevice.ready" xml:space="preserve">
-    <value>Model ready</value>
+    <value>Model hazır</value>
   </data>
   <data name="onboarding.setup.onDevice.storedCaption" xml:space="preserve">
-    <value>stored on this PC</value>
+    <value>bu PC'de saklanıyor</value>
   </data>
   <data name="onboarding.setup.onDevice.totalCaption" xml:space="preserve">
-    <value>total download</value>
+    <value>toplam indirme</value>
   </data>
   <data name="onboarding.setup.onDevice.note" xml:space="preserve">
-    <value>The model stays on this PC, so your audio is transcribed here and never uploaded.</value>
+    <value>Model bu PC'de kalır, böylece sesiniz burada yazıya dökülür ve hiçbir yere yüklenmez.</value>
   </data>
   <data name="onboarding.setup.provider.title" xml:space="preserve">
-    <value>Save your key</value>
+    <value>Anahtarınızı kaydedin</value>
   </data>
   <data name="onboarding.setup.provider.subtitle" xml:space="preserve">
-    <value>Windows holds it. HyperWhisper asks for it only when a recording needs transcribing.</value>
+    <value>Windows onu saklar. HyperWhisper yalnızca bir kayıt transkript edilmesi gerektiğinde ister.</value>
   </data>
   <data name="onboarding.setup.provider.save" xml:space="preserve">
-    <value>Save key</value>
+    <value>Anahtarı Kaydet</value>
   </data>
   <data name="onboarding.setup.provider.saved" xml:space="preserve">
-    <value>API key saved</value>
+    <value>API anahtarı kaydedildi</value>
   </data>
   <data name="onboarding.setup.provider.check.validated" xml:space="preserve">
-    <value>Key validated against {0}</value>
+    <value>Anahtar {0} ile doğrulandı</value>
   </data>
   <data name="onboarding.setup.provider.check.written" xml:space="preserve">
-    <value>Written to Windows Credential Manager</value>
+    <value>Windows Kimlik Bilgileri Yöneticisi'ne yazıldı</value>
   </data>
   <data name="onboarding.setup.provider.keychainItem" xml:space="preserve">
-    <value>HyperWhisper · {0} API key</value>
+    <value>HyperWhisper · {0} API anahtarı</value>
   </data>
   <data name="onboarding.setup.provider.keyHidden" xml:space="preserve">
-    <value>Stored, never shown again</value>
+    <value>Kaydedildi, bir daha gösterilmez</value>
   </data>
   <data name="onboarding.setup.provider.note" xml:space="preserve">
-    <value>Delete it from Settings, Transcription and HyperWhisper stops calling the provider immediately.</value>
+    <value>Ayarlar, Transkripsiyon'dan silin, HyperWhisper sağlayıcıyı çağırmayı hemen durdurur.</value>
   </data>
   <data name="onboarding.setup.selectFirst" xml:space="preserve">
-    <value>Go back and make a selection first.</value>
+    <value>Geri dönüp önce bir seçim yapın.</value>
   </data>
   <data name="onboarding.setup.noSource.title" xml:space="preserve">
-    <value>Nothing to set up.</value>
+    <value>Ayarlanacak bir şey yok.</value>
   </data>
   <data name="onboarding.setup.noSource.caption" xml:space="preserve">
-    <value>Go back and choose a transcription source.</value>
+    <value>Geri dönün ve bir transkripsiyon kaynağı seçin.</value>
   </data>
   <data name="onboarding.setup.onDevice.error" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>İndirme başarısız oldu: {0}</value>
   </data>
   <data name="onboarding.setup.cloud.error" xml:space="preserve">
-    <value>Activation failed: {0}</value>
+    <value>Etkinleştirme başarısız oldu: {0}</value>
   </data>
   <data name="onboarding.setup.provider.error" xml:space="preserve">
-    <value>Could not save your key: {0}</value>
+    <value>Anahtarınız kaydedilemedi: {0}</value>
   </data>
   <data name="onboarding.setup.provider.saveFailed" xml:space="preserve">
-    <value>The key could not be written to Windows Credential Manager.</value>
+    <value>Anahtar Windows Kimlik Bilgileri Yöneticisi'ne yazılamadı.</value>
   </data>
   <data name="onboarding.setup.model.notFound" xml:space="preserve">
-    <value>This model is not in the model library.</value>
+    <value>Bu model model kitaplığında yok.</value>
   </data>
   <data name="onboarding.setup.model.downloadFailed" xml:space="preserve">
-    <value>The download did not finish.</value>
+    <value>İndirme tamamlanmadı.</value>
   </data>
   <data name="onboarding.mic.title" xml:space="preserve">
-    <value>Say something. Watch the bars.</value>
+    <value>Mikrofonunuzu ayarlayın</value>
   </data>
   <data name="onboarding.mic.title.unavailable" xml:space="preserve">
-    <value>Check your microphone.</value>
+    <value>Mikrofonunuzu kontrol edin.</value>
   </data>
   <data name="onboarding.mic.subtitle" xml:space="preserve">
-    <value>If the level moves when you talk, HyperWhisper can hear you.</value>
+    <value>Girişinizi seçin ve konuştuğunuzda seviye çubuğunun hareket ettiğini kontrol edin.</value>
   </data>
   <data name="onboarding.mic.device.systemDefault" xml:space="preserve">
-    <value>System Default</value>
+    <value>Sistem Varsayılanı</value>
   </data>
   <data name="onboarding.mic.device.followsSystem" xml:space="preserve">
-    <value>Follows Windows</value>
+    <value>Windows'u izler</value>
   </data>
   <data name="onboarding.mic.device.inUse" xml:space="preserve">
-    <value>In use</value>
+    <value>Kullanımda</value>
   </data>
   <data name="onboarding.mic.levelHint" xml:space="preserve">
-    <value>Levels too low, or the wrong device listed?</value>
+    <value>Seviyeler çok mu düşük, yoksa yanlış cihaz mı listelendi?</value>
   </data>
   <data name="onboarding.mic.soundSettings" xml:space="preserve">
-    <value>Sound Settings</value>
+    <value>Ses Ayarları</value>
   </data>
   <data name="onboarding.mic.note" xml:space="preserve">
-    <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
+    <value>Sistem Varsayılanı, Windows ne kullanıyorsa onu izler; daha sonra taktığınız bir kulaklık dahil.</value>
   </data>
   <data name="onboarding.mic.blocked" xml:space="preserve">
-    <value>Microphone access is turned off for desktop apps. Turn it on in Windows Settings, then come back to this step.</value>
+    <value>Masaüstü uygulamaları için mikrofon erişimi kapalı. Windows Ayarları'ndan açın, sonra bu adıma geri dönün.</value>
   </data>
   <data name="onboarding.mic.none" xml:space="preserve">
-    <value>No microphone is connected. Plug one in and it shows up here on its own.</value>
+    <value>Bağlı mikrofon yok. Bir tane takın, burada kendiliğinden görünür.</value>
   </data>
   <data name="onboarding.mic.enumerationFailed" xml:space="preserve">
-    <value>Windows could not list your audio devices. Check Sound settings, then come back to this step.</value>
+    <value>Windows ses aygıtlarınızı listeleyemedi. Ses ayarlarını kontrol edin, sonra bu adıma geri dönün.</value>
   </data>
   <data name="onboarding.mic.meter.inactive" xml:space="preserve">
-    <value>No level to show yet.</value>
+    <value>Henüz gösterilecek bir seviye yok.</value>
   </data>
   <data name="onboarding.mic.privacySettings" xml:space="preserve">
-    <value>Open privacy settings</value>
+    <value>Gizlilik ayarlarını aç</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Make one recording.</value>
+    <value>Tamamdır, ilk kaydınızı başlayalım</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
-    <value>Press the shortcut, say the line, press it again.</value>
+    <value>Kısayola basın, cümleyi söyleyin, tekrar basın.</value>
   </data>
   <data name="onboarding.tryIt.shortcutHint" xml:space="preserve">
-    <value>Press once to start, once more to stop.</value>
+    <value>Başlatmak için bir kez, durdurmak için bir kez daha basın.</value>
   </data>
   <data name="onboarding.tryIt.record" xml:space="preserve">
-    <value>Record</value>
+    <value>Kaydet</value>
   </data>
   <data name="onboarding.tryIt.recorded" xml:space="preserve">
-    <value>Recorded</value>
+    <value>Kaydedildi</value>
   </data>
   <data name="onboarding.tryIt.recordAgain" xml:space="preserve">
-    <value>Record again</value>
+    <value>Tekrar kaydet</value>
   </data>
   <data name="onboarding.test.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>Kaydı Durdur</value>
   </data>
   <data name="onboarding.test.status.speak" xml:space="preserve">
-    <value>Speak now...</value>
+    <value>Şimdi konuş...</value>
   </data>
   <data name="onboarding.tryIt.trySaying" xml:space="preserve">
-    <value>Try saying</value>
+    <value>Şunu söylemeyi deneyin</value>
   </data>
   <data name="onboarding.tryIt.sampleLine" xml:space="preserve">
-    <value>“HyperWhisper turns what I say into text, right where I am typing.”</value>
+    <value>“HyperWhisper söylediklerimi, tam da yazdığım yerde metne dönüştürüyor.”</value>
   </data>
   <data name="onboarding.try.transcript.heading" xml:space="preserve">
-    <value>What came back</value>
+    <value>Söylediğiniz</value>
   </data>
   <data name="onboarding.tryIt.listening" xml:space="preserve">
-    <value>Listening</value>
+    <value>Dinliyor</value>
   </data>
   <data name="onboarding.tryIt.empty" xml:space="preserve">
-    <value>Nothing yet. Start a recording to see the text land here.</value>
+    <value>Henüz bir şey yok. Metnin burada belirdiğini görmek için bir kayıt başlatın.</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} words · {1}</value>
+    <value>{0} kelime · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
-    <value>Shown here only, not pasted into other apps</value>
+    <value>Sadece burada gösterilir — diğer uygulamalara yapıştırılmaz.</value>
   </data>
   <data name="onboarding.tryIt.note" xml:space="preserve">
-    <value>Turn on auto paste later and the text lands at your cursor instead.</value>
+    <value>Otomatik yapıştırmayı daha sonra açarsanız metin bunun yerine imlecinize gelir.</value>
   </data>
   <data name="onboarding.tryIt.sample.button" xml:space="preserve">
-    <value>Transcribe a sample clip</value>
+    <value>Örnek klibi transkript et</value>
   </data>
   <data name="onboarding.tryIt.sample.hint" xml:space="preserve">
-    <value>No microphone is connected, so HyperWhisper runs a short bundled clip through everything a real recording uses.</value>
+    <value>Bağlı mikrofon yok, bu yüzden HyperWhisper kısa bir gömülü klibi gerçek bir kaydın kullandığı her şeyden geçirir.</value>
   </data>
   <data name="onboarding.tryIt.sample.result" xml:space="preserve">
-    <value>From the bundled sample clip</value>
+    <value>Gömülü örnek klipten</value>
   </data>
   <data name="onboarding.tryIt.sample.transcribing" xml:space="preserve">
-    <value>Transcribing the sample…</value>
+    <value>Örnek transkript ediliyor…</value>
   </data>
   <data name="onboarding.tryIt.sample.missing" xml:space="preserve">
-    <value>The sample clip is missing from this build.</value>
+    <value>Bu derlemede örnek klip eksik.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>You are ready to dictate.</value>
+    <value>Bittiniz!</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
-    <value>Press the shortcut in any app and start talking.</value>
+    <value>Herhangi bir uygulamada kısayola basın ve konuşmaya başlayın.</value>
   </data>
   <data name="onboarding.done.summary.transcription" xml:space="preserve">
-    <value>Transcription</value>
+    <value>Transkripsiyon</value>
   </data>
   <data name="onboarding.done.summary.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>Mikrofon</value>
   </data>
   <data name="onboarding.done.summary.textDelivery" xml:space="preserve">
-    <value>Text delivery</value>
+    <value>Metin teslimi</value>
   </data>
   <data name="onboarding.done.summary.shortcut" xml:space="preserve">
-    <value>Shortcut</value>
+    <value>Kısayol</value>
   </data>
   <data name="onboarding.done.summary.onDevice" xml:space="preserve">
-    <value>{0} · on this PC</value>
+    <value>{0} · bu PC'de</value>
   </data>
   <data name="onboarding.done.summary.cloud" xml:space="preserve">
-    <value>{0} · {1} credits</value>
+    <value>{0} · {1} kredi</value>
   </data>
   <data name="onboarding.done.summary.provider" xml:space="preserve">
-    <value>{0} · your own key</value>
+    <value>{0} · kendi anahtarınız</value>
   </data>
   <data name="onboarding.done.textDelivery.cursor" xml:space="preserve">
-    <value>Pastes at your cursor</value>
+    <value>İmlecinize yapıştırılır</value>
   </data>
   <data name="onboarding.done.textDelivery.clipboard" xml:space="preserve">
-    <value>Copied to clipboard</value>
+    <value>Panoya kopyalandı</value>
   </data>
   <data name="onboarding.done.menuBarNote" xml:space="preserve">
-    <value>HyperWhisper lives in the system tray. Click it for history, modes, and everything above.</value>
+    <value>HyperWhisper sistem tepsisinde yaşar. Geçmiş, modlar ve yukarıdaki her şey için tıklayın.</value>
   </data>
   <data name="onboarding.done.button" xml:space="preserve">
-    <value>Done Onboarding</value>
+    <value>Onboarding'i Tamamla</value>
   </data>
   <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
-    <value>None connected</value>
+    <value>Bağlı yok</value>
   </data>
   <data name="onboarding.footer.continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>Devam</value>
   </data>
   <data name="onboarding.footer.back" xml:space="preserve">
-    <value>Back</value>
+    <value>Geri</value>
   </data>
   <data name="onboarding.footer.reassurance.welcome" xml:space="preserve">
-    <value>Every answer can be changed later in Settings.</value>
+    <value>Her yanıt daha sonra Ayarlar'dan değiştirilebilir.</value>
   </data>
   <data name="onboarding.footer.reassurance.permissions" xml:space="preserve">
-    <value>The shortcut can be changed later in Settings.</value>
+    <value>Kısayol daha sonra Ayarlar'dan değiştirilebilir.</value>
   </data>
   <data name="onboarding.footer.reassurance.source" xml:space="preserve">
-    <value>You can switch sources later in Settings.</value>
+    <value>Kaynakları daha sonra Ayarlar'dan değiştirebilirsiniz.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.cloud" xml:space="preserve">
-    <value>The key is stored in Windows Credential Manager.</value>
+    <value>Anahtar, Windows Kimlik Bilgileri Yöneticisi'nde saklanır.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.onDevice" xml:space="preserve">
-    <value>More models live in the Model Library.</value>
+    <value>Daha fazla model Model Kütüphanesi'nde bulunur.</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.provider" xml:space="preserve">
-    <value>You can change providers later in Settings.</value>
+    <value>Sağlayıcıları daha sonra Ayarlar'dan değiştirebilirsiniz.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.cloud" xml:space="preserve">
-    <value>Top up any time from your account.</value>
+    <value>Hesabınızdan istediğiniz zaman bakiye yükleyin.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.onDevice" xml:space="preserve">
-    <value>Pausing the download will not lose progress.</value>
+    <value>İndirmeyi duraklatmak ilerlemeyi kaybettirmez.</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.provider" xml:space="preserve">
-    <value>Remove the key any time in Settings.</value>
+    <value>Anahtarı istediğiniz zaman Ayarlar'dan kaldırın.</value>
   </data>
   <data name="onboarding.footer.reassurance.microphone" xml:space="preserve">
-    <value>Input device is switchable at any time.</value>
+    <value>Giriş cihazı istediğiniz zaman değiştirilebilir.</value>
   </data>
   <data name="onboarding.footer.reassurance.tryIt" xml:space="preserve">
-    <value>The audio is discarded once the text is ready.</value>
+    <value>Metin hazır olduğunda ses atılır.</value>
   </data>
   <data name="onboarding.footer.reassurance.done" xml:space="preserve">
-    <value>All of it is editable in Settings.</value>
+    <value>Hepsi Ayarlar'dan düzenlenebilir.</value>
   </data>
   <data name="onboarding.footer.reassurance.pickSource" xml:space="preserve">
-    <value>Pick a source to continue.</value>
+    <value>Devam etmek için bir kaynak seçin.</value>
   </data>
   <data name="onboarding.setupLater.button" xml:space="preserve">
-    <value>Set Up Later</value>
+    <value>Daha Sonra Ayarla</value>
   </data>
   <data name="onboarding.progress.a11y" xml:space="preserve">
-    <value>Step {0} of {1}</value>
+    <value>Adım {0} / {1}</value>
   </data>
   <data name="onboarding.a11y.percent" xml:space="preserve">
-    <value>{0} percent</value>
+    <value>yüzde {0}</value>
   </data>
   <data name="onboarding.a11y.downloadProgress" xml:space="preserve">
-    <value>Download progress</value>
+    <value>İndirme ilerlemesi</value>
   </data>
   <data name="onboarding.a11y.inputLevel" xml:space="preserve">
-    <value>Microphone input level</value>
+    <value>Mikrofon giriş seviyesi</value>
   </data>
   <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
-    <value>Selected, {0}</value>
+    <value>Seçildi, {0}</value>
   </data>
   <data name="onboarding.a11y.notSelectedDetail" xml:space="preserve">
-    <value>Not selected, {0}</value>
+    <value>Seçilmedi, {0}</value>
   </data>
   <data name="onboarding.a11y.selectedInput" xml:space="preserve">
-    <value>Selected input</value>
+    <value>Seçilen giriş</value>
   </data>
   <data name="onboarding.error.microphone.denied" xml:space="preserve">
-    <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
+    <value>Mikrofon izni reddedildi. Lütfen Windows Ayarları'nda izin verin.</value>
   </data>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
-    <value>Run setup again</value>
+    <value>Kurulumu yeniden çalıştır</value>
   </data>
   <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
-    <value>Finish the current dictation before running setup again.</value>
+    <value>Kurulumu yeniden çalıştırmadan önce mevcut dikteyi bitirin.</value>
   </data>
   <data name="onboarding.restore.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+    <value>HyperWhisper önceki varsayılan Modunuzu geri yükleyemedi. Ayarlarını kontrol etmek için Modlar'ı açın.</value>
   </data>
   <data name="onboarding.apply.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+    <value>HyperWhisper seçiminizi kaydedemedi. Hiçbir şey değiştirilmedi. Tekrar deneyin veya Daha Sonra Kur'u seçin.</value>
   </data>
   <data name="onboarding.configure.test.unverified" xml:space="preserve">
-    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+    <value>API anahtarı kaydedildi. Bu sağlayıcının bir anahtarı transkript etmeden kontrol etme yolu yok, bu yüzden ilk dikte ettiğinizde doğrulanacak.</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>

@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Λήψη του μοντέλου σου";
 "onboarding.setup.onDevice.download" = "Λήψη %@";
 "onboarding.setup.onDevice.downloading" = "Γίνεται λήψη… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Γίνεται λήψη…";
+"onboarding.setup.onDevice.preparing" = "Προετοιμασία λήψης…";
+"onboarding.setup.onDevice.downloadingFile" = "Λήψη αρχείου %1$d από %2$d";
+"onboarding.setup.onDevice.optimizing" = "Το μοντέλο βελτιστοποιείται για αυτόν τον Mac. Σχεδόν έτοιμο.";
+"onboarding.setup.onDevice.optimizingPill" = "Βελτιστοποίηση…";
+"onboarding.setup.onDevice.firstRunHint" = "Η πρώτη λήψη διαρκεί μερικά λεπτά. Μπορείτε να αφήσετε αυτό το παράθυρο ανοιχτό.";
 "onboarding.setup.onDevice.ready" = "Το μοντέλο είναι έτοιμο";
 "onboarding.setup.cloud.title" = "Ενεργοποίησε το κλειδί σου";
 "onboarding.setup.cloud.activate" = "Ενεργοποίηση Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Η ενεργοποίηση απέτυχε: %@";
 "onboarding.setup.provider.error" = "Δεν ήταν δυνατή η αποθήκευση του κλειδιού σου: %@";
 "onboarding.setup.provider.saveFailed" = "Το κλειδί δεν ήταν δυνατό να γραφτεί στην Κλειδοθήκη σου.";
+"onboarding.setup.stopped.onDevice" = "Η ρύθμιση δεν ολοκληρώθηκε: το %@ δεν είναι πλέον εγκατεστημένο σε αυτό το Mac. Κατέβασέ το ξανά για να συνεχίσεις.";
+"onboarding.setup.stopped.cloud" = "Η ρύθμιση δεν ολοκληρώθηκε: αυτό το Mac δεν είναι πλέον ενεργοποιημένο για το HyperWhisper Cloud. Ενεργοποίησέ το ξανά παρακάτω ή γύρνα ένα βήμα πίσω για να εισαγάγεις το κλειδί πρόσβασής σου.";
+"onboarding.setup.stopped.provider" = "Η ρύθμιση δεν ολοκληρώθηκε: το κλειδί %@ δεν είναι πλέον αποθηκευμένο σε αυτό το Mac. Αποθήκευσέ το ξανά για να συνεχίσεις.";
 "onboarding.setup.provider.check.validated" = "Το κλειδί επικυρώθηκε στο %@";
 "onboarding.setup.provider.check.written" = "Γράφτηκε στην κλειδοθήκη σύνδεσης";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · κλειδί API %@";
@@ -766,11 +775,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ πιστώσεις/λεπτό";
 "modes.cloudAccuracy.grokStt.label" = "Υψηλότερο (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Υψηλή (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Πολύγλωσσο, με υποστήριξη προσαρμοσμένου λεξιλογίου.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 μέσω Azure Speech. 43 γλώσσες με προσαρμογή βάσει συμφραζομένων.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe μέσω Azure Speech. Έως 60 γλώσσες με προσαρμογή βάσει συμφραζομένων.";
 
 "modes.create.title" = "Δημιουργία Νέας Λειτουργίας";
 "modes.create.subtitle" = "Διαμόρφωση ενός προσαρμοσμένου προφίλ μεταγραφής";

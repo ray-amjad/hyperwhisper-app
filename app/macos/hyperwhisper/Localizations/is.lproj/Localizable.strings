@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Sæktu líkanið þitt";
 "onboarding.setup.onDevice.download" = "Sækja %@";
 "onboarding.setup.onDevice.downloading" = "Sæki… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Sæki…";
+"onboarding.setup.onDevice.preparing" = "Undirbý niðurhal…";
+"onboarding.setup.onDevice.downloadingFile" = "Sæki skrá %1$d af %2$d";
+"onboarding.setup.onDevice.optimizing" = "Fínstilli líkanið fyrir þessa Mac-tölvu. Næstum búið.";
+"onboarding.setup.onDevice.optimizingPill" = "Fínstilli…";
+"onboarding.setup.onDevice.firstRunHint" = "Fyrsta niðurhalið tekur nokkrar mínútur. Þú mátt láta þennan glugga vera opinn.";
 "onboarding.setup.onDevice.ready" = "Líkan tilbúið";
 "onboarding.setup.cloud.title" = "Virkjaðu lykilinn þinn";
 "onboarding.setup.cloud.activate" = "Virkja Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Virkjun mistókst: %@";
 "onboarding.setup.provider.error" = "Ekki tókst að vista lykilinn þinn: %@";
 "onboarding.setup.provider.saveFailed" = "Ekki tókst að skrifa lykilinn í lyklakippuna þína.";
+"onboarding.setup.stopped.onDevice" = "Ekki tókst að ljúka uppsetningu: %@ er ekki lengur uppsett á þessari Mac-tölvu. Sæktu það aftur til að halda áfram.";
+"onboarding.setup.stopped.cloud" = "Ekki tókst að ljúka uppsetningu: þessi Mac-tölva er ekki lengur virkjuð fyrir HyperWhisper Cloud. Virkjaðu hana aftur hér fyrir neðan, eða farðu eitt skref til baka til að slá inn aðgangslykilinn þinn.";
+"onboarding.setup.stopped.provider" = "Ekki tókst að ljúka uppsetningu: %@ lykillinn þinn er ekki lengur vistaður á þessari Mac-tölvu. Vistaðu hann aftur til að halda áfram.";
 "onboarding.setup.provider.check.validated" = "Lykill staðfestur hjá %@";
 "onboarding.setup.provider.check.written" = "Skrifað í innskráningarlyklakippuna";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API lykill";
@@ -766,11 +775,11 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ einingar/mín";
 "modes.cloudAccuracy.grokStt.label" = "Hæst (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Há (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Fjöltyngt, með stuðningi við sérsniðinn orðaforða.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 í gegnum Azure Speech. 43 tungumál með samhengisaðlögun.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe í gegnum Azure Speech. Allt að 60 tungumál með samhengisaðlögun.";
 
 "modes.create.title" = "Búa til nýjan ham";
 "modes.create.subtitle" = "Stilltu sérsniðna afritunarnotendaupplýsingu";

@@ -12,6 +12,18 @@ namespace HyperWhisper.Services;
 
 public class GoogleChirpTranscriptionService : RoutedTranscriptionServiceBase
 {
+    /// <param name="requestedModelId">
+    /// The mode's <c>cloudTranscriptionModel</c> for this one request. Carried
+    /// for symmetry with the sibling routed service and read by nothing today:
+    /// catalog v8 retired the <c>googleChirp3</c> entry, so
+    /// <c>ResolveRoutedModel</c> is not overridden here and stays null. If a
+    /// Chirp model row ever returns, the value is already in the right place.
+    /// </param>
+    public GoogleChirpTranscriptionService(string? requestedModelId = null)
+        : base(requestedModelId)
+    {
+    }
+
     public override string Name => "Google Chirp 3";
 
     /// <summary>

@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Preuzmite svoj model";
 "onboarding.setup.onDevice.download" = "Preuzmi %@";
 "onboarding.setup.onDevice.downloading" = "Preuzimanje… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Preuzimanje…";
+"onboarding.setup.onDevice.preparing" = "Priprema preuzimanja…";
+"onboarding.setup.onDevice.downloadingFile" = "Preuzimanje datoteke %1$d od %2$d";
+"onboarding.setup.onDevice.optimizing" = "Model se optimizira za ovaj Mac. Još samo malo.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimiziranje…";
+"onboarding.setup.onDevice.firstRunHint" = "Prvo preuzimanje traje nekoliko minuta. Ovaj prozor možete ostaviti otvorenim.";
 "onboarding.setup.onDevice.ready" = "Model spreman";
 "onboarding.setup.cloud.title" = "Aktivirajte svoj ključ";
 "onboarding.setup.cloud.activate" = "Aktiviraj Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Aktivacija nije uspjela: %@";
 "onboarding.setup.provider.error" = "Vaš ključ nije moguće spremiti: %@";
 "onboarding.setup.provider.saveFailed" = "Ključ nije bilo moguće zapisati u vaš Keychain.";
+"onboarding.setup.stopped.onDevice" = "Postavljanje nije bilo moguće dovršiti: %@ više nije instaliran na ovom Macu. Preuzmite ga ponovno za nastavak.";
+"onboarding.setup.stopped.cloud" = "Postavljanje nije bilo moguće dovršiti: ovaj Mac više nije aktiviran za HyperWhisper Cloud. Aktivirajte ga ponovno u nastavku ili se vratite jedan korak kako biste unijeli svoj pristupni ključ.";
+"onboarding.setup.stopped.provider" = "Postavljanje nije bilo moguće dovršiti: vaš %@ ključ više nije spremljen na ovom Macu. Spremite ga ponovno za nastavak.";
 "onboarding.setup.provider.check.validated" = "Ključ potvrđen kod %@";
 "onboarding.setup.provider.check.written" = "Zapisano u Keychain za prijavu";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API ključ";
@@ -766,11 +775,11 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredita/min";
 "modes.cloudAccuracy.grokStt.label" = "Najviša (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Visoka (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Višejezično, s podrškom za prilagođeni rječnik.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 putem Azure Speech. 43 jezika s kontekstualnim usmjeravanjem.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe putem Azure Speech. Do 60 jezika s kontekstualnim usmjeravanjem.";
 
 "modes.create.title" = "Stvori novi način";
 "modes.create.subtitle" = "Konfiguriraj prilagođeni profil transkripcije";

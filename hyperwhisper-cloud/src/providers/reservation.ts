@@ -53,8 +53,12 @@ export interface ReservationRateInput {
    *
    * Must already be canonical — the route rejects an unresolvable model with a
    * 400 before it gets here. An unrecognised value does NOT throw: it prices at
-   * the provider's first catalog row, which can be cheaper than the tier the
-   * caller named, and that is the one direction this module must never go.
+   * the provider's DEAREST catalog row (`dearestModel` in `stt-models.ts`), so
+   * an id this module cannot resolve always over-reserves. Do not "simplify"
+   * that back to `models[0]`: index 0 is whatever order the catalog happens to
+   * list, it is the CHEAP row for azure-mai (v2 at 1.67 credits/min sits first,
+   * 1.5 at 6.0 second), and pricing below the tier the caller named is the one
+   * direction this module must never go.
    */
   model?: string;
   /** True when the request asked for the medical domain. */

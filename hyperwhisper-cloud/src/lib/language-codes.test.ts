@@ -345,6 +345,42 @@ describe('azure-mai', () => {
   test('returns null for a language Azure does not list', () => {
     expect(resolve('azure-mai', 'mai-transcribe-1.5', 'zz')).toBeNull();
     expect(resolve('azure-mai', 'mai-transcribe-1.5', 'cy')).toBeNull();
+    expect(resolve('azure-mai', 'mai-transcribe-2', 'zz')).toBeNull();
+    expect(resolve('azure-mai', 'mai-transcribe-2', 'cy')).toBeNull();
+  });
+
+  test('scopes the locale table to the model that ran', () => {
+    // Hebrew is on v2's 60-code table and not on 1.5's 42-code one. Sending it
+    // on 1.5 would pin that model to a locale it does not document, so it has
+    // to fall to auto-detect instead.
+    expect(resolve('azure-mai', 'mai-transcribe-2', 'he')).toBe('he');
+    expect(resolve('azure-mai', 'mai-transcribe-1.5', 'he')).toBeNull();
+    // Same split for the other v2-only additions.
+    expect(resolve('azure-mai', 'mai-transcribe-2', 'af')).toBe('af');
+    expect(resolve('azure-mai', 'mai-transcribe-1.5', 'af')).toBeNull();
+    expect(resolve('azure-mai', 'mai-transcribe-2', 'yue')).toBe('yue');
+    expect(resolve('azure-mai', 'mai-transcribe-1.5', 'yue')).toBeNull();
+  });
+
+  test('unfolds the picker code for Filipino onto the code Azure documents', () => {
+    // The picker lists Filipino as `tl`; Azure lists `fil` (v2 only).
+    expect(resolve('azure-mai', 'mai-transcribe-2', 'tl')).toBe('fil');
+    expect(resolve('azure-mai', 'mai-transcribe-1.5', 'tl')).toBeNull();
+  });
+
+  test('Norwegian folds the same way on both models', () => {
+    for (const model of ['mai-transcribe-1.5', 'mai-transcribe-2']) {
+      expect(resolve('azure-mai', model, 'no')).toBe('nb');
+      expect(resolve('azure-mai', model, 'nn')).toBe('nb');
+      expect(resolve('azure-mai', model, 'nb')).toBe('nb');
+    }
+  });
+
+  test('an unknown model id falls back to the narrower 1.5 table', () => {
+    // Fail-closed: an id we do not carry must not be allowed to send a locale
+    // the model behind it may not support.
+    expect(resolve('azure-mai', 'mai-transcribe-99', 'en')).toBe('en');
+    expect(resolve('azure-mai', 'mai-transcribe-99', 'he')).toBeNull();
   });
 });
 
@@ -474,19 +510,42 @@ describe('google-chirp locale tables (no longer catalog-backed)', () => {
 });
 
 describe('catalog parity — VALUE space (cloud-stt-catalog.json)', () => {
-  test('the Azure locale set matches the catalog exactly', async () => {
+  test('the UNION of the Azure per-model locale sets matches the catalog exactly', async () => {
+    // `azureMaiTranscribe.languages.codes` is provider-level, so since
+    // MAI-Transcribe-2 landed it is the union of the two model tables (60
+    // codes), not either one of them. Asserting 1.5's 42 against it would fail;
+    // asserting the union still catches a code added on one side only.
     const codes = await upstreamCodes('azureMaiTranscribe');
-    expect([...__tables.AZURE_MAI_LOCALES].sort()).toEqual([...codes].sort());
+    const union = new Set(
+      Object.values(__tables.AZURE_MAI_MODEL_LOCALES).flatMap(set => [...set]),
+    );
+    expect([...union].sort()).toEqual([...codes].sort());
   });
 
-  test('every Azure alias target is a code Azure lists', async () => {
+  test('no Azure model claims a locale the catalog union omits', async () => {
+    // The other direction, per model — the union assertion above is satisfied
+    // by a code sitting in either table, so this pins which table it may be in.
     const codes = new Set(await upstreamCodes('azureMaiTranscribe'));
+    for (const [model, set] of Object.entries(__tables.AZURE_MAI_MODEL_LOCALES)) {
+      const strays = [...set].filter(code => !codes.has(code)).sort();
+      expect({ model, strays }).toEqual({ model, strays: [] });
+    }
+  });
+
+  test('every Azure alias target is a code some Azure model lists', () => {
+    // Checked against the per-model tables, not against the catalog provider
+    // row: the aliases exist to make a PICKER code resolve, and what decides
+    // that is the model table `resolveAzureMaiLocale` consults. An alias whose
+    // target is in no model's table can never produce a locale, which is the
+    // bug this guards. (The catalog row is a provider-level union and is
+    // asserted separately, above.)
+    const listed = new Set(
+      Object.values(__tables.AZURE_MAI_MODEL_LOCALES).flatMap(set => [...set]),
+    );
     const strays = Object.entries(__tables.AZURE_MAI_ALIASES)
-      .filter(([, target]) => !codes.has(target))
+      .filter(([, target]) => !listed.has(target))
       .map(([from, to]) => `${from} → ${to}`);
-    // `iw → he` is deliberate: Azure lists neither, so it folds and then fails
-    // the allow-list, which is the right answer for a legacy code.
-    expect(strays).toEqual(['iw → he']);
+    expect(strays).toEqual([]);
   });
 
   test('every ElevenLabs alias target is a code Scribe lists', async () => {
@@ -561,10 +620,38 @@ describe('catalog parity — KEY space (models-catalog.json)', () => {
     expect(unresolved).toEqual([]);
   });
 
-  test('every Azure picker code resolves', async () => {
-    const codes = await pickerCodes('mai-transcribe-1.5');
-    const unresolved = codes.filter(code => resolve('azure-mai', 'mai-transcribe-1.5', code) === null);
-    expect(unresolved).toEqual([]);
+  test('the Azure per-model table covers exactly the catalog models', async () => {
+    const ids = await modelIdsFor('microsoftAzureSpeech');
+    expect(Object.keys(__tables.AZURE_MAI_MODEL_LOCALES).sort()).toEqual([...ids].sort());
+  });
+
+  test('each Azure model list folds onto the catalog picker list exactly', async () => {
+    // The Azure tables are UPSTREAM codes; models-catalog holds PICKER codes.
+    // The fold between them is the rule documented in
+    // hw-catalog/src/cloud_stt/lang.rs and in each model's catalog `notes`:
+    // `nb` → `no`, `fil` → `tl`, `yue` kept, and `or` (Odia) dropped because
+    // the shared language catalog has no row for it.
+    const UPSTREAM_TO_PICKER: Record<string, string | null> = {
+      nb: 'no',
+      fil: 'tl',
+      or: null,
+    };
+    for (const [model, set] of Object.entries(__tables.AZURE_MAI_MODEL_LOCALES)) {
+      const folded = [...set]
+        .map(code => (code in UPSTREAM_TO_PICKER ? UPSTREAM_TO_PICKER[code] : code))
+        .filter((code): code is string => code !== null)
+        .sort();
+      const codes = await pickerCodes(model);
+      expect({ model, codes: folded }).toEqual({ model, codes: [...codes].sort() });
+    }
+  });
+
+  test('every Azure picker code resolves on its own model', async () => {
+    for (const model of Object.keys(__tables.AZURE_MAI_MODEL_LOCALES)) {
+      const codes = await pickerCodes(model);
+      const unresolved = codes.filter(code => resolve('azure-mai', model, code) === null);
+      expect({ model, unresolved }).toEqual({ model, unresolved: [] });
+    }
   });
 
   test('every OpenAI picker code either resolves or is a known non-639-1 code', async () => {
@@ -577,7 +664,7 @@ describe('catalog parity — KEY space (models-catalog.json)', () => {
     // Gemini has no picker narrowing at all, so it receives the union of every
     // other tier's codes and turns them into prose.
     const all = new Set<string>();
-    for (const model of ['chirp_3', 'scribe_v2', 'mai-transcribe-1.5', 'nova-3-general', 'nova-2-general']) {
+    for (const model of ['chirp_3', 'scribe_v2', 'mai-transcribe-1.5', 'mai-transcribe-2', 'nova-3-general', 'nova-2-general']) {
       for (const code of await pickerCodes(model)) all.add(primarySubtag(code));
     }
     for (const code of await upstreamCodes('openaiWhisper')) all.add(primarySubtag(code));

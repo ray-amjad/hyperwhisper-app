@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "모델 다운로드";
 "onboarding.setup.onDevice.download" = "%@ 다운로드";
 "onboarding.setup.onDevice.downloading" = "다운로드 중… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "다운로드 중…";
+"onboarding.setup.onDevice.preparing" = "다운로드 준비 중…";
+"onboarding.setup.onDevice.downloadingFile" = "파일 다운로드 중 %1$d/%2$d";
+"onboarding.setup.onDevice.optimizing" = "이 Mac에 맞게 모델을 최적화하는 중입니다. 거의 다 됐습니다.";
+"onboarding.setup.onDevice.optimizingPill" = "최적화 중…";
+"onboarding.setup.onDevice.firstRunHint" = "첫 다운로드는 몇 분 정도 걸립니다. 이 창은 열어 두어도 됩니다.";
 "onboarding.setup.onDevice.ready" = "모델 준비 완료";
 "onboarding.setup.cloud.title" = "키 활성화";
 "onboarding.setup.cloud.activate" = "Cloud 활성화";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "활성화 실패: %@";
 "onboarding.setup.provider.error" = "키를 저장할 수 없습니다: %@";
 "onboarding.setup.provider.saveFailed" = "키를 키체인에 저장할 수 없었습니다.";
+"onboarding.setup.stopped.onDevice" = "설정을 완료할 수 없습니다: %@이(가) 이 Mac에 더 이상 설치되어 있지 않습니다. 계속하려면 다시 다운로드하세요.";
+"onboarding.setup.stopped.cloud" = "설정을 완료할 수 없습니다: 이 Mac은 더 이상 HyperWhisper Cloud로 활성화되어 있지 않습니다. 아래에서 다시 활성화하거나, 한 단계 뒤로 돌아가 액세스 키를 입력하세요.";
+"onboarding.setup.stopped.provider" = "설정을 완료할 수 없습니다: %@ 키가 이 Mac에 더 이상 저장되어 있지 않습니다. 계속하려면 다시 저장하세요.";
 "onboarding.setup.provider.check.validated" = "%@에서 키가 확인됨";
 "onboarding.setup.provider.check.written" = "로그인 키체인에 기록됨";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API 키";
@@ -766,11 +775,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ 크레딧/분";
 "modes.cloudAccuracy.grokStt.label" = "최고 (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "높음 (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. 다국어를 지원하며 사용자 지정 어휘를 사용할 수 있습니다.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "높음 (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 기반 Microsoft MAI-Transcribe 1.5. 문맥 기반 보정을 지원하는 43개 언어.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "높음 (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 기반 Microsoft MAI-Transcribe. 문맥 기반 보정을 지원하는 최대 60개 언어.";
 
 "modes.create.title" = "새 모드 만들기";
 "modes.create.subtitle" = "사용자 정의 음성 인식 프로필 구성";

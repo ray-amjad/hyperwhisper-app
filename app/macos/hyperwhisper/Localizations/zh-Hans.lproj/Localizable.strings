@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "下载您的模型";
 "onboarding.setup.onDevice.download" = "下载 %@";
 "onboarding.setup.onDevice.downloading" = "正在下载… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "正在下载…";
+"onboarding.setup.onDevice.preparing" = "正在准备下载…";
+"onboarding.setup.onDevice.downloadingFile" = "正在下载第 %1$d 个文件，共 %2$d 个";
+"onboarding.setup.onDevice.optimizing" = "正在为这台 Mac 优化模型，即将完成。";
+"onboarding.setup.onDevice.optimizingPill" = "正在优化…";
+"onboarding.setup.onDevice.firstRunHint" = "首次下载需要几分钟。你可以让此窗口保持打开。";
 "onboarding.setup.onDevice.ready" = "模型已就绪";
 "onboarding.setup.cloud.title" = "激活您的密钥";
 "onboarding.setup.cloud.activate" = "激活 Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "激活失败：%@";
 "onboarding.setup.provider.error" = "无法保存您的密钥：%@";
 "onboarding.setup.provider.saveFailed" = "无法将密钥写入您的钥匙串。";
+"onboarding.setup.stopped.onDevice" = "设置无法完成：%@ 已不在这台 Mac 上。请重新下载以继续。";
+"onboarding.setup.stopped.cloud" = "设置无法完成：这台 Mac 已不再为 HyperWhisper Cloud 激活。请在下方重新激活，或返回上一步输入您的访问密钥。";
+"onboarding.setup.stopped.provider" = "设置无法完成：您的 %@ 密钥已不在这台 Mac 上保存。请重新保存以继续。";
 "onboarding.setup.provider.check.validated" = "密钥已通过 %@ 验证";
 "onboarding.setup.provider.check.written" = "已写入登录钥匙串";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API 密钥";
@@ -772,11 +781,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高准确度但更慢，适合重要转写。";
 "modes.cloudAccuracy.creditsPerMinute" = "约 %@ 积分/分钟";
 "modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高准确度但更慢，适合重要转写。";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高准确度但更慢，适合重要转写。";
 "modes.cloudAccuracy.geminiTranscribe.label" = "高（Google Gemini 3.5 Transcribe）";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。支持多语言和自定义词汇。";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe 1.5）";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "通过 Azure Speech 使用 Microsoft MAI-Transcribe 1.5。支持 43 种语言，并具备上下文偏置。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe）";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "通过 Azure Speech 使用 Microsoft MAI-Transcribe。最多支持 60 种语言，并具备上下文偏置。";
 
 "modes.create.title" = "创建新模式";
 "modes.create.subtitle" = "配置自定义转写档案";

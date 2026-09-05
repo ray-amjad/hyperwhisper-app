@@ -23,6 +23,7 @@ import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
 import { getCountryFromIP } from "@/lib/services/geolocation";
 import { getClientIPFromHeaders } from "./download-ip";
+import { createDisposableDomainCache } from "./download-disposable-domains";
 
 import type { WelcomeEmailData } from "@/lib/templates/welcome-email";
 
@@ -30,30 +31,11 @@ import type { WelcomeEmailData } from "@/lib/templates/welcome-email";
 // HELPER FUNCTIONS
 // ============================================================================
 
-let cachedDisposableDomains: Set<string> | null = null;
-let lastLoadMs = 0;
-const RELOAD_INTERVAL_MS = 1000 * 60 * 60; // 1 hour
-
 /**
  * Get the disposable domains list (cached for 1 hour).
  * Used to block temporary email addresses.
  */
-async function getDisposableDomains(): Promise<Set<string>> {
-  const now = Date.now();
-
-  if (cachedDisposableDomains && now - lastLoadMs < RELOAD_INTERVAL_MS) {
-    return cachedDisposableDomains;
-  }
-
-  const lines = disposableDomains
-    .map((domain) => domain.trim().toLowerCase())
-    .filter(Boolean);
-
-  cachedDisposableDomains = new Set(lines);
-  lastLoadMs = now;
-
-  return cachedDisposableDomains;
-}
+const getDisposableDomains = createDisposableDomainCache(disposableDomains);
 
 /**
  * Check if a domain is disposable.

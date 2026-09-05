@@ -167,7 +167,7 @@ describe('transcribeWithXaiGrok — HTTP error classification', () => {
       const thrown = await transcribeWithXaiGrok(audio(), 'audio/mp3').catch((e) => e);
       expect(thrown).not.toBeInstanceOf(ProviderUnavailableError);
       expect(thrown).not.toBeInstanceOf(ProviderInputError);
-      expect(thrown.message).toBe('xAI API key is invalid or unauthorized');
+      expect(thrown.message).toBe('SpaceXAI API key is invalid or unauthorized');
     }
   });
 

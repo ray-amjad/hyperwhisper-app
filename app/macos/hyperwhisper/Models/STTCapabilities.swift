@@ -87,6 +87,11 @@ enum STTLanguageTemplates {
     /// Catalog "or" (Odia) is dropped — no LanguageData entry; "nb" → "no".
     /// Without this the HyperWhisper Cloud Azure MAI tier fell through to the full
     /// ~100-language list and let users pick unsupported languages.
+    ///
+    /// PER MODEL — do not merge with `azureMaiTranscribeV2` below. The catalog's
+    /// provider-level `languages.codes` is the 60-code UNION of the two models;
+    /// only `models-catalog.json`'s per-model `supportedLanguages` carries the
+    /// split, and this template mirrors 1.5's half of it.
     static let azureMaiTranscribe: [STTLanguageSpec] = codes([
         "auto",
         "ar", "as", "bg", "bn", "ca", "cs", "da", "de", "el", "en",
@@ -95,6 +100,21 @@ enum STTLanguageTemplates {
         "ro", "ru", "sk", "sl", "sv", "ta", "te", "th", "tr", "uk",
         "vi"
     ], context: "Azure MAI-Transcribe language filter")
+
+    /// Azure MAI-Transcribe 2 supported languages — 18 codes more than 1.5.
+    /// Normalized from the same catalog entry to the macOS picker code space:
+    /// "nb" → "no", "fil" → "tl", Cantonese kept as "yue", and "or" (Odia)
+    /// dropped for the same reason as above (no LanguageData entry). 60 upstream
+    /// codes become the 59 here plus "auto".
+    static let azureMaiTranscribeV2: [STTLanguageSpec] = codes([
+        "auto",
+        "af", "ar", "as", "az", "bg", "bn", "bs", "ca", "cs", "da",
+        "de", "el", "en", "es", "et", "fa", "fi", "fr", "gl", "gu",
+        "he", "hi", "hu", "hy", "id", "is", "it", "ja", "kk", "kn",
+        "ko", "lt", "lv", "mk", "ml", "mr", "ms", "ne", "nl", "no",
+        "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "sw", "ta",
+        "te", "th", "tl", "tr", "uk", "ur", "vi", "yue", "zh"
+    ], context: "Azure MAI-Transcribe 2 language filter")
 
     /// ElevenLabs Scribe v2 supported languages, normalized from the shared
     /// catalog (elevenLabsScribeV2, ISO-639-3) to the macOS picker code space:
@@ -409,7 +429,7 @@ enum STTCapabilities {
                         id: "",
                         displayName: "Default",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
-                        notes: "xAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
+                        notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
                     )
                 ]
             ),
@@ -422,8 +442,14 @@ enum STTCapabilities {
                 id: "azure-mai",
                 displayName: "Azure MAI-Transcribe",
                 authKeyName: "",
-                lastVerifiedAt: "2026-06-18",
+                lastVerifiedAt: "2026-09-04",
                 models: [
+                    STTModelSpec(
+                        id: "mai-transcribe-2",
+                        displayName: "MAI-Transcribe 2",
+                        languages: STTLanguageTemplates.azureMaiTranscribeV2,
+                        notes: "Microsoft Azure MAI-Transcribe 2 (public preview). Multilingual mode with a 60-language set — 18 codes wider than 1.5."
+                    ),
                     STTModelSpec(
                         id: "mai-transcribe-1.5",
                         displayName: "MAI-Transcribe 1.5",

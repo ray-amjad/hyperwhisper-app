@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Tải mô hình của bạn";
 "onboarding.setup.onDevice.download" = "Tải xuống %@";
 "onboarding.setup.onDevice.downloading" = "Đang tải xuống… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Đang tải xuống…";
+"onboarding.setup.onDevice.preparing" = "Đang chuẩn bị tải xuống…";
+"onboarding.setup.onDevice.downloadingFile" = "Đang tải xuống tệp %1$d trên %2$d";
+"onboarding.setup.onDevice.optimizing" = "Đang tối ưu mô hình cho máy Mac này. Sắp xong.";
+"onboarding.setup.onDevice.optimizingPill" = "Đang tối ưu…";
+"onboarding.setup.onDevice.firstRunHint" = "Lần tải xuống đầu tiên mất vài phút. Bạn có thể để cửa sổ này mở.";
 "onboarding.setup.onDevice.ready" = "Mô hình đã sẵn sàng";
 "onboarding.setup.cloud.title" = "Kích hoạt key của bạn";
 "onboarding.setup.cloud.activate" = "Kích hoạt Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Kích hoạt thất bại: %@";
 "onboarding.setup.provider.error" = "Không thể lưu key của bạn: %@";
 "onboarding.setup.provider.saveFailed" = "Không thể ghi key vào Keychain của bạn.";
+"onboarding.setup.stopped.onDevice" = "Không thể hoàn tất thiết lập: %@ không còn được cài đặt trên Mac này. Hãy tải lại để tiếp tục.";
+"onboarding.setup.stopped.cloud" = "Không thể hoàn tất thiết lập: Mac này không còn được kích hoạt cho HyperWhisper Cloud. Hãy kích hoạt lại bên dưới, hoặc quay lại một bước để nhập access key của bạn.";
+"onboarding.setup.stopped.provider" = "Không thể hoàn tất thiết lập: key %@ của bạn không còn được lưu trên Mac này. Hãy lưu lại để tiếp tục.";
 "onboarding.setup.provider.check.validated" = "Key đã được xác thực với %@";
 "onboarding.setup.provider.check.written" = "Đã ghi vào keychain đăng nhập";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · API key %@";
@@ -766,11 +775,11 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ tín dụng/phút";
 "modes.cloudAccuracy.grokStt.label" = "Cao nhất (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Cao (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Đa ngôn ngữ, hỗ trợ từ vựng tùy chỉnh.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Cao (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 qua Azure Speech. 43 ngôn ngữ, có điều chỉnh theo ngữ cảnh.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Cao (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe qua Azure Speech. Tối đa 60 ngôn ngữ, có điều chỉnh theo ngữ cảnh.";
 
 "modes.create.title" = "Tạo Chế độ Mới";
 "modes.create.subtitle" = "Cấu hình hồ sơ chuyển đổi tùy chỉnh";

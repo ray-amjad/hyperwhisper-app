@@ -619,7 +619,7 @@
     <value>Cerebras ultra-fast inference for text enhancement</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
-    <value>xAI Grok 語音轉文字 API</value>
+    <value>SpaceXAI Grok 語音轉文字 API</value>
   </data>
 
   <!-- Settings - Output -->
@@ -947,7 +947,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1040,7 +1040,7 @@
     <value>European AI provider with multilingual support</value>
   </data>
   <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
-    <value>xAI Grok 語音轉文字（批次 HTTP）</value>
+    <value>SpaceXAI Grok 語音轉文字（批次 HTTP）</value>
   </data>
   <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
     <value>Fast, accurate transcription - no API key required</value>
@@ -1696,7 +1696,7 @@ You can re-download it later.</value>
     <value>Track your HyperWhisper Cloud balance and usage</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>xAI Grok models for text enhancement</value>
+    <value>SpaceXAI Grok models for text enhancement</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
     <value>Autocapitalize Insert</value>
@@ -1795,10 +1795,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -1888,7 +1888,7 @@ You can re-download it later.</value>
     <value>OpenAI</value>
   </data>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
-    <value>xAI</value>
+    <value>SpaceXAI</value>
   </data>
   <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
     <value>Gemini 3.5 Transcribe</value>
@@ -1915,10 +1915,10 @@ You can re-download it later.</value>
     <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
-    <value>xAI API key is configured.</value>
+    <value>SpaceXAI API key is configured.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
-    <value>xAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+    <value>SpaceXAI streaming requires a Grok API key in the Model Library API keys manager.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
     <value>Gemini API key is configured.</value>
@@ -2197,532 +2197,532 @@ You can re-download it later.</value>
     <value>Use your own Meta Model API key for Muse batch transcription</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
-    <value>Set up HyperWhisper</value>
+    <value>設定 HyperWhisper</value>
   </data>
   <data name="onboarding.welcome.title" xml:space="preserve">
-    <value>Write at the speed of thought</value>
+    <value>以思考的速度書寫</value>
   </data>
   <data name="onboarding.welcome.subtitle" xml:space="preserve">
-    <value>HyperWhisper turns your voice into text in any app on your PC. Three things, then you are typing with your voice.</value>
+    <value>HyperWhisper 可在這台電腦上的任何應用程式中將您的語音轉換為文字。三個步驟，您就能用聲音打字了。</value>
   </data>
   <data name="onboarding.welcome.getStarted" xml:space="preserve">
-    <value>Get started</value>
+    <value>開始使用</value>
   </data>
   <data name="onboarding.welcome.task1.title" xml:space="preserve">
-    <value>Choose how transcription runs</value>
+    <value>選擇轉錄的執行方式</value>
   </data>
   <data name="onboarding.welcome.task1.caption" xml:space="preserve">
-    <value>In our cloud, on this PC, or through a provider account you already pay for.</value>
+    <value>在我們的雲端、這台電腦上，或透過您已付費的服務商帳戶。</value>
   </data>
   <data name="onboarding.welcome.task2.title" xml:space="preserve">
-    <value>Check your microphone</value>
+    <value>檢查您的麥克風</value>
   </data>
   <data name="onboarding.welcome.task2.caption" xml:space="preserve">
-    <value>Pick an input and watch the level move while you talk.</value>
+    <value>選擇一個輸入裝置，說話時觀察音量條移動。</value>
   </data>
   <data name="onboarding.welcome.task3.title" xml:space="preserve">
-    <value>Make one recording</value>
+    <value>完成一次錄音</value>
   </data>
   <data name="onboarding.welcome.task3.caption" xml:space="preserve">
-    <value>Say a line, read the text back. That is the whole product.</value>
+    <value>說一句話，讀回轉錄的文字。這就是產品的全部。</value>
   </data>
   <data name="onboarding.welcome.note" xml:space="preserve">
-    <value>HyperWhisper listens only while a recording is running. Nothing is captured in the background.</value>
+    <value>HyperWhisper 僅在錄音進行時聆聽。不會在背景中擷取任何內容。</value>
   </data>
   <data name="onboarding.permissions.title" xml:space="preserve">
-    <value>Two quick checks</value>
+    <value>兩項快速檢查</value>
   </data>
   <data name="onboarding.permissions.subtitle" xml:space="preserve">
-    <value>HyperWhisper needs these to hear your voice and drop finished text where you are typing.</value>
+    <value>HyperWhisper 需要這些權限來聆聽您的語音，並在您輸入的位置貼上文字。</value>
   </data>
   <data name="onboarding.permissions.microphone.title" xml:space="preserve">
-    <value>Microphone</value>
+    <value>麥克風</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Required. Audio is captured only while a recording is active.</value>
+    <value>以便我們聽到您的語音。</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
-    <value>Grant</value>
+    <value>授予</value>
   </data>
   <data name="onboarding.permissions.granted" xml:space="preserve">
-    <value>Granted</value>
+    <value>已授予</value>
   </data>
   <data name="onboarding.permissions.open" xml:space="preserve">
-    <value>Open Settings</value>
+    <value>開啟系統設定</value>
   </data>
   <data name="onboarding.permissions.note" xml:space="preserve">
-    <value>The shortcut is optional. If another app already owns it, pick a different one now or later in Settings.</value>
+    <value>快速鍵為選用項目。如果其他應用程式已占用它，可以現在換一個，或稍後在設定中更改。</value>
   </data>
   <data name="onboarding.permissions.shortcut.title" xml:space="preserve">
-    <value>Your shortcut</value>
+    <value>您的快速鍵</value>
   </data>
   <data name="onboarding.permissions.shortcut.subtitle" xml:space="preserve">
-    <value>Optional. Press it in any app to start and stop a recording.</value>
+    <value>選用。在任何應用程式中按下它即可開始和停止錄音。</value>
   </data>
   <data name="onboarding.permissions.shortcut.registered" xml:space="preserve">
-    <value>Shortcut registered</value>
+    <value>快速鍵已註冊</value>
   </data>
   <data name="onboarding.permissions.shortcut.checking" xml:space="preserve">
-    <value>Checking the shortcut…</value>
+    <value>正在檢查快速鍵…</value>
   </data>
   <data name="onboarding.permissions.shortcut.conflict" xml:space="preserve">
-    <value>Shortcut not registered</value>
+    <value>快速鍵未註冊</value>
   </data>
   <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
-    <value>Choose a different shortcut</value>
+    <value>選擇其他快速鍵</value>
   </data>
   <data name="onboarding.source.title" xml:space="preserve">
-    <value>How do you want to transcribe?</value>
+    <value>您想如何轉錄？</value>
   </data>
   <data name="onboarding.source.subtitle" xml:space="preserve">
-    <value>All three put the same text in the same place. They differ on speed, privacy, and who you pay.</value>
+    <value>一個模式會將轉錄來源與您的格式偏好結合在一起。選擇一個來源即可開始——之後可以再新增更多。</value>
   </data>
   <data name="onboarding.source.cloud.title" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.source.cloud.description" xml:space="preserve">
-    <value>Fastest to set up, best accuracy. Prepaid credits, no subscription.</value>
+    <value>速度最快、準確度最高。預付點數，統一結算——無需下載本機模型。</value>
   </data>
   <data name="onboarding.source.onDevice.title" xml:space="preserve">
-    <value>On this PC</value>
+    <value>在這台電腦上</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Private and free. Downloads a model once, then works with no network.</value>
+    <value>完全在您的 Mac 上執行。免費、私密、可離線使用——任何內容都不會離開您的裝置。</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
-    <value>Your API Key</value>
+    <value>您的 API 金鑰</value>
   </data>
   <data name="onboarding.source.provider.description" xml:space="preserve">
-    <value>Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.</value>
+    <value>使用您自己的 OpenAI、Deepgram 或 Groq 帳戶。金鑰與計費均由您掌控。</value>
   </data>
   <data name="onboarding.source.note" xml:space="preserve">
-    <value>Changing your mind later reruns this one step. Nothing else you set up is lost.</value>
+    <value>之後改變主意只會重新執行這一步。您設定的其他內容都不會遺失。</value>
   </data>
   <data name="onboarding.configure.cloud.title" xml:space="preserve">
-    <value>Activate HyperWhisper Cloud</value>
+    <value>啟用 HyperWhisper Cloud</value>
   </data>
   <data name="onboarding.configure.cloud.subtitle" xml:space="preserve">
-    <value>Enter your Cloud access key to connect this PC to your prepaid credits.</value>
+    <value>輸入您的 Cloud 存取金鑰，將這台電腦與您的預付點數建立連結。</value>
   </data>
   <data name="onboarding.configure.cloud.placeholder" xml:space="preserve">
-    <value>Paste your access key</value>
+    <value>貼上您的存取金鑰</value>
   </data>
   <data name="onboarding.configure.cloud.getCredits" xml:space="preserve">
-    <value>Don't have a key? Get credits at hyperwhisper.com</value>
+    <value>還沒有金鑰？前往 hyperwhisper.com 取得點數</value>
   </data>
   <data name="onboarding.configure.cloud.creditsCaption" xml:space="preserve">
-    <value>credits available</value>
+    <value>可用額度</value>
   </data>
   <data name="onboarding.configure.cloud.note" xml:space="preserve">
-    <value>Credits are prepaid and shared across every PC signed in with this key. Idle time costs nothing.</value>
+    <value>額度為預付制，由使用此金鑰登入的每台電腦共用。閒置時間不會消耗額度。</value>
   </data>
   <data name="onboarding.configure.onDevice.title" xml:space="preserve">
-    <value>Choose a model</value>
+    <value>選擇一個模型</value>
   </data>
   <data name="onboarding.configure.onDevice.subtitle" xml:space="preserve">
-    <value>Larger models are more accurate and slower to download.</value>
+    <value>選擇要下載的語音模型。模型越大，準確度越高，但佔用空間也越大。</value>
   </data>
   <data name="onboarding.configure.onDevice.note" xml:space="preserve">
-    <value>Audio never leaves this PC. After the download it works on a plane.</value>
+    <value>音訊永遠不會離開這台電腦。下載完成後，即使在飛機上也能使用。</value>
   </data>
   <data name="onboarding.configure.provider.title" xml:space="preserve">
-    <value>Connect your provider</value>
+    <value>連接您的服務商</value>
   </data>
   <data name="onboarding.configure.provider.subtitle" xml:space="preserve">
-    <value>Choose a provider and paste your API key. It is stored securely in Windows Credential Manager.</value>
+    <value>選擇一個服務商並貼上您的 API 金鑰。它將安全儲存在 Windows 認證管理員中。</value>
   </data>
   <data name="onboarding.configure.provider.keyPlaceholder" xml:space="preserve">
-    <value>Paste your API key</value>
+    <value>貼上您的 API 金鑰</value>
   </data>
   <data name="onboarding.configure.provider.keychainNote" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>安全儲存在 Windows 認證管理員中。</value>
   </data>
   <data name="onboarding.configure.noSource.title" xml:space="preserve">
-    <value>Choose a transcription source first.</value>
+    <value>請先選擇一個轉錄來源。</value>
   </data>
   <data name="onboarding.configure.noSource.caption" xml:space="preserve">
-    <value>Go back one step and pick where your speech should become text.</value>
+    <value>返回上一步，選擇您的語音應轉換為文字的方式。</value>
   </data>
   <data name="onboarding.noSource.detail" xml:space="preserve">
-    <value>This step depends on the source you pick.</value>
+    <value>此步驟取決於您選擇的來源。</value>
   </data>
   <data name="onboarding.configure.cloud.testKey" xml:space="preserve">
-    <value>Test access key</value>
+    <value>測試存取金鑰</value>
   </data>
   <data name="onboarding.configure.provider.testKey" xml:space="preserve">
-    <value>Test API key</value>
+    <value>測試 API 金鑰</value>
   </data>
   <data name="onboarding.configure.test.testing" xml:space="preserve">
-    <value>Testing…</value>
+    <value>正在測試…</value>
   </data>
   <data name="onboarding.configure.test.valid" xml:space="preserve">
-    <value>Access key valid</value>
+    <value>有效存取金鑰</value>
   </data>
   <data name="onboarding.configure.test.healthy" xml:space="preserve">
-    <value>Connected</value>
+    <value>已連接</value>
   </data>
   <data name="onboarding.configure.test.unauthorized" xml:space="preserve">
-    <value>Provider rejected this key. Double-check it's still valid.</value>
+    <value>服務商拒絕了此金鑰。請確認它是否仍然有效。</value>
   </data>
   <data name="onboarding.configure.test.unreachable" xml:space="preserve">
-    <value>Couldn't reach the provider. Check your internet, then test again.</value>
+    <value>無法連線到服務商。請檢查網路連線後重試。</value>
   </data>
   <data name="onboarding.model.parakeetV2.subtitle" xml:space="preserve">
-    <value>English only. Fastest on this PC.</value>
+    <value>僅支援英語。在這台電腦上最快。</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingual. Same speed, larger download.</value>
+    <value>多語言 · 25 種語言</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
-    <value>Multilingual. Smallest download, lowest accuracy.</value>
+    <value>多語言 · 體積小</value>
   </data>
   <data name="onboarding.model.whisperTurbo.subtitle" xml:space="preserve">
-    <value>Multilingual. Most accurate offline option.</value>
+    <value>多語言 · 最精準的 Whisper</value>
   </data>
   <data name="onboarding.model.downloaded" xml:space="preserve">
-    <value>Downloaded</value>
+    <value>已下載</value>
   </data>
   <data name="onboarding.setup.cloud.title" xml:space="preserve">
-    <value>Activate your key</value>
+    <value>啟用您的金鑰</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
-    <value>Key verified, credits confirmed. Recordings will go to HyperWhisper Cloud.</value>
+    <value>金鑰已驗證，額度已確認。錄音將傳送至 HyperWhisper Cloud。</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
-    <value>Activate Cloud</value>
+    <value>啟用 Cloud</value>
   </data>
   <data name="onboarding.setup.cloud.activating" xml:space="preserve">
-    <value>Activating…</value>
+    <value>正在啟用…</value>
   </data>
   <data name="onboarding.setup.cloud.active" xml:space="preserve">
-    <value>Cloud key activated</value>
+    <value>Cloud 金鑰已啟用</value>
   </data>
   <data name="onboarding.setup.cloud.check.keyVerified" xml:space="preserve">
-    <value>Access key verified</value>
+    <value>存取金鑰已驗證</value>
   </data>
   <data name="onboarding.setup.cloud.check.activated" xml:space="preserve">
-    <value>Account activated for this device</value>
+    <value>此裝置帳戶已啟用</value>
   </data>
   <data name="onboarding.setup.cloud.check.creditsConfirmed" xml:space="preserve">
-    <value>Credits confirmed</value>
+    <value>額度已確認</value>
   </data>
   <data name="onboarding.setup.cloud.credits.caption" xml:space="preserve">
-    <value>credits, spent per minute of audio</value>
+    <value>額度，依每分鐘音訊計費</value>
   </data>
   <data name="onboarding.setup.cloud.note" xml:space="preserve">
-    <value>Run low and HyperWhisper tells you before a recording, not after.</value>
+    <value>額度不足時，HyperWhisper 會在錄音前提醒您，而不是之後。</value>
   </data>
   <data name="onboarding.setup.onDevice.title" xml:space="preserve">
-    <value>Download your model</value>
+    <value>下載您的模型</value>
   </data>
   <data name="onboarding.setup.onDevice.subtitle" xml:space="preserve">
-    <value>This happens once. Every recording after it runs offline.</value>
+    <value>此過程只需一次。之後的每次錄音都會在離線狀態下執行。</value>
   </data>
   <data name="onboarding.setup.onDevice.download" xml:space="preserve">
-    <value>Download {0}</value>
+    <value>下載 {0}</value>
   </data>
   <data name="onboarding.setup.onDevice.downloading" xml:space="preserve">
-    <value>Downloading… {0}%</value>
+    <value>正在下載… {0}%</value>
   </data>
   <data name="onboarding.setup.onDevice.ready" xml:space="preserve">
-    <value>Model ready</value>
+    <value>模型已就緒</value>
   </data>
   <data name="onboarding.setup.onDevice.storedCaption" xml:space="preserve">
-    <value>stored on this PC</value>
+    <value>儲存在這台電腦上</value>
   </data>
   <data name="onboarding.setup.onDevice.totalCaption" xml:space="preserve">
-    <value>total download</value>
+    <value>總下載大小</value>
   </data>
   <data name="onboarding.setup.onDevice.note" xml:space="preserve">
-    <value>The model stays on this PC, so your audio is transcribed here and never uploaded.</value>
+    <value>模型保留在這台電腦上，因此您的音訊在本機轉錄，不會上傳到任何地方。</value>
   </data>
   <data name="onboarding.setup.provider.title" xml:space="preserve">
-    <value>Save your key</value>
+    <value>儲存您的金鑰</value>
   </data>
   <data name="onboarding.setup.provider.subtitle" xml:space="preserve">
-    <value>Windows holds it. HyperWhisper asks for it only when a recording needs transcribing.</value>
+    <value>金鑰由 Windows 保存。HyperWhisper 只有在錄音需要轉錄時才會請求它。</value>
   </data>
   <data name="onboarding.setup.provider.save" xml:space="preserve">
-    <value>Save key</value>
+    <value>保存金鑰</value>
   </data>
   <data name="onboarding.setup.provider.saved" xml:space="preserve">
-    <value>API key saved</value>
+    <value>API 金鑰已儲存</value>
   </data>
   <data name="onboarding.setup.provider.check.validated" xml:space="preserve">
-    <value>Key validated against {0}</value>
+    <value>金鑰已透過 {0} 驗證</value>
   </data>
   <data name="onboarding.setup.provider.check.written" xml:space="preserve">
-    <value>Written to Windows Credential Manager</value>
+    <value>已寫入 Windows 認證管理員</value>
   </data>
   <data name="onboarding.setup.provider.keychainItem" xml:space="preserve">
-    <value>HyperWhisper · {0} API key</value>
+    <value>HyperWhisper · {0} API 金鑰</value>
   </data>
   <data name="onboarding.setup.provider.keyHidden" xml:space="preserve">
-    <value>Stored, never shown again</value>
+    <value>已儲存，不會再次顯示</value>
   </data>
   <data name="onboarding.setup.provider.note" xml:space="preserve">
-    <value>Delete it from Settings, Transcription and HyperWhisper stops calling the provider immediately.</value>
+    <value>在設定、轉錄中刪除它，HyperWhisper 會立即停止呼叫該服務商。</value>
   </data>
   <data name="onboarding.setup.selectFirst" xml:space="preserve">
-    <value>Go back and make a selection first.</value>
+    <value>請先返回並進行選擇。</value>
   </data>
   <data name="onboarding.setup.noSource.title" xml:space="preserve">
-    <value>Nothing to set up.</value>
+    <value>無需設定。</value>
   </data>
   <data name="onboarding.setup.noSource.caption" xml:space="preserve">
-    <value>Go back and choose a transcription source.</value>
+    <value>請返回並選擇一個轉錄來源。</value>
   </data>
   <data name="onboarding.setup.onDevice.error" xml:space="preserve">
-    <value>Download failed: {0}</value>
+    <value>下載失敗：{0}</value>
   </data>
   <data name="onboarding.setup.cloud.error" xml:space="preserve">
-    <value>Activation failed: {0}</value>
+    <value>啟用失敗：{0}</value>
   </data>
   <data name="onboarding.setup.provider.error" xml:space="preserve">
-    <value>Could not save your key: {0}</value>
+    <value>無法儲存您的金鑰：{0}</value>
   </data>
   <data name="onboarding.setup.provider.saveFailed" xml:space="preserve">
-    <value>The key could not be written to Windows Credential Manager.</value>
+    <value>無法將金鑰寫入 Windows 認證管理員。</value>
   </data>
   <data name="onboarding.setup.model.notFound" xml:space="preserve">
-    <value>This model is not in the model library.</value>
+    <value>模型庫中沒有這個模型。</value>
   </data>
   <data name="onboarding.setup.model.downloadFailed" xml:space="preserve">
-    <value>The download did not finish.</value>
+    <value>下載未完成。</value>
   </data>
   <data name="onboarding.mic.title" xml:space="preserve">
-    <value>Say something. Watch the bars.</value>
+    <value>設定您的麥克風</value>
   </data>
   <data name="onboarding.mic.title.unavailable" xml:space="preserve">
-    <value>Check your microphone.</value>
+    <value>請檢查您的麥克風。</value>
   </data>
   <data name="onboarding.mic.subtitle" xml:space="preserve">
-    <value>If the level moves when you talk, HyperWhisper can hear you.</value>
+    <value>選擇您的輸入裝置，並檢查您說話時音量條是否會移動。</value>
   </data>
   <data name="onboarding.mic.device.systemDefault" xml:space="preserve">
-    <value>System Default</value>
+    <value>系統預設</value>
   </data>
   <data name="onboarding.mic.device.followsSystem" xml:space="preserve">
-    <value>Follows Windows</value>
+    <value>跟隨 Windows</value>
   </data>
   <data name="onboarding.mic.device.inUse" xml:space="preserve">
-    <value>In use</value>
+    <value>使用中</value>
   </data>
   <data name="onboarding.mic.levelHint" xml:space="preserve">
-    <value>Levels too low, or the wrong device listed?</value>
+    <value>音量太低，還是裝置列錯了？</value>
   </data>
   <data name="onboarding.mic.soundSettings" xml:space="preserve">
-    <value>Sound Settings</value>
+    <value>聲音設定</value>
   </data>
   <data name="onboarding.mic.note" xml:space="preserve">
-    <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
+    <value>系統預設會跟隨 Windows 目前使用的裝置，包括您之後插入的耳機。</value>
   </data>
   <data name="onboarding.mic.blocked" xml:space="preserve">
-    <value>Microphone access is turned off for desktop apps. Turn it on in Windows Settings, then come back to this step.</value>
+    <value>桌面應用程式的麥克風存取權已關閉。請在 Windows 設定中開啟，然後回到這個步驟。</value>
   </data>
   <data name="onboarding.mic.none" xml:space="preserve">
-    <value>No microphone is connected. Plug one in and it shows up here on its own.</value>
+    <value>未連接麥克風。插入一個，它會自動顯示在這裡。</value>
   </data>
   <data name="onboarding.mic.enumerationFailed" xml:space="preserve">
-    <value>Windows could not list your audio devices. Check Sound settings, then come back to this step.</value>
+    <value>Windows 無法列出您的音訊裝置。請檢查音效設定，然後回到這個步驟。</value>
   </data>
   <data name="onboarding.mic.meter.inactive" xml:space="preserve">
-    <value>No level to show yet.</value>
+    <value>暫時沒有可顯示的音量。</value>
   </data>
   <data name="onboarding.mic.privacySettings" xml:space="preserve">
-    <value>Open privacy settings</value>
+    <value>開啟隱私權設定</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Make one recording.</value>
+    <value>準備好了，讓我們開始您的第一次錄音</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
-    <value>Press the shortcut, say the line, press it again.</value>
+    <value>按下快捷鍵，說出這句話，再按一次。</value>
   </data>
   <data name="onboarding.tryIt.shortcutHint" xml:space="preserve">
-    <value>Press once to start, once more to stop.</value>
+    <value>按一次開始，再按一次停止。</value>
   </data>
   <data name="onboarding.tryIt.record" xml:space="preserve">
-    <value>Record</value>
+    <value>錄音</value>
   </data>
   <data name="onboarding.tryIt.recorded" xml:space="preserve">
-    <value>Recorded</value>
+    <value>已錄音</value>
   </data>
   <data name="onboarding.tryIt.recordAgain" xml:space="preserve">
-    <value>Record again</value>
+    <value>重新錄音</value>
   </data>
   <data name="onboarding.test.stop" xml:space="preserve">
-    <value>Stop Recording</value>
+    <value>停止錄音</value>
   </data>
   <data name="onboarding.test.status.speak" xml:space="preserve">
-    <value>Speak now...</value>
+    <value>現在說話...</value>
   </data>
   <data name="onboarding.tryIt.trySaying" xml:space="preserve">
-    <value>Try saying</value>
+    <value>試著說</value>
   </data>
   <data name="onboarding.tryIt.sampleLine" xml:space="preserve">
-    <value>“HyperWhisper turns what I say into text, right where I am typing.”</value>
+    <value>「HyperWhisper 會把我說的話變成文字，就在我正在輸入的地方。」</value>
   </data>
   <data name="onboarding.try.transcript.heading" xml:space="preserve">
-    <value>What came back</value>
+    <value>您說的內容</value>
   </data>
   <data name="onboarding.tryIt.listening" xml:space="preserve">
-    <value>Listening</value>
+    <value>正在聆聽</value>
   </data>
   <data name="onboarding.tryIt.empty" xml:space="preserve">
-    <value>Nothing yet. Start a recording to see the text land here.</value>
+    <value>尚無內容。開始錄音即可在此看到文字出現。</value>
   </data>
   <data name="onboarding.tryIt.transcriptMeta" xml:space="preserve">
-    <value>{0} words · {1}</value>
+    <value>{0} 個字 · {1}</value>
   </data>
   <data name="onboarding.try.transcript.noPaste" xml:space="preserve">
-    <value>Shown here only, not pasted into other apps</value>
+    <value>僅在此處顯示—不會貼上到其他應用程式。</value>
   </data>
   <data name="onboarding.tryIt.note" xml:space="preserve">
-    <value>Turn on auto paste later and the text lands at your cursor instead.</value>
+    <value>之後開啟自動貼上，文字會直接出現在游標處。</value>
   </data>
   <data name="onboarding.tryIt.sample.button" xml:space="preserve">
-    <value>Transcribe a sample clip</value>
+    <value>轉錄範例音訊</value>
   </data>
   <data name="onboarding.tryIt.sample.hint" xml:space="preserve">
-    <value>No microphone is connected, so HyperWhisper runs a short bundled clip through everything a real recording uses.</value>
+    <value>未連接麥克風，因此 HyperWhisper 會將一段內建的短音訊送入與真實錄音完全相同的流程。</value>
   </data>
   <data name="onboarding.tryIt.sample.result" xml:space="preserve">
-    <value>From the bundled sample clip</value>
+    <value>來自內建範例音訊</value>
   </data>
   <data name="onboarding.tryIt.sample.transcribing" xml:space="preserve">
-    <value>Transcribing the sample…</value>
+    <value>正在轉錄範例…</value>
   </data>
   <data name="onboarding.tryIt.sample.missing" xml:space="preserve">
-    <value>The sample clip is missing from this build.</value>
+    <value>此版本缺少範例音訊。</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>You are ready to dictate.</value>
+    <value>完成了！</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
-    <value>Press the shortcut in any app and start talking.</value>
+    <value>在任何應用程式中按下快捷鍵並開始說話。</value>
   </data>
   <data name="onboarding.done.summary.transcription" xml:space="preserve">
-    <value>Transcription</value>
+    <value>轉錄</value>
   </data>
   <data name="onboarding.done.summary.microphone" xml:space="preserve">
-    <value>Microphone</value>
+    <value>麥克風</value>
   </data>
   <data name="onboarding.done.summary.textDelivery" xml:space="preserve">
-    <value>Text delivery</value>
+    <value>文字投放方式</value>
   </data>
   <data name="onboarding.done.summary.shortcut" xml:space="preserve">
-    <value>Shortcut</value>
+    <value>快捷鍵</value>
   </data>
   <data name="onboarding.done.summary.onDevice" xml:space="preserve">
-    <value>{0} · on this PC</value>
+    <value>{0} · 在這台電腦上</value>
   </data>
   <data name="onboarding.done.summary.cloud" xml:space="preserve">
-    <value>{0} · {1} credits</value>
+    <value>{0} · {1} 額度</value>
   </data>
   <data name="onboarding.done.summary.provider" xml:space="preserve">
-    <value>{0} · your own key</value>
+    <value>{0} · 您自己的金鑰</value>
   </data>
   <data name="onboarding.done.textDelivery.cursor" xml:space="preserve">
-    <value>Pastes at your cursor</value>
+    <value>貼上到游標處</value>
   </data>
   <data name="onboarding.done.textDelivery.clipboard" xml:space="preserve">
-    <value>Copied to clipboard</value>
+    <value>已複製到剪貼板</value>
   </data>
   <data name="onboarding.done.menuBarNote" xml:space="preserve">
-    <value>HyperWhisper lives in the system tray. Click it for history, modes, and everything above.</value>
+    <value>HyperWhisper 常駐在系統匣中。點擊它可查看歷史記錄、模式以及以上所有內容。</value>
   </data>
   <data name="onboarding.done.button" xml:space="preserve">
-    <value>Done Onboarding</value>
+    <value>完成入門</value>
   </data>
   <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
-    <value>None connected</value>
+    <value>未連接</value>
   </data>
   <data name="onboarding.footer.continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>繼續</value>
   </data>
   <data name="onboarding.footer.back" xml:space="preserve">
-    <value>Back</value>
+    <value>返回</value>
   </data>
   <data name="onboarding.footer.reassurance.welcome" xml:space="preserve">
-    <value>Every answer can be changed later in Settings.</value>
+    <value>所有選擇之後都可以在設定中變更。</value>
   </data>
   <data name="onboarding.footer.reassurance.permissions" xml:space="preserve">
-    <value>The shortcut can be changed later in Settings.</value>
+    <value>快速鍵之後可以在設定中更改。</value>
   </data>
   <data name="onboarding.footer.reassurance.source" xml:space="preserve">
-    <value>You can switch sources later in Settings.</value>
+    <value>您可以之後在設定中切換來源。</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.cloud" xml:space="preserve">
-    <value>The key is stored in Windows Credential Manager.</value>
+    <value>金鑰儲存在 Windows 認證管理員中。</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.onDevice" xml:space="preserve">
-    <value>More models live in the Model Library.</value>
+    <value>更多模型可在模型庫中找到。</value>
   </data>
   <data name="onboarding.footer.reassurance.configure.provider" xml:space="preserve">
-    <value>You can change providers later in Settings.</value>
+    <value>您可以之後在設定中更換服務商。</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.cloud" xml:space="preserve">
-    <value>Top up any time from your account.</value>
+    <value>隨時可從您的帳戶儲值。</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.onDevice" xml:space="preserve">
-    <value>Pausing the download will not lose progress.</value>
+    <value>暫停下載不會遺失進度。</value>
   </data>
   <data name="onboarding.footer.reassurance.setup.provider" xml:space="preserve">
-    <value>Remove the key any time in Settings.</value>
+    <value>可隨時在設定中移除該金鑰。</value>
   </data>
   <data name="onboarding.footer.reassurance.microphone" xml:space="preserve">
-    <value>Input device is switchable at any time.</value>
+    <value>輸入裝置可隨時切換。</value>
   </data>
   <data name="onboarding.footer.reassurance.tryIt" xml:space="preserve">
-    <value>The audio is discarded once the text is ready.</value>
+    <value>文字生成後，音訊即被捨棄。</value>
   </data>
   <data name="onboarding.footer.reassurance.done" xml:space="preserve">
-    <value>All of it is editable in Settings.</value>
+    <value>以上全部內容都可在設定中編輯。</value>
   </data>
   <data name="onboarding.footer.reassurance.pickSource" xml:space="preserve">
-    <value>Pick a source to continue.</value>
+    <value>請選擇一個來源以繼續。</value>
   </data>
   <data name="onboarding.setupLater.button" xml:space="preserve">
-    <value>Set Up Later</value>
+    <value>稍後設定</value>
   </data>
   <data name="onboarding.progress.a11y" xml:space="preserve">
-    <value>Step {0} of {1}</value>
+    <value>第 {0} 步，共 {1} 步</value>
   </data>
   <data name="onboarding.a11y.percent" xml:space="preserve">
-    <value>{0} percent</value>
+    <value>百分之 {0}</value>
   </data>
   <data name="onboarding.a11y.downloadProgress" xml:space="preserve">
-    <value>Download progress</value>
+    <value>下載進度</value>
   </data>
   <data name="onboarding.a11y.inputLevel" xml:space="preserve">
-    <value>Microphone input level</value>
+    <value>麥克風輸入音量</value>
   </data>
   <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
-    <value>Selected, {0}</value>
+    <value>已選擇，{0}</value>
   </data>
   <data name="onboarding.a11y.notSelectedDetail" xml:space="preserve">
-    <value>Not selected, {0}</value>
+    <value>未選擇，{0}</value>
   </data>
   <data name="onboarding.a11y.selectedInput" xml:space="preserve">
-    <value>Selected input</value>
+    <value>已選輸入裝置</value>
   </data>
   <data name="onboarding.error.microphone.denied" xml:space="preserve">
-    <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
+    <value>麥克風許可被拒絕。請在 Windows 設定中授予許可。</value>
   </data>
   <data name="onboarding.menu.runAgain" xml:space="preserve">
-    <value>Run setup again</value>
+    <value>重新執行設定</value>
   </data>
   <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
-    <value>Finish the current dictation before running setup again.</value>
+    <value>請先完成目前的語音輸入，再重新執行設定。</value>
   </data>
   <data name="onboarding.restore.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+    <value>HyperWhisper 無法還原您先前的預設模式。請開啟「模式」檢查其設定。</value>
   </data>
   <data name="onboarding.apply.mode.failed" xml:space="preserve">
-    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+    <value>HyperWhisper 無法儲存您的設定選擇。沒有任何變更。請重試，或選擇「稍後設定」。</value>
   </data>
   <data name="onboarding.configure.test.unverified" xml:space="preserve">
-    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+    <value>API 金鑰已儲存。此服務商無法在不轉錄的情況下檢查金鑰，因此會在您第一次語音輸入時驗證。</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
