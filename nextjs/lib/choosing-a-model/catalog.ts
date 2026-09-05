@@ -322,11 +322,15 @@ const CLOUD_MODELS_RAW = [
   { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-pro", credits: 7.5, wer: 2.9, speedFactor: 13.3, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-3-flash-preview", name: "Gemini 3 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3-flash-preview", credits: 3.0, wer: 2.9, speedFactor: 16.1, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "gemini:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.1-pro-preview", credits: 10.0, wer: 2.8, speedFactor: 7.0, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
+  // `languages` is null, not 25: cloud-stt-catalog.json records this count as
+  // "unverified" — Meta reports "25+ evaluated languages" and the Model API
+  // reference enumerates no codes. A vendor that publishes no number is
+  // mirrored as null here, never as a guess, the same way every Gemini row is.
   // Muse is ranked on Artificial Analysis's streaming board, not on the
   // non-streaming board used by this page. Do not put that streaming WER or
   // speed figure beside batch results. Meta supports streaming upstream, but
   // HyperWhisper has no Meta live relay, so this batch row is not live-selectable.
-  { id: "metaMuse:muse-voice-transcribe-1.0", name: "Muse Voice Transcribe 1.0", vendorLabel: "Meta Muse Voice Transcribe", vendor: "Meta", sttProvider: "meta", modelId: "muse-voice-transcribe-1.0", credits: 3.0, wer: null, speedFactor: null, languages: 25, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "metaMuse:muse-voice-transcribe-1.0", name: "Muse Voice Transcribe 1.0", vendorLabel: "Meta Muse Voice Transcribe", vendor: "Meta", sttProvider: "meta", modelId: "muse-voice-transcribe-1.0", credits: 3.0, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
 ] as const;
 
 export const CLOUD_MODELS: readonly CloudModel[] = CLOUD_MODELS_RAW.map(
