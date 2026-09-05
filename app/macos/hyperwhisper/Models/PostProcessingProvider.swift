@@ -90,6 +90,33 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The value to PERSIST when a stored provider string has to be validated
+    /// against the providers a picker can currently offer — or `nil` when the
+    /// stored string is already a valid selection and must be left untouched.
+    ///
+    /// `stored` is resolved through the tolerant `init?(rawValue:)`, so every
+    /// spelling of HyperWhisper Cloud counts as `.hyperwhisper`, including the
+    /// canonical `"hyperwhispercloud"` that the shared first-run seed
+    /// (`hw-catalog::mode_seed`) writes. Comparing `stored` against `rawValue`
+    /// instead is the exact bug this exists to prevent: `"hyperwhispercloud"`
+    /// never equals `.hyperwhisper.rawValue` (`"hyperwhisper"`), so a validator
+    /// built that way rejects a freshly seeded mode and then "corrects" a
+    /// perfectly good row back to the legacy token — silently, on the editor's
+    /// `onAppear`, before the user has touched anything.
+    ///
+    /// A returned replacement is a provider this app DERIVED, so it comes back
+    /// as `storageValue`, not `rawValue`.
+    ///
+    /// The caller must handle a `"custom:<uuid>"` endpoint string BEFORE calling
+    /// this. A custom endpoint is deliberately not a `PostProcessingProvider`
+    /// and would be reported here as needing correction.
+    static func correctedSelection(for stored: String, available: [PostProcessingProvider]) -> String? {
+        if let current = PostProcessingProvider(rawValue: stored), available.contains(current) {
+            return nil
+        }
+        return available.first?.storageValue
+    }
+
     /// Display name for the provider
     var displayName: String {
         switch self {

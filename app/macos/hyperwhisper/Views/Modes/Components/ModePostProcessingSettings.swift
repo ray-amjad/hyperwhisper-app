@@ -240,8 +240,14 @@ struct LanguageProcessingSettingsView: View {
                         // PostProcessingProvider rawValue; restore it directly.
                         postProcessingProvider = saved
                     } else {
+                        // Derived, not caller-supplied, so it is persisted as
+                        // `storageValue`. Identical to `rawValue` for every
+                        // provider this list can hold (HyperWhisper Cloud, the
+                        // one provider whose two spellings differ, is filtered
+                        // out above)  written this way so the rule is the same
+                        // everywhere the app chooses a provider for the user.
                         let firstDirect = availableDirectPostProcessingProviders.first ?? .openai
-                        postProcessingProvider = firstDirect.rawValue
+                        postProcessingProvider = firstDirect.storageValue
                     }
                 }
             }
@@ -362,15 +368,21 @@ struct LanguageProcessingSettingsView: View {
         guard postProcessingMode == .cloud else { return }
 
         // CUSTOM ENDPOINTS: Skip validation - custom endpoints are always valid
-        // They're not in availableCloudProviders but are still valid choices
+        // They're not in availableCloudProviders but are still valid choices,
+        // and `correctedSelection` requires this check to come first.
         guard !isCustomEndpointSelected else { return }
 
-        let available = availableCloudProviders
-        guard !available.contains(where: { $0.rawValue == postProcessingProvider }) else { return }
-
-        // Auto-correct to first available cloud provider
-        if let fallback = available.first {
-            postProcessingProvider = fallback.rawValue
+        // Resolve the stored string through the tolerant parser instead of
+        // comparing it to `rawValue`, so the canonical "hyperwhispercloud" that
+        // the shared first-run seed writes is recognised as `.hyperwhisper`
+        // rather than "corrected" back to the legacy token every time this
+        // editor opens. A replacement is a DERIVED provider and so is persisted
+        // as `storageValue`.
+        if let corrected = PostProcessingProvider.correctedSelection(
+            for: postProcessingProvider,
+            available: availableCloudProviders
+        ) {
+            postProcessingProvider = corrected
         }
     }
 
