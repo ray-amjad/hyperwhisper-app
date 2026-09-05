@@ -9,7 +9,7 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep, splitVocabularyTerms } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
@@ -148,14 +148,12 @@ export async function transcribeWithSoniox(
       logProviderEvent(provider, 'http_error', { phase: 'upload', status: uploadResp.status, bodyPreview }, context);
       throwForStatus(uploadResp.status, bodyPreview);
     }
-    try {
-      fileId = ((await uploadResp.json()) as { id?: string }).id || '';
-    } catch {
-      throw new ProviderUnavailableError('Soniox', 'malformed upload response');
-    }
-    if (!fileId) {
-      throw new ProviderUnavailableError('Soniox', 'upload returned no file id');
-    }
+    fileId = await readRequiredJsonString(uploadResp, {
+      provider: 'Soniox',
+      field: 'id',
+      malformedMessage: 'malformed upload response',
+      missingMessage: 'upload returned no file id',
+    });
 
     // ── 2. Create the transcription ──
     const createBody: Record<string, unknown> = {
@@ -186,14 +184,12 @@ export async function transcribeWithSoniox(
       logProviderEvent(provider, 'http_error', { phase: 'create', status: createResp.status, bodyPreview }, context);
       throwForStatus(createResp.status, bodyPreview);
     }
-    try {
-      transcriptionId = ((await createResp.json()) as { id?: string }).id || '';
-    } catch {
-      throw new ProviderUnavailableError('Soniox', 'malformed create response');
-    }
-    if (!transcriptionId) {
-      throw new ProviderUnavailableError('Soniox', 'create returned no transcription id');
-    }
+    transcriptionId = await readRequiredJsonString(createResp, {
+      provider: 'Soniox',
+      field: 'id',
+      malformedMessage: 'malformed create response',
+      missingMessage: 'create returned no transcription id',
+    });
 
     logProviderEvent(provider, 'job_created', { model, transcriptionId, termCount: terms.length }, context);
 
