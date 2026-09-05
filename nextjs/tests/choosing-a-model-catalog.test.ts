@@ -19,7 +19,7 @@ type CatalogFile = {
     displayName: string;
     access: { cloudTierEligible: boolean; byokEligible: boolean };
     features?: { streaming?: boolean };
-    languages?: { count?: number | string };
+    languages?: { count?: number | string; codes?: string[] };
     models: {
       id: string;
       displayName: string;
@@ -29,6 +29,11 @@ type CatalogFile = {
       supportsCustomVocabulary?: boolean;
       /** "HyperWhisper Cloud routes this model live" — see LIVE_STREAMING_ROW_IDS. */
       streaming?: boolean;
+      /**
+       * This model's own language table size, where a provider's models do not
+       * share one. Absent means the row inherits `languages.count`.
+       */
+      languageCount?: number;
     }[];
   }[];
 };
@@ -516,7 +521,7 @@ test("documented language counts match the catalog", async () => {
     // certified MAI-Transcribe 1.5 as supporting 18 languages it cannot
     // transcribe, because the union was the only number it could read.
     const perModel = provider.models?.find(
-      (entry: { id: string }) => entry.id === model.modelId,
+      (entry) => entry.id === model.modelId,
     )?.languageCount;
     const count = perModel ?? provider.languages?.count;
     // A vendor that publishes no number is mirrored as null, never as a guess.
@@ -536,9 +541,9 @@ test("a provider whose models differ states each model's own language count", as
     const codes = provider.languages?.codes;
     if (!Array.isArray(codes) || (provider.models?.length ?? 0) < 2) continue;
 
-    const overrides = provider.models.filter(
-      (model: { languageCount?: number }) => typeof model.languageCount === "number",
-    );
+    const overrides = provider.models
+      .map((model) => model.languageCount)
+      .filter((count) => typeof count === "number");
     if (overrides.length === 0) continue;
 
     // Every model of a provider that overrides ANY of them must state its own
@@ -553,9 +558,7 @@ test("a provider whose models differ states each model's own language count", as
     // No model may claim more than the union it was folded from, and the union
     // must be exactly the largest model's table — otherwise `languages.codes`
     // holds codes no model supports.
-    const largest = Math.max(
-      ...overrides.map((model: { languageCount: number }) => model.languageCount),
-    );
+    const largest = Math.max(...overrides);
     assert.equal(
       largest,
       codes.length,
