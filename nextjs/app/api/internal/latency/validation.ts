@@ -85,6 +85,10 @@ export type ValidationResult =
   | { ok: true; samples: ValidSample[]; skipped: { index: number; reason: string }[] }
   | { ok: false; error: string };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function isPositiveInt(value: unknown): value is number {
   // Number.isInteger already excludes NaN and ±Infinity, so an unbounded check
   // is still closed against garbage — it just no longer throws away the tail.
@@ -110,6 +114,12 @@ function isValidRegion(value: unknown): value is string {
   return typeof value === "string" && /^[a-z]{3}$/.test(value);
 }
 
+function isFailureKind(
+  value: unknown,
+): value is (typeof FAILURE_KINDS)[number] {
+  return FAILURE_KINDS.some((kind) => kind === value);
+}
+
 /**
  * Validates one sample against the provider ids the site knows.
  *
@@ -124,10 +134,10 @@ export function validateSample(
   raw: unknown,
   knownProviders: readonly string[],
 ): { sample: ValidSample } | { reason: string } {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isRecord(raw)) {
     return { reason: "not an object" };
   }
-  const s = raw as Record<string, unknown>;
+  const s = raw;
 
   if (typeof s.provider !== "string" || !knownProviders.includes(s.provider)) {
     return { reason: "unknown provider" };
@@ -168,7 +178,7 @@ export function validateSample(
 
   let failureKind: string | null = null;
   if (!s.ok) {
-    if (typeof s.failureKind !== "string" || !(FAILURE_KINDS as readonly string[]).includes(s.failureKind)) {
+    if (!isFailureKind(s.failureKind)) {
       return { reason: "invalid failureKind" };
     }
     failureKind = s.failureKind;
@@ -205,10 +215,10 @@ export function validateBatch(
   body: unknown,
   knownProviders: readonly string[],
 ): ValidationResult {
-  if (typeof body !== "object" || body === null) {
+  if (!isRecord(body)) {
     return { ok: false, error: "body must be an object" };
   }
-  const samples = (body as Record<string, unknown>).samples;
+  const samples = body.samples;
   if (!Array.isArray(samples)) {
     return { ok: false, error: "samples must be an array" };
   }
