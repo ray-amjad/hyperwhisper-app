@@ -357,13 +357,13 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
 
     /// The shared first-run seed, in macOS' own column names.
     ///
-    /// Every `existing?.x ?? …` arm in `apply` and `captureRestorePoint` below
-    /// answers one question: "what would the default mode hold if it were not
-    /// there?" That is by definition what
-    /// `PersistenceController.initializeDefaultModes()` writes, which is this —
-    /// `hw-catalog::mode_seed`, the one definition all three heads read. Reading
-    /// those arms from here instead of from literals is what stops onboarding
-    /// from creating a mode the seeder itself would never have produced.
+    /// Onboarding no longer uses this to CREATE the default mode — that is
+    /// `PersistenceController.seedDefaultMode()`, the same `applySeededValues`
+    /// the first-launch seeder uses, so there is no second list of seeded values
+    /// to keep in step. What is left here is the nil-coalescing for Core Data
+    /// columns that are optional in Swift, plus `captureRestorePoint`'s inert
+    /// arms. `hw-catalog::mode_seed` remains the one definition all three heads
+    /// read.
     ///
     /// Resolved per access rather than stored, because `forCurrentRegion` reads
     /// `Locale.current` and onboarding is exactly when a fresh install first
@@ -371,10 +371,6 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
     ///
     /// Internal rather than private so `OnboardingSeededDefaultsTests` can pin
     /// it against a Core Data row that `initializeDefaultModes()` really wrote.
-    /// `apply` itself cannot be unit tested here: `LiveOnboardingSourceCommitter`
-    /// needs an `AppState`, and constructing one instantiates
-    /// `PersistenceController.shared` — the real on-disk store — inside
-    /// `setupSubscriptions()`.
     static var seed: SeededModeValues { SeededModeValues.forCurrentRegion }
 
     private let persistence: PersistenceController
@@ -430,64 +426,103 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
         )
     }
 
-    /// Reconfigure the EXISTING default Mode in place. `createOrUpdateMode` resets
-    /// every omitted parameter to its default, so all non-source fields are
-    /// forwarded from the current row. `cloudTranscriptionModel` is deliberately
-    /// omitted so it re-derives for the new provider and tier.
+    /// Write the chosen transcription source onto the default Mode, then select
+    /// it. The Core Data half is `commitStagedSource` below; this adds only the
+    /// `AppState` half.
     func apply(_ staged: OnboardingStagedSource) {
-        let existing = persistence.findDefaultMode()
-        let updated = persistence.createOrUpdateMode(
-            id: existing?.id ?? Self.defaultModeID,
-            // `apply` CREATES the default mode when onboarding runs before the
-            // seeder has (or after the user deleted every mode), so these are
-            // real seeded values, not display placeholders, and they have to be
-            // the ones `initializeDefaultModes()` would have written.
-            //
-            // `language` is why this matters: macOS carried `"en"` here while
-            // the shared seed says `"auto"`, so a user who reached onboarding
-            // before the seeder got a mode pinned to English — a direct
-            // contradiction of the one-mode/auto-language decision this change
-            // exists to make. `preset` was already the seed's value spelled as a
-            // literal; it reads from the seed now so the two cannot drift.
-            //
-            // `model` is absent from this list on purpose: it is not a seeded
-            // value here but the transcription source the user just chose in
-            // onboarding, which is the whole point of `apply`.
-            name: existing?.name ?? SeededModeValues.seededName,
-            preset: existing?.preset ?? Self.seed.preset,
-            language: existing?.language ?? Self.seed.language,
-            model: staged.model,
-            punctuation: existing?.punctuation ?? true,
-            capitalization: existing?.capitalization ?? true,
-            profanityFilter: existing?.profanityFilter ?? false,
-            customInstructions: existing?.customInstructions,
-            languageModel: existing?.languageModel,
-            cloudProvider: staged.cloudProvider,
-            postProcessingMode: staged.postProcessingMode,
-            postProcessingProvider: existing?.postProcessingProvider,
-            englishSpelling: existing?.englishSpelling,
-            userSystemPrompt: existing?.userSystemPrompt,
-            useStreamingTranscription: existing?.useStreamingTranscription ?? false,
-            cloudAccuracyTier: staged.cloudAccuracyTier,
-            removeTrailingPeriod: existing?.removeTrailingPeriod ?? false,
-            enableScreenOCR: existing?.enableScreenOCR ?? false,
-            geminiCustomPrompt: existing?.geminiCustomPrompt,
-            cloudPostProcessingModel: existing?.cloudPostProcessingModel,
-            cloudTranscriptionDomain: existing?.cloudTranscriptionDomain,
-            foreignPlatformExtensions: existing?.foreignPlatformExtensions
-        )
-
-        // If no default existed, createOrUpdateMode does not flag the row it just
-        // created, which would leave the chosen source on a stray non-default Mode.
-        if existing == nil && !updated.isDefault {
-            updated.isDefault = true
-            persistence.save()
-        }
+        let updated = Self.commitStagedSource(staged, to: persistence)
 
         // Writing the source onto Default is not enough on its own: a returning
         // user's selectedModeId still points at their own Mode, so the next
         // recording would keep using that Mode's source.
         appState.selectMode(updated, persist: true)
+    }
+
+    /// Everything `apply` does to Core Data, with no `AppState` in the way.
+    ///
+    /// Split out so it can actually be tested. Constructing a
+    /// `LiveOnboardingSourceCommitter` requires an `AppState`, and building one
+    /// instantiates `PersistenceController.shared` — the real on-disk store —
+    /// from inside `setupSubscriptions()`, so a unit test can never reach
+    /// `apply` itself. That difficulty is why the previous round's test compared
+    /// the seed against a row written from that same seed and could not fail;
+    /// `OnboardingSeededDefaultsTests` drives this instead.
+    ///
+    /// The row is RESOLVED before it is reconfigured, and never created by
+    /// `createOrUpdateMode`:
+    ///
+    /// 1. the flagged default mode, if there is one;
+    /// 2. otherwise a row already carrying the well-known seed UUID — this is
+    ///    the row `createOrUpdateMode(id:)` used to adopt implicitly, so keeping
+    ///    the step keeps that behaviour;
+    /// 3. otherwise the shared first-run seed, written by the same
+    ///    `applySeededValues` `initializeDefaultModes()` uses.
+    ///
+    /// Step 3 is the fix. `apply` does not only reconfigure the default mode, it
+    /// CREATES it — when the flagged default is deleted while other modes remain
+    /// (both delete guards only protect the LAST mode), or if the seeder's save
+    /// failed. Routing that through `createOrUpdateMode` gave the row
+    /// `isSystemProvided = false` and `sortOrder = maxSortOrder + 1` against the
+    /// seed's `true` and `0`, permanently — `initializeDefaultModes()` returns
+    /// early once any mode exists — so `GET /modes` reported that install's
+    /// default as `isSystemProvided: false` at sortOrder 1.
+    ///
+    /// It also removes the shape that caused it: this method no longer restates
+    /// any seeded value. Adding a field to `ModeSeed` now means editing
+    /// `applySeededValues` alone, not a parallel arm list here that nothing
+    /// would fail to compile without.
+    @discardableResult
+    static func commitStagedSource(
+        _ staged: OnboardingStagedSource,
+        to persistence: PersistenceController
+    ) -> Mode {
+        let flaggedDefault = persistence.findDefaultMode()
+        let existing = flaggedDefault
+            ?? persistence.fetchMode(withId: Self.defaultModeID.uuidString)
+            ?? persistence.seedDefaultMode()
+
+        // Every `existing.x ?? …` below is now only about Core Data's columns
+        // being optional in Swift, NOT about the row being absent — the row is
+        // guaranteed above, and if it was just seeded these are the seed's own
+        // values. `model` is absent from the list on purpose: it is not a seeded
+        // value here but the transcription source the user just chose, which is
+        // the whole point of `apply`.
+        let updated = persistence.createOrUpdateMode(
+            id: existing.id ?? Self.defaultModeID,
+            name: existing.name ?? SeededModeValues.seededName,
+            preset: existing.preset ?? Self.seed.preset,
+            language: existing.language ?? Self.seed.language,
+            model: staged.model,
+            punctuation: existing.punctuation,
+            capitalization: existing.capitalization,
+            profanityFilter: existing.profanityFilter,
+            customInstructions: existing.customInstructions,
+            languageModel: existing.languageModel,
+            cloudProvider: staged.cloudProvider,
+            postProcessingMode: staged.postProcessingMode,
+            postProcessingProvider: existing.postProcessingProvider,
+            englishSpelling: existing.englishSpelling,
+            userSystemPrompt: existing.userSystemPrompt,
+            useStreamingTranscription: existing.useStreamingTranscription,
+            cloudAccuracyTier: staged.cloudAccuracyTier,
+            removeTrailingPeriod: existing.removeTrailingPeriod,
+            enableScreenOCR: existing.enableScreenOCR,
+            geminiCustomPrompt: existing.geminiCustomPrompt,
+            cloudPostProcessingModel: existing.cloudPostProcessingModel,
+            cloudTranscriptionDomain: existing.cloudTranscriptionDomain,
+            foreignPlatformExtensions: existing.foreignPlatformExtensions
+        )
+
+        // Only when nothing was flagged default: otherwise this could flag a
+        // second one. `createOrUpdateMode` does not set the flag on a row it
+        // adopts by id, which would leave the chosen source on a stray
+        // non-default Mode.
+        if flaggedDefault == nil && !updated.isDefault {
+            updated.isDefault = true
+            persistence.save()
+        }
+
+        return updated
     }
 
     func restore(_ point: OnboardingRestorePoint) {

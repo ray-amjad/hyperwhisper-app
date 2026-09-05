@@ -1868,20 +1868,19 @@ class PersistenceController: ObservableObject {
         // opens on "British" instead of making the user change every mode by
         // hand; an unknown region keeps the historical American.
         //
-        // ⚠️ `Mode`'s Core Data attribute defaults are hostile — an unwritten
-        // field inherits a stale legacy value (`whisper-1`, `claudeHaiku`,
-        // `openai`, `en`, `base`) rather than a null. `applySeededValues` is
-        // where every column is written explicitly and where that list is
-        // documented; do not thin it out.
-        let seed = SeededModeValues.forCurrentRegion
-        let mode = Mode(context: context)
-        mode.applySeededValues(seed)
+        // WHAT to write lives in `seedDefaultMode()`; this method owns only
+        // WHEN. The save below is kept here rather than in the helper because
+        // its diagnostics and the `didSeedDefaultModesOnLaunch` flag are about
+        // first launch specifically, and onboarding's use of the helper is not
+        // a first launch.
+        let mode = seedDefaultMode(persist: false)
+        let seededName = mode.name ?? ""
 
         // Save the default mode
         do {
             try context.save()
             didSeedDefaultModesOnLaunch = true
-            AppLogger.coreData.info("Initialized the default mode for new install: \(seed.name, privacy: .public)")
+            AppLogger.coreData.info("Initialized the default mode for new install: \(seededName, privacy: .public)")
         } catch {
             AppLogger.logCoreData(
                 .save(site: "initialize_default_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
@@ -1890,7 +1889,39 @@ class PersistenceController: ObservableObject {
             )
         }
     }
-    
+
+    /// Inserts the one mode a fresh install creates, unconditionally.
+    ///
+    /// `initializeDefaultModes()` owns WHEN the store may be seeded — its
+    /// `count > 0 → return` guard is the "existing users are never re-seeded"
+    /// contract and does not move. This owns WHAT gets written, and it is
+    /// separate because onboarding needs the same row on a path that guard
+    /// deliberately refuses to act on: the flagged default mode has been deleted
+    /// while other modes remain, so the store is not empty but the default is
+    /// missing.
+    ///
+    /// The alternative — letting `createOrUpdateMode` create it — is NOT
+    /// equivalent and was the bug this fixes. Its CREATE branch hardcodes
+    /// `isSystemProvided = false` and `sortOrder = maxSortOrder + 1`, against
+    /// the seed's `true` and `0`, and the row is permanent because
+    /// `initializeDefaultModes()` returns early once any mode exists.
+    ///
+    /// ⚠️ `Mode`'s Core Data attribute defaults are hostile — an unwritten field
+    /// inherits a stale legacy value (`whisper-1`, `claudeHaiku`, `openai`,
+    /// `en`, `base`) rather than a null. `applySeededValues` is where every
+    /// column is written explicitly and where that list is documented; do not
+    /// thin it out, and do not hand-roll a second copy of it here.
+    ///
+    /// - Parameter persist: `false` when the caller owns the save — the
+    ///   first-launch path saves with its own diagnostics.
+    @discardableResult
+    func seedDefaultMode(persist: Bool = true) -> Mode {
+        let mode = Mode(context: container.viewContext)
+        mode.applySeededValues(SeededModeValues.forCurrentRegion)
+        if persist { save() }
+        return mode
+    }
+
     /// Fetches all modes sorted by sortOrder
     /// - Returns: Array of modes
     func fetchAllModes() -> [Mode] {
