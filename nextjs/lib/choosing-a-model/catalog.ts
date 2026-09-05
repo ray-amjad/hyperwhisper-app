@@ -259,7 +259,7 @@ export type DeviceModel = {
 export type Model = CloudModel | DeviceModel;
 
 /**
- * Mirrored from `cloud-stt-catalog.json` v10 (2026-09-02). Benchmark columns
+ * Mirrored from `cloud-stt-catalog.json` v12 (2026-09-04). Benchmark columns
  * from the Artificial Analysis non-streaming leaderboard, pulled 2026-08-19,
  * and 2026-08-28 for the `gemini-3.5-transcribe` row — a model that leaderboard
  * has not measured carries `wer: null` / `speedFactor: null` rather than a
@@ -281,7 +281,18 @@ const CLOUD_MODELS_RAW = [
   { id: "deepgramNova3:nova-2-general", name: "Nova 2 General", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-general", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "SpaceXAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
-  { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe 1.5", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: false },
+  // Not on the non-streaming leaderboard this column reads, so both figures
+  // stay null and `rankModels` scores it a neutral 0.5 rather than inheriting
+  // 1.5's numbers. Microsoft's own launch post claims it beats 1.5 on both, but
+  // that is a vendor figure measured on vendor audio — the one thing the note
+  // above CLOUD_MODELS_RAW forbids this column. Fill these in from the board
+  // when Artificial Analysis publishes the row.
+  { id: "azureMaiTranscribe:mai-transcribe-2", name: "MAI-Transcribe 2", vendorLabel: "Microsoft MAI-Transcribe", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-2", credits: 1.67, wer: null, speedFactor: null, languages: 60, streaming: false, customVocabulary: true, preview: true, isDefault: true, byok: false },
+  // 42, not the provider row's 60: `languages.codes` on `azureMaiTranscribe` is
+  // the UNION of the two models' tables, and this column is per MODEL. The
+  // catalog states each model's own figure in `models[].languageCount`, which is
+  // what `choosing-a-model-catalog.test.ts` checks these two against.
+  { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: false },
   // Both figures read from the non-streaming leaderboard on 2026-08-28, a later
   // pull than the rest of this column. Artificial Analysis re-runs the board, so
   // any row is only as current as its pull date and the column now holds two of

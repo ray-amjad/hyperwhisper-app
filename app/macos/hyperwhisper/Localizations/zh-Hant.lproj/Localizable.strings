@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高準確性，處理較慢。最適合重要轉錄。";
 "modes.cloudAccuracy.geminiTranscribe.label" = "高（Google Gemini 3.5 Transcribe）";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。支援多語言與自訂詞彙。";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe 1.5）";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "透過 Azure Speech 使用 Microsoft MAI-Transcribe 1.5。支援 43 種語言，並具備上下文偏詞功能。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe）";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "透過 Azure Speech 使用 Microsoft MAI-Transcribe。最多支援 60 種語言，並具備上下文偏詞功能。";
 
 "modes.create.title" = "建立新模式";
 "modes.create.subtitle" = "設定自訂轉錄設定檔";

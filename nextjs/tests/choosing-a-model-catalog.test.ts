@@ -507,13 +507,59 @@ test("documented language counts match the catalog", async () => {
     );
     assert.ok(provider, `no catalog provider for ${model.id}`);
 
-    const count = provider.languages?.count;
+    // `languages.count` is PROVIDER-level. Where a provider's models do not
+    // share a table — azureMaiTranscribe's 60 vs 42 — `languages.codes` is
+    // their union and each model row states its own `languageCount`. This
+    // column is per MODEL, so the row's own figure wins whenever the catalog
+    // gives one. Comparing every row to the provider number, which is what
+    // this test used to do, cannot see per-model drift for ANY provider: it
+    // certified MAI-Transcribe 1.5 as supporting 18 languages it cannot
+    // transcribe, because the union was the only number it could read.
+    const perModel = provider.models?.find(
+      (entry: { id: string }) => entry.id === model.modelId,
+    )?.languageCount;
+    const count = perModel ?? provider.languages?.count;
     // A vendor that publishes no number is mirrored as null, never as a guess.
     const expected = typeof count === "number" ? count : null;
     assert.equal(
       model.languages,
       expected,
       `${model.id} language count drifted from the catalog`,
+    );
+  }
+});
+
+test("a provider whose models differ states each model's own language count", async () => {
+  const catalog = readCatalog();
+
+  for (const provider of catalog.providers) {
+    const codes = provider.languages?.codes;
+    if (!Array.isArray(codes) || (provider.models?.length ?? 0) < 2) continue;
+
+    const overrides = provider.models.filter(
+      (model: { languageCount?: number }) => typeof model.languageCount === "number",
+    );
+    if (overrides.length === 0) continue;
+
+    // Every model of a provider that overrides ANY of them must state its own
+    // number, or the rows without one silently inherit the union and the split
+    // is only half-declared.
+    assert.equal(
+      overrides.length,
+      provider.models.length,
+      `${provider.id} states languageCount on some models but not all`,
+    );
+
+    // No model may claim more than the union it was folded from, and the union
+    // must be exactly the largest model's table — otherwise `languages.codes`
+    // holds codes no model supports.
+    const largest = Math.max(
+      ...overrides.map((model: { languageCount: number }) => model.languageCount),
+    );
+    assert.equal(
+      largest,
+      codes.length,
+      `${provider.id}'s widest model claims ${largest} languages but languages.codes lists ${codes.length}`,
     );
   }
 });

@@ -784,8 +784,8 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Máxima precisión con procesamiento más lento. Ideal para transcripciones importantes.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingüe, con compatibilidad con vocabulario personalizado.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 a través de Azure Speech. 43 idiomas con adaptación contextual.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe a través de Azure Speech. Hasta 60 idiomas con adaptación contextual.";
 
 "modes.create.title" = "Crear nuevo modo";
 "modes.create.subtitle" = "Configura un perfil de transcripción personalizado";

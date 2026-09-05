@@ -178,7 +178,7 @@ function resolveExplicit(
   switch (provider) {
     case 'google-chirp': return resolveGoogleChirpLocale(language);
     case 'deepgram': return resolveDeepgramLanguage(model, language);
-    case 'azure-mai': return resolveAzureMaiLocale(language);
+    case 'azure-mai': return resolveAzureMaiLocale(model, language);
     case 'elevenlabs': return resolveElevenLabsLanguage(language);
     case 'openai': return resolveOpenAILanguage(language);
     case 'meta': return resolveMetaLanguageBias(language);
@@ -461,28 +461,73 @@ function resolveDeepgramLanguage(model: string, language: string): Resolution {
 // Azure MAI-Transcribe — ISO-639-1, and Norwegian is `nb`
 // ---------------------------------------------------------------------------
 
-// Mirror of `azureMaiTranscribe.languages.codes` in cloud-stt-catalog.json.
+// Mirror of `azureMaiTranscribe.languages.codes` in cloud-stt-catalog.json, split
+// PER MODEL — the two models do not have the same table, and the difference is
+// large (18 codes), so a single flat set would silently send a v2-only language
+// on 1.5 and drop 18 languages to auto-detect on v2.
+//
+// 1.5: the 42 codes we have verified. Microsoft's table now also lists `zh` for
+// 1.5, which we do NOT carry yet — see the open question in the change notes;
+// adding it is a separate, separately-verified change.
+// v2: all 60 codes from the doc's MAI-Transcribe-2 column, verbatim (mixed
+// format — `fil` and `yue` are not ISO-639-1).
+// Ref: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-transcribe
 const AZURE_MAI_LOCALES: ReadonlySet<string> = new Set([
   'ar', 'as', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en', 'es', 'et', 'fi', 'fr',
   'gu', 'hi', 'hu', 'id', 'it', 'ja', 'kn', 'ko', 'lt', 'ml', 'mr', 'nb', 'nl', 'or',
   'pa', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sv', 'ta', 'te', 'th', 'tr', 'uk', 'vi',
 ]);
 
+const AZURE_MAI_V2_LOCALES: ReadonlySet<string> = new Set([
+  'af', 'ar', 'as', 'az', 'bg', 'bn', 'bs', 'ca', 'cs', 'da', 'de', 'el', 'en', 'es',
+  'et', 'fa', 'fi', 'fil', 'fr', 'gl', 'gu', 'he', 'hi', 'hu', 'hy', 'id', 'is', 'it',
+  'ja', 'kk', 'kn', 'ko', 'lt', 'lv', 'mk', 'ml', 'mr', 'ms', 'nb', 'ne', 'nl', 'or',
+  'pa', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk',
+  'ur', 'vi', 'yue', 'zh',
+]);
+
+/**
+ * Per-model locale tables.
+ *
+ * Unknown model ids fall back to 1.5's list — the narrower of the two, so an
+ * unrecognised id cannot send a locale the model may not have. The parity test
+ * asserts these keys are exactly the azure-mai model ids the catalog ships.
+ */
+const AZURE_MAI_MODEL_LOCALES: Readonly<Record<string, ReadonlySet<string>>> = {
+  'mai-transcribe-1.5': AZURE_MAI_LOCALES,
+  'mai-transcribe-2': AZURE_MAI_V2_LOCALES,
+};
+const AZURE_MAI_DEFAULT_LOCALES = AZURE_MAI_LOCALES;
+
 // EDITORIAL: the picker offers Norwegian as `no` (the macro-language). Azure
 // lists only `nb` (Bokmål). `nn` (Nynorsk) has no Azure entry either, so it folds
 // the same way rather than dropping to auto-detect.
+//
+// `tl`/`fil` is the same fold running the other way: the picker lists Filipino
+// under `tl` (see `hw-catalog/src/cloud_stt/lang.rs`, `fil` → `tl`), and Azure
+// lists it as `fil` on v2 — so the picker→Azure direction has to unfold it.
 const AZURE_MAI_ALIASES: Readonly<Record<string, string>> = {
   no: 'nb',
   nn: 'nb',
-  iw: 'he', // legacy Hebrew code, though Azure lists neither — kept for the alias pass
+  tl: 'fil',
+  iw: 'he', // legacy Hebrew code → the form Azure lists on v2
 };
 
-/** Resolve a client language code to an Azure MAI locale. */
-function resolveAzureMaiLocale(language: string): Resolution {
+/** Resolve a client language code to an Azure MAI locale for a given model. */
+function resolveAzureMaiLocale(model: string, language: string): Resolution {
   const base = primarySubtag(language);
   if (base.length === 0) return NO_LOCALE;
   const aliased = AZURE_MAI_ALIASES[base] ?? base;
-  return AZURE_MAI_LOCALES.has(aliased) ? { code: aliased } : NO_LOCALE;
+
+  const supported = AZURE_MAI_MODEL_LOCALES[model] ?? AZURE_MAI_DEFAULT_LOCALES;
+  if (!supported.has(aliased)) {
+    // Distinguish "Azure has never had this language" from "this MODEL cannot
+    // do it" — the second means the client's per-model scoping drifted.
+    const anyModel = Object.values(AZURE_MAI_MODEL_LOCALES).some(set => set.has(aliased));
+    return anyModel ? MODEL_UNSUPPORTED : NO_LOCALE;
+  }
+
+  return { code: aliased };
 }
 
 // ---------------------------------------------------------------------------
@@ -668,6 +713,7 @@ export const __tables = {
   DEEPGRAM_MODEL_LANGUAGES,
   DEEPGRAM_REGIONAL_CODES,
   AZURE_MAI_LOCALES,
+  AZURE_MAI_MODEL_LOCALES,
   AZURE_MAI_ALIASES,
   ELEVENLABS_LANGUAGES,
   ELEVENLABS_ALIASES,

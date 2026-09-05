@@ -616,10 +616,13 @@ public partial class ModeEditorWindow : Window
     /// provider is "hyperwhisper", but the real upstream provider is the selected
     /// accuracy tier's X-STT-Provider value and the model is the selected tier
     /// model (CloudTierModelCombo). For every other (BYOK) provider the model is
-    /// the CloudModelCombo selection. Tiers whose upstream provider has no enum
-    /// mapping (azure-mai / google-chirp / gemini → None) resolve to
-    /// <see cref="CloudTranscriptionProvider.None"/>, so callers fall through to
-    /// their default (full language list) branch. <paramref name="modelId"/> is
+    /// the CloudModelCombo selection. The tier's X-STT-Provider value is mapped
+    /// through <see cref="CloudTranscriptionProviderExtensions.FromCatalogSttProvider"/>,
+    /// which is the only function that knows the catalog-only spellings
+    /// (<c>azure-mai</c>, <c>gemini-transcribe</c>); a tier the catalog does not
+    /// name still resolves to <see cref="CloudTranscriptionProvider.None"/>, so
+    /// callers fall through to their default (full language list) branch.
+    /// <paramref name="modelId"/> is
     /// never null (empty string when unselected, matching the X-STT-Model
     /// "provider default" convention).
     /// </summary>
@@ -632,7 +635,13 @@ public partial class ModeEditorWindow : Window
         {
             var tierId = SelectedCloudTierId();
             var sttProvider = Services.AppClassification.CloudSttCatalog.Shared.SttProviderForId(tierId);
-            provider = CloudTranscriptionProviderExtensions.FromIdentifier(sttProvider);
+            // FromCatalogSttProvider, NOT FromIdentifier: the catalog's
+            // `sttProvider` is the backend dispatch key, a different namespace
+            // from the identifiers we persist. `azure-mai` and
+            // `gemini-transcribe` have no spelling in that other namespace, so
+            // FromIdentifier answered None and every provider-keyed branch below
+            // was skipped for those two tiers.
+            provider = CloudTranscriptionProviderExtensions.FromCatalogSttProvider(sttProvider);
             modelId = (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? string.Empty;
             return;
         }
@@ -2666,6 +2675,72 @@ public partial class ModeEditorWindow : Window
                 }
                 if (!found) SelectLanguage("auto");
                 return;
+            }
+
+            // HyperWhisper Cloud Azure MAI tier: the two models do NOT share a
+            // language set. mai-transcribe-2 documents 60 locales, 1.5 only 42,
+            // and `cloud-stt-catalog.json`'s provider-level `languages.codes` is
+            // their UNION — so the tier-keyed fallback below would offer a 1.5
+            // user the 18 codes only v2 has, and Azure would silently fall back
+            // to auto-detect on each of them. The per-model split lives in
+            // `shared-models/models-catalog.json` (`supportedLanguages`), which
+            // is the same data macOS reads through STTLanguageTemplates; reading
+            // it over the FFI here keeps the two heads on one source rather than
+            // retyping the list.
+            //
+            // Deliberately scoped to Azure. The tier branch below is NOT
+            // generalised to per-model for every provider: nova-3-medical's
+            // English-only clamp already sits above with its own vendor-confirmed
+            // reasoning, and no other tier's per-model `supportedLanguages` rows
+            // have been validated against these branches.
+            if (isHyperWhisperCloud
+                && cloudProvider == CloudTranscriptionProvider.MicrosoftAzureSpeech)
+            {
+                var azureSupport = Services.SharedModelsCatalog.GetLanguageSupport(
+                    Services.SharedModelsCatalog.CatalogKey(CloudTranscriptionProvider.MicrosoftAzureSpeech),
+                    CatalogKind.Voice,
+                    effectiveModelId);
+
+                // SupportsAll means the catalog does not carry this id — a stale
+                // saved model, say. Fall through to the tier branch, which is
+                // today's behaviour, so the picker degrades rather than empties.
+                if (!azureSupport.SupportsAll && azureSupport.Codes.Count > 0)
+                {
+                    var allowedAzure = new HashSet<string>(azureSupport.Codes, StringComparer.OrdinalIgnoreCase)
+                    {
+                        "auto",
+                    };
+
+                    var filteredAzure = new List<LanguageInfo>();
+                    foreach (var lang in LanguageInfo.AllLanguages)
+                    {
+                        if (allowedAzure.Contains(lang.Code)) filteredAzure.Add(lang);
+                    }
+
+                    // Same safety net as the tier branch: never show a near-empty
+                    // picker, fall through to the full list instead.
+                    if (filteredAzure.Count > 2)
+                    {
+                        var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+
+                        LanguageCombo.Items.Clear();
+                        foreach (var lang in filteredAzure)
+                        {
+                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
+                        }
+
+                        bool found = false;
+                        if (!string.IsNullOrEmpty(currentLang))
+                        {
+                            foreach (ComboBoxItem item in LanguageCombo.Items)
+                            {
+                                if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
+                            }
+                        }
+                        if (!found) SelectLanguage("auto");
+                        return;
+                    }
+                }
             }
 
             // HyperWhisper Cloud tiers without a dedicated branch above

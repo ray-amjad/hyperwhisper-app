@@ -229,6 +229,49 @@ static async Task TestRouterAsync(string root)
             RoutedModel: null,
         }, "direct Meta did not stay separate from HyperWhisper Cloud or use the exact default model");
 
+    // AZURE MAI — a standalone `microsoftazurespeech` mode is not a BYOK mode.
+    // It terminates at the same HW Cloud /transcribe proxy, where the model is
+    // `X-STT-Model`, built by hw-net from `routed_model` and never from `model`.
+    // A null RoutedModel let the backend apply its own default, so a mode pinned
+    // to 1.5 transcribed AND billed as mai-transcribe-2.
+    var azurePinnedMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "microsoftazurespeech",
+        CloudTranscriptionModel = "mai-transcribe-1.5",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: azurePinnedMode));
+    Assert(cloud.LastRequest is
+        {
+            Provider: CloudTranscriptionProvider.AzureMai,
+            RoutedModel: "mai-transcribe-1.5",
+        }, "an Azure MAI mode pinned to 1.5 did not carry that model as the routed (X-STT-Model) value");
+
+    // A model id that is not one of this entry's pre-recorded models — a stale
+    // save, a BYOK id left in the shared field — degrades to the catalog default
+    // instead of being forwarded into a backend 400.
+    var azureStaleMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "microsoftazurespeech",
+        CloudTranscriptionModel = "whisper-1",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: azureStaleMode));
+    Assert(cloud.LastRequest!.RoutedModel == SharedCoreBridge.CloudSttDefaultModel("azureMaiTranscribe"),
+        $"a stale Azure MAI model id routed as '{cloud.LastRequest.RoutedModel}' instead of the catalog default");
+
+    // BYOK providers must NOT gain a routed model: their model travels in their
+    // own request body, and a routed value would become a stray X-STT-Model.
+    var byokOpenAiMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "openai",
+        CloudTranscriptionModel = "whisper-1",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: byokOpenAiMode));
+    Assert(cloud.LastRequest is { Model: "whisper-1", RoutedModel: null },
+        "a BYOK OpenAI mode gained a routed model");
+
     // This route's own 1000-term cap, kept out of the shared core deliberately:
     // the live-streaming router caps at 100 and neither may drift onto the other.
     var cappedMode = new Mode

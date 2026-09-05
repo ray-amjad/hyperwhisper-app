@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.geminiTranscribe.label" = "उच्च (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. बहुभाषी, कस्टम शब्दावली समर्थन के साथ।";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe 1.5। संदर्भ-आधारित बायसिंग के साथ 43 भाषाएँ।";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe। संदर्भ-आधारित बायसिंग के साथ अधिकतम 60 भाषाएँ।";
 
 "modes.create.title" = "नया मोड बनाएं";
 "modes.create.subtitle" = "एक कस्टम ट्रांसक्रिप्शन प्रोफ़ाइल कॉन्फ़िगर करें";

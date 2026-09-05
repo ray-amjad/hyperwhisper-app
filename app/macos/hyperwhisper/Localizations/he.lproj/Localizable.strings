@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "גבוהה (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. רב-לשוני, עם תמיכה באוצר מילים מותאם אישית.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "גבוהה (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 דרך Azure Speech. 43 שפות עם הטיה לפי הקשר.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "גבוהה (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe דרך Azure Speech. עד 60 שפות עם הטיה לפי הקשר.";
 
 "modes.create.title" = "צור מצב חדש";
 "modes.create.subtitle" = "הגדר פרופיל תמלול מותאם אישית";

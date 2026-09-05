@@ -5,7 +5,7 @@
 //  CLIENT HALF OF THE "RE-ENCODE AND RETRY" CONTRACT
 //
 //  Some upstreams behind HyperWhisper Cloud accept only uncompressed audio.
-//  `azure-mai` (MAI-Transcribe 1.5) documents wav/mp3/flac only, so an .m4a
+//  `azure-mai` (MAI-Transcribe 2 and 1.5) documents wav/mp3/flac only, so an .m4a
 //  upload is rejected with a typed HTTP 415 — deliberately, so the CLIENT can
 //  re-encode and retry instead of the request falling through a fallback chain
 //  (see hyperwhisper-cloud/src/providers/types.ts `UnsupportedAudioFormatError`

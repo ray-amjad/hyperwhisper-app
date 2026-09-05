@@ -778,8 +778,8 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Cao (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Đa ngôn ngữ, hỗ trợ từ vựng tùy chỉnh.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Cao (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 qua Azure Speech. 43 ngôn ngữ, có điều chỉnh theo ngữ cảnh.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Cao (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe qua Azure Speech. Tối đa 60 ngôn ngữ, có điều chỉnh theo ngữ cảnh.";
 
 "modes.create.title" = "Tạo Chế độ Mới";
 "modes.create.subtitle" = "Cấu hình hồ sơ chuyển đổi tùy chỉnh";

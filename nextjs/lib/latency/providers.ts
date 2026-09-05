@@ -85,7 +85,10 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     sttProvider: "azure-mai",
     vendor: "azure",
     vendorDisplayName: "Microsoft",
-    models: [{ id: "mai-transcribe-1.5", displayName: "MAI-Transcribe 1.5", isDefault: true }],
+    models: [
+      { id: "mai-transcribe-2", displayName: "MAI-Transcribe 2", isDefault: true },
+      { id: "mai-transcribe-1.5", displayName: "MAI-Transcribe 1.5" },
+    ],
   },
   {
     sttProvider: "gemini-transcribe",

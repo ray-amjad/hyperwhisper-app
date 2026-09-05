@@ -5474,6 +5474,165 @@ internal static class Program
                 }
             });
 
+            Run("the standalone Azure MAI service sends the mode's model as X-STT-Model", () =>
+            {
+                // AzureMAITranscriptionService routes to the same HW Cloud
+                // /transcribe proxy as the HyperWhisper Cloud tier, where the
+                // model travels ONLY as X-STT-Model (hw-net builds that header
+                // from `routed_model`, never from `model`). Before this was
+                // wired the service sent nothing, so a mode pinned to
+                // mai-transcribe-1.5 transcribed and billed as mai-transcribe-2.
+                //
+                // The model is CONSTRUCTOR state, not a settable property: the
+                // service is built once per request precisely so two overlapping
+                // requests cannot overwrite each other's model.
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("mai-transcribe-1.5")
+                        .ResolveRoutedModel() == "mai-transcribe-1.5",
+                    "a mode pinned to mai-transcribe-1.5 did not resolve that model for X-STT-Model");
+
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("mai-transcribe-2")
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "a mode pinned to mai-transcribe-2 did not resolve that model for X-STT-Model");
+
+                // A stale id (the field is shared with the BYOK path) degrades to
+                // the catalog default rather than earning a backend 400.
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("whisper-1")
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "a stale Azure model id did not fall back to the catalog default");
+
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService(null)
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "an unset Azure model did not fall back to the catalog default");
+            });
+
+            Run("two overlapping Azure MAI requests keep their own model", () =>
+            {
+                // REGRESSION GUARD for a billing bug. The first cut of the fix
+                // above stored the model on a settable property of the factory's
+                // CACHED service instance. TranscriptionRuntime.Orchestrator is a
+                // static singleton holding one TranscriptionProviderFactory and
+                // nothing locks, so a hotkey dictation and a Local API
+                // POST /transcribe that overlap overwrote each other's model
+                // between "configure" and "send" — one request then transcribed
+                // and billed as the other's model (v2 at 1.5's 6.0 credits/min is
+                // a 3.6x overcharge; 1.5 at v2's rate also sends v2's
+                // transcribeStyle: clean).
+                //
+                // The property this pins: the model reaches the request as
+                // immutable per-call state. Interleave two "requests" the way the
+                // race did — build both before either resolves — and each must
+                // still answer with its own model.
+                var factory = new HyperWhisper.Services.Transcription.TranscriptionProviderFactory();
+                try
+                {
+                    var requestA = factory.GetConfiguredCloudProvider(
+                        CloudTranscriptionProvider.MicrosoftAzureSpeech, "mai-transcribe-1.5");
+                    var requestB = factory.GetConfiguredCloudProvider(
+                        CloudTranscriptionProvider.MicrosoftAzureSpeech, "mai-transcribe-2");
+
+                    Assert(!ReferenceEquals(requestA, requestB),
+                        "the factory handed both requests the SAME routed instance - the model is shared mutable state again");
+
+                    var routedA = requestA as HyperWhisper.Services.Transcription.RoutedTranscriptionServiceBase;
+                    var routedB = requestB as HyperWhisper.Services.Transcription.RoutedTranscriptionServiceBase;
+                    Assert(routedA != null && routedB != null,
+                        "the Azure MAI arm stopped returning a RoutedTranscriptionServiceBase");
+
+                    // Resolve AFTER both were built - this is the interleaving
+                    // that produced the wrong bill.
+                    Assert(routedA!.ResolveRoutedModel() == "mai-transcribe-1.5",
+                        "request A's model was overwritten by a later overlapping request");
+                    Assert(routedB!.ResolveRoutedModel() == "mai-transcribe-2",
+                        "request B did not carry its own model");
+                }
+                finally
+                {
+                    factory.Dispose();
+                }
+            });
+
+            Run("the Azure MAI language picker narrows per model, not per tier", () =>
+            {
+                // The Mode editor's Azure branch (ModeEditorWindow.xaml.cs) is WPF
+                // UI with no unit-test home, so pin the DATA it reads instead.
+                //
+                // The two Azure models have different language sets, and
+                // cloud-stt-catalog.json's provider-level `languages.codes` is
+                // their UNION — so a tier-keyed filter would offer a 1.5 user the
+                // 18 codes only v2 has, and Azure would silently auto-detect on
+                // each of them. `models-catalog.json` is the only file that
+                // carries the split; this is the assertion that keeps it honest.
+                var key = HyperWhisper.Services.SharedModelsCatalog.CatalogKey(
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech);
+
+                var v15 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-1.5");
+                var v2 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-2");
+
+                Assert(!v15.SupportsAll && !v2.SupportsAll,
+                    "an Azure model lost its per-model language set - the picker would fall back to every language");
+                Assert(v15.Codes.Count == 41,
+                    $"mai-transcribe-1.5 should carry 41 picker codes, got {v15.Codes.Count}");
+                Assert(v2.Codes.Count == 59,
+                    $"mai-transcribe-2 should carry 59 picker codes, got {v2.Codes.Count}");
+
+                // `he` (Hebrew) is the code that proves the split is real: v2
+                // lists it, 1.5 does not.
+                Assert(v2.Supports("he") && !v15.Supports("he"),
+                    "Hebrew must be v2-only - if both or neither carry it the per-model split is not being read");
+                Assert(v2.Supports("tl") && v2.Supports("yue") && v2.Supports("zh"),
+                    "v2 lost one of the codes the upstream->picker fold produces (fil->tl, yue, zh)");
+
+                // The fold drops Odia on BOTH: upstream lists `or`, the shared
+                // language catalog has no row for it, so no picker can offer it.
+                Assert(!v2.Supports("or") && !v15.Supports("or"),
+                    "`or` (Odia) reached a picker set - it has no shared language-catalog row");
+
+                // 1.5's set must be a strict subset of v2's, or one of the two
+                // lists was hand-edited rather than folded from the same source.
+                foreach (var code in v15.Codes)
+                {
+                    Assert(v2.Codes.Contains(code),
+                        $"mai-transcribe-1.5 carries '{code}' but mai-transcribe-2 does not - the two lists have diverged");
+                }
+
+                // And the tier default is v2, which is what the picker preselects.
+                Assert(CloudSttCatalog.Shared.DefaultModelIdForId("azureMaiTranscribe") == "mai-transcribe-2",
+                    "the azureMaiTranscribe tier default is no longer mai-transcribe-2");
+            });
+
+            Run("the Mode editor's per-model Azure language branch is reachable", () =>
+            {
+                // The data assertions above passed for a whole review round while
+                // the branch that reads them could not execute:
+                // ResolveEffectiveCloudProviderAndModel resolved the HW Cloud tier
+                // through FromIdentifier, which has no `azure-mai` arm, so the
+                // branch's `cloudProvider == MicrosoftAzureSpeech` guard was never
+                // true and the picker fell to the tier branch — the 60-code union.
+                // This is the trace, asserted step by step, so a rename or a
+                // dropped arm fails here instead of silently un-filtering.
+                var sttProvider = CloudSttCatalog.Shared.SttProviderForId("azureMaiTranscribe");
+                Assert(sttProvider == "azure-mai",
+                    $"azureMaiTranscribe's sttProvider is '{sttProvider}', not 'azure-mai'");
+                Assert(CloudTranscriptionProviderExtensions.FromCatalogSttProvider(sttProvider)
+                        == CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    "the catalog's azure-mai sttProvider no longer resolves to MicrosoftAzureSpeech - "
+                    + "the Mode editor's per-model Azure language branch is unreachable again");
+
+                // Every HW Cloud tier must resolve to a real provider, or its
+                // provider-keyed branches are dead the same way. Derived from the
+                // catalog, so a new tier is covered the day it lands.
+                foreach (var entry in CloudSttCatalog.Shared.CloudTierEligibleProviders())
+                {
+                    var resolved = CloudTranscriptionProviderExtensions.FromCatalogSttProvider(
+                        CloudSttCatalog.Shared.SttProviderForId(entry.Id));
+                    Assert(resolved != CloudTranscriptionProvider.None,
+                        $"HW Cloud tier '{entry.Id}' resolves to no provider enum; every "
+                        + "provider-keyed branch in the Mode editor is skipped for it");
+                }
+            });
+
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
             {
                 // Configure ONLY the new key. The LEGACY `gemini` post-processing

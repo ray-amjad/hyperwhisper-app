@@ -59,7 +59,7 @@ public enum CloudTranscriptionProvider
     /// <summary>xAI Grok speech-to-text (batch HTTP).</summary>
     Grok = 11,
 
-    /// <summary>Microsoft MAI-Transcribe 1.5 via Azure Speech (HyperWhisper Cloud only).</summary>
+    /// <summary>Microsoft MAI-Transcribe (2 and 1.5) via Azure Speech (HyperWhisper Cloud only).</summary>
     MicrosoftAzureSpeech = 12,
 
     /// <summary>Google Cloud Speech-to-Text V2 Chirp 3 (HyperWhisper Cloud only).</summary>
@@ -198,6 +198,29 @@ public static class CloudTranscriptionProviderExtensions
         "meta" => CloudTranscriptionProvider.Meta,
         _ => CloudTranscriptionProvider.None
     };
+
+    /// <summary>
+    /// Parses a <c>cloud-stt-catalog.json</c> <c>sttProvider</c> value — the
+    /// backend's <c>X-STT-Provider</c> dispatch key — to this enum.
+    ///
+    /// This is a DIFFERENT namespace from <see cref="FromIdentifier"/>, which
+    /// parses the identifiers we persist in a mode (<c>GetIdentifier()</c>'s
+    /// inverse). Two catalog values exist only here and have no storage
+    /// identifier spelling: <c>azure-mai</c> and <c>gemini-transcribe</c>.
+    /// Feeding either to <see cref="FromIdentifier"/> returns
+    /// <see cref="CloudTranscriptionProvider.None"/>, which is what silently
+    /// disabled the Mode editor's per-model Azure language filter — the branch
+    /// was there, the resolution never reached it.
+    ///
+    /// Everything else delegates, so the two namespaces stay one table.
+    /// </summary>
+    public static CloudTranscriptionProvider FromCatalogSttProvider(string? sttProvider)
+        => sttProvider?.Trim().ToLowerInvariant() switch
+        {
+            "azure-mai" => CloudTranscriptionProvider.MicrosoftAzureSpeech,
+            "gemini-transcribe" => CloudTranscriptionProvider.GeminiTranscribe,
+            var other => FromIdentifier(other),
+        };
 
     /// <summary>
     /// Gets the PostProcessingProvider that shares the same API key.

@@ -187,7 +187,15 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
 
         if (provider != CloudTranscriptionProvider.HyperWhisperCloud)
             return new(provider, audioPath, model, language, vocabulary,
-                provider == CloudTranscriptionProvider.Gemini ? Normalize(mode.GeminiCustomPrompt) : null);
+                provider == CloudTranscriptionProvider.Gemini ? Normalize(mode.GeminiCustomPrompt) : null,
+                // `Model` is what a BYOK adapter puts in its own request body. It
+                // is NOT what the HW-Cloud-routed providers send: their wire model
+                // is `X-STT-Model`, which hw-net builds from `routed_model` alone
+                // (`azure_mai::build_transcribe_request` → `hyperwhisper_cloud::
+                // build_routed_request`). Leaving it null let the backend pick its
+                // own default, so a mode pinned to `mai-transcribe-1.5` ran — and
+                // billed — as `mai-transcribe-2`. See RoutedModelFor.
+                RoutedModel: RoutedModelFor(provider, mode.CloudTranscriptionModel));
 
         var tier = SharedCoreBridge.CanonicalCloudSttTier(mode.CloudAccuracyTier);
         // Dictation is the PRE-RECORDED route, so a live-only model id falls back
@@ -252,6 +260,41 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
             ? null : value.Trim();
     private static string? NormalizeDomain(string? value) =>
         string.Equals(value?.Trim(), "medical", StringComparison.OrdinalIgnoreCase) ? "medical" : null;
+
+    /// <summary>
+    /// The <c>X-STT-Model</c> value for a provider that has NO direct vendor
+    /// route and always terminates at the HyperWhisper Cloud <c>/transcribe</c>
+    /// proxy. Null for every BYOK provider, whose model travels in its own
+    /// request body instead — those keep today's behaviour exactly.
+    ///
+    /// Azure MAI is the reachable case: <c>TryMapProvider</c> accepts a mode
+    /// carrying <c>cloudProvider = "microsoftazurespeech"</c> (the Linux Modes
+    /// screen is a free-text field, and a backup restore or Local API write can
+    /// set it on any head), and both MAI models are served by the same proxy.
+    /// Without a routed model the backend applies its own default, so picking
+    /// 1.5 silently ran v2 — a different transcribeStyle and a different price.
+    ///
+    /// Validation mirrors the HyperWhisper Cloud branch below: a model that is
+    /// not a pre-recorded model of this provider's catalog entry (a stale id, a
+    /// BYOK id left in the shared field, a live-only id) falls back to the
+    /// entry's default rather than being forwarded into a backend 400.
+    ///
+    /// GoogleChirp is the one other provider routed this way and it has the
+    /// same gap, but NOT the same fix: catalog v8 retired its `googleChirp3`
+    /// entry, so there is no model list to validate against and no default to
+    /// fall back to (see <see cref="CatalogTier"/>). Left as-is deliberately.
+    /// </summary>
+    private static string? RoutedModelFor(CloudTranscriptionProvider provider, string? storedModel)
+    {
+        if (provider != CloudTranscriptionProvider.AzureMai) return null;
+
+        var tier = CatalogTier(provider);
+        var trimmed = storedModel?.Trim();
+        return !string.IsNullOrEmpty(trimmed)
+            && SharedCoreBridge.CloudSttContainsDictationModel(tier, trimmed)
+                ? trimmed
+                : SharedCoreBridge.CloudSttDefaultModel(tier);
+    }
 
     private static string DefaultModel(CloudTranscriptionProvider provider) => provider switch
     {

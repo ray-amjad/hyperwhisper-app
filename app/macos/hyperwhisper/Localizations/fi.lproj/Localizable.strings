@@ -778,8 +778,8 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Korkea (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Monikielinen, tukee mukautettua sanastoa.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Korkea (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 Azure Speech -palvelun kautta. 43 kieltä ja kontekstipohjainen painotus.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Korkea (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe Azure Speech -palvelun kautta. Jopa 60 kieltä ja kontekstipohjainen painotus.";
 
 "modes.create.title" = "Luo uusi tila";
 "modes.create.subtitle" = "Määritä mukautettu transkriptioprofiili";

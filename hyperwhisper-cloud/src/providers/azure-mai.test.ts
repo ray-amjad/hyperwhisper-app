@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithAzureMai } from './azure-mai';
+import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 
 const originalFetch = globalThis.fetch;
@@ -145,6 +146,43 @@ describe('transcribeWithAzureMai — region routing', () => {
 describe('transcribeWithAzureMai — request shape', () => {
   beforeEach(() => { process.env.AZURE_SPEECH_KEY_EASTUS = 'east-key'; });
 
+  test('every model the registry routes here has a wire string', async () => {
+    // The adapter no longer states its own default — it reads the registry —
+    // but it still owns the internal-id → Azure-wire-string map. A model added
+    // to `stt-models.ts` with no row in that map would silently fall back to
+    // the default model's request shape, i.e. run as a model nobody asked for.
+    let lastDefinition: any;
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      lastDefinition = JSON.parse(await (form.get('definition') as Blob).text());
+      return successResponse();
+    }) as unknown as typeof fetch;
+
+    const wireFor: Record<string, string> = {
+      'mai-transcribe-1.5': 'mai-transcribe-1.5',
+      'mai-transcribe-2': 'MAI-Transcribe-2',
+    };
+    for (const registryModel of getProviderDef('azure-mai').models) {
+      await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+        model: registryModel.id,
+      });
+      expect(wireFor[registryModel.id]).toBeDefined();
+      expect(lastDefinition.enhancedMode.model).toBe(wireFor[registryModel.id]);
+    }
+
+    // An inherited Object.prototype key is not a model. With `in` instead of
+    // `Object.hasOwn` the guard passed and `enhancedMode.model` became the
+    // Object constructor itself.
+    for (const proto of ['constructor', 'toString', 'hasOwnProperty']) {
+      await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+        model: proto,
+      });
+      expect(lastDefinition.enhancedMode.model).toBe('MAI-Transcribe-2');
+      // ...and it takes the DEFAULT model's request shape, not a half-applied one.
+      expect(lastDefinition.enhancedMode.modelOptions).toEqual({ transcribeStyle: 'clean' });
+    }
+  });
+
   test('sends a monolingual locale for an explicit non-auto language, and no locales for auto/absent', async () => {
     let lastDefinition: any;
     globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -193,6 +231,81 @@ describe('transcribeWithAzureMai — request shape', () => {
     expect(lastDefinition.phraseList).toBeUndefined();
   });
 
+  test('sends the exact definition body each model wants, and 1.5 is unchanged', async () => {
+    let lastDefinition: any;
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      lastDefinition = JSON.parse(await (form.get('definition') as Blob).text());
+      return successResponse();
+    }) as unknown as typeof fetch;
+
+    // 1.5 — byte-for-byte what shipped before v2 existed. Lowercase wire model,
+    // no modelOptions at all.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+      model: 'mai-transcribe-1.5',
+    });
+    expect(lastDefinition).toEqual({
+      enhancedMode: { enabled: true, model: 'mai-transcribe-1.5' },
+    });
+
+    // No model at all resolves to the REGISTRY default, which is now v2. A
+    // client that sends no X-STT-Model is migrated onto v2 — that is what
+    // `stt-models.ts` `defaultModel` means, and the route resolves it there
+    // before this adapter is reached, so this is the only shape production can
+    // produce. The previous form of this test certified the opposite.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav');
+    expect(lastDefinition).toEqual({
+      enhancedMode: {
+        enabled: true,
+        model: 'MAI-Transcribe-2',
+        modelOptions: { transcribeStyle: 'clean' },
+      },
+    });
+
+    // v2 — the doc's capitalisation, and transcribeStyle NESTED inside
+    // enhancedMode. No `diarization` (a top-level sibling upstream) and no
+    // `timestamps`: both change the response shape the parser reads.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+      model: 'mai-transcribe-2',
+    });
+    expect(lastDefinition).toEqual({
+      enhancedMode: {
+        enabled: true,
+        model: 'MAI-Transcribe-2',
+        modelOptions: { transcribeStyle: 'clean' },
+      },
+    });
+    expect(lastDefinition.diarization).toBeUndefined();
+    expect(lastDefinition.enhancedMode.modelOptions.timestamps).toBeUndefined();
+  });
+
+  test('resolves locales against the model that ran, not a single shared list', async () => {
+    let lastDefinition: any;
+    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const form = init?.body as FormData;
+      lastDefinition = JSON.parse(await (form.get('definition') as Blob).text());
+      return successResponse();
+    }) as unknown as typeof fetch;
+
+    // Hebrew is on v2's table only. On 1.5 it must fall to auto-detect rather
+    // than pin Azure to a locale that model does not have.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', 'he', undefined, {
+      model: 'mai-transcribe-2',
+    });
+    expect(lastDefinition.locales).toEqual(['he']);
+
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', 'he', undefined, {
+      model: 'mai-transcribe-1.5',
+    });
+    expect(lastDefinition.locales).toBeUndefined();
+
+    // The picker's `tl` unfolds to the `fil` Azure documents.
+    await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', 'tl', undefined, {
+      model: 'mai-transcribe-2',
+    });
+    expect(lastDefinition.locales).toEqual(['fil']);
+  });
+
   test('sends the definition part as application/json (Azure rejects text/plain)', async () => {
     let definitionType = '';
     globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -214,13 +327,26 @@ describe('transcribeWithAzureMai — success and no-speech results', () => {
   test('returns text, duration, detected language and computed cost on a transcript', async () => {
     globalThis.fetch = mock(async () => successResponse('bonjour le monde', 'fr-FR')) as unknown as typeof fetch;
 
-    const result = await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav');
+    const result = await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav', undefined, undefined, {
+      model: 'mai-transcribe-1.5',
+    });
     expect(result.text).toBe('bonjour le monde');
     expect(result.language).toBe('fr-FR');
     expect(result.durationSeconds).toBe(4.2);
     expect(result.source).toBe('azure-mai');
     // 4.2s = 0.07 min * $0.006/min = $0.00042 -> rounded
     expect(result.costUsd).toBeCloseTo(0.00042, 5);
+  });
+
+  test('a caller that names no model is billed at the registry default rate', async () => {
+    globalThis.fetch = mock(async () => successResponse('bonjour le monde', 'fr-FR')) as unknown as typeof fetch;
+
+    // The registry default is mai-transcribe-2, so an X-STT-Model-less request
+    // bills at v2's $0.10/hr, not at 1.5's $0.006/min. Asserted because this is
+    // exactly the pair the adapter used to disagree with the registry about.
+    const result = await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav');
+    // 4.2s = 0.07 min * ($0.10/60)/min
+    expect(result.costUsd).toBeCloseTo(0.07 * (0.10 / 60), 5);
   });
 
   test('an empty or whitespace-only transcript maps to a zero-cost no_speech result', async () => {

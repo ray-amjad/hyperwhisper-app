@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "مرتفع (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. متعدد اللغات مع دعم المفردات المخصصة.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "مرتفع (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 عبر Azure Speech. 43 لغة مع توجيه سياقي.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "مرتفع (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe عبر Azure Speech. حتى 60 لغة مع توجيه سياقي.";
 
 "modes.create.title" = "إنشاء وضع جديد";
 "modes.create.subtitle" = "تكوين ملف تعريف نسخ مخصص";

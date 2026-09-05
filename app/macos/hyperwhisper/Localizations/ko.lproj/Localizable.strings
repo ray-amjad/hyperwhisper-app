@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "높음 (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. 다국어를 지원하며 사용자 지정 어휘를 사용할 수 있습니다.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "높음 (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 기반 Microsoft MAI-Transcribe 1.5. 문맥 기반 보정을 지원하는 43개 언어.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "높음 (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 기반 Microsoft MAI-Transcribe. 문맥 기반 보정을 지원하는 최대 60개 언어.";
 
 "modes.create.title" = "새 모드 만들기";
 "modes.create.subtitle" = "사용자 정의 음성 인식 프로필 구성";

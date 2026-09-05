@@ -778,8 +778,8 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Visoka (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Višejezično, s podrškom za prilagođeni rječnik.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 putem Azure Speech. 43 jezika s kontekstualnim usmjeravanjem.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe putem Azure Speech. Do 60 jezika s kontekstualnim usmjeravanjem.";
 
 "modes.create.title" = "Stvori novi način";
 "modes.create.subtitle" = "Konfiguriraj prilagođeni profil transkripcije";

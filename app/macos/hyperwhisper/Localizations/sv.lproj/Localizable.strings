@@ -778,8 +778,8 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Hög (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flerspråkig, med stöd för anpassad ordlista.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hög (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 språk med kontextuell anpassning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hög (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Upp till 60 språk med kontextuell anpassning.";
 
 "modes.create.title" = "Skapa nytt läge";
 "modes.create.subtitle" = "Konfigurera en anpassad transkriptionsprofil";
