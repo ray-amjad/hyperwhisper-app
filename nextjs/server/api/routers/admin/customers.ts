@@ -28,6 +28,7 @@ import {
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailService } from "@/lib/services/email";
+import { createCustomerPaymentRefunder } from "./customer-refund";
 import { createCustomerSpendReader } from "./customer-spend";
 
 // Pre-existing inline Stripe client, pinned to the API version the refund
@@ -57,6 +58,21 @@ const customerSpendReader = createCustomerSpendReader({
     const disputes = await stripe.disputes.list({ charge: chargeId, limit: 1 });
 
     return disputes.data[0]?.status ?? null;
+  },
+});
+
+const customerPaymentRefunder = createCustomerPaymentRefunder({
+  retrievePaymentIntent: async (stripeSessionId) => {
+    const session =
+      await legacyStripe.checkout.sessions.retrieve(stripeSessionId);
+
+    return session.payment_intent;
+  },
+  createRefund: async (paymentIntentId, idempotencyKey) => {
+    await legacyStripe.refunds.create(
+      { payment_intent: paymentIntentId },
+      { idempotencyKey },
+    );
   },
 });
 
@@ -449,23 +465,12 @@ export const customersRouter = createTRPCRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "No Stripe session associated with this license" });
       }
 
-      // Retrieve the checkout session to get the payment intent
-      const session = await legacyStripe.checkout.sessions.retrieve(license.stripeSessionId);
-      if (!session.payment_intent) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "No payment intent found for this session" });
-      }
-
-      const paymentIntentId =
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : session.payment_intent.id;
-
       // Create the refund. The idempotency key (keyed on the license, which maps
       // 1:1 to its refundable payment) makes a retried/double-clicked mutation
       // reuse the same refund instead of surfacing a raw Stripe error.
-      await legacyStripe.refunds.create(
-        { payment_intent: paymentIntentId },
-        { idempotencyKey: `admin-refund-${licenseKeyId}` }
+      await customerPaymentRefunder.refundLicensePayment(
+        licenseKeyId,
+        license.stripeSessionId,
       );
 
       // A full license refund reverses the included credit grant. Record the
