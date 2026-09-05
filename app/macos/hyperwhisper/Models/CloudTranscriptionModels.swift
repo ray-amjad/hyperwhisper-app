@@ -657,7 +657,7 @@ struct CloudTranscriptionModels {
             id: "mai-transcribe-1.5",
             displayName: "MAI-Transcribe 1.5 (Preview)",
             isAvailable: true,
-            description: "Microsoft's 42-language transcription model with contextual biasing.",
+            description: "Microsoft's 43-language transcription model with contextual biasing.",
             provider: .microsoftAzureSpeech,
             isPopular: true,
             pricePerSecond: 0.006 / 60.0

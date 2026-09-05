@@ -1,6 +1,6 @@
 // MICROSOFT MAI-TRANSCRIBE PROVIDER (Azure Speech / Foundry)
 // Two multilingual transcription models behind one provider id:
-//   - mai-transcribe-1.5 — 42 documented locales, $0.006/min
+//   - mai-transcribe-1.5 — 43 documented locales, $0.006/min
 //   - mai-transcribe-2   — 60 documented locales, $0.10/hr (limited-time offer)
 // Both take phrase-list biasing. The model is chosen by `X-STT-Model`; the
 // per-model locale tables live in `lib/language-codes.ts`.
@@ -72,7 +72,7 @@ function parsePhraseList(initialPrompt: string): string[] {
 // was never the whole job: the picker offers Norwegian as `no`, and Azure's
 // operational table lists only `nb`. `resolveProviderLanguage` applies that
 // alias and checks the result against the codes Azure documents FOR THE MODEL
-// THAT RAN (42 on 1.5, 60 on v2), so an unlisted language omits
+// THAT RAN (43 on 1.5, 60 on v2), so an unlisted language omits
 // `definition.locales` instead of pinning Azure to a locale it does not have —
 // and logs one `language_unmappable` event when it does.
 

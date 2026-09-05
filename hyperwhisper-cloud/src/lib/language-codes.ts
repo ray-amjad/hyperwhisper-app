@@ -463,12 +463,13 @@ function resolveDeepgramLanguage(model: string, language: string): Resolution {
 
 // Mirror of `azureMaiTranscribe.languages.codes` in cloud-stt-catalog.json, split
 // PER MODEL — the two models do not have the same table, and the difference is
-// large (18 codes), so a single flat set would silently send a v2-only language
-// on 1.5 and drop 18 languages to auto-detect on v2.
+// large (17 codes), so a single flat set would silently send a v2-only language
+// on 1.5 and drop 17 languages to auto-detect on v2.
 //
-// 1.5: the 42 codes we have verified. Microsoft's table now also lists `zh` for
-// 1.5, which we do NOT carry yet — see the open question in the change notes;
-// adding it is a separate, separately-verified change.
+// 1.5: all 43 codes from the doc's MAI-Transcribe-1.5 column. `zh` was missing
+// here until it was re-checked against the live table (2026-09-04), which cost
+// Chinese users of the 1.5 tier a forced locale — the request went out with no
+// `locales` and fell to auto-detect.
 // v2: all 60 codes from the doc's MAI-Transcribe-2 column, verbatim (mixed
 // format — `fil` and `yue` are not ISO-639-1).
 // Ref: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-transcribe
@@ -476,6 +477,7 @@ const AZURE_MAI_LOCALES: ReadonlySet<string> = new Set([
   'ar', 'as', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en', 'es', 'et', 'fi', 'fr',
   'gu', 'hi', 'hu', 'id', 'it', 'ja', 'kn', 'ko', 'lt', 'ml', 'mr', 'nb', 'nl', 'or',
   'pa', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sv', 'ta', 'te', 'th', 'tr', 'uk', 'vi',
+  'zh',
 ]);
 
 const AZURE_MAI_V2_LOCALES: ReadonlySet<string> = new Set([

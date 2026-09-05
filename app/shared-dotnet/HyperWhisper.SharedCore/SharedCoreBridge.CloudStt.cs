@@ -39,7 +39,7 @@ public static partial class SharedCoreBridge
     /// <c>cloud-stt-catalog.json</c>'s <c>languages.codes</c>: that field is
     /// PROVIDER-level and holds upstream's own codes, this one is per model and
     /// folded to the picker space. Where a provider's models disagree — Azure
-    /// MAI's 60 vs 42 — only this one can answer "what does THIS model do".
+    /// MAI's 60 vs 43 — only this one can answer "what does THIS model do".
     ///
     /// <paramref name="provider"/> is the models-catalog provider key
     /// (<c>microsoftAzureSpeech</c>), not the cloud-stt entry id

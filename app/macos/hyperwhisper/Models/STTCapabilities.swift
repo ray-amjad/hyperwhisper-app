@@ -91,17 +91,20 @@ enum STTLanguageTemplates {
     /// PER MODEL — do not merge with `azureMaiTranscribeV2` below. The catalog's
     /// provider-level `languages.codes` is the 60-code UNION of the two models;
     /// only `models-catalog.json`'s per-model `supportedLanguages` carries the
-    /// split, and this template mirrors 1.5's half of it.
+    /// split, and this template mirrors 1.5's half of it: 43 upstream codes
+    /// become the 42 here, plus "auto". `zh` was absent until the upstream table
+    /// was re-read on 2026-09-04 — it is in the 1.5 column and always was in
+    /// v2's, so Chinese was missing from the 1.5 picker alone.
     static let azureMaiTranscribe: [STTLanguageSpec] = codes([
         "auto",
         "ar", "as", "bg", "bn", "ca", "cs", "da", "de", "el", "en",
         "es", "et", "fi", "fr", "gu", "hi", "hu", "id", "it", "ja",
         "kn", "ko", "lt", "ml", "mr", "no", "nl", "pa", "pl", "pt",
         "ro", "ru", "sk", "sl", "sv", "ta", "te", "th", "tr", "uk",
-        "vi"
+        "vi", "zh"
     ], context: "Azure MAI-Transcribe language filter")
 
-    /// Azure MAI-Transcribe 2 supported languages — 18 codes more than 1.5.
+    /// Azure MAI-Transcribe 2 supported languages — 17 codes more than 1.5.
     /// Normalized from the same catalog entry to the macOS picker code space:
     /// "nb" → "no", "fil" → "tl", Cantonese kept as "yue", and "or" (Odia)
     /// dropped for the same reason as above (no LanguageData entry). 60 upstream
@@ -448,13 +451,13 @@ enum STTCapabilities {
                         id: "mai-transcribe-2",
                         displayName: "MAI-Transcribe 2",
                         languages: STTLanguageTemplates.azureMaiTranscribeV2,
-                        notes: "Microsoft Azure MAI-Transcribe 2 (public preview). Multilingual mode with a 60-language set — 18 codes wider than 1.5."
+                        notes: "Microsoft Azure MAI-Transcribe 2 (public preview). Multilingual mode with a 60-language set — 17 codes wider than 1.5."
                     ),
                     STTModelSpec(
                         id: "mai-transcribe-1.5",
                         displayName: "MAI-Transcribe 1.5",
                         languages: STTLanguageTemplates.azureMaiTranscribe,
-                        notes: "Microsoft Azure MAI-Transcribe 1.5. Multilingual mode with a restricted ~42-language set."
+                        notes: "Microsoft Azure MAI-Transcribe 1.5. Multilingual mode with a restricted ~43-language set."
                     )
                 ]
             ),

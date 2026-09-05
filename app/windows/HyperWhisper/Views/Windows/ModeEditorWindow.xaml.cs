@@ -2678,10 +2678,10 @@ public partial class ModeEditorWindow : Window
             }
 
             // HyperWhisper Cloud Azure MAI tier: the two models do NOT share a
-            // language set. mai-transcribe-2 documents 60 locales, 1.5 only 42,
+            // language set. mai-transcribe-2 documents 60 locales, 1.5 only 43,
             // and `cloud-stt-catalog.json`'s provider-level `languages.codes` is
             // their UNION — so the tier-keyed fallback below would offer a 1.5
-            // user the 18 codes only v2 has, and Azure would silently fall back
+            // user the 17 codes only v2 has, and Azure would silently fall back
             // to auto-detect on each of them. The per-model split lives in
             // `shared-models/models-catalog.json` (`supportedLanguages`), which
             // is the same data macOS reads through STTLanguageTemplates; reading
