@@ -11,10 +11,10 @@
 # `tsc --noEmit` is the same type check `next build` runs, so a green job here
 # means the deploy's type step will pass too.
 #
-# NOTE: `npm test` is deliberately NOT run yet. The suite has a pre-existing
-# failure unrelated to this gate (`metaMuse:muse-voice-transcribe-1.0` claims
-# 25 languages while the catalog records the count as "unverified"). Add the
-# test step here once that row is decided — do not add it red.
+# `npm test` runs here too. Those tests guard the drift between
+# `shared-app-classification/cloud-stt-catalog.json` and the page's copy of it
+# in `lib/choosing-a-model/catalog.ts` — a drift that no other job could see,
+# because the two deployables share no module system.
 name: nextjs-ci
 
 on:
@@ -35,7 +35,7 @@ permissions:
   contents: read
 
 jobs:
-  typecheck:
+  check:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -52,3 +52,4 @@ jobs:
       # own change — see the Vercel install fix in PR #136 before you try.
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm test
