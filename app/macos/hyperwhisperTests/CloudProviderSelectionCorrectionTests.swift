@@ -19,14 +19,26 @@
 //  rewrote it back to the legacy spelling and fired `.onChange` — undoing, with
 //  no user action and no visible change, the one thing this branch exists to do.
 //
-//  So the two properties pinned here are:
+//  The first round's fix then over-corrected in the other direction: it answered
+//  "does the stored string PARSE?" and stopped there, which threw away a
+//  canonicaliser the `rawValue` comparison had been doing by accident. The BYOK
+//  Picker tags its rows `.tag(provider.rawValue)`, so a stored `"OpenAI"` — the
+//  Local API stores caller strings verbatim by design, and a backup can restore
+//  one — parses to `.openai`, is judged fine, matches no tag, and SwiftUI draws
+//  an EMPTY menu button. Parseable is not the same as selectable.
 //
-//    * a value the tolerant parser accepts is NEVER corrected, whichever of the
-//      three HyperWhisper Cloud spellings it is; and
+//  So the three properties pinned here are:
+//
+//    * a value the tolerant parser accepts is NEVER corrected back to a
+//      different provider, whichever of the three HyperWhisper Cloud spellings
+//      it is;
 //    * a value that genuinely must be replaced is replaced with `storageValue`,
 //      because a provider the app DERIVES is persisted canonically (a
 //      caller-supplied string is stored verbatim instead — see
-//      `PostProcessingProviderAliasTests`).
+//      `PostProcessingProviderAliasTests`); and
+//    * whatever the row ends up holding is something the Picker can actually
+//      select — which for HyperWhisper Cloud is every spelling (its control is
+//      `Bool`-tagged) and for a BYOK provider is exactly `rawValue`.
 //
 
 import Foundation
@@ -81,6 +93,64 @@ struct CloudProviderSelectionCorrectionTests {
     @Test("a still-offered BYOK provider is left alone")
     func aValidDirectProviderIsNotCorrected() {
         #expect(PostProcessingProvider.correctedSelection(for: "openai", available: Self.cloudAndOpenAI) == nil)
+    }
+
+    // MARK: - Parseable is not selectable
+
+    @Test("a BYOK provider stored in a spelling the Picker cannot tag is rewritten")
+    func aNonCanonicalDirectSpellingIsCanonicalised() {
+        // The regression the first round introduced. `"OpenAI"` reaches the row
+        // through `POST /modes` (stored verbatim, by design) or a backup
+        // restore. It parses, and `availableCloudProviders` keeps it via its
+        // `if provider == current` arm — so if this returns nil, nothing is
+        // written, the Picker's `.tag("openai")` never matches, and the menu
+        // button renders EMPTY.
+        for spelling in ["OpenAI", "OPENAI", " openai ", "OpEnAi"] {
+            #expect(
+                PostProcessingProvider.correctedSelection(for: spelling, available: Self.cloudAndOpenAI) == "openai",
+                "`\(spelling)` must be rewritten to the token the BYOK Picker tags"
+            )
+        }
+    }
+
+    @Test("whatever survives correction is something the BYOK Picker can select")
+    func aCorrectionIsAlwaysSomethingThePickerCanTag() {
+        // The invariant the view actually depends on, stated once. `.tag()` in
+        // `ModePostProcessingSettings` is `provider.rawValue`, so for a BYOK
+        // provider the settled value must BE that rawValue.
+        let available: [PostProcessingProvider] = [.hyperwhisper, .openai, .anthropic, .groq]
+        let stored = ["OpenAI", "openai", "Anthropic", "ANTHROPIC", " groq ", "not-a-provider", ""]
+
+        for value in stored {
+            let settled = PostProcessingProvider.correctedSelection(for: value, available: available) ?? value
+            guard let provider = PostProcessingProvider(rawValue: settled) else {
+                Issue.record("`\(value)` settled on `\(settled)`, which does not parse at all")
+                continue
+            }
+            if provider == .hyperwhisper {
+                // Its Source control is `Bool`-tagged and it is filtered out of
+                // the BYOK list, so its string is never matched against a tag.
+                continue
+            }
+            #expect(
+                settled == provider.rawValue,
+                "`\(value)` settled on `\(settled)`, which no BYOK Picker row is tagged with"
+            )
+        }
+    }
+
+    @Test("the HyperWhisper Cloud spellings are exempt, and that is the point")
+    func theCloudProviderIsNotDraggedIntoTheCanonicalisation() {
+        // The tension between this fix and the round-1 fix, pinned. `.hyperwhisper`
+        // is the ONE provider whose stored token is deliberately not its
+        // `rawValue`, and rewriting it to match a tag is exactly the bug that
+        // "corrected" every freshly seeded mode back to the legacy spelling.
+        for spelling in ["hyperwhispercloud", "hyperwhisper", "hyperwhisper_cloud", "HyperWhisperCloud"] {
+            #expect(
+                PostProcessingProvider.correctedSelection(for: spelling, available: Self.cloudAndOpenAI) == nil,
+                "`\(spelling)` must survive untouched"
+            )
+        }
     }
 
     // MARK: - What a real correction writes

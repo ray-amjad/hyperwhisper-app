@@ -94,27 +94,62 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
     /// against the providers a picker can currently offer — or `nil` when the
     /// stored string is already a valid selection and must be left untouched.
     ///
+    /// Two different questions have to be answered here, and answering only the
+    /// first is how this method broke a SwiftUI Picker once already.
+    ///
+    /// **1. Does the stored string name a provider that is still offered?**
     /// `stored` is resolved through the tolerant `init?(rawValue:)`, so every
     /// spelling of HyperWhisper Cloud counts as `.hyperwhisper`, including the
     /// canonical `"hyperwhispercloud"` that the shared first-run seed
     /// (`hw-catalog::mode_seed`) writes. Comparing `stored` against `rawValue`
-    /// instead is the exact bug this exists to prevent: `"hyperwhispercloud"`
-    /// never equals `.hyperwhisper.rawValue` (`"hyperwhisper"`), so a validator
-    /// built that way rejects a freshly seeded mode and then "corrects" a
-    /// perfectly good row back to the legacy token — silently, on the editor's
+    /// instead is the bug this exists to prevent: `"hyperwhispercloud"` never
+    /// equals `.hyperwhisper.rawValue` (`"hyperwhisper"`), so a validator built
+    /// that way rejects a freshly seeded mode and then "corrects" a perfectly
+    /// good row back to the legacy token — silently, on the editor's
     /// `onAppear`, before the user has touched anything.
     ///
+    /// **2. Can the picker actually SELECT the spelling that is stored?** Being
+    /// parseable is not the same as being selectable. The BYOK picker tags its
+    /// rows `.tag(provider.rawValue)`, so a stored `"OpenAI"` — which the Local
+    /// API stores verbatim by design, and which a foreign backup can restore —
+    /// parses to `.openai`, survives question 1, matches no tag, and SwiftUI
+    /// logs "the selection is invalid and does not have an associated tag" and
+    /// draws an EMPTY menu button. Answering only question 1 is what removed
+    /// the de-facto canonicaliser the old `rawValue` comparison was.
+    ///
+    /// `.hyperwhisper` is exempt from question 2, and that is the rule applied
+    /// rather than an exception to it: it is filtered out of the BYOK list and
+    /// its own Source control is `Bool`-tagged, so its string never has to match
+    /// a tag and every spelling it accepts is already selectable. Rewriting it
+    /// is precisely the earlier bug.
+    ///
     /// A returned replacement is a provider this app DERIVED, so it comes back
-    /// as `storageValue`, not `rawValue`.
+    /// as `storageValue`, not `rawValue`. For every provider that can reach the
+    /// question-2 line the two are identical, which
+    /// `PostProcessingProviderAliasTests.everyOtherProviderStoresItsRawValueUnchanged`
+    /// already pins — if they ever diverged, this would start writing a value
+    /// the picker cannot tag, and `aCorrectionIsAlwaysSomethingThePickerCanTag`
+    /// is the test that would say so.
+    ///
+    /// This canonicalises only what a picker is about to render. It is NOT a
+    /// write-path normaliser: caller-supplied strings reaching
+    /// `createOrUpdateMode` from the Local API and backup restore are still
+    /// stored verbatim ("tolerant on read, verbatim on write").
     ///
     /// The caller must handle a `"custom:<uuid>"` endpoint string BEFORE calling
     /// this. A custom endpoint is deliberately not a `PostProcessingProvider`
     /// and would be reported here as needing correction.
     static func correctedSelection(for stored: String, available: [PostProcessingProvider]) -> String? {
-        if let current = PostProcessingProvider(rawValue: stored), available.contains(current) {
+        guard let current = PostProcessingProvider(rawValue: stored), available.contains(current) else {
+            // Unparseable, or parseable but withdrawn from the picker.
+            return available.first?.storageValue
+        }
+        // Offered, and its spelling is one the picker can select.
+        if current == .hyperwhisper || stored == current.rawValue {
             return nil
         }
-        return available.first?.storageValue
+        // Offered, but stored in a spelling no picker row is tagged with.
+        return current.storageValue
     }
 
     /// Display name for the provider

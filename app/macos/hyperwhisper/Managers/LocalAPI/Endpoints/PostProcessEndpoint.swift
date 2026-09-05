@@ -118,7 +118,12 @@ enum PostProcessEndpoint {
             )
         }
 
-        let providerLabel = working.mode.postProcessingProvider ?? "hyperwhisper"
+        // A stored provider is echoed verbatim; only THIS fallback is a value
+        // macOS derives, so it is the canonical cross-platform token — the same
+        // one Windows answers (`PostProcessEndpoints.cs:347`). Reachable when a
+        // saved mode's column is null.
+        let providerLabel = working.mode.postProcessingProvider
+            ?? PostProcessingProvider.hyperwhisper.storageValue
         let modelLabel = working.mode.languageModel ?? ""
         let presetLabel = working.mode.preset ?? "hyper"
 
@@ -193,7 +198,16 @@ enum PostProcessEndpoint {
         mode.cloudProvider = baseline?.cloudProvider
         mode.cloudTranscriptionModel = baseline?.cloudTranscriptionModel
         mode.postProcessingMode = baseline?.postProcessingMode ?? 1
-        mode.postProcessingProvider = baseline?.postProcessingProvider ?? PostProcessingProvider.hyperwhisper.rawValue
+        // No baseline mode and no `provider` override, so macOS DERIVES this —
+        // and a derived provider is written in the canonical cross-platform
+        // spelling. It was `.rawValue`, which made one endpoint answer two
+        // tokens: `POST /postprocess` with no `mode_id` said "hyperwhisper"
+        // while the same request against the seeded default mode said
+        // "hyperwhispercloud", and Windows answers "hyperwhispercloud" for the
+        // no-mode case (`PostProcessEndpoints.cs:347`). A baseline's own value
+        // is still copied verbatim, and an explicit `provider` override below
+        // still overwrites this verbatim.
+        mode.postProcessingProvider = baseline?.postProcessingProvider ?? PostProcessingProvider.hyperwhisper.storageValue
         mode.englishSpelling = baseline?.englishSpelling ?? "american"
         mode.useStreamingTranscription = false
         mode.cloudAccuracyTier = baseline?.cloudAccuracyTier
