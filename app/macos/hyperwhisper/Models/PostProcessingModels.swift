@@ -209,7 +209,7 @@ struct PostProcessingModels {
             id: "gemini-3.7-flash",
             displayName: "Gemini 3.7 Flash",
             isAvailable: true,
-            description: "Latest flash model, frontier performance for agentic tasks",
+            description: "Capable flash model, frontier performance for agentic tasks",
             provider: .gemini
         ),
         PostProcessingModel(
