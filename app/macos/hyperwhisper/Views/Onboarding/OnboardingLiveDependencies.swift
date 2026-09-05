@@ -355,6 +355,28 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
     /// `PersistenceController.initializeDefaultModes()`).
     static let defaultModeID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
+    /// The shared first-run seed, in macOS' own column names.
+    ///
+    /// Every `existing?.x ?? …` arm in `apply` and `captureRestorePoint` below
+    /// answers one question: "what would the default mode hold if it were not
+    /// there?" That is by definition what
+    /// `PersistenceController.initializeDefaultModes()` writes, which is this —
+    /// `hw-catalog::mode_seed`, the one definition all three heads read. Reading
+    /// those arms from here instead of from literals is what stops onboarding
+    /// from creating a mode the seeder itself would never have produced.
+    ///
+    /// Resolved per access rather than stored, because `forCurrentRegion` reads
+    /// `Locale.current` and onboarding is exactly when a fresh install first
+    /// observes it.
+    ///
+    /// Internal rather than private so `OnboardingSeededDefaultsTests` can pin
+    /// it against a Core Data row that `initializeDefaultModes()` really wrote.
+    /// `apply` itself cannot be unit tested here: `LiveOnboardingSourceCommitter`
+    /// needs an `AppState`, and constructing one instantiates
+    /// `PersistenceController.shared` — the real on-disk store — inside
+    /// `setupSubscriptions()`.
+    static var seed: SeededModeValues { SeededModeValues.forCurrentRegion }
+
     private let persistence: PersistenceController
     private let appState: AppState
 
@@ -368,14 +390,22 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
         return LiveOnboardingRestorePoint(
             modeExisted: existing != nil,
             modeID: existing?.id ?? Self.defaultModeID,
-            // The seeded mode's name, not a placeholder for an unnamed one:
-            // `restore` writes this back through `createOrUpdateMode`, so it has
-            // to be what the seeder wrote — `"Hyper"`, the shared name every
-            // head now uses (`hw-catalog::mode_seed`).
+            // These four `??` arms are INERT — and kept identical to `apply`'s
+            // anyway. They yield a value only when `existing` is nil, which is
+            // exactly `modeExisted == false`, and on that path `restore` DELETES
+            // the row `apply` created rather than writing a single field back
+            // (see the `if !point.modeExisted` branch). So this changes no
+            // rollback behaviour; an earlier comment here claimed `restore`
+            // writes these back, and that is not what the code does.
+            //
+            // Sourced from the shared seed regardless, because the pre-seed
+            // literals macOS used to carry (`"en"`, `"base"`) are values the
+            // seeder can no longer produce, and a later `restore` that did write
+            // on that path should not be able to resurrect them.
             name: existing?.name ?? SeededModeValues.seededName,
-            preset: existing?.preset ?? "hyper",
-            language: existing?.language ?? "en",
-            model: existing?.model ?? "base",
+            preset: existing?.preset ?? Self.seed.preset,
+            language: existing?.language ?? Self.seed.language,
+            model: existing?.model ?? Self.seed.model,
             punctuation: existing?.punctuation ?? true,
             capitalization: existing?.capitalization ?? true,
             profanityFilter: existing?.profanityFilter ?? false,
@@ -409,12 +439,23 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
         let updated = persistence.createOrUpdateMode(
             id: existing?.id ?? Self.defaultModeID,
             // `apply` CREATES the default mode when onboarding runs before the
-            // seeder has (or after the user deleted every mode), so this literal
-            // is a real seeded name, not a display placeholder. Same source as
-            // the seeder.
+            // seeder has (or after the user deleted every mode), so these are
+            // real seeded values, not display placeholders, and they have to be
+            // the ones `initializeDefaultModes()` would have written.
+            //
+            // `language` is why this matters: macOS carried `"en"` here while
+            // the shared seed says `"auto"`, so a user who reached onboarding
+            // before the seeder got a mode pinned to English — a direct
+            // contradiction of the one-mode/auto-language decision this change
+            // exists to make. `preset` was already the seed's value spelled as a
+            // literal; it reads from the seed now so the two cannot drift.
+            //
+            // `model` is absent from this list on purpose: it is not a seeded
+            // value here but the transcription source the user just chose in
+            // onboarding, which is the whole point of `apply`.
             name: existing?.name ?? SeededModeValues.seededName,
-            preset: existing?.preset ?? "hyper",
-            language: existing?.language ?? "en",
+            preset: existing?.preset ?? Self.seed.preset,
+            language: existing?.language ?? Self.seed.language,
             model: staged.model,
             punctuation: existing?.punctuation ?? true,
             capitalization: existing?.capitalization ?? true,
