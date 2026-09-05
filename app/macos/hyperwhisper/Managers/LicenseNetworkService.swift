@@ -224,11 +224,11 @@ class LicenseNetworkService: LicenseNetworkServing {
         // weak network still gets the same chance to validate as an explicit
         // activation instead of being surfaced as an invalid license.
         let nowUnixSecs = RustLicenseTime.nowUTC()
-        let hasCachedVerdict = licenseStoredLicenseKey(store: store) == trimmedKey
+        let hasCachedVerdictAtRequestStart = licenseStoredLicenseKey(store: store) == trimmedKey
             && licenseCachedStatusWithinGrace(store: store, nowUnixSecs: nowUnixSecs) != nil
         let policy = Self.requestPolicy(
             isLaunchValidation: isLaunchValidation,
-            hasCachedVerdict: hasCachedVerdict
+            hasCachedVerdict: hasCachedVerdictAtRequestStart
         )
         guard var request = NetworkConfig.createRequest(
             for: NetworkConfig.licenseValidateEndpoint,
@@ -245,6 +245,7 @@ class LicenseNetworkService: LicenseNetworkServing {
         }
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.httpBody = requestBody
+        let validationStartedAt = ProcessInfo.processInfo.systemUptime
 
         do {
             return try await performWithRetry(config: policy.retryConfig) { [self] _ in
@@ -445,7 +446,7 @@ class LicenseNetworkService: LicenseNetworkServing {
             // single combined Rust core accessor (e.g. returning the outcome
             // alongside a `hadCache` flag from one read) — tracked as a follow-up,
             // out of scope for this Swift-only PR. HYPERWHISPER-F4 (review round 2).
-            let hasCachedVerdict = licenseCachedStatusWithinGrace(
+            let hasCachedVerdictAfterRetries = licenseCachedStatusWithinGrace(
                 store: store,
                 nowUnixSecs: nowUnixSecs
             ) != nil
@@ -458,7 +459,7 @@ class LicenseNetworkService: LicenseNetworkServing {
             // (review round 2).
             let isNetworkFailure = Self.isNetworkFailure(error)
 
-            if hasCachedVerdict {
+            if hasCachedVerdictAfterRetries {
                 // Retries exhausted, but we have a last-known-good server verdict
                 // for this exact key within its 7-day grace — serve it and move on
                 // (whatever that verdict is — Active, Expired, or Invalid). This is
@@ -482,6 +483,15 @@ class LicenseNetworkService: LicenseNetworkServing {
                 // responses exhausting retries (the server IS reachable, it's
                 // unhealthy) — conflating them into one tag would make this signal
                 // much less actionable. HYPERWHISPER-F4.
+                let nsError = error as NSError
+                let failureCode = Self.validationFailureCode(error)
+                let elapsedMs = max(
+                    0,
+                    Int(((ProcessInfo.processInfo.systemUptime - validationStartedAt) * 1_000).rounded())
+                )
+                let requestTimeoutMs = Int((policy.requestTimeout * 1_000).rounded())
+                let validationMode = isLaunchValidation ? "launch" : "interactive"
+
                 if AppLogger.isErrorLoggingEnabled {
                     SentryService.capture(
                         error: error,
@@ -491,16 +501,25 @@ class LicenseNetworkService: LicenseNetworkServing {
                         extras: [
                             "endpoint": NetworkConfig.licenseValidateEndpoint,
                             "isLaunchValidation": isLaunchValidation,
+                            "error_domain": nsError.domain,
+                            "error_code": nsError.code,
+                            "validation_elapsed_ms": elapsedMs,
+                            "request_timeout_ms": requestTimeoutMs,
+                            "retry_max_attempts": policy.retryConfig.maxAttempts,
+                            "cache_usable_at_request_start": hasCachedVerdictAtRequestStart,
                         ],
                         tags: [
                             "component": "license",
                             "reason": "offline_no_cache",
                             "failure_kind": isNetworkFailure ? "network" : "server_error",
+                            "failure_code": failureCode,
+                            "validation_mode": validationMode,
+                            "request_policy": policy.diagnosticName,
                         ]
                     )
                 }
                 AppLogger.network.warning(
-                    "License validation offline · no cached fallback available (launch=\(isLaunchValidation), networkFailure=\(isNetworkFailure))"
+                    "License validation offline · no cached fallback available · failureCode=\(failureCode, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · mode=\(validationMode, privacy: .public) · policy=\(policy.diagnosticName, privacy: .public) · maxAttempts=\(policy.retryConfig.maxAttempts, privacy: .public) · timeoutMs=\(requestTimeoutMs, privacy: .public) · elapsedMs=\(elapsedMs, privacy: .public) · cacheAtStart=\(hasCachedVerdictAtRequestStart, privacy: .public)"
                 )
             }
 
@@ -582,6 +601,7 @@ class LicenseNetworkService: LicenseNetworkServing {
     struct RequestPolicy {
         let requestTimeout: TimeInterval
         let retryConfig: RetryConfiguration
+        let diagnosticName: String
     }
 
     /// Single source of truth for the paired timeout and retry settings.
@@ -595,11 +615,13 @@ class LicenseNetworkService: LicenseNetworkServing {
         isLaunchValidation && hasCachedVerdict
             ? RequestPolicy(
                 requestTimeout: NetworkConfig.licenseLaunchValidationTimeout,
-                retryConfig: .licenseLaunchValidation
+                retryConfig: .licenseLaunchValidation,
+                diagnosticName: "launch_cached"
             )
             : RequestPolicy(
                 requestTimeout: NetworkConfig.licenseValidationTimeout,
-                retryConfig: .cloud
+                retryConfig: .cloud,
+                diagnosticName: "standard"
             )
     }
 
@@ -687,6 +709,22 @@ class LicenseNetworkService: LicenseNetworkServing {
         let nsError = error as NSError
         guard nsError.domain == NSURLErrorDomain else { return false }
         return TranscriptionPipeline.transientURLErrorCodes.contains(URLError.Code(rawValue: nsError.code))
+    }
+
+    /// Privacy-safe, bounded label for the terminal validation error. Sentry's
+    /// issue title only says "network unreachable"; this label says whether the
+    /// exhausted retry path ended in a timeout, DNS failure, lost connection, or
+    /// another URL error without attaching the error description or request data.
+    static func validationFailureCode(_ error: Error) -> String {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else {
+            return "non_url_\(nsError.code)"
+        }
+
+        if nsError.code == 429 || (500...599).contains(nsError.code) {
+            return "http_\(nsError.code)"
+        }
+        return "url_\(String(describing: URLError.Code(rawValue: nsError.code)))"
     }
 
     /// The one field of the backend's invalid-license reply that this classifier
