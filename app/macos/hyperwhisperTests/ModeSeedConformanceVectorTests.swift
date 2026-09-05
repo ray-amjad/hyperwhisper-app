@@ -212,4 +212,75 @@ struct ModeSeedConformanceVectorTests {
                 "\(label): the tier's catalog default no longer matches the seeded model")
         }
     }
+
+    // MARK: - The compile-time link in the chain
+
+    /// ⚠️ Constructs `ModeSeed` with its FULL memberwise initialiser on purpose.
+    /// Do not simplify this to `modeSeedDefault(region:)`.
+    ///
+    /// Nothing else on the macOS side fails when a field is added to the shared
+    /// `ModeSeed`. `SeededModeValues.init(seed:)` copies the fields it names and
+    /// ignores the rest, `applySeededValues` writes the columns it names, and
+    /// the vector comparison compares only the fields both sides already have —
+    /// so a new field would be written by no head, the macOS row would inherit
+    /// the hostile Core Data default the no-optional-fields design exists to
+    /// prevent, and CI would stay green.
+    ///
+    /// UniFFI regenerates this initialiser from the Rust record, so adding a
+    /// field adds a parameter and this call stops compiling. Swift has no
+    /// exhaustive struct destructure, so a call site with every argument spelled
+    /// out is the closest equivalent. The Rust and C# links are the exhaustive
+    /// destructures in `hw-core`'s `From<hw_catalog::ModeSeed>` and
+    /// `mode_seed_vectors.rs`, and the positional deconstruction in
+    /// `SharedCoreBridge.ModeSeedDefault`.
+    ///
+    /// The assertions are the second half: every value handed in must come back
+    /// out of `SeededModeValues`, so a field that IS added but is dropped by the
+    /// translation layer fails here rather than silently.
+    @Test("every ModeSeed field is carried into SeededModeValues")
+    func theSeedRecordIsConstructedFieldByField() {
+        let probe = ModeSeed(
+            id: "00000000-0000-0000-0000-0000000000ff",
+            name: "probe-name",
+            preset: "probe-preset",
+            language: "probe-language",
+            providerType: "probe-provider-type",
+            cloudProvider: "probe-cloud-provider",
+            cloudAccuracyTier: "probe-accuracy-tier",
+            cloudTranscriptionModel: "probe-transcription-model",
+            postProcessingMode: 7,
+            postProcessingProvider: "probe-pp-provider",
+            cloudPostProcessingModel: "probe-engine:probe-model",
+            englishSpelling: "probe-spelling",
+            punctuation: false,
+            capitalization: false,
+            profanityFilter: true,
+            customInstructions: "probe-instructions",
+            isDefault: false,
+            isSystemProvided: false,
+            sortOrder: 9)
+
+        let values = SeededModeValues(seed: probe)
+
+        #expect(values.id.uuidString.lowercased() == probe.id.lowercased())
+        #expect(values.name == probe.name)
+        #expect(values.preset == probe.preset)
+        #expect(values.language == probe.language)
+        // The one non-identity mapping: `providerType` → macOS' `model` column.
+        #expect(values.model == probe.providerType)
+        #expect(values.cloudProvider == probe.cloudProvider)
+        #expect(values.cloudAccuracyTier == probe.cloudAccuracyTier)
+        #expect(values.cloudTranscriptionModel == probe.cloudTranscriptionModel)
+        #expect(Int32(values.postProcessingMode) == probe.postProcessingMode)
+        #expect(values.postProcessingProvider == probe.postProcessingProvider)
+        #expect(values.cloudPostProcessingModel == probe.cloudPostProcessingModel)
+        #expect(values.englishSpelling == probe.englishSpelling)
+        #expect(values.punctuation == probe.punctuation)
+        #expect(values.capitalization == probe.capitalization)
+        #expect(values.profanityFilter == probe.profanityFilter)
+        #expect(values.customInstructions == probe.customInstructions)
+        #expect(values.isDefault == probe.isDefault)
+        #expect(values.isSystemProvided == probe.isSystemProvided)
+        #expect(Int32(values.sortOrder) == probe.sortOrder)
+    }
 }

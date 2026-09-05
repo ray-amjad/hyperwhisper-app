@@ -885,27 +885,62 @@ pub struct ModeSeed {
 }
 
 impl From<hw_catalog::ModeSeed> for ModeSeed {
+    /// ⚠️ The destructure below is EXHAUSTIVE on purpose. Do not replace it with
+    /// `s.field` accesses, and do not add `..` to it.
+    ///
+    /// This is the crossing point, and it was the silent one. Writing
+    /// `id: s.id, name: s.name, …` ignores any field of `hw_catalog::ModeSeed`
+    /// it does not mention, so a field added to the catalog record but not to
+    /// this mirror simply never crossed the FFI — no error, on any head. The
+    /// pattern makes that a compile error (E0027) in this crate.
+    ///
+    /// The other two links of the chain: the struct literal below fails to
+    /// compile if a field is added to the mirror but not carried across, and
+    /// `hw-core/tests/mode_seed_vectors.rs` destructures the mirror the same way
+    /// so the conformance vectors cannot silently omit it either.
     fn from(s: hw_catalog::ModeSeed) -> Self {
+        let hw_catalog::ModeSeed {
+            id,
+            name,
+            preset,
+            language,
+            provider_type,
+            cloud_provider,
+            cloud_accuracy_tier,
+            cloud_transcription_model,
+            post_processing_mode,
+            post_processing_provider,
+            cloud_post_processing_model,
+            english_spelling,
+            punctuation,
+            capitalization,
+            profanity_filter,
+            custom_instructions,
+            is_default,
+            is_system_provided,
+            sort_order,
+        } = s;
+
         ModeSeed {
-            id: s.id,
-            name: s.name,
-            preset: s.preset,
-            language: s.language,
-            provider_type: s.provider_type,
-            cloud_provider: s.cloud_provider,
-            cloud_accuracy_tier: s.cloud_accuracy_tier,
-            cloud_transcription_model: s.cloud_transcription_model,
-            post_processing_mode: s.post_processing_mode,
-            post_processing_provider: s.post_processing_provider,
-            cloud_post_processing_model: s.cloud_post_processing_model,
-            english_spelling: s.english_spelling,
-            punctuation: s.punctuation,
-            capitalization: s.capitalization,
-            profanity_filter: s.profanity_filter,
-            custom_instructions: s.custom_instructions,
-            is_default: s.is_default,
-            is_system_provided: s.is_system_provided,
-            sort_order: s.sort_order,
+            id,
+            name,
+            preset,
+            language,
+            provider_type,
+            cloud_provider,
+            cloud_accuracy_tier,
+            cloud_transcription_model,
+            post_processing_mode,
+            post_processing_provider,
+            cloud_post_processing_model,
+            english_spelling,
+            punctuation,
+            capitalization,
+            profanity_filter,
+            custom_instructions,
+            is_default,
+            is_system_provided,
+            sort_order,
         }
     }
 }

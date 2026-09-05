@@ -73,14 +73,22 @@ const REGIONS: &[Option<&str>] = &[
 // ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Document {
     description: String,
     seeds: Vec<SeedVector>,
 }
 
+/// One row of the vector file.
+///
+/// `deny_unknown_fields` is load-bearing, not tidiness. Without it, a vectors
+/// file carrying a key this struct does not name deserializes cleanly with the
+/// key dropped, and `conformance_vectors_match_the_shared_core` then compares
+/// `SeedVector` to `SeedVector` and passes — a comparison that can only ever
+/// see the fields both sides already agree on. With it, the extra key is an
+/// error and the file and the struct cannot drift apart silently.
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SeedVector {
     /// The ISO 3166-1 alpha-2 region passed in; `null` is the nil case.
     region: Option<String>,
@@ -110,28 +118,81 @@ struct SeedVector {
 }
 
 impl SeedVector {
+    /// ⚠️ The destructure below is EXHAUSTIVE on purpose. Do not replace it with
+    /// `seed.field` accesses, and do not add `..` to it.
+    ///
+    /// This is the only place in the repo where adding a field to `ModeSeed`
+    /// stops something from compiling. Naming the fields one at a time —
+    /// `id: seed.id`, `name: seed.name`, … — is what it used to do, and that
+    /// form ignores a field it does not mention. Combined with `SeedVector`
+    /// being compared to `SeedVector`, the failure was total and silent: a new
+    /// `ModeSeed` field would be written by no head, the macOS row would inherit
+    /// the hostile Core Data default the whole no-optional-fields design exists
+    /// to prevent, the vectors would regenerate without the key, and CI would
+    /// stay green on all three platforms. `let ModeSeed { … } = seed;` is a
+    /// compile error the moment a field is added, which is the property being
+    /// bought here.
+    ///
+    /// The chain this is one link of, all three enforced at compile time:
+    ///
+    /// * `hw-core`'s `From<hw_catalog::ModeSeed>` destructures the catalog
+    ///   record exhaustively, so a field cannot be added to `hw-catalog` without
+    ///   crossing the FFI;
+    /// * this destructures the FFI record, so it cannot cross the FFI without
+    ///   reaching the conformance vectors;
+    /// * `SharedCoreBridge.ModeSeedDefault` deconstructs the generated C#
+    ///   positional record, whose `Deconstruct` arity changes with the field
+    ///   count; and
+    /// * `ModeSeedConformanceVectorTests.theSeedRecordIsConstructedFieldByField`
+    ///   calls the generated Swift memberwise initialiser with every argument
+    ///   spelled out, which gains a parameter.
+    ///
+    /// Neither Swift nor C# has an exhaustive struct destructure, so those two
+    /// are the closest equivalents rather than the same construct.
     fn new(region: Option<&str>, seed: ModeSeed) -> Self {
+        let ModeSeed {
+            id,
+            name,
+            preset,
+            language,
+            provider_type,
+            cloud_provider,
+            cloud_accuracy_tier,
+            cloud_transcription_model,
+            post_processing_mode,
+            post_processing_provider,
+            cloud_post_processing_model,
+            english_spelling,
+            punctuation,
+            capitalization,
+            profanity_filter,
+            custom_instructions,
+            is_default,
+            is_system_provided,
+            sort_order,
+        } = seed;
+
         SeedVector {
             region: region.map(str::to_string),
-            id: seed.id,
-            name: seed.name,
-            preset: seed.preset,
-            language: seed.language,
-            provider_type: seed.provider_type,
-            cloud_provider: seed.cloud_provider,
-            cloud_accuracy_tier: seed.cloud_accuracy_tier,
-            cloud_transcription_model: seed.cloud_transcription_model,
-            post_processing_mode: seed.post_processing_mode,
-            post_processing_provider: seed.post_processing_provider,
-            cloud_post_processing_model: seed.cloud_post_processing_model,
-            english_spelling: seed.english_spelling,
-            punctuation: seed.punctuation,
-            capitalization: seed.capitalization,
-            profanity_filter: seed.profanity_filter,
-            custom_instructions: seed.custom_instructions,
-            is_default: seed.is_default,
-            is_system_provided: seed.is_system_provided,
-            sort_order: seed.sort_order,
+            id,
+            name,
+            preset,
+            language,
+            provider_type,
+            cloud_provider,
+            cloud_accuracy_tier,
+            cloud_transcription_model,
+            post_processing_mode,
+            post_processing_provider,
+            cloud_post_processing_model,
+            english_spelling,
+            punctuation,
+            capitalization,
+            profanity_filter,
+            custom_instructions,
+            is_default,
+            is_system_provided,
+            sort_order,
         }
     }
 }
