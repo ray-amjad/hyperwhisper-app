@@ -1,0 +1,54 @@
+# Pre-merge gate for the marketing and billing app (nextjs/).
+#
+# nextjs/ had no gate of any kind. Its only check was the Vercel production
+# deploy, which runs AFTER the merge — so a type error first surfaced as a red
+# production deploy, and then held the website on the previous build while main
+# looked green. PR #429 did exactly that: `next build` type-checks
+# `nextjs/tests/**` as well as the app, a test read two catalog fields the
+# CatalogFile type did not declare, and the website served the old model table
+# for hours.
+#
+# `tsc --noEmit` is the same type check `next build` runs, so a green job here
+# means the deploy's type step will pass too.
+#
+# NOTE: `npm test` is deliberately NOT run yet. The suite has a pre-existing
+# failure unrelated to this gate (`metaMuse:muse-voice-transcribe-1.0` claims
+# 25 languages while the catalog records the count as "unverified"). Add the
+# test step here once that row is decided — do not add it red.
+name: nextjs-ci
+
+on:
+  pull_request:
+    paths: &ci-paths
+      - 'nextjs/**'
+      - 'shared-app-classification/**'
+      - '.github/workflows/nextjs-ci.yml'
+  push:
+    branches: [main]
+    # Same path filter as pull_request above, via YAML anchor (&ci-paths /
+    # *ci-paths) — plain YAML alias resolution, not a GitHub Actions feature,
+    # so the parser expands it before Actions ever sees the workflow. Matches
+    # the pattern in cloud-ci.yml / macos-ci.yml / windows-ci.yml.
+    paths: *ci-paths
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextjs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # `npm install`, not `npm ci`, and no dependency cache: nextjs/.gitignore
+      # ignores package-lock.json, so this folder has no committed lockfile and
+      # Vercel resolves versions at install time too. Adding a lockfile is its
+      # own change — see the Vercel install fix in PR #136 before you try.
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
