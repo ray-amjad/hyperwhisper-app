@@ -45,13 +45,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: nextjs/package-lock.json
 
-      # `npm ci` is the point of this job, not a detail: it fails when
-      # package-lock.json no longer satisfies package.json, which is the other
-      # way this folder breaks a deploy. Never relax it to plain `npm install`
-      # to make a red check go green — regenerate the lockfile locally and
-      # commit it.
-      - run: npm ci
+      # `npm install`, not `npm ci`, and no dependency cache: nextjs/.gitignore
+      # ignores package-lock.json, so this folder has no committed lockfile and
+      # Vercel resolves versions at install time too. Adding a lockfile is its
+      # own change — see the Vercel install fix in PR #136 before you try.
+      - run: npm install --no-audit --no-fund
       - run: npm run typecheck
