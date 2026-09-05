@@ -22,24 +22,41 @@
 //! Seeding runs only when the store holds no modes. Existing users on every
 //! platform are untouched; that guard lives in each head and does not move.
 //!
-//! # Never panics
+//! # Never panics, so "fail closed" is a BUILD-time guarantee
 //!
 //! The workspace release profile sets `panic = "abort"`, and this runs on the
 //! app's first-launch path, so a panic here is the app failing to start rather
 //! than a recoverable error. The two catalog-resolved fields therefore fall
 //! back to literals ([`FALLBACK_CLOUD_TRANSCRIPTION_MODEL`],
-//! [`FALLBACK_CLOUD_POST_PROCESSING_MODEL`]) instead of unwrapping. That is not
-//! a licence for the catalog to drift: `catalog_resolution_matches_the_fallback_literals`
-//! asserts the resolved values EQUAL the literals, so a catalog edit that moves
-//! either default fails CI loudly instead of degrading quietly at runtime.
+//! [`FALLBACK_CLOUD_POST_PROCESSING_MODEL`]) instead of unwrapping.
 //!
-//! This is deliberately stronger than the `throw new InvalidDataException` the
-//! portable .NET seeder used to do: the catalog is embedded at compile time, so
-//! the guarantee is checked before the binary ships rather than at first launch.
+//! That has a consequence worth stating plainly, because the portable .NET
+//! seeder this replaced could `throw new InvalidDataException` and this cannot:
+//! **at runtime there is no way to refuse to seed.** Whatever happens, a mode
+//! is written. So the fail-closed behaviour is bought in two places instead:
+//!
+//! 1. *At resolution.* [`resolve_cloud_post_processing_model`] only ever
+//!    resolves an engine the picker would SHOW. `enabled: false` on an engine
+//!    is the documented rollout gate, and seeding a fresh install onto an
+//!    engine the user cannot see or change is the failure this prevents. If the
+//!    seed's own engine is gated off, the first engine the picker does show is
+//!    used rather than the gated one.
+//! 2. *At build time.* The catalog is embedded at compile time, so the tests in
+//!    this module are the real gate:
+//!    `catalog_resolution_matches_the_fallback_literals` asserts the resolved
+//!    values EQUAL the literals, and `the_fallback_literal_names_a_picker_engine`
+//!    asserts the literal itself names an ENABLED engine. Gating `anthropic`
+//!    off therefore fails CI rather than shipping a hidden engine to every new
+//!    install.
+//!
+//! The literal fallback is only reachable when the embedded catalog does not
+//! parse or offers no enabled engine at all — a state those tests cannot let
+//! into a build. It exists so first launch cannot panic, not as a second
+//! opinion about what to seed.
 
 use std::sync::OnceLock;
 
-use crate::{CloudPpCatalog, CloudSttCatalog};
+use crate::{CloudPpCatalog, CloudSttCatalog, PpProvider};
 
 /// The seeded mode's UUID. Identical on all three heads already
 /// (`ModeDefaults.DefaultModeId`, `PortableModeDefaults.HyperModeId`, and what
@@ -195,6 +212,49 @@ fn cloud_transcription_model() -> &'static str {
     })
 }
 
+/// One engine's default model as `"<engineId>:<modelId>"`, or `None` when it
+/// names none.
+///
+/// The engine id comes from the catalog row rather than from the caller's
+/// lookup string, because [`CloudPpCatalog::provider`] matches
+/// case-insensitively and the persisted prefix has to be the catalog's own
+/// spelling.
+fn engine_default_model(provider: &PpProvider) -> Option<String> {
+    provider
+        .default_model()
+        // An empty model id would persist `"anthropic:"`, which splits but
+        // names nothing.
+        .filter(|model| !model.id.is_empty())
+        .map(|model| format!("{}:{}", provider.id, model.id))
+}
+
+/// The seeded `"<engineId>:<modelId>"`, resolved from a parsed catalog, or
+/// `None` when the catalog can offer nothing a user could actually pick.
+///
+/// Fail-closed on the rollout gate. [`CloudPpCatalog::default_model`]
+/// deliberately does NOT filter on [`PpProvider::is_enabled`] — it mirrors the
+/// macOS/Windows `provider(byId:)` lookups, which resolve a disabled engine so a
+/// user already ON it keeps working. That is right for a lookup and wrong here:
+/// a fresh install has no stored engine to preserve, so resolving a gated-off
+/// engine seeds every new user onto an engine `picker_providers()` hides, with
+/// no way to change it. Setting `"enabled": false` on the seed's engine is the
+/// documented way to pull it from the rollout, and it must pull it from the seed
+/// too.
+///
+/// Taking a `&CloudPpCatalog` rather than reading the embedded one keeps this
+/// testable against a catalog with the gate actually flipped — the property the
+/// deleted .NET `AssertInvalidCatalogAsync` used to assert.
+fn resolve_cloud_post_processing_model(catalog: &CloudPpCatalog) -> Option<String> {
+    catalog
+        .provider(CLOUD_POST_PROCESSING_ENGINE)
+        .filter(|provider| provider.is_enabled())
+        .and_then(engine_default_model)
+        // The seed's engine is gated off. Seed an engine the picker DOES show
+        // rather than a hidden one; `picker_providers()` is the same enabled,
+        // catalog-ordered list the Engine dropdown is built from.
+        .or_else(|| catalog.picker_providers().find_map(engine_default_model))
+}
+
 /// The catalog's default post-processing model for
 /// [`CLOUD_POST_PROCESSING_ENGINE`] as `"<engineId>:<modelId>"`, or the fallback.
 fn cloud_post_processing_model() -> &'static str {
@@ -202,12 +262,7 @@ fn cloud_post_processing_model() -> &'static str {
     RESOLVED.get_or_init(|| {
         CloudPpCatalog::embedded()
             .ok()
-            .and_then(|catalog| {
-                catalog
-                    .default_model(CLOUD_POST_PROCESSING_ENGINE)
-                    .filter(|model| !model.id.is_empty())
-                    .map(|model| format!("{CLOUD_POST_PROCESSING_ENGINE}:{}", model.id))
-            })
+            .and_then(|catalog| resolve_cloud_post_processing_model(&catalog))
             .unwrap_or_else(|| FALLBACK_CLOUD_POST_PROCESSING_MODEL.to_string())
     })
 }
@@ -228,6 +283,13 @@ mod tests {
     /// forces a deliberate choice (update the literal, or revert the catalog)
     /// rather than a silent divergence between what ships and what the fallback
     /// says.
+    ///
+    /// Since `cloud_post_processing_model` resolves only through ENABLED
+    /// engines, gating the seeded engine off moves the resolved value and so
+    /// fails here too — but do not rely on this test alone for that:
+    /// `a_gated_off_engine_is_never_seeded` is the one that exercises the gate
+    /// directly, and `the_seeded_engine_is_one_the_picker_shows` is the one that
+    /// names the real problem when it happens.
     #[test]
     fn catalog_resolution_matches_the_fallback_literals() {
         assert_eq!(
@@ -264,6 +326,152 @@ mod tests {
             .default_model(CLOUD_POST_PROCESSING_ENGINE)
             .expect("the seed's PP engine must exist in the catalog and name a default");
         assert_eq!(model.id, "claude-haiku-4-5");
+    }
+
+    /// The build-time half of "fail closed" — see the module docs.
+    ///
+    /// Nothing at runtime can refuse to seed, so this is where a rollout gate on
+    /// the seeded engine has to be noticed. `"enabled": false` on `anthropic`
+    /// hides it from the Engine dropdown; seeding every fresh install onto an
+    /// engine the picker hides is the failure, and it fails HERE instead.
+    #[test]
+    fn the_seeded_engine_is_one_the_picker_shows() {
+        let pp = CloudPpCatalog::embedded().expect("cloud-pp-catalog.json must parse");
+        assert!(
+            pp.is_enabled(CLOUD_POST_PROCESSING_ENGINE),
+            "cloud-pp-catalog.json gates {CLOUD_POST_PROCESSING_ENGINE} off \
+             (`\"enabled\": false`), so a fresh install would be seeded onto an \
+             engine the picker does not show. Either re-enable it, or move \
+             CLOUD_POST_PROCESSING_ENGINE and FALLBACK_CLOUD_POST_PROCESSING_MODEL \
+             to an engine that is enabled."
+        );
+    }
+
+    /// The literal is the never-panic fallback, so it too must name an engine a
+    /// user could pick. Without this, a catalog edit could leave the fallback
+    /// pointing at a hidden engine and nothing would say so.
+    #[test]
+    fn the_fallback_literal_names_a_picker_engine() {
+        let pp = CloudPpCatalog::embedded().expect("cloud-pp-catalog.json must parse");
+        let (engine, model) = FALLBACK_CLOUD_POST_PROCESSING_MODEL
+            .split_once(':')
+            .expect("the fallback literal must be `<engineId>:<modelId>`");
+        assert!(
+            pp.picker_providers().any(|p| p.id == engine),
+            "FALLBACK_CLOUD_POST_PROCESSING_MODEL names engine `{engine}`, which \
+             the picker does not show"
+        );
+        assert!(
+            pp.model(engine, model).is_some(),
+            "FALLBACK_CLOUD_POST_PROCESSING_MODEL names model `{model}`, which is \
+             not a visible model of `{engine}`"
+        );
+    }
+
+    /// The gate, exercised with the gate actually flipped.
+    ///
+    /// `catalog_resolution_matches_the_fallback_literals` compares the resolver
+    /// against a literal that the shipped catalog agrees with, so on its own it
+    /// cannot tell a filtered resolver from an unfiltered one. This can: it
+    /// hands the resolver a catalog where the seeded engine IS gated off. This
+    /// is what the deleted .NET `AssertInvalidCatalogAsync` asserted.
+    #[test]
+    fn a_gated_off_engine_is_never_seeded() {
+        let json = format!(
+            r#"{{
+                "version": 1, "updated": "x",
+                "providers": [
+                    {{"id":"{CLOUD_POST_PROCESSING_ENGINE}","displayName":"Gated",
+                      "llmProvider":"gated","enabled":false,
+                      "models":[{{"id":"hidden-model","displayName":"H","isDefault":true}}]}},
+                    {{"id":"shown","displayName":"Shown","llmProvider":"shown","enabled":true,
+                      "models":[{{"id":"visible-model","displayName":"V","isDefault":true}}]}}
+                ]
+            }}"#
+        );
+        let catalog = CloudPpCatalog::parse(&json).expect("synthetic catalog must parse");
+
+        // The unfiltered lookup still resolves it — that is the trap, and it is
+        // the correct behaviour for `CloudPpCatalog::default_model` itself.
+        assert_eq!(
+            catalog
+                .default_model(CLOUD_POST_PROCESSING_ENGINE)
+                .map(|m| m.id.as_str()),
+            Some("hidden-model"),
+            "the plain catalog lookup is expected to be unfiltered; if that \
+             changed, this test no longer proves the seed does its own filtering"
+        );
+
+        // The seed does not.
+        assert_eq!(
+            resolve_cloud_post_processing_model(&catalog).as_deref(),
+            Some("shown:visible-model"),
+            "the seed resolved a gated-off engine"
+        );
+    }
+
+    /// No enabled engine at all → resolve to nothing, and the caller falls back
+    /// to the pinned literal rather than panicking. Unreachable in a shipped
+    /// build (`the_seeded_engine_is_one_the_picker_shows` fails first), pinned
+    /// because it is the one place the never-panic contract and the
+    /// fail-closed contract genuinely conflict.
+    #[test]
+    fn nothing_enabled_resolves_to_nothing_rather_than_panicking() {
+        let json = format!(
+            r#"{{
+                "version": 1, "updated": "x",
+                "providers": [
+                    {{"id":"{CLOUD_POST_PROCESSING_ENGINE}","displayName":"Gated",
+                      "llmProvider":"gated","enabled":false,
+                      "models":[{{"id":"hidden-model","displayName":"H","isDefault":true}}]}}
+                ]
+            }}"#
+        );
+        let catalog = CloudPpCatalog::parse(&json).expect("synthetic catalog must parse");
+        assert_eq!(resolve_cloud_post_processing_model(&catalog), None);
+    }
+
+    /// An engine with no models, and an engine whose default model id is empty,
+    /// are both "offers nothing" — the next enabled engine is used.
+    #[test]
+    fn an_engine_that_names_no_usable_model_is_skipped() {
+        let json = format!(
+            r#"{{
+                "version": 1, "updated": "x",
+                "providers": [
+                    {{"id":"{CLOUD_POST_PROCESSING_ENGINE}","displayName":"Empty",
+                      "llmProvider":"empty","enabled":true,"models":[]}},
+                    {{"id":"blank","displayName":"Blank","llmProvider":"blank","enabled":true,
+                      "models":[{{"id":"","displayName":"B","isDefault":true}}]}},
+                    {{"id":"shown","displayName":"Shown","llmProvider":"shown","enabled":true,
+                      "models":[{{"id":"visible-model","displayName":"V","isDefault":true}}]}}
+                ]
+            }}"#
+        );
+        let catalog = CloudPpCatalog::parse(&json).expect("synthetic catalog must parse");
+        assert_eq!(
+            resolve_cloud_post_processing_model(&catalog).as_deref(),
+            Some("shown:visible-model")
+        );
+    }
+
+    /// The persisted prefix is the catalog's own spelling of the engine id, not
+    /// the caller's — `provider()` matches case-insensitively, and macOS'
+    /// `fromStorageValue` splits on the prefix.
+    #[test]
+    fn the_engine_prefix_is_the_catalogs_own_spelling() {
+        let json = r#"{
+            "version": 1, "updated": "x",
+            "providers": [
+                {"id":"AnThRoPiC","displayName":"A","llmProvider":"a","enabled":true,
+                 "models":[{"id":"m","displayName":"M","isDefault":true}]}
+            ]
+        }"#;
+        let catalog = CloudPpCatalog::parse(json).expect("synthetic catalog must parse");
+        assert_eq!(
+            resolve_cloud_post_processing_model(&catalog).as_deref(),
+            Some("AnThRoPiC:m")
+        );
     }
 
     #[test]
