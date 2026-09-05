@@ -272,4 +272,79 @@ struct DefaultModeSeedTests {
         // shared record's own `model`-shaped field, because it has none.
         #expect(values.model == "cloud")
     }
+
+    // MARK: - Which row is the built-in one
+
+    /// `Mode.isSeededDefault` replaces `ModeEditorView`'s `name == "Default"`,
+    /// the last identity-by-display-name test in the app. #285 renamed the
+    /// seeded mode to `"Hyper"`, which turned that comparison into a lock on
+    /// nothing for a fresh install and a permanent lock on a *user's* mode that
+    /// happened to be called "Default".
+    @Test("the seeded row is the built-in mode")
+    func theSeededRowIsRecognisedAsBuiltIn() throws {
+        let persistence = PersistenceController(inMemory: true)
+        persistence.initializeDefaultModes()
+
+        let seeded = try #require(persistence.fetchAllModes().first)
+        #expect(seeded.isSeededDefault)
+        // Not by its name. Stated explicitly because the name is exactly what
+        // the old test used, and it is a product decision that has moved once.
+        #expect(seeded.name == "Hyper")
+        #expect(seeded.name != "Default")
+    }
+
+    @Test("a user's own mode is not the built-in one, whatever they call it")
+    func aUserModeIsNeverTheBuiltInMode() {
+        let persistence = PersistenceController(inMemory: true)
+
+        // The regression in the other direction: a mode the user created and
+        // named "Default" had its Name field frozen forever.
+        let mine = persistence.createOrUpdateMode(
+            name: "Default",
+            preset: "hyper",
+            language: "en",
+            model: "base",
+            punctuation: true,
+            capitalization: true,
+            profanityFilter: false
+        )
+
+        #expect(!mine.isSystemProvided)
+        #expect(mine.id != SeededModeValues.seededID)
+        #expect(!mine.isSeededDefault)
+    }
+
+    /// The reason the id half of `isSeededDefault` exists.
+    ///
+    /// A backup restore recreates the default mode through `createOrUpdateMode`,
+    /// whose CREATE branch hardcodes `isSystemProvided = false`. The row keeps
+    /// the well-known UUID, though — on every head — so that is what identifies
+    /// it. Without this arm, restoring a backup would unlock the built-in mode's
+    /// name, which `main` did not do.
+    @Test("a restored built-in mode is still the built-in mode")
+    func aRestoredDefaultModeIsStillRecognised() {
+        let persistence = PersistenceController(inMemory: true)
+
+        let restored = persistence.createOrUpdateMode(
+            id: SeededModeValues.seededID,
+            name: "Hyper",
+            preset: "hyper",
+            language: "auto",
+            model: "cloud",
+            punctuation: true,
+            capitalization: true,
+            profanityFilter: false
+        )
+
+        #expect(!restored.isSystemProvided, "createOrUpdateMode's CREATE branch does not set the flag")
+        #expect(restored.isSeededDefault)
+    }
+
+    @Test("the well-known id is the one the shared core ships")
+    func theWellKnownIdMatchesTheSharedSeed() {
+        #expect(SeededModeValues.seededID == SeededModeValues.forRegion(nil).id)
+        #expect(SeededModeValues.seededID == SeededModeValues.fallbackID)
+        #expect(SeededModeValues.seededID.uuidString.lowercased()
+            == "00000000-0000-0000-0000-000000000001")
+    }
 }

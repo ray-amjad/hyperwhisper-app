@@ -838,7 +838,12 @@ struct ModeEditorView: View {
                         text: $name
                     )
                     .textFieldStyle(.roundedBorder)
-                    .disabled(configuration.mode?.name == "Default")
+                    // The built-in mode is identified by isSystemProvided / the
+                    // well-known seed UUID, never by its display name. This read
+                    // `== "Default"`, which #285 turned into a lock on nothing (the
+                    // seed now writes "Hyper") and a permanent lock on any USER mode
+                    // that happened to be called "Default".
+                    .disabled(configuration.mode?.isSeededDefault == true)
                 }
             }
             .padding(12)

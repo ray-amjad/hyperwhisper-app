@@ -30,12 +30,23 @@ import Foundation
 /// "everything the seeder owns" means — see the hostile-defaults note there.
 struct SeededModeValues: Equatable {
 
+    /// The seeded mode's well-known UUID. Identical on all three heads
+    /// (`hw-catalog::HYPER_MODE_ID`, `ModeDefaults.DefaultModeId`,
+    /// `PortableModeDefaults.HyperModeId`) and anchored by onboarding
+    /// restore-point lookups on every platform. Do not change it.
+    ///
+    /// This is IDENTITY, not a value: it is what makes a row "the built-in mode"
+    /// even after a backup restore, and it survives a rename. Use it — or
+    /// `isSystemProvided` — rather than the mode's display name, which is a
+    /// product decision that has already moved once (`"Default"` → `"Hyper"`).
+    static let seededID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+
     /// Used only if the core ever hands back an id macOS cannot parse as a
     /// UUID. It is the same literal the core ships, so the arm is unreachable
     /// unless the core changes the id — which the conformance vectors would
     /// fail on first. Anchored by onboarding restore-point lookups
     /// (`LiveOnboardingSourceCommitter.defaultModeID`) and by both .NET heads.
-    static let fallbackID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    static var fallbackID: UUID { seededID }
 
     let id: UUID
     let name: String
@@ -127,6 +138,31 @@ struct SeededModeValues: Equatable {
 }
 
 extension Mode {
+
+    /// Whether this row is the built-in mode a fresh install seeds, as opposed
+    /// to one the user made.
+    ///
+    /// The identity test to use anywhere the built-in mode needs different
+    /// treatment from a user's own. Comparing the mode's NAME is not that test,
+    /// and `ModeEditorView`'s `== "Default"` name-field lock is what it costs:
+    /// the seed's name is a product decision that moved to `"Hyper"` in #285, so
+    /// on a fresh install the lock silently stopped applying to the mode it was
+    /// written for, while a user who happened to call their own mode "Default"
+    /// had its name frozen forever.
+    ///
+    /// Two conditions, because neither alone covers every install:
+    ///
+    /// * `isSystemProvided` is what the seed writes (`applySeededValues`) and
+    ///   what `GET /modes` reports. It is `true` on every row
+    ///   `initializeDefaultModes()` has ever written, on this branch and before
+    ///   it.
+    /// * `id == SeededModeValues.seededID` catches the row after a backup
+    ///   restore. `createOrUpdateMode`'s CREATE branch hardcodes
+    ///   `isSystemProvided = false`, so a restored default mode comes back
+    ///   without the flag — but it keeps the well-known UUID, on every head.
+    var isSeededDefault: Bool {
+        isSystemProvided || id == SeededModeValues.seededID
+    }
 
     /// Writes **every** column the seed owns onto a freshly inserted `Mode`.
     ///
