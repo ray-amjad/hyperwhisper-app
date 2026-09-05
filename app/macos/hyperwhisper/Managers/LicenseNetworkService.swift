@@ -724,7 +724,10 @@ class LicenseNetworkService: LicenseNetworkServing {
         if nsError.code == 429 || (500...599).contains(nsError.code) {
             return "http_\(nsError.code)"
         }
-        return "url_\(String(describing: URLError.Code(rawValue: nsError.code)))"
+        let urlCode = URLError.Code(rawValue: nsError.code)
+        return TranscriptionPipeline.transientURLErrorCodes.contains(urlCode)
+            ? "network_\(nsError.code)"
+            : "url_\(nsError.code)"
     }
 
     /// The one field of the backend's invalid-license reply that this classifier

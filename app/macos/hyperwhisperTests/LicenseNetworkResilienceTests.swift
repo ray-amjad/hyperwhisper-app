@@ -126,7 +126,7 @@ struct LicenseNetworkResilienceTests {
     @Test func offlineDiagnosticNamesConnectivityFailuresWithoutErrorText() {
         #expect(
             LicenseNetworkService.validationFailureCode(URLError(.timedOut))
-                == "url_timedOut"
+                == "network_-1001"
         )
     }
 
