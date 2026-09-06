@@ -44,6 +44,7 @@ describe('resolveLLMModel', () => {
   test('echoes a valid allowlisted model id', () => {
     expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gpt-5-nano');
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash-lite' }))).toBe('gemini-2.5-flash-lite');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.8-flash' }))).toBe('gemini-3.8-flash');
     expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'mistral-small-latest' }))).toBe('mistral-small-latest');
   });
 
@@ -63,6 +64,14 @@ describe('resolveLLMModel', () => {
     // gpt-5-nano is valid for openai but not for gemini → default.
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gemini-2.5-flash');
   });
+
+  test('adding gemini-3.8-flash did not move the gemini default', () => {
+    // A typo'd or BYOK-only gemini-3.x id must still fall back to 2.5-flash,
+    // not to the newest allowlisted model.
+    expect(defaultModelFor('gemini')).toBe('gemini-2.5-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.7-flash' }))).toBe('gemini-2.5-flash');
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.8-flassh' }))).toBe('gemini-2.5-flash');
+  });
 });
 
 describe('cost functions', () => {
@@ -79,6 +88,9 @@ describe('cost functions', () => {
   test('computeGeminiChatCost per model', () => {
     expect(computeGeminiChatCost('gemini-2.5-flash', oneM)).toBeCloseTo(0.30 + 2.50, 6);
     expect(computeGeminiChatCost('gemini-2.5-flash-lite', oneM)).toBeCloseTo(0.10 + 0.40, 6);
+    // Introductory pricing, expires 2026-12-31 — see the priceNote on the
+    // gemini-3.8-flash row in shared-app-classification/cloud-pp-catalog.json.
+    expect(computeGeminiChatCost('gemini-3.8-flash', oneM)).toBeCloseTo(0.75 + 3.75, 6);
   });
 
   test('computeMistralChatCost per model', () => {
@@ -106,6 +118,8 @@ describe('servedLLMName', () => {
     expect(servedLLMName('openai', 'gpt-5-nano')).toBe('openai-gpt-5-nano');
     expect(servedLLMName('openai', 'gpt-5-nano')).not.toBe(LLM_PROVIDER_NAMES.openai);
     expect(servedLLMName('gemini', 'gemini-2.5-flash-lite')).toBe('gemini-2.5-flash-lite');
+    expect(servedLLMName('gemini', 'gemini-3.8-flash')).toBe('gemini-3.8-flash');
+    expect(servedLLMName('gemini', 'gemini-3.8-flash')).not.toBe(LLM_PROVIDER_NAMES.gemini);
   });
 
   test('the retired open-mistral-nemo has no served name of its own', () => {
