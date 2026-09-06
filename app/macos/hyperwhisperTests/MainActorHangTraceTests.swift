@@ -6,6 +6,7 @@
 //  main-actor boundaries.
 //
 
+import Foundation
 import Testing
 @testable import HyperWhisper
 
