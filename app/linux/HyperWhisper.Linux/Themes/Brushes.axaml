@@ -30,6 +30,7 @@
   <SolidColorBrush x:Key="HwHoverBackgroundBrush" Color="{DynamicResource HwHoverBackground}"/>
   <SolidColorBrush x:Key="HwSelectedBackgroundBrush" Color="{DynamicResource HwSelectedBackground}"/>
   <SolidColorBrush x:Key="HwBorderBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="HwDividerBrush" Color="{DynamicResource HwDivider}"/>
   <SolidColorBrush x:Key="HwSubtleBorderBrush" Color="{DynamicResource HwSubtleBorder}"/>
 
   <SolidColorBrush x:Key="HwTextPrimaryBrush" Color="{DynamicResource HwTextPrimary}"/>
@@ -91,4 +92,60 @@
   <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{DynamicResource HwBorder}"/>
   <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{DynamicResource HwInputBackground}"/>
   <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{DynamicResource HwBorder}"/>
+
+  <!-- Fluent paints a text box near black with a light grey ring, and a check box in the
+       system accent. Both read as a bright cut-out over the card, where Windows draws the
+       input on HwInputBackground behind an almost invisible HwBorder. A per-control style
+       cannot reach every part of the Fluent template, so map the theme keys themselves. -->
+  <SolidColorBrush x:Key="TextControlBackground" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="{DynamicResource HwSubtleBorder}"/>
+  <SolidColorBrush x:Key="TextControlForeground" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="{DynamicResource HwAccent}"/>
+
+  <SolidColorBrush x:Key="ComboBoxBackground" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundDisabled" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ComboBoxForeground" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundPointerOver" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="{DynamicResource HwBorder}"/>
+
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="{DynamicResource HwOnAccent}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="{DynamicResource HwOnAccent}"/>
+
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseStroke" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="RadioButtonCheckGlyphFill" Color="{DynamicResource HwOnAccent}"/>
+  <SolidColorBrush x:Key="RadioButtonCheckGlyphFillPointerOver" Color="{DynamicResource HwOnAccent}"/>
+
+  <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOff" Color="{DynamicResource HwBorder}"/>
 </ResourceDictionary>

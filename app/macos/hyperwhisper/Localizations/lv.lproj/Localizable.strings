@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Lejupielādējiet savu modeli";
 "onboarding.setup.onDevice.download" = "Lejupielādēt %@";
 "onboarding.setup.onDevice.downloading" = "Notiek lejupielāde… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Notiek lejupielāde…";
+"onboarding.setup.onDevice.preparing" = "Sagatavo lejupielādi…";
+"onboarding.setup.onDevice.downloadingFile" = "Lejupielādē failu %1$d no %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modelis tiek optimizēts šim Mac. Gandrīz gatavs.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimizē…";
+"onboarding.setup.onDevice.firstRunHint" = "Pirmā lejupielāde aizņem dažas minūtes. Šo logu var atstāt atvērtu.";
 "onboarding.setup.onDevice.ready" = "Modelis ir gatavs";
 "onboarding.setup.cloud.title" = "Aktivizējiet savu atslēgu";
 "onboarding.setup.cloud.activate" = "Aktivizēt Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Aktivizācija neizdevās: %@";
 "onboarding.setup.provider.error" = "Neizdevās saglabāt jūsu atslēgu: %@";
 "onboarding.setup.provider.saveFailed" = "Neizdevās ierakstīt atslēgu jūsu atslēgu saišķī.";
+"onboarding.setup.stopped.onDevice" = "Neizdevās pabeigt iestatīšanu: %@ vairs nav instalēts šajā Mac datorā. Lejupielādējiet to vēlreiz, lai turpinātu.";
+"onboarding.setup.stopped.cloud" = "Neizdevās pabeigt iestatīšanu: šis Mac dators vairs nav aktivizēts HyperWhisper Cloud lietošanai. Aktivizējiet to vēlreiz zemāk vai atgriezieties vienu soli atpakaļ, lai ievadītu savu piekļuves atslēgu.";
+"onboarding.setup.stopped.provider" = "Neizdevās pabeigt iestatīšanu: jūsu %@ atslēga vairs nav saglabāta šajā Mac datorā. Saglabājiet to vēlreiz, lai turpinātu.";
 "onboarding.setup.provider.check.validated" = "Atslēga apstiprināta ar %@";
 "onboarding.setup.provider.check.written" = "Ierakstīts pieteikšanās atslēgu saišķī";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API atslēga";
@@ -766,11 +775,11 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredīti/min";
 "modes.cloudAccuracy.grokStt.label" = "Augstākā (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Augsta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Daudzvalodu, ar pielāgota vārdu krājuma atbalstu.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Augsta (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5, izmantojot Azure Speech. 43 valodas ar konteksta pielāgošanu.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Augsta (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe, izmantojot Azure Speech. Līdz 60 valodām ar konteksta pielāgošanu.";
 
 "modes.create.title" = "Izveidot jaunu režīmu";
 "modes.create.subtitle" = "Konfigurējiet pielāgotu transkripciijas profilu";

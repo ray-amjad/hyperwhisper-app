@@ -176,6 +176,29 @@ static async Task OnboardingModeReadiness()
         {
             ProviderType = "cloud", CloudProvider = "openai", CloudTranscriptionModel = "whisper-1",
         }), "credentialless cloud mode was accepted");
+
+    // Linux has no cloud MODEL picker — the Modes screen's model field is free
+    // text (MainWindow.axaml, ModeTranscriptionModel) — so what makes a new
+    // HyperWhisper Cloud model selectable here is this validator accepting the
+    // typed id. Every case above injects synthetic capabilities; this one omits
+    // the argument so LinuxOnboardingModeReadiness falls back to
+    // UnifiedModelCatalog.LoadBundled() and reads the REAL bundled
+    // cloud-stt-catalog.json. Without that a catalog row could go missing and
+    // every synthetic case would still pass.
+    var bundled = new LinuxOnboardingModeReadiness(credentials, localModels);
+    foreach (var azureModel in new[] { "mai-transcribe-2", "mai-transcribe-1.5" })
+    {
+        Assert(await bundled.IsReadyAsync(new Mode
+        {
+            ProviderType = "cloud", CloudProvider = "microsoftazurespeech",
+            CloudTranscriptionModel = azureModel,
+        }), $"the real bundled catalog rejected Azure MAI model '{azureModel}'");
+    }
+    Assert(!await bundled.IsReadyAsync(new Mode
+    {
+        ProviderType = "cloud", CloudProvider = "microsoftazurespeech",
+        CloudTranscriptionModel = "mai-transcribe-3",
+    }), "a model id the catalog does not carry was accepted");
 }
 
 static async Task M4aStorageEncodes()

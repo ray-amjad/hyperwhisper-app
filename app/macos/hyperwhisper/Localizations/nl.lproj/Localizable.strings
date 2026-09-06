@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Download je model";
 "onboarding.setup.onDevice.download" = "%@ downloaden";
 "onboarding.setup.onDevice.downloading" = "Downloaden… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Downloaden…";
+"onboarding.setup.onDevice.preparing" = "Download voorbereiden…";
+"onboarding.setup.onDevice.downloadingFile" = "Bestand %1$d van %2$d downloaden";
+"onboarding.setup.onDevice.optimizing" = "Het model wordt geoptimaliseerd voor deze Mac. Bijna klaar.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimaliseren…";
+"onboarding.setup.onDevice.firstRunHint" = "De eerste download duurt een paar minuten. Je kunt dit venster open laten staan.";
 "onboarding.setup.onDevice.ready" = "Model gereed";
 "onboarding.setup.cloud.title" = "Activeer je sleutel";
 "onboarding.setup.cloud.activate" = "Cloud activeren";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Activering mislukt: %@";
 "onboarding.setup.provider.error" = "Kon je sleutel niet opslaan: %@";
 "onboarding.setup.provider.saveFailed" = "De sleutel kon niet naar je Sleutelhanger worden geschreven.";
+"onboarding.setup.stopped.onDevice" = "De configuratie kon niet worden voltooid: %@ is niet meer geïnstalleerd op deze Mac. Download het opnieuw om verder te gaan.";
+"onboarding.setup.stopped.cloud" = "De configuratie kon niet worden voltooid: deze Mac is niet meer geactiveerd voor HyperWhisper Cloud. Activeer hem hieronder opnieuw of ga één stap terug om je toegangssleutel in te voeren.";
+"onboarding.setup.stopped.provider" = "De configuratie kon niet worden voltooid: je %@-sleutel is niet meer opgeslagen op deze Mac. Sla hem opnieuw op om verder te gaan.";
 "onboarding.setup.provider.check.validated" = "Sleutel gevalideerd bij %@";
 "onboarding.setup.provider.check.written" = "Geschreven naar de Sleutelhanger";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API-sleutel";
@@ -766,11 +775,11 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Hoogste (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Hoog (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Meertalig, met ondersteuning voor aangepaste woordenlijsten.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 talen met contextuele afstemming.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Tot 60 talen met contextuele afstemming.";
 
 "modes.create.title" = "Nieuwe modus maken";
 "modes.create.subtitle" = "Configureer een aangepast transcriptieprofiel";

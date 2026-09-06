@@ -146,6 +146,30 @@ describe('Meta Muse batch routing and billing', () => {
     expect(body.cost.credits).toBe(3);
   });
 
+  test('reads a Meta request body once for reservation and dispatch', async () => {
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      if (String(input) === 'https://api.meta.ai/v1/asr/transcribe') {
+        return Response.json({ transcript: 'one read', audioDurationMs: 1000, turns: [] });
+      }
+      return Response.json({ credits_remaining: 999.9, credits_deducted: 0.1 });
+    }) as unknown as typeof fetch;
+
+    const request = metaWavRequest(1);
+    const readBody = request.arrayBuffer.bind(request);
+    let bodyReads = 0;
+    Object.defineProperty(request, 'arrayBuffer', {
+      value: async () => {
+        bodyReads++;
+        return readBody();
+      },
+    });
+
+    const response = await buildApp().fetch(request);
+
+    expect(response.status).toBe(200);
+    expect(bodyReads).toBe(1);
+  });
+
   test('rejects a definitely insufficient balance before buffering or parsing Meta audio', async () => {
     cachedCredits = 1;
     const request = metaWavRequest(60);

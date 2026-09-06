@@ -15,6 +15,7 @@
 // Requires InternalsVisibleTo("HyperWhisper.SmokeTests") in HyperWhisper.csproj.
 // Coverage is x64-only on the CI runner; ARM64 is exercised manually.
 
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -26,6 +27,7 @@ using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Converters;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
@@ -43,9 +45,17 @@ using HyperWhisper.Views.Controls.Onboarding;
 using HyperWhisper.Views.Pages.Onboarding;
 using HyperWhisper.Views.Pages.Settings;
 using HyperWhisper.Views.Windows;
+// Safe to import, unlike Microsoft.AspNetCore.Http: none of these collide with
+// the UniFFI binding's own type names. The Local API size-limit checks build a
+// real Kestrel listener, which needs the builder, the host and the logging
+// extension methods.
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using uniffi.hyperwhisper_core;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 // Aliased, not imported: HyperWhisper.SharedCore also declares
@@ -3156,7 +3166,7 @@ internal static class Program
                     (StreamingTranscriptionProvider.Deepgram, "Deepgram (Streaming)", 16000, true),
                     (StreamingTranscriptionProvider.ElevenLabs, "ElevenLabs (Streaming)", 16000, false),
                     (StreamingTranscriptionProvider.OpenAI, "OpenAI (Streaming)", 24000, false),
-                    (StreamingTranscriptionProvider.Xai, "xAI (Streaming)", 16000, true),
+                    (StreamingTranscriptionProvider.Xai, "SpaceXAI (Streaming)", 16000, true),
                 };
 
                 foreach (var (provider, label, sampleRate, vocabulary) in expected)
@@ -3178,6 +3188,20 @@ internal static class Program
                     Assert(StreamingTranscriptionSessionFactory.SupportsVocabulary(provider) == vocabulary,
                         $"{provider}: the factory and the strategy disagree about vocabulary support");
                 }
+            });
+
+            Run("History provider labels normalize current and legacy SpaceXAI names", () =>
+            {
+                var converter = new ProviderNameDisplayConverter();
+
+                Assert(
+                    converter.Convert("SpaceXAI (Streaming)", typeof(string), null!, CultureInfo.InvariantCulture)
+                        as string == "SpaceXAI (Streaming)",
+                    "the current persisted label must keep the SpaceXAI capitalization");
+                Assert(
+                    converter.Convert("xAI (Streaming)", typeof(string), null!, CultureInfo.InvariantCulture)
+                        as string == "SpaceXAI (Streaming)",
+                    "the legacy persisted label must display as SpaceXAI");
             });
 
             Run("Every streaming provider builds its shipped connect URL", () =>
@@ -5450,6 +5474,165 @@ internal static class Program
                 }
             });
 
+            Run("the standalone Azure MAI service sends the mode's model as X-STT-Model", () =>
+            {
+                // AzureMAITranscriptionService routes to the same HW Cloud
+                // /transcribe proxy as the HyperWhisper Cloud tier, where the
+                // model travels ONLY as X-STT-Model (hw-net builds that header
+                // from `routed_model`, never from `model`). Before this was
+                // wired the service sent nothing, so a mode pinned to
+                // mai-transcribe-1.5 transcribed and billed as mai-transcribe-2.
+                //
+                // The model is CONSTRUCTOR state, not a settable property: the
+                // service is built once per request precisely so two overlapping
+                // requests cannot overwrite each other's model.
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("mai-transcribe-1.5")
+                        .ResolveRoutedModel() == "mai-transcribe-1.5",
+                    "a mode pinned to mai-transcribe-1.5 did not resolve that model for X-STT-Model");
+
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("mai-transcribe-2")
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "a mode pinned to mai-transcribe-2 did not resolve that model for X-STT-Model");
+
+                // A stale id (the field is shared with the BYOK path) degrades to
+                // the catalog default rather than earning a backend 400.
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("whisper-1")
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "a stale Azure model id did not fall back to the catalog default");
+
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService(null)
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "an unset Azure model did not fall back to the catalog default");
+            });
+
+            Run("two overlapping Azure MAI requests keep their own model", () =>
+            {
+                // REGRESSION GUARD for a billing bug. The first cut of the fix
+                // above stored the model on a settable property of the factory's
+                // CACHED service instance. TranscriptionRuntime.Orchestrator is a
+                // static singleton holding one TranscriptionProviderFactory and
+                // nothing locks, so a hotkey dictation and a Local API
+                // POST /transcribe that overlap overwrote each other's model
+                // between "configure" and "send" — one request then transcribed
+                // and billed as the other's model (v2 at 1.5's 6.0 credits/min is
+                // a 3.6x overcharge; 1.5 at v2's rate also sends v2's
+                // transcribeStyle: clean).
+                //
+                // The property this pins: the model reaches the request as
+                // immutable per-call state. Interleave two "requests" the way the
+                // race did — build both before either resolves — and each must
+                // still answer with its own model.
+                var factory = new HyperWhisper.Services.Transcription.TranscriptionProviderFactory();
+                try
+                {
+                    var requestA = factory.GetConfiguredCloudProvider(
+                        CloudTranscriptionProvider.MicrosoftAzureSpeech, "mai-transcribe-1.5");
+                    var requestB = factory.GetConfiguredCloudProvider(
+                        CloudTranscriptionProvider.MicrosoftAzureSpeech, "mai-transcribe-2");
+
+                    Assert(!ReferenceEquals(requestA, requestB),
+                        "the factory handed both requests the SAME routed instance - the model is shared mutable state again");
+
+                    var routedA = requestA as HyperWhisper.Services.Transcription.RoutedTranscriptionServiceBase;
+                    var routedB = requestB as HyperWhisper.Services.Transcription.RoutedTranscriptionServiceBase;
+                    Assert(routedA != null && routedB != null,
+                        "the Azure MAI arm stopped returning a RoutedTranscriptionServiceBase");
+
+                    // Resolve AFTER both were built - this is the interleaving
+                    // that produced the wrong bill.
+                    Assert(routedA!.ResolveRoutedModel() == "mai-transcribe-1.5",
+                        "request A's model was overwritten by a later overlapping request");
+                    Assert(routedB!.ResolveRoutedModel() == "mai-transcribe-2",
+                        "request B did not carry its own model");
+                }
+                finally
+                {
+                    factory.Dispose();
+                }
+            });
+
+            Run("the Azure MAI language picker narrows per model, not per tier", () =>
+            {
+                // The Mode editor's Azure branch (ModeEditorWindow.xaml.cs) is WPF
+                // UI with no unit-test home, so pin the DATA it reads instead.
+                //
+                // The two Azure models have different language sets, and
+                // cloud-stt-catalog.json's provider-level `languages.codes` is
+                // their UNION — so a tier-keyed filter would offer a 1.5 user the
+                // 18 codes only v2 has, and Azure would silently auto-detect on
+                // each of them. `models-catalog.json` is the only file that
+                // carries the split; this is the assertion that keeps it honest.
+                var key = HyperWhisper.Services.SharedModelsCatalog.CatalogKey(
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech);
+
+                var v15 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-1.5");
+                var v2 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-2");
+
+                Assert(!v15.SupportsAll && !v2.SupportsAll,
+                    "an Azure model lost its per-model language set - the picker would fall back to every language");
+                Assert(v15.Codes.Count == 41,
+                    $"mai-transcribe-1.5 should carry 41 picker codes, got {v15.Codes.Count}");
+                Assert(v2.Codes.Count == 59,
+                    $"mai-transcribe-2 should carry 59 picker codes, got {v2.Codes.Count}");
+
+                // `he` (Hebrew) is the code that proves the split is real: v2
+                // lists it, 1.5 does not.
+                Assert(v2.Supports("he") && !v15.Supports("he"),
+                    "Hebrew must be v2-only - if both or neither carry it the per-model split is not being read");
+                Assert(v2.Supports("tl") && v2.Supports("yue") && v2.Supports("zh"),
+                    "v2 lost one of the codes the upstream->picker fold produces (fil->tl, yue, zh)");
+
+                // The fold drops Odia on BOTH: upstream lists `or`, the shared
+                // language catalog has no row for it, so no picker can offer it.
+                Assert(!v2.Supports("or") && !v15.Supports("or"),
+                    "`or` (Odia) reached a picker set - it has no shared language-catalog row");
+
+                // 1.5's set must be a strict subset of v2's, or one of the two
+                // lists was hand-edited rather than folded from the same source.
+                foreach (var code in v15.Codes)
+                {
+                    Assert(v2.Codes.Contains(code),
+                        $"mai-transcribe-1.5 carries '{code}' but mai-transcribe-2 does not - the two lists have diverged");
+                }
+
+                // And the tier default is v2, which is what the picker preselects.
+                Assert(CloudSttCatalog.Shared.DefaultModelIdForId("azureMaiTranscribe") == "mai-transcribe-2",
+                    "the azureMaiTranscribe tier default is no longer mai-transcribe-2");
+            });
+
+            Run("the Mode editor's per-model Azure language branch is reachable", () =>
+            {
+                // The data assertions above passed for a whole review round while
+                // the branch that reads them could not execute:
+                // ResolveEffectiveCloudProviderAndModel resolved the HW Cloud tier
+                // through FromIdentifier, which has no `azure-mai` arm, so the
+                // branch's `cloudProvider == MicrosoftAzureSpeech` guard was never
+                // true and the picker fell to the tier branch — the 60-code union.
+                // This is the trace, asserted step by step, so a rename or a
+                // dropped arm fails here instead of silently un-filtering.
+                var sttProvider = CloudSttCatalog.Shared.SttProviderForId("azureMaiTranscribe");
+                Assert(sttProvider == "azure-mai",
+                    $"azureMaiTranscribe's sttProvider is '{sttProvider}', not 'azure-mai'");
+                Assert(CloudTranscriptionProviderExtensions.FromCatalogSttProvider(sttProvider)
+                        == CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    "the catalog's azure-mai sttProvider no longer resolves to MicrosoftAzureSpeech - "
+                    + "the Mode editor's per-model Azure language branch is unreachable again");
+
+                // Every HW Cloud tier must resolve to a real provider, or its
+                // provider-keyed branches are dead the same way. Derived from the
+                // catalog, so a new tier is covered the day it lands.
+                foreach (var entry in CloudSttCatalog.Shared.CloudTierEligibleProviders())
+                {
+                    var resolved = CloudTranscriptionProviderExtensions.FromCatalogSttProvider(
+                        CloudSttCatalog.Shared.SttProviderForId(entry.Id));
+                    Assert(resolved != CloudTranscriptionProvider.None,
+                        $"HW Cloud tier '{entry.Id}' resolves to no provider enum; every "
+                        + "provider-keyed branch in the Mode editor is skipped for it");
+                }
+            });
+
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
             {
                 // Configure ONLY the new key. The LEGACY `gemini` post-processing
@@ -5856,6 +6039,303 @@ internal static class Program
                 Assert(unauthorized.httpStatus == 401, "a credential failure is still 401");
                 Assert(unauthorized.json == "{\"ok\":false,\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"Missing or invalid bearer token\"}}",
                     $"the 401 envelope changed shape: {unauthorized.json}");
+            });
+
+            // =================================================================
+            // Local API request-size limits (issue #375, the Windows half)
+            //
+            // #405 bounded macOS and moved the two caps into hw-localapi. It
+            // deliberately skipped Windows, which is a SEPARATE implementation:
+            // app/windows/.../LocalApi references neither PortableLocalApi nor
+            // LocalApiHost, so nothing the portable head enforces ever reached
+            // it. What it actually had was Kestrel's OWN default of 30,000,000
+            // bytes — an accidental cap, at a number no other head uses — and a
+            // bare `catch` around every JSON body read that turned Kestrel's
+            // rejection into HTTP 400 "Invalid JSON body".
+            //
+            // These pin the four things that were wrong, in the order they were
+            // wrong: the configured cap, the failure shape, the two base64
+            // guards, and the `file` cap.
+            //
+            // As with #289 above, they test the SEAM. The numbers and the
+            // envelope text are the Rust crate's, and its own suite fuzzes
+            // them; what can go wrong here is a limit that never reaches
+            // Kestrel, an exception the head misreads, or a guard on a path
+            // nothing calls.
+            // =================================================================
+
+            Run("the Kestrel host bounds the request body at the shared cap", () =>
+            {
+                var maxRequest = (long)HyperwhisperCoreMethods.LocalApiMaxRequestBytes();
+                var maxUpload = (long)HyperwhisperCoreMethods.LocalApiMaxUploadBytes();
+                var maxBase64 = (long)HyperwhisperCoreMethods.LocalApiMaxBase64LengthForUpload();
+
+                Assert(maxUpload <= maxRequest,
+                    $"the shared upload cap {maxUpload} is above the request cap {maxRequest}");
+                Assert(LocalApiLimits.MaxRequestBytes == maxRequest,
+                    $"LocalApiLimits.MaxRequestBytes is {LocalApiLimits.MaxRequestBytes}, the shared core says {maxRequest}");
+                Assert(LocalApiLimits.MaxUploadBytes == maxUpload,
+                    $"LocalApiLimits.MaxUploadBytes is {LocalApiLimits.MaxUploadBytes}, the shared core says {maxUpload}");
+                Assert(LocalApiLimits.MaxBase64LengthForUpload == maxBase64,
+                    $"LocalApiLimits.MaxBase64LengthForUpload is {LocalApiLimits.MaxBase64LengthForUpload}, the shared core says {maxBase64}");
+
+                // The REAL host, not a look-alike built here: BuildApp is what
+                // Start() calls, and reading the limit back off its options is
+                // the only way to prove the configure delegate ran. Nothing
+                // binds a socket until StartAsync, so this costs no port.
+                var app = LocalApiServer.Instance.BuildApp(0);
+                try
+                {
+                    var kestrel = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                        .GetRequiredService<Microsoft.Extensions.Options.IOptions<
+                            Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>>(app.Services)
+                        .Value;
+                    Assert(kestrel.Limits.MaxRequestBodySize == maxRequest,
+                        $"the Local API host caps the body at {kestrel.Limits.MaxRequestBodySize?.ToString() ?? "null"}, "
+                            + $"the shared core says {maxRequest}. Kestrel's own default is 30000000 — if that is the "
+                            + "number above, ConfigureKestrel lost its LocalApiLimits.ApplyRequestBodyLimit call.");
+                }
+                finally
+                {
+                    app.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                }
+            });
+
+            // RunAsync blocks on GetAwaiter().GetResult(), and by this point the
+            // "BackupExportSettingsPage initializes under WPF" case above has
+            // left a DispatcherSynchronizationContext on this thread. This
+            // console harness never runs a Dispatcher loop, so an awaited
+            // continuation posted to that context would never run and the whole
+            // suite would hang. Detach for the duration, exactly as the
+            // onboarding block below does.
+            var limitsPreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("an over-limit body answers 200 + INVALID_REQUEST, never 400 and never 413", async () =>
+            {
+                var tooLarge = HyperwhisperCoreMethods.LocalApiRequestTooLargeFailure();
+                var cap = LocalApiLimits.MaxRequestBytes;
+
+                // A real Kestrel listener on an ephemeral loopback port,
+                // configured through the same ApplyRequestBodyLimit the server
+                // uses and answering through the same ReadJsonBodyAsync every
+                // route on this head now calls. A DefaultHttpContext could not
+                // prove any of this: the rejection is Kestrel's, raised from
+                // inside the body read.
+                var builder = WebApplication.CreateSlimBuilder();
+                builder.Logging.ClearProviders();
+                builder.WebHost.ConfigureKestrel(options =>
+                {
+                    LocalApiLimits.ApplyRequestBodyLimit(options);
+                    options.Listen(IPAddress.Loopback, 0);
+                });
+                await using var app = builder.Build();
+                app.MapPost("/probe", async (Microsoft.AspNetCore.Http.HttpContext ctx) =>
+                {
+                    var (dto, failure) = await LocalApiLimits.ReadJsonBodyAsync<ModeDto>(
+                        ctx, "Required: name. See /modes GET for the full shape.");
+                    return failure ?? LocalApiResponder.Ok(new { ok = true, name = dto?.Name ?? "" });
+                });
+                await app.StartAsync();
+                try
+                {
+                    var port = app.Services
+                        .GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+                        .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!
+                        .Addresses.Select(address => new Uri(address).Port).First(p => p > 0);
+                    // The two refusals go over a RAW SOCKET rather than
+                    // HttpClient. A refused request is one the server answers
+                    // and then resets, because the rest of the body is still
+                    // coming; HttpClient reports that as
+                    // "Error while copying content to a stream" and loses the
+                    // response it already had. That is a fault in the test, not
+                    // in the head — a real client sees the envelope, because
+                    // this reads the socket WHILE it writes.
+                    //
+                    // 1. One byte over, declared in Content-Length. The head
+                    //    answers from the header without consuming the body, so
+                    //    only a slice of it is sent.
+                    {
+                        var (status, code, message) = await RawProbeAsync(
+                            port, $"Content-Length: {cap + 1}\r\n", PaddedJsonOfExactly(cap + 1), chunked: false);
+                        Assert(status == 200,
+                            $"an over-limit body answered HTTP {status}. It must be 200: 400 is what the old bare "
+                                + "catch sent, and 413 wants a PAYLOAD_TOO_LARGE code that is outside the closed 14.");
+                        Assert(code == "INVALID_REQUEST", $"an over-limit body answered code {code}");
+                        Assert(message == tooLarge.message,
+                            $"the request-limit message is \"{message}\", the shared core says \"{tooLarge.message}\"");
+                    }
+
+                    // 2. The same overflow with NO Content-Length, so the
+                    //    pre-check cannot see it and Kestrel's own counter is
+                    //    what refuses: BadHttpRequestException with StatusCode
+                    //    413, raised from inside ReadFromJsonAsync. This is the
+                    //    exception the bare catch used to swallow, and this
+                    //    probe is the only proof that the head reads it right.
+                    {
+                        var (status, code, message) = await RawProbeAsync(
+                            port, "Transfer-Encoding: chunked\r\n", PaddedJsonOfExactly(cap + 1), chunked: true);
+                        Assert(status == 200,
+                            $"a chunked over-limit body answered HTTP {status}; Kestrel's 413 must not reach the wire");
+                        Assert(code == "INVALID_REQUEST", $"a chunked over-limit body answered code {code}");
+                        Assert(message == tooLarge.message,
+                            $"the chunked request-limit message is \"{message}\", the shared core says \"{tooLarge.message}\"");
+                    }
+
+                    // 3. The accepting side of the boundary. A body of EXACTLY
+                    //    the cap is read whole, so there is nothing left to
+                    //    reset and HttpClient is safe here.
+                    using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+                    using (var response = await client.PostAsync("/probe", JsonBytes(PaddedJsonOfExactly(cap))))
+                    {
+                        var body = await response.Content.ReadAsStringAsync();
+                        Assert((int)response.StatusCode == 200,
+                            $"a body of exactly {cap} bytes answered HTTP {(int)response.StatusCode}");
+                        Assert(!body.Contains(tooLarge.message, StringComparison.Ordinal),
+                            $"a body of exactly {cap} bytes was refused for its size; the cap is inclusive on every head");
+                    }
+
+                    // 4. A genuinely malformed body keeps the answer it has
+                    //    always had. The point of the fix is that "too big" and
+                    //    "malformed" stopped being the same reply.
+                    using (var response = await client.PostAsync(
+                        "/probe", new ByteArrayContent("{\"name\": "u8.ToArray())
+                        {
+                            Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
+                        }))
+                    {
+                        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                        var error = document.RootElement.GetProperty("error");
+                        Assert((int)response.StatusCode == 400,
+                            $"malformed JSON answered HTTP {(int)response.StatusCode}, it must stay 400");
+                        Assert(error.GetProperty("code").GetString() == "INVALID_REQUEST",
+                            $"malformed JSON answered code {error.GetProperty("code").GetString()}");
+                        Assert(error.GetProperty("message").GetString() == "Invalid JSON body",
+                            "malformed JSON no longer says \"Invalid JSON body\"; a caller can no longer tell it "
+                                + "from an over-limit body");
+                    }
+                }
+                finally
+                {
+                    await app.StopAsync();
+                }
+
+                // `{"name":"x"` followed by padding spaces and `}`. JSON allows
+                // whitespace between tokens, so a 50 MiB body of this shape
+                // costs the server one two-character string rather than a 50 MiB
+                // one — the size guards are what this test is about, not the
+                // deserializer's appetite.
+                static byte[] PaddedJsonOfExactly(long totalBytes)
+                {
+                    const string prefix = "{\"name\":\"x\"";
+                    const string suffix = "}";
+                    var bytes = new byte[totalBytes];
+                    System.Text.Encoding.ASCII.GetBytes(prefix).CopyTo(bytes, 0);
+                    bytes.AsSpan(prefix.Length, bytes.Length - prefix.Length - suffix.Length).Fill((byte)' ');
+                    System.Text.Encoding.ASCII.GetBytes(suffix).CopyTo(bytes, bytes.Length - suffix.Length);
+                    return bytes;
+                }
+
+                static ByteArrayContent JsonBytes(byte[] payload) => new(payload)
+                {
+                    Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") }
+                };
+            });
+
+            SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
+
+            Run("the audio_base64 guards refuse an oversized clip before decoding it", () =>
+            {
+                var tooLarge = HyperwhisperCoreMethods.LocalApiUploadTooLargeFailure();
+
+                // Both comparisons are `>`, so exactly the cap is accepted.
+                Assert(!LocalApiLimits.ExceedsBase64UploadLimit(LocalApiLimits.MaxBase64LengthForUpload),
+                    "a base64 string of exactly the encoded cap must be accepted");
+                Assert(LocalApiLimits.ExceedsBase64UploadLimit(LocalApiLimits.MaxBase64LengthForUpload + 1),
+                    "one character over the encoded cap must be refused");
+                Assert(!LocalApiLimits.ExceedsUploadLimit(LocalApiLimits.MaxUploadBytes),
+                    "audio of exactly the upload cap must be accepted");
+                Assert(LocalApiLimits.ExceedsUploadLimit(LocalApiLimits.MaxUploadBytes + 1),
+                    "one byte over the upload cap must be refused");
+
+                // The encoded cap is derived from the decoded cap, so no string
+                // that clears the pre-check can decode past MaxUploadBytes —
+                // the post-decode guard is unreachable from here, exactly as
+                // PortableLocalApi.cs:251 is unreachable without a shrunken
+                // fixture cap. The boundary assertions above are its coverage.
+                Assert(LocalApiLimits.MaxBase64LengthForUpload / 4 * 3 <= LocalApiLimits.MaxUploadBytes,
+                    "the encoded cap now admits a string that decodes past the upload cap; the post-decode guard "
+                        + "in ResolveAudioSource is no longer unreachable and needs a round-trip test of its own");
+
+                // The production resolver, driven through the pre-check. If the
+                // guard were missing this would allocate the decoded buffer
+                // first — which is the amplification #375 is about.
+                var request = new TranscribeRequest
+                {
+                    AudioBase64 = new string('A', checked((int)LocalApiLimits.MaxBase64LengthForUpload) + 1),
+                    MimeType = "audio/wav"
+                };
+                var refusal = CaptureApiInputException(() =>
+                    HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(request));
+                Assert(refusal.Code == LocalApiErrorCode.InvalidRequest,
+                    $"an oversized audio_base64 answered code {refusal.Code}; every size refusal is INVALID_REQUEST");
+                Assert(refusal.Message == tooLarge.message,
+                    $"the base64 upload-limit message is \"{refusal.Message}\", the shared core says \"{tooLarge.message}\"");
+            });
+
+            Run("the file path is capped at the shared upload limit", () =>
+            {
+                var tooLarge = HyperwhisperCoreMethods.LocalApiUploadTooLargeFailure();
+                var root = AppPaths.ProfileTempRecordingsDirectory;
+                Directory.CreateDirectory(root);
+                var oversizedPath = Path.Combine(root, $"oversized-{Guid.NewGuid():N}.wav");
+                var atCapPath = Path.Combine(root, $"at-cap-{Guid.NewGuid():N}.wav");
+                try
+                {
+                    // SetLength moves the end-of-file marker; NTFS does not
+                    // write the bytes, so a 48 MiB fixture costs no 48 MiB of
+                    // I/O. The cap reads FileStream.Length, which asks about the
+                    // open handle, so the marker is what it sees.
+                    using (var file = new FileStream(oversizedPath, FileMode.CreateNew, FileAccess.Write))
+                        file.SetLength(LocalApiLimits.MaxUploadBytes + 1);
+
+                    Assert(HistoryService.IsTrustedAudioPath(oversizedPath),
+                        $"the fixture at {oversizedPath} is not inside a trusted recordings root, so this test would "
+                            + "pass on the containment refusal rather than on the size cap");
+
+                    var refusal = CaptureApiInputException(() =>
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(
+                            new TranscribeRequest { File = oversizedPath }));
+                    // FILE_NOT_ALLOWED here means the containment guard answered
+                    // ahead of the size cap, which makes the test prove nothing.
+                    // Report the whole path chain so that reads as a fixture
+                    // fault rather than as a missing cap.
+                    Assert(refusal.Code == LocalApiErrorCode.InvalidRequest,
+                        $"an oversized file answered code {refusal.Code}; every size refusal is INVALID_REQUEST. "
+                            + TrustedPathDiagnostics(oversizedPath));
+                    Assert(refusal.Message == tooLarge.message,
+                        $"the file upload-limit message is \"{refusal.Message}\", the shared core says \"{tooLarge.message}\"");
+
+                    // The accepting side: exactly the cap still resolves.
+                    using (var file = new FileStream(atCapPath, FileMode.CreateNew, FileAccess.Write))
+                        file.SetLength(LocalApiLimits.MaxUploadBytes);
+
+                    var (snapshotPath, isTemp, readLock) =
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ResolveAudioSource(
+                            new TranscribeRequest { File = atCapPath });
+                    readLock?.Dispose();
+                    Assert(isTemp && File.Exists(snapshotPath),
+                        $"a file of exactly {LocalApiLimits.MaxUploadBytes} bytes was refused for its size; "
+                            + "the cap is inclusive on every head");
+                    try { File.Delete(snapshotPath); } catch (IOException) { }
+                }
+                finally
+                {
+                    foreach (var path in new[] { oversizedPath, atCapPath })
+                    {
+                        try { File.Delete(path); } catch (IOException) { }
+                    }
+                }
             });
 
             // =================================================================
@@ -7239,6 +7719,47 @@ internal static class Program
                 Assert(!h.Flow.HasCredits, "the balance simply stays unknown");
                 Assert(h.Flow.CreditsFormatted == "…", "an unknown balance renders as an ellipsis");
                 Assert(h.Flow.CanContinue, "a credits failure must never close the gate");
+            });
+
+            RunAsync("onboarding: a successful activation refreshes the balance", async () =>
+            {
+                // StepDidChange fetches on entry to Configure and to Setup, and BOTH of
+                // those run while a first-run machine is still unlicensed - so every
+                // fetch came back unknown and nothing ever asked again. "Credits
+                // confirmed" stayed unticked on a good key.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+
+                h.Credits.NextCredits = new OnboardingCloudCredits(66950, 10627, "$66.95 remaining");
+                var before = h.Credits.RefreshCount;
+
+                h.Flow.ActivateCloudLicense();
+                var task = h.LastTask;
+                await task;
+
+                Assert(h.Credits.RefreshCount > before, "activation must ask for the balance again");
+                Assert(h.Flow.HasCredits, "and the balance must land on the flow");
+                Assert(h.Flow.AreCreditsConfirmed, "so the Credits confirmed row ticks");
+            });
+
+            Run("onboarding: the Done summary shows the credit count, not the balance line", () =>
+            {
+                // The format is "{0} · {1} credits", so {1} is a COUNT. Passing
+                // CreditsFormatted rendered "HyperWhisper Cloud · $66.95 remaining
+                // (~10627 minutes) credits".
+                var h = new OnboardingHarness();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.Credits.Publish(new OnboardingCloudCredits(66950, 10627, "$66.95 remaining (~10627 minutes)"));
+                h.Flow.RefreshCredits(force: false);
+
+                Assert(h.Flow.CreditsCountFormatted == 66950d.ToString("N0", CultureInfo.CurrentCulture),
+                    $"unexpected count rendering '{h.Flow.CreditsCountFormatted}'");
+                Assert(!h.Flow.SourceSummary.Contains("remaining"),
+                    $"the balance line must not reach the summary: '{h.Flow.SourceSummary}'");
+                Assert(h.Flow.SourceSummary.Contains(h.Flow.CreditsCountFormatted),
+                    $"the count must reach the summary: '{h.Flow.SourceSummary}'");
             });
 
             // ----- Device availability (Windows-only) --------------------------
@@ -9880,6 +10401,139 @@ internal static class Program
     /// Set <see cref="Next"/> before each send. Used by the custom-endpoint test
     /// checks, which assert on the request as well as on the reply.
     /// </summary>
+    /// <summary>
+    /// Everything the Local API's <c>file</c> containment guard looks at, in one
+    /// string: the trusted roots, and each ancestor of <paramref name="path"/>
+    /// that is a reparse point or that cannot be resolved. The guard's own
+    /// refusal is deliberately uniform — it must not leak whether a path exists
+    /// — so a test that trips it has nothing to report without this.
+    /// </summary>
+    private static string TrustedPathDiagnostics(string path)
+    {
+        var report = new System.Text.StringBuilder();
+        report.Append($"path={path}; tempRoot={AppPaths.ProfileTempRecordingsDirectory}; ");
+        try { report.Append($"recordings={StorageService.Instance.GetRecordingsFolder()}; "); }
+        catch (Exception ex) { report.Append($"recordings=<{ex.GetType().Name}>; "); }
+        try { report.Append($"legacy={SettingsService.GetLegacyAudioFolder()}; "); }
+        catch (Exception ex) { report.Append($"legacy=<{ex.GetType().Name}>; "); }
+        report.Append($"lexicalTrusted={HistoryService.IsTrustedAudioPath(path)}; chain=[");
+
+        for (var current = Path.GetFullPath(path); !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current)!)
+        {
+            try
+            {
+                var target = File.Exists(current)
+                    ? File.ResolveLinkTarget(current, returnFinalTarget: true)
+                    : Directory.ResolveLinkTarget(current, returnFinalTarget: true);
+                if (target != null) report.Append($"{current} -> {target.FullName}; ");
+            }
+            catch (Exception ex)
+            {
+                report.Append($"{current} !! {ex.GetType().Name}: {ex.Message}; ");
+            }
+        }
+        return report.Append(']').ToString();
+    }
+
+    /// <summary>
+    /// Run <paramref name="act"/> and return the <c>ApiInputException</c> it was
+    /// supposed to throw. Failing to throw is itself the failure, and says so —
+    /// a bare try/catch would report "the guard is missing" as a pass.
+    /// </summary>
+    private static HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException
+        CaptureApiInputException(Action act)
+    {
+        try
+        {
+            act();
+        }
+        catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+        {
+            return ex;
+        }
+        throw new InvalidOperationException(
+            "expected the size guard to refuse this input, but ResolveAudioSource returned normally");
+    }
+
+    /// <summary>
+    /// POST <paramref name="payload"/> to <c>/probe</c> on a raw loopback
+    /// socket and return the status and failure envelope, reading the response
+    /// CONCURRENTLY with the send.
+    ///
+    /// That concurrency is the whole point. A server that refuses an oversized
+    /// body answers before the body has finished arriving and then resets the
+    /// connection, because the rest is still in flight. An HttpClient that is
+    /// only writing at that moment surfaces the reset as
+    /// <c>HttpRequestException: Error while copying content to a stream</c> and
+    /// throws away the response it had already been sent — which reads as "the
+    /// head answered nothing" when the head answered correctly. Reading while
+    /// writing takes the envelope off the socket before the reset can matter,
+    /// and write failures after that point are expected and ignored.
+    ///
+    /// <paramref name="chunked"/> frames the body with
+    /// <c>Transfer-Encoding: chunked</c>, which is how a caller sends a body
+    /// whose length the head cannot pre-check.
+    /// </summary>
+    private static async Task<(int Status, string? Code, string? Message)> RawProbeAsync(
+        int port, string framingHeader, byte[] payload, bool chunked)
+    {
+        using var socket = new System.Net.Sockets.TcpClient();
+        await socket.ConnectAsync(IPAddress.Loopback, port);
+        using var stream = socket.GetStream();
+
+        await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes(
+            $"POST /probe HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\n"
+            + $"Connection: close\r\n{framingHeader}\r\n"));
+
+        var received = new MemoryStream();
+        var reader = Task.Run(async () =>
+        {
+            try { await stream.CopyToAsync(received); }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException) { }
+        });
+
+        try
+        {
+            if (chunked) await stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes($"{payload.Length:x}\r\n"));
+            // In slices, so a reset partway through ends the send instead of
+            // blocking on a socket buffer nobody is draining.
+            for (var offset = 0; offset < payload.Length; offset += 1 << 20)
+            {
+                await stream.WriteAsync(payload.AsMemory(offset, Math.Min(1 << 20, payload.Length - offset)));
+            }
+            if (chunked) await stream.WriteAsync("\r\n0\r\n\r\n"u8.ToArray());
+            await stream.FlushAsync();
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or System.Net.Sockets.SocketException)
+        {
+            // The server answered and reset. `reader` already has the answer.
+        }
+
+        await reader.WaitAsync(TimeSpan.FromSeconds(60));
+        var text = System.Text.Encoding.UTF8.GetString(received.ToArray());
+        var separator = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        if (separator < 0)
+        {
+            throw new InvalidOperationException(
+                $"the server sent no complete HTTP response; got {received.Length} bytes: {text}");
+        }
+
+        var status = int.Parse(text.Split(' ')[1]);
+        // Slice the envelope out by its braces rather than taking everything
+        // after the headers: `Connection: close` lets the server answer with
+        // chunked framing, and its length prefix is not JSON.
+        var open = text.IndexOf('{', separator);
+        var close = text.LastIndexOf('}');
+        if (open < 0 || close < open)
+        {
+            throw new InvalidOperationException($"the {status} response carried no JSON envelope: {text}");
+        }
+
+        using var document = JsonDocument.Parse(text[open..(close + 1)]);
+        var error = document.RootElement.GetProperty("error");
+        return (status, error.GetProperty("code").GetString(), error.GetProperty("message").GetString());
+    }
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public Func<HttpResponseMessage>? Next;

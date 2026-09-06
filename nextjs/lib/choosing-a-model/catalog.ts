@@ -259,7 +259,7 @@ export type DeviceModel = {
 export type Model = CloudModel | DeviceModel;
 
 /**
- * Mirrored from `cloud-stt-catalog.json` v10 (2026-09-02). Benchmark columns
+ * Mirrored from `cloud-stt-catalog.json` v12 (2026-09-04). Benchmark columns
  * from the Artificial Analysis non-streaming leaderboard, pulled 2026-08-19,
  * and 2026-08-28 for the `gemini-3.5-transcribe` row — a model that leaderboard
  * has not measured carries `wer: null` / `speedFactor: null` rather than a
@@ -280,8 +280,19 @@ const CLOUD_MODELS_RAW = [
   { id: "deepgramNova3:nova-3-medical", name: "Nova 3 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-3-medical", credits: 5.5, wer: 5.2, speedFactor: 541.1, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "deepgramNova3:nova-2-general", name: "Nova 2 General", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-general", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
-  { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "xAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
-  { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe 1.5", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: false },
+  { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "SpaceXAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  // Not on the non-streaming leaderboard this column reads, so both figures
+  // stay null and `rankModels` scores it a neutral 0.5 rather than inheriting
+  // 1.5's numbers. Microsoft's own launch post claims it beats 1.5 on both, but
+  // that is a vendor figure measured on vendor audio — the one thing the note
+  // above CLOUD_MODELS_RAW forbids this column. Fill these in from the board
+  // when Artificial Analysis publishes the row.
+  { id: "azureMaiTranscribe:mai-transcribe-2", name: "MAI-Transcribe 2", vendorLabel: "Microsoft MAI-Transcribe", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-2", credits: 1.67, wer: null, speedFactor: null, languages: 60, streaming: false, customVocabulary: true, preview: true, isDefault: true, byok: false },
+  // 42, not the provider row's 60: `languages.codes` on `azureMaiTranscribe` is
+  // the UNION of the two models' tables, and this column is per MODEL. The
+  // catalog states each model's own figure in `models[].languageCount`, which is
+  // what `choosing-a-model-catalog.test.ts` checks these two against.
+  { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: false },
   // Both figures read from the non-streaming leaderboard on 2026-08-28, a later
   // pull than the rest of this column. Artificial Analysis re-runs the board, so
   // any row is only as current as its pull date and the column now holds two of
@@ -311,11 +322,15 @@ const CLOUD_MODELS_RAW = [
   { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-pro", credits: 7.5, wer: 2.9, speedFactor: 13.3, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-3-flash-preview", name: "Gemini 3 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3-flash-preview", credits: 3.0, wer: 2.9, speedFactor: 16.1, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "gemini:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.1-pro-preview", credits: 10.0, wer: 2.8, speedFactor: 7.0, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
+  // `languages` is null, not 25: cloud-stt-catalog.json records this count as
+  // "unverified" — Meta reports "25+ evaluated languages" and the Model API
+  // reference enumerates no codes. A vendor that publishes no number is
+  // mirrored as null here, never as a guess, the same way every Gemini row is.
   // Muse is ranked on Artificial Analysis's streaming board, not on the
   // non-streaming board used by this page. Do not put that streaming WER or
   // speed figure beside batch results. Meta supports streaming upstream, but
   // HyperWhisper has no Meta live relay, so this batch row is not live-selectable.
-  { id: "metaMuse:muse-voice-transcribe-1.0", name: "Muse Voice Transcribe 1.0", vendorLabel: "Meta Muse Voice Transcribe", vendor: "Meta", sttProvider: "meta", modelId: "muse-voice-transcribe-1.0", credits: 3.0, wer: null, speedFactor: null, languages: 25, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "metaMuse:muse-voice-transcribe-1.0", name: "Muse Voice Transcribe 1.0", vendorLabel: "Meta Muse Voice Transcribe", vendor: "Meta", sttProvider: "meta", modelId: "muse-voice-transcribe-1.0", credits: 3.0, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
 ] as const;
 
 export const CLOUD_MODELS: readonly CloudModel[] = CLOUD_MODELS_RAW.map(

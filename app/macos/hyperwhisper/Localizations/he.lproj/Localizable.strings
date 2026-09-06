@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "הורידו את המודל שלכם";
 "onboarding.setup.onDevice.download" = "הורד %@";
 "onboarding.setup.onDevice.downloading" = "מוריד… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "מוריד…";
+"onboarding.setup.onDevice.preparing" = "מכין את ההורדה…";
+"onboarding.setup.onDevice.downloadingFile" = "מוריד קובץ %1$d מתוך %2$d";
+"onboarding.setup.onDevice.optimizing" = "מבצע אופטימיזציה של המודל עבור ה-Mac הזה. כמעט סיימנו.";
+"onboarding.setup.onDevice.optimizingPill" = "מבצע אופטימיזציה…";
+"onboarding.setup.onDevice.firstRunHint" = "ההורדה הראשונה נמשכת כמה דקות. אפשר להשאיר את החלון הזה פתוח.";
 "onboarding.setup.onDevice.ready" = "המודל מוכן";
 "onboarding.setup.cloud.title" = "הפעילו את המפתח שלכם";
 "onboarding.setup.cloud.activate" = "הפעל Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "ההפעלה נכשלה: %@";
 "onboarding.setup.provider.error" = "לא ניתן היה לשמור את המפתח שלכם: %@";
 "onboarding.setup.provider.saveFailed" = "לא ניתן היה לכתוב את המפתח למחזיק המפתחות שלכם.";
+"onboarding.setup.stopped.onDevice" = "לא ניתן היה להשלים את ההגדרה: %@ כבר לא מותקן על ה-Mac הזה. הורידו אותו שוב כדי להמשיך.";
+"onboarding.setup.stopped.cloud" = "לא ניתן היה להשלים את ההגדרה: ה-Mac הזה כבר לא מופעל עבור HyperWhisper Cloud. הפעילו אותו שוב למטה, או חזרו שלב אחד אחורה כדי להזין את מפתח הגישה שלכם.";
+"onboarding.setup.stopped.provider" = "לא ניתן היה להשלים את ההגדרה: מפתח %@ שלכם כבר לא שמור על ה-Mac הזה. שמרו אותו שוב כדי להמשיך.";
 "onboarding.setup.provider.check.validated" = "המפתח אומת מול %@";
 "onboarding.setup.provider.check.written" = "נכתב למחזיק המפתחות של ההתחברות";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · מפתח API של %@";
@@ -766,11 +775,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ קרדיטים/דק׳";
 "modes.cloudAccuracy.grokStt.label" = "הגבוה ביותר (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "גבוהה (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. רב-לשוני, עם תמיכה באוצר מילים מותאם אישית.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "גבוהה (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 דרך Azure Speech. 43 שפות עם הטיה לפי הקשר.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "גבוהה (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe דרך Azure Speech. עד 60 שפות עם הטיה לפי הקשר.";
 
 "modes.create.title" = "צור מצב חדש";
 "modes.create.subtitle" = "הגדר פרופיל תמלול מותאם אישית";

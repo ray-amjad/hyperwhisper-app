@@ -164,7 +164,7 @@
       },
       "apiKey": {
         "question": "API 사용에 비용이 드나요?",
-        "answer": "다음 제공업체에는 직접 API 키를 사용합니다: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini. 일부 제공업체는 신규 사용자에게 무료 크레딧을 제공합니다. Deepgram은 $200, AssemblyAI는 $50를 제공합니다. 장기적으로는 구독형 서비스보다 훨씬 저렴합니다. \n\nAPI 키 없이도 사용할 수 있는 HyperWhisper Cloud(내장)도 제공되며, 사용량 기반 과금입니다.\n\n또한 로컬 오프라인 모드는 API 키 없이 완전히 무료로 사용할 수 있습니다."
+        "answer": "다음 제공업체에는 직접 API 키를 사용합니다: Groq, SpaceXAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini. 일부 제공업체는 신규 사용자에게 무료 크레딧을 제공합니다. Deepgram은 $200, AssemblyAI는 $50를 제공합니다. 장기적으로는 구독형 서비스보다 훨씬 저렴합니다. \n\nAPI 키 없이도 사용할 수 있는 HyperWhisper Cloud(내장)도 제공되며, 사용량 기반 과금입니다.\n\n또한 로컬 오프라인 모드는 API 키 없이 완전히 무료로 사용할 수 있습니다."
       },
       "languages": {
         "question": "어떤 언어를 지원하나요?",
@@ -180,11 +180,11 @@
       },
       "privacy": {
         "question": "개인정보는 어떻게 보호되나요?",
-        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac이나 Windows PC 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로, 또는 [GitHub의 소스 코드](https://github.com/ray-amjad/hyperwhisper-app)를 읽어 직접 확인할 수 있습니다."
+        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac이나 Windows PC 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, SpaceXAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로, 또는 [GitHub의 소스 코드](https://github.com/ray-amjad/hyperwhisper-app)를 읽어 직접 확인할 수 있습니다."
       },
       "cloud": {
         "question": "HyperWhisper Cloud란 무엇인가요?",
-        "answer": "HyperWhisper Cloud는 빠르게 시작하고 싶은, 기술에 익숙하지 않은 사용자를 위한 내장형 클라우드 전사 기능입니다.\n\n사용량 기반 크레딧입니다. 최소 $5($1당 1,000크레딧)부터 충전하고, 전사할 때만 사용합니다. 첫 크레딧 구매 시 Account Key가 자동으로 생성되므로, 따로 구매할 것이 없습니다.\n    \n정확도는 네 단계를 제공합니다: Medium(Groq), Medium(Deepgram Nova 3), High(ElevenLabs Scribe v2), 그리고 Highest(Grok STT, 신규 설치의 기본값이며 xAI Grok STT 기반). 후처리는 자동이며 기본값은 Grok 4.1 Fast non-reasoning입니다. 사용한 크레딧 양 외에는 아무것도 저장하지 않으며, 저희가 사용하는 모든 상위 제공업체에서 모델 학습 사용을 거부(opt-out)하도록 설정해 두었습니다. 자세한 내용은 [데이터 개인정보 보호 가이드](https://hyperwhisper.com/docs/data-privacy)를 참고하세요.\n\n크레딧은 제공업체 자체의 처리 비용 그대로 사용되며, 전사에 마진을 붙이지 않습니다. 결제 시 6%의 정액 결제 처리 수수료가 별도 항목으로 추가됩니다. 사용하지 않은 크레딧은 12개월 후 만료됩니다(아래 참조).\n\n안심하실 수 있도록, Cloud 백엔드를 포함해 앱 전체가 Apache-2.0 아래에서 오픈 소스입니다. 당신의 앱과 저희가 프록시하는 제공업체 사이에서 실행되는 모든 코드를 [GitHub에서](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) 읽어 보실 수 있습니다."
+        "answer": "HyperWhisper Cloud는 빠르게 시작하고 싶은, 기술에 익숙하지 않은 사용자를 위한 내장형 클라우드 전사 기능입니다.\n\n사용량 기반 크레딧입니다. 최소 $5($1당 1,000크레딧)부터 충전하고, 전사할 때만 사용합니다. 첫 크레딧 구매 시 Account Key가 자동으로 생성되므로, 따로 구매할 것이 없습니다.\n    \n정확도는 네 단계를 제공합니다: Medium(Groq), Medium(Deepgram Nova 3), High(ElevenLabs Scribe v2), 그리고 Highest(Grok STT, 신규 설치의 기본값이며 SpaceXAI Grok STT 기반). 후처리는 자동이며 기본값은 Grok 4.1 Fast non-reasoning입니다. 사용한 크레딧 양 외에는 아무것도 저장하지 않으며, 저희가 사용하는 모든 상위 제공업체에서 모델 학습 사용을 거부(opt-out)하도록 설정해 두었습니다. 자세한 내용은 [데이터 개인정보 보호 가이드](https://hyperwhisper.com/docs/data-privacy)를 참고하세요.\n\n크레딧은 제공업체 자체의 처리 비용 그대로 사용되며, 전사에 마진을 붙이지 않습니다. 결제 시 6%의 정액 결제 처리 수수료가 별도 항목으로 추가됩니다. 사용하지 않은 크레딧은 12개월 후 만료됩니다(아래 참조).\n\n안심하실 수 있도록, Cloud 백엔드를 포함해 앱 전체가 Apache-2.0 아래에서 오픈 소스입니다. 당신의 앱과 저희가 프록시하는 제공업체 사이에서 실행되는 모든 코드를 [GitHub에서](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) 읽어 보실 수 있습니다."
       },
       "dataTraining": {
         "question": "제 음성 데이터가 AI 모델 학습에 사용되나요?",

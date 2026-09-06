@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Atsisiųskite savo modelį";
 "onboarding.setup.onDevice.download" = "Atsisiųsti %@";
 "onboarding.setup.onDevice.downloading" = "Atsisiunčiama… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Atsisiunčiama…";
+"onboarding.setup.onDevice.preparing" = "Ruošiamas atsisiuntimas…";
+"onboarding.setup.onDevice.downloadingFile" = "Atsisiunčiamas failas %1$d iš %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modelis optimizuojamas šiam „Mac“. Beveik baigta.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimizuojama…";
+"onboarding.setup.onDevice.firstRunHint" = "Pirmasis atsisiuntimas trunka kelias minutes. Šį langą galite palikti atvertą.";
 "onboarding.setup.onDevice.ready" = "Modelis paruoštas";
 "onboarding.setup.cloud.title" = "Aktyvuokite savo raktą";
 "onboarding.setup.cloud.activate" = "Aktyvuoti „Cloud“";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Aktyvacija nepavyko: %@";
 "onboarding.setup.provider.error" = "Nepavyko išsaugoti jūsų rakto: %@";
 "onboarding.setup.provider.saveFailed" = "Nepavyko įrašyti rakto į jūsų raktų grandinę.";
+"onboarding.setup.stopped.onDevice" = "Nepavyko užbaigti sąrankos: %@ nebėra įdiegtas šiame Mac. Atsisiųskite jį iš naujo, kad galėtumėte tęsti.";
+"onboarding.setup.stopped.cloud" = "Nepavyko užbaigti sąrankos: šis Mac nebėra aktyvuotas HyperWhisper Cloud paslaugai. Aktyvuokite jį iš naujo žemiau arba grįžkite vienu žingsniu atgal ir įveskite savo prieigos raktą.";
+"onboarding.setup.stopped.provider" = "Nepavyko užbaigti sąrankos: jūsų %@ raktas nebėra išsaugotas šiame Mac. Išsaugokite jį iš naujo, kad galėtumėte tęsti.";
 "onboarding.setup.provider.check.validated" = "Raktas patvirtintas su %@";
 "onboarding.setup.provider.check.written" = "Įrašyta į prisijungimo raktų grandinę";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API raktas";
@@ -766,11 +775,11 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditų/min";
 "modes.cloudAccuracy.grokStt.label" = "Aukščiausias (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Aukštas (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "„Google Gemini 3.5 Transcribe“. Daugiakalbis, palaiko tinkintą žodyną.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 per Azure Speech. 43 kalbos su kontekstiniu pritaikymu.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe per Azure Speech. Iki 60 kalbų su kontekstiniu pritaikymu.";
 
 "modes.create.title" = "Sukurti naują režimą";
 "modes.create.subtitle" = "Sukonfigūruokite pasirinktą transkriptsiniu profilį";

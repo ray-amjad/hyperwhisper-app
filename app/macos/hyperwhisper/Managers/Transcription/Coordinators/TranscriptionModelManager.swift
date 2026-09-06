@@ -212,15 +212,11 @@ class TranscriptionModelManager: ObservableObject {
             guard pending.generation == preparationGeneration else { return }
             modelReadyState = .none
             onStateChange?(.error(message: "Failed to prepare \(pending.displayName)."))
-            AppLogger.models.error("Failed to recover Parakeet readiness: \(error.localizedDescription, privacy: .public)")
-            if AppLogger.isErrorLoggingEnabled {
-                SentryService.capture(
-                    error: error,
-                    message: "Parakeet readiness recovery failed",
-                    extras: ["modelId": pending.modelId],
-                    tags: ["component": "models"]
-                )
-            }
+            let nsError = error as NSError
+            AppLogger.models.error("Failed to recover Parakeet readiness; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
+            // Runtime.currentManager reports the FluidAudio error identifiers
+            // and load-stage diagnostics before prepareIfNeeded maps them to a
+            // safe user-facing TranscriptionError. Do not send a second thin event.
         }
     }
 
@@ -344,12 +340,13 @@ class TranscriptionModelManager: ObservableObject {
                 )
                 modelReadyState = .unavailable(name: parakeetDisplayName)
             } catch {
-                AppLogger.models.error("Failed to prepare Parakeet provider: \(error.localizedDescription, privacy: .public)")
+                let nsError = error as NSError
+                AppLogger.models.error("Failed to prepare Parakeet provider; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
                 modelReadyState = .none
                 onStateChange?(.error(message: "Failed to prepare \(parakeetDisplayName)."))
-                if AppLogger.isErrorLoggingEnabled {
-                    SentryService.capture(error: error, message: "Parakeet prepare failed", extras: ["modelId": modelId], tags: ["component": "models"])
-                }
+                // Runtime.currentManager reports the FluidAudio error identifiers
+                // before prepareIfNeeded maps them to TranscriptionError. Avoid
+                // a duplicate event that has only the generic wrapper.
             }
             return
         }

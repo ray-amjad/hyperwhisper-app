@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Scarica il tuo modello";
 "onboarding.setup.onDevice.download" = "Scarica %@";
 "onboarding.setup.onDevice.downloading" = "Download in corso… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Download in corso…";
+"onboarding.setup.onDevice.preparing" = "Preparazione del download…";
+"onboarding.setup.onDevice.downloadingFile" = "Download del file %1$d di %2$d";
+"onboarding.setup.onDevice.optimizing" = "Ottimizzazione del modello per questo Mac. Ci siamo quasi.";
+"onboarding.setup.onDevice.optimizingPill" = "Ottimizzazione…";
+"onboarding.setup.onDevice.firstRunHint" = "Il primo download richiede qualche minuto. Puoi lasciare questa finestra aperta.";
 "onboarding.setup.onDevice.ready" = "Modello pronto";
 "onboarding.setup.cloud.title" = "Attiva la tua chiave";
 "onboarding.setup.cloud.activate" = "Attiva Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Attivazione non riuscita: %@";
 "onboarding.setup.provider.error" = "Impossibile salvare la tua chiave: %@";
 "onboarding.setup.provider.saveFailed" = "Non è stato possibile salvare la chiave nel tuo Portachiavi.";
+"onboarding.setup.stopped.onDevice" = "Non è stato possibile completare la configurazione: %@ non è più installato su questo Mac. Scaricalo di nuovo per continuare.";
+"onboarding.setup.stopped.cloud" = "Non è stato possibile completare la configurazione: questo Mac non è più attivato per HyperWhisper Cloud. Attivalo di nuovo qui sotto oppure torna indietro di un passaggio per inserire la tua chiave di accesso.";
+"onboarding.setup.stopped.provider" = "Non è stato possibile completare la configurazione: la tua chiave %@ non è più salvata su questo Mac. Salvala di nuovo per continuare.";
 "onboarding.setup.provider.check.validated" = "Chiave verificata con %@";
 "onboarding.setup.provider.check.written" = "Salvata nel portachiavi di accesso";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · Chiave API %@";
@@ -766,11 +775,11 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Massima accuratezza con elaborazione più lenta. Migliore per trascrizioni importanti.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ crediti/min";
 "modes.cloudAccuracy.grokStt.label" = "Massima (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Massima accuratezza con elaborazione più lenta. Migliore per trascrizioni importanti.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Massima accuratezza con elaborazione più lenta. Migliore per trascrizioni importanti.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingue, con supporto per il vocabolario personalizzato.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 tramite Azure Speech. 43 lingue con adattamento contestuale.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe tramite Azure Speech. Fino a 60 lingue con adattamento contestuale.";
 
 "modes.create.title" = "Crea Nuova Modalità";
 "modes.create.subtitle" = "Configura un profilo di trascrizione personalizzato";

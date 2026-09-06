@@ -6,6 +6,7 @@
   <ResourceDictionary.ThemeDictionaries>
 
     <ResourceDictionary x:Key="Light">
+      <Color x:Key="SystemAccentColor">#0A84FF</Color>
       <Color x:Key="HwAccent">#007AFF</Color>
       <Color x:Key="HwAccentHover">#0A84FF</Color>
       <Color x:Key="HwAccentPressed">#0066D6</Color>
@@ -21,6 +22,7 @@
       <Color x:Key="HwHoverBackground">#E4E6EA</Color>
       <Color x:Key="HwSelectedBackground">#D9E9FF</Color>
       <Color x:Key="HwBorder">#D8DAE0</Color>
+      <Color x:Key="HwDivider">#252529</Color>
       <Color x:Key="HwSubtleBorder">#E6E8EC</Color>
 
       <Color x:Key="HwTextPrimary">#1D1D1F</Color>
@@ -55,15 +57,17 @@
     </ResourceDictionary>
 
     <ResourceDictionary x:Key="Dark">
+      <Color x:Key="SystemAccentColor">#0A84FF</Color>
       <Color x:Key="HwAccent">#0A84FF</Color>
       <Color x:Key="HwAccentHover">#2997FF</Color>
       <Color x:Key="HwAccentPressed">#006EDB</Color>
       <Color x:Key="HwOnAccent">#FFFFFF</Color>
 
+      <!-- Windows' SidebarBackground is #E6222326, so the RGB to match is 222326. -->
       <Color x:Key="HwSidebarBackground">#222326</Color>
       <Color x:Key="HwEmptyGlyph">#111112</Color>
       <Color x:Key="HwContentBackground">#151517</Color>
-      <Color x:Key="HwCardBackground">#1D1D20</Color>
+      <Color x:Key="HwCardBackground">#1D1D1F</Color>
       <Color x:Key="HwInputBackground">#242428</Color>
       <Color x:Key="HwHoverBackground">#303035</Color>
       <Color x:Key="HwSelectedBackground">#183D66</Color>
@@ -72,6 +76,8 @@
            lighter over a card. The opaque #34343A used here before read too light on every box
            edge. Keep the alpha so the composite matches Windows on both surfaces. -->
       <Color x:Key="HwBorder">#B034343A</Color>
+      <!-- The remote's separate divider tone, for the flat 1px rules between rows. -->
+      <Color x:Key="HwDivider">#252529</Color>
       <Color x:Key="HwSubtleBorder">#26262B</Color>
 
       <Color x:Key="HwTextPrimary">#F5F5F7</Color>

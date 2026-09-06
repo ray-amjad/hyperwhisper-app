@@ -3110,6 +3110,8 @@ public partial class MainWindow : Window
                     "SettingsLocalWhisperRuntimeStatus", "SettingsLocalLlmBackend", "SettingsLocalLlmCpuFallback"],
                 ["streaming"] = ["StreamingEnabledToggle", "StreamingProviderChoice", "StreamingLanguageInput"]
             };
+            // The Streaming page hides its provider rows until streaming is on, as Windows does.
+            _viewModel.Settings.StreamingEnabled = true;
             foreach (var section in settingsSections)
             {
                 _viewModel.Navigate(section.Key);

@@ -9,20 +9,14 @@ import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderU
 // the route never imports an adapter or keeps a dispatch table of its own. See
 // providers/dispatch.ts.
 import { transcribeWithProvider } from '../providers/dispatch';
-import { parseMetaWav } from '../providers/meta';
-import { creditsForCost, estimatePromptInputReservationUsd, formatUsd } from '../lib/cost-calculator';
+import { formatUsd } from '../lib/cost-calculator';
 import {
   fallbackChainFor,
   getProviderDef,
   isSelfOnly,
-  resolveModel,
   servedNameFor,
-  MEDICAL_DOMAIN,
   type SttProviderId,
 } from '../lib/stt-models';
-import { readClientInfo } from '../lib/client-info';
-import { clientOffersLatencyOptOut } from '../lib/latency-eligibility';
-import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
 import {
   reportLatencySamples,
   type LatencyFailureKind,
@@ -36,74 +30,22 @@ import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork }
 // The providers layer's own answer to "can this Fly region reach this provider",
 // so the route never needs a provider's blocked-region list, its replay region,
 // or its id in a filter. See providers/geo-availability.ts.
-import { planGeoRouting, reachableFromRegion } from '../providers/geo-availability';
+import { reachableFromRegion } from '../providers/geo-availability';
 // The providers layer's own answer to "what is the worst USD/min this request
 // could be billed at", so the route never needs a provider's add-on eligibility
 // or an adapter's internal routing gate. See providers/reservation.ts.
-import { maxReservationUsdPerMinute } from '../providers/reservation';
-import { rawQuery } from '../lib/query';
-import { isIPBlocked } from '../lib/redis';
 import { errorResponse } from '../lib/responses';
-import { validateAuth } from '../middleware/auth';
-import { deductCredits, estimateAudioSecondsFromSize, validateCredits } from '../middleware/credits';
-import { flyProxyOverheadMs, logEvent, machineUptimeMs } from '../lib/logging';
-import {
-  extractDomain,
-  extractModel,
-  extractProvider,
-  isLatencyOptOut,
-  validateStreamingHeaders,
-} from './transcribe-request';
+import { deductCredits } from '../middleware/credits';
+import { logEvent, machineUptimeMs } from '../lib/logging';
+import { isLatencyOptOut } from './transcribe-request';
 import { buildTranscriptionSuccess } from './transcribe-success';
+import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
+import { prepareTranscriptionRequest } from './transcribe-preparation';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
 
-/**
- * Preflight credit reservation: turn a declared Content-Length into the credits
- * to hold before the body is read.
- *
- * Which providers the request could reach, what each of them would charge, and
- * which of them has a routing tier priced above its own catalog are all
- * `maxReservationUsdPerMinute`'s to answer. What is left here is the
- * byte→seconds→credits arithmetic, plus the prompt-token allowance, which is
- * still `lib/cost-calculator.ts`'s and is applied to the primary provider only
- * — see the note in providers/reservation.ts for when that has to move.
- * `model`/`medical` are optional to keep the historical 2-arg signature working.
- */
-export function estimateCreditsForProviderFallbacks(
-  sizeBytes: number,
-  provider: Provider,
-  model?: string,
-  medical: boolean = false,
-  initialPrompt?: string,
-  language?: string,
-  exactAudioSeconds?: number,
-): number {
-  // Muse requests are canonical mono PCM16 WAV at 16 or 24 kHz. The route
-  // supplies the parsed duration because Content-Length cannot identify which
-  // accepted byte rate produced the file. Keep the 16 kHz size fallback for
-  // direct historical callers of this estimator; the live route never uses it
-  // for a valid Muse WAV.
-  const estimatedSeconds = exactAudioSeconds ?? (provider === 'meta'
-    ? Math.max(10, Math.max(0, sizeBytes - 44) / (16_000 * 2))
-    : estimateAudioSecondsFromSize(sizeBytes));
-  const usdPerMinute = maxReservationUsdPerMinute({
-    provider,
-    model,
-    medical,
-    hasInitialPrompt: Boolean(initialPrompt),
-    language,
-    estimatedSeconds,
-  });
-  // Token-billed providers (Gemini, OpenAI gpt-4o*) charge the prompt text as
-  // input tokens on top of the audio. Reserve that flat cost for the primary
-  // provider (these are self-only chains) so a large vocabulary prompt on a
-  // short clip can't be deducted beyond what was reserved.
-  const promptReservationUsd = estimatePromptInputReservationUsd(provider, model, initialPrompt);
-  const estimatedCostUsd = (estimatedSeconds / 60) * usdPerMinute + promptReservationUsd;
-  return Math.max(0.1, creditsForCost(estimatedCostUsd));
-}
+export { estimateCreditsForProviderFallbacks };
 
 export { isLatencyOptOut };
 
@@ -135,248 +77,28 @@ function elapsedFor(attemptStart: number): number {
 }
 
 export async function transcribeRoute(c: Context) {
-  const requestId = generateRequestId();
-  const startTime = performance.now();
-  const clientIP = getClientIP(c);
-  const flyRequestId = getFlyRequestId(c);
-
-  // IP block check
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'ip_blocked',
-      flyRequestId,
-    });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  const preparation = await prepareTranscriptionRequest(c);
+  if (preparation instanceof Response) {
+    return preparation;
   }
-  logEvent(requestId, startTime, 'transcribe.ip_check_done', { flyRequestId });
-
-  const providerSelection = extractProvider(c);
-  if (!providerSelection.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'invalid_provider',
-      flyRequestId,
-      provided: providerSelection.provided,
-    });
-    return errorResponse(400, 'Invalid STT provider',
-      `Unknown X-STT-Provider "${providerSelection.provided}".`,
-      { requestId, provided: providerSelection.provided },
-    );
-  }
-  const provider = providerSelection.provider;
-
-  // Resolve + validate the requested model against the server-side registry.
-  // An unknown model for the provider is rejected (fail-closed) rather than
-  // silently routed to the provider default at a possibly different price.
-  const requestedModel = extractModel(c);
-  const modelResolution = resolveModel(provider, requestedModel);
-  if (!modelResolution.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'invalid_model',
-      flyRequestId,
-      provider,
-      requestedModel,
-    });
-    return errorResponse(400, 'Invalid STT model', modelResolution.reason, {
-      requestId,
-      provider,
-      requested_model: requestedModel,
-      valid_models: modelResolution.validModels,
-    });
-  }
-  const model = modelResolution.model.id;
-
-  const domain = extractDomain(c);
-  // Medical add-on only applies where the provider meters it (AssemblyAI today).
-  const medical = domain === MEDICAL_DOMAIN;
-
-  const headerValidation = validateStreamingHeaders(c, provider);
-  if (!headerValidation.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'invalid_streaming_headers',
-      flyRequestId,
-      provider,
-      status: headerValidation.response.status,
-    });
-    return headerValidation.response;
-  }
-
-  const { contentType, contentLength } = headerValidation;
-  // rawQuery, not c.req.query(): Hono's decoder adds an HTML-form `+` → space
-  // step, corrupting values like a `C++` vocabulary term. See lib/query.ts.
-  const language = rawQuery(c.req.url, 'language');
-  const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
-  const mode = rawQuery(c.req.url, 'mode');
-
-  // Some providers are unreachable from the region this machine runs in. The
-  // providers layer owns which ones, from where, and where to send the request
-  // instead — the route only carries out the plan it is handed, before doing
-  // any auth/credit work. A replay adds ~50-80ms vs ~6s of certain failure.
-  // See providers/geo-availability.ts.
-  const geoPlan = planGeoRouting(provider, contentLength);
-  if (geoPlan.action === 'replay') {
-    logEvent(requestId, startTime, 'transcribe.fly_replay', {
-      flyRequestId,
-      provider,
-      fromRegion: geoPlan.fromRegion,
-      toRegion: geoPlan.toRegion,
-      reason: geoPlan.reason,
-    });
-    c.header('fly-replay', `region=${geoPlan.toRegion}`);
-    return c.body(null, 200);
-  }
-  // The body was too large for Fly to replay, so the request stays in this
-  // region and the unreachable provider comes out of the chain below.
-  if (geoPlan.action === 'drop_from_chain') {
-    logEvent(requestId, startTime, 'transcribe.fly_replay_skipped_oversized', {
-      flyRequestId,
-      provider,
-      flyRegion: geoPlan.fromRegion,
-      contentLength,
-      replayMaxBytes: geoPlan.replayMaxBytes,
-    });
-  }
-
-  const proxyOverheadMs = flyProxyOverheadMs(c.req.header('Fly-Request-Start'));
-  const { clientPlatform, clientVersion } = readClientInfo(c);
-  logEvent(requestId, startTime, 'transcribe.request_start', {
-    flyRequestId,
+  const {
+    requestId,
+    startTime,
+    clientIP,
+    provider,
+    model,
+    domain,
+    contentType,
+    language,
+    initialPrompt,
+    mode,
     clientPlatform,
     clientVersion,
-    flyRegion: process.env.FLY_REGION || 'local',
-    flyMachineId: process.env.FLY_MACHINE_ID,
-    proxyOverheadMs,
-    provider,
-    model: model || 'default',
-    domain: domain || 'none',
-    contentType,
-    contentLength,
-    language: language || 'auto',
-    hasInitialPrompt: Boolean(initialPrompt),
-    mode: mode || 'default',
-  });
-
-  // Auth (query params only) — Cloud is licensed-only; a valid account key is required.
-  // `account_key` is the canonical param name; `license_key` is the legacy alias
-  // that installed native apps still send, so we accept either.
-  const authResult = await validateAuth({
-    licenseKey:
-      rawQuery(c.req.url, 'account_key') ?? rawQuery(c.req.url, 'license_key'),
-  });
-  if (!authResult.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'auth_failed',
-      flyRequestId,
-      status: authResult.response.status,
-    });
-    return authResult.response;
-  }
-  logEvent(requestId, startTime, 'transcribe.auth_done');
-
-  const readAudioBuffer = async (): Promise<ArrayBuffer> => {
-    const uploadStart = performance.now();
-    const body = await c.req.arrayBuffer();
-    const uploadMs = Math.round(performance.now() - uploadStart);
-    const uploadBytesPerSec = uploadMs > 0
-      ? Math.round((body.byteLength / uploadMs) * 1000)
-      : undefined;
-    logEvent(requestId, startTime, 'transcribe.buffer_read_done', {
-      audioBytes: body.byteLength,
-      uploadMs,
-      uploadBytesPerSec,
-    });
-    return body;
-  };
-
-  // Meta needs the buffered WAV to calculate an exact reservation. Before that
-  // allocation, reserve the lowest possible cost for this byte count: accepted
-  // 24 kHz mono PCM16 has the highest byte rate, so any canonical Muse WAV of
-  // this size is at least this long. The exact duration check below still owns
-  // the final amount and increases it for 16 kHz audio.
-  if (provider === 'meta') {
-    const minimumAudioSeconds = Math.max(0, contentLength - 44) / (24_000 * 2);
-    const minimumEstimatedCredits = estimateCreditsForProviderFallbacks(
-      contentLength, provider, model, medical, initialPrompt, language, minimumAudioSeconds,
-    );
-    const minimumCreditCheck = await validateCredits(
-      authResult.value, minimumEstimatedCredits, clientIP,
-    );
-    if (!minimumCreditCheck.ok) {
-      logEvent(requestId, startTime, 'transcribe.request_rejected', {
-        reason: 'credits_failed_before_buffer',
-        flyRequestId,
-        status: minimumCreditCheck.response.status,
-        estimatedCredits: minimumEstimatedCredits,
-      });
-      return minimumCreditCheck.response;
-    }
-    logEvent(requestId, startTime, 'transcribe.credits_minimum_done', {
-      estimatedCredits: minimumEstimatedCredits,
-    });
-  }
-
-  // Meta billing is duration-based while its two accepted PCM sample rates
-  // have different byte rates. Read this finite-capped body and parse the WAV
-  // before reservation; Content-Length cannot distinguish a 60-second 24 kHz
-  // clip from a 90-second 16 kHz clip. Invalid/noncanonical audio deliberately
-  // skips reservation and continues to the adapter, which returns the 415/400
-  // that tells a native client whether to normalize and retry.
-  let audioBuffer: ArrayBuffer | undefined;
-  let exactAudioSeconds: number | undefined;
-  let skipCreditValidationForLocalInputError = false;
-  if (provider === 'meta') {
-    audioBuffer = await readAudioBuffer();
-    try {
-      exactAudioSeconds = parseMetaWav(audioBuffer, contentType).durationSeconds;
-    } catch (error) {
-      if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) {
-        skipCreditValidationForLocalInputError = true;
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  // The raw request values go in as they arrived — the initial_prompt, the
-  // domain and the language are all things the reservation prices for itself.
-  // See providers/reservation.ts for which of them cost what, and why.
-  const estimatedCredits = estimateCreditsForProviderFallbacks(
-    contentLength, provider, model, medical, initialPrompt, language, exactAudioSeconds,
-  );
-  if (!skipCreditValidationForLocalInputError) {
-    const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
-    if (!creditCheck.ok) {
-      logEvent(requestId, startTime, 'transcribe.request_rejected', {
-        reason: 'credits_failed',
-        flyRequestId,
-        status: creditCheck.response.status,
-        estimatedCredits,
-      });
-      return creditCheck.response;
-    }
-    logEvent(requestId, startTime, 'transcribe.credits_done', { estimatedCredits });
-  } else {
-    logEvent(requestId, startTime, 'transcribe.credits_skipped_invalid_audio', { provider });
-  }
-
-  audioBuffer ??= await readAudioBuffer();
-
-  // The credit check above trusted the declared Content-Length. Reject bodies
-  // that arrive larger than declared so a client can't under-declare to pass
-  // validateCredits cheaply and then stream a bigger payload we'd pay the
-  // provider for (issue ray-amjad/hyperwhisper#263). Honest clients always
-  // send a body that matches Content-Length exactly.
-  if (audioBuffer.byteLength > contentLength) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'content_length_mismatch',
-      flyRequestId,
-      declaredBytes: contentLength,
-      actualBytes: audioBuffer.byteLength,
-    });
-    return errorResponse(400, 'Content-Length mismatch',
-      `Request body (${audioBuffer.byteLength} bytes) exceeds the declared Content-Length (${contentLength} bytes)`,
-      { requestId, declared_bytes: contentLength, actual_bytes: audioBuffer.byteLength },
-    );
-  }
+    auth,
+    audioBuffer,
+    latencyOptOut,
+    latencyReportable,
+  } = preparation;
 
   let result: TranscriptionResult | undefined;
   let fallbackFrom: Provider | undefined;
@@ -466,9 +188,6 @@ export async function transcribeRoute(c: Context) {
   // opt-out switch shipped in macOS 2.43.0 and Windows 1.10.0, and sharing is
   // on by default, so recording an older build would apply that default to
   // someone who had no way to decline it. See lib/latency-eligibility.ts.
-  const latencyOptOut = isLatencyOptOut(c);
-  const latencyEligibleClient = clientOffersLatencyOptOut(clientPlatform, clientVersion);
-  const latencyReportable = !latencyOptOut && latencyEligibleClient;
   // The clip length every row of this request is filed under — one estimate,
   // from the bytes on the wire and the Content-Type describing them, used
   // identically on success and on failure.
@@ -902,7 +621,7 @@ export async function transcribeRoute(c: Context) {
 
   if (billable) {
     deductCredits(
-      authResult.value,
+      auth,
       result.costUsd,
       {
         audio_duration_seconds: result.durationSeconds,

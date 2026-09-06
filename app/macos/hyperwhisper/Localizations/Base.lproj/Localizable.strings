@@ -336,6 +336,12 @@
 "onboarding.setup.onDevice.subtitle" = "This happens once. Every recording after it runs offline.";
 "onboarding.setup.onDevice.download" = "Download %@";
 "onboarding.setup.onDevice.downloading" = "Downloading… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Downloading…";
+"onboarding.setup.onDevice.preparing" = "Preparing download…";
+"onboarding.setup.onDevice.downloadingFile" = "Downloading file %1$d of %2$d";
+"onboarding.setup.onDevice.optimizing" = "Optimizing the model for this Mac. Almost done.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimizing…";
+"onboarding.setup.onDevice.firstRunHint" = "The first download takes a few minutes. You can leave this window open.";
 "onboarding.setup.onDevice.ready" = "Model ready";
 "onboarding.setup.onDevice.storedCaption" = "stored on this Mac";
 "onboarding.setup.onDevice.totalCaption" = "total download";
@@ -357,6 +363,15 @@
 "onboarding.setup.cloud.error" = "Activation failed: %@";
 "onboarding.setup.provider.error" = "Could not save your key: %@";
 "onboarding.setup.provider.saveFailed" = "The key could not be written to your Keychain.";
+
+// Set up · sent back here because the source stopped working after the user
+// passed this step (#315). These are complete sentences, not fragments framed
+// by the wrappers above, because nothing failed inside the app: the model was
+// deleted, the license lapsed server side, or the Keychain entry went away.
+// Each one names the action that gets the user moving again.
+"onboarding.setup.stopped.onDevice" = "Setup could not finish: %@ is no longer installed on this Mac. Download it again to continue.";
+"onboarding.setup.stopped.cloud" = "Setup could not finish: this Mac is no longer activated for HyperWhisper Cloud. Activate it again below, or go back one step to enter your access key.";
+"onboarding.setup.stopped.provider" = "Setup could not finish: your %@ key is no longer saved on this Mac. Save it again to continue.";
 
 // Step 6 · Microphone
 "onboarding.mic.title" = "Say something. Watch the bars.";
@@ -808,9 +823,9 @@
 "modes.cloudAccuracy.deepgramNova3.label" = "Medium (Deepgram Nova 3)";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanced speed and accuracy. Recommended for most users.";
 "modes.cloudAccuracy.grokStt.label" = "High (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - high-accuracy transcription with strong multilingual coverage.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "High (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 languages with contextual biasing.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - high-accuracy transcription with strong multilingual coverage.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "High (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Up to 60 languages with contextual biasing.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "High (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingual, with custom vocabulary support.";
 "modes.cloudAccuracy.elevenLabsScribeV2.label" = "Highest (ElevenLabs Scribe v2)";

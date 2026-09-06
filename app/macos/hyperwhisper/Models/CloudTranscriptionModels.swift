@@ -129,9 +129,9 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         case .gemini:
             return "Google Gemini multimodal transcription with custom prompting support"
         case .grok:
-            return "xAI Grok speech-to-text API"
+            return "SpaceXAI Grok speech-to-text API"
         case .microsoftAzureSpeech:
-            return "Microsoft MAI-Transcribe 1.5 via Azure Speech (43 languages with contextual biasing)"
+            return "Microsoft MAI-Transcribe via Azure Speech (up to 60 languages with contextual biasing)"
         case .googleSpeech:
             return "Google Cloud Speech-to-Text V2 with Chirp 3 (multilingual + phrase adaptation)"
         case .geminiTranscribe:
@@ -642,10 +642,22 @@ struct CloudTranscriptionModels {
 
         // Microsoft Azure Speech (HyperWhisper Cloud only)
         CloudTranscriptionModel(
+            id: "mai-transcribe-2",
+            displayName: "MAI-Transcribe 2 (Preview)",
+            isAvailable: true,
+            description: "Microsoft's 60-language transcription model with contextual biasing.",
+            provider: .microsoftAzureSpeech,
+            isPopular: true,
+            // $0.10 per hour of audio — a limited-time offer Microsoft has
+            // announced through the end of the year. Revisit alongside
+            // `AZURE_MAI_COST_PER_AUDIO_MINUTE` in the Cloud backend.
+            pricePerSecond: 0.10 / 3600.0
+        ),
+        CloudTranscriptionModel(
             id: "mai-transcribe-1.5",
             displayName: "MAI-Transcribe 1.5 (Preview)",
             isAvailable: true,
-            description: "Microsoft's 43-language transcription model with contextual biasing.",
+            description: "Microsoft's 42-language transcription model with contextual biasing.",
             provider: .microsoftAzureSpeech,
             isPopular: true,
             pricePerSecond: 0.006 / 60.0
@@ -670,7 +682,7 @@ struct CloudTranscriptionModels {
             id: "",
             displayName: "Grok Speech-to-Text",
             isAvailable: true,
-            description: "xAI's speech-to-text endpoint. It exposes a single model, so there is nothing to choose.",
+            description: "SpaceXAI's speech-to-text endpoint. It exposes a single model, so there is nothing to choose.",
             provider: .grok,
             isPopular: true,
             pricePerSecond: nil
@@ -895,7 +907,7 @@ struct CloudTranscriptionModels {
         case .grok:
             return ""  // No model parameter — single implicit model
         case .microsoftAzureSpeech:
-            return "mai-transcribe-1.5"
+            return "mai-transcribe-2"
         case .googleSpeech:
             return "chirp_3"
         case .geminiTranscribe:

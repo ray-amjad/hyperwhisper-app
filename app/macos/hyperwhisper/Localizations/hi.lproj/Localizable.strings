@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "अपना मॉडल डाउनलोड करें";
 "onboarding.setup.onDevice.download" = "%@ डाउनलोड करें";
 "onboarding.setup.onDevice.downloading" = "डाउनलोड हो रहा है… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "डाउनलोड हो रहा है…";
+"onboarding.setup.onDevice.preparing" = "डाउनलोड तैयार किया जा रहा है…";
+"onboarding.setup.onDevice.downloadingFile" = "फ़ाइल %1$d / %2$d डाउनलोड हो रही है";
+"onboarding.setup.onDevice.optimizing" = "मॉडल को इस Mac के लिए ऑप्टिमाइज़ किया जा रहा है. लगभग हो गया.";
+"onboarding.setup.onDevice.optimizingPill" = "ऑप्टिमाइज़ किया जा रहा है…";
+"onboarding.setup.onDevice.firstRunHint" = "पहले डाउनलोड में कुछ मिनट लगते हैं. आप यह विंडो खुली छोड़ सकते हैं.";
 "onboarding.setup.onDevice.ready" = "मॉडल तैयार है";
 "onboarding.setup.cloud.title" = "अपनी कुंजी सक्रिय करें";
 "onboarding.setup.cloud.activate" = "Cloud सक्रिय करें";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "सक्रियण विफल: %@";
 "onboarding.setup.provider.error" = "आपकी कुंजी सेव नहीं की जा सकी: %@";
 "onboarding.setup.provider.saveFailed" = "कुंजी आपकी Keychain में नहीं लिखी जा सकी।";
+"onboarding.setup.stopped.onDevice" = "सेटअप पूरा नहीं हो सका: %@ अब इस Mac पर इंस्टॉल नहीं है। जारी रखने के लिए इसे फिर से डाउनलोड करें।";
+"onboarding.setup.stopped.cloud" = "सेटअप पूरा नहीं हो सका: यह Mac अब HyperWhisper Cloud के लिए सक्रिय नहीं है। इसे नीचे फिर से सक्रिय करें, या अपनी एक्सेस कुंजी दर्ज करने के लिए एक कदम पीछे जाएँ।";
+"onboarding.setup.stopped.provider" = "सेटअप पूरा नहीं हो सका: आपकी %@ कुंजी अब इस Mac पर सेव नहीं है। जारी रखने के लिए इसे फिर से सेव करें।";
 "onboarding.setup.provider.check.validated" = "कुंजी %@ के विरुद्ध सत्यापित";
 "onboarding.setup.provider.check.written" = "लॉगिन कीचेन में लिखी गई";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API कुंजी";
@@ -766,11 +775,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ क्रेडिट/मिनट";
 "modes.cloudAccuracy.grokStt.label" = "सर्वोच्च (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.geminiTranscribe.label" = "उच्च (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. बहुभाषी, कस्टम शब्दावली समर्थन के साथ।";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe 1.5। संदर्भ-आधारित बायसिंग के साथ 43 भाषाएँ।";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe। संदर्भ-आधारित बायसिंग के साथ अधिकतम 60 भाषाएँ।";
 
 "modes.create.title" = "नया मोड बनाएं";
 "modes.create.subtitle" = "एक कस्टम ट्रांसक्रिप्शन प्रोफ़ाइल कॉन्फ़िगर करें";

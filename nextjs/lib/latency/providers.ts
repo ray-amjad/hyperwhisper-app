@@ -21,7 +21,7 @@
  *    rows the page shows when "Break down by model" is on.
  *
  * Names are never invented here. The page used to keep its own vendor-only
- * labels ("Microsoft MAI-Transcribe", "xAI Grok") because a provider row blends
+ * labels ("Microsoft MAI-Transcribe", "SpaceXAI Grok") because a provider row blends
  * every model of that provider and a label naming one model would be wrong for
  * most of the rows under it. That reasoning still holds — it is why the vendor
  * row is a vendor NAME and the model rows underneath are where models get named
@@ -74,7 +74,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
   {
     sttProvider: "grok",
     vendor: "xai",
-    vendorDisplayName: "xAI",
+    vendorDisplayName: "SpaceXAI",
     models: [
       // Empty id, like the catalog: the endpoint takes no model parameter, so
       // the ingest stores null and modelDisplayName() normalises the two.
@@ -85,7 +85,10 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     sttProvider: "azure-mai",
     vendor: "azure",
     vendorDisplayName: "Microsoft",
-    models: [{ id: "mai-transcribe-1.5", displayName: "MAI-Transcribe 1.5", isDefault: true }],
+    models: [
+      { id: "mai-transcribe-2", displayName: "MAI-Transcribe 2", isDefault: true },
+      { id: "mai-transcribe-1.5", displayName: "MAI-Transcribe 1.5" },
+    ],
   },
   {
     sttProvider: "gemini-transcribe",

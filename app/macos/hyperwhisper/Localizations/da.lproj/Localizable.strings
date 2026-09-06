@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Download din model";
 "onboarding.setup.onDevice.download" = "Download %@";
 "onboarding.setup.onDevice.downloading" = "Downloader… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Downloader…";
+"onboarding.setup.onDevice.preparing" = "Forbereder download…";
+"onboarding.setup.onDevice.downloadingFile" = "Downloader fil %1$d af %2$d";
+"onboarding.setup.onDevice.optimizing" = "Modellen optimeres til denne Mac. Næsten færdig.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimerer…";
+"onboarding.setup.onDevice.firstRunHint" = "Den første download tager et par minutter. Du kan lade dette vindue stå åbent.";
 "onboarding.setup.onDevice.ready" = "Model klar";
 "onboarding.setup.cloud.title" = "Aktivér din nøgle";
 "onboarding.setup.cloud.activate" = "Aktivér Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Aktivering mislykkedes: %@";
 "onboarding.setup.provider.error" = "Kunne ikke gemme din nøgle: %@";
 "onboarding.setup.provider.saveFailed" = "Nøglen kunne ikke skrives til din nøglering.";
+"onboarding.setup.stopped.onDevice" = "Opsætningen kunne ikke gennemføres: %@ er ikke længere installeret på denne Mac. Hent den igen for at fortsætte.";
+"onboarding.setup.stopped.cloud" = "Opsætningen kunne ikke gennemføres: denne Mac er ikke længere aktiveret til HyperWhisper Cloud. Aktivér den igen nedenfor, eller gå et trin tilbage for at indtaste din adgangsnøgle.";
+"onboarding.setup.stopped.provider" = "Opsætningen kunne ikke gennemføres: din %@-nøgle er ikke længere gemt på denne Mac. Gem den igen for at fortsætte.";
 "onboarding.setup.provider.check.validated" = "Nøgle valideret mod %@";
 "onboarding.setup.provider.check.written" = "Skrevet til login-nøgleringen";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API-nøgle";
@@ -766,11 +775,11 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Højest (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Høj (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flersproget, med understøttelse af brugerdefineret ordforråd.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høj (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 sprog med kontekstuel tilpasning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høj (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Op til 60 sprog med kontekstuel tilpasning.";
 
 "modes.create.title" = "Opret ny tilstand";
 "modes.create.subtitle" = "Konfigurer en brugerdefineret transskriptionsprofil";

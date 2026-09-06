@@ -15,6 +15,12 @@ private let parakeetResidencyId = "stt.parakeet"
 @available(macOS 13.0, *)
 final class ParakeetProvider: TranscriptionProvider {
 
+    enum ReportedFailureReason {
+        static let initializeRuntime = "Failed to initialize Parakeet runtime"
+        static let loadRuntime = "Failed to load Parakeet runtime"
+        static let unknownModelPrefix = "Unknown Parakeet model '"
+    }
+
     // RUNTIME ACTOR:
     // Manages the AsrManager singleton with version tracking
     // Reloads the manager when switching between V2 and V3 models
@@ -63,6 +69,7 @@ final class ParakeetProvider: TranscriptionProvider {
             // overlap — the second to finish overwrites `manager`/`activeVersion`,
             // orphaning the first ~700 MB manager instance. Awaiting the in-flight
             // task serializes version transitions without a global lock.
+            let anotherVersionWasLoading = !loadTasks.isEmpty
             for (otherVersion, otherTask) in loadTasks where otherVersion != version {
                 _ = try? await otherTask.value
             }
@@ -70,6 +77,7 @@ final class ParakeetProvider: TranscriptionProvider {
             // STEP 3: Reset if switching versions (only after we know we'll
             // start a new load — switching while ANOTHER version is mid-load
             // would orphan that task).
+            let activeVersionBeforeLoad = activeVersion
             if activeVersion != nil && activeVersion != version {
                 await reset()
             }
@@ -91,6 +99,7 @@ final class ParakeetProvider: TranscriptionProvider {
             }
 
             loadTasks[version] = task
+            var failureStage = "download_and_load"
             do {
                 let value = try await task.value
                 // Only clear our own entry — an invalidate() during the await
@@ -102,6 +111,7 @@ final class ParakeetProvider: TranscriptionProvider {
                 // If the version was invalidated (model deleted) while this
                 // load was awaiting, do NOT cache the stale result.
                 guard generation == loadGeneration else {
+                    failureStage = "invalidated_after_load"
                     await value.cleanup()
                     throw CancellationError()
                 }
@@ -123,8 +133,111 @@ final class ParakeetProvider: TranscriptionProvider {
                 if loadTasks[version] == task {
                     loadTasks[version] = nil
                 }
+                let elapsedMs = Int(Date().timeIntervalSince(coldLoadStart) * 1000)
+                let nsError = error as NSError
+                let isCancellation = error is CancellationError
+                    || (nsError.domain == NSURLErrorDomain
+                        && nsError.code == URLError.cancelled.rawValue)
+                if isCancellation && failureStage == "download_and_load" {
+                    failureStage = "load_cancelled"
+                }
+                let requestedVersion = String(describing: version)
+                let previousVersion = activeVersionBeforeLoad.map { String(describing: $0) } ?? "none"
+
+                if isCancellation {
+                    memoryLog.info(
+                        "model.load.cancelled id=\(parakeetResidencyId, privacy: .public) stage=\(failureStage, privacy: .public) version=\(requestedVersion, privacy: .public) previousVersion=\(previousVersion, privacy: .public) durationMs=\(elapsedMs, privacy: .public)"
+                    )
+                    if AppLogger.isErrorLoggingEnabled {
+                        let cachePresentAfterFailure = AsrModels.modelsExist(
+                            at: AsrModels.defaultCacheDirectory(for: version)
+                        )
+                        SentryService.captureMessage(
+                            "Parakeet runtime load cancelled",
+                            level: .info,
+                            extras: Self.failureExtras(
+                                stage: failureStage,
+                                elapsedMs: elapsedMs,
+                                generation: loadGeneration,
+                                anotherVersionWasLoading: anotherVersionWasLoading,
+                                cachePresent: cachePresentAfterFailure,
+                                errorCode: nsError.code
+                            ),
+                            tags: Self.failureTags(
+                                requestedVersion: requestedVersion,
+                                previousVersion: previousVersion,
+                                errorDomain: nsError.domain
+                            ),
+                            includeRecentLogs: false
+                        )
+                    }
+                } else {
+                    memoryLog.error(
+                        "model.load.failed id=\(parakeetResidencyId, privacy: .public) stage=\(failureStage, privacy: .public) version=\(requestedVersion, privacy: .public) previousVersion=\(previousVersion, privacy: .public) durationMs=\(elapsedMs, privacy: .public) errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)"
+                    )
+                    if AppLogger.isErrorLoggingEnabled {
+                        let cachePresentAfterFailure = AsrModels.modelsExist(
+                            at: AsrModels.defaultCacheDirectory(for: version)
+                        )
+                        SentryService.capture(
+                            error: SentryService.identifierOnlyError(error),
+                            message: "Parakeet runtime load failed",
+                            extras: Self.failureExtras(
+                                stage: failureStage,
+                                elapsedMs: elapsedMs,
+                                generation: loadGeneration,
+                                anotherVersionWasLoading: anotherVersionWasLoading,
+                                cachePresent: cachePresentAfterFailure,
+                                errorCode: nsError.code
+                            ),
+                            tags: Self.failureTags(
+                                requestedVersion: requestedVersion,
+                                previousVersion: previousVersion,
+                                errorDomain: nsError.domain
+                            ),
+                            fingerprint: [
+                                "parakeet-runtime-load",
+                                requestedVersion,
+                                nsError.domain,
+                                String(nsError.code),
+                            ],
+                            includeRecentLogs: false
+                        )
+                    }
+                }
                 throw error
             }
+        }
+
+        private static func failureExtras(
+            stage: String,
+            elapsedMs: Int,
+            generation: Int,
+            anotherVersionWasLoading: Bool,
+            cachePresent: Bool,
+            errorCode: Int
+        ) -> [String: Any] {
+            [
+                "parakeet_load_stage": stage,
+                "parakeet_load_duration_ms": elapsedMs,
+                "parakeet_load_generation": generation,
+                "parakeet_another_version_was_loading": anotherVersionWasLoading,
+                "parakeet_cache_present_after_failure": cachePresent,
+                "parakeet_error_code": errorCode,
+            ]
+        }
+
+        private static func failureTags(
+            requestedVersion: String,
+            previousVersion: String,
+            errorDomain: String
+        ) -> [String: String] {
+            [
+                "component": "models",
+                "parakeet_model_version": requestedVersion,
+                "parakeet_previous_version": previousVersion,
+                "parakeet_error_domain": errorDomain,
+            ]
         }
 
         func reset() async {
@@ -178,6 +291,38 @@ final class ParakeetProvider: TranscriptionProvider {
         return canonicalModelId == ParakeetModelManager.Constants.v2ModelId ? .v2 : .v3
     }
 
+    /// Report an unsupported model identifier without sending arbitrary text.
+    /// A numeric version suffix is enough to identify stale catalog entries.
+    private func reportUnknownModel(_ modelId: String) {
+        let versionPrefix = "parakeet-tdt-0.6b-v"
+        let versionNumber = modelId.hasPrefix(versionPrefix)
+            ? Int(modelId.dropFirst(versionPrefix.count))
+            : nil
+        let identifierClass = versionNumber == nil ? "unrecognized_format" : "unsupported_version"
+
+        logger.error("Parakeet rejected an unknown model id; idLength=\(modelId.count, privacy: .public) class=\(identifierClass, privacy: .public)")
+        guard AppLogger.isErrorLoggingEnabled else { return }
+
+        var extras: [String: Any] = [
+            "parakeet_load_stage": "model_resolution",
+            "parakeet_model_id_length": modelId.count,
+        ]
+        if let versionNumber {
+            extras["parakeet_unknown_model_version"] = versionNumber
+        }
+        SentryService.captureMessage(
+            "Parakeet preparation rejected",
+            level: .error,
+            extras: extras,
+            tags: [
+                "component": "models",
+                "parakeet_failure_kind": "unknown_model",
+                "parakeet_unknown_model_class": identifierClass,
+            ],
+            includeRecentLogs: false
+        )
+    }
+
     // ANY VERSION AVAILABLE:
     // Returns true if any Parakeet version is downloaded
     var isAvailable: Bool {
@@ -209,9 +354,10 @@ final class ParakeetProvider: TranscriptionProvider {
         let targetVersion: AsrModelVersion
         if let modelId {
             guard let version = version(for: modelId) else {
+                reportUnknownModel(modelId)
                 throw TranscriptionError.providerNotAvailable(
                     provider: "Parakeet",
-                    reason: "Unknown Parakeet model '\(modelId)'"
+                    reason: Self.ReportedFailureReason.unknownModelPrefix + modelId + "'"
                 )
             }
             targetVersion = version
@@ -232,9 +378,13 @@ final class ParakeetProvider: TranscriptionProvider {
             _ = try await runtime.currentManager(for: targetVersion)
             logger.info("Parakeet \(String(describing: targetVersion)) runtime ready")
         } catch {
-            logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)): \(error.localizedDescription)")
+            let nsError = error as NSError
+            logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
-            throw TranscriptionError.providerNotAvailable(provider: "Parakeet", reason: "Failed to initialize Parakeet runtime")
+            throw TranscriptionError.providerNotAvailable(
+                provider: "Parakeet",
+                reason: Self.ReportedFailureReason.initializeRuntime
+            )
         }
     }
 
@@ -245,9 +395,10 @@ final class ParakeetProvider: TranscriptionProvider {
         // STEP 1: Determine which version to use from mode
         let modelId = mode?.model ?? ParakeetModelManager.Constants.v3ModelId
         guard let targetVersion = version(for: modelId) else {
+            reportUnknownModel(modelId)
             throw TranscriptionError.providerNotAvailable(
                 provider: "Parakeet",
-                reason: "Unknown Parakeet model '\(modelId)'"
+                reason: Self.ReportedFailureReason.unknownModelPrefix + modelId + "'"
             )
         }
 
@@ -263,12 +414,12 @@ final class ParakeetProvider: TranscriptionProvider {
         // This prevents confusing "audio corrupted" errors when the real issue is simpler
         let fm = FileManager.default
         guard fm.fileExists(atPath: audioURL.path) else {
-            logger.error("Audio file not found: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("Parakeet audio file not found")
             throw TranscriptionError.providerNotAvailable(provider: "Parakeet", reason: "Audio file not found")
         }
 
         guard fm.isReadableFile(atPath: audioURL.path) else {
-            logger.error("Audio file not readable: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("Parakeet audio file not readable")
             throw TranscriptionError.providerNotAvailable(provider: "Parakeet", reason: "Audio file is not readable")
         }
 
@@ -300,9 +451,13 @@ final class ParakeetProvider: TranscriptionProvider {
         do {
             manager = try await runtime.currentManager(for: targetVersion)
         } catch {
-            logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)) runtime: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to initialize Parakeet \(String(describing: targetVersion)) runtime; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
-            throw TranscriptionError.providerNotAvailable(provider: "Parakeet", reason: "Failed to load Parakeet runtime")
+            throw TranscriptionError.providerNotAvailable(
+                provider: "Parakeet",
+                reason: Self.ReportedFailureReason.loadRuntime
+            )
         }
 
         // Mark busy so a memory-pressure event can't evict the runtime mid-pass.
@@ -397,56 +552,45 @@ final class ParakeetProvider: TranscriptionProvider {
                 throw CancellationError()
             }
 
-            // IMPROVED ERROR HANDLING:
-            // Instead of masking all errors with a generic message, expose the actual
-            // FluidAudio error so users and Sentry can see what really went wrong.
+            // Preserve the detailed error for the user-facing result. Logs keep
+            // only the error identifiers because descriptions can contain paths.
             let errorDescription = error.localizedDescription
-            let errorType = String(describing: type(of: error))
+            let nsError = error as NSError
 
-            logger.error("Parakeet \(String(describing: targetVersion)) transcription failed: \(errorType) - \(errorDescription, privacy: .public)")
+            logger.error("Parakeet \(String(describing: targetVersion)) transcription failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
 
-            // COMPREHENSIVE DIAGNOSTIC DATA FOR SENTRY:
-            // Collect all relevant context so we can diagnose issues without guessing
-            var diagnosticData: [String: Any] = [
-                "errorType": errorType,
-                "errorDescription": errorDescription,
-                "modelVersion": String(describing: targetVersion),
-                "modelId": modelId,
-                // Neither the file NAME nor the PATH. The path is under
-                // ~/Documents and carries the account name; the name is the
-                // user's own document name on the import flow. The extension is
-                // the diagnostic part, and the size below is the rest.
-                "audioFileExtension": audioURL.pathExtension
-            ]
-
-            // Audio file metadata
-            if let attrs = try? fm.attributesOfItem(atPath: audioURL.path) {
-                if let size = attrs[.size] as? Int64 {
-                    diagnosticData["fileSizeBytes"] = size
-                    // Estimate duration: 16kHz mono 16-bit = 32KB/sec
-                    let estimatedDurationSec = Double(size) / 32000.0
-                    diagnosticData["estimatedDurationSec"] = String(format: "%.2f", estimatedDurationSec)
+            // Keep the breadcrumb behind the error-reporting opt-in gate.
+            if AppLogger.isErrorLoggingEnabled {
+                var diagnosticData: [String: Any] = [
+                    "errorDomain": nsError.domain,
+                    "errorCode": nsError.code,
+                    "modelVersion": String(describing: targetVersion),
+                    "modelId": modelId,
+                    "audioFileExtension": audioURL.pathExtension,
+                ]
+                if let attrs = try? fm.attributesOfItem(atPath: audioURL.path) {
+                    if let size = attrs[.size] as? Int64 {
+                        diagnosticData["fileSizeBytes"] = size
+                        diagnosticData["estimatedDurationSec"] = String(
+                            format: "%.2f",
+                            Double(size) / 32000.0
+                        )
+                    }
+                    if let modDate = attrs[.modificationDate] as? Date {
+                        diagnosticData["fileModified"] = ISO8601DateFormatter().string(from: modDate)
+                    }
                 }
-                if let modDate = attrs[.modificationDate] as? Date {
-                    diagnosticData["fileModified"] = ISO8601DateFormatter().string(from: modDate)
-                }
+                diagnosticData["languageParam"] = language ?? "nil"
+                diagnosticData["modeLanguage"] = mode?.language ?? "nil"
+                diagnosticData["modeModel"] = mode?.model ?? "nil"
+                diagnosticData["vocabularyCount"] = vocabulary.count
+                SentryService.addBreadcrumb(
+                    message: "FluidAudio transcription error",
+                    category: "parakeet.transcription",
+                    level: .error,
+                    data: diagnosticData
+                )
             }
-            diagnosticData["fileExtension"] = audioURL.pathExtension
-
-            // Language/mode configuration
-            diagnosticData["languageParam"] = language ?? "nil"
-            diagnosticData["modeName"] = mode?.name ?? "nil"
-            diagnosticData["modeLanguage"] = mode?.language ?? "nil"
-            diagnosticData["modeModel"] = mode?.model ?? "nil"
-            diagnosticData["vocabularyCount"] = vocabulary.count
-
-            // Log full error context to Sentry for debugging
-            SentryService.addBreadcrumb(
-                message: "FluidAudio transcription error",
-                category: "parakeet.transcription",
-                level: .error,
-                data: diagnosticData
-            )
 
             // Expose the actual error to the user instead of generic message
             throw TranscriptionError.providerNotAvailable(

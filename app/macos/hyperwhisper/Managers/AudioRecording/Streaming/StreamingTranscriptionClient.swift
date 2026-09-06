@@ -65,7 +65,7 @@ import os
 ///
 /// USAGE:
 /// ```swift
-/// let strategy = HyperWhisperCloudStrategy()
+/// let strategy = RustLiveStreamingStrategy(provider: .hyperwhisperCloud)
 /// let service = StreamingTranscriptionClient(strategy: strategy)
 /// service.onTranscriptUpdate = { text, isFinal in
 ///     if isFinal {
@@ -138,6 +138,48 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Set once at init and used throughout the session lifecycle.
     private let strategy: StreamingProviderStrategy
     private let streamingProvider: StreamingTranscriptionProvider?
+
+    /// Serializes ONE audio callback against the swap of the strategy's session.
+    ///
+    /// THE PROBLEM IT SOLVES. `strategy.buildWebSocketURL` is the call that
+    /// installs a fresh core session and runs its `connect()`, which zeroes the
+    /// per-connection counters (OpenAI's pending-byte total and commit clock,
+    /// Deepgram's keepalive mark). The audio callback runs on the AVAudioEngine
+    /// tap thread, reads `onAudioData` with no barrier, and reaches the SAME
+    /// strategy object. Clearing `onAudioData` stops the NEXT callback; it does
+    /// not stop the one already executing. That callback can call
+    /// `onAudioSendOpportunity` on the old session, straddle the swap, and then
+    /// count its chunk against the NEW session while its bytes go out on the OLD
+    /// socket — after which OpenAI's first commit on the fresh socket claims
+    /// audio that server was never sent, and is refused.
+    ///
+    /// THE RULE. Every swap of the strategy's session happens under this lock,
+    /// and a callback touches the strategy only while holding it. So a callback
+    /// either completes entirely before the swap — reporting the old session's
+    /// bytes to the old session, which is correct — or it does not run at all.
+    ///
+    /// THE AUDIO THREAD NEVER WAITS. It takes the lock with `try()` and returns
+    /// on failure, dropping that chunk: `try()` is a `pthread_mutex_trylock`,
+    /// which does not block and does not allocate, so this cannot cost the tap
+    /// its ~21 ms deadline. A dropped chunk here is a chunk that belongs to
+    /// neither socket — the old one is dead and the new one has not handshaken —
+    /// so dropping it loses nothing that was going to be transcribed.
+    /// (`os_unfair_lock` is the lighter primitive and is what the deleted
+    /// `DeepgramStreamingStrategy` used, but its Swift form needs `&` on a
+    /// stored property from a closure that is not main-actor isolated.
+    /// `NSLock.try()` is the same non-blocking behaviour through an API that
+    /// cannot be got wrong. It is spelled with backticks at the call sites
+    /// because `try` is a keyword.)
+    ///
+    /// THE MAIN THREAD'S WAIT IS BOUNDED BY ONE CALLBACK. `lock()` here can
+    /// wait on the tap thread, whose longest inner wait is the core session's
+    /// own mutex — and that mutex is only ever held by `parseMessage` /
+    /// `stopSequence`, both of which run on this actor. They cannot be running
+    /// while this actor is blocked, so there is no cycle.
+    ///
+    /// NEVER HELD ACROSS AN `await`. `NSLock` must be unlocked by the thread
+    /// that locked it, and a resumed continuation can land on another thread.
+    private let audioWiringLock = NSLock()
 
     /// Audio capture component that manages the AVAudioEngine lifecycle.
     /// Created when the session starts, destroyed when it stops.
@@ -251,6 +293,24 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// True once the provider has acknowledged the final session flush.
     /// Used by stop sequences that must wait for a completion event before closing.
     private var didReceiveSessionComplete = false
+
+    /// True from the moment `stopSession()` starts until the next session begins.
+    ///
+    /// This is the client's own "the user has let go of the key" state, and it is
+    /// what a `.sessionComplete` from a per-turn provider is measured against
+    /// (see `completeEndsSessionBeforeStop` and the `.sessionComplete` arm of
+    /// `processServerMessage`). It is a private flag rather than a read of the
+    /// published `StreamingConnectionState.disconnecting` — which is the
+    /// condition Windows uses — because this client only ever *publishes*
+    /// connection state through `onConnectionStateChange` and never reads it
+    /// back, so there is nothing to key on.
+    ///
+    /// `didInitiateClose` is close but is not the same thing: it is also raised
+    /// by terminal-error teardown and by the close delegate, where "the session
+    /// is finished" is already true for other reasons and gating a completion on
+    /// it would be meaningless. Reset alongside `didReceiveSessionComplete` in
+    /// `startSession`.
+    private var stopRequested = false
 
     // MARK: - Session Diagnostics
     //
@@ -368,6 +428,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         reconnectCount = 0
         connectionEstablishedAt = Date()
         didReceiveSessionComplete = false
+        // A client instance that survived one stop must not treat the NEXT
+        // session's first turn boundary as terminal. Cleared here, ahead of
+        // STEP 1, so it is cleared even on a start that fails to build a URL.
+        stopRequested = false
 
         // Reset the diagnostics with the rest of the session state, so a report
         // can never carry a count or an elapsed time belonging to the previous
@@ -407,7 +471,18 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         }
 
         // STEP 1: Build WebSocket URL via strategy
-        guard let url = strategy.buildWebSocketURL(config: config) else {
+        //
+        // Under `audioWiringLock` because this is a session SWAP — see the
+        // property's doc. No callback of this client's should be live here (the
+        // previous session's capture was torn down with its `onAudioData`
+        // cleared), so the lock is uncontended; taking it anyway is what makes
+        // the rule "every swap happens under the lock" total rather than a
+        // property of one call site, which is the form that survives an edit.
+        audioWiringLock.lock()
+        let builtURL = strategy.buildWebSocketURL(config: config)
+        audioWiringLock.unlock()
+
+        guard let url = builtURL else {
             throw StreamingError.invalidURL
         }
 
@@ -510,6 +585,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         capture.onAudioData = { [weak self] pcmData in
             guard let self = self, let ws = connectedSocket else { return }
 
+            // ONE CALLBACK, ONE SESSION — see `audioWiringLock`. Non-blocking:
+            // a failed `try()` means a session swap is in flight and this chunk
+            // belongs to neither socket, so it is dropped rather than counted
+            // against a session it was never sent to.
+            guard self.audioWiringLock.`try`() else { return }
+            defer { self.audioWiringLock.unlock() }
+
             // Let strategy handle provider-specific periodic tasks (e.g., Deepgram KeepAlive)
             self.strategy.onAudioSendOpportunity { msg in
                 ws.send(msg) { _ in }
@@ -602,6 +684,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         onConnectionStateChange?(.disconnecting)
         didInitiateClose = true
+
+        // RAISED BEFORE A SINGLE STOP STEP RUNS, on purpose. From here on a
+        // provider completion is the end of the session rather than a turn
+        // boundary, and the stop sequence below is precisely what waits for one
+        // (`.waitForSessionComplete`). Set it any later and the completion the
+        // flush asks for could arrive while the gate still reads "mid-session",
+        // and the wait would burn its whole budget on an answer it had already
+        // been given.
+        stopRequested = true
 
         // Published before the flush starts, so an error raised DURING the stop
         // is distinguishable from one raised mid-session. A provider that
@@ -827,7 +918,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// TAKES THE DOMAIN AND CODE, NOT THE ERROR. A `URLError` raised on this
     /// socket carries `NSURLErrorFailingURLStringErrorKey` in its `userInfo` —
     /// the whole `wss://` URL, whose query string is the licence key
-    /// (`HyperWhisperCloudStrategy.buildWebSocketURL`). Classifying at the call
+    /// (`hw_net::live::hw_cloud` builds it). Classifying at the call
     /// site and rebuilding a bare `NSError` here means the credential has no
     /// route into an event at all, and the two values that identify the fault
     /// are kept.
@@ -1276,7 +1367,12 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// | .sessionComplete  | Call onSessionComplete with duration and credits |
     /// | .error            | Store error, emit error state, call onError     |
     /// | .metadata         | Debug log only (not surfaced to UI)             |
-    private func processServerMessage(_ jsonString: String) async {
+    ///
+    /// Internal rather than private only so `StreamingTurnBoundaryTests` can
+    /// drive it with a stub strategy. The turn-boundary rule below is a decision
+    /// this client makes about a provider frame, and there is no other seam that
+    /// reaches it without a live socket.
+    func processServerMessage(_ jsonString: String) async {
         guard let event = strategy.parseMessage(jsonString) else {
             logger.debug("Unhandled message from provider")
             return
@@ -1302,10 +1398,38 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 self.onTranscriptUpdate?(text, true)
             }
 
+        // ONE FRAME, TWO HALVES, AND THE SAME TURN-BOUNDARY RULE AS `.sessionComplete`.
+        //
+        // Gemini answers `audio_stream_end` with a single `serverContent`
+        // carrying the last committed segment AND `generationComplete`, and the
+        // core reports both halves (`live/gemini.rs`). That is the frame the
+        // stop's `waitForSessionComplete` is blocked on — dropping the
+        // completion is what made an ordinary Gemini dictation sit out its full
+        // 5 s budget and then report a stop failure to Sentry.
+        //
+        // The completion half is measured against `stopRequested` exactly as the
+        // standalone one is below, because it is the same boundary and the same
+        // question. When the gate refuses it, the TEXT half is still committed —
+        // a turn's committed segment belongs in the document whether or not the
+        // turn was the last one — so this degrades to `.finalTranscript` rather
+        // than being dropped. That is character-for-character what the deleted
+        // `GeminiStreamingStrategy` did with its own `clientRequestedStop` flag
+        // (`preStopCombinedFrameOnlyCommitsText` /
+        // `postStopCombinedFrameReportsTextAndCompletion`).
+        //
+        // Inert for the other five providers: they answer `true`, so the gate
+        // never fires and this arm behaves exactly as it always has.
         case .finalTranscriptAndSessionComplete(let text, let duration, let credits):
+            let completionEndsSession = strategy.completeEndsSessionBeforeStop || stopRequested
             await MainActor.run {
                 self.finalsDelivered += 1
                 self.onTranscriptUpdate?(text, true)
+                guard completionEndsSession else {
+                    self.logger.debug(
+                        "Turn boundary from \(self.strategy.transcriptionProviderLabel, privacy: .public) rode in on a final, session continues"
+                    )
+                    return
+                }
                 self.didReceiveSessionComplete = true
                 self.logger.info("Session complete: \(duration, privacy: .public)s, \(credits, privacy: .public) credits")
                 self.onSessionComplete?(duration, credits)
@@ -1318,6 +1442,35 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             }
 
         case .sessionComplete(let duration, let credits):
+            // A TURN BOUNDARY IS NOT THE END OF THE SESSION.
+            //
+            // For five of the six remote providers this frame arrives once, at
+            // the end, and `completeEndsSessionBeforeStop` (default true) keeps
+            // the unconditional behaviour this arm always had. Gemini is the
+            // exception: it emits `serverContent.generationComplete` every time
+            // it finishes generating for an utterance, so a two-sentence
+            // dictation sees one mid-stream with more audio still to come.
+            // Latching `didReceiveSessionComplete` there releases the stop
+            // sequence's `waitForSessionComplete` at the first pause and the
+            // last utterance's final never arrives.
+            //
+            // Nothing needs flushing on a turn boundary: the turn's own text
+            // already arrived as its own `.finalTranscript` beforehand, and the
+            // current partial is deliberately left alone so a preview that was
+            // never committed survives into the next turn.
+            //
+            // The decision lives here rather than in the strategy because
+            // "has the user asked to stop yet?" is the client's state and only
+            // the client's. Same split as Windows
+            // (`StreamingTranscriptionClient.cs:648-678`) and the backend proxy
+            // (`ws-streaming-shared.ts`, `complete` arm).
+            if !strategy.completeEndsSessionBeforeStop && !stopRequested {
+                logger.debug(
+                    "Turn boundary from \(self.strategy.transcriptionProviderLabel, privacy: .public), session continues"
+                )
+                return
+            }
+
             await MainActor.run {
                 self.didReceiveSessionComplete = true
                 self.logger.info("Session complete: \(duration, privacy: .public)s, \(credits, privacy: .public) credits")
@@ -1681,10 +1834,51 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             return
         }
 
+        // DETACH THE OLD SESSION BEFORE COMMITTING TO A NEW ONE, AND CLEAR
+        // NOTHING A STOP OWNS. One ordering rule, and everything below it
+        // follows from it.
+        //
+        // The capture engine keeps running through a reconnect, so between "this
+        // function commits to new state" and "the old wiring stops running"
+        // there is a window in which a tap callback is still live against state
+        // the reconnect has already replaced. The rule is that the window is
+        // closed FIRST: the audio callback comes off before anything is
+        // replaced, and the reconnect writes only state that belongs to the new
+        // socket.
+        //
+        // The detach used to sit AFTER `buildWebSocketURL`, which is the call
+        // that installs a fresh `HwLiveSession` and runs `connect()` — and
+        // `connect()` zeroes the core's per-connection counters (OpenAI's
+        // pending-byte total and commit clock, Deepgram's keepalive mark). A tap
+        // callback in that window sent its bytes out on the OLD dead socket while
+        // reporting them to the NEW session, so OpenAI's first
+        // `input_audio_buffer.commit` on the fresh socket claimed audio the
+        // server had never been sent. Detaching first removes the whole
+        // connect() from that window.
+        //
+        // A callback ALREADY executing when the detach runs is not stopped by
+        // it — `onAudioData` is read on the tap thread with no barrier — so the
+        // detach and the swap it protects are BOTH taken under
+        // `audioWiringLock`, which the callback holds while it is inside the
+        // strategy. That is what closes the residual window round 1 left open:
+        // an in-flight callback either finishes before the swap, reporting the
+        // old session's bytes to the old session, or it never enters the
+        // strategy at all. Read `audioWiringLock`'s own doc before changing any
+        // of the five lines below — including why the audio thread never waits
+        // and why this lock is never held across an `await`.
+        //
+        // The callback is re-wired below, bound to the post-handshake socket,
+        // once the session is re-established.
+        audioWiringLock.lock()
+        audioCapture?.onAudioData = nil
+        let savedConfig = currentConfig
+        let rebuiltURL = savedConfig.flatMap { strategy.buildWebSocketURL(config: $0) }
+        audioWiringLock.unlock()
+
         // A live session whose config or URL is missing is a genuine failure,
         // and stays exactly as loud as it has always been.
-        guard let config = currentConfig,
-              let url = strategy.buildWebSocketURL(config: config) else {
+        guard let config = savedConfig,
+              let url = rebuiltURL else {
             logger.error("Reconnect failed: no usable WebSocket URL for the saved config")
             // This one reports through the flow's own `onError` capture rather
             // than raising a second event here; the stage is what tells that
@@ -1695,14 +1889,6 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             onError?(StreamingError.serverError("Connection lost and reconnect failed"))
             return
         }
-
-        // Detach the audio callback before assigning the new WebSocket task.
-        // The capture engine keeps running during reconnect, and the callback
-        // re-reads self.webSocketTask on every invocation — without this, audio
-        // chunks land on the new socket before startMessages configure the
-        // session (OpenAI Realtime rejects appends sent before session.update).
-        // The callback is re-wired below once the session is re-established.
-        audioCapture?.onAudioData = nil
 
         // Rebuild WebSocket connection. Release the dead socket first — every
         // other place in this file that replaces or drops webSocketTask cancels
@@ -1715,6 +1901,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Reset session ID so waitForSessionStarted can detect the new ready message
         sessionId = nil
         disconnectedDuringReconnect = false
+        // `stopRequested` IS NOT CLEARED HERE, deliberately — the second half of
+        // the rule above. It is raised by exactly one caller, `stopSession()`,
+        // which raises `didInitiateClose` in the same breath and then cancels
+        // this task; the guard above is what abandons a reconnect that raced a
+        // stop. So a reconnect that gets this far has never seen the flag set,
+        // and the only way it could is if a stop had just raised it — the one
+        // case in which the flag is telling the truth and clearing it would
+        // discard the answer. `startSession` re-arms it for the next session,
+        // which is the load-bearing clear and the only one.
 
         // HAND THE receiveTask SLOT OVER TO THE REPLACEMENT LOOP — DO NOT CANCEL
         // THE OLD ONE.
@@ -1767,6 +1962,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             let generation = sessionGeneration
             audioCapture?.onAudioData = { [weak self] pcmData in
                 guard let self = self, let ws = reconnectedSocket else { return }
+                // ONE CALLBACK, ONE SESSION — see `audioWiringLock`, and the
+                // initial wiring in `startSession` this mirrors.
+                guard self.audioWiringLock.`try`() else { return }
+                defer { self.audioWiringLock.unlock() }
                 self.strategy.onAudioSendOpportunity { msg in
                     ws.send(msg) { _ in }
                 }

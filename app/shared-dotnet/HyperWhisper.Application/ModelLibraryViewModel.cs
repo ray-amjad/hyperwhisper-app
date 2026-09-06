@@ -83,9 +83,14 @@ public sealed class ManagedModelViewModel : ViewModelBase
     {
         Capability.SupportsStreaming ? "Streaming" : null,
         Capability.SupportsCustomVocabulary ? "Custom vocabulary" : null,
+        // ModelLanguageCount first: `SupportedLanguages` is PROVIDER-level for a
+        // cloud row, so where a provider's models do not share one table it is
+        // their union and printing its length tells a MAI-Transcribe 1.5 user
+        // the model speaks 18 languages it cannot transcribe.
         Capability.SupportsAllLanguages ? "All languages"
             : Capability.IsEnglishOnly ? "English only"
-            : Capability.SupportedLanguages.Count > 0 ? $"{Capability.SupportedLanguages.Count} languages/locales" : null,
+            : (Capability.ModelLanguageCount ?? Capability.SupportedLanguages.Count) is var languageCount
+                && languageCount > 0 ? $"{languageCount} languages/locales" : null,
         Capability.CloudTierEligible ? "Cloud tier" : null,
         Capability.ByokEligible ? "BYOK" : null,
     }.Where(value => value is not null));

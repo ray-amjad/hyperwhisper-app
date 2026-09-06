@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Descarregue o seu modelo";
 "onboarding.setup.onDevice.download" = "Descarregar %@";
 "onboarding.setup.onDevice.downloading" = "A descarregar… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "A descarregar…";
+"onboarding.setup.onDevice.preparing" = "A preparar o descarregamento…";
+"onboarding.setup.onDevice.downloadingFile" = "A descarregar o ficheiro %1$d de %2$d";
+"onboarding.setup.onDevice.optimizing" = "A otimizar o modelo para este Mac. Está quase.";
+"onboarding.setup.onDevice.optimizingPill" = "A otimizar…";
+"onboarding.setup.onDevice.firstRunHint" = "O primeiro descarregamento demora alguns minutos. Pode deixar esta janela aberta.";
 "onboarding.setup.onDevice.ready" = "Modelo pronto";
 "onboarding.setup.cloud.title" = "Ative a sua chave";
 "onboarding.setup.cloud.activate" = "Ativar Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Falha na ativação: %@";
 "onboarding.setup.provider.error" = "Não foi possível guardar a sua chave: %@";
 "onboarding.setup.provider.saveFailed" = "Não foi possível escrever a chave no seu Chaveiro.";
+"onboarding.setup.stopped.onDevice" = "Não foi possível concluir a configuração: %@ já não está instalado neste Mac. Transfira-o novamente para continuar.";
+"onboarding.setup.stopped.cloud" = "Não foi possível concluir a configuração: este Mac já não está ativado para o HyperWhisper Cloud. Ative-o novamente abaixo ou recue um passo para introduzir a sua chave de acesso.";
+"onboarding.setup.stopped.provider" = "Não foi possível concluir a configuração: a sua chave %@ já não está guardada neste Mac. Guarde-a novamente para continuar.";
 "onboarding.setup.provider.check.validated" = "Chave validada em %@";
 "onboarding.setup.provider.check.written" = "Escrita no chaveiro de início de sessão";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · chave API %@";
@@ -766,11 +775,11 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Maior precisão com processamento mais lento. Melhor para transcrições importantes.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ créditos/min";
 "modes.cloudAccuracy.grokStt.label" = "Mais Alto (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Maior precisão com processamento mais lento. Melhor para transcrições importantes.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Maior precisão com processamento mais lento. Melhor para transcrições importantes.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingue, com suporte a vocabulário personalizado.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 através do Azure Speech. 43 idiomas com adaptação contextual.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe através do Azure Speech. Até 60 idiomas com adaptação contextual.";
 
 "modes.create.title" = "Criar Novo Modo";
 "modes.create.subtitle" = "Configure um perfil de transcrição personalizado";

@@ -8,7 +8,7 @@
 //  This view provides a standalone interface for configuring streaming transcription,
 //  which operates independently from the mode-based recording system. Users can:
 //  - Enable/disable streaming transcription
-//  - Choose a streaming provider (HyperWhisper Cloud, Deepgram, ElevenLabs, xAI)
+//  - Choose a streaming provider (HyperWhisper Cloud, Deepgram, ElevenLabs, SpaceXAI)
 //  - Configure provider-specific settings (model, fast formatting)
 //  - Customize the keyboard shortcut for activating streaming
 //  - Select the language for streaming transcription
@@ -19,7 +19,7 @@
 //  | HyperWhisper    | No      | Yes        | No              | No              |
 //  | Deepgram        | Yes     | Yes*       | Yes (Nova 3)    | Yes             |
 //  | ElevenLabs      | Yes     | No         | No              | No              |
-//  | xAI             | Yes     | Yes        | No              | No              |
+//  | SpaceXAI        | Yes     | Yes        | No              | No              |
 //
 //  *Deepgram vocabulary only works with explicit language (not auto-detect)
 
@@ -33,7 +33,7 @@ import FluidAudio
 ///
 /// LAYOUT ORDER (when streaming enabled):
 /// 1. Enable toggle
-/// 2. Provider picker (HyperWhisper Cloud | Deepgram | ElevenLabs | xAI)
+/// 2. Provider picker (HyperWhisper Cloud | Deepgram | ElevenLabs | SpaceXAI)
 /// 3. Model picker (Deepgram only: Nova 3 General | Nova 3 Medical)
 /// 4. Fast Formatting toggle (Deepgram only)
 /// 5. Warnings (API key missing, vocabulary unsupported, vocabulary auto-detect)
@@ -585,7 +585,7 @@ struct StreamingView: View {
         publish: @escaping () -> Void
     ) -> Binding<String> {
         Binding(
-            get: { HyperWhisperCloudStrategy.normalizedCloudTier(read()) },
+            get: { StreamingCloudTier.normalizedCloudTier(read()) },
             set: {
                 publish()
                 write($0)
@@ -601,9 +601,9 @@ struct StreamingView: View {
     /// honours vocabulary terms. True for Deepgram Nova-3, which silently drops
     /// `keyterm` in auto-detect; false for Gemini, which accepts
     /// `custom_vocabulary` there. Applying Deepgram's rule to every tier would
-    /// warn wrongly — and, worse, the strategy would withhold the terms.
+    /// warn wrongly — and, worse, the socket would withhold the terms.
     private var cloudTierRequiresLanguageForVocabulary: Bool {
-        HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary(settingsManager.streamingCloudTier)
+        StreamingCloudTier.tierRequiresLanguageForVocabulary(settingsManager.streamingCloudTier)
     }
 
     // MARK: - Fast Formatting Section (Deepgram Only)
@@ -653,7 +653,8 @@ struct StreamingView: View {
     private var warningsSection: some View {
         // WARNING: Some realtime APIs have no vocabulary boosting capability.
         // xAI is NOT in this list — its WebSocket takes repeated `keyterm` query
-        // items (see XAIStreamingStrategy).
+        // items (see `hw_net::live::xai`, and the shared capability table
+        // `liveSupportsVocabulary` answers from).
         if (selectedProvider == .elevenLabs || selectedProvider == .openAI) && hasVocabularyItems {
             warningRow(
                 message: String(format: "streaming.warning.vocabUnsupported".localized, selectedProvider.displayName)

@@ -84,7 +84,8 @@ final class Qwen3AsrProvider: TranscriptionProvider {
             _ = try await runtime.ensureLoaded(modelDirectory: directory)
             logger.info("Qwen3 ASR runtime ready")
         } catch {
-            logger.error("Failed to initialize Qwen3 ASR: \(error.localizedDescription)")
+            let nsError = error as NSError
+            logger.error("Failed to initialize Qwen3 ASR; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
             throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Failed to initialize runtime")
         }
@@ -93,12 +94,12 @@ final class Qwen3AsrProvider: TranscriptionProvider {
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
         let fm = FileManager.default
         guard fm.fileExists(atPath: audioURL.path) else {
-            logger.error("Audio file not found: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("Qwen3 ASR audio file not found")
             throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Audio file not found")
         }
 
         guard fm.isReadableFile(atPath: audioURL.path) else {
-            logger.error("Audio file not readable: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("Qwen3 ASR audio file not readable")
             throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Audio file is not readable")
         }
 
@@ -114,7 +115,8 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         do {
             manager = try await runtime.ensureLoaded(modelDirectory: directory)
         } catch {
-            logger.error("Failed to load Qwen3 ASR runtime: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to load Qwen3 ASR runtime; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             await runtime.reset()
             throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Failed to load runtime")
         }
@@ -123,7 +125,8 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         do {
             audioSamples = try Self.loadAudioSamples(from: audioURL)
         } catch {
-            logger.error("Audio conversion failed: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Qwen3 ASR audio conversion failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             throw TranscriptionError.providerNotAvailable(provider: "Qwen3 ASR", reason: "Audio conversion failed: \(error.localizedDescription)")
         }
 
@@ -159,20 +162,24 @@ final class Qwen3AsrProvider: TranscriptionProvider {
             }
 
             let errorDescription = error.localizedDescription
-            logger.error("Qwen3 ASR transcription failed: \(errorDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Qwen3 ASR transcription failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
 
-            SentryService.addBreadcrumb(
-                message: "Qwen3 ASR transcription error",
-                category: "qwen3asr.transcription",
-                level: .error,
-                data: [
-                    "errorDescription": errorDescription,
-                    // Not the file NAME: the import flow makes it the user's
-                    // own document name. The extension is the diagnostic part.
-                    "audioFileExtension": audioURL.pathExtension,
-                    "language": langHint ?? "auto"
-                ]
-            )
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Qwen3 ASR transcription error",
+                    category: "qwen3asr.transcription",
+                    level: .error,
+                    data: [
+                        "errorDomain": nsError.domain,
+                        "errorCode": nsError.code,
+                        // Not the file NAME: the import flow makes it the user's
+                        // own document name. The extension is the diagnostic part.
+                        "audioFileExtension": audioURL.pathExtension,
+                        "language": langHint ?? "auto"
+                    ]
+                )
+            }
 
             throw TranscriptionError.providerNotAvailable(
                 provider: "Qwen3 ASR",

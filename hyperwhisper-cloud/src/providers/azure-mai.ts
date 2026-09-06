@@ -1,5 +1,9 @@
-// MICROSOFT MAI-TRANSCRIBE 1.5 PROVIDER (Azure Speech / Foundry)
-// Multilingual transcription model — 43 languages, phrase-list biasing, $0.006/min.
+// MICROSOFT MAI-TRANSCRIBE PROVIDER (Azure Speech / Foundry)
+// Two multilingual transcription models behind one provider id:
+//   - mai-transcribe-1.5 — 42 documented locales, $0.006/min
+//   - mai-transcribe-2   — 60 documented locales, $0.10/hr (limited-time offer)
+// Both take phrase-list biasing. The model is chosen by `X-STT-Model`; the
+// per-model locale tables live in `lib/language-codes.ts`.
 //
 // API: POST https://<resource>.cognitiveservices.azure.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15
 // Auth: Ocp-Apim-Subscription-Key
@@ -14,6 +18,7 @@
 import { AZURE_MAI_MAX_BYTES } from '../lib/constants';
 import { computeAzureMaiTranscriptionCost } from '../lib/cost-calculator';
 import { resolveProviderLanguage } from '../lib/language-codes';
+import { getProviderDef } from '../lib/stt-models';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -27,7 +32,29 @@ import {
 
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
-// MAI-Transcribe 1.5 documents only WAV, MP3, and FLAC as accepted upload
+
+// What this adapter runs when the caller names no model.
+//
+// Read from the registry, never restated: `/transcribe` resolves the model
+// before it dispatches (`resolveModel` in `routes/transcribe.ts`), so in
+// production `context.model` is always one of the ids below and this only
+// covers a direct call. Restating a literal here made the file disagree with
+// `stt-models.ts` — it said 1.5 while the registry said 2 — and the disagreement
+// was invisible because neither fallback could be reached.
+const DEFAULT_MODEL = getProviderDef('azure-mai').defaultModel;
+
+// Internal model id → the string Azure wants in `enhancedMode.model`.
+//
+// These two halves genuinely differ, so this is an explicit map and NOT a
+// case transform. 1.5 has always gone out lowercase and is left exactly as it
+// ships; v2 uses the capitalisation the doc's curl examples show verbatim.
+// Ref: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-transcribe
+const AZURE_MAI_WIRE_MODELS: Readonly<Record<string, string>> = {
+  'mai-transcribe-1.5': 'mai-transcribe-1.5',
+  'mai-transcribe-2': 'MAI-Transcribe-2',
+};
+
+// MAI-Transcribe documents only WAV, MP3, and FLAC as accepted upload
 // formats. Anything else (m4a, mp4, webm, opus, ogg, aac, wma) is rejected
 // upstream with a generic error; we surface a typed 415 instead so the
 // client can re-encode.
@@ -44,12 +71,12 @@ function parsePhraseList(initialPrompt: string): string[] {
 // Locale normalization lives in `lib/language-codes.ts`. Stripping the region
 // was never the whole job: the picker offers Norwegian as `no`, and Azure's
 // operational table lists only `nb`. `resolveProviderLanguage` applies that
-// alias and checks the result against the 42 codes Azure documents, so an
-// unlisted language omits `definition.locales` instead of pinning Azure to a
-// locale it does not have — and logs one `language_unmappable` event when it
-// does.
+// alias and checks the result against the codes Azure documents FOR THE MODEL
+// THAT RAN (42 on 1.5, 60 on v2), so an unlisted language omits
+// `definition.locales` instead of pinning Azure to a locale it does not have —
+// and logs one `language_unmappable` event when it does.
 
-// MAI-Transcribe 1.5 is available in 4 Azure regions: eastus, westus,
+// MAI-Transcribe is available in 4 Azure regions: eastus, westus,
 // northeurope, southeastasia. We provision 3 (skip westus — eastus covers
 // CONUS well enough for v1) and pick based on the Fly machine region so
 // each request hits the geographically nearest Azure endpoint.
@@ -116,17 +143,42 @@ export async function transcribeWithAzureMai(
 
   const url = `https://${azureRegion}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15`;
 
+  // Normalise to a KNOWN id, so the wire string, the `transcribeStyle` branch,
+  // the locale table and the billed rate all describe the same model. Taking
+  // `context.model` verbatim and only falling back on the wire lookup could
+  // send v2's wire string with 1.5's request shape.
+  //
+  // `Object.hasOwn`, not `in`: `in` walks the prototype chain, so a model id of
+  // `constructor` or `toString` would pass the guard and hand a FUNCTION to the
+  // wire string below. The HTTP route resolves the model before dispatch today,
+  // so this is only reachable by a direct adapter call — but the guard is the
+  // thing standing between a caller-supplied string and the request body.
+  const model = context.model && Object.hasOwn(AZURE_MAI_WIRE_MODELS, context.model)
+    ? context.model
+    : DEFAULT_MODEL;
+  const wireModel = AZURE_MAI_WIRE_MODELS[model];
+
   const resolvedLocale = resolveProviderLanguage({
-    provider, model: 'mai-transcribe-1.5', language, context,
+    provider, model, language, context,
   });
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
 
-  const definition: Record<string, unknown> = {
-    enhancedMode: {
-      enabled: true,
-      model: 'mai-transcribe-1.5',
-    },
+  const enhancedMode: Record<string, unknown> = {
+    enabled: true,
+    model: wireModel,
   };
+  if (model === 'mai-transcribe-2') {
+    // v2 only. 1.5's upstream default was readability-optimised; v2's flipped
+    // to `verbatim`, so sending nothing here would start returning "um"/"uh"
+    // and false starts to dictation users.
+    //
+    // Deliberately NOT sent: `diarization` (a top-level sibling of
+    // `enhancedMode`) and `modelOptions.timestamps`. Both change the response
+    // shape, and the parser below reads `combinedPhrases[0].text`.
+    enhancedMode.modelOptions = { transcribeStyle: 'clean' };
+  }
+
+  const definition: Record<string, unknown> = { enhancedMode };
   if (resolvedLocale) {
     definition.locales = [resolvedLocale];
   }
@@ -150,6 +202,7 @@ export async function transcribeWithAzureMai(
   logProviderEvent(provider, 'prepare', {
     audioBytes: audio.byteLength,
     contentType,
+    model,
     language: language || 'auto',
     // What actually went out. `auto` means either the user picked Automatic or
     // Azure has no locale for the code.
@@ -236,7 +289,7 @@ export async function transcribeWithAzureMai(
     text: transcript,
     language: detectedLanguage,
     durationSeconds,
-    costUsd: computeAzureMaiTranscriptionCost(durationSeconds),
+    costUsd: computeAzureMaiTranscriptionCost(durationSeconds, model),
     source: 'azure-mai',
   };
 }

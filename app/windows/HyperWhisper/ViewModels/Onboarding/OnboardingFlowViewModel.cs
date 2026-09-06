@@ -25,6 +25,7 @@
 // credits figure, the four-case device availability and the sample-clip Try It - is
 // marked where it appears.
 
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HyperWhisper.Localization;
@@ -1316,6 +1317,18 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
         RefreshSetupError();
         _taskBox.Clear(OnboardingTaskKeys.Activation);
+
+        // StepDidChange fetches the balance on entry to Configure and to Setup, and
+        // both of those run BEFORE this activation. On a first-run machine the licence
+        // only goes active right here, so every earlier fetch happened unlicensed and
+        // came back unknown - "Credits confirmed" stayed unticked and the Done summary
+        // fell back to a bare source name, on a perfectly good key. Nothing else
+        // refreshed it, so this is the fetch that fills it in.
+        //
+        // force: true because the cloud manager caches, and the cached miss was taken
+        // while the machine was still unlicensed.
+        if (outcome.IsValid)
+            RefreshCredits(force: true);
     }
 
     /// <summary>
@@ -1377,6 +1390,24 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         private set => SetProperty(ref _creditsFormatted, value);
     }
 
+    private string _creditsCountFormatted = string.Empty;
+
+    /// <summary>
+    /// The credit COUNT, grouped and without decimals - "66,950", not
+    /// "$66.95 remaining (~10627 minutes)".
+    ///
+    /// The Done summary reads "{source} · {n} credits", so it wants the count, which is
+    /// what OnboardingView.swift:457 passes through its own decimal formatter. Feeding
+    /// it CreditsFormatted instead rendered "HyperWhisper Cloud · $66.95 remaining
+    /// (~10627 minutes) credits". Nothing caught it because the Cloud branch never had
+    /// a balance at Done until the activation refresh above started filling one in.
+    /// </summary>
+    public string CreditsCountFormatted
+    {
+        get => _creditsCountFormatted;
+        private set => SetProperty(ref _creditsCountFormatted, value);
+    }
+
     private bool _hasCredits;
 
     public bool HasCredits
@@ -1432,6 +1463,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         var credits = _credits.Credits;
         HasCredits = credits is not null;
         CreditsFormatted = credits?.FormattedBalance ?? "…";
+        CreditsCountFormatted = credits is null
+            ? string.Empty
+            : credits.CreditsRemaining.ToString("N0", CultureInfo.CurrentCulture);
         IsFetchingCredits = _credits.IsFetching;
     }
 

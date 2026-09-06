@@ -40,8 +40,9 @@
 import type { Context, Next } from 'hono';
 import type { WSMessageReceive } from 'hono/ws';
 import { generateRequestId, getClientIP } from '../lib/request-id';
+import { logEvent } from '../lib/logging';
 import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
-import { validateAuth, type AuthContext } from '../middleware/auth';
+import { authDiagnosticsForLog, validateAuth, type AuthContext } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { isIPBlocked } from '../lib/redis';
 import { isRecord } from '../lib/utils';
@@ -245,6 +246,8 @@ declare module 'hono' {
  */
 export function makeStreamingPreflight(minimumCredits: () => number) {
   return async function wsStreamingPreflight(c: Context, next: Next) {
+    const requestId = generateRequestId();
+    const startTime = performance.now();
     const upgradeHeader = c.req.header('Upgrade');
     if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
       return c.text('Expected WebSocket upgrade', 426);
@@ -269,6 +272,11 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
 
     const authResult = await validateAuth({ licenseKey });
     if (!authResult.ok) {
+      logEvent(requestId, startTime, 'ws_streaming.auth_rejected', {
+        endpoint: c.req.path,
+        status: authResult.response.status,
+        ...authDiagnosticsForLog(authResult.diagnostics),
+      });
       return c.text('Unauthorized', 401);
     }
 

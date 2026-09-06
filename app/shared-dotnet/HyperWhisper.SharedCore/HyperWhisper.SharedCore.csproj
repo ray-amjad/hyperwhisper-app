@@ -61,5 +61,14 @@
          stop sequence are asserted against it directly rather than inferred from
          a socket transcript. -->
     <InternalsVisibleTo Include="HyperWhisper.SharedCore.Tests" />
+    <!-- The parakeet daemon's bounded word-agreement engine is the core's
+         `HwBoundedAgreementSession` now (issue #286), and that object and its
+         `HwStreamUpdate` / `HwStreamException` are `internal`. The adapter that
+         wraps them stays inside the daemon rather than becoming a public
+         Portable* wrapper here, because this project is inside the .NET
+         coverage gate and tools/parakeet-engine-dotnet is not. This entry is
+         the daemon's `AssemblyName`, not its project name
+         (parakeet-engine-dotnet). -->
+    <InternalsVisibleTo Include="parakeet-engine" />
   </ItemGroup>
 </Project>

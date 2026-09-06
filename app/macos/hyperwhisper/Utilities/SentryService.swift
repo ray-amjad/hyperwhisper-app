@@ -23,6 +23,13 @@ import Sentry
 
 enum SentryService {
 
+    /// Rebuild an error with identifiers only. Error descriptions and NSError
+    /// userInfo can contain paths, provider bodies, URLs, or credentials.
+    static func identifierOnlyError(_ error: Error) -> Error {
+        let nsError = error as NSError
+        return NSError(domain: nsError.domain, code: nsError.code, userInfo: nil)
+    }
+
     // MARK: - Initialization
 
     /// Initialize Sentry using DSN from Info.plist or provided string.

@@ -206,7 +206,14 @@ extension TranscriptionPipeline {
             return false
         case .serverError(let statusCode, _):
             return !(500...599).contains(statusCode)
-        case .providerNotAvailable(_, let reason):
+        case .providerNotAvailable(let provider, let reason):
+            // Parakeet reports these failures at the runtime boundary, where
+            // the original domain, code, model version and load stage exist.
+            // Do not create a second issue from the mapped user-facing error.
+            if provider == "Parakeet",
+               Self.isParakeetFailureReportedAtSource(reason) {
+                return false
+            }
             return !Self.isTransientProviderAvailabilityReason(reason)
         case .invalidResponse, .modelProtected, .audioFileNotFound,
              .apiKeyMissing, .maxRetriesExceeded, .unauthorized, .invalidRequest,
@@ -221,6 +228,19 @@ extension TranscriptionPipeline {
              .localSpeechModelEvicted:
             return true
         }
+    }
+
+    private static func isParakeetFailureReportedAtSource(_ reason: String?) -> Bool {
+        guard let reason else { return false }
+        return reason == ParakeetProvider.ReportedFailureReason.initializeRuntime
+            || reason == ParakeetProvider.ReportedFailureReason.loadRuntime
+            || reason.hasPrefix(ParakeetProvider.ReportedFailureReason.unknownModelPrefix)
+    }
+
+    /// Remove error descriptions and NSError userInfo before Sentry capture.
+    /// Both can contain an audio path, a provider body, or a credential URL.
+    nonisolated static func sentrySafeTranscriptionError(_ error: Error) -> Error {
+        SentryService.identifierOnlyError(error)
     }
 
     nonisolated static func sentryFingerprintForTranscriptionFailure(

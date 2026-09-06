@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Muat turun model anda";
 "onboarding.setup.onDevice.download" = "Muat Turun %@";
 "onboarding.setup.onDevice.downloading" = "Memuat turun… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "Memuat turun…";
+"onboarding.setup.onDevice.preparing" = "Menyediakan muat turun…";
+"onboarding.setup.onDevice.downloadingFile" = "Memuat turun fail %1$d daripada %2$d";
+"onboarding.setup.onDevice.optimizing" = "Mengoptimumkan model untuk Mac ini. Hampir selesai.";
+"onboarding.setup.onDevice.optimizingPill" = "Mengoptimumkan…";
+"onboarding.setup.onDevice.firstRunHint" = "Muat turun pertama mengambil masa beberapa minit. Anda boleh biarkan tetingkap ini terbuka.";
 "onboarding.setup.onDevice.ready" = "Model sedia";
 "onboarding.setup.cloud.title" = "Aktifkan kunci anda";
 "onboarding.setup.cloud.activate" = "Aktifkan Cloud";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Pengaktifan gagal: %@";
 "onboarding.setup.provider.error" = "Tidak dapat menyimpan kunci anda: %@";
 "onboarding.setup.provider.saveFailed" = "Kunci tidak dapat ditulis ke Rangkaian Kunci anda.";
+"onboarding.setup.stopped.onDevice" = "Persediaan tidak dapat diselesaikan: %@ tidak lagi dipasang pada Mac ini. Muat turun semula untuk meneruskan.";
+"onboarding.setup.stopped.cloud" = "Persediaan tidak dapat diselesaikan: Mac ini tidak lagi diaktifkan untuk HyperWhisper Cloud. Aktifkan semula di bawah, atau kembali satu langkah untuk memasukkan kunci akses anda.";
+"onboarding.setup.stopped.provider" = "Persediaan tidak dapat diselesaikan: kunci %@ anda tidak lagi disimpan pada Mac ini. Simpan semula untuk meneruskan.";
 "onboarding.setup.provider.check.validated" = "Kunci disahkan dengan %@";
 "onboarding.setup.provider.check.written" = "Ditulis ke Rangkaian Kunci log masuk";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · Kunci API %@";
@@ -766,11 +775,11 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/min";
 "modes.cloudAccuracy.grokStt.label" = "Tertinggi (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Tinggi (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Berbilang bahasa, dengan sokongan perbendaharaan kata tersuai.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 melalui Azure Speech. 43 bahasa dengan pemberatan kontekstual.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe melalui Azure Speech. Sehingga 60 bahasa dengan pemberatan kontekstual.";
 
 "modes.create.title" = "Cipta Mod Baharu";
 "modes.create.subtitle" = "Konfigurasi profil transkripsi tersuai";

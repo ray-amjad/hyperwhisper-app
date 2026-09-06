@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "モデルをダウンロード";
 "onboarding.setup.onDevice.download" = "%@をダウンロード";
 "onboarding.setup.onDevice.downloading" = "ダウンロード中… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "ダウンロード中…";
+"onboarding.setup.onDevice.preparing" = "ダウンロードを準備中…";
+"onboarding.setup.onDevice.downloadingFile" = "%2$d 個中 %1$d 個目のファイルをダウンロード中";
+"onboarding.setup.onDevice.optimizing" = "このMac用にモデルを最適化しています。もうすぐ完了します。";
+"onboarding.setup.onDevice.optimizingPill" = "最適化中…";
+"onboarding.setup.onDevice.firstRunHint" = "初回のダウンロードには数分かかります。このウインドウは開いたままにしておけます。";
 "onboarding.setup.onDevice.ready" = "モデルの準備完了";
 "onboarding.setup.cloud.title" = "キーを有効化";
 "onboarding.setup.cloud.activate" = "Cloudを有効化";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "有効化に失敗しました: %@";
 "onboarding.setup.provider.error" = "キーを保存できませんでした: %@";
 "onboarding.setup.provider.saveFailed" = "キーをキーチェーンに書き込めませんでした。";
+"onboarding.setup.stopped.onDevice" = "セットアップを完了できませんでした: %@ はこのMacにインストールされていません。続けるにはもう一度ダウンロードしてください。";
+"onboarding.setup.stopped.cloud" = "セットアップを完了できませんでした: このMacはHyperWhisper Cloudで有効化されていません。下でもう一度有効化するか、1つ前に戻ってアクセスキーを入力してください。";
+"onboarding.setup.stopped.provider" = "セットアップを完了できませんでした: %@ のキーはこのMacに保存されていません。続けるにはもう一度保存してください。";
 "onboarding.setup.provider.check.validated" = "%@ に対してキーを確認しました";
 "onboarding.setup.provider.check.written" = "ログインキーチェーンに書き込みました";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ APIキー";
@@ -772,11 +781,11 @@
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高精度、処理は遅め。重要な文字起こしに最適。";
 "modes.cloudAccuracy.creditsPerMinute" = "約 %@ クレジット/分";
 "modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高精度、処理は遅め。重要な文字起こしに最適。";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高精度、処理は遅め。重要な文字起こしに最適。";
 "modes.cloudAccuracy.geminiTranscribe.label" = "高 (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。多言語に対応し、カスタム語彙を利用できます。";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "高 (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 経由の Microsoft MAI-Transcribe 1.5。43 言語に対応し、文脈バイアスを利用できます。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高 (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 経由の Microsoft MAI-Transcribe。最大 60 言語に対応し、文脈バイアスを利用できます。";
 
 "modes.create.title" = "新しいモードを作成";
 "modes.create.subtitle" = "カスタム文字起こしプロファイルを設定します";

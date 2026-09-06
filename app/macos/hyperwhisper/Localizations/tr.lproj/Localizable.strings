@@ -265,6 +265,12 @@
 "onboarding.setup.onDevice.title" = "Modelinizi indirin";
 "onboarding.setup.onDevice.download" = "%@ İndir";
 "onboarding.setup.onDevice.downloading" = "İndiriliyor… %d%%";
+"onboarding.setup.onDevice.downloadingPill" = "İndiriliyor…";
+"onboarding.setup.onDevice.preparing" = "İndirme hazırlanıyor…";
+"onboarding.setup.onDevice.downloadingFile" = "%2$d dosyadan %1$d. dosya indiriliyor";
+"onboarding.setup.onDevice.optimizing" = "Model bu Mac için optimize ediliyor. Neredeyse bitti.";
+"onboarding.setup.onDevice.optimizingPill" = "Optimize ediliyor…";
+"onboarding.setup.onDevice.firstRunHint" = "İlk indirme birkaç dakika sürer. Bu pencereyi açık bırakabilirsiniz.";
 "onboarding.setup.onDevice.ready" = "Model hazır";
 "onboarding.setup.cloud.title" = "Anahtarınızı etkinleştirin";
 "onboarding.setup.cloud.activate" = "Cloud'u Etkinleştir";
@@ -545,6 +551,9 @@
 "onboarding.setup.cloud.error" = "Etkinleştirme başarısız oldu: %@";
 "onboarding.setup.provider.error" = "Anahtarınız kaydedilemedi: %@";
 "onboarding.setup.provider.saveFailed" = "Anahtar Anahtar Zinciri'nize yazılamadı.";
+"onboarding.setup.stopped.onDevice" = "Kurulum tamamlanamadı: %@ artık bu Mac'te yüklü değil. Devam etmek için yeniden indirin.";
+"onboarding.setup.stopped.cloud" = "Kurulum tamamlanamadı: bu Mac artık HyperWhisper Cloud için etkinleştirilmiş değil. Aşağıdan yeniden etkinleştirin veya erişim anahtarınızı girmek için bir adım geri dönün.";
+"onboarding.setup.stopped.provider" = "Kurulum tamamlanamadı: %@ anahtarınız artık bu Mac'te kayıtlı değil. Devam etmek için yeniden kaydedin.";
 "onboarding.setup.provider.check.validated" = "Anahtar %@ ile doğrulandı";
 "onboarding.setup.provider.check.written" = "Oturum açma anahtarlığına yazıldı";
 "onboarding.setup.provider.keychainItem" = "HyperWhisper · %@ API anahtarı";
@@ -766,11 +775,11 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredi/dk";
 "modes.cloudAccuracy.grokStt.label" = "En Yüksek (Grok SST)";
-"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
+"modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Yüksek (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Çok dilli, özel sözcük dağarcığı desteğiyle.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Yüksek (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech üzerinden Microsoft MAI-Transcribe 1.5. Bağlamsal yönlendirme ile 43 dil.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Yüksek (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech üzerinden Microsoft MAI-Transcribe. Bağlamsal yönlendirme ile en fazla 60 dil.";
 
 "modes.create.title" = "Yeni Mod Oluştur";
 "modes.create.subtitle" = "Özel transkripsiyon profilini yapılandır";

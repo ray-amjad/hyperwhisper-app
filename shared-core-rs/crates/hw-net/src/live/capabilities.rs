@@ -146,7 +146,7 @@ pub fn provider_label(provider: LiveProvider) -> &'static str {
         LiveProvider::Deepgram => "Deepgram (Streaming)",
         LiveProvider::ElevenLabs => "ElevenLabs (Streaming)",
         LiveProvider::OpenAi => "OpenAI (Streaming)",
-        LiveProvider::Grok => "xAI (Streaming)",
+        LiveProvider::Grok => "SpaceXAI (Streaming)",
         LiveProvider::GeminiTranscribe => "Gemini 3.5 Transcribe (Streaming)",
         LiveProvider::HyperWhisperCloud => "HyperWhisper Cloud (Streaming)",
     }
