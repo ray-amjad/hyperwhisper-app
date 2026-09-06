@@ -9,7 +9,6 @@ import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderU
 // the route never imports an adapter or keeps a dispatch table of its own. See
 // providers/dispatch.ts.
 import { transcribeWithProvider } from '../providers/dispatch';
-import { formatUsd } from '../lib/cost-calculator';
 import {
   fallbackChainFor,
   getProviderDef,
@@ -35,12 +34,11 @@ import { reachableFromRegion } from '../providers/geo-availability';
 // could be billed at", so the route never needs a provider's add-on eligibility
 // or an adapter's internal routing gate. See providers/reservation.ts.
 import { errorResponse } from '../lib/responses';
-import { deductCredits } from '../middleware/credits';
-import { logEvent, machineUptimeMs } from '../lib/logging';
+import { logEvent } from '../lib/logging';
 import { isLatencyOptOut } from './transcribe-request';
-import { buildTranscriptionSuccess } from './transcribe-success';
 import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
 import { prepareTranscriptionRequest } from './transcribe-preparation';
+import { completeTranscription } from './transcribe-completion';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
@@ -84,19 +82,13 @@ export async function transcribeRoute(c: Context) {
   const {
     requestId,
     startTime,
-    clientIP,
     provider,
     model,
     domain,
     contentType,
     language,
     initialPrompt,
-    mode,
-    clientPlatform,
-    clientVersion,
-    auth,
     audioBuffer,
-    latencyOptOut,
     latencyReportable,
   } = preparation;
 
@@ -596,79 +588,15 @@ export async function transcribeRoute(c: Context) {
     });
     return errorResponse(429, 'All providers unavailable', 'All transcription providers are currently rate-limited. Please try again shortly.', { requestId });
   }
-  logEvent(requestId, startTime, 'transcribe.stt_done', {
-    provider: result.source,
-    upstreamRequestId: result.requestId,
-  });
-
-  const {
-    noSpeech,
-    providerName,
-    reportedModel,
-    billable,
-    creditsUsed,
-    response,
-  } = buildTranscriptionSuccess({
+  return completeTranscription({
+    c,
+    preparation,
     result,
-    requestId,
-    requestedProvider: provider,
-    requestedModel: model,
     usedModel,
     servedBy,
     chosenProviderAttempted,
     fallbackFrom,
-  });
-
-  if (billable) {
-    deductCredits(
-      auth,
-      result.costUsd,
-      {
-        audio_duration_seconds: result.durationSeconds,
-        transcription_cost_usd: result.costUsd,
-        language: result.language ?? language ?? 'auto',
-        mode,
-        endpoint: '/transcribe',
-        stt_provider: providerName,
-        stt_model: reportedModel || undefined,
-      },
-      clientIP
-    ).catch(console.error);
-  }
-
-  c.header('X-Request-ID', requestId);
-  c.header('X-STT-Provider', providerName);
-  if (reportedModel) {
-    c.header('X-STT-Model', reportedModel);
-  }
-  c.header('X-Total-Cost-Usd', formatUsd(result.costUsd));
-  c.header('X-Credits-Used', creditsUsed.toFixed(1));
-
-  const memUsageMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
-  logEvent(requestId, startTime, 'transcribe.request_done', {
-    clientPlatform,
-    clientVersion,
-    finalProvider: providerName,
     fallbackCount,
-    // On a degraded success (fallbackCount > 0) this names which provider(s)
-    // failed and why, so a slow-but-successful transcription is diagnosable
-    // from the single outcome line.
-    ...(attemptFailures.length ? { attemptFailures } : {}),
-    noSpeech,
-    creditsUsed,
-    flyMachineId: process.env.FLY_MACHINE_ID,
-    // Region on the outcome line makes the Axiom dataset queryable by region on
-    // its own, without joining against the machine id.
-    flyRegion: process.env.FLY_REGION || 'local',
-    // Only present when this request contributed no timing, so the field's
-    // absence is the normal case. Without it a thin /latency dataset looks
-    // like a bug; with it, "how much of the installed base is still too old to
-    // be measured?" is one Axiom query.
-    ...(latencyReportable
-      ? {}
-      : { latencySkipped: latencyOptOut ? 'opted_out' : 'client_too_old' }),
-    machineUptimeMs: machineUptimeMs(),
-    rssMb: memUsageMb,
+    attemptFailures,
   });
-  return c.json(response);
 }
