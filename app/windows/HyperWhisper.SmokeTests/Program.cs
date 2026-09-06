@@ -33,6 +33,7 @@ using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.LocalApi;
+using HyperWhisper.Services.LocalApi.Endpoints;
 using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
