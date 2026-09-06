@@ -617,28 +617,28 @@
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.toggle.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsToggleModifiers" Text="{Binding Settings.ToggleShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsToggleKey" Grid.Column="1" Text="{Binding Settings.ToggleShortcutKey}"/></Grid>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox MinHeight="44" CornerRadius="8,0,0,8" x:Name="SettingsToggleModifiers" Text="{Binding Settings.ToggleShortcutModifiers}"/><TextBox MinHeight="44" CornerRadius="0,8,8,0" x:Name="SettingsToggleKey" Grid.Column="1" Text="{Binding Settings.ToggleShortcutKey}"/></Grid>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.cancel.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsCancelModifiers" Text="{Binding Settings.CancelShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsCancelKey" Grid.Column="1" Text="{Binding Settings.CancelShortcutKey}"/></Grid>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox MinHeight="44" CornerRadius="8,0,0,8" x:Name="SettingsCancelModifiers" Text="{Binding Settings.CancelShortcutModifiers}"/><TextBox MinHeight="44" CornerRadius="0,8,8,0" x:Name="SettingsCancelKey" Grid.Column="1" Text="{Binding Settings.CancelShortcutKey}"/></Grid>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.changeMode.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsChangeModeModifiers" Text="{Binding Settings.ChangeModeShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsChangeModeKey" Grid.Column="1" Text="{Binding Settings.ChangeModeShortcutKey}"/></Grid>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox MinHeight="44" CornerRadius="8,0,0,8" x:Name="SettingsChangeModeModifiers" Text="{Binding Settings.ChangeModeShortcutModifiers}"/><TextBox MinHeight="44" CornerRadius="0,8,8,0" x:Name="SettingsChangeModeKey" Grid.Column="1" Text="{Binding Settings.ChangeModeShortcutKey}"/></Grid>
           </Grid></Border>
           <Border Classes="settingRow last"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.streaming.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsStreamingShortcutModifiers" Text="{Binding Settings.StreamingShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsStreamingShortcutKey" Grid.Column="1" Text="{Binding Settings.StreamingShortcutKey}"/></Grid>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox MinHeight="44" CornerRadius="8,0,0,8" x:Name="SettingsStreamingShortcutModifiers" Text="{Binding Settings.StreamingShortcutModifiers}"/><TextBox MinHeight="44" CornerRadius="0,8,8,0" x:Name="SettingsStreamingShortcutKey" Grid.Column="1" Text="{Binding Settings.StreamingShortcutKey}"/></Grid>
           </Grid></Border>
         </StackPanel></Border>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
@@ -658,7 +658,7 @@
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.custom.label], Source={StaticResource Localization}}" Classes="rowTitle"/>
               <TextBlock Text="{ReflectionBinding [settings.shortcuts.pushToTalk.custom.tooltip], Source={StaticResource Localization}}" Classes="caption"/>
             </StackPanel>
-            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox CornerRadius="8,0,0,8" x:Name="SettingsPushToTalkCustomModifiers" Text="{Binding Settings.PushToTalkShortcutModifiers}"/><TextBox CornerRadius="0,8,8,0" x:Name="SettingsPushToTalkCustomKey" Grid.Column="1" Text="{Binding Settings.PushToTalkShortcutKey}"/></Grid>
+            <Grid Grid.Column="1" ColumnDefinitions="150,90" ColumnSpacing="0"><TextBox MinHeight="44" CornerRadius="8,0,0,8" x:Name="SettingsPushToTalkCustomModifiers" Text="{Binding Settings.PushToTalkShortcutModifiers}"/><TextBox MinHeight="44" CornerRadius="0,8,8,0" x:Name="SettingsPushToTalkCustomKey" Grid.Column="1" Text="{Binding Settings.PushToTalkShortcutKey}"/></Grid>
           </Grid></Border>
           <Border Classes="settingRow last" IsVisible="{Binding Settings.PushToTalkIsEnabled}"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
@@ -680,7 +680,7 @@
             <TextBlock Text="{ReflectionBinding [settings.appearance.theme.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
             <TextBlock Text="{ReflectionBinding [settings.appearance.theme.subtitle], Source={StaticResource Localization}}" Classes="caption"/>
           </StackPanel></Border>
-          <Border Classes="settingRow">
+          <Border Background="{DynamicResource HwInputBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
             <RadioButton x:Name="SettingsThemeMode" GroupName="ThemeMode" IsChecked="{Binding Settings.ThemeIsSystem, Mode=TwoWay}">
               <StackPanel Spacing="2">
                 <TextBlock Text="{ReflectionBinding [settings.appearance.theme.system], Source={StaticResource Localization}}" Classes="rowTitle"/>
@@ -688,7 +688,7 @@
               </StackPanel>
             </RadioButton>
           </Border>
-          <Border Classes="settingRow">
+          <Border Background="{DynamicResource HwInputBackgroundBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,8">
             <RadioButton GroupName="ThemeMode" IsChecked="{Binding Settings.ThemeIsLight, Mode=TwoWay}">
               <StackPanel Spacing="2">
                 <TextBlock Text="{ReflectionBinding [settings.appearance.theme.light], Source={StaticResource Localization}}" Classes="rowTitle"/>
@@ -696,7 +696,7 @@
               </StackPanel>
             </RadioButton>
           </Border>
-          <Border Classes="settingRow last">
+          <Border Background="{DynamicResource HwInputBackgroundBrush}" CornerRadius="8" Padding="12">
             <RadioButton GroupName="ThemeMode" IsChecked="{Binding Settings.ThemeIsDark, Mode=TwoWay}">
               <StackPanel Spacing="2">
                 <TextBlock Text="{ReflectionBinding [settings.appearance.theme.dark], Source={StaticResource Localization}}" Classes="rowTitle"/>
