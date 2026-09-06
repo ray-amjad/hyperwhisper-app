@@ -793,12 +793,12 @@ internal static class TranscribeEndpoints
     /// mode used as defaults) or built from scratch, then patched with the
     /// per-call overrides.
     /// </summary>
-    private static Mode BuildTransientMode(Mode? baseline, string? engine, string? model, string? language)
+    internal static Mode BuildTransientMode(Mode? baseline, string? engine, string? model, string? language)
     {
         Mode mode;
         if (baseline != null)
         {
-            mode = LocalApiTransientMode.Clone(baseline, "__local_api_transient__");
+            mode = LocalApiTransientMode.CreateFromSharedFields(baseline, "__local_api_transient__");
             mode.ModelType = baseline.ModelType;
             mode.CloudTranscriptionDomain = baseline.CloudTranscriptionDomain;
         }

@@ -7,7 +7,7 @@ namespace HyperWhisper.Services.LocalApi;
 /// </summary>
 internal static class LocalApiTransientMode
 {
-    internal static Mode Clone(Mode source, string transientName)
+    internal static Mode CreateFromSharedFields(Mode source, string transientName)
     {
         return new Mode
         {

@@ -242,7 +242,7 @@ internal static class PostProcessEndpoints
                     LocalApiErrorCode.ModeNotFound,
                     $"No mode with id '{modeId}'");
             }
-            mode = LocalApiTransientMode.Clone(stored, "__local_api_pp_transient__");
+            mode = LocalApiTransientMode.CreateFromSharedFields(stored, "__local_api_pp_transient__");
         }
         else
         {

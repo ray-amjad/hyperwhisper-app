@@ -5956,7 +5956,7 @@ internal static class Program
                 };
                 var before = DateTime.UtcNow;
 
-                var clone = LocalApiTransientMode.Clone(source, "transient-name");
+                var clone = LocalApiTransientMode.CreateFromSharedFields(source, "transient-name");
 
                 var after = DateTime.UtcNow;
                 Assert(clone.Id != source.Id, "the transient Mode reused the source id");
@@ -5984,7 +5984,9 @@ internal static class Program
                 Assert(clone.LocalEngine == source.LocalEngine, "LocalEngine was not copied");
                 Assert(clone.LocalParakeetModel == source.LocalParakeetModel, "LocalParakeetModel was not copied");
                 Assert(clone.LocalPostProcessingModel == source.LocalPostProcessingModel, "LocalPostProcessingModel was not copied");
-                Assert(ReferenceEquals(clone.CustomVocabulary, vocabulary), "CustomVocabulary was not shallow-copied");
+                Assert(clone.CustomVocabulary != null
+                    && clone.CustomVocabulary.SequenceEqual(vocabulary),
+                    "CustomVocabulary values were not copied");
                 Assert(clone.SortOrder == int.MaxValue, "the transient Mode sort order changed");
                 Assert(clone.CreatedDate >= before && clone.CreatedDate <= after, "CreatedDate is not fresh UTC time");
                 Assert(clone.ModifiedDate >= before && clone.ModifiedDate <= after, "ModifiedDate is not fresh UTC time");
@@ -5993,6 +5995,26 @@ internal static class Program
                 Assert(clone.ForeignPlatformExtensions == null, "the transient Mode copied ForeignPlatformExtensions");
                 Assert(clone.ModelType == null, "the shared helper copied transcription-only ModelType");
                 Assert(clone.CloudTranscriptionDomain == null, "the shared helper copied transcription-only CloudTranscriptionDomain");
+            });
+
+            Run("Local API transcription transient Mode restores transcription-only fields", () =>
+            {
+                var source = new Mode
+                {
+                    ModelType = "model-type-value",
+                    CloudTranscriptionDomain = "cloud-domain-value"
+                };
+
+                var mode = TranscribeEndpoints.BuildTransientMode(
+                    source,
+                    engine: null,
+                    model: null,
+                    language: null);
+
+                Assert(mode.ModelType == source.ModelType,
+                    "the transcription transient Mode lost ModelType");
+                Assert(mode.CloudTranscriptionDomain == source.CloudTranscriptionDomain,
+                    "the transcription transient Mode lost CloudTranscriptionDomain");
             });
 
             // =================================================================
