@@ -18,10 +18,12 @@ import {
   getPaidCreditGrantsForUsers,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
+import { createCreditHistoryPresenter } from "./customer-credit-history";
 
 // Credits per minute for the default HyperWhisper Cloud STT route.
 // 1 credit = $0.001; xAI Grok STT batch is $0.10/hour = 1.6667 credits/min.
 const CREDITS_PER_MINUTE = 1.67;
+const presentCreditHistory = createCreditHistoryPresenter();
 
 export const customerRouter = createTRPCRouter({
   /**
@@ -152,21 +154,7 @@ export const customerRouter = createTRPCRouter({
       Array.from(new Set(licenses.map((l) => l.userId)))
     );
 
-    const now = Date.now();
-    return {
-      grants: grants.map((g) => ({
-        id: g.id,
-        createdAt: g.createdAt.toISOString(),
-        expiresAt: g.expiresAt ? g.expiresAt.toISOString() : null,
-        originalAmount: g.originalAmount,
-        remainingAmount: g.remainingAmount,
-        // Surface expiry as a derived flag so the client doesn't re-parse dates;
-        // a grant is expired once its expiresAt has passed, regardless of the
-        // stored status (enforcement is a lazy filter, not a cron).
-        expired: g.expiresAt ? g.expiresAt.getTime() <= now : false,
-        status: g.status,
-      })),
-    };
+    return presentCreditHistory(grants);
   }),
 
   /**
