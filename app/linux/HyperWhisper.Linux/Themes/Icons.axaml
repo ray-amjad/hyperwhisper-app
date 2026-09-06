@@ -32,12 +32,12 @@
 
   <!-- Getting Started rows. Windows fills the circle dim and colours only the glyph, one hue
        per row, so the list reads as four steps and not four buttons. -->
-  <SolidColorBrush x:Key="HwStepRecordFill" Color="#16263F"/>
-  <SolidColorBrush x:Key="HwStepRecordGlyph" Color="#4C8DF6"/>
-  <SolidColorBrush x:Key="HwStepShortcutFill" Color="#2A2140"/>
-  <SolidColorBrush x:Key="HwStepShortcutGlyph" Color="#A78BFA"/>
-  <SolidColorBrush x:Key="HwStepModeFill" Color="#15301F"/>
-  <SolidColorBrush x:Key="HwStepModeGlyph" Color="#4ADE80"/>
-  <SolidColorBrush x:Key="HwStepVocabularyFill" Color="#331A1E"/>
-  <SolidColorBrush x:Key="HwStepVocabularyGlyph" Color="#F87171"/>
+  <SolidColorBrush x:Key="HwStepRecordFill" Color="#1A2635"/>
+  <SolidColorBrush x:Key="HwStepRecordGlyph" Color="#007AFF"/>
+  <SolidColorBrush x:Key="HwStepShortcutFill" Color="#2C2232"/>
+  <SolidColorBrush x:Key="HwStepShortcutGlyph" Color="#AF52DE"/>
+  <SolidColorBrush x:Key="HwStepModeFill" Color="#1F2E25"/>
+  <SolidColorBrush x:Key="HwStepModeGlyph" Color="#34C759"/>
+  <SolidColorBrush x:Key="HwStepVocabularyFill" Color="#34291C"/>
+  <SolidColorBrush x:Key="HwStepVocabularyGlyph" Color="#FF9500"/>
 </ResourceDictionary>

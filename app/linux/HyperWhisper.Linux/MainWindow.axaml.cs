@@ -1115,10 +1115,12 @@ public partial class MainWindow : Window
                 PageActionButton.IsVisible = pageId == "modes";
                 if (pageId == "modes") PageActionButton.Content = _localization["modes.header.create"];
             }
-            if (PageContent is not null)
-                PageContent.Margin = pageId == "history" ? new Thickness(0)
-                    : inSettings ? new Thickness(24, 24, 24, 0)
-                    : new Thickness(30, 22, 30, 20);
+            // Every page scroller carries its own 24px padding, the way the Windows PagePadding
+            // resource does, so the host adds nothing.
+            if (PageContent is not null) PageContent.Margin = new Thickness(0);
+            // Windows gives the header band the same content width as the page under it, so the
+            // title lines up with the first card. Streaming is the one 560px page up here.
+            if (PageHeaderContent is not null) PageHeaderContent.MaxWidth = pageId == "streaming" ? 560 : 720;
             if (pageId == "localapi") Dispatcher.UIThread.Post(UpdateLocalApiConnectionUi);
         }
         finally { _navigationSyncing = false; }

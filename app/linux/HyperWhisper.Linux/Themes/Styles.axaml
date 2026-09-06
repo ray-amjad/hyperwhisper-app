@@ -10,9 +10,15 @@
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
   <Style Selector="TextBlock.sectionTitle">
-    <Setter Property="FontSize" Value="17"/>
+    <Setter Property="FontSize" Value="20"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.sectionLabel">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="Margin" Value="4,0,0,8"/>
   </Style>
   <Style Selector="TextBlock.fieldLabel">
     <Setter Property="FontSize" Value="13"/>
@@ -21,6 +27,7 @@
   </Style>
   <Style Selector="TextBlock.caption">
     <Setter Property="FontSize" Value="11"/>
+    <Setter Property="LineHeight" Value="15"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
@@ -47,6 +54,29 @@
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
     <Setter Property="Margin" Value="0,0,0,20"/>
   </Style>
+  <!-- Status bar type. Windows writes both at 11: the label tertiary, the value secondary. -->
+  <Style Selector="TextBlock.statusText">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.statusLabel">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextTertiaryBrush}"/>
+  </Style>
+  <!-- The header band over a page. Windows writes it at 26 bold with a 13px subtitle 6 under. -->
+  <Style Selector="TextBlock.bandTitle">
+    <Setter Property="FontSize" Value="26"/>
+    <Setter Property="LineHeight" Value="34"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.bandSubtitle">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="LineHeight" Value="18"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="Margin" Value="0,6,0,0"/>
+  </Style>
   <Style Selector="Border.notice">
     <Setter Property="Background" Value="{DynamicResource HwWarningBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwWarningBorderBrush}"/>
@@ -64,16 +94,21 @@
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="0"/>
   </Style>
+  <!-- SidebarItemStyle on Windows: a 42px pill, CornerRadius 18, Margin 0,2, Padding 10,0,
+       14px SemiBold text beside a 30px tile. -->
   <Style Selector="ListBox.nav ListBoxItem">
-    <Setter Property="Padding" Value="12,9"/>
-    <Setter Property="Margin" Value="0,1"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Margin" Value="0,2"/>
+    <Setter Property="Height" Value="38"/>
+    <Setter Property="CornerRadius" Value="18"/>
     <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
   <Style Selector="ListBox.nav ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="CornerRadius" Value="18"/>
     <Setter Property="Background" Value="Transparent"/>
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -88,10 +123,30 @@
     <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
 
-  <!-- The Settings sub-page column. No tile, so the rows sit tighter than the main sidebar. -->
+  <!-- The Settings sub-page column. Windows uses Padding 12,8, CornerRadius 6, 13px text and
+       fills the selected row with the accent, not with the sidebar selection tint. -->
   <Style Selector="ListBox.nav.sub ListBoxItem">
-    <Setter Property="Padding" Value="12,7"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="Margin" Value="0,2"/>
+    <Setter Property="Height" Value="33"/>
+    <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="Normal"/>
+  </Style>
+  <Style Selector="ListBox.nav.sub ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="CornerRadius" Value="6"/>
+  </Style>
+  <!-- The row icon paints itself from the item foreground, so flip that too, not only the text. -->
+  <Style Selector="ListBox.nav.sub ListBoxItem:selected">
+    <Setter Property="Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+  <Style Selector="ListBox.nav.sub ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+  <Style Selector="ListBox.nav.sub ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
   </Style>
 
   <!-- Edition badge pinned under the sidebar, matching the Windows PRO chip. -->
@@ -111,7 +166,7 @@
   <!-- A settings row: title and description on the left, the control hard right, hairline
        under it. Windows groups these rows into one card, so the last row drops the rule. -->
   <Style Selector="Border.settingRow">
-    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwDividerBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="Padding" Value="0,0,0,10"/>
     <Setter Property="Margin" Value="0,0,0,10"/>
@@ -123,6 +178,7 @@
   </Style>
   <Style Selector="TextBlock.rowTitle">
     <Setter Property="FontSize" Value="14"/>
+    <Setter Property="LineHeight" Value="19"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
@@ -132,16 +188,17 @@
   <Style Selector="Button.rowAction">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="10"/>
-    <Setter Property="Padding" Value="18,21"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="Padding" Value="16"/>
     <Setter Property="MinHeight" Value="0"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
   </Style>
   <Style Selector="Button.rowAction /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="12"/>
   </Style>
   <Style Selector="Button.rowAction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
@@ -155,16 +212,16 @@
     <Setter Property="Padding" Value="0"/>
   </Style>
   <Style Selector="ListBox.modeGrid ListBoxItem">
-    <Setter Property="Margin" Value="4"/>
-    <Setter Property="Padding" Value="18,16"/>
-    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Margin" Value="6"/>
+    <Setter Property="Padding" Value="16"/>
+    <Setter Property="CornerRadius" Value="9"/>
     <Setter Property="MinHeight" Value="0"/>
   </Style>
   <Style Selector="ListBox.modeGrid ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="CornerRadius" Value="9"/>
   </Style>
   <Style Selector="ListBox.modeGrid ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
@@ -183,13 +240,15 @@
   </Style>
 
   <Style Selector="Border.keyChip">
-    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
-    <Setter Property="CornerRadius" Value="5"/>
-    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="8,4"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="TextBlock.statValue">
-    <Setter Property="FontSize" Value="21"/>
+    <Setter Property="FontSize" Value="18"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
@@ -235,15 +294,15 @@
     <Setter Property="Padding" Value="0"/>
     <Setter Property="MinHeight" Value="0"/>
   </Style>
-  <Style Selector="ListBox.flush ListBoxItem">
-    <Setter Property="CornerRadius" Value="0"/>
-    <Setter Property="Padding" Value="0"/>
-    <Setter Property="Margin" Value="0"/>
-  </Style>
   <Style Selector="ListBox.plain ListBoxItem">
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Padding" Value="10,8"/>
     <Setter Property="Margin" Value="0,1"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0"/>
   </Style>
   <Style Selector="ListBox.plain ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="CornerRadius" Value="6"/>
@@ -272,19 +331,23 @@
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
   </Style>
 
-  <!-- Buttons -->
+  <!-- Buttons. MacButtonStyle on Windows: 13px Medium, Padding 12,6, ButtonCornerRadius 7. -->
   <Style Selector="Button">
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="Padding" Value="14,7"/>
-    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="MinHeight" Value="0"/>
     <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="Medium"/>
     <!-- The template binds the presenter to the control, so set the control too. Styling
          only the presenter left an enabled button on the Fluent grey default. -->
     <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
   </Style>
+  <!-- PrimaryButtonStyle on Windows: no border, 13px SemiBold, Padding 15,7. -->
   <Style Selector="Button.accent">
+    <Setter Property="Padding" Value="15,7"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
@@ -293,7 +356,7 @@
     <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="CornerRadius" Value="7"/>
   </Style>
   <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
@@ -346,6 +409,22 @@
     <Setter Property="MinHeight" Value="0"/>
     <Setter Property="Padding" Value="8,0,0,0"/>
   </Style>
+  <Style Selector="CheckBox /template/ Grid#RootGrid">
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <Style Selector="CheckBox /template/ Border#NormalRectangle">
+    <Setter Property="Width" Value="16"/>
+    <Setter Property="Height" Value="16"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+  <Style Selector="RadioButton /template/ Ellipse#OuterEllipse, RadioButton /template/ Ellipse#CheckOuterEllipse">
+    <Setter Property="Width" Value="16"/>
+    <Setter Property="Height" Value="16"/>
+  </Style>
+  <Style Selector="RadioButton /template/ Ellipse#CheckGlyph">
+    <Setter Property="Width" Value="7"/>
+    <Setter Property="Height" Value="7"/>
+  </Style>
 
   <!-- A disabled action should recede, not read as a filled button. -->
   <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
@@ -359,12 +438,13 @@
     <Setter Property="Background" Value="Transparent"/>
   </Style>
   <Style Selector="ScrollBar:vertical">
-    <Setter Property="Width" Value="10"/>
+    <Setter Property="Width" Value="16"/>
   </Style>
   <Style Selector="ScrollBar:horizontal">
     <Setter Property="Height" Value="10"/>
   </Style>
   <Style Selector="ScrollBar /template/ Thumb">
+    <Setter Property="Margin" Value="5,0"/>
     <Setter Property="Background" Value="{DynamicResource HwTextTertiaryBrush}"/>
     <Setter Property="Opacity" Value="0.45"/>
     <Setter Property="CornerRadius" Value="5"/>
@@ -373,8 +453,11 @@
     <Setter Property="Opacity" Value="0.75"/>
   </Style>
 
-  <!-- Page bodies breathe better with a consistent gap between sections. -->
+  <!-- Windows uses one PagePadding of 24,24 on every page scroller. Keep the inset on the
+       scroller itself, not on the host: the scroll bar then stays flush with the window edge,
+       where Windows draws it, instead of being pushed in by the page margin. -->
   <Style Selector="ScrollViewer.page">
-    <Setter Property="Padding" Value="0,0,10,0"/>
+    <Setter Property="Padding" Value="24"/>
+    <Setter Property="AllowAutoHide" Value="False"/>
   </Style>
 </Styles>

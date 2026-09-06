@@ -1,86 +1,91 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:HyperWhisper.PortableApplication.ViewModels" xmlns:local="using:HyperWhisper.Linux" xmlns:data="using:HyperWhisper.Data.Entities" xmlns:platform="using:HyperWhisper.Platform.Abstractions" xmlns:conv="using:Avalonia.Data.Converters" x:Class="HyperWhisper.Linux.MainWindow" x:DataType="vm:ApplicationShellViewModel"
         Title="{ReflectionBinding [app.title], Source={StaticResource Localization}}" FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}" Width="1000" Height="680" MinWidth="1000" MinHeight="680" WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}">
+        Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}"
+        RenderOptions.TextRenderingMode="Antialias">
   <Window.Resources>
     <!-- One template per sidebar row. Content stays the localized string, so the row still
          reads as text to a screen reader and to the startup self-check; the template only
          adds the coloured tile the Windows sidebar draws. -->
-    <DataTemplate x:Key="NavHome"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource HwTileHomeBrush}"><Path Data="{StaticResource HwIconHome}" Fill="White" Stretch="Uniform" Width="15" Height="15"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
-    <DataTemplate x:Key="NavModes"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource HwTileModesBrush}"><Path Data="{StaticResource HwIconModes}" Fill="White" Stretch="Uniform" Width="15" Height="15"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
-    <DataTemplate x:Key="NavVocabulary"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource HwTileVocabularyBrush}"><Path Data="{StaticResource HwIconVocabulary}" Fill="White" Stretch="Uniform" Width="15" Height="15"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
-    <DataTemplate x:Key="NavModels"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource HwTileModelsBrush}"><Path Data="{StaticResource HwIconModels}" Fill="White" Stretch="Uniform" Width="15" Height="15"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
-    <DataTemplate x:Key="NavStreaming"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource HwTileStreamingBrush}"><Path Data="{StaticResource HwIconStreaming}" Fill="White" Stretch="Uniform" Width="15" Height="15"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
-    <DataTemplate x:Key="NavHistory"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource HwTileHistoryBrush}"><Path Data="{StaticResource HwIconHistory}" Fill="White" Stretch="Uniform" Width="15" Height="15"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
-    <DataTemplate x:Key="NavSettings"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="28" Height="28" CornerRadius="7" Background="{StaticResource HwTileSettingsBrush}"><Path Data="{StaticResource HwIconSettings}" Fill="White" Stretch="Uniform" Width="15" Height="15"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
+    <DataTemplate x:Key="NavHome"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource HwTileHomeBrush}"><Path Data="{StaticResource HwIconHome}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
+    <DataTemplate x:Key="NavModes"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource HwTileModesBrush}"><Path Data="{StaticResource HwIconModes}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
+    <DataTemplate x:Key="NavVocabulary"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource HwTileVocabularyBrush}"><Path Data="{StaticResource HwIconVocabulary}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
+    <DataTemplate x:Key="NavModels"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource HwTileModelsBrush}"><Path Data="{StaticResource HwIconModels}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
+    <DataTemplate x:Key="NavStreaming"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource HwTileStreamingBrush}"><Path Data="{StaticResource HwIconStreaming}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
+    <DataTemplate x:Key="NavHistory"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource HwTileHistoryBrush}"><Path Data="{StaticResource HwIconHistory}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
+    <DataTemplate x:Key="NavSettings"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource HwTileSettingsBrush}"><Path Data="{StaticResource HwIconSettings}" Fill="White" Stretch="Uniform" Width="17" Height="17"/></Border><TextBlock Grid.Column="1" Text="{Binding}" VerticalAlignment="Center"/></Grid></DataTemplate>
   </Window.Resources>
   <Window.DataTemplates>
     <DataTemplate DataType="vm:HomeViewModel">
       <ScrollViewer x:Name="HomeScreen" Classes="page">
-      <StackPanel Spacing="18" MaxWidth="980" HorizontalAlignment="Stretch">
-        <!-- Stat strip, four cells across one card, as the Windows dashboard opens. -->
-        <Border Classes="card" Padding="24,18">
-          <Grid ColumnDefinitions="*,*,*,*">
-            <StackPanel Spacing="2">
-              <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{Binding AllTime.AverageWordsPerMinute}" Classes="statValue"/><TextBlock Text="{ReflectionBinding [linux.ui.wpm], Source={StaticResource Localization}}" Classes="statValue" FontSize="14" VerticalAlignment="Bottom" Margin="0,0,0,3"/></StackPanel>
-              <TextBlock Text="{ReflectionBinding [home.stats.averageSpeed], Source={StaticResource Localization}}" Classes="caption"/>
+      <StackPanel Spacing="16" MaxWidth="720" HorizontalAlignment="Stretch">
+        <!-- HomeStatsBar on Windows: CornerRadius 12, Padding 20,14, four cells at 18/11 with a
+             1px, 32 tall rule between them. -->
+        <Border Classes="card" Padding="20,14" CornerRadius="12">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
+            <StackPanel Width="132" Margin="0,0,0,10">
+              <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{Binding AllTime.AverageWordsPerMinute}" Classes="statValue"/><TextBlock Text="{ReflectionBinding [linux.ui.wpm], Source={StaticResource Localization}}" Classes="statValue" FontSize="13" VerticalAlignment="Bottom" Margin="0,0,0,2"/></StackPanel>
+              <TextBlock Text="{ReflectionBinding [home.stats.averageSpeed], Source={StaticResource Localization}}" Classes="caption" Margin="0,4,0,0"/>
             </StackPanel>
-            <StackPanel Grid.Column="1" Spacing="2">
+            <Border Grid.Column="1" Width="1" Height="32" Margin="8,0,8,10" VerticalAlignment="Center" Background="{DynamicResource HwBorderBrush}"/>
+            <StackPanel Grid.Column="2" Width="132" Margin="0,0,0,10">
               <TextBlock Text="{Binding ThisWeek.WordCount}" Classes="statValue"/>
-              <TextBlock Text="{ReflectionBinding [home.stats.wordsThisWeek], Source={StaticResource Localization}}" Classes="caption"/>
+              <TextBlock Text="{ReflectionBinding [home.stats.wordsThisWeek], Source={StaticResource Localization}}" Classes="caption" Margin="0,4,0,0"/>
             </StackPanel>
-            <StackPanel Grid.Column="2" Spacing="2">
+            <Border Grid.Column="3" Width="1" Height="32" Margin="8,0,8,10" VerticalAlignment="Center" Background="{DynamicResource HwBorderBrush}"/>
+            <StackPanel Grid.Column="4" Width="132" Margin="0,0,0,10">
               <TextBlock Text="{Binding ThisMonth.WordCount}" Classes="statValue"/>
-              <TextBlock Text="{ReflectionBinding [home.stats.wordsThisMonth], Source={StaticResource Localization}}" Classes="caption"/>
+              <TextBlock Text="{ReflectionBinding [home.stats.wordsThisMonth], Source={StaticResource Localization}}" Classes="caption" Margin="0,4,0,0"/>
             </StackPanel>
-            <StackPanel Grid.Column="3" Spacing="2">
-              <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{Binding SavedThisWeekMinutes}" Classes="statValue"/><TextBlock Text="{ReflectionBinding [linux.ui.minutes.short], Source={StaticResource Localization}}" Classes="statValue" FontSize="14" VerticalAlignment="Bottom" Margin="0,0,0,3"/></StackPanel>
-              <TextBlock Text="{ReflectionBinding [home.stats.savedThisWeek], Source={StaticResource Localization}}" Classes="caption"/>
+            <Border Grid.Column="5" Width="1" Height="32" Margin="8,0,8,10" VerticalAlignment="Center" Background="{DynamicResource HwBorderBrush}"/>
+            <StackPanel Grid.Column="6" Width="132" Margin="0,0,0,10">
+              <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{Binding SavedThisWeekMinutes}" Classes="statValue" FontSize="15"/><TextBlock Text="{ReflectionBinding [linux.ui.minutes.short], Source={StaticResource Localization}}" Classes="statValue" FontSize="13" VerticalAlignment="Bottom" Margin="0,0,0,2"/></StackPanel>
+              <TextBlock Text="{ReflectionBinding [home.stats.savedThisWeek], Source={StaticResource Localization}}" Classes="caption" Margin="0,4,0,0"/>
             </StackPanel>
           </Grid>
         </Border>
 
         <TextBlock Text="{ReflectionBinding [home.gettingStarted.title], Source={StaticResource Localization}}" Classes="sectionTitle"/>
-        <StackPanel Spacing="8">
+        <StackPanel Spacing="12">
           <Button x:Name="HomeStartRecordingButton" Classes="rowAction" Click="OnStartRecording">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="14">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="16">
               <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepRecordFill}"><Path Data="{StaticResource HwIconStreaming}" Fill="{StaticResource HwStepRecordGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
-              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+              <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.recording.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-                <TextBlock Text="{ReflectionBinding [home.gettingStarted.recording.description], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{ReflectionBinding [home.gettingStarted.recording.description], Source={StaticResource Localization}}" Classes="caption" FontSize="13"/>
               </StackPanel>
               <Border Grid.Column="2" Classes="keyChip"><TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Settings.ToggleShortcutDisplay}" FontSize="11" FontWeight="SemiBold"/></Border>
-              <Path Grid.Column="3" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center"/>
+              <Path Grid.Column="3" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="6" Height="10" VerticalAlignment="Center"/>
             </Grid>
           </Button>
           <Button Classes="rowAction" Click="OnGoToShortcuts">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
               <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepShortcutFill}"><Path Data="{StaticResource HwIconKeyboard}" Fill="{StaticResource HwStepShortcutGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
-              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+              <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.shortcuts.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-                <TextBlock Text="{ReflectionBinding [home.gettingStarted.shortcuts.description], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{ReflectionBinding [home.gettingStarted.shortcuts.description], Source={StaticResource Localization}}" Classes="caption" FontSize="13"/>
               </StackPanel>
-              <Path Grid.Column="2" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center"/>
+              <Path Grid.Column="2" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="6" Height="10" VerticalAlignment="Center"/>
             </Grid>
           </Button>
           <Button Classes="rowAction" Click="OnGoToModes">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
               <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepModeFill}"><Path Data="{StaticResource HwIconModes}" Fill="{StaticResource HwStepModeGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
-              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+              <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.mode.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-                <TextBlock Text="{ReflectionBinding [home.gettingStarted.mode.description], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{ReflectionBinding [home.gettingStarted.mode.description], Source={StaticResource Localization}}" Classes="caption" FontSize="13"/>
               </StackPanel>
-              <Path Grid.Column="2" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center"/>
+              <Path Grid.Column="2" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="6" Height="10" VerticalAlignment="Center"/>
             </Grid>
           </Button>
           <Button Classes="rowAction" Click="OnGoToVocabulary">
-            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
               <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource HwStepVocabularyFill}"><Path Data="{StaticResource HwIconVocabulary}" Fill="{StaticResource HwStepVocabularyGlyph}" Stretch="Uniform" Width="17" Height="17"/></Border>
-              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+              <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                 <TextBlock Text="{ReflectionBinding [home.gettingStarted.vocabulary.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-                <TextBlock Text="{ReflectionBinding [home.gettingStarted.vocabulary.description], Source={StaticResource Localization}}" Classes="caption"/>
+                <TextBlock Text="{ReflectionBinding [home.gettingStarted.vocabulary.description], Source={StaticResource Localization}}" Classes="caption" FontSize="13"/>
               </StackPanel>
-              <Path Grid.Column="2" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center"/>
+              <Path Grid.Column="2" Data="{StaticResource HwIconChevron}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="6" Height="10" VerticalAlignment="Center"/>
             </Grid>
           </Button>
         </StackPanel>
@@ -115,16 +120,16 @@
     <DataTemplate DataType="vm:HistoryViewModel">
       <Grid x:Name="HistoryScreen" ColumnDefinitions="300,1,*">
         <Grid RowDefinitions="Auto,*" Background="{DynamicResource HwSidebarBackgroundBrush}">
-          <Border Padding="12,8" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
+          <Border Padding="16,8" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="*,Auto">
-              <Border Background="{DynamicResource HwInputBackgroundBrush}" CornerRadius="8" Padding="10,0">
+              <Border Background="{DynamicResource HwInputBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10,0" MinHeight="44">
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                 <Path Data="{StaticResource HwIconSearch}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="13" Height="13" VerticalAlignment="Center"/>
                 <TextBox Grid.Column="1" x:Name="HistorySearchInput" Background="Transparent" BorderThickness="0" Padding="0,7"
                          Text="{Binding SearchText}" PlaceholderText="{ReflectionBinding [linux.ui.search.transcripts], Source={StaticResource Localization}}"/>
                 </Grid>
               </Border>
-              <ComboBox x:Name="HistoryPeriod" Grid.Column="1" Margin="8,0,0,0" Width="86" SelectedIndex="0" SelectionChanged="OnHistoryPeriodChanged">
+              <ComboBox x:Name="HistoryPeriod" Grid.Column="1" Margin="12,0,0,0" Width="90" SelectedIndex="0" SelectionChanged="OnHistoryPeriodChanged">
                 <ComboBoxItem Tag="All" Content="{ReflectionBinding [history.filter.all], Source={StaticResource Localization}}"/>
                 <ComboBoxItem Tag="Today" Content="{ReflectionBinding [history.filter.today], Source={StaticResource Localization}}"/>
                 <ComboBoxItem Tag="ThisWeek" Content="{ReflectionBinding [history.filter.week], Source={StaticResource Localization}}"/>
@@ -147,16 +152,16 @@
               </DataTemplate></ListBox.ItemTemplate>
             </ListBox>
             <StackPanel Classes="emptyState" IsVisible="{Binding !Items.Count}">
-              <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="34" Height="34" Opacity="0.5"/>
-              <TextBlock Text="{ReflectionBinding [history.empty.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [history.empty.subtitle], Source={StaticResource Localization}}" Classes="caption" TextAlignment="Center"/>
+              <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="44" Height="44" HorizontalAlignment="Center" Opacity="0.3"/>
+              <TextBlock Text="{ReflectionBinding [history.empty.title], Source={StaticResource Localization}}" Classes="rowTitle" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+              <TextBlock Text="{ReflectionBinding [history.empty.subtitle], Source={StaticResource Localization}}" Classes="caption" FontSize="13" TextAlignment="Center"/>
             </StackPanel>
           </Grid>
         </Grid>
         <Border Grid.Column="1" Background="{DynamicResource HwBorderBrush}"/>
         <StackPanel Grid.Column="2" Classes="emptyState" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNull}}">
-          <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="44" Height="44" Opacity="0.45"/>
-          <TextBlock Text="{ReflectionBinding [history.detail.empty], Source={StaticResource Localization}}" Classes="caption" Margin="0,10,0,0"/>
+          <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="48" Height="48" HorizontalAlignment="Center" Opacity="0.3"/>
+          <TextBlock Text="{ReflectionBinding [history.detail.empty], Source={StaticResource Localization}}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource HwTextSecondaryBrush}" Margin="0,16,0,0"/>
         </StackPanel>
         <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto" IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
           <Border Padding="24,20" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
@@ -203,24 +208,25 @@
     </DataTemplate>
     <DataTemplate DataType="vm:VocabularyViewModel">
       <ScrollViewer x:Name="VocabularyScreen" Classes="page">
-      <StackPanel Spacing="14" MaxWidth="980" HorizontalAlignment="Stretch">
-        <!-- Windows uses one wide field with the action hinted inside it. -->
-        <Border Classes="card" Padding="8">
+      <StackPanel Spacing="16" MaxWidth="720" HorizontalAlignment="Stretch">
+        <!-- Windows draws the word row as one input surface, CornerRadius 10, Padding 16,12,
+             with the field borderless inside it. -->
+        <Border Background="{DynamicResource HwInputBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16,12">
           <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-            <TextBox x:Name="VocabularyWordInput" PlaceholderText="{ReflectionBinding [linux.ui.word.or.phrase], Source={StaticResource Localization}}" Text="{Binding Word}" BorderThickness="0" Background="Transparent"/>
-            <TextBox x:Name="VocabularyReplacementInput" Grid.Column="1" PlaceholderText="{ReflectionBinding [linux.ui.replacement.optional], Source={StaticResource Localization}}" Text="{Binding Replacement}" Width="230" BorderThickness="0" Background="Transparent"/>
-            <Button x:Name="VocabularyAddButton" Grid.Column="2" Classes="accent" Content="{ReflectionBinding [common.save], Source={StaticResource Localization}}" Command="{Binding AddCommand}"/>
+            <TextBox x:Name="VocabularyWordInput" PlaceholderText="{ReflectionBinding [linux.ui.word.or.phrase], Source={StaticResource Localization}}" Text="{Binding Word}" BorderThickness="0" Background="Transparent" Padding="0" MinHeight="0" FontSize="14" VerticalAlignment="Center"/>
+            <TextBox x:Name="VocabularyReplacementInput" Grid.Column="1" PlaceholderText="{ReflectionBinding [linux.ui.replacement.optional], Source={StaticResource Localization}}" Text="{Binding Replacement}" Width="230" BorderThickness="0" Background="Transparent" Padding="0" MinHeight="0" FontSize="14" VerticalAlignment="Center"/>
+            <Button x:Name="VocabularyAddButton" Grid.Column="2" MinHeight="0" Padding="10,3" Content="{ReflectionBinding [common.save], Source={StaticResource Localization}}" Command="{Binding AddCommand}"/>
           </Grid>
         </Border>
-        <Border Classes="card" Padding="6" MinHeight="230">
+        <Border Classes="card" Padding="6" MinHeight="200">
           <Grid>
             <ListBox x:Name="VocabularyList" Classes="plain" Background="Transparent" BorderThickness="0" MinHeight="0" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" IsVisible="{Binding Items.Count}">
               <ListBox.ItemTemplate><DataTemplate><Grid ColumnDefinitions="2*,2*,Auto" ColumnSpacing="12" Margin="0,3"><TextBlock Text="{Binding Word}" VerticalAlignment="Center"/><TextBlock Grid.Column="1" Text="{Binding Replacement}" VerticalAlignment="Center" Classes="caption"/><Button Grid.Column="2" Content="{ReflectionBinding [common.delete], Source={StaticResource Localization}}" Command="{Binding $parent[ListBox].DataContext.DeleteCommand}" CommandParameter="{Binding}"/></Grid></DataTemplate></ListBox.ItemTemplate>
             </ListBox>
             <StackPanel Classes="emptyState" IsVisible="{Binding !Items.Count}">
-              <Path Data="{StaticResource HwIconVocabulary}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="34" Height="34" Opacity="0.5"/>
-              <TextBlock Text="{ReflectionBinding [linux.empty.vocabulary.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-              <TextBlock Text="{ReflectionBinding [linux.empty.vocabulary.body], Source={StaticResource Localization}}" Classes="caption"/>
+              <Path Data="{StaticResource HwIconVocabulary}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="44" Height="44" HorizontalAlignment="Center" Opacity="0.3"/>
+              <TextBlock Text="{ReflectionBinding [linux.empty.vocabulary.title], Source={StaticResource Localization}}" Classes="rowTitle" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+              <TextBlock Text="{ReflectionBinding [linux.empty.vocabulary.body], Source={StaticResource Localization}}" Classes="caption" FontSize="13"/>
             </StackPanel>
           </Grid>
         </Border>
@@ -234,30 +240,32 @@
       <StackPanel Spacing="16" MaxWidth="720">
         <!-- Windows lays the modes out as a two column grid with the create button on the header
              row. The editor drops in under the grid here instead of opening as a dialog. -->
-        <ListBox Classes="modeGrid" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" Margin="-4,0">
+        <ListBox Classes="modeGrid" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}" Margin="-6,0">
           <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ListBox.ItemsPanel>
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="data:Mode">
-              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="7">
-                <TextBlock Text="{Binding Name}" Classes="rowTitle modeName" FontSize="15"/>
-                <Path Grid.Column="1" Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Top"/>
-                <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6">
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                <TextBlock Text="{Binding Name}" Classes="rowTitle modeName" FontSize="16" Margin="0,0,0,10"/>
+                <Path Grid.Column="1" Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,0,10"/>
+                <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="0,0,0,12">
                   <Path Data="{StaticResource HwIconGlobe}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center"/>
                   <TextBlock Text="{Binding Language}" Classes="caption"/>
                 </StackPanel>
-                <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
-                  <Border Classes="keyChip"><TextBlock Text="{Binding ProviderType}" FontSize="11" Foreground="{DynamicResource HwAccentBrush}"/></Border>
-                  <Border Classes="keyChip" IsVisible="{Binding CloudProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"><TextBlock Text="{Binding CloudProvider}" FontSize="11" Foreground="{DynamicResource HwSuccessBrush}"/></Border>
-                  <Border Classes="keyChip" IsVisible="{Binding Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"><TextBlock Text="{Binding Model}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}"/></Border>
+                <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="{Binding ProviderType}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource HwAccentBrush}"/>
+                  <TextBlock Text="·" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource HwTextTertiaryBrush}" IsVisible="{Binding CloudProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
+                  <TextBlock Text="{Binding CloudProvider}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource HwTextSecondaryBrush}" IsVisible="{Binding CloudProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
+                  <TextBlock Text="·" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource HwTextTertiaryBrush}" IsVisible="{Binding Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
+                  <TextBlock Text="{Binding Model}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource HwTextTertiaryBrush}" TextTrimming="CharacterEllipsis" IsVisible="{Binding Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
               </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
         <StackPanel Classes="emptyState" IsVisible="{Binding !Items.Count}">
-          <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextTertiaryBrush}" Stretch="Uniform" Width="34" Height="34" Opacity="0.5"/>
-          <TextBlock Text="{ReflectionBinding [linux.empty.modes.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-          <TextBlock Text="{ReflectionBinding [linux.empty.modes.body], Source={StaticResource Localization}}" Classes="caption"/>
+          <Path Data="{StaticResource HwIconEmptyList}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="44" Height="44" HorizontalAlignment="Center" Opacity="0.3"/>
+          <TextBlock Text="{ReflectionBinding [linux.empty.modes.title], Source={StaticResource Localization}}" Classes="rowTitle" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+          <TextBlock Text="{ReflectionBinding [linux.empty.modes.body], Source={StaticResource Localization}}" Classes="caption" FontSize="13"/>
         </StackPanel>
 
         <TextBlock Text="{ReflectionBinding [linux.ui.mode.editor], Source={StaticResource Localization}}" Classes="sectionTitle"/>
@@ -276,20 +284,15 @@
     <!-- Live transcription gets its own page, as it does on Windows. Every value still belongs
          to the settings view model; this template only re-presents the streaming half of it. -->
     <DataTemplate DataType="vm:StreamingSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="StreamingScreen" Spacing="14" MaxWidth="560" HorizontalAlignment="Left">
-        <TextBlock Text="{ReflectionBinding [settings.nav.general], Source={StaticResource Localization}}" Classes="fieldLabel"/>
+      <ScrollViewer Classes="page"><StackPanel x:Name="StreamingScreen" Spacing="0" MaxWidth="560" HorizontalAlignment="Stretch">
+        <TextBlock Text="{ReflectionBinding [settings.nav.general], Source={StaticResource Localization}}" Classes="sectionLabel"/>
         <Border Classes="card">
           <StackPanel>
-            <Border Classes="settingRow">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <StackPanel Spacing="2" Orientation="Horizontal">
-                  <Path Data="{StaticResource HwIconStreaming}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                  <StackPanel Spacing="2" VerticalAlignment="Center">
-                  <TextBlock Text="{ReflectionBinding [settings.streaming.enable.title], Source={StaticResource Localization}}" Classes="rowTitle"/>
-                  <TextBlock Text="{ReflectionBinding [linux.ui.credentials.are.loaded.from.the.secure.credentials.page.and.9110957e], Source={StaticResource Localization}}" Classes="caption"/>
-                  </StackPanel>
-                </StackPanel>
-                <CheckBox Grid.Column="1" x:Name="StreamingEnabledToggle" IsChecked="{Binding Settings.StreamingEnabled}" VerticalAlignment="Center"/>
+            <Border Classes="settingRow" Classes.last="{Binding !Settings.StreamingEnabled}">
+              <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="0" MinHeight="38">
+                <Path Data="{StaticResource HwIconStreaming}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{ReflectionBinding [settings.streaming.enable.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
+                <CheckBox Grid.Column="2" x:Name="StreamingEnabledToggle" IsChecked="{Binding Settings.StreamingEnabled}" VerticalAlignment="Center"/>
               </Grid>
             </Border>
             <Border Classes="settingRow" IsVisible="{Binding Settings.StreamingEnabled}">
@@ -331,7 +334,7 @@
          row copy and the same 20px page title. Every row reads a value off Settings, which is the
          one view model all seven sections share. -->
     <DataTemplate DataType="vm:GeneralSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="SettingsScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="SettingsScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.general.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -389,7 +392,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:SoundSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="SoundScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="SoundScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.sound.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -436,7 +439,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:StorageSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="StorageScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="StorageScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.section.storage], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><StackPanel Spacing="8">
@@ -450,7 +453,7 @@
           </StackPanel></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <TextBlock Text="{ReflectionBinding [settings.storage.showFolder.title], Source={StaticResource Localization}}" Classes="rowTitle" VerticalAlignment="Center"/>
-            <Button Grid.Column="1" x:Name="SettingsStorageOpenFolder" Content="{ReflectionBinding [settings.storage.showFolder.button], Source={StaticResource Localization}}" Click="OnOpenRecordingsFolder"/>
+            <Button Grid.Column="1" x:Name="SettingsStorageOpenFolder" Classes="accent" Content="{ReflectionBinding [settings.storage.showFolder.button], Source={StaticResource Localization}}" Click="OnOpenRecordingsFolder"/>
           </Grid></Border>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
             <StackPanel Spacing="2">
@@ -492,7 +495,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:OutputSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="OutputScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="OutputScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.section.output], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -553,7 +556,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:LocalApiSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="LocalApiScreen" MaxWidth="720" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="LocalApiScreen" MaxWidth="720" HorizontalAlignment="Stretch">
         <!-- Windows prints settings.localApi.blurb here. That string names a Windows path for
              the port file, so Linux keeps the title alone and shows the real path in its own
              field below. -->
@@ -606,7 +609,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:ShortcutsSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="ShortcutsScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="ShortcutsScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.section.shortcuts], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -670,7 +673,7 @@
     </DataTemplate>
 
     <DataTemplate DataType="vm:AppearanceSettingsViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="AppearanceScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="AppearanceScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.appearance.title], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><StackPanel Spacing="2">
@@ -732,7 +735,7 @@
          the readiness state instead. The selected row keeps a detail strip at the foot,
          because Linux exposes actions Windows puts in a context menu. -->
     <DataTemplate DataType="vm:ModelLibraryViewModel">
-      <Grid x:Name="ModelsScreen" RowDefinitions="Auto,Auto,Auto,*,Auto">
+      <Grid x:Name="ModelsScreen" RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="24">
         <Border Background="{DynamicResource HwInputBackgroundBrush}" CornerRadius="8" Padding="12,0" Margin="0,0,0,10">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
             <Path Data="{StaticResource HwIconSearch}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="13" Height="13" VerticalAlignment="Center"/>
@@ -749,7 +752,7 @@
             <Button x:Name="ModelCredentialButton" Content="{ReflectionBinding [linux.ui.api.keys], Source={StaticResource Localization}}" Click="OnModelCredentialAction"/>
           </StackPanel>
         </Grid>
-        <Border Grid.Row="2" Padding="12,0,12,7" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="2" Background="{DynamicResource HwCardBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="1,1,1,1" CornerRadius="9,9,0,0" Padding="12,8,12,7">
           <Grid ColumnDefinitions="*,110,150,196">
             <TextBlock Text="{ReflectionBinding [linux.ui.column.model.name], Source={StaticResource Localization}}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}"/>
             <TextBlock Grid.Column="1" Text="{ReflectionBinding [linux.ui.column.type], Source={StaticResource Localization}}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}" HorizontalAlignment="Center"/>
@@ -757,13 +760,14 @@
             <TextBlock Grid.Column="3" Text="{ReflectionBinding [linux.ui.column.location], Source={StaticResource Localization}}" FontSize="11" Foreground="{DynamicResource HwTextSecondaryBrush}" HorizontalAlignment="Right"/>
           </Grid>
         </Border>
-        <ListBox Grid.Row="3" x:Name="ModelList" Classes="plain flush" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
+        <Border Grid.Row="3" Background="{DynamicResource HwCardBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="1,0,1,1" CornerRadius="0,0,9,9" ClipToBounds="True">
+        <ListBox x:Name="ModelList" Classes="plain flush" Background="Transparent" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <Border BorderBrush="{DynamicResource HwSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="12,5">
+              <Border BorderBrush="{DynamicResource HwDividerBrush}" BorderThickness="0,0,0,1" Padding="12,9">
                 <Grid ColumnDefinitions="*,110,150,196">
                   <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                    <Border Width="28" Height="28" CornerRadius="7" Background="{DynamicResource HwHoverBackgroundBrush}" VerticalAlignment="Center">
+                    <Border Width="30" Height="30" CornerRadius="7" Background="{DynamicResource HwInputBackgroundBrush}" VerticalAlignment="Center">
                       <Path Data="{StaticResource HwIconModels}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
@@ -784,6 +788,7 @@
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
+        </Border>
         <Border Grid.Row="4" Padding="12,10,12,0" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,0"
                 IsVisible="{Binding Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
           <StackPanel Spacing="8">
@@ -804,7 +809,7 @@
     <!-- Backup. Windows shows one Export card, one Import card and a footnote; the Linux
          extras (inspect, preview, confirm) stay, but inside the same two cards. -->
     <DataTemplate DataType="vm:BackupViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="BackupScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="BackupScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.section.backup], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,20"><StackPanel>
           <Border Classes="settingRow"><Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
@@ -881,7 +886,7 @@
     </DataTemplate>
     <DataTemplate DataType="vm:CloudAccountViewModel">
       <ScrollViewer x:Name="AccountScreen" Classes="page">
-        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+        <StackPanel MaxWidth="560" HorizontalAlignment="Stretch">
           <StackPanel Spacing="4" Margin="0,0,0,20">
             <TextBlock Text="{ReflectionBinding [settings.nav.cloud], Source={StaticResource Localization}}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
             <TextBlock Text="{ReflectionBinding [settings.credits.subtitle], Source={StaticResource Localization}}" Classes="caption" FontSize="13" TextWrapping="Wrap"/>
@@ -952,7 +957,7 @@
     <!-- About. Windows uses an identity card, then one card per action. Linux keeps the same
          shape and adds the two rows Windows does not have: documentation and support. -->
     <DataTemplate DataType="vm:AboutViewModel">
-      <ScrollViewer Classes="page"><StackPanel x:Name="AboutScreen" MaxWidth="560" HorizontalAlignment="Left">
+      <ScrollViewer Classes="page"><StackPanel x:Name="AboutScreen" MaxWidth="560" HorizontalAlignment="Stretch">
         <TextBlock Text="{ReflectionBinding [settings.section.about], Source={StaticResource Localization}}" Classes="pageTitle"/>
         <Border Classes="card" Margin="0,0,0,12"><Grid ColumnDefinitions="52,*,Auto" MinHeight="54">
           <Border Width="38" Height="38" CornerRadius="9" Background="{DynamicResource HwAccentBrush}" VerticalAlignment="Center" HorizontalAlignment="Left">
@@ -1032,15 +1037,20 @@
          which reproduces the Windows grouping without a second list to keep in sync. -->
     <Border Grid.RowSpan="2" Background="{DynamicResource HwSidebarBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,1,0">
       <Grid RowDefinitions="Auto,*,Auto">
-        <TextBlock Margin="22,20,20,16" Text="{ReflectionBinding [app.title], Source={StaticResource Localization}}" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
-        <ListBox x:Name="Navigation" Classes="nav" Grid.Row="1" Margin="12,0" SelectionChanged="OnNavigationChanged">
+        <!-- Windows gives the wordmark a 54px band and writes it at 16, 16 in from the edge. -->
+        <Border Height="54">
+          <TextBlock Margin="16,0,0,0" VerticalAlignment="Center" Text="{ReflectionBinding [app.title], Source={StaticResource Localization}}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+        </Border>
+        <!-- SidebarGroupStyle on Windows is Margin 10,0 with Padding 6, and a 14px spacer opens
+             each group after the first. A 2px base margin plus that spacer is the 16 here. -->
+        <ListBox x:Name="Navigation" Classes="nav" Grid.Row="1" Margin="10,0" Padding="6" SelectionChanged="OnNavigationChanged">
           <ListBoxItem Content="{ReflectionBinding [sidebar.home], Source={StaticResource Localization}}" Tag="home" IsSelected="True" ContentTemplate="{StaticResource NavHome}"/>
-          <ListBoxItem Content="{ReflectionBinding [sidebar.modes], Source={StaticResource Localization}}" Tag="modes" ContentTemplate="{StaticResource NavModes}"/>
+          <ListBoxItem Content="{ReflectionBinding [sidebar.modes], Source={StaticResource Localization}}" Tag="modes" ContentTemplate="{StaticResource NavModes}" Margin="0,16,0,2"/>
           <ListBoxItem Content="{ReflectionBinding [sidebar.vocabulary], Source={StaticResource Localization}}" Tag="vocabulary" ContentTemplate="{StaticResource NavVocabulary}"/>
-          <ListBoxItem Content="{ReflectionBinding [settings.nav.models], Source={StaticResource Localization}}" Tag="models" ContentTemplate="{StaticResource NavModels}" Margin="0,16,0,1"/>
+          <ListBoxItem Content="{ReflectionBinding [settings.nav.models], Source={StaticResource Localization}}" Tag="models" ContentTemplate="{StaticResource NavModels}" Margin="0,16,0,2"/>
           <ListBoxItem Content="{ReflectionBinding [settings.nav.streaming], Source={StaticResource Localization}}" Tag="streaming" ContentTemplate="{StaticResource NavStreaming}"/>
-          <ListBoxItem Content="{ReflectionBinding [sidebar.history], Source={StaticResource Localization}}" Tag="history" ContentTemplate="{StaticResource NavHistory}"/>
-          <ListBoxItem Content="{ReflectionBinding [sidebar.settings], Source={StaticResource Localization}}" Tag="settings" ContentTemplate="{StaticResource NavSettings}" Margin="0,16,0,1"/>
+          <ListBoxItem Content="{ReflectionBinding [sidebar.history], Source={StaticResource Localization}}" Tag="history" ContentTemplate="{StaticResource NavHistory}" Margin="0,16,0,2"/>
+          <ListBoxItem Content="{ReflectionBinding [sidebar.settings], Source={StaticResource Localization}}" Tag="settings" ContentTemplate="{StaticResource NavSettings}" Margin="0,16,0,2"/>
         </ListBox>
         <StackPanel Grid.Row="2" Margin="14,10,14,14" Spacing="8">
           <Border Classes="editionBadge">
@@ -1056,16 +1066,19 @@
     <!-- Header band, then the page. Windows draws the title on the content background with a
          hairline under it, and the Settings pages add a second column of sub-pages. -->
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
-      <Border x:Name="PageHeader" Padding="30,22,30,18" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-          <StackPanel Spacing="3">
-            <TextBlock x:Name="PageTitle" Text="{Binding PageTitle}" Classes="pageTitle"/>
-            <TextBlock x:Name="PageSubtitle" Classes="caption"/>
+      <!-- Windows draws this band with Padding 24,20, a 26px bold title over a 13px subtitle,
+           and the primary action pinned to the top right. The band's content carries the same
+           MaxWidth as the page under it, so the title sits over the first card. -->
+      <Border x:Name="PageHeader" Padding="24,20" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,0,0,1">
+        <Grid x:Name="PageHeaderContent" ColumnDefinitions="*,Auto" ColumnSpacing="16" MaxWidth="720" HorizontalAlignment="Stretch">
+          <StackPanel>
+            <TextBlock x:Name="PageTitle" Text="{Binding PageTitle}" Classes="bandTitle"/>
+            <TextBlock x:Name="PageSubtitle" Classes="bandSubtitle"/>
           </StackPanel>
-          <Button Grid.Column="1" x:Name="PageActionButton" Classes="accent" VerticalAlignment="Center" IsVisible="False" Click="OnPageAction"/>
+          <Button Grid.Column="1" x:Name="PageActionButton" Classes="accent" VerticalAlignment="Top" IsVisible="False" Click="OnPageAction"/>
         </Grid>
       </Border>
-      <Border x:Name="PlatformNotice" Grid.Row="1" Classes="notice" Margin="30,14,30,0" Padding="12,7" IsVisible="False">
+      <Border x:Name="PlatformNotice" Grid.Row="1" Classes="notice" Margin="24,14,24,0" Padding="12,7" IsVisible="False">
         <TextBlock x:Name="PlatformStatusText" Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #PlatformStatusText.Text}"/>
       </Border>
       <Grid Grid.Row="2" ColumnDefinitions="Auto,*">
@@ -1074,61 +1087,61 @@
           <ListBox x:Name="SettingsNav" Classes="nav sub" SelectionChanged="OnSettingsNavigationChanged">
             <ListBoxItem Tag="settings" IsSelected="True">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconSettings}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconSettings}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.general], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="sound">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconStreaming}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconStreaming}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.sound], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="account">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconCheck}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconCheck}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.cloud], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="storage">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconEmptyList}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconEmptyList}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.storage], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="output">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconVocabulary}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconVocabulary}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.output], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="localapi">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconModels}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconModels}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.localApi], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="shortcuts">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconKeyboard}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconKeyboard}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.shortcuts], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="backup">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconHistory}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconHistory}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.backup], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="appearance">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconModes}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconModes}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.appearance], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
             <ListBoxItem Tag="about">
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Path Data="{StaticResource HwIconHome}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+                <Border Width="20" HorizontalAlignment="Center"><Path Data="{StaticResource HwIconHome}" Fill="{Binding $parent[ListBoxItem].Foreground}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/></Border>
                 <TextBlock Text="{ReflectionBinding [settings.nav.about], Source={StaticResource Localization}}" VerticalAlignment="Center"/>
               </StackPanel>
             </ListBoxItem>
@@ -1148,14 +1161,16 @@
         </Grid>
       </Grid>
     </Grid>
-    <Border Grid.Column="1" Grid.Row="1" Padding="30,7" Background="{DynamicResource HwSidebarBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0">
+    <!-- StatusBarStyle on Windows: the sidebar surface, a hairline on top, Padding 12,5, and
+         11px text with a tertiary label in front of a secondary value. -->
+    <Border Grid.Column="1" Grid.Row="1" Padding="12,5" Background="{DynamicResource HwSidebarBackgroundBrush}" BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-        <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock x:Name="StatusText" Text="{Binding Status.Message}" Classes="caption"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption"/><TextBlock x:Name="ShortcutHintText" Classes="caption"/></StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding Modes.Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
-          <TextBlock Text="{ReflectionBinding [linux.status.mode_label], Source={StaticResource Localization}}" Classes="caption"/>
-          <TextBlock Text="{Binding Modes.Selected.Name}" Classes="caption" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}"/>
-          <TextBlock Text="{ReflectionBinding [linux.status.model_label], Source={StaticResource Localization}}" Classes="caption" Margin="10,0,0,0" IsVisible="{Binding Modes.Selected.Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
-          <TextBlock Text="{Binding Modes.Selected.Model}" Classes="caption" FontWeight="SemiBold" Foreground="{DynamicResource HwTextPrimaryBrush}" TextTrimming="CharacterEllipsis" MaxWidth="220" IsVisible="{Binding Modes.Selected.Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"><TextBlock x:Name="StatusText" Text="{Binding Status.Message}" Classes="statusText"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="statusText"/><TextBlock x:Name="ShortcutHintText" Classes="statusText"/></StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" IsVisible="{Binding Modes.Selected, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+          <TextBlock Text="{ReflectionBinding [linux.status.mode_label], Source={StaticResource Localization}}" Classes="statusLabel"/>
+          <TextBlock Text="{Binding Modes.Selected.Name}" Classes="statusText" FontWeight="Medium"/>
+          <TextBlock Text="{ReflectionBinding [linux.status.model_label], Source={StaticResource Localization}}" Classes="statusLabel" Margin="16,0,0,0" IsVisible="{Binding Modes.Selected.Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
+          <TextBlock Text="{Binding Modes.Selected.Model}" Classes="statusText" TextTrimming="CharacterEllipsis" MaxWidth="220" IsVisible="{Binding Modes.Selected.Model, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
         </StackPanel>
       </Grid>
     </Border>
