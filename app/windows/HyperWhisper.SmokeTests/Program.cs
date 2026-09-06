@@ -5914,6 +5914,87 @@ internal static class Program
                 }
             });
 
+            Run("Local API transient Mode clone preserves the shared fields", () =>
+            {
+                var vocabulary = new List<string> { "vocabulary-value" };
+                var source = new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "source-name",
+                    Preset = "preset-value",
+                    IsDefault = true,
+                    IsSystemProvided = true,
+                    SortOrder = 17,
+                    Language = "language-value",
+                    Model = "model-value",
+                    ModelType = "model-type-value",
+                    LocalEngine = "local-engine-value",
+                    LocalParakeetModel = "local-parakeet-value",
+                    CloudProvider = "cloud-provider-value",
+                    CloudTranscriptionModel = "cloud-transcription-model-value",
+                    CloudTranscriptionDomain = "cloud-domain-value",
+                    ProviderType = "provider-type-value",
+                    CloudAccuracyTier = "cloud-accuracy-tier-value",
+                    GeminiCustomPrompt = "gemini-prompt-value",
+                    Punctuation = false,
+                    Capitalization = false,
+                    ProfanityFilter = true,
+                    RemoveTrailingPeriod = true,
+                    EnglishSpelling = "english-spelling-value",
+                    PostProcessingMode = 19,
+                    PostProcessingProvider = "post-processing-provider-value",
+                    LanguageModel = "language-model-value",
+                    LocalPostProcessingModel = "local-post-processing-model-value",
+                    UserSystemPrompt = "system-prompt-value",
+                    CustomInstructions = "custom-instructions-value",
+                    EnableScreenOCR = true,
+                    CloudPostProcessingModel = "cloud-post-processing-model-value",
+                    CustomVocabulary = vocabulary,
+                    CreatedDate = DateTime.UnixEpoch.AddDays(1),
+                    ModifiedDate = DateTime.UnixEpoch.AddDays(2),
+                    ForeignPlatformExtensions = "foreign-platform-value"
+                };
+                var before = DateTime.UtcNow;
+
+                var clone = LocalApiTransientMode.Clone(source, "transient-name");
+
+                var after = DateTime.UtcNow;
+                Assert(clone.Id != source.Id, "the transient Mode reused the source id");
+                Assert(clone.Name == "transient-name", "the transient Mode lost the supplied name");
+                Assert(clone.Preset == source.Preset, "Preset was not copied");
+                Assert(clone.Language == source.Language, "Language was not copied");
+                Assert(clone.Model == source.Model, "Model was not copied");
+                Assert(clone.Punctuation == source.Punctuation, "Punctuation was not copied");
+                Assert(clone.Capitalization == source.Capitalization, "Capitalization was not copied");
+                Assert(clone.ProfanityFilter == source.ProfanityFilter, "ProfanityFilter was not copied");
+                Assert(clone.CustomInstructions == source.CustomInstructions, "CustomInstructions was not copied");
+                Assert(clone.UserSystemPrompt == source.UserSystemPrompt, "UserSystemPrompt was not copied");
+                Assert(clone.LanguageModel == source.LanguageModel, "LanguageModel was not copied");
+                Assert(clone.CloudProvider == source.CloudProvider, "CloudProvider was not copied");
+                Assert(clone.CloudTranscriptionModel == source.CloudTranscriptionModel, "CloudTranscriptionModel was not copied");
+                Assert(clone.ProviderType == source.ProviderType, "ProviderType was not copied");
+                Assert(clone.PostProcessingMode == source.PostProcessingMode, "PostProcessingMode was not copied");
+                Assert(clone.PostProcessingProvider == source.PostProcessingProvider, "PostProcessingProvider was not copied");
+                Assert(clone.EnglishSpelling == source.EnglishSpelling, "EnglishSpelling was not copied");
+                Assert(clone.CloudAccuracyTier == source.CloudAccuracyTier, "CloudAccuracyTier was not copied");
+                Assert(clone.RemoveTrailingPeriod == source.RemoveTrailingPeriod, "RemoveTrailingPeriod was not copied");
+                Assert(clone.EnableScreenOCR == source.EnableScreenOCR, "EnableScreenOCR was not copied");
+                Assert(clone.GeminiCustomPrompt == source.GeminiCustomPrompt, "GeminiCustomPrompt was not copied");
+                Assert(clone.CloudPostProcessingModel == source.CloudPostProcessingModel, "CloudPostProcessingModel was not copied");
+                Assert(clone.LocalEngine == source.LocalEngine, "LocalEngine was not copied");
+                Assert(clone.LocalParakeetModel == source.LocalParakeetModel, "LocalParakeetModel was not copied");
+                Assert(clone.LocalPostProcessingModel == source.LocalPostProcessingModel, "LocalPostProcessingModel was not copied");
+                Assert(ReferenceEquals(clone.CustomVocabulary, vocabulary), "CustomVocabulary was not shallow-copied");
+                Assert(clone.SortOrder == int.MaxValue, "the transient Mode sort order changed");
+                Assert(clone.CreatedDate >= before && clone.CreatedDate <= after, "CreatedDate is not fresh UTC time");
+                Assert(clone.ModifiedDate >= before && clone.ModifiedDate <= after, "ModifiedDate is not fresh UTC time");
+                Assert(!clone.IsDefault, "the transient Mode copied IsDefault");
+                Assert(!clone.IsSystemProvided, "the transient Mode copied IsSystemProvided");
+                Assert(clone.ForeignPlatformExtensions == null, "the transient Mode copied ForeignPlatformExtensions");
+                Assert(clone.ModelType == null, "the shared helper copied transcription-only ModelType");
+                Assert(clone.CloudTranscriptionDomain == null, "the shared helper copied transcription-only CloudTranscriptionDomain");
+            });
+
             // =================================================================
             // Local API wire contract (issue #289)
             //
