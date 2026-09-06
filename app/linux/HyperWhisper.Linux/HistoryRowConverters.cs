@@ -49,3 +49,34 @@ public sealed class ShortDurationConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+/// <summary>
+/// The Source column pill. Windows maps the stored source string to a localized badge —
+/// vocabulary.autoLearned.badge or vocabulary.manual.badge — and falls back to the raw value for
+/// anything else (VocabularyPage.xaml.cs:288-294). Binding the raw column straight into the pill
+/// printed the storage tokens, so the rows read "manual" and "auto-learn" in lower case.
+/// </summary>
+public sealed class VocabularySourceConverter : IValueConverter
+{
+    private readonly HyperWhisper.Linux.Localization.AvaloniaLocalizationBridge _localization;
+
+    public VocabularySourceConverter(HyperWhisper.Linux.Localization.AvaloniaLocalizationBridge localization)
+        => _localization = localization ?? throw new ArgumentNullException(nameof(localization));
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var source = value as string;
+        if (string.IsNullOrWhiteSpace(source)) return string.Empty;
+        // The same three spellings Windows accepts; the repository has written more than one.
+        if (string.Equals(source, "auto-learn", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(source, "auto-learned", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(source, "autoLearned", StringComparison.OrdinalIgnoreCase))
+            return _localization["vocabulary.autoLearned.badge"];
+        return string.Equals(source, "manual", StringComparison.OrdinalIgnoreCase)
+            ? _localization["vocabulary.manual.badge"]
+            : source;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}

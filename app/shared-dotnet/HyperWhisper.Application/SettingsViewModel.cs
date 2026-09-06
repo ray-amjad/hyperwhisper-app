@@ -41,6 +41,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _streamingFastFormatting;
     private bool _autostartEnabled;
     private bool _launchMinimized;
+    private bool _autoUpdateEnabled = true;
     private bool _minimizeToTray = true;
     private bool _enableSoundEffects = true;
     private double _soundEffectsVolume = 1;
@@ -96,24 +97,46 @@ public sealed class SettingsViewModel : ViewModelBase
     /// The record shortcut as one label, for the status bar and the Home shortcut chip.
     /// Both apps show the shortcut where the user looks for it, not only in Settings.
     /// </summary>
-    public string ToggleShortcutDisplay
-    {
-        get
-        {
-            var parts = (_toggleShortcutModifiers ?? string.Empty)
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Append(_toggleShortcutKey ?? string.Empty)
-                .Where(part => !string.IsNullOrWhiteSpace(part))
-                .Select(part => char.ToUpperInvariant(part[0]) + part[1..]);
-            return string.Join("+", parts);
-        }
-    }
+    public string ToggleShortcutDisplay => FormatShortcut(_toggleShortcutModifiers, _toggleShortcutKey);
+
+    /// <summary>
+    /// Title-casing the stored names produced "Control+Shift+Period" where Windows shows
+    /// "Ctrl+Shift+.". <see cref="ShortcutDisplay"/> is now the single spelling for both apps.
+    /// </summary>
+    private static string FormatShortcut(string? modifiers, string? key)
+        => ShortcutDisplay.Format(modifiers, key);
     public string CancelShortcutModifiers { get => _cancelShortcutModifiers; set => Set(ref _cancelShortcutModifiers, value ?? string.Empty); }
     public string CancelShortcutKey { get => _cancelShortcutKey; set => Set(ref _cancelShortcutKey, value ?? string.Empty); }
-    public string ChangeModeShortcutModifiers { get => _changeModeShortcutModifiers; set => Set(ref _changeModeShortcutModifiers, value ?? string.Empty); }
-    public string ChangeModeShortcutKey { get => _changeModeShortcutKey; set => Set(ref _changeModeShortcutKey, value ?? string.Empty); }
-    public string StreamingShortcutModifiers { get => _streamingShortcutModifiers; set => Set(ref _streamingShortcutModifiers, value ?? string.Empty); }
-    public string StreamingShortcutKey { get => _streamingShortcutKey; set => Set(ref _streamingShortcutKey, value ?? string.Empty); }
+    public string ChangeModeShortcutModifiers
+    {
+        get => _changeModeShortcutModifiers;
+        set { if (Set(ref _changeModeShortcutModifiers, value ?? string.Empty)) Notify(nameof(ChangeModeShortcutDisplay)); }
+    }
+    public string ChangeModeShortcutKey
+    {
+        get => _changeModeShortcutKey;
+        set { if (Set(ref _changeModeShortcutKey, value ?? string.Empty)) Notify(nameof(ChangeModeShortcutDisplay)); }
+    }
+
+    /// <summary>
+    /// The change-mode shortcut as one label. Windows shows it as a chip on the Home
+    /// "Create a Mode" row, next to the record shortcut on the row above it.
+    /// </summary>
+    public string ChangeModeShortcutDisplay => FormatShortcut(_changeModeShortcutModifiers, _changeModeShortcutKey);
+    public string StreamingShortcutModifiers
+    {
+        get => _streamingShortcutModifiers;
+        set { if (Set(ref _streamingShortcutModifiers, value ?? string.Empty)) Notify(nameof(StreamingShortcutDisplay)); }
+    }
+    public string StreamingShortcutKey
+    {
+        get => _streamingShortcutKey;
+        set { if (Set(ref _streamingShortcutKey, value ?? string.Empty)) Notify(nameof(StreamingShortcutDisplay)); }
+    }
+
+    /// <summary>The streaming shortcut as one readable combination, for the read-only box the
+    /// Windows streaming page shows beside "Streaming shortcut".</summary>
+    public string StreamingShortcutDisplay => FormatShortcut(_streamingShortcutModifiers, _streamingShortcutKey);
     public string PushToTalkMode
     {
         get => _pushToTalkMode;
@@ -142,7 +165,27 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool AutocapitalizeInsert { get => _autocapitalizeInsert; set => Set(ref _autocapitalizeInsert, value); }
     public bool RestoreClipboardAfterPaste { get => _restoreClipboardAfterPaste; set => Set(ref _restoreClipboardAfterPaste, value); }
     public bool HideFromClipboardHistory { get => _hideFromClipboardHistory; set => Set(ref _hideFromClipboardHistory, value); }
-    public double ClipboardRestoreDelaySeconds { get => _clipboardRestoreDelaySeconds; set => Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, 0, 60)); }
+    /// <summary>
+    /// Seconds before the clipboard is put back. Windows floors this at 1, not 0: its stepper
+    /// disables "-" at 1 and "+" at 60 (OutputSettingsPage.xaml.cs:160-161). The lower bound was
+    /// 0 here, which no Windows user can reach.
+    /// </summary>
+    public double ClipboardRestoreDelaySeconds
+    {
+        get => _clipboardRestoreDelaySeconds;
+        set
+        {
+            if (!Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, MinClipboardRestoreDelaySeconds, MaxClipboardRestoreDelaySeconds))) return;
+            Notify(nameof(CanDecreaseClipboardRestoreDelay));
+            Notify(nameof(CanIncreaseClipboardRestoreDelay));
+        }
+    }
+    public const double MinClipboardRestoreDelaySeconds = 1;
+    public const double MaxClipboardRestoreDelaySeconds = 60;
+    /// <summary>Drives the stepper's "-" button, which Windows greys out at the floor.</summary>
+    public bool CanDecreaseClipboardRestoreDelay => ClipboardRestoreDelaySeconds > MinClipboardRestoreDelaySeconds;
+    /// <summary>Drives the stepper's "+" button, which Windows greys out at the ceiling.</summary>
+    public bool CanIncreaseClipboardRestoreDelay => ClipboardRestoreDelaySeconds < MaxClipboardRestoreDelaySeconds;
     public bool StoreWordTimestamps { get => _storeWordTimestamps; set => Set(ref _storeWordTimestamps, value); }
     public bool StreamingEnabled { get => _streamingEnabled; set => Set(ref _streamingEnabled, value); }
     public string StreamingProvider
@@ -166,6 +209,12 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool StreamingFastFormatting { get => _streamingFastFormatting; set => Set(ref _streamingFastFormatting, value); }
     public bool AutostartEnabled { get => _autostartEnabled; set => Set(ref _autostartEnabled, value); }
     public bool LaunchMinimized { get => _launchMinimized; set => Set(ref _launchMinimized, value); }
+    /// <summary>
+    /// The Windows General page ends with "Check for updates automatically". The key is flat, not
+    /// under "general.", because it is deliberately NOT promoted into the universal backup: it is
+    /// per-machine, and a promoted key needs a pairs row in hw-backup or it is dropped silently.
+    /// </summary>
+    public bool AutoUpdateEnabled { get => _autoUpdateEnabled; set => Set(ref _autoUpdateEnabled, value); }
     public bool MinimizeToTray { get => _minimizeToTray; set => Set(ref _minimizeToTray, value); }
     public bool EnableSoundEffects { get => _enableSoundEffects; set => Set(ref _enableSoundEffects, value); }
     public double SoundEffectsVolume { get => _soundEffectsVolume; set => Set(ref _soundEffectsVolume, Math.Clamp(double.IsFinite(value) ? value : 1, 0, 1)); }
@@ -313,6 +362,7 @@ public sealed class SettingsViewModel : ViewModelBase
         StreamingFastFormatting = _settings.Get("streaming.fastFormatting", false);
         AutostartEnabled = _settings.Get("autostartEnabled", false);
         LaunchMinimized = _settings.Get("general.launchMinimized", false);
+        AutoUpdateEnabled = _settings.Get("autoUpdateEnabled", true);
         MinimizeToTray = _settings.Get("minimizeToTray", true);
         EnableSoundEffects = _settings.Get("general.enableSoundEffects", true);
         SoundEffectsVolume = _settings.Get("soundEffectsVolume", 1d);
@@ -387,6 +437,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("streaming.fastFormatting", StreamingFastFormatting);
         _settings.Set("autostartEnabled", AutostartEnabled);
         _settings.Set("general.launchMinimized", LaunchMinimized);
+        _settings.Set("autoUpdateEnabled", AutoUpdateEnabled);
         _settings.Set("minimizeToTray", MinimizeToTray);
         _settings.Set("general.enableSoundEffects", EnableSoundEffects);
         _settings.Set("soundEffectsVolume", SoundEffectsVolume);

@@ -1,16 +1,55 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:HyperWhisper.Linux">
   <!-- Shared look for the Linux shell. The Fluent defaults give square, high-contrast
        controls that do not match the Windows and macOS apps, so the rounding, spacing
        and type scale here follow app/windows/HyperWhisper/Themes. -->
 
-  <!-- Type scale -->
-  <Style Selector="TextBlock.pageTitle">
-    <Setter Property="FontSize" Value="28"/>
-    <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  <!-- Windows text metrics. Both apps resolve the same Inter Display cut, but WPF takes its line
+       box from the composite FontFamily, which lands on Segoe UI's 1.3301em rather than Inter
+       Display's own 1.2090em, and its regular-weight run is about 2.9% wider. Left alone, Linux
+       stacked body text on a 15px pitch against Windows' 17px and broke every paragraph at a
+       different word. FontMetricConverter carries the measurements behind both numbers. The
+       tracking setter is scoped to Normal weight because SemiBold already measured within a pixel. -->
+  <Styles.Resources>
+    <local:FontMetricConverter x:Key="HwWindowsLineHeight" Factor="1.3301"/>
+    <local:FontMetricConverter x:Key="HwWindowsTracking" Factor="0.0127"/>
+  </Styles.Resources>
+
+  <!-- Greyscale text antialiasing, as WPF uses. Avalonia's default on Linux is LCD/RGB SUBPIXEL
+       antialiasing, which gives every glyph a red/blue fringe Windows does not have: a 60x18 crop
+       of one word held 161 unique colours here against 58 on Windows. It is also why run widths
+       kept landing 1-3% out however the font metrics were tuned, because a subpixel-positioned
+       run rasterises to a different advance than a greyscale one. Fixing it at the rendering mode
+       is the only place it can be fixed; it is not a font-metric problem.
+
+       Set as an attribute on each Window root, NOT as a Style setter here: Avalonia 12 exposes
+       TextOptions.TextRenderingMode only as a static Get/Set method pair, with no public
+       TextRenderingModeProperty field, so a Setter cannot bind it and the build fails with
+       AVLN2000. The attribute form resolves through the method pair and does work. It is an
+       inherited attached property, so one attribute per window root covers that whole tree.
+       "Antialias" is the greyscale mode; "SubpixelAntialias" is the default it overrides. -->
+
+  <!-- The two setters the resources above exist for. Both bind to the TextBlock's own FontSize so
+       one rule covers the whole type scale. Measured before this rule, same strings, Windows
+       against Linux: the General page body run "Start HyperWhisper automatically when you log in."
+       is 245px against 238px, and the pitch between stacked lines is 17px against 15.5px.
+       LetterSpacing is turned back off for SemiBold and Bold, which already measured within a
+       pixel ("Storage" is 69px on both sides), so headings keep the parity they have. -->
+  <Style Selector="TextBlock">
+    <Setter Property="LineHeight" Value="{Binding $self.FontSize, Converter={StaticResource HwWindowsLineHeight}}"/>
+    <Setter Property="LetterSpacing" Value="{Binding $self.FontSize, Converter={StaticResource HwWindowsTracking}}"/>
   </Style>
+  <Style Selector="TextBlock[FontWeight=SemiBold]">
+    <Setter Property="LetterSpacing" Value="0"/>
+  </Style>
+  <Style Selector="TextBlock[FontWeight=Bold]">
+    <Setter Property="LetterSpacing" Value="0"/>
+  </Style>
+
+  <!-- Type scale -->
+  <!-- Home section headings are 20px SemiBold on Windows ("Getting started", "Recent Updates"). -->
   <Style Selector="TextBlock.sectionTitle">
-    <Setter Property="FontSize" Value="17"/>
+    <Setter Property="FontSize" Value="20"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
@@ -41,12 +80,59 @@
     <Setter Property="CornerRadius" Value="9"/>
     <Setter Property="Padding" Value="16"/>
   </Style>
+  <!-- Windows' settings titles sit at ink-top y76 with the first card at y118. With no top margin
+       the title landed at y72 and the card at y116, so the 4px goes above the title and 2 of the
+       20 below it come back off, which moves the title without moving the card past Windows. -->
   <Style Selector="TextBlock.pageTitle">
     <Setter Property="FontSize" Value="20"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
-    <Setter Property="Margin" Value="0,0,0,20"/>
+    <Setter Property="Margin" Value="0,4,0,18"/>
   </Style>
+  <!-- The header band over Modes, Vocabulary, Model Library and Streaming. Windows draws these
+       four titles at 26 Bold with a 13px subtitle, not at the 20 SemiBold the Settings
+       sub-pages use, so the band gets its own pair of classes rather than reusing pageTitle. -->
+  <Style Selector="TextBlock.pageHeading">
+    <Setter Property="FontSize" Value="26"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.pageSubheading">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <!-- A Windows settings section label: 13 SemiBold secondary, indented 4 to line up with the
+       card's own padding. Distinct from fieldLabel, which is 13 Medium primary. -->
+  <Style Selector="TextBlock.sectionLabel">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="Margin" Value="4,0,0,8"/>
+  </Style>
+  <!-- A table column header: 11px secondary, and a button so the column can sort. -->
+  <Style Selector="TextBlock.columnHeader">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+  </Style>
+  <Style Selector="Button.sortHeader">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+  </Style>
+  <Style Selector="Button.sortHeader /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="Button.sortHeader:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
   <Style Selector="Border.notice">
     <Setter Property="Background" Value="{DynamicResource HwWarningBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwWarningBorderBrush}"/>
@@ -64,6 +150,9 @@
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="0"/>
   </Style>
+  <!-- Windows draws a sidebar row as a 42px pill: CornerRadius 18, Margin 0,2, Padding 10,0 and
+       a 14px SemiBold label. The presenter needs the same radius, or the hover and selected
+       fills stay rounded squares inside a pill-shaped row. -->
   <Style Selector="ListBox.nav ListBoxItem">
     <Setter Property="Padding" Value="12,9"/>
     <Setter Property="Margin" Value="0,1"/>
@@ -75,6 +164,21 @@
   <Style Selector="ListBox.nav ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <!-- Windows puts Margin 0,2 on the template root, INSIDE the 42px control height, so the row
+       pitch stays exactly 42 and only the pill is inset. Avalonia lays Margin outside Height, so
+       the same margin here would make every row 46 tall and walk the whole column down the page.
+       Height owns the pitch; the 2px inset moves onto the presenter. -->
+  <Style Selector="ListBox.nav:not(.sub) ListBoxItem">
+    <Setter Property="Height" Value="42"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="CornerRadius" Value="18"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="ListBox.nav:not(.sub) ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="CornerRadius" Value="18"/>
+    <Setter Property="Margin" Value="0,2"/>
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
@@ -88,28 +192,66 @@
     <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
 
-  <!-- The Settings sub-page column. No tile, so the rows sit tighter than the main sidebar. -->
+  <!-- The Settings sub-page column. Windows draws each row at Padding 12,8, Margin 0,2 and
+       CornerRadius 6, and fills the SELECTED row with the accent colour, not the faint grey the
+       main sidebar uses. The label and the glyph both go to TextOnAccent, so Foreground is set
+       on the item itself: the glyph is a Path that binds $parent[ListBoxItem].Foreground. -->
+  <!-- Pitch has to be pinned, not left to the text. Windows steps this column 37.5px per row
+       (measured centres 77.5 to 415 over ten rows); letting the 13px line box set the height gave
+       36 here, which is only 1.5px a row but 14px adrift by "About". Height owns the pitch:
+       33.33 + the 4px of margin is 37.33, and the pill stays the 33px Windows draws. The pane
+       turns layout rounding off (as WPF does by default) or Avalonia snaps each row to a whole
+       pixel, which can only give 37 or 38 and drifts either 3px or 5px by "About".
+       Padding is 16 because Windows insets the pill contents by 16, which puts the glyph at
+       x256 rather than x252. -->
   <Style Selector="ListBox.nav.sub ListBoxItem">
-    <Setter Property="Padding" Value="12,7"/>
+    <Setter Property="Padding" Value="16,0"/>
+    <Setter Property="Margin" Value="0,2"/>
+    <Setter Property="Height" Value="33.33"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="FontSize" Value="13"/>
   </Style>
+  <Style Selector="ListBox.nav.sub ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="CornerRadius" Value="6"/>
+  </Style>
+  <Style Selector="ListBox.nav.sub ListBoxItem:selected">
+    <Setter Property="Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+  <Style Selector="ListBox.nav.sub ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+  <Style Selector="ListBox.nav.sub ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
 
-  <!-- Edition badge pinned under the sidebar, matching the Windows PRO chip. -->
+  <!-- Edition badge pinned under the sidebar, matching the Windows licensed card. -->
   <Style Selector="Border.editionBadge">
     <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="Padding" Value="10,7"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="14,8"/>
   </Style>
   <Style Selector="Border.editionPill">
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
-    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="7"/>
     <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="Margin" Value="8,0,0,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
   <!-- A settings row: title and description on the left, the control hard right, hairline
        under it. Windows groups these rows into one card, so the last row drops the rule. -->
+  <!-- Windows draws the divider as a free-standing 1px Border with Margin="0,10,0,10", the
+       dominant value across its settings pages. This was 12/12 while Linux line boxes were
+       1.5px short per line: the two extra pixels per row hid roughly 3px of lost leading and the
+       dividers landed in the right place for the wrong reason. With the Windows line metric now
+       applied globally the compensation is double-counted, so it goes back to Windows' 10/10. -->
   <Style Selector="Border.settingRow">
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
@@ -159,10 +301,384 @@
     <Setter Property="Padding" Value="8,3"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
-  <Style Selector="TextBlock.statValue">
-    <Setter Property="FontSize" Value="21"/>
+
+  <!-- MODE CARD GRID
+       Windows lays the cards out with a real ListBox so selection is load-bearing: a selected
+       card carries a 2px accent outline and an accent-coloured name, and a hovered one carries
+       the plain border. An ItemsControl cannot express either, so the grid is a ListBox here
+       too, with the selection outline on the container and the card inside it. -->
+  <Style Selector="ListBox.modeGrid">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem">
+    <Setter Property="Margin" Value="6"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <Style Selector="ListBox.modeGrid ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.modeName">
+    <Setter Property="FontSize" Value="16"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- Windows draws the SELECTED mode's title in the accent, not just its border
+       (ModesPage.xaml:268-270). This rule has to sit AFTER the plain TextBlock.modeName rule
+       above: Avalonia resolves two matching selectors by declaration order, not by specificity,
+       so while it was written first the unconditional Foreground below it won every time and the
+       selected card kept a plain white title with only the border turning blue. Moving it is the
+       whole fix; the selector itself was already right. -->
+  <Style Selector="ListBox.modeGrid ListBoxItem:selected TextBlock.modeName">
+    <Setter Property="Foreground" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <!-- The gear on a mode card is a real button on Windows and opens the mode editor. -->
+  <Style Selector="Button.cardGear">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="4"/>
+    <Setter Property="Margin" Value="4,0,0,0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.cardGear /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="4"/>
+  </Style>
+  <Style Selector="Button.cardGear:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- The grey pill beside a model name, and the clearable chips inside the search pill. -->
+  <Style Selector="Border.badge">
+    <Setter Property="Background" Value="{DynamicResource HwBadgeGrayBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="6,1"/>
+    <Setter Property="Margin" Value="8,0,0,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Border.filterChip">
+    <Setter Property="Background" Value="{DynamicResource HwBadgeGrayBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="11"/>
+    <Setter Property="Padding" Value="8,2"/>
+    <Setter Property="Margin" Value="4,0,0,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- A single keyboard key cap ("Ctrl", "↵") beside an inline chip action. -->
+  <Style Selector="Border.keyCap">
+    <Setter Property="Background" Value="{DynamicResource HwSidebarBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="MinWidth" Value="20"/>
+    <Setter Property="MinHeight" Value="20"/>
+    <Setter Property="Padding" Value="4,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- An inline tappable label plus key caps; dims to 35% when it cannot fire yet. -->
+  <Style Selector="Button.actionChip">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.actionChip /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="Button.actionChip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="Button.actionChip:disabled">
+    <Setter Property="Opacity" Value="0.35"/>
+  </Style>
+  <Style Selector="Button.actionChip:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+  </Style>
+
+  <!-- The one-line pill the Vocabulary input and the Model Library search both sit in. -->
+  <Style Selector="Border.inputPill">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="16,12"/>
+  </Style>
+  <!-- Windows draws this pill 35 tall; the 12,7 padding around a 13px field made it 38. -->
+  <Style Selector="Border.searchPill">
+    <Setter Property="Height" Value="35"/>
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="12,7"/>
+    <Setter Property="Margin" Value="0,0,0,14"/>
+  </Style>
+  <!-- A bare text field inside one of those pills: no second border, no second background. -->
+  <Style Selector="TextBox.bare">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="TextBox.bare /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- A 30x30 square icon button after a row action, and the 32x32 transparent row icons the
+       Vocabulary table draws for Edit and Delete. -->
+  <Style Selector="Button.iconAction">
+    <Setter Property="Width" Value="30"/>
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="6,0,0,0"/>
+  </Style>
+  <Style Selector="Button.rowIcon">
+    <Setter Property="Width" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="Button.rowIcon /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="Button.rowIcon:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <!-- The 30px pill buttons in the Model Library filter strip. -->
+  <Style Selector="Button.filterButton">
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="MinHeight" Value="30"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+  <!-- The accent text link ("Show all") beside the language count. -->
+  <Style Selector="Button.linkAccent">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <Style Selector="Button.linkAccent /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <Style Selector="Button.linkAccent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- One card wrapping a header row, its rows and its empty state, with no padding of its own
+       so the rows can carry a full-width divider. -->
+  <Style Selector="Border.tableCard">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+  </Style>
+  <Style Selector="Border.tableHeaderBand">
+    <Setter Property="Background" Value="{DynamicResource HwSidebarBackgroundBrush}"/>
+    <Setter Property="Padding" Value="16,8"/>
+    <Setter Property="CornerRadius" Value="9,9,0,0"/>
+  </Style>
+  <!-- The source badge in a vocabulary row. -->
+  <Style Selector="Border.sourceBadge">
+    <Setter Property="Background" Value="{DynamicResource HwSidebarBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- Windows draws the first three stat values at 18 SemiBold with the unit inline in the same
+       run, and the already-united "Saved this week" value one step down at 15. -->
+  <Style Selector="TextBlock.statValue">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+  <Style Selector="TextBlock.statValue.compact">
+    <Setter Property="FontSize" Value="15"/>
+  </Style>
+  <Style Selector="TextBlock.statCaption">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="Margin" Value="0,4,0,0"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+
+  <!-- A Getting started row. Windows gives it its own card: 12px gaps, CornerRadius 12, 16
+       padding and a 1px border, which the flat rowAction rows on other pages do not carry. -->
+  <Style Selector="Button.stepRow">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="Padding" Value="16"/>
+    <Setter Property="Margin" Value="0,0,0,12"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="Button.stepRow /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="12"/>
+  </Style>
+  <Style Selector="Button.stepRow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style Selector="TextBlock.stepDescription">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="Margin" Value="0,4,0,0"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style Selector="TextBlock.stepChevron">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- The keyboard badge on a Getting started row. keyChip stays as it is: the History and
+       Modes pages use it for status pills, which Windows does not draw like this chip. -->
+  <Style Selector="Border.shortcutChip">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="8,4"/>
+    <Setter Property="Margin" Value="8,0,8,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Border.shortcutChip > TextBlock">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+
+  <!-- The "All done!" badge and the completed tick, both from the Windows row template. -->
+  <Style Selector="Border.doneBadge">
+    <Setter Property="Background" Value="{DynamicResource HwSuccessBackgroundBrush}"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="Margin" Value="8,0,0,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Border.doneBadge > TextBlock">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwSuccessForegroundBrush}"/>
+  </Style>
+
+  <!-- Warning banners over the Home page (shortcut conflict, low microphone input). -->
+  <Style Selector="Border.warningBanner">
+    <Setter Property="Background" Value="{DynamicResource HwWarningBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwWarningBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="12"/>
+    <Setter Property="Margin" Value="0,0,0,16"/>
+  </Style>
+
+  <!-- The 34x30 caption buttons in the client-area title bar. -->
+  <Style Selector="Button.caption">
+    <Setter Property="Width" Value="34"/>
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+  </Style>
+  <Style Selector="Button.caption /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="7"/>
+  </Style>
+  <Style Selector="Button.caption:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- The 14x14 transparent gear beside the "Saved this week" caption. -->
+  <Style Selector="Button.statGear">
+    <Setter Property="Width" Value="14"/>
+    <Setter Property="Height" Value="14"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="4,0,0,0"/>
+    <Setter Property="Opacity" Value="0.6"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.statGear /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="Button.statGear:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
   </Style>
 
   <!-- Empty state: a centred glyph and two lines, the shape Windows draws inside an
@@ -197,20 +713,6 @@
   <Style Selector="DatePicker /template/ Button#PART_FlyoutButton">
     <Setter Property="MinWidth" Value="0"/>
   </Style>
-  <!-- The history list runs edge to edge on the sidebar surface, as on Windows: no card, no
-       rounded rows, and a selected row that fills the full pane width. -->
-  <Style Selector="ListBox.flush">
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="0"/>
-    <Setter Property="Padding" Value="0"/>
-    <Setter Property="MinHeight" Value="0"/>
-  </Style>
-  <Style Selector="ListBox.flush ListBoxItem">
-    <Setter Property="CornerRadius" Value="0"/>
-    <Setter Property="Padding" Value="0"/>
-    <Setter Property="Margin" Value="0"/>
-  </Style>
   <Style Selector="ListBox.plain ListBoxItem">
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="Padding" Value="10,8"/>
@@ -232,12 +734,215 @@
     <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
 
+  <!-- The history list runs edge to edge on the sidebar surface, as on Windows: ListBoxItem
+       Padding 0, Margin 0, no corner radius, and a selected row that fills the whole 300px pane.
+       These rules must stay AFTER the ".plain" block above: the History list carries both
+       classes, the two selectors have equal specificity, and the later declaration wins. When
+       ".flush" was declared first the rows rendered as rounded pills with a gap between them. -->
+  <Style Selector="ListBox.flush">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+  </Style>
+  <!-- Model Library rows are an ItemsControl on Windows, so they draw NO hover highlight and NO
+       selected fill. The flush ListBox above paints both, which is a state Windows never shows.
+       This variant takes them back off; it must stay after the .flush rules to win on order. -->
+  <Style Selector="ListBox.flush.noselect ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBox.flush.noselect ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBox.flush.noselect ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBox.flush.noselect ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <!-- A day header inside the flush list: not a row, so it never takes hover or selection. -->
+  <Style Selector="ListBox.flush ListBoxItem.groupHeader">
+    <Setter Property="IsHitTestVisible" Value="False"/>
+    <Setter Property="Focusable" Value="False"/>
+  </Style>
+  <Style Selector="ListBox.flush ListBoxItem.groupHeader /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="TextBlock.groupHeader">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="Padding" Value="12,12,12,6"/>
+  </Style>
+
+  <!-- HISTORY BADGES AND PILLS
+       Windows draws two badge rows over a transcript: grey duration/mode chips at 12px, then
+       the coloured provider chips at 11px. Every one is CornerRadius 10 with 8,3 padding. -->
+  <Style Selector="Border.hBadge">
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="{DynamicResource HwBadgeGrayBackgroundBrush}"/>
+  </Style>
+  <Style Selector="Border.hBadge TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource HwBadgeGrayForegroundBrush}"/>
+  </Style>
+  <Style Selector="Border.hBadge.success">
+    <Setter Property="Background" Value="{DynamicResource HwSuccessBackgroundBrush}"/>
+  </Style>
+  <Style Selector="Border.hBadge.success TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource HwSuccessForegroundBrush}"/>
+  </Style>
+  <Style Selector="Border.hBadge.info">
+    <Setter Property="Background" Value="{DynamicResource HwInfoBackgroundBrush}"/>
+  </Style>
+  <Style Selector="Border.hBadge.info TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource HwInfoForegroundBrush}"/>
+  </Style>
+  <Style Selector="Border.hBadge.error">
+    <Setter Property="Background" Value="{DynamicResource HwErrorBackgroundBrush}"/>
+  </Style>
+  <Style Selector="Border.hBadge.error TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource HwErrorForegroundBrush}"/>
+  </Style>
+  <!-- A row status pill. Windows draws all three on TextOnAccent at 10px. -->
+  <Style Selector="Border.statusPill">
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="Margin" Value="4,0,0,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="{DynamicResource HwProcessingBrush}"/>
+  </Style>
+  <Style Selector="Border.statusPill.failed">
+    <Setter Property="Background" Value="{DynamicResource HwErrorBrush}"/>
+  </Style>
+  <Style Selector="Border.statusPill TextBlock">
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+  </Style>
+
+  <!-- The outlined footer actions on the History detail: transparent fill, 1px border,
+       CornerRadius 7, Padding 12,6, and the hover surface rather than a second fill. -->
+  <Style Selector="Button.outline">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="Button.outline /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="7"/>
+  </Style>
+  <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+  </Style>
+  <!-- Delete: the same outline in the error colour, with the Windows delete hover tint. -->
+  <Style Selector="Button.danger">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwErrorBrush}"/>
+  </Style>
+  <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwErrorBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwErrorBrush}"/>
+  </Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwDeleteHoverBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwErrorBrush}"/>
+  </Style>
+  <!-- The 36px accent circle the History playback band uses for play and pause. -->
+  <Style Selector="Button.playCircle">
+    <Setter Property="Width" Value="36"/>
+    <Setter Property="Height" Value="36"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="CornerRadius" Value="18"/>
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="Button.playCircle /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="18"/>
+  </Style>
+  <Style Selector="Button.playCircle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwAccentHoverBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <!-- The transcript body: read-only but selectable, with no field of its own around it. -->
+  <Style Selector="TextBox.transcript">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="VerticalAlignment" Value="Top"/>
+  </Style>
+  <Style Selector="TextBox.transcript /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
   <!-- Buttons -->
+  <!-- Windows sizes a button entirely from its padding: 12,6 on a secondary and 15,7 on an
+       accent, with no minimum height, which lands them at 30-31 and 32. The 34px floor here made
+       every button on every page 2-4px too tall ("Reset to Defaults" 136x34 against 126x32,
+       "Export Backup" 136x34 against 125x32), and the extra horizontal padding widened them. -->
   <Style Selector="Button">
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="Padding" Value="14,7"/>
-    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="MinHeight" Value="0"/>
     <Setter Property="FontSize" Value="13"/>
+    <!-- A Button's label is drawn by the ContentPresenter, not by a TextBlock, so the global
+         tracking setter never reached it and every button label stayed at Inter Display's own
+         advance widths. Windows' Reset to Defaults is 126 wide against 120 here, which is the 26px
+         of padding and border plus a 100px run against a 94px one. TextBlock.LetterSpacing is an
+         inheriting attached property, so setting it on the button carries into the presenter's own
+         text. 0.165 is the 13px value of the same 0.0127em the TextBlock setter uses, and every
+         button on these pages is 13px. -->
+    <!-- Windows' MacButtonStyle is Medium, not Regular (Generic.xaml:131). -->
+    <Setter Property="FontWeight" Value="Medium"/>
+    <!-- The same two Windows text metrics the global TextBlock rule applies, repeated here because
+         a Button's label is drawn by ContentPresenter's own TextLayout and never becomes a styled
+         TextBlock, so that rule cannot reach it. They are inheriting attached properties, which
+         the presenter does read. Both bind to the Button's own FontSize, so Button.filterButton
+         and Button.linkAccent at 12px get their own values rather than the 13px ones. Measured on
+         "Reset to Defaults": Windows 127x32, Linux 123x30 before this. -->
+    <Setter Property="TextBlock.LetterSpacing" Value="{Binding $self.FontSize, Converter={StaticResource HwWindowsTracking}}"/>
+    <Setter Property="TextBlock.LineHeight" Value="{Binding $self.FontSize, Converter={StaticResource HwWindowsLineHeight}}"/>
     <!-- The template binds the presenter to the control, so set the control too. Styling
          only the presenter left an enabled button on the Fluent grey default. -->
     <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
@@ -245,6 +950,9 @@
     <Setter Property="BorderThickness" Value="1"/>
   </Style>
   <Style Selector="Button.accent">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Padding" Value="15,7"/>
     <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
@@ -253,7 +961,7 @@
     <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="CornerRadius" Value="7"/>
   </Style>
   <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
@@ -270,29 +978,85 @@
     <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
   </Style>
 
-  <!-- Inputs -->
+  <!-- Inputs.
+       These have to set Background and BorderBrush on the CONTROL, not on the template's
+       Border. Fluent's TextBox, ComboBox and NumericUpDown templates all write
+       Background="{TemplateBinding Background}" onto their border element, and a template
+       binding is a local value on that Border, so it outranks any style that targets the
+       Border through /template/. Styling the border element was therefore a no-op and the
+       Fluent defaults were what actually shipped: #66000000 over a card composites to
+       #111113 and the #99ffffff stroke to #A2A2A3, which is the "light control on a dark
+       page" the pixel diff reported. Windows measures #232328 fill on a #2B2B2F edge. -->
   <Style Selector="TextBox">
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="MinHeight" Value="34"/>
     <Setter Property="Padding" Value="10,6"/>
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+    <Setter Property="SelectionBrush" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="CaretBrush" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBox:pointerover">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+  </Style>
+  <Style Selector="TextBox:focus">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
   </Style>
   <Style Selector="TextBox /template/ Border#PART_BorderElement">
     <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
   </Style>
   <Style Selector="ComboBox">
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="MinHeight" Value="34"/>
     <Setter Property="Padding" Value="10,5"/>
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="ComboBox:pointerover">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+  </Style>
+  <Style Selector="ComboBox:focus">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
   </Style>
   <Style Selector="ComboBox /template/ Border#Background">
     <Setter Property="CornerRadius" Value="8"/>
+  </Style>
+  <!-- Fluent paints the ComboBox's selected-item strip with its own #0078D7 SystemAccent.
+       Every other accent in both apps is #0A84FF. -->
+  <Style Selector="ComboBox /template/ Border#HighlightBackground">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <Style Selector="ComboBox /template/ PathIcon#DropDownGlyph">
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+  </Style>
+  <Style Selector="AutoCompleteBox">
     <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="MinHeight" Value="34"/>
   </Style>
   <Style Selector="NumericUpDown">
     <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <!-- A value field: the shortcut recorders, the account key and the History search box are
+       42-44px on Windows, not the 34px a plain input takes. -->
+  <Style Selector="TextBox.valueField">
+    <Setter Property="Height" Value="43"/>
+    <Setter Property="MinHeight" Value="43"/>
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
   </Style>
 
   <!-- Separator: a hairline, not a control-sized gap -->
@@ -302,9 +1066,374 @@
     <Setter Property="Margin" Value="0,6"/>
   </Style>
 
-  <Style Selector="CheckBox">
+  <!-- The Fluent default is a 20x20 box with a 3px radius and a 14px label. Windows draws a
+       16x16 box, CornerRadius 4, filled with InputBackground behind a 1px BorderBrush, and turns
+       accent with a white tick when checked; the label is 13px at Margin 8,0,0,0. Only a whole
+       ControlTheme can reach the box size: the Fluent template pins its glyph column at 20 and
+       scales the tick to fill it, so shrinking the inner Border alone leaves a 4px gutter and an
+       oversized tick. -->
+  <Styles.Resources>
+    <ControlTheme x:Key="{x:Type CheckBox}" TargetType="CheckBox">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="8,0,0,0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="Auto,*" Background="Transparent">
+            <Border x:Name="Box" Width="16" Height="16" CornerRadius="4" VerticalAlignment="Center"
+                    Background="{DynamicResource HwInputBackgroundBrush}"
+                    BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="1">
+              <Path x:Name="Tick" Data="{DynamicResource HwIconCheck}" Stretch="Uniform"
+                    Width="9" Height="9" IsVisible="False"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Fill="{DynamicResource HwOnAccentBrush}"/>
+            </Border>
+            <ContentPresenter x:Name="PART_ContentPresenter" Grid.Column="1"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Margin="{TemplateBinding Padding}"
+                              VerticalAlignment="Center"/>
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:pointerover /template/ Border#Box">
+        <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+      </Style>
+      <Style Selector="^:checked /template/ Border#Box">
+        <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+      </Style>
+      <Style Selector="^:checked /template/ Path#Tick">
+        <Setter Property="IsVisible" Value="True"/>
+      </Style>
+      <Style Selector="^:indeterminate /template/ Border#Box">
+        <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+      </Style>
+      <Style Selector="^:disabled">
+        <Setter Property="Opacity" Value="0.5"/>
+      </Style>
+    </ControlTheme>
+  </Styles.Resources>
+
+  <!-- The Windows Appearance page uses the stock WPF RadioButton, which on this dark page draws
+       a 12px control with a ~10px white disc. Unselected is a solid white disc; checked keeps the
+       white disc and punches a dark #212121 centre out of it, so the two states are the inverse
+       of Fluent's. Fluent's is a 20px ring that fills with its own #0078D7 accent when checked:
+       67% too big, the wrong accent, the wrong way round, and it pushes the row label 13px
+       right. Only a whole ControlTheme can resize it: the Fluent template pins the glyph column
+       and scales all three ellipses to fill it. -->
+  <Styles.Resources>
+    <ControlTheme x:Key="{x:Type RadioButton}" TargetType="RadioButton">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="12,0,0,0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnDefinitions="Auto,*" Background="Transparent">
+            <Panel Width="12" Height="12" VerticalAlignment="Center">
+              <Ellipse x:Name="Disc" Width="12" Height="12" Fill="#FFFFFF"/>
+              <Ellipse x:Name="Centre" Width="5" Height="5" Fill="#212121" IsVisible="False"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Panel>
+            <ContentPresenter x:Name="PART_ContentPresenter" Grid.Column="1"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Margin="{TemplateBinding Padding}"
+                              VerticalAlignment="Center"/>
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:checked /template/ Ellipse#Centre">
+        <Setter Property="IsVisible" Value="True"/>
+      </Style>
+      <Style Selector="^:disabled">
+        <Setter Property="Opacity" Value="0.5"/>
+      </Style>
+    </ControlTheme>
+  </Styles.Resources>
+
+  <!-- =====================================================================
+       SETTINGS PAGE VOCABULARY
+       The type and spacing tokens the Windows settings pages use, so a page
+       body can name them instead of repeating literals on every TextBlock.
+       ===================================================================== -->
+  <!-- A card's own heading: 16 SemiBold over a 13px subtitle with 4 above and 16 below,
+       and no rule between the pair and the content (Appearance, Text Output). -->
+  <Style Selector="TextBlock.cardTitle">
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.cardSubtitle">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Margin" Value="0,4,0,16"/>
+  </Style>
+  <!-- Backup and About describe their rows at 12px, not the 11px caption the rest of Settings
+       uses, and the Local API rows label their values at 11px secondary. -->
+  <Style Selector="TextBlock.rowSubtitle">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style Selector="TextBlock.rowSubtitle.large">
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+  <Style Selector="TextBlock.smallLabel">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style Selector="TextBlock.smallLabel.semi">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <!-- A read-only path or token: monospaced, one line, ellipsised. -->
+  <Style Selector="TextBlock.monoValue">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontFamily" Value="DejaVu Sans Mono, Liberation Mono, monospace"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+  <Style Selector="TextBlock.monoValue.secondary">
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.errorText">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwErrorBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <!-- The 1px rule Windows puts between rows inside one card. The default is the 14/14 the
+       Shortcuts and Storage cards use; .mid is the 10/10 of Text Output and Backup, .tight the
+       8/8 of the Local API connection rows. -->
+  <Style Selector="Border.divider">
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Background" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="Margin" Value="0,14,0,14"/>
+  </Style>
+  <Style Selector="Border.divider.mid">
+    <Setter Property="Margin" Value="0,10,0,10"/>
+  </Style>
+  <Style Selector="Border.divider.tight">
+    <Setter Property="Margin" Value="0,8,0,8"/>
+  </Style>
+
+  <!-- Appearance draws its three theme options as filled selectable tiles, not hairline rows. -->
+  <!-- Windows steps these tiles 67.5px; 12px of padding around a 14/11 pair gave 65 here. -->
+  <!-- 12 vertical, not 13, and a 7px gap, not 8: measured against Windows the three theme
+       tiles came out 62px tall on a 67px pitch where Windows draws 60 on 67, which made the
+       Appearance card 10px taller than its reference. -->
+  <Style Selector="Border.themeTile">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12,12"/>
+    <Setter Property="Margin" Value="0,0,0,7"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Border.themeTile.last">
+    <Setter Property="Margin" Value="0"/>
+  </Style>
+
+  <!-- The Local API tab strip: a bottom hairline under three 13px labels, each over a 2px
+       underline that only the active tab paints accent. -->
+  <Style Selector="Border.tabStrip">
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Margin" Value="0,0,0,20"/>
+  </Style>
+  <Style Selector="Button.tab">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0,4"/>
     <Setter Property="MinHeight" Value="0"/>
-    <Setter Property="Padding" Value="8,0,0,0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="Button.tab /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0,4"/>
+  </Style>
+  <Style Selector="Button.tab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- A snippet panel: the inset the MCP and cURL tabs wrap their read-only text in. -->
+  <Style Selector="Border.inset">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="12"/>
+  </Style>
+  <Style Selector="TextBox.snippet">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontFamily" Value="DejaVu Sans Mono, Liberation Mono, monospace"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="MaxHeight" Value="180"/>
+  </Style>
+  <Style Selector="TextBox.snippet /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- The small secondary action Windows uses inside a settings row: Padding 10,3. -->
+  <Style Selector="Button.compact">
+    <Setter Property="Padding" Value="10,3"/>
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <!-- The 32x32 minus and plus of the clipboard restore-delay stepper. -->
+  <Style Selector="Button.stepper">
+    <Setter Property="Width" Value="33"/>
+    <Setter Property="Height" Value="33"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <!-- The About platform badge: BadgeGray at CornerRadius 9 and Padding 9,4 with 12px text. -->
+  <Style Selector="Border.badgeGray">
+    <Setter Property="Background" Value="{DynamicResource HwBadgeGrayBackgroundBrush}"/>
+    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="Padding" Value="9,4"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Border.badgeGray > TextBlock">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwBadgeGrayForegroundBrush}"/>
+  </Style>
+  <!-- The click-to-record shortcut field. Windows uses a read-only TextBox at Padding 10,6 in a
+       fixed 240 column; the Linux one captures the chord from its own KeyDown. -->
+  <!-- Windows draws a shortcut recorder 43px tall, and that field is what sets the 72px row
+       pitch on the page; at the 34px a plain input takes, the rows closed up to 63 and the card
+       came out 257 instead of 295. -->
+  <Style Selector="TextBox.shortcutBox">
+    <!-- 22, not 12. Windows' ShortcutRecorderBox sets Padding="10,6" but the WPF TextBox template
+         adds its own content-host inset on top, so the recorded chord's first glyph lands 23px
+         inside the field border. Measured on the Toggle Recording row: Windows draws the field
+         edge at x719 and the "C" of "Ctrl+Alt" at x742; at 12 the Linux "C" started at x732, so
+         the whole value column read 10px left of Windows on all four rows. -->
+    <Setter Property="Padding" Value="22,0"/>
+    <Setter Property="Height" Value="43"/>
+    <Setter Property="MinHeight" Value="43"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+  <Style Selector="TextBox.shortcutBox:focus">
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <!-- A rejected chord: Windows paints the field #FF5555 at 2px and writes the reason underneath.
+       The two are one state and are never drawn apart. These follow the :focus rule above on
+       purpose, because a recorder holds focus while you are typing into it. -->
+  <Style Selector="TextBox.shortcutBox.error">
+    <Setter Property="BorderBrush" Value="#FFFF5555"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="TextBox.shortcutBox.error:focus">
+    <Setter Property="BorderBrush" Value="#FFFF5555"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="TextBox.shortcutBox.error:pointerover">
+    <Setter Property="BorderBrush" Value="#FFFF5555"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <!-- The three rules above set BorderBrush on the control, and that is not enough: a recorder
+       holds focus while you type into it, and the generic "TextBox:focus" rule kept winning the
+       brush, so a rejected chord drew a 2px ACCENT border instead of a red one. Setting the
+       property on the templated border wins outright, because it overrides that element's
+       TemplateBinding back to the control. The thickness already applied; only the brush was
+       being overridden, so both are restated here to keep the state in one place. -->
+  <Style Selector="TextBox.shortcutBox.error /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#FFFF5555"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="TextBox.shortcutBox.error:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#FFFF5555"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="TextBox.shortcutBox.error:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="#FFFF5555"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <!-- The error toast's "Open Settings" jump. Windows templates the button down to a translucent
+       white pill: #26FFFFFF at rest, #4DFFFFFF hovered, corner radius 10, padding 8,4, 9px
+       SemiBold white. It sits on the toast's own dark pill, so it is deliberately not a themed
+       button. -->
+  <Style Selector="Button.toastAction">
+    <Setter Property="Background" Value="#26FFFFFF"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="FontSize" Value="9"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="8,4"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+  </Style>
+  <Style Selector="Button.toastAction /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#26FFFFFF"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="TextBlock.Foreground" Value="White"/>
+  </Style>
+  <Style Selector="Button.toastAction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#4DFFFFFF"/>
+    <Setter Property="TextBlock.Foreground" Value="White"/>
+  </Style>
+  <Style Selector="Button.toastAction:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#4DFFFFFF"/>
+    <Setter Property="TextBlock.Foreground" Value="White"/>
+  </Style>
+
+  <!-- Getting Started completion. Windows: an "All done!" pill in SuccessBackground/Foreground at
+       corner radius 4, padding 6,2, 11px, sitting beside the card title; and a 26x26 green circle
+       holding a white checkmark where the › chevron was. -->
+  <Style Selector="Border.allDonePill">
+    <Setter Property="Margin" Value="8,0,0,0"/>
+    <Setter Property="Padding" Value="6,2"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="{DynamicResource HwSuccessBackgroundBrush}"/>
+  </Style>
+  <Style Selector="Border.allDonePill > TextBlock">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwSuccessForegroundBrush}"/>
+  </Style>
+  <Style Selector="Border.stepDoneCircle">
+    <Setter Property="Width" Value="26"/>
+    <Setter Property="Height" Value="26"/>
+    <Setter Property="CornerRadius" Value="13"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="{DynamicResource HwSuccessBrush}"/>
+  </Style>
+
+  <Style Selector="TextBlock.shortcutError">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Margin" Value="0,4,0,0"/>
+    <Setter Property="IsVisible" Value="False"/>
+    <Setter Property="Foreground" Value="#FFFF5555"/>
   </Style>
 
   <!-- A disabled action should recede, not read as a filled button. -->
@@ -335,6 +1464,205 @@
 
   <!-- Page bodies breathe better with a consistent gap between sections. -->
   <Style Selector="ScrollViewer.page">
-    <Setter Property="Padding" Value="0,0,10,0"/>
+    <Setter Property="Padding" Value="24"/>
+    <!-- Windows leaves its pages on the stock WPF scroll bar, which is 17px wide, opaque, and it
+         RESERVES its width out of the page instead of floating over it. That is not cosmetic: on
+         a page that scrolls the Windows card edge lands at x958, while the Avalonia overlay bar
+         let the Linux card run on to x968, so right-aligned controls sat 10px right and long
+         paragraphs broke at different words. Putting the vertical bar in its own Auto column
+         gives back the same 17px, and an Auto column collapses to nothing on the pages that do
+         not scroll, which is what Windows does there too. -->
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
+          <ScrollContentPresenter Name="PART_ContentPresenter"
+                                  Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Grid.ColumnSpan="2"
+                                  Background="{TemplateBinding Background}"
+                                  Padding="{Binding #PART_VerticalScrollBar.IsVisible,
+                                                    Converter={x:Static local:ScrollGutterPaddingConverter.Instance}}">
+            <!-- Carried over from the Fluent template this one replaces, so a touch drag still
+                 scrolls the page. -->
+            <ScrollContentPresenter.GestureRecognizers>
+              <ScrollGestureRecognizer
+                  CanHorizontallyScroll="{Binding #PART_ContentPresenter.CanHorizontallyScroll}"
+                  CanVerticallyScroll="{Binding #PART_ContentPresenter.CanVerticallyScroll}"/>
+            </ScrollContentPresenter.GestureRecognizers>
+          </ScrollContentPresenter>
+          <ScrollBar Name="PART_VerticalScrollBar" Grid.Row="0" Grid.Column="1"
+                     Orientation="Vertical" AllowAutoHide="False"/>
+          <ScrollBar Name="PART_HorizontalScrollBar" Grid.Row="1" Grid.Column="0"
+                     Orientation="Horizontal" AllowAutoHide="False"/>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <!-- The classic Windows scroll bar: a 17px opaque #F0F0F0 track, a square #CDCDCD thumb and a
+       step arrow at each end. Scoped to the page scroll viewer so the list and popup scroll bars
+       elsewhere in the shell keep the dark overlay treatment. -->
+  <Style Selector="ScrollViewer.page /template/ ScrollBar:vertical">
+    <Setter Property="Width" Value="17"/>
+    <Setter Property="MinWidth" Value="17"/>
+    <Setter Property="Background" Value="#F0F0F0"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}">
+          <Grid RowDefinitions="17,*,17">
+            <RepeatButton Name="PART_LineUpButton" Classes="hwScrollStep" Grid.Row="0">
+              <Path Data="M0,4.5 L4.5,0 L9,4.5 Z" Fill="#606060"/>
+            </RepeatButton>
+            <Track Name="PART_Track" Grid.Row="1" Orientation="Vertical" IsDirectionReversed="True"
+                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                   Value="{TemplateBinding Value, Mode=TwoWay}"
+                   ViewportSize="{TemplateBinding ViewportSize}">
+              <Track.DecreaseButton>
+                <RepeatButton Name="PART_PageUpButton" Classes="hwScrollPage"/>
+              </Track.DecreaseButton>
+              <Track.IncreaseButton>
+                <RepeatButton Name="PART_PageDownButton" Classes="hwScrollPage"/>
+              </Track.IncreaseButton>
+              <Thumb Name="thumb"/>
+            </Track>
+            <RepeatButton Name="PART_LineDownButton" Classes="hwScrollStep" Grid.Row="2">
+              <Path Data="M0,0 L9,0 L4.5,4.5 Z" Fill="#606060"/>
+            </RepeatButton>
+          </Grid>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ScrollViewer.page /template/ ScrollBar:vertical /template/ Thumb">
+    <Setter Property="Background" Value="#CDCDCD"/>
+    <Setter Property="Opacity" Value="1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="MinHeight" Value="12"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"/>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ScrollViewer.page /template/ ScrollBar:vertical /template/ Thumb:pointerover">
+    <Setter Property="Background" Value="#A6A6A6"/>
+  </Style>
+  <Style Selector="ScrollViewer.page /template/ ScrollBar:vertical /template/ Thumb:pressed">
+    <Setter Property="Background" Value="#606060"/>
+  </Style>
+  <Style Selector="RepeatButton.hwScrollStep">
+    <Setter Property="Background" Value="#F0F0F0"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}">
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="RepeatButton.hwScrollStep:pointerover">
+    <Setter Property="Background" Value="#DADADA"/>
+  </Style>
+  <Style Selector="RepeatButton.hwScrollPage">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"/>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <!-- =====================================================================
+       SEGMENTED CONTROL
+       The mode editor picks its transcription source and its post-processing
+       source with a 3-way segmented control, not a ComboBox. Ported from the
+       Windows theme: SegmentedControlBorderStyle is the InputBackground
+       container at CornerRadius 8 (InputCornerRadius) with 2px padding, and
+       SegmentedRadioButtonStyle is a 13px Medium hand-cursor segment at
+       CornerRadius 6, Padding 10,7, that fills with the accent colour and
+       goes SemiBold on TextOnAccent when checked
+       (app/windows/HyperWhisper/Themes/Generic.xaml:214-255).
+       ===================================================================== -->
+  <Style Selector="Border.segmented">
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="2"/>
+  </Style>
+  <Style Selector="RadioButton.segment">
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Padding" Value="10,7"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border x:Name="SegmentBorder" Background="Transparent" CornerRadius="6"
+                Padding="{TemplateBinding Padding}">
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="RadioButton.segment:pointerover /template/ Border#SegmentBorder">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+  </Style>
+  <Style Selector="RadioButton.segment:checked /template/ Border#SegmentBorder">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+  </Style>
+  <Style Selector="RadioButton.segment:checked">
+    <Setter Property="Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="RadioButton.segment:disabled /template/ Border#SegmentBorder">
+    <Setter Property="Opacity" Value="0.5"/>
+  </Style>
+
+  <!-- Windows' ClearPromptButton: a transparent borderless 11px secondary link at Padding 4,2
+       sitting on the Persistent Instructions hint row (ModeEditorWindow.xaml:519-525). -->
+  <Style Selector="Button.inlineLink">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="4,2"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+  </Style>
+  <Style Selector="Button.inlineLink /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="Button.inlineLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- A mode editor card header: a 14px secondary glyph beside a 14px SemiBold secondary
+       label, 12px above the card body (ModeEditorWindow.xaml:36-42). -->
+  <Style Selector="TextBlock.cardSectionHeader">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextSecondaryBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- The info and warning banners the mode editor reveals conditionally: 1px border,
+       CornerRadius 8, Padding 12 (ModeEditorWindow.xaml:16-28, :115-121). -->
+  <Style Selector="Border.infoBanner">
+    <Setter Property="Background" Value="{DynamicResource HwInfoBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwInfoBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12"/>
   </Style>
 </Styles>

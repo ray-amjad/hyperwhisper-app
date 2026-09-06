@@ -466,6 +466,18 @@ public sealed class PortableCloudAccountService : IDisposable
         public bool IsSuccess => (int)StatusCode is >= 200 and < 300;
     }
 
+    /// <summary>
+    /// The stored account key, for the Account Key row on the Cloud settings page. The Windows
+    /// page shows the same value masked, with a reveal and a copy button, so the head needs to be
+    /// able to read back what it activated. Returns null when no key is stored or it cannot be
+    /// read; nothing here reports a failure, because an absent key is the normal state.
+    /// </summary>
+    public string? TryReadStoredAccountKey()
+    {
+        var read = ReadAccountKey();
+        return read.IsSuccess ? read.Value : null;
+    }
+
     private CloudAccountResult<string> ReadAccountKey()
     {
         var read = _credentials.Read(CredentialResource, CredentialAccount);

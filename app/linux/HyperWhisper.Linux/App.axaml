@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HyperWhisper.PortableApplication.ViewModels"
              x:Class="HyperWhisper.Linux.App"
              RequestedThemeVariant="Default">
   <Application.Resources>
@@ -11,6 +12,15 @@
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>
+  <!-- The credentials surface is the only page template shared by two windows: the credentials
+       page inside the shell, and the 760x760 API-keys modal the Model Library opens (Windows does
+       the same, hosting one ApiKeysSettingsPage instance in a plain Window). A DataTemplate
+       declared on MainWindow is not visible to a second Window, so it is declared here. -->
+  <Application.DataTemplates>
+    <DataTemplate DataType="vm:CredentialManagementViewModel">
+      <Grid x:Name="CredentialsScreen" ColumnDefinitions="2*,3*" ColumnSpacing="20"><ListBox x:Name="CredentialList" Classes="plain" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}"><ListBox.ItemTemplate><DataTemplate><Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="1" Text="{Binding IsPresent, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.stored.value}" Classes="caption"/></Grid></DataTemplate></ListBox.ItemTemplate></ListBox><StackPanel Grid.Column="1" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.ui.cloud.provider.credentials], Source={StaticResource Localization}}" Classes="pageTitle"/><TextBlock Text="{Binding Selected.DisplayName}" FontSize="18"/><TextBlock Text="{ReflectionBinding [linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81], Source={StaticResource Localization}}" TextWrapping="Wrap"/><TextBox x:Name="CredentialSecretInput" Text="{Binding Secret}" PasswordChar="●" PlaceholderText="{ReflectionBinding [linux.ui.enter.a.new.provider.credential], Source={StaticResource Localization}}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="CredentialSaveButton" Classes="accent" Content="{ReflectionBinding [linux.ui.save.securely], Source={StaticResource Localization}}" Command="{Binding SaveCommand}"/><Button x:Name="CredentialDeleteButton" Content="{ReflectionBinding [linux.ui.delete.stored.credential], Source={StaticResource Localization}}" Command="{Binding DeleteCommand}"/></StackPanel><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel></Grid>
+    </DataTemplate>
+  </Application.DataTemplates>
   <Application.Styles>
     <FluentTheme />
     <StyleInclude Source="avares://HyperWhisper/Themes/Styles.axaml"/>

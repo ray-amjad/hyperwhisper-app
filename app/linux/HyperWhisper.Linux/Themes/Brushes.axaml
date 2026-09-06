@@ -2,6 +2,22 @@
   <!-- Brushes over the palette in Colors.axaml. Each brush tracks the theme variant,
        because its colour is a DynamicResource. -->
 
+  <!-- Windows and Linux both declare "Inter, Segoe UI Variable Display, Segoe UI", but they do
+       not land on the same face. Inter ships two optical sizes and they are separate families
+       here: "Inter" (text) and "Inter Display". Windows resolves the Display cut, Linux resolved
+       the text cut, and the text cut is ~9% wider at every size, which is the whole of the
+       "Linux text is 7-8% wider" defect and the two subtitles that re-wrapped.
+
+       Measured, "Play sound effects" at 14 SemiBold: Windows renders 114px ink, Inter Display
+       computes 114.7 and Inter 125.4 (Linux was rendering 124). "Sound" at 20 SemiBold: Windows
+       56px ink, Inter Display 57.5, Inter 62.1. So the target family is Inter Display.
+       DejaVu, the fallback the diff guessed at, would have been 144.5 and was never in play.
+
+       Inter is kept as the second name so a box without the Display cut degrades to the sibling
+       face rather than to DejaVu. Program.cs also calls WithInterFont(), which bundles the text
+       cut as a floor. -->
+  <FontFamily x:Key="HwUiFont">Inter Display, Inter</FontFamily>
+
   <SolidColorBrush x:Key="HwAccentBrush" Color="{DynamicResource HwAccent}"/>
   <SolidColorBrush x:Key="HwAccentHoverBrush" Color="{DynamicResource HwAccentHover}"/>
   <SolidColorBrush x:Key="HwAccentPressedBrush" Color="{DynamicResource HwAccentPressed}"/>
@@ -19,6 +35,7 @@
   <SolidColorBrush x:Key="HwTextPrimaryBrush" Color="{DynamicResource HwTextPrimary}"/>
   <SolidColorBrush x:Key="HwTextSecondaryBrush" Color="{DynamicResource HwTextSecondary}"/>
   <SolidColorBrush x:Key="HwTextTertiaryBrush" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="HwEmptyGlyphBrush" Color="{DynamicResource HwEmptyGlyph}"/>
 
   <SolidColorBrush x:Key="HwSuccessBrush" Color="{DynamicResource HwSuccess}"/>
   <SolidColorBrush x:Key="HwWarningBrush" Color="{DynamicResource HwWarning}"/>
@@ -28,7 +45,42 @@
   <SolidColorBrush x:Key="HwWarningBorderBrush" Color="{DynamicResource HwWarningBorder}"/>
   <SolidColorBrush x:Key="HwErrorBackgroundBrush" Color="{DynamicResource HwErrorBackground}"/>
   <SolidColorBrush x:Key="HwErrorForegroundBrush" Color="{DynamicResource HwErrorForeground}"/>
+  <SolidColorBrush x:Key="HwSuccessBackgroundBrush" Color="{DynamicResource HwSuccessBackground}"/>
+  <SolidColorBrush x:Key="HwSuccessForegroundBrush" Color="{DynamicResource HwSuccessForeground}"/>
   <SolidColorBrush x:Key="HwScrimBrush" Color="{DynamicResource HwScrim}"/>
+  <SolidColorBrush x:Key="HwBadgeGrayBackgroundBrush" Color="{DynamicResource HwBadgeGrayBackground}"/>
+  <SolidColorBrush x:Key="HwBadgeGrayForegroundBrush" Color="{DynamicResource HwBadgeGrayForeground}"/>
+  <!-- Windows paints the inline post-processing segment of a mode card in #AF52DE. -->
+  <SolidColorBrush x:Key="HwPostProcessingBrush" Color="{DynamicResource HwPostProcessing}"/>
+  <!-- History row pills, the provider badges in the transcript header, the rule around an error
+       surface and the Delete button's hover tint. -->
+  <SolidColorBrush x:Key="HwProcessingBrush" Color="{DynamicResource HwProcessing}"/>
+  <SolidColorBrush x:Key="HwInfoBackgroundBrush" Color="{DynamicResource HwInfoBackground}"/>
+  <SolidColorBrush x:Key="HwInfoForegroundBrush" Color="{DynamicResource HwInfoForeground}"/>
+  <SolidColorBrush x:Key="HwInfoBorderBrush" Color="{DynamicResource HwInfoBorder}"/>
+  <SolidColorBrush x:Key="HwErrorBorderBrush" Color="{DynamicResource HwErrorBorder}"/>
+  <SolidColorBrush x:Key="HwDeleteHoverBackgroundBrush" Color="{DynamicResource HwDeleteHoverBackground}"/>
+
+  <!-- Getting started icon circles. Windows draws the row colour at 10% opacity behind the
+       glyph, so the circle reads as a tint rather than a filled tile. The four colours are
+       the macOS row order: blue, purple, green, orange. -->
+  <SolidColorBrush x:Key="HwStepBlueBrush" Color="#007AFF"/>
+  <SolidColorBrush x:Key="HwStepPurpleBrush" Color="#AF52DE"/>
+  <SolidColorBrush x:Key="HwStepGreenBrush" Color="#34C759"/>
+  <SolidColorBrush x:Key="HwStepOrangeBrush" Color="#FF9500"/>
+  <SolidColorBrush x:Key="HwStepBlueTintBrush" Color="#007AFF" Opacity="0.1"/>
+  <SolidColorBrush x:Key="HwStepPurpleTintBrush" Color="#AF52DE" Opacity="0.1"/>
+  <SolidColorBrush x:Key="HwStepGreenTintBrush" Color="#34C759" Opacity="0.1"/>
+  <SolidColorBrush x:Key="HwStepOrangeTintBrush" Color="#FF9500" Opacity="0.1"/>
+  <!-- The glyph itself is NOT the row colour. Windows binds these rows to the emoji
+       characters U+1F3A4, U+2328, U+1F3AF and U+1F4DA in a plain TextBlock, and WPF draws
+       Segoe UI Emoji's MONOCHROME outlines, so all four glyphs land as pure #000000 over
+       the tint (sampled out of the reference shot: the darkest pixel inside every one of
+       the four circles is 000000, against a tint of 1A2636/2C2232/1F2E25/34291C).
+       Painting them at full saturation, as this file did, was the single loudest
+       difference on the page. The colour is font-driven, not theme-driven, so it stays
+       black in the light theme too. -->
+  <SolidColorBrush x:Key="HwStepGlyphBrush" Color="#000000"/>
 
   <!-- The page markup was written against WinUI card keys that the plain Avalonia
        Fluent theme does not define, so every card painted with no colour at all and

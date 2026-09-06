@@ -1,0 +1,386 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextOptions.TextRenderingMode="Antialias"
+        xmlns:vm="using:HyperWhisper.PortableApplication.ViewModels"
+        x:Class="HyperWhisper.Linux.ModeEditorWindow" x:DataType="vm:ModesViewModel"
+        Title="{ReflectionBinding [mode.editor.title.edit], Source={StaticResource Localization}}"
+        FontFamily="{StaticResource HwUiFont}"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
+        Width="550" Height="700" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnWindowKeyDown"
+        Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}">
+  <!-- Windows opens the mode editor as a modal 550x700 NoResize dialog from the gear on a card
+       and from Create Mode (ModeEditorWindow.xaml:6-8). Its whole body — the "Mode Settings"
+       heading, four cards and the footer buttons — sits inside ONE ScrollViewer over a
+       StackPanel Margin=24, so the heading and the buttons scroll with the content rather than
+       sitting in fixed bands. The title itself is reassigned to mode.editor.title.create in
+       code-behind when the dialog is opened to create (:83).
+
+       Every panel below reveals on a computed property of ModesViewModel that mirrors the
+       matching Windows Visibility switch; the Windows line is cited on the property. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="24">
+      <TextBlock Text="{ReflectionBinding [mode.editor.section.settings], Source={StaticResource Localization}}"
+                 FontSize="20" FontWeight="Bold" Margin="0,0,0,20"
+                 Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+
+      <!-- ============================================================
+           CARD 1: Basic Settings
+           ============================================================ -->
+      <Border Classes="card" Margin="0,0,0,24">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
+            <Path Data="{StaticResource HwIconGear}" Fill="{DynamicResource HwTextSecondaryBrush}"
+                  Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+            <TextBlock Classes="cardSectionHeader"
+                       Text="{ReflectionBinding [mode.editor.section.basic], Source={StaticResource Localization}}"/>
+          </StackPanel>
+          <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                     Text="{ReflectionBinding [mode.editor.field.name], Source={StaticResource Localization}}"/>
+          <TextBox x:Name="ModeNameInput" Text="{Binding Name}"
+                   PlaceholderText="{ReflectionBinding [mode.editor.field.name], Source={StaticResource Localization}}"/>
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           CARD 2: Transcription Model
+           ============================================================ -->
+      <Border Classes="card" Margin="0,0,0,24">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
+            <Path Data="{StaticResource HwIconStreaming}" Fill="{DynamicResource HwTextSecondaryBrush}"
+                  Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+            <TextBlock Classes="cardSectionHeader"
+                       Text="{ReflectionBinding [mode.editor.section.transcription], Source={StaticResource Localization}}"/>
+          </StackPanel>
+
+          <!-- Source — the 3-way segmented selector (ModeEditorWindow.xaml:76-98). "On-device"
+               is the legacy local ProviderType; both cloud segments set ProviderType=cloud and
+               are told apart by CloudProvider. -->
+          <StackPanel Margin="0,0,0,16">
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [mode.editor.field.source], Source={StaticResource Localization}}"/>
+            <Border Classes="segmented">
+              <UniformGrid Rows="1" Columns="3">
+                <RadioButton x:Name="ModeSourceOnDevice" Classes="segment" GroupName="TranscriptionSource"
+                             IsChecked="{Binding IsOnDeviceSource, Mode=TwoWay}"
+                             Content="{ReflectionBinding [mode.editor.source.onDevice], Source={StaticResource Localization}}"/>
+                <RadioButton x:Name="ModeSourceHwCloud" Classes="segment" GroupName="TranscriptionSource"
+                             IsChecked="{Binding IsHwCloudSource, Mode=TwoWay}"
+                             Content="{ReflectionBinding [mode.editor.source.hyperwhisperCloud], Source={StaticResource Localization}}"/>
+                <RadioButton x:Name="ModeSourceYourProvider" Classes="segment" GroupName="TranscriptionSource"
+                             IsChecked="{Binding IsYourProviderSource, Mode=TwoWay}"
+                             Content="{ReflectionBinding [mode.editor.source.yourProvider], Source={StaticResource Localization}}"/>
+              </UniformGrid>
+            </Border>
+          </StackPanel>
+
+          <!-- On-device: engine + model. Windows folds both into one LocalModelCombo; the two
+               Linux controls are the same choice split in two (:101-112, shown for "ondevice"). -->
+          <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowLocalModelPanel}">
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [mode.editor.field.localModel], Source={StaticResource Localization}}"/>
+            <ComboBox x:Name="ModeLocalEngine" HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                      ItemsSource="{Binding LocalEngines}" SelectedItem="{Binding LocalEngine}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=mode.editor.localEngine.}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <!-- Windows' LocalModelCombo (:104): a pick list of the catalog entries for the chosen
+                 engine, not a free-text box. A text box let a cloud tier id linger here after a
+                 switch to On-device, which is a value the combo cannot express. -->
+            <ComboBox x:Name="ModeTranscriptionModel" HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding LocalModels}" SelectedItem="{Binding LocalTranscriptionModel}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource LocalModelLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- Windows' ParakeetLanguageWarning (:115-121). -->
+          <Border Classes="infoBanner" Margin="0,0,0,12" IsVisible="{Binding ShowParakeetLanguageWarning}"
+                  Background="{DynamicResource HwWarningBackgroundBrush}"
+                  BorderBrush="{DynamicResource HwWarningBorderBrush}">
+            <TextBlock x:Name="ModeParakeetLanguageWarning" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{DynamicResource HwWarningForegroundBrush}"
+                       Text="{ReflectionBinding [mode.editor.warning.vocabularyUnsupported.parakeet], Source={StaticResource Localization}}"/>
+          </Border>
+
+          <!-- Your provider: the BYOK vendor (:124-160). -->
+          <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowCloudProviderPanel}">
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [mode.editor.field.cloudProvider], Source={StaticResource Localization}}"/>
+            <ComboBox x:Name="ModeCloudProvider" HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding CloudProviders}" SelectedItem="{Binding CloudProvider}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=provider.}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- HyperWhisper Cloud: the accuracy tier, labelled "Provider", plus the medical
+               toggle Windows shows for AssemblyAI only (:163-210, :889). -->
+          <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowCloudAccuracyPanel}">
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [mode.editor.field.provider], Source={StaticResource Localization}}"/>
+            <ComboBox x:Name="ModeCloudAccuracyTier" HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding CloudAccuracyTiers}" SelectedItem="{Binding CloudAccuracyTier}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=modes.cloudAccuracy.|.label}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox x:Name="ModeCloudDomain" HorizontalAlignment="Stretch" Margin="0,12,0,0"
+                      IsVisible="{Binding ShowMedicalDomain}"
+                      ItemsSource="{Binding CloudDomains}" SelectedItem="{Binding CloudDomain}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=mode.editor.domain.}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- Your provider: the model id (:213-237). -->
+          <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowCloudModelPanel}">
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [mode.editor.field.cloudModel], Source={StaticResource Localization}}"/>
+            <!-- Windows' CloudModelCombo (:229) is a pick list of the vendor's models labelled by
+                 display name. The free-text box that used to sit here showed the saved model id
+                 raw, and let a user type an id the vendor does not have. -->
+            <ComboBox x:Name="ModeCloudTranscriptionModel" HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding CloudModels}" SelectedItem="{Binding CloudTranscriptionModel}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudSttModelLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <!-- Gemini only (:240-267, revealed at :1326). -->
+          <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowGeminiPrompt}">
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [mode.editor.gemini.customPrompt.title], Source={StaticResource Localization}}"/>
+            <TextBox x:Name="ModeGeminiPrompt" Text="{Binding GeminiPrompt}" MaxLength="2000"
+                     AcceptsReturn="True" TextWrapping="Wrap" Height="80"
+                     PlaceholderText="{ReflectionBinding [mode.editor.gemini.customPrompt.placeholder], Source={StaticResource Localization}}"/>
+            <TextBlock Classes="caption" Margin="0,4,0,0"
+                       Text="{ReflectionBinding [mode.editor.gemini.customPrompt.helper], Source={StaticResource Localization}}"/>
+          </StackPanel>
+
+          <!-- Windows' Nova3Warning (:286-298). -->
+          <Border Classes="infoBanner" Margin="0,0,0,16" IsVisible="{Binding ShowNova3Warning}">
+            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource HwInfoForegroundBrush}"
+                       Text="{ReflectionBinding [mode.editor.warning.nova3AutoDetect], Source={StaticResource Localization}}"/>
+          </Border>
+
+          <!-- Language is unconditional on Windows and closes the card (:301-312). -->
+          <StackPanel>
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [mode.editor.field.language], Source={StaticResource Localization}}"/>
+            <TextBox x:Name="ModeLanguageInput" Text="{Binding Language}" PlaceholderText="auto"/>
+          </StackPanel>
+
+          <!-- Linux-only: a per-mode vocabulary list. Windows keeps vocabulary on its own page,
+               so this has no Windows counterpart and stays at the foot of the card. -->
+          <StackPanel Margin="0,16,0,0">
+            <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                       Text="{ReflectionBinding [linux.ui.mode.vocabulary.comma.or.line.separated], Source={StaticResource Localization}}"/>
+            <TextBox x:Name="ModeCustomVocabulary" Text="{Binding CustomVocabulary}"
+                     AcceptsReturn="True" TextWrapping="Wrap"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           CARD 3: Post Processing
+           ============================================================ -->
+      <Border Classes="card" Margin="0,0,0,24">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
+            <Path Data="{StaticResource HwIconSparkle}" Fill="{DynamicResource HwTextSecondaryBrush}"
+                  Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+            <TextBlock Classes="cardSectionHeader"
+                       Text="{ReflectionBinding [mode.editor.section.postProcessing], Source={StaticResource Localization}}"/>
+          </StackPanel>
+
+          <CheckBox x:Name="ModePostProcessingEnabled" Margin="0,0,0,12"
+                    IsChecked="{Binding PostProcessingEnabled, Mode=TwoWay}"
+                    Content="{ReflectionBinding [mode.editor.postProcessing.enable], Source={StaticResource Localization}}"/>
+
+          <!-- Everything below is Windows' PostProcessingSettingsPanel (:336, revealed at :1836). -->
+          <StackPanel IsVisible="{Binding PostProcessingEnabled}">
+            <!-- Preset + description + the app-aware hint (:338-362). -->
+            <StackPanel Margin="0,0,0,16">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [mode.editor.field.preset], Source={StaticResource Localization}}"/>
+              <ComboBox x:Name="ModePreset" HorizontalAlignment="Stretch"
+                        ItemsSource="{Binding Presets}" SelectedItem="{Binding Preset}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=mode.editor.preset.}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,4,0,0"
+                         Text="{ReflectionBinding [mode.editor.postProcessing.appAwareHint], Source={StaticResource Localization}}"/>
+            </StackPanel>
+
+            <!-- Custom instructions, for the Custom preset only (:365-379, revealed at :1644). -->
+            <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowCustomInstructions}">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [mode.editor.field.customInstructions], Source={StaticResource Localization}}"/>
+              <TextBox x:Name="ModeCustomInstructions" Text="{Binding CustomInstructions}"
+                       AcceptsReturn="True" TextWrapping="Wrap" Height="80" MaxLength="4000"/>
+              <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,4,0,0"
+                         Text="{ReflectionBinding [mode.editor.field.customInstructions.hint], Source={StaticResource Localization}}"/>
+            </StackPanel>
+
+            <!-- The second segmented Source, mirroring the transcription card (:384-406). -->
+            <StackPanel Margin="0,0,0,16">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [mode.editor.field.source], Source={StaticResource Localization}}"/>
+              <Border Classes="segmented">
+                <UniformGrid Rows="1" Columns="3">
+                  <RadioButton x:Name="ModePpSourceOnDevice" Classes="segment" GroupName="PostProcessingSource"
+                               IsChecked="{Binding IsPpOnDeviceSource, Mode=TwoWay}"
+                               Content="{ReflectionBinding [mode.editor.source.onDevice], Source={StaticResource Localization}}"/>
+                  <RadioButton x:Name="ModePpSourceHwCloud" Classes="segment" GroupName="PostProcessingSource"
+                               IsChecked="{Binding IsPpHwCloudSource, Mode=TwoWay}"
+                               Content="{ReflectionBinding [mode.editor.source.hyperwhisperCloud], Source={StaticResource Localization}}"/>
+                  <RadioButton x:Name="ModePpSourceYourProvider" Classes="segment" GroupName="PostProcessingSource"
+                               IsChecked="{Binding IsPpYourProviderSource, Mode=TwoWay}"
+                               Content="{ReflectionBinding [mode.editor.source.yourProvider], Source={StaticResource Localization}}"/>
+                </UniformGrid>
+              </Border>
+            </StackPanel>
+
+            <!-- BYOK LLM vendor, for "Your provider" only (:411-430, revealed at :1388). -->
+            <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowPostProcessingProviderPanel}">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [mode.editor.postProcessing.provider], Source={StaticResource Localization}}"/>
+              <ComboBox x:Name="ModePostProcessingProvider" HorizontalAlignment="Stretch"
+                        ItemsSource="{Binding PostProcessingProviders}" SelectedItem="{Binding PostProcessingProvider}">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=provider.}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+
+            <!-- HyperWhisper Cloud engine + model, for the HW Cloud source only (:437-453). -->
+            <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowCloudPostProcessingPanel}">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [mode.editor.field.cloudModel], Source={StaticResource Localization}}"/>
+              <!-- A ComboBox, not a TextBox: Windows picks this from the CloudPp catalog and shows
+                   the model's display name (ModeEditorWindow.xaml:437-452). The TextBox that used
+                   to sit here printed the stored "anthropic:claude-haiku-4-5" pair on screen. -->
+              <ComboBox x:Name="ModeHyperWhisperCloudModel" HorizontalAlignment="Stretch"
+                        ItemsSource="{Binding HyperWhisperCloudModels}" SelectedItem="{Binding HyperWhisperCloudModel}">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudPostProcessingLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+
+            <!-- The BYOK model row; Windows hides its model row for HW Cloud (:456-474). -->
+            <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowPostProcessingModelPanel}">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [mode.editor.postProcessing.model], Source={StaticResource Localization}}"/>
+              <TextBox x:Name="ModePostProcessingModel" Text="{Binding PostProcessingModel}"
+                       PlaceholderText="gpt-4.1-mini"/>
+            </StackPanel>
+
+            <!-- The same model row for the on-device source, which on Linux is a GGUF filename. -->
+            <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowLocalPostProcessingModel}">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [linux.ui.local.gguf.filename.in.models.llm], Source={StaticResource Localization}}"/>
+              <TextBox x:Name="ModeLocalPostProcessingModel" Text="{Binding LocalPostProcessingModel}"
+                       PlaceholderText="gemma-4-E2B-it-Q4_K_M.gguf"/>
+            </StackPanel>
+
+            <!-- Linux-only: the inline custom OpenAI-compatible endpoint. Windows configures one
+                 in its own CustomEndpointWindow, which Linux now also has; these fields stay for
+                 a mode that already points at a custom endpoint. -->
+            <StackPanel Margin="0,0,0,16" Spacing="8" IsVisible="{Binding ShowCustomEndpointPanel}">
+              <TextBlock Classes="fieldLabel"
+                         Text="{ReflectionBinding [linux.ui.custom.openai.compatible.endpoint], Source={StaticResource Localization}}"/>
+              <TextBox x:Name="ModeCustomEndpointName" Text="{Binding CustomEndpointName}"
+                       PlaceholderText="{ReflectionBinding [linux.ui.endpoint.name], Source={StaticResource Localization}}"/>
+              <TextBox x:Name="ModeCustomEndpointUrl" Text="{Binding CustomEndpointUrl}"
+                       PlaceholderText="https://host/v1/chat/completions"/>
+              <TextBox x:Name="ModeCustomEndpointModel" Text="{Binding CustomEndpointModel}"
+                       PlaceholderText="{ReflectionBinding [linux.ui.model.name], Source={StaticResource Localization}}"/>
+              <TextBox x:Name="ModeCustomEndpointApiKey" Text="{Binding CustomEndpointApiKey}" PasswordChar="●"
+                       PlaceholderText="{ReflectionBinding [linux.ui.new.api.key.optional.for.local.endpoints], Source={StaticResource Localization}}"/>
+              <TextBlock Classes="caption" TextWrapping="Wrap"
+                         Text="{ReflectionBinding [linux.ui.endpoint.credentials.are.kept.in.secret.service.or.owner.onl.dfdbd389], Source={StaticResource Localization}}"/>
+            </StackPanel>
+
+            <!-- English spelling, for English or auto-detect only (:477-492, revealed at :1708). -->
+            <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowEnglishSpelling}">
+              <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
+                         Text="{ReflectionBinding [mode.editor.postProcessing.englishSpelling], Source={StaticResource Localization}}"/>
+              <ComboBox x:Name="ModeEnglishSpelling" HorizontalAlignment="Stretch"
+                        ItemsSource="{Binding EnglishSpellings}" SelectedItem="{Binding EnglishSpelling}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=mode.editor.spelling.}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Classes="caption" TextWrapping="Wrap" Margin="0,4,0,0"
+                         Text="{ReflectionBinding [mode.editor.spelling.hint], Source={StaticResource Localization}}"/>
+            </StackPanel>
+
+            <CheckBox x:Name="ModeProfanityFilter" Margin="0,0,0,8" IsChecked="{Binding ProfanityFilter}"
+                      Content="{ReflectionBinding [mode.editor.postProcessing.profanityFilter], Source={StaticResource Localization}}"/>
+
+            <CheckBox x:Name="ModeEnableScreenOcr" Margin="0,0,0,2" IsChecked="{Binding EnableScreenOcr}"
+                      Content="{ReflectionBinding [mode.editor.postProcessing.screenText], Source={StaticResource Localization}}"/>
+            <TextBlock Classes="caption" TextWrapping="Wrap" Margin="20,0,0,16"
+                       Text="{ReflectionBinding [mode.editor.postProcessing.screenText.hint], Source={StaticResource Localization}}"/>
+
+            <!-- Persistent Instructions: a checkbox that reveals the prompt box, its Clear link
+                 and a live counter (:506-543, revealed at :1745). -->
+            <StackPanel>
+              <CheckBox x:Name="ModeUserPromptEnabled" IsChecked="{Binding UserPromptEnabled, Mode=TwoWay}"
+                        Content="{ReflectionBinding [mode.editor.postProcessing.customPrompt], Source={StaticResource Localization}}"/>
+              <StackPanel IsVisible="{Binding ShowUserPrompt}">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="caption" TextWrapping="Wrap" VerticalAlignment="Center"
+                             Text="{ReflectionBinding [mode.editor.postProcessing.customPrompt.hint], Source={StaticResource Localization}}"/>
+                  <Button x:Name="ModeClearUserPrompt" Grid.Column="1" Classes="inlineLink"
+                          Click="OnClearUserPrompt"
+                          Content="{ReflectionBinding [settings.license.clearInput], Source={StaticResource Localization}}"/>
+                </Grid>
+                <TextBox x:Name="ModeUserSystemPrompt" Text="{Binding UserSystemPrompt}" Margin="0,4,0,0"
+                         AcceptsReturn="True" TextWrapping="Wrap" Height="100" MaxLength="2000"/>
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ============================================================
+           CARD 4: Punctuation
+           ============================================================ -->
+      <Border Classes="card" Margin="0,0,0,24">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
+            <Path Data="{StaticResource HwIconMemo}" Fill="{DynamicResource HwTextSecondaryBrush}"
+                  Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center"/>
+            <TextBlock Classes="cardSectionHeader"
+                       Text="{ReflectionBinding [mode.editor.section.punctuation], Source={StaticResource Localization}}"/>
+          </StackPanel>
+          <!-- Windows hides all three while post-processing is off (:1354-1356, :1728). -->
+          <CheckBox x:Name="ModePunctuation" Margin="0,0,0,6" IsChecked="{Binding Punctuation}"
+                    IsVisible="{Binding ShowPunctuationOptions}"
+                    Content="{ReflectionBinding [mode.editor.postProcessing.punctuation], Source={StaticResource Localization}}"/>
+          <CheckBox x:Name="ModeRemoveTrailingPeriod" Margin="0,0,0,6" IsChecked="{Binding RemoveTrailingPeriod}"
+                    IsVisible="{Binding ShowRemoveTrailingPeriod}"
+                    Content="{ReflectionBinding [mode.editor.postProcessing.removeTrailingPeriod], Source={StaticResource Localization}}"/>
+          <CheckBox x:Name="ModeCapitalization" IsChecked="{Binding Capitalization}"
+                    IsVisible="{Binding ShowPunctuationOptions}"
+                    Content="{ReflectionBinding [mode.editor.postProcessing.capitalization], Source={StaticResource Localization}}"/>
+        </StackPanel>
+      </Border>
+
+      <!-- A failed save keeps the dialog open so this line is readable. -->
+      <TextBlock Text="{Binding Status.Message}" TextWrapping="Wrap" Classes="caption" Margin="0,0,0,4"/>
+      <TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Classes="caption"/>
+
+      <!-- Action buttons, inside the scrolling body exactly as on Windows (:587-614). Delete is
+           collapsed while creating (:84) and Save carries the create label there. -->
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" Margin="0,8,0,0">
+        <Button x:Name="ModeDeleteButton" Classes="danger" Click="OnDelete"
+                IsVisible="{Binding IsEditing}"
+                Content="{ReflectionBinding [modes.button.delete], Source={StaticResource Localization}}"/>
+        <Button x:Name="ModeCancelButton" Grid.Column="2" Click="OnCancel"
+                Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}"/>
+        <Button x:Name="ModeSaveButton" Grid.Column="3" Classes="accent" Click="OnSave"
+                IsEnabled="{Binding CanSave}"
+                Content="{ReflectionBinding [modes.button.save], Source={StaticResource Localization}}"/>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

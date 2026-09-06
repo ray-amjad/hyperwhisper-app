@@ -22,6 +22,20 @@ public partial class App : Application
         Resources["LocalizedFormatConverter"] = new LocalizedFormatConverter(Localization);
         Resources["LocalTimeConverter"] = new LocalTimeConverter();
         Resources["ShortDurationConverter"] = new ShortDurationConverter();
+        Resources["IconKeyConverter"] = new IconKeyConverter();
+        Resources["ProviderLogoConverter"] = new ProviderLogoConverter();
+        Resources["LanguageDisplayNameConverter"] = new LanguageDisplayNameConverter(Localization);
+        Resources["OptionLabelConverter"] = new OptionLabelConverter(Localization);
+        Resources["CloudPostProcessingLabelConverter"] = new CloudPostProcessingLabelConverter();
+        Resources["LocalModelLabelConverter"] = new LocalModelLabelConverter();
+        Resources["CloudSttModelLabelConverter"] = new CloudSttModelLabelConverter();
+        Resources["AnyItemsConverter"] = new AnyItemsConverter();
+        Resources["ModeProviderLineConverter"] = new ModeProviderLineConverter();
+        Resources["ModePostProcessingConverter"] = new ModePostProcessingConverter();
+        Resources["HistoryGroupHeaderConverter"] = new HistoryGroupHeaderConverter(Localization);
+        Resources["TranscriptStatusConverter"] = new TranscriptStatusConverter();
+        Resources["TranscriptFontConverter"] = new TranscriptFontConverter();
+        Resources["VocabularySourceConverter"] = new VocabularySourceConverter(Localization);
     }
 
     public override void OnFrameworkInitializationCompleted()

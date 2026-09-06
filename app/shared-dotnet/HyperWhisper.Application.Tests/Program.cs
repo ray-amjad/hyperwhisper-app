@@ -614,10 +614,16 @@ try
     {
         var modelViewModel = new HyperWhisper.PortableApplication.ViewModels.ModelLibraryViewModel(
             new HyperWhisper.ModelManagement.PortableModelManager(paths, modelHttp));
+        // Not Items[0], and not simply "the next row": the recommended order ties cloud rows
+        // ahead of local ones, the way Windows falls back to its own cloud-first input order,
+        // so both ends of this test have to ask for a row that actually has a model to
+        // download. Taking whatever sorted first left the download waiting forever.
+        modelViewModel.Selected ??= modelViewModel.Items.First(item => item.CanDownload);
         var downloadTarget = modelViewModel.Selected!;
         var downloadTask = modelViewModel.DownloadAsync();
         await delayedModels.Started.Task;
-        var otherModel = modelViewModel.Items.First(item => item.Id != downloadTarget.Id);
+        var otherModel = modelViewModel.Items.First(
+            item => item.Id != downloadTarget.Id && item.Model is not null);
         modelViewModel.Selected = otherModel;
         modelViewModel.Dispose();
         await downloadTask;

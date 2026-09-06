@@ -8,9 +8,14 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>HyperWhisper.Linux</RootNamespace>
     <AssemblyName>HyperWhisper</AssemblyName>
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <!-- Kept in step with app/windows/HyperWhisper/HyperWhisper.csproj, which is the version the
+         About page shows on both heads. This had drifted to 1.1.0 against Windows 1.11.0, so the
+         Linux About page read "Version 1.1.0" and looked like a truncated minor field. Nothing
+         generates these three lines, so they are hand-maintained: change them with the Windows
+         ones, never on their own. -->
+    <Version>1.11.0</Version>
+    <AssemblyVersion>1.11.0.0</AssemblyVersion>
+    <FileVersion>1.11.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(SENTRY_DSN)' != ''">
@@ -42,6 +47,20 @@
              Link="parakeet-engine/silero_vad.onnx"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- The Model Library's per-provider avatars. LINKED from the Windows tree, not copied: these
+       are the same 17 PNGs the Windows rows and the onboarding provider chips draw, and a second
+       copy would be one more thing to keep in step every time a vendor changes its mark.
+
+       AvaloniaResource, not Content, because they are loaded through avares: rather than off
+       disk. AssemblyName is HyperWhisper (not HyperWhisper.Linux), so the URI authority is
+       HyperWhisper: avares://HyperWhisper/Assets/Providers/providerGroq.png. ProviderAssets in
+       the shared project owns the id -> file-name mapping; keep its ShippedNames set in step
+       with whatever this glob actually picks up. -->
+  <ItemGroup>
+    <AvaloniaResource Include="../../windows/HyperWhisper/Assets/Providers/*.png"
+                      Link="Assets/Providers/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

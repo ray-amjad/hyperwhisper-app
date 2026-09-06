@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextOptions.TextRenderingMode="Antialias"
+        x:Class="HyperWhisper.Linux.ProviderApiKeyWindow"
+        FontFamily="{StaticResource HwUiFont}"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
+        Width="460" Height="360" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnWindowKeyDown"
+        Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}">
+  <!-- A port of app/windows/HyperWhisper/Views/Windows/ProviderApiKeyWindow.xaml: 460x360,
+       NoResize, CenterOwner, opened ShowDialog from the Model Library's Connect / Needs
+       attention row action. Linux used to NAVIGATE to the credentials page instead, so the user
+       lost the Model Library and had to find their way back through the sidebar.
+
+       Four rows, exactly as Windows: title + subtitle, a card carrying the key glyph, the
+       provider name, its current status and a "Get key" button, then the API key field with the
+       secure-storage footnote, then Clear | Cancel | Save. -->
+  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto">
+    <StackPanel Margin="0,0,0,18">
+      <TextBlock x:Name="ProviderKeyTitle" FontSize="14" FontWeight="SemiBold"
+                 Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+      <TextBlock x:Name="ProviderKeySubtitle" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                 Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+    </StackPanel>
+
+    <Border Grid.Row="1" Classes="card" Margin="0,0,0,16">
+      <Grid ColumnDefinitions="40,*,Auto">
+        <Border Width="28" Height="28" CornerRadius="7" VerticalAlignment="Center" HorizontalAlignment="Left"
+                Background="{DynamicResource HwHoverBackgroundBrush}">
+          <Path Data="{StaticResource HwIconKey}" Fill="{DynamicResource HwAccentBrush}"
+                Stretch="Uniform" Width="13" Height="13"
+                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock x:Name="ProviderKeyName" FontSize="14" FontWeight="SemiBold"
+                     Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+          <TextBlock x:Name="ProviderKeyStatus" FontSize="12" Margin="0,2,0,0"
+                     Foreground="{DynamicResource HwTextSecondaryBrush}"/>
+        </StackPanel>
+        <Button x:Name="ProviderKeyGetKeyButton" Grid.Column="2" VerticalAlignment="Center"
+                Click="OnGetKey"
+                Content="{ReflectionBinding [providerApiKey.getKey], Source={StaticResource Localization}}"/>
+      </Grid>
+    </Border>
+
+    <StackPanel Grid.Row="2">
+      <TextBlock FontSize="12" Margin="0,0,0,12" Foreground="{DynamicResource HwTextSecondaryBrush}"
+                 Text="{ReflectionBinding [providerApiKey.apiKeyLabel], Source={StaticResource Localization}}"/>
+      <TextBox x:Name="ProviderKeyInput" PasswordChar="●"/>
+      <!-- Windows names the Windows Credential Manager here; on Linux the store is the Secret
+           Service, so this is the one line that cannot reuse providerApiKey.secureStorage. -->
+      <TextBlock FontSize="12" TextWrapping="Wrap" Margin="0,12,0,0"
+                 Foreground="{DynamicResource HwTextSecondaryBrush}"
+                 Text="{ReflectionBinding [linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81], Source={StaticResource Localization}}"/>
+    </StackPanel>
+
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="0,18,0,0">
+      <Button x:Name="ProviderKeyClearButton" Click="OnClear"
+              Content="{ReflectionBinding [common.clear], Source={StaticResource Localization}}"/>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+        <Button x:Name="ProviderKeyCancelButton" Click="OnCancel"
+                Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}"/>
+        <Button x:Name="ProviderKeySaveButton" Classes="accent" Click="OnSave"
+                Content="{ReflectionBinding [common.save], Source={StaticResource Localization}}"/>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</Window>
