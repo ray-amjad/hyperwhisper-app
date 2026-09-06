@@ -628,6 +628,12 @@ describe('LLM chat costs', () => {
     expect(computeOpenAIChatCost('gpt-5-nano', usage(1_000_000, 0))).toBeCloseTo(0.05, 6);
     expect(computeGeminiChatCost('gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
     expect(computeGeminiChatCost('gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
+    // gemini-3.8-flash at INTRODUCTORY $0.75/$3.75 per 1M — expires 2026-12-31.
+    expect(computeGeminiChatCost('gemini-3.8-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.75 + 3.75, 6);
+    // The newest gemini id is also the priciest: it must never be billed at the
+    // 2.5-flash default rate by accident.
+    expect(computeGeminiChatCost('gemini-3.8-flash', usage(1_000_000, 1_000_000)))
+      .toBeGreaterThan(computeGeminiChatCost('gemini-2.5-flash', usage(1_000_000, 1_000_000)));
     expect(computeMistralChatCost('mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
   });
 

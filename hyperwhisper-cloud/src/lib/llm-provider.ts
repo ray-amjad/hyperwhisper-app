@@ -33,7 +33,11 @@ export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
 // LLM_PROVIDER_MODELS allowlists.
 const LLM_SERVED_NAMES: Partial<Record<LLMProvider, Record<string, string>>> = {
   openai: { 'gpt-5-mini': 'openai-gpt-5-mini', 'gpt-5-nano': 'openai-gpt-5-nano' },
-  gemini: { 'gemini-2.5-flash': 'gemini-2.5-flash', 'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite' },
+  gemini: {
+    'gemini-2.5-flash': 'gemini-2.5-flash',
+    'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
+    'gemini-3.8-flash': 'gemini-3.8-flash',
+  },
   mistral: { 'mistral-small-latest': 'mistral-small-latest' },
 };
 
@@ -69,7 +73,10 @@ const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: reado
   anthropic: { default: 'claude-haiku-4-5', allowed: ['claude-haiku-4-5'] },
   grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
   openai: { default: 'gpt-5-mini', allowed: ['gpt-5-mini', 'gpt-5-nano'] },
-  gemini: { default: 'gemini-2.5-flash', allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'] },
+  gemini: {
+    default: 'gemini-2.5-flash',
+    allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash'],
+  },
   mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
 };
 
