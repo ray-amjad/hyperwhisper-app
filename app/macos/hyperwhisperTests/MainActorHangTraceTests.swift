@@ -120,7 +120,7 @@ struct MainActorHangTraceTests {
         #expect(idle["main_actor_flow_step"] as? String == "none")
         #expect(idle["main_actor_flow_operation_id"] as? String == "none")
         #expect(idle["main_actor_flow_started_at_ms"] as? Int64 == 0)
-        #expect(idle["main_actor_flow_completed_at_ms"] as? Int == 0)
+        #expect((idle["main_actor_flow_completed_at_ms"] as? NSNumber)?.int64Value == 0)
         #expect(idle["main_actor_flow_elapsed_ms"] as? Int == 0)
         #expect(Set(idle.keys) == Set(active.keys))
     }
