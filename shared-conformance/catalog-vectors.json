@@ -2219,6 +2219,16 @@
       "voiceCapabilities": null
     },
     {
+      "provider": "gemini",
+      "id": "gemini-3.8-flash",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
       "provider": "geminiTranscribe",
       "id": "gemini-3.5-transcribe",
       "kind": "voice",

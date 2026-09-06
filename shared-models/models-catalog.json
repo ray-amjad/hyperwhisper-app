@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-03",
+  "lastUpdated": "2026-09-05",
   "models": [
     {
       "provider": "appleSpeech",
@@ -424,6 +424,15 @@
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
       "notes": "Released 2026-08-13. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.8-flash",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "GA 2026-09-02. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
     },
     {
       "provider": "gemini",
