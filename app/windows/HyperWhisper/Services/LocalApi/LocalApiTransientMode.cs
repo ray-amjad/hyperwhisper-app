@@ -2,14 +2,29 @@ using HyperWhisper.Data.Entities;
 
 namespace HyperWhisper.Services.LocalApi;
 
+internal enum LocalApiTransientModeFields
+{
+    Shared,
+    SharedAndTranscription
+}
+
 /// <summary>
-/// Creates request-only Mode clones shared by Local API endpoints.
+/// Creates request-only Mode clones shared by Local API endpoints. The base
+/// clone copies only the 24 fields shared by the post-processing and
+/// transcription endpoints. It deliberately replaces source identity,
+/// ordering, and timestamps, and omits persistence flags and foreign-platform
+/// extensions. The transcription field set additionally copies ModelType and
+/// CloudTranscriptionDomain. CustomVocabulary keeps its existing shallow-copy
+/// semantics.
 /// </summary>
 internal static class LocalApiTransientMode
 {
-    internal static Mode CreateFromSharedFields(Mode source, string transientName)
+    internal static Mode Create(
+        Mode source,
+        string transientName,
+        LocalApiTransientModeFields fields)
     {
-        return new Mode
+        var mode = new Mode
         {
             Id = Guid.NewGuid(),
             Name = transientName,
@@ -41,5 +56,13 @@ internal static class LocalApiTransientMode
             CreatedDate = DateTime.UtcNow,
             ModifiedDate = DateTime.UtcNow
         };
+
+        if (fields == LocalApiTransientModeFields.SharedAndTranscription)
+        {
+            mode.ModelType = source.ModelType;
+            mode.CloudTranscriptionDomain = source.CloudTranscriptionDomain;
+        }
+
+        return mode;
     }
 }

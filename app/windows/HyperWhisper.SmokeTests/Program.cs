@@ -5957,7 +5957,10 @@ internal static class Program
                 };
                 var before = DateTime.UtcNow;
 
-                var clone = LocalApiTransientMode.CreateFromSharedFields(source, "transient-name");
+                var clone = LocalApiTransientMode.Create(
+                    source,
+                    "transient-name",
+                    LocalApiTransientModeFields.Shared);
 
                 var after = DateTime.UtcNow;
                 Assert(clone.Id != source.Id, "the transient Mode reused the source id");
@@ -5998,7 +6001,7 @@ internal static class Program
                 Assert(clone.CloudTranscriptionDomain == null, "the shared helper copied transcription-only CloudTranscriptionDomain");
             });
 
-            Run("Local API transcription transient Mode restores transcription-only fields", () =>
+            Run("Local API transcription transient Mode preserves transcription-only fields with an override", () =>
             {
                 var source = new Mode
                 {
@@ -6010,8 +6013,10 @@ internal static class Program
                     source,
                     engine: null,
                     model: null,
-                    language: null);
+                    language: "override-language");
 
+                Assert(mode.Language == "override-language",
+                    "the transcription transient Mode did not apply the override");
                 Assert(mode.ModelType == source.ModelType,
                     "the transcription transient Mode lost ModelType");
                 Assert(mode.CloudTranscriptionDomain == source.CloudTranscriptionDomain,

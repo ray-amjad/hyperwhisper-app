@@ -798,9 +798,10 @@ internal static class TranscribeEndpoints
         Mode mode;
         if (baseline != null)
         {
-            mode = LocalApiTransientMode.CreateFromSharedFields(baseline, "__local_api_transient__");
-            mode.ModelType = baseline.ModelType;
-            mode.CloudTranscriptionDomain = baseline.CloudTranscriptionDomain;
+            mode = LocalApiTransientMode.Create(
+                baseline,
+                "__local_api_transient__",
+                LocalApiTransientModeFields.SharedAndTranscription);
         }
         else
         {

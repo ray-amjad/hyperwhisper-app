@@ -178,9 +178,8 @@ internal static class PostProcessEndpoints
 
     /// <summary>
     /// Build the in-memory Mode that drives this request. Three shapes:
-    ///   1. `mode_id` alone, no overrides → load saved Mode, force
-    ///      PostProcessingMode to 1 if it was 0 (request implies caller wants
-    ///      post-processing on), and use as-is.
+    ///   1. `mode_id` alone, no overrides → load saved Mode and use it
+    ///      as-is, or reject it if post-processing is disabled.
     ///   2. `mode_id` + any of preset/prompt/provider/model → clone saved Mode
     ///      and apply overrides.
     ///   3. No `mode_id` but preset/prompt/provider/model present → build a
@@ -242,7 +241,10 @@ internal static class PostProcessEndpoints
                     LocalApiErrorCode.ModeNotFound,
                     $"No mode with id '{modeId}'");
             }
-            mode = LocalApiTransientMode.CreateFromSharedFields(stored, "__local_api_pp_transient__");
+            mode = LocalApiTransientMode.Create(
+                stored,
+                "__local_api_pp_transient__",
+                LocalApiTransientModeFields.Shared);
         }
         else
         {
