@@ -628,13 +628,18 @@ describe('LLM chat costs', () => {
     expect(computeOpenAIChatCost('gpt-5-nano', usage(1_000_000, 0))).toBeCloseTo(0.05, 6);
     expect(computeGeminiChatCost('gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
     expect(computeGeminiChatCost('gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
-    // gemini-3.8-flash at INTRODUCTORY $0.75/$3.75 per 1M — expires 2026-12-31.
-    expect(computeGeminiChatCost('gemini-3.8-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.75 + 3.75, 6);
-    // The newest gemini id is also the priciest: it must never be billed at the
-    // 2.5-flash default rate by accident.
-    expect(computeGeminiChatCost('gemini-3.8-flash', usage(1_000_000, 1_000_000)))
-      .toBeGreaterThan(computeGeminiChatCost('gemini-2.5-flash', usage(1_000_000, 1_000_000)));
     expect(computeMistralChatCost('mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
+    // gemini-3.8-flash deliberately has NO hand-written price line here. Its
+    // rate — and every other model's, including any added after it — is pinned
+    // by the catalog-parity block below, which compares the two price copies to
+    // each other instead of restating the numbers a third time. That matters
+    // for 3.8 in particular: its $0.75/$3.75 is INTRODUCTORY and expires
+    // 2026-12-31, and the 2027 update should be a two-file edit, not a four.
+    // The "never billed at the 2.5-flash default rate by accident" guard that
+    // used to sit here could not fail on its own (the two assertions above it
+    // already pinned both values exactly, and bun:test stops at the first
+    // failing expect). The real version of that guard is the per-provider
+    // allowlist test in src/providers/llm-dispatch.test.ts.
   });
 
   test('an unknown chat model falls back to the provider default rate, never $0', () => {
@@ -655,6 +660,106 @@ describe('LLM chat costs', () => {
     expect(computeGroqChatCost(usage(0, 0))).toBe(0);
     expect(computeOpenAIChatCost('gpt-5-mini', usage(0, 0))).toBe(0);
     expect(creditsForCost(computeGroqChatCost(usage(0, 0)))).toBe(0.1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cloud-pp-catalog.json  <->  cost-calculator.ts price parity
+//
+// shared-app-classification/CLAUDE.md calls this a CRITICAL invariant:
+// `pricePerMInput` / `pricePerMOutput` in that catalog are DISPLAY/estimate
+// only, the constants in this module are what ACTUALLY bills, and the two are
+// independent copies that "silently drift if you touch only one". Until this
+// block, nothing read the catalog and compared them — every price had a
+// hand-written assertion that restated the number instead.
+//
+// Three properties this block is built for:
+//
+//   * GENERIC. It iterates every provider and every model the catalog ships, so
+//     a model added tomorrow is covered without anyone writing a new assertion.
+//   * It RESTATES NO PRICE. It asserts the two copies AGREE. A price change
+//     (gemini-3.8-flash's introductory $0.75/$3.75 expires 2026-12-31) stays a
+//     two-file edit — the catalog row and GEMINI_CHAT_RATES — and this test
+//     needs no edit at all.
+//   * It goes through the EXPORTED billing entry points, not the module-private
+//     rate tables, so it needs no new export and it exercises the real billing
+//     path. Billing 1M input tokens yields exactly `pricePerMInput` dollars.
+//     That is also what makes a MISSING rate row visible: computeChatCost falls
+//     back to the provider default's rate for an id it has no row for, and the
+//     default's price will not equal the new model's catalog price.
+//
+// The catalog is read at RUNTIME rather than imported, matching the idiom in
+// language-codes.test.ts: the Fly image only copies `src/`, so a static import
+// of a sibling package's JSON would resolve here and not in the container.
+
+const PP_CATALOG_PATH = `${import.meta.dir}/../../../shared-app-classification/cloud-pp-catalog.json`;
+
+interface PpCatalogModel {
+  id: string;
+  pricePerMInput: number;
+  pricePerMOutput: number;
+}
+
+interface PpCatalogProvider {
+  id: string;
+  llmProvider: string;
+  models: PpCatalogModel[];
+}
+
+const ONE_M = 1_000_000;
+const ONE_M_INPUT: GroqUsage = { prompt_tokens: ONE_M, completion_tokens: 0, total_tokens: ONE_M };
+const ONE_M_OUTPUT: GroqUsage = { prompt_tokens: 0, completion_tokens: ONE_M, total_tokens: ONE_M };
+
+/**
+ * USD actually billed for exactly 1M input / 1M output tokens, keyed by the
+ * catalog's `llmProvider` field — i.e. this module's billing constants
+ * expressed in the catalog's own per-1M units. The four single-model providers
+ * bill a flat rate and ignore the model id; that they only ever have ONE
+ * allowlisted model is pinned by src/providers/llm-dispatch.test.ts.
+ */
+const BILLED_PER_M: Record<string, (model: string) => { input: number; output: number }> = {
+  cerebras: () => ({ input: computeCerebrasChatCost(ONE_M_INPUT), output: computeCerebrasChatCost(ONE_M_OUTPUT) }),
+  groq: () => ({ input: computeGroqChatCost(ONE_M_INPUT), output: computeGroqChatCost(ONE_M_OUTPUT) }),
+  anthropic: () => ({ input: computeAnthropicCost(ONE_M, 0), output: computeAnthropicCost(0, ONE_M) }),
+  grok: () => ({ input: computeXaiGrokFastChatCost(ONE_M_INPUT), output: computeXaiGrokFastChatCost(ONE_M_OUTPUT) }),
+  openai: model => ({ input: computeOpenAIChatCost(model, ONE_M_INPUT), output: computeOpenAIChatCost(model, ONE_M_OUTPUT) }),
+  gemini: model => ({ input: computeGeminiChatCost(model, ONE_M_INPUT), output: computeGeminiChatCost(model, ONE_M_OUTPUT) }),
+  mistral: model => ({ input: computeMistralChatCost(model, ONE_M_INPUT), output: computeMistralChatCost(model, ONE_M_OUTPUT) }),
+};
+
+async function ppCatalogProviders(): Promise<PpCatalogProvider[]> {
+  const catalog = (await Bun.file(PP_CATALOG_PATH).json()) as { providers: PpCatalogProvider[] };
+  if (!Array.isArray(catalog.providers) || catalog.providers.length === 0) {
+    throw new Error('cloud-pp-catalog.json has no providers — the parity test would pass vacuously');
+  }
+  return catalog.providers;
+}
+
+describe('cloud-pp-catalog.json price parity (the critical pricing-sync invariant)', () => {
+  test('every catalog provider has a billing entry point in cost-calculator', async () => {
+    const unbillable = (await ppCatalogProviders())
+      .filter(provider => !BILLED_PER_M[provider.llmProvider])
+      .map(provider => `${provider.id} (llmProvider=${provider.llmProvider})`);
+    expect(unbillable).toEqual([]);
+  });
+
+  test('every catalog model bills at exactly its catalog price', async () => {
+    const catalogSays: string[] = [];
+    const weBill: string[] = [];
+
+    for (const provider of await ppCatalogProviders()) {
+      const billedPerM = BILLED_PER_M[provider.llmProvider];
+      if (!billedPerM) continue; // already reported by the test above
+      expect(provider.models.length).toBeGreaterThan(0);
+      for (const model of provider.models) {
+        const billed = billedPerM(model.id);
+        catalogSays.push(`${provider.id}/${model.id} in=${model.pricePerMInput} out=${model.pricePerMOutput}`);
+        weBill.push(`${provider.id}/${model.id} in=${billed.input} out=${billed.output}`);
+      }
+    }
+
+    expect(weBill.length).toBeGreaterThan(0);
+    expect(weBill).toEqual(catalogSays);
   });
 });
 
