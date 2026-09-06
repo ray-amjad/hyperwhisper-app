@@ -189,3 +189,8 @@ export function shouldFallback(error: unknown): boolean {
   const status = getErrorStatus(error);
   return typeof status === 'number' && status >= 500 && status <= 599;
 }
+
+/** Exported for the parity test only. */
+export const __tables = {
+  LLM_PROVIDER_MODELS,
+};
