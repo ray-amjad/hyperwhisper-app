@@ -22,6 +22,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     private readonly Func<bool, bool> _persistDecision;
     private readonly Action<Mode?> _selectMode;
     private readonly Action<AudioInputDevice?> _selectDevice;
+    private readonly Func<string, string> _text;
     private LinuxOnboardingStep _step;
     private bool _isVisible;
     private bool _testSucceeded;
@@ -51,6 +52,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         _persistDecision = persistDecision;
         _selectMode = selectMode;
         _selectDevice = selectDevice;
+        _text = text;
         _testStatus = text("linux.onboarding.test.not_started");
     }
 
@@ -65,15 +67,49 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public bool IsMicrophone => Step == LinuxOnboardingStep.Microphone;
     public bool IsTest => Step == LinuxOnboardingStep.Test;
     public bool CanGoBack => Step != LinuxOnboardingStep.Welcome;
+    // Warning: onboarding must never be a dead end.
+    //
+    // Every seeded mode is a HyperWhisper Cloud mode, and none of them has a credential on a fresh
+    // install, so `IsSelectedModeAvailable` was false for all 6 and the Provider step disabled its
+    // own Continue for good. The step offers no way to enter a key, so the only exit from the flow
+    // was "Skip setup". Gating the Test step on a test that cannot run moved the same dead end one
+    // step later.
+    //
+    // A step now blocks only on a choice the step itself can make. Readiness is reported by the
+    // warning under the mode picker and by the test status line; it does not lock the door.
     public bool CanGoNext => Step switch
     {
-        LinuxOnboardingStep.Provider => SelectedMode is not null && IsSelectedModeAvailable,
-        LinuxOnboardingStep.Microphone => SelectedDevice is not null,
-        LinuxOnboardingStep.Test => IsTestReady && TestSucceeded,
+        LinuxOnboardingStep.Provider => SelectedMode is not null,
+        // An empty device list is the same dead end one step later: a desktop where the input
+        // service exposes no source has nothing to choose, and there is no picker entry to make
+        // one. The warning under the picker already says so.
+        LinuxOnboardingStep.Microphone => SelectedDevice is not null || Devices.Count == 0,
         _ => true,
     };
     public bool IsTestReady => Capabilities.AudioCapture && SelectedMode is not null && SelectedDevice is not null && IsSelectedModeAvailable;
     public bool IsSelectedModeAvailable => SelectedMode is not null && _selectedModeAvailable;
+
+    /// <summary>
+    /// "Continue" on every step but the last, "Finish" on the last. One key read "Continue /
+    /// Finish" on all 5, which is developer shorthand on the first screen a Linux user sees.
+    /// </summary>
+    public string ContinueLabel => _text(IsTest ? "linux.onboarding.finish" : "linux.onboarding.continue");
+
+    /// <summary>
+    /// The blocker depends on the provider type: a cloud mode needs a key, a local mode needs a
+    /// downloaded engine. One string named the local engine for both, so a cloud mode — which is
+    /// every seeded mode — was told to fix a subsystem it does not use.
+    /// </summary>
+    /// <summary>
+    /// The microphone warning was gated on the capability probe alone, so a desktop whose input
+    /// service is running but exposes no source showed an empty picker and no explanation at all.
+    /// </summary>
+    public bool HasNoMicrophone => !Capabilities.AudioCapture || Devices.Count == 0;
+
+    public string UnavailableMessage => _text(
+        string.Equals(SelectedMode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+            ? "linux.onboarding.provider.unavailable.cloud"
+            : "linux.onboarding.provider.unavailable");
     public bool TestSucceeded { get => _testSucceeded; private set => Set(ref _testSucceeded, value); }
     public string TestStatus { get => _testStatus; private set => Set(ref _testStatus, value); }
     public Mode? SelectedMode
@@ -131,10 +167,12 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     {
         Notify(nameof(IsWelcome)); Notify(nameof(IsCapabilities)); Notify(nameof(IsProvider));
         Notify(nameof(IsMicrophone)); Notify(nameof(IsTest)); Notify(nameof(CanGoBack)); Notify(nameof(CanGoNext));
+        Notify(nameof(ContinueLabel));
     }
     private void NotifyReadiness()
     {
         Notify(nameof(IsSelectedModeAvailable)); Notify(nameof(IsTestReady)); Notify(nameof(CanGoNext));
+        Notify(nameof(UnavailableMessage));
     }
 }
 

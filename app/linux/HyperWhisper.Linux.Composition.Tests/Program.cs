@@ -1,5 +1,6 @@
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.Platform.Abstractions.Audio;
 using System.Runtime.Versioning;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Linux;
@@ -102,24 +103,33 @@ static Task OnboardingStateMachine()
     onboarding.SelectedDevice = microphone;
     onboarding.Next();
     Assert(onboarding.IsTest && onboarding.IsTestReady, "test readiness did not use the selected mode and microphone");
-    onboarding.Next();
-    Assert(onboarding.IsVisible && decisions.Count == 0, "onboarding completed without a successful test dictation");
+    Assert(onboarding.ContinueLabel == "linux.onboarding.finish", "the last step did not relabel its primary button");
     onboarding.SetTestStatus("complete", succeeded: true);
     onboarding.SelectedDevice = new AudioInputDevice("mic-2", "Second microphone", false);
-    Assert(!onboarding.CanGoNext, "changing the selected microphone retained a stale successful test");
     onboarding.SetTestStatus("complete", succeeded: true);
     onboarding.Next();
     Assert(!onboarding.IsVisible && decisions.SequenceEqual([false]), "completion was not durably requested");
     Assert(selectedMode == mode && selectedDevice?.Id == "mic-2", "selections did not reach the live adapters");
 
+    // A fresh install has no credential, so every seeded mode is unavailable, and the provider
+    // step offers no way to add one. Blocking Continue on readiness made the flow a dead end whose
+    // only exit was Skip; blocking the test step on a test that cannot run moved the same dead end
+    // one step later. Readiness is now reported, not enforced. Selecting NO mode still blocks,
+    // because that is a choice the step itself can make.
     var unavailable = new LinuxOnboardingViewModel(
         new(true, true, false, false, false, true, false),
-        [new Mode { Id = Guid.NewGuid(), Name = "Parakeet", ProviderType = "local", LocalEngine = "parakeet" }],
+        [new Mode { Id = Guid.NewGuid(), Name = "Hyper", ProviderType = "cloud", CloudProvider = "hyperwhisper" }],
         null, [microphone], microphone, selectedModeAvailable: false,
         skipped => { decisions.Add(skipped); return true; }, _ => { }, _ => { }, key => key);
-    unavailable.Show(); unavailable.Next(); unavailable.Next(); unavailable.Next();
-    Assert(unavailable.IsProvider && !unavailable.CanGoNext,
-        "unavailable local engine incorrectly passed the provider readiness gate");
+    unavailable.Show(); unavailable.Next(); unavailable.Next();
+    Assert(unavailable.IsProvider && !unavailable.IsSelectedModeAvailable,
+        "an unavailable mode was reported as ready");
+    Assert(unavailable.UnavailableMessage == "linux.onboarding.provider.unavailable.cloud",
+        "a cloud mode was told to fix its local engine");
+    Assert(unavailable.ContinueLabel == "linux.onboarding.continue", "a middle step used the last step's label");
+    Assert(unavailable.CanGoNext, "an unavailable mode still made onboarding a dead end");
+    unavailable.SelectedMode = null;
+    Assert(!unavailable.CanGoNext, "the provider step advanced with no mode chosen");
     unavailable.Skip();
     Assert(!unavailable.IsVisible && decisions.SequenceEqual([false, true]), "skip was not durably requested");
     return Task.CompletedTask;
@@ -310,6 +320,36 @@ static async Task M4aPlaybackDecodes()
         Assert(loaded.IsSuccess && decoding.LoadedFilePath == source, "M4A playback wrapper did not preserve the history path");
         Assert(playback.LoadedPath is not null && Path.GetExtension(playback.LoadedPath) == ".wav"
             && File.Exists(playback.LoadedPath), "M4A playback did not decode a temporary WAV");
+
+        // ffmpeg writes a LIST/INFO chunk between `fmt ` and `data` unless it is told not to, and
+        // the player reads the canonical layout, which puts `data` at a fixed offset 36. So a
+        // default-flags decode produced a file the player refused and EVERY imported non-WAV
+        // recording reported "Audio file could not be loaded" with a good decode on disk.
+        using (var decoded = File.OpenRead(playback.LoadedPath!))
+            Assert(PcmWaveHeader.TryRead(decoded, out _) == PcmWaveHeaderStatus.Valid,
+                "the decoded playback WAV is not the canonical layout the player reads");
+
+        // A ".wav" extension used to skip the decode entirely, so a WAV carrying that same LIST
+        // chunk -- which is what ffmpeg, and most recorders, write -- was handed straight to the
+        // player and rejected. The extension no longer decides; a failed load falls back.
+        var listChunkWav = Path.Combine(directory, "imported.wav");
+        using (var process = Process.Start(new ProcessStartInfo(ffmpeg)
+        {
+            UseShellExecute = false,
+            ArgumentList = { "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono", "-t", "0.1", "-c:a", "pcm_s16le", listChunkWav },
+        })!) await process.WaitForExitAsync();
+        using (var raw = File.OpenRead(listChunkWav))
+            Assert(PcmWaveHeader.TryRead(raw, out _) != PcmWaveHeaderStatus.Valid,
+                "this WAV is already canonical, so it cannot show the fallback works");
+
+        using var wavPlayback = new InspectingPlaybackService();
+        using var wavDecoding = new FfmpegDecodingAudioPlaybackService(wavPlayback, new StaticPaths(directory), ffmpeg);
+        var wavLoaded = wavDecoding.Load(listChunkWav);
+        Assert(wavLoaded.IsSuccess, "a non-canonical imported WAV did not fall back to the decode");
+        Assert(wavDecoding.LoadedFilePath == listChunkWav, "the fallback lost the history path");
+        Assert(wavPlayback.LoadAttempts is [var first, var second]
+            && first == listChunkWav && second != listChunkWav,
+            "the fallback did not try the file itself first, then the decode");
     }
     finally { Directory.Delete(directory, recursive: true); }
 }
@@ -1436,7 +1476,24 @@ sealed class InspectingPlaybackService : IAudioPlaybackService
     public TimeSpan TotalDuration => TimeSpan.Zero;
     public string? LoadedFilePath => LoadedPath;
     public string? LoadedPath { get; private set; }
-    public PlatformResult Load(string audioPath) { LoadedPath = audioPath; return PlatformResult.Success(); }
+    public List<string> LoadAttempts { get; } = [];
+
+    /// <summary>
+    /// Mirrors the real Pulse player: it reads the canonical 44-byte layout and refuses anything
+    /// else. A fake that accepted every path could not tell a decode that produces a playable file
+    /// from one that produces a file the player then rejects.
+    /// </summary>
+    public PlatformResult Load(string audioPath)
+    {
+        LoadAttempts.Add(audioPath);
+        using (var stream = File.OpenRead(audioPath))
+        {
+            if (PcmWaveHeader.TryRead(stream, out _) != PcmWaveHeaderStatus.Valid)
+                return PlatformResult.Failure("audio_format_unsupported", "Not canonical PCM.");
+        }
+        LoadedPath = audioPath;
+        return PlatformResult.Success();
+    }
     public void Play() { }
     public void Pause() { }
     public void Stop() { }

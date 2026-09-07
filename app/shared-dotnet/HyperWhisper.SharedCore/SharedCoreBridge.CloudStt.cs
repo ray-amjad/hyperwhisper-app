@@ -26,6 +26,19 @@ public static partial class SharedCoreBridge
     public static IReadOnlyList<string> StreamingCloudSttTiers() =>
         HyperwhisperCoreMethods.CloudSttStreamingCloudTierEntryIds();
 
+    /// <summary>
+    /// A HyperWhisper Cloud accuracy tier's own display name, e.g. "ElevenLabs Scribe v2" for
+    /// `elevenLabsScribeV2`. The tier is the whole model choice a HyperWhisper Cloud mode has, so
+    /// this is the string to draw wherever such a mode is asked what model it runs. Null when the
+    /// id is not a catalog tier, so the caller can decide what to draw instead.
+    /// </summary>
+    public static string? CloudSttTierLabel(string? tierId)
+    {
+        if (string.IsNullOrWhiteSpace(tierId)) return null;
+        var entry = HyperwhisperCoreMethods.CloudSttEntry(tierId.Trim());
+        return string.IsNullOrWhiteSpace(entry?.@displayName) ? null : entry!.@displayName;
+    }
+
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 

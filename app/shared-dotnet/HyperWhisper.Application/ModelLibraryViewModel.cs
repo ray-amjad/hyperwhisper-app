@@ -164,6 +164,15 @@ public sealed class ManagedModelViewModel : ViewModelBase
 
     public bool HasProviderAsset => ProviderAssetName is not null;
 
+    /// <summary>
+    /// The chip the logo sits on. See <see cref="ProviderAssets.ChipColorFor"/>: the marks are
+    /// single-colour ink and the colour differs per vendor, so the chip is per vendor too. A row
+    /// with no PNG draws its monogram on the neutral chip.
+    /// </summary>
+    public string ProviderChipColor => HasProviderAsset
+        ? ProviderAssets.ChipColorFor(ProviderAssetName)
+        : ProviderAssets.NeutralChipColor;
+
     /// <summary>The letter Windows draws in place of a missing logo.</summary>
     public string ProviderMonogram => ProviderName.Length > 0
         ? ProviderName[..1].ToUpperInvariant()

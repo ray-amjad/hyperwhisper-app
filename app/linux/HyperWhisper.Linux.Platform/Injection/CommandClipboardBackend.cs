@@ -111,16 +111,30 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
             return PlatformResult.Failure("clipboard_text_too_large", "The transcript exceeds the private clipboard limit.");
         if (privacyPolicy == ClipboardHistoryPrivacyPolicy.BestEffort && _nativeOwner?.IsAvailable == true)
         {
-            var privatePayload = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            var payload = new Dictionary<string, byte[]>(StringComparer.Ordinal)
             {
-                ["text/plain;charset=utf-8"] = textBytes,
                 [PrivacyHintMimeType] = "secret"u8.ToArray(),
-            });
-            return await _nativeOwner.OwnAsync(privatePayload, token).ConfigureAwait(false);
+            };
+            foreach (var format in PlainTextFormats) payload[format] = textBytes;
+            return await _nativeOwner.OwnAsync(new ClipboardSnapshot(payload), token).ConfigureAwait(false);
         }
-        var result = await RunAsync(_copy, WriteArguments("text/plain;charset=utf-8"), textBytes, token).ConfigureAwait(false);
+        // No explicit target. Both helpers advertise their whole plain-text alias set when they are
+        // not pinned to one: xclip answers STRING, UTF8_STRING, TEXT and text/plain as well as
+        // text/plain;charset=utf-8, and wl-copy does the same. Pinning the type to
+        // text/plain;charset=utf-8 published that one atom alone, and an app that asks for
+        // UTF8_STRING -- which is most GTK and Qt apps, and every terminal -- got nothing back, so
+        // paste did nothing after a transcription. One helper can only own one target set at a
+        // time, so a second run would replace the first rather than add to it.
+        var result = await RunAsync(_copy, WriteArguments(null), textBytes, token).ConfigureAwait(false);
         return result.IsSuccess ? PlatformResult.Success() : PlatformResult.Failure(result.Error!.Code, result.Error.Message);
     }
+
+    /// <summary>
+    /// The plain-text targets a Linux app may ask the selection owner for. The native owner can
+    /// hold all of them at once, so it publishes the transcript under every one.
+    /// </summary>
+    private static readonly string[] PlainTextFormats =
+        ["text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING", "TEXT"];
 
     private IReadOnlyList<string> ListArguments() => _wayland
         ? ["--list-types"]
@@ -128,9 +142,14 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
     private IReadOnlyList<string> ReadArguments(string format) => _wayland
         ? ["--type", format]
         : ["-selection", "clipboard", "-target", format, "-out"];
-    private IReadOnlyList<string> WriteArguments(string format) => _wayland
-        ? ["--type", format]
-        : ["-selection", "clipboard", "-target", format, "-in"];
+    /// <summary>
+    /// A null <paramref name="format"/> leaves the helper on its default target set, which is the
+    /// whole plain-text alias family. Only a restore of a captured non-text format needs to pin
+    /// one exact target.
+    /// </summary>
+    private IReadOnlyList<string> WriteArguments(string? format) => _wayland
+        ? format is null ? [] : ["--type", format]
+        : format is null ? ["-selection", "clipboard", "-in"] : ["-selection", "clipboard", "-target", format, "-in"];
 
     private static IReadOnlyList<string> ParseFormats(string output) => output
         .Split(['\r', '\n', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

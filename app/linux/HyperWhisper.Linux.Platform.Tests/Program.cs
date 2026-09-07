@@ -942,8 +942,11 @@ static async Task ClipboardPrivacyMimePolicy()
         backend.GetCapabilities().ClipboardHistoryPrivacy);
     Assert.Success(await backend.SetTextAsync("private transcript", ClipboardHistoryPrivacyPolicy.BestEffort,
         CancellationToken.None));
-    Assert.Equal(2, owner.Owned!.Formats.Count);
-    Assert.SequenceEqual("private transcript"u8.ToArray(), owner.Owned.Formats["text/plain;charset=utf-8"]);
+    // Five plain-text targets plus the privacy hint. Publishing text/plain;charset=utf-8 alone
+    // meant an app that asks for UTF8_STRING or STRING -- which is most of them -- pasted nothing.
+    Assert.Equal(6, owner.Owned!.Formats.Count);
+    foreach (var format in new[] { "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING", "TEXT" })
+        Assert.SequenceEqual("private transcript"u8.ToArray(), owner.Owned.Formats[format]);
     Assert.SequenceEqual("secret"u8.ToArray(), owner.Owned.Formats["x-kde-passwordManagerHint"]);
 
     owner.Clear();

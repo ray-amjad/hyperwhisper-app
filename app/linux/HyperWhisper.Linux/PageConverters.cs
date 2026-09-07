@@ -184,6 +184,52 @@ public sealed class ModeProviderLineConverter : IValueConverter
 }
 
 /// <summary>
+/// The model name for the status bar's "Model:" slot.
+///
+/// The status bar bound <c>Mode.Model</c> straight, which is the LOCAL engine's model column. No
+/// seeded mode is a local mode, so every default install read "Model: None" for good. Each
+/// provider type keeps its model in its own column, so the column is chosen from the type: a
+/// local mode by engine, a cloud mode by its transcription model, and a HyperWhisper Cloud mode
+/// by its accuracy tier, which is the only model choice that mode has.
+/// </summary>
+public sealed class StatusBarModelConverter : IValueConverter
+{
+    private readonly LocalModelLabelConverter _local = new();
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not Mode mode) return "None";
+        string? id;
+        if (string.Equals(mode.ProviderType, "local", StringComparison.OrdinalIgnoreCase))
+        {
+            id = string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
+                ? mode.LocalParakeetModel ?? mode.Model
+                : mode.ModelType ?? mode.Model;
+            var label = _local.Convert(id, typeof(string), null, culture) as string;
+            return string.IsNullOrWhiteSpace(label) ? "None" : label;
+        }
+
+        if (ModeProviderLineConverter.IsHyperWhisperCloud(mode.CloudProvider))
+        {
+            // The accuracy tier IS the model choice for a HyperWhisper Cloud mode. Draw the tier's
+            // catalog display name, not its stored id: "ElevenLabs Scribe v2", not
+            // "elevenLabsScribeV2".
+            var tier = HyperWhisper.SharedCore.SharedCoreBridge.CloudSttTierLabel(mode.CloudAccuracyTier);
+            if (!string.IsNullOrWhiteSpace(tier)) return tier;
+            return string.IsNullOrWhiteSpace(mode.CloudAccuracyTier) ? "None" : mode.CloudAccuracyTier;
+        }
+
+        id = mode.CloudTranscriptionModel ?? mode.Model;
+        if (string.IsNullOrWhiteSpace(id)) return "None";
+        var name = HyperWhisper.ModelReadiness.CloudSttModelCatalog.Label(id);
+        return string.IsNullOrWhiteSpace(name) ? id : name;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
 /// The inline post-processing segment: a separator, a glyph and the post-processing model name,
 /// shown only while the mode actually post-processes. PostProcessingMode 0 is off.
 /// </summary>

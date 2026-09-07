@@ -236,15 +236,21 @@
              Windows shows a list. The card is now wired the way Windows wires it, so it starts
              working as soon as a feed sets ReleasesError. -->
         <StackPanel Margin="0,0,0,16">
-          <TextBlock Text="{ReflectionBinding [home.recentReleases.title], Source={StaticResource Localization}}" Classes="sectionTitle" Margin="0,0,0,16"/>
-          <Border Classes="card" Margin="0,0,0,12" IsVisible="{Binding HasReleasesError}">
-            <StackPanel HorizontalAlignment="Center" Margin="0,8">
-              <TextBlock Text="{ReflectionBinding [home.recentReleases.error], Source={StaticResource Localization}}"
-                         Foreground="{DynamicResource HwTextSecondaryBrush}" HorizontalAlignment="Center"/>
-              <Button Classes="accent" Content="{ReflectionBinding [home.recentReleases.retry], Source={StaticResource Localization}}"
-                      Command="{Binding RefreshCommand}" HorizontalAlignment="Center" Margin="0,8,0,0" Padding="16,6"/>
-            </StackPanel>
-          </Border>
+          <!-- The heading was drawn unconditionally, so a Linux user saw "Recent Updates" with an
+               empty gap under it on every launch: nothing on Linux reads an appcast, so there are
+               neither release cards nor an error to report. Heading and card now share the one
+               condition. Add the release list's own condition here when a feed lands. -->
+          <StackPanel IsVisible="{Binding HasReleasesError}">
+            <TextBlock Text="{ReflectionBinding [home.recentReleases.title], Source={StaticResource Localization}}" Classes="sectionTitle" Margin="0,0,0,16"/>
+            <Border Classes="card" Margin="0,0,0,12">
+              <StackPanel HorizontalAlignment="Center" Margin="0,8">
+                <TextBlock Text="{ReflectionBinding [home.recentReleases.error], Source={StaticResource Localization}}"
+                           Foreground="{DynamicResource HwTextSecondaryBrush}" HorizontalAlignment="Center"/>
+                <Button Classes="accent" Content="{ReflectionBinding [home.recentReleases.retry], Source={StaticResource Localization}}"
+                        Command="{Binding RefreshCommand}" HorizontalAlignment="Center" Margin="0,8,0,0" Padding="16,6"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
         <!-- RECORD AND TRANSCRIBE
              Linux needs a visible path to record on a desktop where the global shortcut cannot
              register, and file import has no Windows equivalent either, so neither could simply
@@ -260,7 +266,7 @@
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"
                   IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.AudioDevices, Converter={StaticResource AnyItemsConverter}}"><TextBlock Text="{ReflectionBinding [linux.ui.audio.input], Source={StaticResource Localization}}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" ItemsSource="{ReflectionBinding $parent[Window].DataContext.Recording.AudioDevices}" SelectedItem="{ReflectionBinding $parent[Window].DataContext.Recording.SelectedAudioDevice, Mode=TwoWay}"><ComboBox.ItemTemplate><DataTemplate x:DataType="platform:AudioInputDevice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid>
             <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="HomeStopRecordingButton" Content="{ReflectionBinding [linux.ui.stop.and.transcribe], Source={StaticResource Localization}}" Click="OnStopRecording"/><Button x:Name="HomeCancelRecordingButton" Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}" Click="OnCancelRecording"/><Button Content="{ReflectionBinding [linux.ui.refresh.devices], Source={StaticResource Localization}}" Command="{ReflectionBinding $parent[Window].DataContext.Recording.RefreshDevicesCommand}"/></StackPanel>
-            <TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.State, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.state.value}" Classes="caption"/><TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.Message}" TextWrapping="Wrap" Classes="caption"/><TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.ErrorCode}" IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.HasError}" Classes="caption"/>
+            <TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.State, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.state.value}" Classes="caption"/><TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.Message}" TextWrapping="Wrap" Classes="caption"/><TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.ErrorCode}" IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.ShowErrorCode}" Classes="caption"/>
             <Separator/>
             <TextBlock Text="{ReflectionBinding [linux.ui.transcribe.an.existing.audio.file], Source={StaticResource Localization}}" Classes="rowTitle"/>
             <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8"><TextBox x:Name="HomeAudioFileInput" Text="{ReflectionBinding $parent[Window].DataContext.Recording.FilePath, Mode=TwoWay}" PlaceholderText="WAV, MP3, M4A, FLAC, OGG, or WebM"/><Button Grid.Column="1" Content="{ReflectionBinding [linux.ui.browse], Source={StaticResource Localization}}" Click="OnBrowseAudioFile"/><Button x:Name="HomeTranscribeFileButton" Grid.Column="2" Content="{ReflectionBinding [linux.ui.transcribe.file], Source={StaticResource Localization}}" Command="{ReflectionBinding $parent[Window].DataContext.Recording.TranscribeFileCommand}"/><Button Grid.Column="3" Content="{ReflectionBinding [linux.ui.cancel.import], Source={StaticResource Localization}}" Command="{ReflectionBinding $parent[Window].DataContext.Recording.CancelCommand}" IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.IsImporting}"/></Grid>
@@ -303,11 +309,18 @@
                       BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="1">
                 <Grid ColumnDefinitions="Auto,*">
                 <Path Data="{StaticResource HwIconSearch}" Fill="{DynamicResource HwTextSecondaryBrush}" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                <!-- SearchText alone changes nothing: the list is only refilled by SearchCommand,
+                     and the period combo was the one control that ran it. Typing here now runs the
+                     same query, debounced so a query does not start on every keystroke. -->
                 <TextBox Grid.Column="1" x:Name="HistorySearchInput" Classes="bare" FontSize="13" Padding="4,6"
-                         VerticalAlignment="Center" Text="{Binding SearchText}"/>
+                         VerticalAlignment="Center" Text="{Binding SearchText}"
+                         TextChanged="OnHistorySearchTextChanged"/>
                 </Grid>
               </Border>
-              <ComboBox x:Name="HistoryPeriod" Grid.Column="1" Margin="12,0,0,0" Width="90" VerticalAlignment="Center" SelectedIndex="0" SelectionChanged="OnHistoryPeriodChanged">
+              <!-- 90px clipped the two longest options ("This Week", "This Month") to an ellipsis
+                   in English, and every translation of them is longer still. MinWidth lets the box
+                   grow with the widest item instead of cutting it. -->
+              <ComboBox x:Name="HistoryPeriod" Grid.Column="1" Margin="12,0,0,0" MinWidth="120" VerticalAlignment="Center" SelectedIndex="0" SelectionChanged="OnHistoryPeriodChanged">
                 <ComboBoxItem Tag="All" Content="{ReflectionBinding [history.filter.all], Source={StaticResource Localization}}"/>
                 <ComboBoxItem Tag="Today" Content="{ReflectionBinding [history.filter.today], Source={StaticResource Localization}}"/>
                 <ComboBoxItem Tag="ThisWeek" Content="{ReflectionBinding [history.filter.week], Source={StaticResource Localization}}"/>
@@ -428,21 +441,25 @@
                   </StackPanel>
                 </Border>
               </StackPanel>
-              <!-- Row 2: the coloured provider badges, the failure badge and the raw-text badge. -->
-              <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                <Border Classes="hBadge success" Margin="0,0,8,0" IsVisible="{Binding Selected.TranscriptionProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
+              <!-- Row 2: the coloured provider badges, the failure badge and the raw-text badge.
+                   A horizontal StackPanel never wraps, so the last badges were cut off at the pane
+                   edge whenever a provider name was long or the window was narrow. A WrapPanel
+                   keeps the same left-to-right order and moves the overflow onto a second line;
+                   the per-badge bottom margin is what spaces those lines. -->
+              <WrapPanel Orientation="Horizontal" Margin="0,10,0,0">
+                <Border Classes="hBadge success" Margin="0,0,8,6" IsVisible="{Binding Selected.TranscriptionProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
                   <TextBlock Text="{Binding Selected.TranscriptionProvider}" FontSize="11"/>
                 </Border>
-                <Border Classes="hBadge info" Margin="0,0,8,0" IsVisible="{Binding Selected.PostProcessingProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
+                <Border Classes="hBadge info" Margin="0,0,8,6" IsVisible="{Binding Selected.PostProcessingProvider, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
                   <TextBlock Text="{Binding Selected.PostProcessingProvider}" FontSize="11"/>
                 </Border>
-                <Border Classes="hBadge error" Margin="0,0,8,0" IsVisible="{Binding IsSelectedFailed}">
+                <Border Classes="hBadge error" Margin="0,0,8,6" IsVisible="{Binding IsSelectedFailed}">
                   <TextBlock Text="{ReflectionBinding [history.status.failed], Source={StaticResource Localization}}" FontSize="11"/>
                 </Border>
-                <Border Classes="hBadge" Margin="0,0,8,0" IsVisible="{Binding ShowRawTranscript}">
+                <Border Classes="hBadge" Margin="0,0,8,6" IsVisible="{Binding ShowRawTranscript}">
                   <TextBlock Text="{ReflectionBinding [history.badge.originalTranscript], Source={StaticResource Localization}}" FontSize="11"/>
                 </Border>
-              </StackPanel>
+              </WrapPanel>
             </StackPanel>
           </Border>
           <!-- No heading above the body: Windows shows the transcript alone, in a read-only but
@@ -1766,8 +1783,15 @@
                              AvaloniaResource rather than copied. A provider with no PNG (Meta)
                              falls back to a letter monogram, which is what Windows draws too;
                              HasProviderAsset, not a null image, decides which one shows. -->
+                        <!-- The chip is the VENDOR'S brand colour, not a theme brush. The PNGs are
+                             single-colour ink on transparency and the colour differs per vendor,
+                             so no one background makes them all legible: on the theme's input
+                             background — srgb(252,252,253) in the light theme — a white OpenAI or
+                             Groq mark measured the same colour as the tile it sat on, and the whole
+                             column read as blank. Windows gives each mark its own brand chip
+                             (ApiKeysSettingsPage.xaml) and never had the problem. -->
                         <Border Width="32" Height="32" CornerRadius="7" Margin="0,0,10,0" VerticalAlignment="Center"
-                                Background="{DynamicResource HwInputBackgroundBrush}">
+                                Background="{Binding ProviderChipColor}">
                           <Panel>
                             <Image Width="22" Height="22" IsVisible="{Binding HasProviderAsset}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -2469,7 +2493,10 @@
         </StackPanel>
         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock Text="{ReflectionBinding [statusbar.model], Source={StaticResource Localization}}" Foreground="{DynamicResource HwTextTertiaryBrush}" FontSize="11"/>
-          <TextBlock Text="{Binding Modes.Selected.Model, FallbackValue=None, TargetNullValue=None}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11"/>
+          <!-- Mode.Model is the LOCAL engine's column and no seeded mode is a local mode, so this
+               read "None" on every default install. The converter picks the column that matches
+               the mode's own provider type. -->
+          <TextBlock Text="{Binding Modes.Selected, Converter={StaticResource StatusBarModelConverter}, FallbackValue=None, TargetNullValue=None}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11"/>
         </StackPanel>
       </Grid>
     </Border>
@@ -2483,11 +2510,11 @@
           <ScrollViewer><StackPanel Spacing="14">
             <StackPanel IsVisible="{Binding IsWelcome}" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.onboarding.welcome.title], Source={StaticResource Localization}}" FontSize="28" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding [linux.onboarding.welcome.body], Source={StaticResource Localization}}" TextWrapping="Wrap"/></StackPanel>
             <StackPanel IsVisible="{Binding IsCapabilities}" Spacing="10"><TextBlock Text="{ReflectionBinding [linux.onboarding.capabilities.title], Source={StaticResource Localization}}" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding [linux.onboarding.capabilities.body], Source={StaticResource Localization}}" TextWrapping="Wrap"/><CheckBox Content="{ReflectionBinding [linux.onboarding.capability.audio], Source={StaticResource Localization}}" IsChecked="{Binding Capabilities.AudioCapture}" IsEnabled="False"/><CheckBox Content="{ReflectionBinding [linux.onboarding.capability.clipboard], Source={StaticResource Localization}}" IsChecked="{Binding Capabilities.Clipboard}" IsEnabled="False"/><CheckBox Content="{ReflectionBinding [linux.onboarding.capability.uinput], Source={StaticResource Localization}}" IsChecked="{Binding Capabilities.UInput}" IsEnabled="False"/><CheckBox Content="{ReflectionBinding [linux.onboarding.capability.shortcuts], Source={StaticResource Localization}}" IsChecked="{Binding Capabilities.GlobalShortcuts}" IsEnabled="False"/><CheckBox Content="{ReflectionBinding [linux.onboarding.capability.portal], Source={StaticResource Localization}}" IsChecked="{Binding Capabilities.DesktopPortal}" IsEnabled="False"/></StackPanel>
-            <StackPanel IsVisible="{Binding IsProvider}" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.onboarding.provider.title], Source={StaticResource Localization}}" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding [linux.onboarding.provider.body], Source={StaticResource Localization}}" TextWrapping="Wrap"/><ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" SelectionChanged="OnOnboardingModeChanged"><ComboBox.ItemTemplate><DataTemplate x:DataType="data:Mode"><StackPanel><TextBlock Text="{Binding Name}"/><TextBlock Text="{Binding ProviderType}" FontSize="11" Opacity="0.65"/></StackPanel></DataTemplate></ComboBox.ItemTemplate></ComboBox><TextBlock Text="{ReflectionBinding [linux.onboarding.provider.unavailable], Source={StaticResource Localization}}" IsVisible="{Binding !IsSelectedModeAvailable}" TextWrapping="Wrap" Foreground="Orange"/></StackPanel>
-            <StackPanel IsVisible="{Binding IsMicrophone}" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.onboarding.microphone.title], Source={StaticResource Localization}}" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding [linux.onboarding.microphone.body], Source={StaticResource Localization}}" TextWrapping="Wrap"/><ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"><ComboBox.ItemTemplate><DataTemplate x:DataType="platform:AudioInputDevice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox><TextBlock Text="{ReflectionBinding [linux.onboarding.microphone.unavailable], Source={StaticResource Localization}}" IsVisible="{Binding !Capabilities.AudioCapture}" TextWrapping="Wrap" Foreground="Orange"/></StackPanel>
+            <StackPanel IsVisible="{Binding IsProvider}" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.onboarding.provider.title], Source={StaticResource Localization}}" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding [linux.onboarding.provider.body], Source={StaticResource Localization}}" TextWrapping="Wrap"/><ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" SelectionChanged="OnOnboardingModeChanged"><ComboBox.ItemTemplate><DataTemplate x:DataType="data:Mode"><StackPanel><TextBlock Text="{Binding Name}"/><TextBlock Text="{Binding ProviderType}" FontSize="11" Opacity="0.65"/></StackPanel></DataTemplate></ComboBox.ItemTemplate></ComboBox><TextBlock Text="{Binding UnavailableMessage}" IsVisible="{Binding !IsSelectedModeAvailable}" TextWrapping="Wrap" Foreground="Orange"/></StackPanel>
+            <StackPanel IsVisible="{Binding IsMicrophone}" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.onboarding.microphone.title], Source={StaticResource Localization}}" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding [linux.onboarding.microphone.body], Source={StaticResource Localization}}" TextWrapping="Wrap"/><ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"><ComboBox.ItemTemplate><DataTemplate x:DataType="platform:AudioInputDevice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox><TextBlock Text="{ReflectionBinding [linux.onboarding.microphone.unavailable], Source={StaticResource Localization}}" IsVisible="{Binding HasNoMicrophone}" TextWrapping="Wrap" Foreground="Orange"/></StackPanel>
             <StackPanel IsVisible="{Binding IsTest}" Spacing="12"><TextBlock Text="{ReflectionBinding [linux.onboarding.test.title], Source={StaticResource Localization}}" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding [linux.onboarding.test.body], Source={StaticResource Localization}}" TextWrapping="Wrap"/><Button Content="{ReflectionBinding [linux.onboarding.test.button], Source={StaticResource Localization}}" Click="OnOnboardingTestDictation" IsEnabled="{Binding IsTestReady}" HorizontalAlignment="Left"/><TextBlock Text="{Binding TestStatus}" TextWrapping="Wrap"/><TextBlock Text="{ReflectionBinding [linux.onboarding.test.privacy], Source={StaticResource Localization}}" Classes="caption"/></StackPanel>
           </StackPanel></ScrollViewer>
-          <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8"><Button Content="{ReflectionBinding [linux.onboarding.back], Source={StaticResource Localization}}" Click="OnOnboardingBack" IsEnabled="{Binding CanGoBack}"/><Button Grid.Column="2" Content="{ReflectionBinding [linux.onboarding.skip], Source={StaticResource Localization}}" Click="OnOnboardingSkip"/><Button Grid.Column="3" Classes="accent" Content="{ReflectionBinding [linux.onboarding.continue], Source={StaticResource Localization}}" Click="OnOnboardingNext" IsEnabled="{Binding CanGoNext}"/></Grid>
+          <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8"><Button Content="{ReflectionBinding [linux.onboarding.back], Source={StaticResource Localization}}" Click="OnOnboardingBack" IsEnabled="{Binding CanGoBack}"/><Button Grid.Column="2" Content="{ReflectionBinding [linux.onboarding.skip], Source={StaticResource Localization}}" Click="OnOnboardingSkip"/><Button Grid.Column="3" Classes="accent" Content="{Binding ContinueLabel}" Click="OnOnboardingNext" IsEnabled="{Binding CanGoNext}"/></Grid>
         </Grid>
       </Border>
     </Border>

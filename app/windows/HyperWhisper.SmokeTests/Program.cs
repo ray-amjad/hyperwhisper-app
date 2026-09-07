@@ -7853,6 +7853,34 @@ internal static class Program
                 Assert(h.Flow.AreCreditsConfirmed, "so the Credits confirmed row ticks");
             });
 
+            RunAsync("onboarding: a passing probe refreshes the balance with the probed key", async () =>
+            {
+                // Same first-run problem one step earlier. The entry fetch runs unlicensed and
+                // comes back "Invalid license key", so the big number above "credits available"
+                // sat on its "…" placeholder for good on a perfectly valid key. A probe does NOT
+                // store the key -- only activation does -- so the key has to be handed to the
+                // fetch, or it asks about the device id and fails the same way again.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.LicenseKeyInput = "  HW-GOOD  ";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66950, 10627, "$66.95 remaining");
+                var before = h.Credits.RefreshCount;
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                await h.LastTask;
+
+                Assert(h.Flow.LicenseTestPassed == true, "the probe passed");
+                Assert(h.Credits.RefreshCount > before, "a passing probe must ask for the balance");
+                Assert(h.Credits.LastLicenseKeyOverride == "HW-GOOD",
+                    $"the probed key must reach the fetch, got '{h.Credits.LastLicenseKeyOverride}'");
+                Assert(h.Flow.HasCredits, "and the balance must land on the flow");
+            });
+
             Run("onboarding: the Done summary shows the credit count, not the balance line", () =>
             {
                 // The format is "{0} · {1} credits", so {1} is a COUNT. Passing

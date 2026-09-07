@@ -158,9 +158,26 @@ public sealed class CloudAccountViewModel : ViewModelBase
     /// </summary>
     public bool IsActivating { get => _isActivating; private set => Set(ref _isActivating, value); }
 
+    private const string ActivatedMessage =
+        "Account activated; the key is stored securely and is never displayed.";
+
     public async Task ActivateAsync(CancellationToken cancellationToken = default)
     {
-        if (!TryBeginOperation()) return;
+        if (!await ActivateCoreAsync(cancellationToken)) return;
+        // Activation stores the key and returns the licence details, but no balance, and nothing
+        // else fetched one. So the balance card was an empty box and "Cost per Minute" read ~0.0
+        // until the user found the Refresh button. This is the one moment a key first becomes
+        // usable, so the credits are fetched here. RefreshCreditsAsync takes the operation gate
+        // itself, which is why it can only run once ActivateCoreAsync has released it.
+        await RefreshCreditsAsync(cancellationToken);
+        // Its success line would otherwise replace the activation confirmation, which is the news
+        // the user is actually waiting for. A credit failure keeps its own message.
+        if (!Status.HasError) Status.Success(ActivatedMessage);
+    }
+
+    private async Task<bool> ActivateCoreAsync(CancellationToken cancellationToken)
+    {
+        if (!TryBeginOperation()) return false;
         IsActivating = true;
         if (string.IsNullOrWhiteSpace(AccountKey))
         {
@@ -168,7 +185,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
             Status.Failure("account.key_required", "Enter the account key from your purchase email.");
             IsActivating = false;
             EndOperation();
-            return;
+            return false;
         }
 
         ActivationError = null;
@@ -181,7 +198,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
             if (identity.IsFailure)
             {
                 Status.Failure(identity.Error!.Code, identity.Error.Message);
-                return;
+                return false;
             }
 
             var result = await _service.ActivateAsync(new(
@@ -192,21 +209,24 @@ public sealed class CloudAccountViewModel : ViewModelBase
             {
                 ActivationError = result.Failure!.Message;
                 Status.Failure(Code(result.Failure!), result.Failure!.Message);
-                return;
+                return false;
             }
 
             ApplyDetails(result.Value!);
-            Status.Success("Account activated; the key is stored securely and is never displayed.");
+            Status.Success(ActivatedMessage);
+            return true;
         }
         catch (OperationCanceledException)
         {
             ActivationError = "Account activation was cancelled.";
             Status.Failure("account.cancelled", "Account activation was cancelled.");
+            return false;
         }
         catch (Exception)
         {
             ActivationError = "The account could not be activated.";
             Status.Failure("account.activation_failed", "The account could not be activated.");
+            return false;
         }
         finally
         {
