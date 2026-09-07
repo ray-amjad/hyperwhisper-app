@@ -48,8 +48,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: amountError }, { status: 400 });
     }
 
+    // validateCreditPurchaseAmount already proves this branch. Keep the local
+    // check so TypeScript also narrows the untrusted JSON value.
+    if (typeof amount !== "number") {
+      return NextResponse.json(
+        { error: "amount must be a finite number" },
+        { status: 400 }
+      );
+    }
+
     const { creditAmount, creditCents, feeCents } = computeCreditPurchase(
-      amount as number
+      amount
     );
 
     const siteUrl =

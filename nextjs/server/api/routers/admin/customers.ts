@@ -317,7 +317,10 @@ export const customersRouter = createTRPCRouter({
         });
       } catch (error) {
         // Unique-constraint race on user.email (Postgres 23505).
-        const code = (error as { code?: string } | null)?.code;
+        const code =
+          typeof error === "object" && error !== null && "code" in error
+            ? error.code
+            : undefined;
         if (code === "23505") {
           throw new TRPCError({
             code: "CONFLICT",

@@ -26,7 +26,7 @@ export default function SignInClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
-  const locale = (params.locale as string) || "en";
+  const locale = typeof params.locale === "string" ? params.locale : "en";
 
   const [activeTab, setActiveTab] = useState<Tab>("license-key");
   const [autoSigningIn, setAutoSigningIn] = useState(false);
