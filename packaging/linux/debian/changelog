@@ -1,3 +1,15 @@
+hyperwhisper (1.12.0) stable; urgency=medium
+
+  * Rebuild the Linux onboarding and app UI on the Windows design, and fix
+    the onboarding overlay getting stuck.
+  * Add Microsoft MAI-Transcribe-2 and Meta Muse Voice Transcribe as
+    HyperWhisper Cloud transcription options.
+  * Improve live-dictation accuracy with a shared word-agreement engine.
+  * Fix HyperWhisper Cloud transcription retries running past the
+    expected wait time, and /health reporting a failing provider as healthy.
+
+ -- HyperWhisper Contributors <opensource@hyperwhisper.com>  Mon, 07 Sep 2026 03:43:35 +0000
+
 hyperwhisper (1.1.0) stable; urgency=medium
 
   * Add Gemini 3.5 Transcribe for recordings and live dictation, with
