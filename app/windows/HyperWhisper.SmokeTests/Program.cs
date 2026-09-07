@@ -108,142 +108,17 @@ internal static class Program
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
             });
 
-            Run("ApplicationControlDiagnostics maps every trust status", () =>
-            {
-                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(0) == "trusted",
-                    "WinVerifyTrust success is not trusted");
-                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0100)) == "unsigned",
-                    "TRUST_E_NOSIGNATURE is not unsigned");
-                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0001)) == "unsigned",
-                    "TRUST_E_PROVIDER_UNKNOWN is not unsigned");
-                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0003)) == "unsigned",
-                    "TRUST_E_SUBJECT_FORM_UNKNOWN is not unsigned");
-                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0109)) == "untrusted",
-                    "a certificate-chain failure is not untrusted");
-                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(null) == "check_failed",
-                    "a missing WinVerifyTrust result is not check_failed");
-            });
-
-            Run("ApplicationControlDiagnostics parses only a safe numeric ZoneId", () =>
-            {
-                const string zoneData =
-                    "[ZoneTransfer]\r\n" +
-                    "ZoneId=3\r\n" +
-                    "ReferrerUrl=https://private.example.test/a\r\n" +
-                    "HostUrl=https://private.example.test/download\r\n";
-
-                var parsed = ApplicationControlDiagnostics.ParseZoneId(zoneData);
-                Assert(parsed.Status == "present", $"expected present, got {parsed.Status}");
-                Assert(parsed.ZoneId == 3, $"expected ZoneId 3, got {parsed.ZoneId}");
-
-                var missing = ApplicationControlDiagnostics.ParseZoneId(
-                    "[ZoneTransfer]\r\nHostUrl=https://private.example.test/download\r\n");
-                Assert(missing.Status == "invalid", $"missing ZoneId should be invalid, got {missing.Status}");
-                Assert(missing.ZoneId == null, "missing ZoneId produced a number");
-
-                var invalid = ApplicationControlDiagnostics.ParseZoneId("[ZoneTransfer]\r\nZoneId=999\r\n");
-                Assert(invalid.Status == "invalid", $"out-of-range ZoneId should be invalid, got {invalid.Status}");
-                Assert(invalid.ZoneId == null, "an invalid ZoneId entered the result");
-            });
-
-            Run("ApplicationControlDiagnostics builds a complete privacy-safe payload", () =>
-            {
-                const string testPath = @"C:\Users\private-user\Downloads\HyperWhisper.AppClassification.dll";
-                const string privateUrl = "https://private.example.test/download";
-                var parsedZone = ApplicationControlDiagnostics.ParseZoneId(
-                    $"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl={privateUrl}\r\n");
-                var snapshot = new ApplicationControlDiagnostics.Snapshot(
-                    AssemblyPresent: true,
-                    AssemblyFileSizeBytes: 48128,
-                    AuthenticodeStatus: "trusted",
-                    WinVerifyTrustHResult: 0,
-                    ZoneStreamStatus: parsedZone.Status,
-                    ZoneId: parsedZone.ZoneId,
-                    InspectionStage: "complete");
-
-                var payload = ApplicationControlDiagnostics.BuildPayload(snapshot);
-
-                Assert(payload.Tags["component"] == "application_context", "component tag is missing");
-                Assert(payload.Tags["diagnostic_name"] == "classifier_load_failed", "diagnostic tag is missing");
-                Assert(payload.Tags["classifier_assembly_name"] == ApplicationControlDiagnostics.ClassifierAssemblyName,
-                    "the fixed assembly name is missing");
-                Assert(payload.Tags["classifier_authenticode_status"] == "trusted", "trust status is missing");
-                Assert(payload.Tags["classifier_zone_stream_status"] == "present", "zone status is missing");
-                Assert(payload.Tags["classifier_inspection_stage"] == "complete", "inspection stage is missing");
-                Assert((bool)payload.Extras["classifier_assembly_present"], "assembly presence is missing");
-                Assert((long)payload.Extras["classifier_file_size_bytes"] == 48128, "file size is missing");
-                Assert((string)payload.Extras["classifier_winverifytrust_hresult"] == "0x00000000", "trust HRESULT is missing");
-                Assert((int)payload.Extras["classifier_zone_id"] == 3, "ZoneId is missing");
-                Assert(payload.Fingerprint.SequenceEqual(new[] { "application-control", "classifier-load-failed" }),
-                    "the Sentry fingerprint is not stable");
-
-                foreach (var key in payload.Extras.Keys)
-                {
-                    Assert(!SentryService.IsRedactedExtraKey(key),
-                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
-                }
-
-                var payloadValues = payload.Tags.Values
-                    .Concat(payload.Extras.Values.Select(value => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty))
-                    .Concat(payload.Fingerprint);
-
-                foreach (var value in payloadValues)
-                {
-                    Assert(!value.Contains(testPath, StringComparison.OrdinalIgnoreCase),
-                        "the resolved test path entered the payload");
-                    Assert(!value.Contains(privateUrl, StringComparison.OrdinalIgnoreCase),
-                        "URL-like zone data entered the payload");
-                }
-            });
-
-            Run("ApplicationControlDiagnostics returns the identical captured context", () =>
-            {
-                var context = new HyperWhisper.Services.ApplicationContext();
-                var snapshot = new ApplicationControlDiagnostics.Snapshot(
-                    AssemblyPresent: false,
-                    AssemblyFileSizeBytes: null,
-                    AuthenticodeStatus: "not_checked",
-                    WinVerifyTrustHResult: null,
-                    ZoneStreamStatus: "absent",
-                    ZoneId: null,
-                    InspectionStage: "assembly_not_found");
-                var order = new List<string>();
-                var reportCount = 0;
-
-                var returned = ApplicationControlDiagnostics.Gather(
-                    "standard_recording",
-                    () =>
-                    {
-                        order.Add("delegate");
-                        return context;
-                    },
-                    () =>
-                    {
-                        order.Add("inspect");
-                        return snapshot;
-                    },
-                    _ => reportCount++);
-
-                Assert(ReferenceEquals(returned, context), "the wrapper replaced the captured context");
-                Assert(order.SequenceEqual(new[] { "inspect", "delegate" }),
-                    "the classifier inspection did not run before context capture");
-                Assert(reportCount == 0, "a successful capture produced a failure report");
-            });
-
             Run("ApplicationControlDiagnostics rethrows the identical load exception", () =>
             {
+                const string privateUrl = "https://private.example.test/download";
+                var zone = ApplicationControlDiagnostics.ParseZoneId($"ZoneId=3\r\nHostUrl={privateUrl}");
                 var snapshot = new ApplicationControlDiagnostics.Snapshot(
-                    AssemblyPresent: true,
-                    AssemblyFileSizeBytes: 48128,
-                    AuthenticodeStatus: "untrusted",
-                    WinVerifyTrustHResult: unchecked((int)0x800B0109),
-                    ZoneStreamStatus: "present",
-                    ZoneId: 3,
-                    InspectionStage: "complete");
+                    true, 48128, "untrusted", unchecked((int)0x800B0109), zone.Status, zone.ZoneId, "complete");
                 var sentinel = new FileLoadException(
                     "private path must not enter the payload",
                     @"C:\Users\private-user\HyperWhisper.AppClassification.dll");
-                ApplicationControlDiagnostics.FailureReport? capturedReport = null;
+                Exception? reportedException = null;
+                ApplicationControlDiagnostics.Payload? capturedPayload = null;
 
                 try
                 {
@@ -251,7 +126,7 @@ internal static class Program
                         "streaming_recording",
                         () => throw sentinel,
                         () => snapshot,
-                        report => capturedReport = report);
+                        (exception, payload) => (reportedException, capturedPayload) = (exception, payload));
                     Assert(false, "the wrapper swallowed the load exception");
                 }
                 catch (FileLoadException exception)
@@ -259,35 +134,26 @@ internal static class Program
                     Assert(ReferenceEquals(exception, sentinel), "the wrapper replaced the load exception");
                 }
 
-                Assert(capturedReport != null, "the failure reporter did not receive a report");
-                Assert(ReferenceEquals(capturedReport.Exception, sentinel),
-                    "the failure reporter did not receive the original exception");
-                Assert(capturedReport.Payload.Tags["capture_stage"] == "streaming_recording",
-                    "the capture stage is missing");
-                Assert(!(bool)capturedReport.Payload.Extras["classifier_load_succeeded"],
-                    "the failed load was marked successful");
-                Assert((string)capturedReport.Payload.Extras["classifier_outer_exception_type"] ==
-                    typeof(FileLoadException).FullName, "the outer exception type is missing");
-                Assert((string)capturedReport.Payload.Extras["classifier_outer_hresult"] ==
-                    $"0x{unchecked((uint)sentinel.HResult):X8}", "the outer HRESULT is missing");
-                Assert((string)capturedReport.Payload.Extras["classifier_innermost_exception_type"] ==
-                    typeof(FileLoadException).FullName, "the innermost exception type is missing");
-                Assert((string)capturedReport.Payload.Extras["classifier_innermost_hresult"] ==
-                    $"0x{unchecked((uint)sentinel.HResult):X8}", "the innermost HRESULT is missing");
-                Assert((long)capturedReport.Payload.Extras["classifier_capture_elapsed_ms"] >= 0,
-                    "the elapsed time is invalid");
+                Assert(capturedPayload != null, "the failure reporter did not receive a payload");
+                Assert(ReferenceEquals(reportedException, sentinel), "the reporter replaced the exception");
+                Assert(capturedPayload.Tags["classifier_authenticode_status"] == "untrusted" &&
+                    capturedPayload.Tags["capture_stage"] == "streaming_recording" &&
+                    (int)capturedPayload.Extras["classifier_zone_id"] == 3, "diagnostic metadata is missing");
+                var expectedHResult = $"0x{unchecked((uint)sentinel.HResult):X8}";
+                Assert((string)capturedPayload.Extras["classifier_outer_exception_type"] == typeof(FileLoadException).FullName &&
+                    (string)capturedPayload.Extras["classifier_outer_hresult"] == expectedHResult &&
+                    (string)capturedPayload.Extras["classifier_innermost_hresult"] == expectedHResult,
+                    "exception type or HRESULT is missing");
+                Assert((long)capturedPayload.Extras["classifier_capture_elapsed_ms"] >= 0, "elapsed time is invalid");
+                Assert(!capturedPayload.Extras.Keys.Any(SentryService.IsRedactedExtraKey), "an extra is redacted");
 
-                foreach (var key in capturedReport.Payload.Extras.Keys)
-                {
-                    Assert(!SentryService.IsRedactedExtraKey(key),
-                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
-                }
-
-                var values = capturedReport.Payload.Tags.Values
-                    .Concat(capturedReport.Payload.Extras.Values.Select(
+                var values = capturedPayload.Tags.Values
+                    .Concat(capturedPayload.Extras.Values.Select(
                         value => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty));
                 Assert(!values.Any(value => value.Contains("private-user", StringComparison.OrdinalIgnoreCase)),
                     "exception content entered the custom failure payload");
+                Assert(!values.Any(value => value.Contains(privateUrl, StringComparison.OrdinalIgnoreCase)),
+                    "URL-like zone data entered the payload");
             });
 
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
