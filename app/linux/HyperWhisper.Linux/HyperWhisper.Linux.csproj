@@ -13,9 +13,9 @@
          Linux About page read "Version 1.1.0" and looked like a truncated minor field. Nothing
          generates these three lines, so they are hand-maintained: change them with the Windows
          ones, never on their own. -->
-    <Version>1.11.0</Version>
-    <AssemblyVersion>1.11.0.0</AssemblyVersion>
-    <FileVersion>1.11.0.0</FileVersion>
+    <Version>1.12.0</Version>
+    <AssemblyVersion>1.12.0.0</AssemblyVersion>
+    <FileVersion>1.12.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(SENTRY_DSN)' != ''">
