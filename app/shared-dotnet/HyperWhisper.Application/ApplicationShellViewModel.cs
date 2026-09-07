@@ -18,6 +18,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     private readonly CancellationTokenSource _lifetime = new();
     private object? _currentPage;
     private string _pageTitle = "Home";
+    private string _localPostProcessingStatus = string.Empty;
     private bool _initialized;
     private bool _disposed;
     private readonly Func<string, string>? _localize;
@@ -51,6 +52,14 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Vocabulary = new VocabularyViewModel(vocabularyRepository);
         Modes = new ModesViewModel(modeRepository, settings, credentials);
         Settings = new SettingsViewModel(settings, localLlmRuntimeStatus, localWhisperRuntimeStatus);
+        Streaming = new StreamingSettingsViewModel(Settings);
+        General = new GeneralSettingsViewModel(Settings);
+        Sound = new SoundSettingsViewModel(Settings);
+        Storage = new StorageSettingsViewModel(Settings);
+        Output = new OutputSettingsViewModel(Settings);
+        LocalApi = new LocalApiSettingsViewModel(Settings);
+        Shortcuts = new ShortcutsSettingsViewModel(Settings);
+        Appearance = new AppearanceSettingsViewModel(Settings);
         History = new HistoryViewModel(
             historyRepository,
             playback,
@@ -94,8 +103,10 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             Recording);
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         Backup.Imported += OnBackupImported;
+        Modes.PropertyChanged += OnModesPropertyChanged;
         _currentPage = Home;
         PageTitle = Text("sidebar.home", "Home");
+        UpdateLocalPostProcessingStatus();
     }
 
     public HomeViewModel Home { get; }
@@ -103,6 +114,14 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public VocabularyViewModel Vocabulary { get; }
     public ModesViewModel Modes { get; }
     public SettingsViewModel Settings { get; }
+    public StreamingSettingsViewModel Streaming { get; }
+    public GeneralSettingsViewModel General { get; }
+    public SoundSettingsViewModel Sound { get; }
+    public StorageSettingsViewModel Storage { get; }
+    public OutputSettingsViewModel Output { get; }
+    public LocalApiSettingsViewModel LocalApi { get; }
+    public ShortcutsSettingsViewModel Shortcuts { get; }
+    public AppearanceSettingsViewModel Appearance { get; }
     public ModelLibraryViewModel? Models { get; }
     public BackupViewModel Backup { get; }
     public CredentialManagementViewModel? Credentials { get; }
@@ -112,6 +131,44 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public UiStatus Status { get; } = new();
     public object? CurrentPage { get => _currentPage; private set => Set(ref _currentPage, value); }
     public string PageTitle { get => _pageTitle; private set => Set(ref _pageTitle, value); }
+
+    /// <summary>
+    /// The local post-processing model the selected mode will run, for the status bar.
+    /// Windows shows the same indicator, and only while a mode actually post-processes
+    /// through a local LLM: a cloud or a disabled mode leaves the group hidden.
+    /// </summary>
+    public string LocalPostProcessingStatus
+    {
+        get => _localPostProcessingStatus;
+        private set
+        {
+            if (Set(ref _localPostProcessingStatus, value)) Notify(nameof(HasLocalPostProcessingStatus));
+        }
+    }
+
+    public bool HasLocalPostProcessingStatus => !string.IsNullOrWhiteSpace(_localPostProcessingStatus);
+
+    private void OnModesPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(ModesViewModel.Selected) or null) UpdateLocalPostProcessingStatus();
+    }
+
+    private void UpdateLocalPostProcessingStatus()
+    {
+        // The same shape ModesViewModel reads a local post-processing mode with: mode 2 is
+        // "local", and only the local_llm provider runs a model on this machine.
+        var mode = Modes.Selected;
+        if (mode is null || mode.PostProcessingMode != 2
+            || !string.Equals(mode.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase))
+        {
+            LocalPostProcessingStatus = string.Empty;
+            return;
+        }
+
+        var model = mode.LocalPostProcessingModel;
+        if (string.IsNullOrWhiteSpace(model)) model = mode.LanguageModel;
+        LocalPostProcessingStatus = string.IsNullOrWhiteSpace(model) ? string.Empty : model!;
+    }
 
     public TranscriptionWorkflowRequest CreateTranscriptionRequest(
         Mode? mode,
@@ -165,8 +222,17 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             "history" => (Text("sidebar.history", "History"), History),
             "vocabulary" => (Text("sidebar.vocabulary", "Vocabulary"), Vocabulary),
             "modes" => (Text("sidebar.modes", "Modes"), Modes),
-            "settings" => (Text("sidebar.settings", "Settings"), Settings),
-            "models" when Models is not null => (Text("settings.section.models", "Models"), Models),
+            "settings" => (Text("settings.nav.general", "General"), General),
+            "sound" => (Text("settings.nav.sound", "Sound"), Sound),
+            "storage" => (Text("settings.nav.storage", "Storage"), Storage),
+            "output" => (Text("settings.nav.output", "Output"), Output),
+            "localapi" => (Text("settings.nav.localApi", "Local API"), LocalApi),
+            "shortcuts" => (Text("settings.nav.shortcuts", "Shortcuts"), Shortcuts),
+            "appearance" => (Text("settings.nav.appearance", "Appearance"), Appearance),
+            "streaming" => (Text("settings.nav.streaming", "Streaming"), Streaming),
+            // Windows titles this page "Model Library", not "Models" — the sidebar row keeps
+            // the short label, the page header carries the long one.
+            "models" when Models is not null => (Text("linux.models.library.title", "Model Library"), Models),
             "backup" => (Text("settings.nav.backup", "Backup"), Backup),
             "credentials" when Credentials is not null => (Text("linux.ui.provider.credentials", "Credentials"), Credentials),
             "account" when Account is not null => (Text("linux.ui.cloud.account", "Cloud account"), Account),
@@ -175,7 +241,10 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         };
         PageTitle = selection.Title;
         CurrentPage = selection.Page;
-        Status.Success($"{PageTitle} ready");
+        // The status bar reads "Ready - Press Ctrl+Alt to record" on Windows, on every page.
+        // Naming the page here made it "Storage ready - ...", which no other app does and which
+        // changed on every click. The page name is already in the header above it.
+        Status.Success(Text("linux.status.ready", "Ready"));
     }
 
     private string Text(string key, string fallback) => _localize?.Invoke(key) ?? fallback;
@@ -187,6 +256,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         _lifetime.Cancel();
         if (Recording is not null) Recording.TranscriptionSaved -= OnTranscriptionSaved;
         Backup.Imported -= OnBackupImported;
+        Modes.PropertyChanged -= OnModesPropertyChanged;
         Models?.Dispose();
         History.Dispose();
         Recording?.Dispose();

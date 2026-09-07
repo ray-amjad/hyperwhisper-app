@@ -1,0 +1,151 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Brushes over the palette in Colors.axaml. Each brush tracks the theme variant,
+       because its colour is a DynamicResource. -->
+
+  <!-- Windows and Linux both declare "Inter, Segoe UI Variable Display, Segoe UI", but they do
+       not land on the same face. Inter ships two optical sizes and they are separate families
+       here: "Inter" (text) and "Inter Display". Windows resolves the Display cut, Linux resolved
+       the text cut, and the text cut is ~9% wider at every size, which is the whole of the
+       "Linux text is 7-8% wider" defect and the two subtitles that re-wrapped.
+
+       Measured, "Play sound effects" at 14 SemiBold: Windows renders 114px ink, Inter Display
+       computes 114.7 and Inter 125.4 (Linux was rendering 124). "Sound" at 20 SemiBold: Windows
+       56px ink, Inter Display 57.5, Inter 62.1. So the target family is Inter Display.
+       DejaVu, the fallback the diff guessed at, would have been 144.5 and was never in play.
+
+       Inter is kept as the second name so a box without the Display cut degrades to the sibling
+       face rather than to DejaVu. Program.cs also calls WithInterFont(), which bundles the text
+       cut as a floor. -->
+  <FontFamily x:Key="HwUiFont">Inter Display, Inter</FontFamily>
+
+  <SolidColorBrush x:Key="HwAccentBrush" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="HwAccentHoverBrush" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="HwAccentPressedBrush" Color="{DynamicResource HwAccentPressed}"/>
+  <SolidColorBrush x:Key="HwOnAccentBrush" Color="{DynamicResource HwOnAccent}"/>
+
+  <SolidColorBrush x:Key="HwSidebarBackgroundBrush" Color="{DynamicResource HwSidebarBackground}"/>
+  <SolidColorBrush x:Key="HwContentBackgroundBrush" Color="{DynamicResource HwContentBackground}"/>
+  <SolidColorBrush x:Key="HwCardBackgroundBrush" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="HwInputBackgroundBrush" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="HwHoverBackgroundBrush" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="HwSelectedBackgroundBrush" Color="{DynamicResource HwSelectedBackground}"/>
+  <SolidColorBrush x:Key="HwBorderBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="HwDividerBrush" Color="{DynamicResource HwDivider}"/>
+  <SolidColorBrush x:Key="HwSubtleBorderBrush" Color="{DynamicResource HwSubtleBorder}"/>
+
+  <SolidColorBrush x:Key="HwTextPrimaryBrush" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="HwTextSecondaryBrush" Color="{DynamicResource HwTextSecondary}"/>
+  <SolidColorBrush x:Key="HwTextTertiaryBrush" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="HwEmptyGlyphBrush" Color="{DynamicResource HwEmptyGlyph}"/>
+
+  <SolidColorBrush x:Key="HwSuccessBrush" Color="{DynamicResource HwSuccess}"/>
+  <SolidColorBrush x:Key="HwWarningBrush" Color="{DynamicResource HwWarning}"/>
+  <SolidColorBrush x:Key="HwErrorBrush" Color="{DynamicResource HwError}"/>
+  <SolidColorBrush x:Key="HwWarningBackgroundBrush" Color="{DynamicResource HwWarningBackground}"/>
+  <SolidColorBrush x:Key="HwWarningForegroundBrush" Color="{DynamicResource HwWarningForeground}"/>
+  <SolidColorBrush x:Key="HwWarningBorderBrush" Color="{DynamicResource HwWarningBorder}"/>
+  <SolidColorBrush x:Key="HwErrorBackgroundBrush" Color="{DynamicResource HwErrorBackground}"/>
+  <SolidColorBrush x:Key="HwErrorForegroundBrush" Color="{DynamicResource HwErrorForeground}"/>
+  <SolidColorBrush x:Key="HwSuccessBackgroundBrush" Color="{DynamicResource HwSuccessBackground}"/>
+  <SolidColorBrush x:Key="HwSuccessForegroundBrush" Color="{DynamicResource HwSuccessForeground}"/>
+  <SolidColorBrush x:Key="HwScrimBrush" Color="{DynamicResource HwScrim}"/>
+  <SolidColorBrush x:Key="HwBadgeGrayBackgroundBrush" Color="{DynamicResource HwBadgeGrayBackground}"/>
+  <SolidColorBrush x:Key="HwBadgeGrayForegroundBrush" Color="{DynamicResource HwBadgeGrayForeground}"/>
+  <!-- Windows paints the inline post-processing segment of a mode card in #AF52DE. -->
+  <SolidColorBrush x:Key="HwPostProcessingBrush" Color="{DynamicResource HwPostProcessing}"/>
+  <!-- History row pills, the provider badges in the transcript header, the rule around an error
+       surface and the Delete button's hover tint. -->
+  <SolidColorBrush x:Key="HwProcessingBrush" Color="{DynamicResource HwProcessing}"/>
+  <SolidColorBrush x:Key="HwInfoBackgroundBrush" Color="{DynamicResource HwInfoBackground}"/>
+  <SolidColorBrush x:Key="HwInfoForegroundBrush" Color="{DynamicResource HwInfoForeground}"/>
+  <SolidColorBrush x:Key="HwInfoBorderBrush" Color="{DynamicResource HwInfoBorder}"/>
+  <SolidColorBrush x:Key="HwErrorBorderBrush" Color="{DynamicResource HwErrorBorder}"/>
+  <SolidColorBrush x:Key="HwDeleteHoverBackgroundBrush" Color="{DynamicResource HwDeleteHoverBackground}"/>
+
+  <!-- Getting started icon circles. Windows draws the row colour at 10% opacity behind the
+       glyph, so the circle reads as a tint rather than a filled tile. The four colours are
+       the macOS row order: blue, purple, green, orange. -->
+  <SolidColorBrush x:Key="HwStepBlueBrush" Color="#007AFF"/>
+  <SolidColorBrush x:Key="HwStepPurpleBrush" Color="#AF52DE"/>
+  <SolidColorBrush x:Key="HwStepGreenBrush" Color="#34C759"/>
+  <SolidColorBrush x:Key="HwStepOrangeBrush" Color="#FF9500"/>
+  <SolidColorBrush x:Key="HwStepBlueTintBrush" Color="#007AFF" Opacity="0.1"/>
+  <SolidColorBrush x:Key="HwStepPurpleTintBrush" Color="#AF52DE" Opacity="0.1"/>
+  <SolidColorBrush x:Key="HwStepGreenTintBrush" Color="#34C759" Opacity="0.1"/>
+  <SolidColorBrush x:Key="HwStepOrangeTintBrush" Color="#FF9500" Opacity="0.1"/>
+  <!-- The glyph itself is NOT the row colour. Windows binds these rows to the emoji
+       characters U+1F3A4, U+2328, U+1F3AF and U+1F4DA in a plain TextBlock, and WPF draws
+       Segoe UI Emoji's MONOCHROME outlines, so all four glyphs land as pure #000000 over
+       the tint (sampled out of the reference shot: the darkest pixel inside every one of
+       the four circles is 000000, against a tint of 1A2636/2C2232/1F2E25/34291C).
+       Painting them at full saturation, as this file did, was the single loudest
+       difference on the page. The colour is font-driven, not theme-driven, so it stays
+       black in the light theme too. -->
+  <SolidColorBrush x:Key="HwStepGlyphBrush" Color="#000000"/>
+
+  <!-- The page markup was written against WinUI card keys that the plain Avalonia
+       Fluent theme does not define, so every card painted with no colour at all and
+       the page beneath showed through. Define them here over the HyperWhisper
+       palette so an unconverted control still gets an opaque surface. -->
+  <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{DynamicResource HwSidebarBackground}"/>
+  <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{DynamicResource HwBorder}"/>
+
+  <!-- Fluent paints a text box near black with a light grey ring, and a check box in the
+       system accent. Both read as a bright cut-out over the card, where Windows draws the
+       input on HwInputBackground behind an almost invisible HwBorder. A per-control style
+       cannot reach every part of the Fluent template, so map the theme keys themselves. -->
+  <SolidColorBrush x:Key="TextControlBackground" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="{DynamicResource HwSubtleBorder}"/>
+  <SolidColorBrush x:Key="TextControlForeground" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="{DynamicResource HwTextTertiary}"/>
+  <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="{DynamicResource HwAccent}"/>
+
+  <SolidColorBrush x:Key="ComboBoxBackground" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundDisabled" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="ComboBoxForeground" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundPointerOver" Color="{DynamicResource HwTextPrimary}"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="{DynamicResource HwCardBackground}"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="{DynamicResource HwBorder}"/>
+
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" Color="{DynamicResource HwHoverBackground}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="{DynamicResource HwOnAccent}"/>
+  <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="{DynamicResource HwOnAccent}"/>
+
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseStroke" Color="{DynamicResource HwBorder}"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="RadioButtonCheckGlyphFill" Color="{DynamicResource HwOnAccent}"/>
+  <SolidColorBrush x:Key="RadioButtonCheckGlyphFillPointerOver" Color="{DynamicResource HwOnAccent}"/>
+
+  <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource HwAccentHover}"/>
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource HwAccent}"/>
+  <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="{DynamicResource HwInputBackground}"/>
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOff" Color="{DynamicResource HwBorder}"/>
+</ResourceDictionary>

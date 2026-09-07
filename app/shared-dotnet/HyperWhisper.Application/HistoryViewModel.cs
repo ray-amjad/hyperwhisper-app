@@ -7,6 +7,15 @@ using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
+/// <summary>
+/// A day header in the history list. Windows groups the rows by day and draws the header from
+/// <c>TranscriptViewModel.GroupHeader</c>: "Today", "Yesterday", or the formatted date. The two
+/// relative headers are catalogue keys rather than text, because this assembly holds no
+/// localizer; the shell resolves <see cref="LocalizationKey"/> and falls back to
+/// <see cref="Text"/> for a dated header, which needs no translation.
+/// </summary>
+public sealed record HistoryDateGroup(string? LocalizationKey, string Text);
+
 public sealed class HistoryViewModel : ViewModelBase, IDisposable
 {
     private readonly HistoryRepository _repository;
@@ -29,6 +38,8 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     private bool _isCopiedRecently;
     private CancellationTokenSource? _copyFeedback;
     private bool _disposed;
+    private bool _lastQueryWasFiltered;
+    private string _hotkeyInstruction = string.Empty;
     public HistoryViewModel(
         HistoryRepository repository,
         IAudioPlaybackService? playback = null,
@@ -59,8 +70,14 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             _playback.DurationReady += OnPlaybackDurationReady;
             _playback.PlaybackFailed += OnPlaybackFailed;
         }
+        Items.CollectionChanged += (_, _) => RebuildGroups();
     }
     public ObservableCollection<Transcript> Items { get; } = new();
+    /// <summary>
+    /// <see cref="Items"/> with a <see cref="HistoryDateGroup"/> inserted before each new day, so
+    /// one list control can draw the day headers Windows gets from an ICollectionView group.
+    /// </summary>
+    public ObservableCollection<object> GroupedItems { get; } = new();
     public ObservableCollection<Transcript> SelectedItems { get; } = new();
     public ObservableCollection<Mode> AvailableRetryModes { get; } = new();
     public Mode? SelectedRetryMode { get; set; }
@@ -80,6 +97,9 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             Notify(nameof(SelectedFailureReason));
             Notify(nameof(IsSelectedFailed));
             Notify(nameof(IsSelectedRetrying));
+            Notify(nameof(HasRetryInfo));
+            Notify(nameof(SelectedFormattedDate));
+            Notify(nameof(ShowAudioUnavailableMessage));
             ((AsyncCommand)RetryCommand).RaiseCanExecuteChanged();
         }
     }
@@ -124,6 +144,29 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     }
     public string FormattedPlaybackPosition => FormatTime(PlaybackPositionSeconds);
     public string FormattedPlaybackDuration => FormatTime(PlaybackDurationSeconds);
+    /// <summary>Windows draws one "position / duration" run, not two separate chips.</summary>
+    public string FormattedPlayback => $"{FormattedPlaybackPosition} / {FormattedPlaybackDuration}";
+    /// <summary>
+    /// A transcript is selected but its audio will not play — it was never kept, or the file has
+    /// gone. Windows swaps the whole playback band for a one-line warning in that case.
+    /// </summary>
+    public bool ShowAudioUnavailableMessage => Selected is not null && !IsPlaybackAvailable;
+    /// <summary>The full date at the top of the detail pane, at 20px SemiBold on Windows.</summary>
+    public string SelectedFormattedDate => Selected is null
+        ? string.Empty
+        : Selected.Date.ToLocalTime().ToString("f", System.Globalization.CultureInfo.CurrentCulture);
+    /// <summary>
+    /// The "press {shortcut} to record" line under the empty state. The shell owns the shortcut
+    /// text, so it assigns the finished sentence here.
+    /// </summary>
+    public string HotkeyInstruction { get => _hotkeyInstruction; set => Set(ref _hotkeyInstruction, value); }
+    /// <summary>No transcripts at all, with no search or date filter applied.</summary>
+    public bool IsEmpty => Items.Count == 0 && !_lastQueryWasFiltered;
+    /// <summary>A filter is applied and it matched nothing. Windows shows a different panel.</summary>
+    public bool IsFilteredEmpty => Items.Count == 0 && _lastQueryWasFiltered;
+    public bool HasSelection => SelectedItems.Count > 0;
+    public bool HasMultipleSelection => SelectedItems.Count > 1;
+    public int SelectionCount => SelectedItems.Count;
     public bool IsCopiedRecently { get => _isCopiedRecently; private set => Set(ref _isCopiedRecently, value); }
     public string CopyLabel => IsCopiedRecently ? "Copied!" : "Copy";
     public string SelectedStatusLabel => Selected?.Status switch
@@ -136,6 +179,12 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     };
     public bool IsSelectedFailed => Selected?.Status == TranscriptStatus.Failed;
     public bool IsSelectedRetrying => Selected is { Status: TranscriptStatus.Processing, RetryCount: > 0 };
+    /// <summary>
+    /// True once this transcript has been retried at least once. Windows swaps the detail Retry
+    /// button between history.context.retry and history.context.retryAgain on it
+    /// (TranscriptViewModel.cs:331, HistoryPage.xaml:492).
+    /// </summary>
+    public bool HasRetryInfo => Selected is { RetryCount: > 0 };
     public string SelectedFailureReason => IsSelectedFailed ? Selected?.FailedReason ?? "Transcription failed" : string.Empty;
     public bool IsRetrying
     {
@@ -164,6 +213,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         Status.Busy("Loading history…");
         try
         {
+            _lastQueryWasFiltered = false;
             Items.Clear();
             foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item);
             UpdateSelection(Items.Take(1));
@@ -182,6 +232,8 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         }
         try
         {
+            _lastQueryWasFiltered = !string.IsNullOrWhiteSpace(SearchText)
+                || StartDate is not null || EndDate is not null;
             Items.Clear();
             var fromUtc = StartDate is { } from ? LocalDateStartUtc(from) : (DateTime?)null;
             var toUtcExclusive = EndDate is { } to ? LocalDateStartUtc(to, dayOffset: 1) : (DateTime?)null;
@@ -206,7 +258,40 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         SelectedItems.Clear();
         foreach (var transcript in transcripts.DistinctBy(item => item.Id)) SelectedItems.Add(transcript);
         Selected = SelectedItems.Count == 1 ? SelectedItems[0] : null;
+        Notify(nameof(HasSelection));
+        Notify(nameof(HasMultipleSelection));
+        Notify(nameof(SelectionCount));
         ((AsyncCommand)DeleteCommand).RaiseCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="GroupedItems"/> from <see cref="Items"/>, inserting one
+    /// <see cref="HistoryDateGroup"/> ahead of every new local day. The repository already
+    /// returns newest first, so a single pass is enough.
+    /// </summary>
+    private void RebuildGroups()
+    {
+        GroupedItems.Clear();
+        var today = DateTime.Now.Date;
+        var yesterday = today.AddDays(-1);
+        DateTime? currentDay = null;
+        foreach (var item in Items)
+        {
+            var day = item.Date.ToLocalTime().Date;
+            if (currentDay != day)
+            {
+                currentDay = day;
+                GroupedItems.Add(day == today
+                    ? new HistoryDateGroup("history.section.today", "Today")
+                    : day == yesterday
+                        ? new HistoryDateGroup("history.section.yesterday", "Yesterday")
+                        : new HistoryDateGroup(null, day.ToString("MMMM d, yyyy",
+                            System.Globalization.CultureInfo.CurrentCulture)));
+            }
+            GroupedItems.Add(item);
+        }
+        Notify(nameof(IsEmpty));
+        Notify(nameof(IsFilteredEmpty));
     }
 
     public void SetRetryModes(IEnumerable<Mode> modes)
@@ -332,6 +417,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         SetPlaybackPosition(0);
         PlaybackDurationSeconds = 0;
         Notify(nameof(FormattedPlaybackDuration));
+        Notify(nameof(FormattedPlayback));
         if (_playback is null || Selected?.AudioFilePath is not { } path) { RefreshPlaybackCommands(); return; }
         var loaded = _playback.Load(path);
         if (loaded.IsFailure)
@@ -343,6 +429,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
         {
             PlaybackDurationSeconds = _playback.TotalDuration.TotalSeconds;
             Notify(nameof(FormattedPlaybackDuration));
+        Notify(nameof(FormattedPlayback));
         }
         RefreshPlaybackCommands();
     }
@@ -362,6 +449,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
             _playbackPositionSeconds = seconds;
             Notify(nameof(PlaybackPositionSeconds));
             Notify(nameof(FormattedPlaybackPosition));
+            Notify(nameof(FormattedPlayback));
         }
     }
 
@@ -370,6 +458,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     {
         PlaybackDurationSeconds = duration.TotalSeconds;
         Notify(nameof(FormattedPlaybackDuration));
+        Notify(nameof(FormattedPlayback));
     });
     private void OnPlaybackEnded(object? sender, EventArgs args) => Dispatch(() =>
     {
@@ -394,6 +483,7 @@ public sealed class HistoryViewModel : ViewModelBase, IDisposable
     private void RefreshPlaybackCommands()
     {
         Notify(nameof(IsPlaybackAvailable));
+        Notify(nameof(ShowAudioUnavailableMessage));
         ((AsyncCommand)PlayCommand).RaiseCanExecuteChanged();
         ((AsyncCommand)StopPlaybackCommand).RaiseCanExecuteChanged();
         ((AsyncCommand)CopyCommand).RaiseCanExecuteChanged();

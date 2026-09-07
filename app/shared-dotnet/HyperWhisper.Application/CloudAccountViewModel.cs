@@ -25,6 +25,13 @@ public sealed class CloudAccountViewModel : ViewModelBase
     private string? _minutesRemaining;
     private bool _hasAccount;
     private int _operationRunning;
+    private CloudCreditBalance? _balance;
+    private bool _isLoadingCredits;
+    private string? _creditsError;
+    private string? _activationError;
+    private string? _storedAccountKey;
+    private bool _isAccountKeyRevealed;
+    private bool _isActivating;
 
     public CloudAccountViewModel(
         PortableCloudAccountService service,
@@ -45,17 +52,92 @@ public sealed class CloudAccountViewModel : ViewModelBase
     }
 
     public string AccountKey { get => _accountKey; set => Set(ref _accountKey, value); }
-    public string AccountState { get => _accountState; private set => Set(ref _accountState, value); }
+    public string AccountState { get => _accountState; private set { if (Set(ref _accountState, value)) NotifyLicenseState(); } }
     public string? CustomerEmail { get => _customerEmail; private set { if (Set(ref _customerEmail, value)) Notify(nameof(HasCustomerEmail)); } }
     public string? CustomerId { get => _customerId; private set { if (Set(ref _customerId, value)) Notify(nameof(HasCustomerId)); } }
     public string? ExpiresAt { get => _expiresAt; private set { if (Set(ref _expiresAt, value)) Notify(nameof(HasExpiry)); } }
     public string? Credits { get => _credits; private set { if (Set(ref _credits, value)) Notify(nameof(HasCredits)); } }
     public string? MinutesRemaining { get => _minutesRemaining; private set => Set(ref _minutesRemaining, value); }
-    public bool HasAccount { get => _hasAccount; private set => Set(ref _hasAccount, value); }
+    public bool HasAccount { get => _hasAccount; private set { if (Set(ref _hasAccount, value)) NotifyLicenseState(); } }
     public bool HasCustomerEmail => !string.IsNullOrEmpty(CustomerEmail);
     public bool HasCustomerId => !string.IsNullOrEmpty(CustomerId);
     public bool HasExpiry => !string.IsNullOrEmpty(ExpiresAt);
     public bool HasCredits => !string.IsNullOrEmpty(Credits);
+
+    // -----------------------------------------------------------------------
+    // BALANCE DETAIL
+    // The Windows balance card shows a dollar figure under the minutes, a cost per minute, an
+    // account type, an anonymous daily reset, and three panel states (loading, error, low or
+    // exhausted). Every one of those is derivable from the CloudCreditBalance the shared service
+    // already returns, so the whole card can be data bound rather than driven from code behind.
+    // The dollar figure follows the Windows model: one credit is a tenth of a cent.
+    // -----------------------------------------------------------------------
+
+    /// <summary>The account only counts as licensed while the server says the key is active.</summary>
+    public bool IsActiveAccount => HasAccount && AccountState == "Active";
+    /// <summary>Windows shows the activation card and the Get Credits call to action only here.</summary>
+    public bool IsUnlicensed => !IsActiveAccount;
+    /// <summary>A key was found but it is expired or invalid, which earns the warning banner.</summary>
+    public bool HasLicenseProblem => HasAccount && !IsActiveAccount;
+    public string DollarBalance => $"(${(_balance?.CreditsRemaining ?? 0) / 1000.0:F2})";
+    public string CostPerMinute => $"~{_balance?.CreditsPerMinute ?? 0:F1}";
+    public string AccountTypeLabel => _balance is null
+        ? AccountState
+        : _balance.IsLicensed ? "Licensed" : _balance.IsAnonymous ? "Anonymous" : "Trial";
+    public string? DailyReset => _balance is { IsAnonymous: true, ResetsAt: { } resets }
+        ? resets.ToLocalTime().ToString("t", System.Globalization.CultureInfo.CurrentCulture)
+        : null;
+    public bool HasDailyReset => !string.IsNullOrEmpty(DailyReset);
+    public bool IsCreditsExhausted => _balance is not null && _balance.CreditsRemaining <= 0;
+    public bool IsCreditsLow => _balance is { MinutesRemaining: > 0 and < 10 };
+    public bool IsLoadingCredits { get => _isLoadingCredits; private set { if (Set(ref _isLoadingCredits, value)) Notify(nameof(ShowCreditsLoading)); } }
+    public bool ShowCreditsLoading => IsLoadingCredits && !HasCredits;
+    public string? CreditsError { get => _creditsError; private set { if (Set(ref _creditsError, value)) Notify(nameof(HasCreditsError)); } }
+    public bool HasCreditsError => !string.IsNullOrEmpty(CreditsError) && !HasCredits;
+    /// <summary>The message under the activation field after a rejected key.</summary>
+    public string? ActivationError { get => _activationError; private set { if (Set(ref _activationError, value)) Notify(nameof(HasActivationError)); } }
+    public bool HasActivationError => !string.IsNullOrEmpty(ActivationError);
+
+    // -----------------------------------------------------------------------
+    // ACCOUNT KEY ROW
+    // The Windows account card ends with the wallet itself: the stored key, masked, with a
+    // reveal button and a copy button. The key is read back from secure storage rather than
+    // remembered from the activation field, because a relaunched app never saw that field.
+    // -----------------------------------------------------------------------
+
+    /// <summary>The stored key in full. Only the copy action and a deliberate reveal use it.</summary>
+    public string? StoredAccountKey { get => _storedAccountKey; private set
+        {
+            if (!Set(ref _storedAccountKey, value)) return;
+            Notify(nameof(HasStoredAccountKey));
+            Notify(nameof(AccountKeyDisplay));
+        }
+    }
+
+    public bool HasStoredAccountKey => !string.IsNullOrEmpty(StoredAccountKey);
+
+    public bool IsAccountKeyRevealed { get => _isAccountKeyRevealed; set
+        {
+            if (Set(ref _isAccountKeyRevealed, value)) Notify(nameof(AccountKeyDisplay));
+        }
+    }
+
+    /// <summary>
+    /// Masks every character with a bullet and keeps the dashes, which is exactly what the
+    /// Windows page does: <c>HW-7F3K-9QXM</c> reads as <c>••-••••-••••</c>.
+    /// </summary>
+    public string AccountKeyDisplay => StoredAccountKey is not { Length: > 0 } key
+        ? string.Empty
+        : IsAccountKeyRevealed
+            ? key
+            : new string(key.Select(character => character == '-' ? '-' : '•').ToArray());
+
+    /// <summary>Re-reads the stored key. Safe to call on every status change.</summary>
+    public void RefreshStoredAccountKey()
+    {
+        IsAccountKeyRevealed = false;
+        StoredAccountKey = _service.TryReadStoredAccountKey();
+    }
     public UiStatus Status { get; } = new();
     public ICommand ActivateCommand { get; }
     public ICommand RefreshStatusCommand { get; }
@@ -65,16 +147,31 @@ public sealed class CloudAccountViewModel : ViewModelBase
     public ICommand ManageCommand { get; }
     public bool CanRunOperation => Volatile.Read(ref _operationRunning) == 0;
 
+    /// <summary>
+    /// True only while <see cref="ActivateAsync"/> is in flight.
+    ///
+    /// Windows relabels the Activate button to "Activating..." inside a try/finally in the page's
+    /// code-behind rather than through a flag. A view model cannot reach into a page like that, so
+    /// the same state is published here and the button binds to it. It is deliberately narrower
+    /// than <see cref="CanRunOperation"/>, which is also false during a status or credits refresh:
+    /// only activation may claim the activation label.
+    /// </summary>
+    public bool IsActivating { get => _isActivating; private set => Set(ref _isActivating, value); }
+
     public async Task ActivateAsync(CancellationToken cancellationToken = default)
     {
         if (!TryBeginOperation()) return;
+        IsActivating = true;
         if (string.IsNullOrWhiteSpace(AccountKey))
         {
+            ActivationError = "Enter the account key from your purchase email.";
             Status.Failure("account.key_required", "Enter the account key from your purchase email.");
+            IsActivating = false;
             EndOperation();
             return;
         }
 
+        ActivationError = null;
         Status.Busy("Validating account…");
         var submittedKey = AccountKey;
         AccountKey = string.Empty;
@@ -93,6 +190,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
                 _deviceName), cancellationToken);
             if (result.IsFailure)
             {
+                ActivationError = result.Failure!.Message;
                 Status.Failure(Code(result.Failure!), result.Failure!.Message);
                 return;
             }
@@ -102,16 +200,19 @@ public sealed class CloudAccountViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
+            ActivationError = "Account activation was cancelled.";
             Status.Failure("account.cancelled", "Account activation was cancelled.");
         }
         catch (Exception)
         {
+            ActivationError = "The account could not be activated.";
             Status.Failure("account.activation_failed", "The account could not be activated.");
         }
         finally
         {
             // Clear a value assigned by the UI while validation was in flight too.
             AccountKey = string.Empty;
+            IsActivating = false;
             EndOperation();
         }
     }
@@ -177,29 +278,36 @@ public sealed class CloudAccountViewModel : ViewModelBase
     {
         if (!TryBeginOperation()) return;
         Status.Busy("Refreshing Cloud credits…");
+        IsLoadingCredits = true;
         try
         {
             var result = await _service.RefreshCreditsAsync(cancellationToken);
             if (result.IsFailure)
             {
+                CreditsError = result.Failure!.Message;
                 Status.Failure(Code(result.Failure!), result.Failure!.Message);
                 return;
             }
 
             HasAccount = true;
+            CreditsError = null;
+            _balance = result.Value!;
             Credits = result.Value!.CreditsRemaining.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
             MinutesRemaining = result.Value.MinutesRemaining.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            NotifyBalance();
             Status.Success("Cloud credits refreshed.");
         }
         catch (OperationCanceledException)
         {
+            CreditsError = "Credit refresh was cancelled.";
             Status.Failure("account.cancelled", "Credit refresh was cancelled.");
         }
         catch (Exception)
         {
+            CreditsError = "Cloud credits could not be refreshed.";
             Status.Failure("account.credits_failed", "Cloud credits could not be refreshed.");
         }
-        finally { EndOperation(); }
+        finally { IsLoadingCredits = false; NotifyBalance(); EndOperation(); }
     }
 
     public async Task DeactivateAsync(CancellationToken cancellationToken = default)
@@ -266,6 +374,28 @@ public sealed class CloudAccountViewModel : ViewModelBase
         RaiseCommandStates();
     }
 
+    private void NotifyLicenseState()
+    {
+        Notify(nameof(IsActiveAccount));
+        Notify(nameof(IsUnlicensed));
+        Notify(nameof(HasLicenseProblem));
+        Notify(nameof(AccountTypeLabel));
+    }
+
+    private void NotifyBalance()
+    {
+        Notify(nameof(DollarBalance));
+        Notify(nameof(CostPerMinute));
+        Notify(nameof(AccountTypeLabel));
+        Notify(nameof(DailyReset));
+        Notify(nameof(HasDailyReset));
+        Notify(nameof(IsCreditsExhausted));
+        Notify(nameof(IsCreditsLow));
+        Notify(nameof(HasCredits));
+        Notify(nameof(HasCreditsError));
+        Notify(nameof(ShowCreditsLoading));
+    }
+
     private void RaiseCommandStates()
     {
         ((AsyncCommand)ActivateCommand).RaiseCanExecuteChanged();
@@ -292,7 +422,11 @@ public sealed class CloudAccountViewModel : ViewModelBase
         {
             Credits = null;
             MinutesRemaining = null;
+            _balance = null;
         }
+        ActivationError = null;
+        RefreshStoredAccountKey();
+        NotifyBalance();
     }
 
     private void ClearDetails()
@@ -305,6 +439,12 @@ public sealed class CloudAccountViewModel : ViewModelBase
         Credits = null;
         MinutesRemaining = null;
         AccountKey = string.Empty;
+        _balance = null;
+        CreditsError = null;
+        ActivationError = null;
+        StoredAccountKey = null;
+        IsAccountKeyRevealed = false;
+        NotifyBalance();
     }
 
     private static string NormalizeDeviceName(string? value)

@@ -12,7 +12,13 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="../HyperWhisper.Linux/MainWindow.axaml" Link="LocalizationSurface/MainWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/ModeEditorWindow.axaml" Link="LocalizationSurface/ModeEditorWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../HyperWhisper.Linux/Overlay/LinuxRecordingOverlayWindow.axaml" Link="LocalizationSurface/LinuxRecordingOverlayWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/Overlay/LinuxErrorToastWindow.axaml" Link="LocalizationSurface/LinuxErrorToastWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/ConfirmWindow.axaml" Link="LocalizationSurface/ConfirmWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/ProviderApiKeyWindow.axaml" Link="LocalizationSurface/ProviderApiKeyWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/CustomEndpointWindow.axaml" Link="LocalizationSurface/CustomEndpointWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/CredentialsWindow.axaml" Link="LocalizationSurface/CredentialsWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../HyperWhisper.Linux/MainWindow.axaml.cs" Link="LocalizationSurface/MainWindow.axaml.cs" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../desktop-companions/status-notifier.py" Link="LocalizationSurface/status-notifier.py" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

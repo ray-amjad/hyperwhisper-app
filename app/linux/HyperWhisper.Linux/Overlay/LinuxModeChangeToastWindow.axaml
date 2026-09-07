@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextOptions.TextRenderingMode="Antialias"
+        x:Class="HyperWhisper.Linux.Overlay.LinuxModeChangeToastWindow"
+        FontFamily="{StaticResource HwUiFont}"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
+        Title="{ReflectionBinding [modes.title], Source={StaticResource Localization}}"
+        Width="200" Height="36"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        CanResize="False">
+  <!-- Windows' ModeChangeToastWindow, ported. Cycling the mode from the global hotkey only
+       annotated the recording overlay on Linux, so when the overlay was not on screen - which is
+       the normal case, since the point of the hotkey is to change mode without opening anything -
+       nothing at all told the user which mode they had landed on.
+
+       The Windows numbers: 200x36, corner radius 18, #D9000000 over a #1AFFFFFF hairline, a 12px
+       sparkles glyph, 8px of space, a 12px Medium label trimmed at 150px, two seconds, and a
+       200ms fade in / 150ms fade out. -->
+  <Border x:Name="ToastBorder"
+          CornerRadius="18"
+          Background="#D9000000"
+          BorderBrush="#1AFFFFFF"
+          BorderThickness="1"
+          BoxShadow="0 4 10 0 #4D000000"
+          Opacity="0">
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <TextBlock Text="&#x2728;" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#E6FFFFFF" VerticalAlignment="Center"/>
+      <TextBlock x:Name="ToastModeText" FontSize="12" FontWeight="Medium"
+                 Foreground="#E6FFFFFF" VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" MaxWidth="150" Margin="8,0,0,0"/>
+    </StackPanel>
+  </Border>
+</Window>

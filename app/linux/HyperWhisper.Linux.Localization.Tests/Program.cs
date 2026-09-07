@@ -20,7 +20,7 @@ var tests = new (string Name, Action Run)[]
     ("Linux-specific copy remains an explicit invariant fallback", LinuxSpecificFallbackIsExplicit),
     ("production XAML contains no localizable literals", ProductionXamlHasNoLocalizableLiterals),
     ("production code uses catalogued user feedback", ProductionCodeUsesCataloguedFeedback),
-    ("word timestamp setting is localized and bound", WordTimestampSettingIsLocalizedAndBound),
+    ("settings pages carry no Windows-only control or copy", SettingsPagesMatchWindowsSurface),
     ("tray labels are catalogued with RTL metadata", TrayLabelsAreCatalogued),
     ("startup culture selection is bounded", StartupCultureSelectionIsBounded),
 };
@@ -178,7 +178,7 @@ static void LinuxSpecificFallbackIsExplicit()
         using var bridge = new AvaloniaLocalizationBridge(culture);
         True(!AvaloniaLocalizationBridge.LinuxTranslatedKeys(culture).Contains("linux.update.instructions"),
             $"{cultureName} unreviewed Linux-only key was marked translated");
-        Equal("HyperWhisper never refreshes or installs packages itself. Use your distribution's normal software updater to refresh metadata and install an available version.",
+        Equal("Updates come from your distribution's package manager, not from HyperWhisper.",
             bridge.GetRequired("linux.update.instructions"), $"{cultureName} invariant fallback");
     }
 
@@ -191,7 +191,15 @@ static void ProductionXamlHasNoLocalizableLiterals()
     var directory = Path.Combine(AppContext.BaseDirectory, "LocalizationSurface");
     var allowedOpaqueValues = new HashSet<string>(StringComparer.Ordinal)
     {
-        "!", "✨", "×", "WAV, MP3, M4A, FLAC, OGG, or WebM", "/path/to/vocabulary.tsv",
+        // "H" is the brand mark on the About page and "·" separates the two halves of a history
+        // row, the same way Windows writes Text=" · ". Neither is copy, so neither is translated.
+        // The Vocabulary key caps read "Ctrl" and the return arrow on every locale, the way a
+        // keyboard is labelled; "›" is the Getting-started row chevron and " · " is the same
+        // separator Windows writes as Text=" · ". None of the five is copy.
+        // "−" and "+" are the two halves of the clipboard restore-delay stepper, the arithmetic
+        // signs Windows also writes as literal Content. Neither is copy.
+        "!", "✨", "×", "·", " · ", "›", "↵", "Ctrl", "H", "−", "+",
+        "WAV, MP3, M4A, FLAC, OGG, or WebM", "/path/to/vocabulary.tsv",
         "gpt-4.1-mini", "anthropic:claude-haiku-4-5", "gemma-4-E2B-it-Q4_K_M.gguf",
         "https://host/v1/chat/completions", "auto",
     };
@@ -223,21 +231,33 @@ static void ProductionCodeUsesCataloguedFeedback()
         True(!source.Contains(value, StringComparison.Ordinal), $"uncatalogued feedback pattern: {value}");
 }
 
-static void WordTimestampSettingIsLocalizedAndBound()
+static void SettingsPagesMatchWindowsSurface()
 {
     var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
         "LocalizationSurface", "MainWindow.axaml"));
-    True(source.Contains("x:Name=\"SettingsStoreWordTimestamps\"", StringComparison.Ordinal),
-        "word timestamp checkbox is missing");
-    True(source.Contains("IsChecked=\"{Binding StoreWordTimestamps, Mode=TwoWay}\"", StringComparison.Ordinal),
-        "word timestamp setting is not two-way bound");
-    True(source.Contains("[linux.timestamps.title]", StringComparison.Ordinal)
-         && source.Contains("[linux.timestamps.subtitle]", StringComparison.Ordinal),
-        "word timestamp copy bypasses localization");
+
+    // The settings pages must carry no control Windows does not draw. Windows has no word
+    // timestamp switch anywhere (it keeps the value as opaque JSON: Models/UniversalBackupModels
+    // .cs:144-149) and no default-language box on any settings page, so neither does this app.
+    // Word timestamps are stored unconditionally, which is what the shared default already does.
+    True(!source.Contains("SettingsStoreWordTimestamps", StringComparison.Ordinal),
+        "the word timestamp checkbox is back; Windows has no such control");
+    True(!source.Contains("SettingsLanguageInput", StringComparison.Ordinal),
+        "the default-language box is back; Windows picks a language per mode, not per app");
+
+    // Copy that names another platform is worse than no copy. The shared
+    // settings.output.hideClipboardHistory.subtitle says "Windows clipboard history", so the page
+    // must resolve the Linux override instead of the shared key.
+    True(!source.Contains("[settings.output.hideClipboardHistory.subtitle]", StringComparison.Ordinal),
+        "the clipboard-history row uses the shared subtitle, which names Windows");
+    True(source.Contains("[linux.settings.output.hideClipboardHistory.subtitle]", StringComparison.Ordinal),
+        "the clipboard-history row is missing its Linux subtitle override");
 
     using var bridge = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
-    Equal("Store word timestamps", bridge.GetRequired("linux.timestamps.title"), "timestamp title");
-    Contains("raw transcript", bridge.GetRequired("linux.timestamps.subtitle"), "timestamp subtitle");
+    var subtitle = bridge.GetRequired("linux.settings.output.hideClipboardHistory.subtitle");
+    Contains("clipboard history", subtitle, "clipboard subtitle");
+    True(!subtitle.Contains("Windows", StringComparison.OrdinalIgnoreCase),
+        "the Linux clipboard subtitle still names Windows");
 }
 
 static void TrayLabelsAreCatalogued()

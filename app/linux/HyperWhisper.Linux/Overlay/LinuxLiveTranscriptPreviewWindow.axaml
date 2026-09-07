@@ -1,4 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui"
+        TextOptions.TextRenderingMode="Antialias"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:overlay="clr-namespace:HyperWhisper.Linux.Overlay"
         x:Class="HyperWhisper.Linux.Overlay.LinuxLiveTranscriptPreviewWindow"

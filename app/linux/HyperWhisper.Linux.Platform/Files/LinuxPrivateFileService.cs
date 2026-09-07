@@ -160,6 +160,15 @@ public sealed class LinuxPrivateFileService : IPrivateFileService
             File.Delete(path);
             return PlatformResult.Success();
         }
+        // A missing parent directory means the file is already absent, which is what the
+        // caller asked for. File.Delete is silent about a missing file but throws for a
+        // missing directory, so a machine that never wrote the file at all reported a
+        // delete failure — see the autostart checkbox on a fresh install. Read does the
+        // same thing and answers Success(null) for both.
+        catch (Exception exception) when (exception is DirectoryNotFoundException or FileNotFoundException)
+        {
+            return PlatformResult.Success();
+        }
         catch (Exception exception) when (UnixPrivateFilePermissions.IsExpectedFileFailure(exception))
         {
             return PlatformResult.Failure("private_file_delete_failed", "The private file could not be deleted.");

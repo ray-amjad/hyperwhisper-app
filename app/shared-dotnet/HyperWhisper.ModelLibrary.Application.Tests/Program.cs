@@ -19,12 +19,29 @@ try
         Assert(bundled.Items.Count > PortableModelCatalog.All.Count
             && bundled.Items.Any(item => item.Deployment == nameof(ModelDeployment.Cloud)),
             "default construction did not load the bundled unified catalog");
-        var localLive = bundled.Items.Where(item => item.Capability.Deployment == ModelDeployment.Local
+        // The streaming capabilities are still loaded and still selectable, but they are NOT rows
+        // in the table: Windows builds that table from four blocks and none has a streaming
+        // surface, so a streaming row there read as a duplicate of the batch row for the same
+        // model (Parakeet v2, Parakeet v3 and Nemotron 3.5 Streaming each appeared twice).
+        Assert(!bundled.Items.Any(item => item.Capability.Surface == ModelSurface.StreamingTranscription),
+            "a streaming capability leaked into the library table");
+        var localLive = bundled.StreamingItems.Where(item => item.Capability.Deployment == ModelDeployment.Local
             && item.Capability.Surface == ModelSurface.StreamingTranscription).ToArray();
         Assert(localLive.Length == 3
             && localLive.Count(item => item.ProviderId == "parakeetLocal") == 2
             && localLive.Single(item => item.ProviderId == "nemotronLocal").Capability.SupportedLanguages.Count == 32,
             "local live model rows or Nemotron production locales were not exposed");
+        // No local model may appear twice. Identity is the model id, not the display name:
+        // Windows shows "Medium" twice on purpose, for whisper medium and medium.en, and tells
+        // them apart with the EN tag. What it never does is list one model id twice, which is
+        // what the batch + streaming capability pair did for the three streaming-capable local
+        // models. Windows draws exactly 20 offline rows, one per local catalog model.
+        Assert(bundled.Items.Count(item => item.IsLocal) == PortableModelCatalog.All.Count,
+            "the offline row count no longer matches the local catalog, one row per model");
+        var duplicateIds = bundled.Items.Where(item => item.IsLocal).GroupBy(item => item.ModelId)
+            .Where(group => group.Count() > 1).Select(group => group.Key).ToArray();
+        Assert(duplicateIds.Length == 0,
+            "the library table repeats a local model id: " + string.Join(", ", duplicateIds));
     }
     var capabilities = new ModelCapability[]
     {
@@ -43,7 +60,12 @@ try
     using var viewModel = new ModelLibraryViewModel(manager, readiness, capabilities);
     Assert(probe.CheckCount == 0 && local.CheckCount == 0,
         "constructing the model library performed an implicit readiness or network probe");
-    Assert(viewModel.Items.Count == 3, "unified local/cloud rows were not exposed");
+    // Two of the three fixture capabilities are table rows. The third has a streaming surface,
+    // and Windows draws no streaming row at all, so it is reachable through StreamingItems
+    // instead of the table.
+    Assert(viewModel.Items.Count == 2, "unified local/cloud rows were not exposed");
+    Assert(viewModel.StreamingItems.Count == 1,
+        "the streaming capability was dropped instead of moved off the table");
 
     var localRow = viewModel.Items.Single(item => item.Id == "local/localWhisper/base");
     Assert(localRow.RuntimeBadge == "Local · whisper.cpp"
@@ -55,7 +77,7 @@ try
     Assert(cloudRow.CredentialNavigationActionId == "navigate.credentials:GroqApiKey"
         && cloudRow.AccountNavigationActionId is null && cloudRow.Model is null,
         "BYOK credential navigation action was not provider-scoped");
-    var accountRow = viewModel.Items.Single(item => item.ProviderId == "hyperwhisper");
+    var accountRow = viewModel.StreamingItems.Single(item => item.ProviderId == "hyperwhisper");
     Assert(accountRow.CredentialNavigationActionId == "navigate.account"
         && accountRow.AccountNavigationActionId == "navigate.account",
         "cloud-tier account navigation action was not exposed");
@@ -65,9 +87,13 @@ try
         "provider search did not filter unified rows");
     viewModel.SearchText = string.Empty;
     viewModel.DeploymentFilter = ModelDeployment.Cloud;
-    viewModel.SurfaceFilter = ModelSurface.StreamingTranscription;
-    Assert(viewModel.Items.Count == 1 && viewModel.Items[0] == accountRow,
+    viewModel.SurfaceFilter = ModelSurface.BatchTranscription;
+    Assert(viewModel.Items.Count == 1 && viewModel.Items[0] == cloudRow,
         "deployment and surface filters were not composed");
+    // A surface filter cannot conjure a streaming row back into the table.
+    viewModel.SurfaceFilter = ModelSurface.StreamingTranscription;
+    Assert(viewModel.Items.Count == 0,
+        "filtering by the streaming surface put a streaming row back in the table");
     viewModel.DeploymentFilter = null;
     viewModel.SurfaceFilter = null;
     viewModel.Sort = ModelLibrarySort.Name;
@@ -85,6 +111,12 @@ try
         { StreamingLanguage = "fr" };
     using (var liveViewModel = new ModelLibraryViewModel(manager, capabilities: [liveCapability], streamingSettings: settings))
     {
+        // The library no longer pre-selects a row, the way Windows does not, so a test that
+        // exercises the selected-row action picks its row first.
+        // Streaming capabilities are not rows in the Windows-shaped table (Windows draws none),
+        // so the live action picks its row from StreamingItems rather than Items.
+        Assert(liveViewModel.Items.Count == 0, "a streaming capability leaked into the library table");
+        liveViewModel.Selected = liveViewModel.StreamingItems[0];
         liveViewModel.Selected!.Installed = true;
         await liveViewModel.UseForLiveStreamingAsync();
         Assert(settings.StreamingEnabled && settings.StreamingProvider == "parakeetLocal"
@@ -123,12 +155,19 @@ try
         new TestPaths(concurrencyRoot), new HttpClient(concurrencyHandler));
     using (var concurrencyViewModel = new ModelLibraryViewModel(concurrencyManager))
     {
+        // Not Items[0]: the recommended order ties cloud rows ahead of local ones, the way
+        // Windows falls back to its own cloud-first input order, so the first row is a cloud
+        // row with no downloadable model behind it. This test needs a row that can download.
+        concurrencyViewModel.Selected ??= concurrencyViewModel.Items.First(item => item.CanDownload);
         var downloadTarget = concurrencyViewModel.Selected!;
         var download = concurrencyViewModel.DownloadAsync();
         await concurrencyHandler.Started.Task;
-        var otherRow = concurrencyViewModel.Items.First(item => item.Id != downloadTarget.Id);
-        Assert(otherRow.Model is not null && otherRow.Status == "Not installed",
-            "recommended ordering did not preserve local download rows ahead of cloud metadata rows");
+        // Same reason as above: the next row in recommended order is a cloud metadata row, and
+        // this check is about a SECOND downloadable row, not about whatever sorts next.
+        var otherRow = concurrencyViewModel.Items.First(
+            item => item.Id != downloadTarget.Id && item.Model is not null);
+        Assert(otherRow.Status == "Not installed",
+            "a second local download row was not available in the recommended order");
         concurrencyViewModel.Selected = otherRow;
         concurrencyViewModel.Dispose();
         await download;

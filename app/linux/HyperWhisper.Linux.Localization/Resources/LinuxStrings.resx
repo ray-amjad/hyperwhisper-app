@@ -23,12 +23,12 @@
   <data name="linux.update.not_package_managed" xml:space="preserve"><value>This build is not installed as the HyperWhisper system package.</value></data>
   <data name="linux.update.unavailable" xml:space="preserve"><value>APT and PackageKit metadata are unavailable on this system.</value></data>
   <data name="linux.update.failed" xml:space="preserve"><value>Package metadata could not be checked.</value></data>
-  <data name="linux.update.instructions" xml:space="preserve"><value>HyperWhisper never refreshes or installs packages itself. Use your distribution's normal software updater to refresh metadata and install an available version.</value></data>
+  <data name="linux.update.instructions" xml:space="preserve"><value>Updates come from your distribution's package manager, not from HyperWhisper.</value></data>
   <data name="linux.update.refresh" xml:space="preserve"><value>Refresh package status</value></data>
   <data name="linux.vad.title" xml:space="preserve"><value>Trim silence before batch transcription</value></data>
-  <data name="linux.vad.subtitle" xml:space="preserve"><value>For recordings of at least 30 seconds, remove detected silence before transcription. If analysis fails or produces unsafe output, HyperWhisper uses the original audio.</value></data>
+  <data name="linux.vad.subtitle" xml:space="preserve"><value>Removes silence from recordings over 30 seconds before transcribing.</value></data>
   <data name="linux.timestamps.title" xml:space="preserve"><value>Store word timestamps</value></data>
-  <data name="linux.timestamps.subtitle" xml:space="preserve"><value>Local Whisper stores segment and word timing aligned to the raw transcript for History and retries.</value></data>
+  <data name="linux.timestamps.subtitle" xml:space="preserve"><value>Stores word timing aligned to the raw transcript.</value></data>
   <data name="linux.onboarding.welcome.title" xml:space="preserve"><value>Welcome to HyperWhisper on Linux</value></data>
   <data name="linux.onboarding.welcome.body" xml:space="preserve"><value>This short setup checks your desktop's actual capabilities, then helps you choose a transcription mode and microphone.</value></data>
   <data name="linux.onboarding.capabilities.title" xml:space="preserve"><value>Desktop capabilities</value></data>
@@ -54,6 +54,7 @@
   <data name="linux.onboarding.test.succeeded" xml:space="preserve"><value>Test dictation succeeded and was saved to History.</value></data>
   <data name="linux.onboarding.test.failed" xml:space="preserve"><value>The test could not complete. Review the selected mode, credential, model, and microphone in Settings.</value></data>
   <data name="linux.onboarding.test.privacy" xml:space="preserve"><value>The test follows the selected mode's normal local or cloud processing path and your existing storage settings.</value></data>
+  <data name="linux.onboarding.back" xml:space="preserve"><value>Back</value></data>
   <data name="linux.onboarding.skip" xml:space="preserve"><value>Skip setup</value></data>
   <data name="linux.onboarding.continue" xml:space="preserve"><value>Continue / Finish</value></data>
   <data name="linux.onboarding.save_failed" xml:space="preserve"><value>Setup could not be saved securely.</value></data>
@@ -123,12 +124,16 @@
   <data name="linux.ui.import.backup" xml:space="preserve"><value>Import backup</value></data>
   <data name="linux.ui.import.sections" xml:space="preserve"><value>Import sections</value></data>
   <data name="linux.ui.insertion.context.is.classified.without.retaining.surroundin.eaea7cd0" xml:space="preserve"><value>Insertion context is classified without retaining surrounding text. Unsupported or inaccessible fields leave capitalization unchanged.</value></data>
-  <data name="linux.ui.inspect.selected.backup" xml:space="preserve"><value>Inspect selected backup</value></data>
+  <data name="linux.ui.inspect.selected.backup" xml:space="preserve"><value>Inspect</value></data>
+  <data name="linux.settings.backup.tools.title" xml:space="preserve"><value>Vocabulary transfer and backup inspection</value></data>
+  <data name="linux.settings.backup.tools.vocabulary" xml:space="preserve"><value>Vocabulary file (TSV)</value></data>
+  <data name="linux.settings.backup.tools.vocabularyPlaceholder" xml:space="preserve"><value>Path to a .tsv file</value></data>
+  <data name="linux.settings.backup.tools.archive" xml:space="preserve"><value>Backup archive</value></data>
   <data name="linux.ui.keep.app.owned.audio.after.transcription" xml:space="preserve"><value>Keep app-owned audio after transcription</value></data>
   <data name="linux.ui.keep.the.selected.microphone.warm.between.recordings" xml:space="preserve"><value>Keep the selected microphone warm between recordings</value></data>
   <data name="linux.ui.language.code" xml:space="preserve"><value>Language code</value></data>
   <data name="linux.ui.launch.with.the.window.hidden.when.the.tray.is.available" xml:space="preserve"><value>Launch with the window hidden when the tray is available</value></data>
-  <data name="linux.ui.linux.1.0" xml:space="preserve"><value>Linux 1.0</value></data>
+  <data name="linux.ui.linux.1.0" xml:space="preserve"><value>Linux</value></data>
   <data name="linux.ui.linux.securely.stores.canonical.wav.files.in.the.fixed.xdg.d.17cd50e7" xml:space="preserve"><value>Linux securely stores canonical WAV files in the fixed XDG data recordings folder. Custom folders and M4A conversion are unavailable because they would weaken current ownership and portable codec guarantees. Imported caller originals are never deleted.</value></data>
   <data name="linux.ui.live.transcription" xml:space="preserve"><value>Live transcription</value></data>
   <data name="linux.ui.local.engine.used.for.local.modes" xml:space="preserve"><value>Local engine (used for local modes)</value></data>
@@ -153,12 +158,64 @@
   <data name="linux.ui.package.version" xml:space="preserve"><value>Package version</value></data>
   <data name="linux.ui.paste.the.result.into.the.active.application" xml:space="preserve"><value>Paste the result into the active application</value></data>
   <data name="linux.ui.play.recording.start.and.stop.sounds" xml:space="preserve"><value>Play recording start and stop sounds</value></data>
-  <data name="linux.ui.preferred.port.falls.back.to.an.available.loopback.port" xml:space="preserve"><value>Preferred port (falls back to an available loopback port)</value></data>
+  <data name="linux.ui.preferred.port.falls.back.to.an.available.loopback.port" xml:space="preserve"><value>Preferred port</value></data>
   <data name="linux.ui.preview.selected.import" xml:space="preserve"><value>Preview selected import</value></data>
   <data name="linux.ui.privacy.safe.diagnostics" xml:space="preserve"><value>Privacy-safe diagnostics</value></data>
   <data name="linux.ui.profanity.filter" xml:space="preserve"><value>Profanity filter</value></data>
   <data name="linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81" xml:space="preserve"><value>Provider API keys use Secret Service when available, otherwise owner-only private files. Existing values are never displayed; backup export is plaintext and requires explicit opt-in. HyperWhisper Account Keys must be validated on the Cloud account page.</value></data>
   <data name="linux.ui.api.keys" xml:space="preserve"><value>API keys</value></data>
+  <data name="linux.ui.column.model.name" xml:space="preserve"><value>Model name</value></data>
+  <data name="linux.ui.column.type" xml:space="preserve"><value>Type</value></data>
+  <data name="linux.shortcuts.error.singleModifier" xml:space="preserve"><value>Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.</value></data>
+  <data name="linux.shortcuts.error.duplicate" xml:space="preserve"><value>This shortcut is already used for {0} ({1})</value></data>
+  <data name="linux.settings.general.shareSpeedData.subtitle" xml:space="preserve"><value>Times cloud providers for a public speed comparison. Never sends audio, text or keys.</value></data>
+  <data name="linux.settings.general.errorLogging.subtitle" xml:space="preserve"><value>Sends crash reports only. Your transcriptions are never sent.</value></data>
+  <data name="linux.settings.sound.autoIncreaseMicVolume.subtitle" xml:space="preserve"><value>Boosts a quiet mic to 90% while recording, then restores it.</value></data>
+  <data name="linux.settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve"><value>Keeps the mic open between recordings to cut startup delay.</value></data>
+  <data name="linux.settings.storage.notice" xml:space="preserve"><value>A new folder affects new recordings only.</value></data>
+  <data name="linux.settings.storage.storeAsM4A.subtitle" xml:space="preserve"><value>Converts recordings to smaller files after transcription.</value></data>
+  <data name="linux.settings.backup.export.subtitle" xml:space="preserve"><value>Save settings, modes and vocabulary to a file you can restore later.</value></data>
+  <data name="linux.settings.cloud.activate.subtitle" xml:space="preserve"><value>Your account key holds your Cloud credits. Enter it to get started.</value></data>
+  <data name="linux.settings.credits.lowWarning" xml:space="preserve"><value>Your credits are running low. Add more to keep using Cloud.</value></data>
+  <data name="linux.settings.credits.exhaustedWarning" xml:space="preserve"><value>Your credits are exhausted. Add more to keep using Cloud.</value></data>
+  <data name="linux.settings.localApi.mcp.caption" xml:space="preserve"><value>Drop into your MCP client's mcpServers block. No secrets in client config.</value></data>
+  <data name="linux.ui.column.rating" xml:space="preserve"><value>Speed / Accuracy</value></data>
+
+  <!-- Case aliases over the Windows provider.* keys. Those keys are camelCase
+       (provider.geminiTranscribe) but the id LISTS the combos bind are lowercase
+       ("geminitranscribe"), and the catalog lookup is ordinal, so the three ids below missed
+       their key and the combo fell back to showing the raw id. The ids cannot simply be recased:
+       ModesViewModel matches them ordinally when a mode is saved, so stored modes carry these
+       exact strings. Aliasing the label is the safe half of the fix. -->
+  <data name="provider.geminitranscribe" xml:space="preserve"><value>Gemini 3.5 Transcribe</value></data>
+  <data name="provider.microsoftazurespeech" xml:space="preserve"><value>Microsoft Azure Speech</value></data>
+  <data name="provider.googlespeech" xml:space="preserve"><value>Google Cloud Speech</value></data>
+  <!-- The post-processing list spells HyperWhisper Cloud "hyperwhispercloud" where the STT list
+       spells it "hyperwhisper", and it is the only id in either list with no Windows key. -->
+  <data name="provider.hyperwhispercloud" xml:space="preserve"><value>HyperWhisper Cloud</value></data>
+  <data name="provider.custom" xml:space="preserve"><value>Custom endpoint</value></data>
+
+  <!-- Windows has no modes.cloudAccuracy.metaMuse.label: its own fallback list is missing this
+       one tier, a gap that only shows there when the catalog fails to load. Linux reaches the
+       same keys for every row of the engine picker, so the gap would show every time. -->
+  <data name="modes.cloudAccuracy.metaMuse.label" xml:space="preserve"><value>Meta Muse</value></data>
+
+  <!-- Medical-domain picker. The stored ids are "" and "medical"; "" is the general case. -->
+  <data name="mode.editor.domain.default" xml:space="preserve"><value>General</value></data>
+  <data name="mode.editor.domain.medical" xml:space="preserve"><value>Medical</value></data>
+
+  <!-- Local engine and runtime backends. All previously rendered as their raw ids, so the
+       backend picker offered "cuda12" and "vulkan" in lower case. -->
+  <data name="mode.editor.localEngine.whisper" xml:space="preserve"><value>Whisper</value></data>
+  <data name="mode.editor.localEngine.parakeet" xml:space="preserve"><value>Parakeet</value></data>
+  <data name="linux.settings.backend.auto" xml:space="preserve"><value>Automatic</value></data>
+  <data name="linux.settings.backend.cpu" xml:space="preserve"><value>CPU</value></data>
+  <data name="linux.settings.backend.vulkan" xml:space="preserve"><value>Vulkan</value></data>
+  <data name="linux.settings.backend.cuda" xml:space="preserve"><value>CUDA</value></data>
+  <data name="linux.settings.backend.cuda12" xml:space="preserve"><value>CUDA 12</value></data>
+  <data name="linux.ui.gauge.speed" xml:space="preserve"><value>Speed</value></data>
+  <data name="linux.ui.gauge.accuracy" xml:space="preserve"><value>Accuracy</value></data>
+  <data name="linux.ui.column.location" xml:space="preserve"><value>Cloud / Offline</value></data>
   <data name="linux.ui.i.understand.this.backup.will.contain.plaintext.api.keys" xml:space="preserve"><value>I understand this backup will contain plaintext API keys</value></data>
   <data name="linux.ui.provider.credentials" xml:space="preserve"><value>Provider credentials</value></data>
   <data name="linux.ui.provider.model.optional" xml:space="preserve"><value>Provider model (optional)</value></data>
@@ -244,9 +301,16 @@
   <data name="linux.storage.cleanup_failed" xml:space="preserve"><value>Storage cleanup failed; external audio was not touched.</value></data>
   <data name="linux.storage.inventory_failed" xml:space="preserve"><value>Storage inventory could not be read.</value></data>
   <data name="linux.storage.open_failed" xml:space="preserve"><value>The fixed XDG recordings folder could not be opened.</value></data>
-  <data name="linux.clipboard.privacy_enabled" xml:space="preserve"><value>Clipboard-history exclusion hints are enabled for compatible clipboard managers; enforcement remains desktop-dependent.</value></data>
-  <data name="linux.clipboard.privacy_unavailable" xml:space="preserve"><value>This clipboard backend cannot attach a history-exclusion hint; restore behavior still applies.</value></data>
-  <data name="linux.clipboard.privacy_disabled" xml:space="preserve"><value>Clipboard-history exclusion hints are disabled.</value></data>
+  <!-- The shared settings.output.hideClipboardHistory.subtitle says "Windows clipboard history",
+       which is meaningless here. Same sentence with the platform noun dropped, so the row still
+       reads as one line at the same length the Windows row draws. -->
+  <data name="linux.settings.output.hideClipboardHistory.subtitle" xml:space="preserve"><value>Prevent transcriptions from appearing in clipboard history</value></data>
+  <!-- One line each, not a sentence pair: these sit under the switch they describe and a second
+       wrapped line pushes the page past 680px and gives it a scrollbar Windows does not have.
+       They are the switch's tooltip now: Windows draws two lines in this row and no third. -->
+  <data name="linux.clipboard.privacy_enabled" xml:space="preserve"><value>Hints sent; enforcement is desktop-dependent.</value></data>
+  <data name="linux.clipboard.privacy_unavailable" xml:space="preserve"><value>This clipboard backend cannot send the hint.</value></data>
+  <data name="linux.clipboard.privacy_disabled" xml:space="preserve"><value>Hints are off.</value></data>
   <data name="linux.desktop.context_gnome" xml:space="preserve"><value>Application context: {0} The optional packaged GNOME companion improves title discovery; AT-SPI remains the local fallback.</value></data>
   <data name="linux.desktop.context" xml:space="preserve"><value>Application context: {0}</value></data>
   <data name="linux.error.shortcut_modifiers_invalid" xml:space="preserve"><value>Shortcut modifiers must use Control, Alt, Shift, or Meta separated by commas.</value></data>
@@ -302,6 +366,284 @@
   <data name="linux.overlay.copy_glyph" xml:space="preserve"><value>▣</value></data>
   <data name="linux.overlay.secure_glyph" xml:space="preserve"><value>🔒</value></data>
   <data name="linux.overlay.escape_hint" xml:space="preserve"><value>Esc ·</value></data>
-  <data name="linux.storage.restart_required" xml:space="preserve"><value>Save and restart HyperWhisper to use this folder for new recordings. Existing history keeps its original absolute audio paths.</value></data>
+  <data name="linux.storage.restart_required" xml:space="preserve"><value>Restart HyperWhisper to use this folder for new recordings.</value></data>
   <data name="linux.ui.use.for.live.transcription" xml:space="preserve"><value>Use for live transcription</value></data>
+  <data name="linux.page.subtitle.home" xml:space="preserve">
+    <value>Record and transcribe, and see how much time you save.</value>
+  </data>
+  <data name="linux.page.subtitle.modes" xml:space="preserve">
+    <value>Create custom profiles for different contexts and workflows</value>
+  </data>
+  <data name="linux.page.subtitle.vocabulary" xml:space="preserve">
+    <value>This helps the software to recognize names, acronyms, slang, or words from other languages when mixing languages.</value>
+  </data>
+  <data name="linux.page.subtitle.models" xml:space="preserve">
+    <value>Browse the local and cloud transcription models available to a mode.</value>
+  </data>
+  <data name="linux.page.subtitle.history" xml:space="preserve">
+    <value>Search past transcripts, play the recording, and transcribe again.</value>
+  </data>
+  <data name="linux.page.subtitle.settings" xml:space="preserve">
+    <value>Application, shortcut, audio, and storage preferences.</value>
+  </data>
+  <data name="linux.page.subtitle.account" xml:space="preserve">
+    <value>Track your HyperWhisper Cloud balance and usage</value>
+  </data>
+  <data name="linux.page.subtitle.credentials" xml:space="preserve">
+    <value>Store provider API keys in the desktop secret service.</value>
+  </data>
+  <data name="linux.page.subtitle.backup" xml:space="preserve">
+    <value>Export and import modes, vocabulary, and settings.</value>
+  </data>
+  <data name="linux.page.subtitle.about" xml:space="preserve">
+    <value>Version, updates, and privacy-safe diagnostics.</value>
+  </data>
+  <data name="linux.status.record_hint" xml:space="preserve">
+    <value>Press {0} to record</value>
+  </data>
+  <data name="linux.status.ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="linux.appearance.theme.system.subtitle" xml:space="preserve">
+    <value>Switches between light and dark with your desktop theme.</value>
+  </data>
+  <data name="linux.status.mode_label" xml:space="preserve">
+    <value>Mode:</value>
+  </data>
+  <data name="linux.status.model_label" xml:space="preserve">
+    <value>Model:</value>
+  </data>
+  <data name="linux.page.subtitle.streaming" xml:space="preserve">
+    <value>Use a separate hotkey to transcribe continuously and paste final speech segments into the active app.</value>
+  </data>
+  <data name="linux.ui.minutes.short" xml:space="preserve">
+    <value>minutes</value>
+  </data>
+  <data name="linux.empty.modes.title" xml:space="preserve">
+    <value>No modes yet</value>
+  </data>
+  <data name="linux.empty.modes.body" xml:space="preserve">
+    <value>Create a mode to choose a provider, a language and post-processing.</value>
+  </data>
+  <data name="linux.empty.vocabulary.title" xml:space="preserve">
+    <value>No vocabulary words yet</value>
+  </data>
+  <data name="linux.empty.vocabulary.body" xml:space="preserve">
+    <value>Add custom words to improve transcription accuracy</value>
+  </data>
+  <data name="linux.empty.history.title" xml:space="preserve">
+    <value>No transcripts yet</value>
+  </data>
+  <data name="linux.empty.history.body" xml:space="preserve">
+    <value>Recordings you transcribe show here.</value>
+  </data>
+  <data name="linux.empty.historyDetail.title" xml:space="preserve">
+    <value>Select a recording to view details</value>
+  </data>
+  <data name="linux.models.library.title" xml:space="preserve">
+    <value>Model Library</value>
+  </data>
+  <data name="linux.models.legend.enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="linux.models.legend.locked" xml:space="preserve">
+    <value>Locked</value>
+  </data>
+  <data name="linux.models.legend.keyInvalid" xml:space="preserve">
+    <value>Key invalid</value>
+  </data>
+  <data name="linux.models.endpoints.title" xml:space="preserve">
+    <value>OpenAI-compatible endpoints</value>
+  </data>
+  <data name="linux.endpoint.tab.lmstudio" xml:space="preserve">
+    <value>LMStudio</value>
+    <comment>Tab label. CustomEndpointWindow.xaml:24 (hardcoded literal on Windows).</comment>
+  </data>
+  <data name="linux.endpoint.tab.ollama" xml:space="preserve">
+    <value>Ollama</value>
+    <comment>Tab label. CustomEndpointWindow.xaml:27.</comment>
+  </data>
+  <data name="linux.endpoint.tab.custom" xml:space="preserve">
+    <value>Custom</value>
+    <comment>Tab label. CustomEndpointWindow.xaml:30.</comment>
+  </data>
+  <data name="linux.endpoint.field.name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Field label. CustomEndpointWindow.xaml:40.</comment>
+  </data>
+  <data name="linux.endpoint.field.baseUrl" xml:space="preserve">
+    <value>Base URL</value>
+    <comment>Field label. CustomEndpointWindow.xaml:47.</comment>
+  </data>
+  <data name="linux.endpoint.field.baseUrl.hint" xml:space="preserve">
+    <value>Base URL of your local server</value>
+    <comment>Field hint. CustomEndpointWindow.xaml:50.</comment>
+  </data>
+  <data name="linux.endpoint.field.model" xml:space="preserve">
+    <value>Model</value>
+    <comment>Field label. CustomEndpointWindow.xaml:61.</comment>
+  </data>
+  <data name="linux.endpoint.field.model.hint" xml:space="preserve">
+    <value>The model identifier your endpoint expects</value>
+    <comment>Field hint. CustomEndpointWindow.xaml:98.</comment>
+  </data>
+  <data name="linux.endpoint.field.apiKey" xml:space="preserve">
+    <value>API Key (Optional)</value>
+    <comment>Field label. CustomEndpointWindow.xaml:104.</comment>
+  </data>
+  <data name="linux.endpoint.test" xml:space="preserve">
+    <value>Test Connection</value>
+    <comment>Button. CustomEndpointWindow.xaml:116.</comment>
+  </data>
+  <data name="linux.endpoint.test.connected" xml:space="preserve">
+    <value>Connected</value>
+    <comment>Test result. CustomEndpointWindow.xaml:124.</comment>
+  </data>
+  <data name="linux.endpoint.test.failed" xml:space="preserve">
+    <value>Failed</value>
+    <comment>Test result. CustomEndpointWindow.xaml:131.</comment>
+  </data>
+  <data name="linux.endpoint.test.testing" xml:space="preserve">
+    <value>Testing...</value>
+    <comment>Test in progress. CustomEndpointWindow.xaml:137.</comment>
+  </data>
+  <data name="linux.endpoint.test.status" xml:space="preserve">
+    <value>HTTP {0} from {1}</value>
+    <comment>Detail line under the test result. Linux-only: Windows shows a provider-specific details panel instead. {0} is the status code, {1} the probed URL.</comment>
+  </data>
+  <data name="linux.endpoint.validation.title" xml:space="preserve">
+    <value>Validation</value>
+    <comment>Title of the validation box. Windows sets this literal from CustomEndpointWindow.xaml.cs.</comment>
+  </data>
+  <data name="linux.endpoint.validation.name" xml:space="preserve">
+    <value>Name is required.</value>
+    <comment>Validation message, verbatim from the Windows code-behind.</comment>
+  </data>
+  <data name="linux.endpoint.validation.url" xml:space="preserve">
+    <value>Endpoint URL is required.</value>
+    <comment>Validation message, verbatim from the Windows code-behind. Also shown when the shared core rejects the URL.</comment>
+  </data>
+  <data name="linux.endpoint.validation.model" xml:space="preserve">
+    <value>Model name is required.</value>
+    <comment>Validation message, verbatim from the Windows code-behind.</comment>
+  </data>
+  <data name="linux.endpoint.validation.saveFailed" xml:space="preserve">
+    <value>The endpoint could not be stored. Check that the settings file and the credential store are writable.</value>
+    <comment>Linux-only: the Windows dialog writes through a manager that reports failures elsewhere.</comment>
+  </data>
+  <data name="linux.models.delete.inUse.title" xml:space="preserve">
+    <value>Cannot Delete</value>
+    <comment>Title of the box shown when a model cannot be deleted because a mode still uses it. Windows raises this box from ModelsSettingsPage.xaml.cs:847 through a key that is absent from Strings.resx, so it renders the raw key there; this is the same wording its sibling mode.editor.delete.cannotDelete.title carries.</comment>
+  </data>
+  <data name="linux.models.delete.inUse.message" xml:space="preserve">
+    <value>{0} is used by the "{1}" mode. Switch that mode to another model before deleting it.</value>
+    <comment>Body of the model-in-use box. Windows writes this as a hardcoded interpolated literal (ModelsSettingsPage.xaml.cs:846), so there is no shared key to reuse; the wording is copied from it verbatim. {0} is the model name, {1} the mode name.</comment>
+  </data>
+  <data name="linux.models.endpoints.add" xml:space="preserve">
+    <value>Add Endpoint</value>
+  </data>
+  <data name="linux.models.filter.title" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="linux.models.filter.type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="linux.models.filter.type.voice" xml:space="preserve">
+    <value>Voice models</value>
+  </data>
+  <data name="linux.models.filter.type.language" xml:space="preserve">
+    <value>Language models</value>
+  </data>
+  <data name="linux.models.filter.location" xml:space="preserve">
+    <value>Location</value>
+  </data>
+  <data name="linux.models.filter.location.cloud" xml:space="preserve">
+    <value>Cloud</value>
+  </data>
+  <data name="linux.models.filter.location.offline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="linux.models.filter.features" xml:space="preserve">
+    <value>Features</value>
+  </data>
+  <data name="linux.models.filter.features.vocabulary" xml:space="preserve">
+    <value>Supports custom vocabulary</value>
+  </data>
+  <data name="linux.models.filter.features.cloud" xml:space="preserve">
+    <value>Available on HyperWhisper Cloud</value>
+  </data>
+  <data name="linux.models.filter.clear" xml:space="preserve">
+    <value>Clear filter</value>
+  </data>
+  <data name="linux.models.filter.allProviders" xml:space="preserve">
+    <value>All providers</value>
+  </data>
+  <data name="linux.models.language.showAll" xml:space="preserve">
+    <value>Show all</value>
+  </data>
+  <data name="linux.models.language.any" xml:space="preserve">
+    <value>Any language</value>
+  </data>
+  <data name="linux.models.chip.vocabulary" xml:space="preserve">
+    <value>Custom vocabulary</value>
+  </data>
+  <data name="linux.models.chip.cloud" xml:space="preserve">
+    <value>On HyperWhisper Cloud</value>
+  </data>
+  <data name="linux.models.row.useForLive" xml:space="preserve">
+    <value>Use for live transcription</value>
+  </data>
+  <data name="linux.models.row.refreshReadiness" xml:space="preserve">
+    <value>Refresh readiness</value>
+  </data>
+  <data name="linux.streaming.section.engine" xml:space="preserve">
+    <value>Engine</value>
+  </data>
+  <data name="linux.home.stats.wpm" xml:space="preserve">
+    <value> WPM</value>
+  </data>
+  <data name="linux.home.conflict.title" xml:space="preserve">
+    <value>Shortcut Conflict</value>
+  </data>
+  <data name="linux.streaming.conflict.title" xml:space="preserve">
+    <value>Streaming shortcut conflict</value>
+  </data>
+  <data name="linux.streaming.conflict.change" xml:space="preserve">
+    <value>Change Shortcut</value>
+  </data>
+  <data name="linux.streaming.conflict.openSettings" xml:space="preserve">
+    <value>Open Shortcut Settings</value>
+  </data>
+  <data name="linux.history.selected.count" xml:space="preserve">
+    <value>{0} recordings selected</value>
+  </data>
+  <data name="linux.history.delete.confirm" xml:space="preserve">
+    <value>Permanently delete the selected transcripts?</value>
+  </data>
+  <!-- Windows says "Show in Explorer"; the Linux file manager is not Explorer. -->
+  <data name="linux.storage.showFolder.button" xml:space="preserve">
+    <value>Show in Files</value>
+  </data>
+  <!-- The Windows blurb names %LOCALAPPDATA%. The Linux discovery file is under the XDG data
+       directory, so the page says where it really is rather than a path that does not exist. -->
+  <data name="linux.localApi.blurb" xml:space="preserve">
+    <value>Localhost-only HTTP API for MCP clients and scripts. Off by default. When on, it binds 127.0.0.1 and writes the port and bearer token to ~/.local/share/hyperwhisper/local-api.json, readable only by you.</value>
+  </data>
+  <!-- About prints one version line, the way Windows does. -->
+  <data name="linux.format.version" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <!-- The clipboard restore-delay stepper reads its own value between the two buttons. -->
+  <data name="linux.format.restoreDelay.seconds" xml:space="preserve">
+    <value>{0} sec</value>
+  </data>
+  <!-- The package version moved off the identity card and into the update card. -->
+  <data name="linux.format.packageVersion" xml:space="preserve">
+    <value>Package version: {0}</value>
+  </data>
+  <!-- Windows is the reference for everything above the fold, so a control the Windows page
+       does not have moves into one clearly-last card under this heading. -->
+  <data name="linux.section.linuxOnly" xml:space="preserve">
+    <value>Linux options</value>
+  </data>
 </root>
