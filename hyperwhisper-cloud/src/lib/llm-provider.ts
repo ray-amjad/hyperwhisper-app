@@ -63,6 +63,18 @@ const LLM_PROVIDER_FALLBACKS: Record<LLMProvider, LLMProvider> = {
   mistral: 'groq',
 };
 
+// Per-provider retry count. Fast/cheap providers retry more; pricier or slower
+// ones retry less to bound latency and spend before falling back.
+const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
+  anthropic: 2,
+  cerebras: 0,
+  grok: 1,
+  openai: 1,
+  gemini: 2,
+  mistral: 2,
+  groq: 3,
+};
+
 // Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
 // resolved model is threaded through callWithRetry to the openai/gemini/mistral
 // clients (the 4 single-model providers ignore it). MUST match the model ids in
@@ -132,7 +144,6 @@ export async function callWithRetry(
   provider: LLMProvider,
   payload: CorrectionRequestPayload,
   requestId: string,
-  maxRetries: number,
   model: string
 ): Promise<Awaited<ReturnType<typeof requestCerebrasChat>>> {
   return retryWithBackoff(
@@ -147,7 +158,7 @@ export async function callWithRetry(
         : requestGroqChat(payload, requestId);
     },
     {
-      maxRetries,
+      maxRetries: LLM_PROVIDER_RETRIES[provider],
       initialDelayMs: 1000,
       backoffMultiplier: 2,
       onRetry: (attempt, error, delayMs) => {
@@ -193,4 +204,5 @@ export function shouldFallback(error: unknown): boolean {
 /** Exported for the parity test only. */
 export const __tables = {
   LLM_PROVIDER_MODELS,
+  LLM_PROVIDER_RETRIES,
 };
