@@ -99,9 +99,11 @@ export function minSamplesForMetric(metric: LatencyMetric): number {
   return metric === "p99" ? MIN_SAMPLES_FOR_P99 : MIN_SAMPLES_PER_CELL;
 }
 
-export const BUCKET_LABELS: Record<DurationBucket, string> = Object.fromEntries(
-  DURATION_BUCKET_MODEL.map((bucket) => [bucket.id, bucket.label]),
-) as Record<DurationBucket, string>;
+export const BUCKET_LABELS: Record<DurationBucket, string> =
+  DURATION_BUCKET_MODEL.reduce(
+    (labels, bucket) => ({ ...labels, [bucket.id]: bucket.label }),
+    { short: "", medium: "", long: "" },
+  );
 
 /** One region's numbers for one row of the table. */
 export type LatencyCell = {

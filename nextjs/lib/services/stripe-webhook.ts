@@ -16,6 +16,13 @@ import {
   getCreditBalance,
 } from "@/src/lib/db-layer";
 
+function getStripeCustomerId(
+  customer: Stripe.Checkout.Session["customer"]
+): string | null {
+  if (typeof customer === "string") return customer;
+  return customer?.id ?? null;
+}
+
 /**
  * Stripe Webhook Handlers
  *
@@ -38,10 +45,13 @@ export async function handleLicensePurchase(
     session.customer_details?.name ||
     customerEmail?.split("@")[0] ||
     "Customer";
-  const stripeCustomerId = session.customer as string;
+  const stripeCustomerId = getStripeCustomerId(session.customer);
 
   if (!customerEmail) {
     throw new Error("No customer email in checkout session");
+  }
+  if (!stripeCustomerId) {
+    throw new Error("No Stripe customer in checkout session");
   }
 
   console.log(`Processing license purchase for ${customerEmail}`);
@@ -301,7 +311,7 @@ async function handleCreditMint(
   const customerEmail = session.customer_details?.email;
   const customerName =
     session.customer_details?.name || customerEmail?.split("@")[0] || "Customer";
-  const stripeCustomerId = (session.customer as string) || null;
+  const stripeCustomerId = getStripeCustomerId(session.customer);
 
   if (!customerEmail) {
     throw new Error("No customer email in credit checkout session");
