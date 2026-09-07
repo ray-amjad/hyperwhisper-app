@@ -535,7 +535,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: GetWindowTitleText failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: GetWindowTitleText failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
             return "";
         }
     }
@@ -573,7 +573,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: GetProcessFromWindow failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: GetProcessFromWindow failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
             return "";
         }
     }
@@ -610,7 +610,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: ResolveUwpProcessName failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: ResolveUwpProcessName failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
         }
 
         return resolvedName;
@@ -691,7 +691,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Browser host extraction failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: Browser host extraction failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
             return null;
         }
     }
@@ -726,7 +726,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Browser host UIA query failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: Browser host UIA query failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
         }
 
         return null;
@@ -796,7 +796,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: GetFocusedElementInfo failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: GetFocusedElementInfo failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
             return null;
         }
     }
@@ -844,7 +844,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: UIA element query failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: UIA element query failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
             return null;
         }
     }
@@ -903,7 +903,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: TextPattern failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: TextPattern failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
         }
 
         return null;
@@ -926,7 +926,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: ValuePattern failed ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: ValuePattern failed ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
         }
 
         return null;
@@ -943,11 +943,9 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         return text[..maxLength] + "...";
     }
 
-    private static string DescribeException(Exception exception) =>
-        $"exception_type={exception.GetType().Name}, " +
-        $"hresult=0x{unchecked((uint)exception.HResult):X8}";
-
-    internal static string DescribeExceptionEvidence(Exception exception)
+    internal static string DescribeExceptionEvidence(
+        Exception exception,
+        bool includeInnerExceptionsAndStack = true)
     {
         var result = new StringBuilder();
         Exception? current = exception;
@@ -962,8 +960,17 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
 
             result.Append("depth=").Append(depth)
                 .Append(", exception_type=").Append(current.GetType().FullName ?? current.GetType().Name)
-                .Append(", hresult=0x").Append(unchecked((uint)current.HResult).ToString("X8"))
-                .Append(", stack=").Append(DescribeStack(current));
+                .Append(", hresult=0x").Append(unchecked((uint)current.HResult).ToString("X8"));
+
+            if (includeInnerExceptionsAndStack)
+            {
+                result.Append(", stack=").Append(DescribeStack(current));
+            }
+
+            if (!includeInnerExceptionsAndStack)
+            {
+                break;
+            }
 
             current = current.InnerException;
             depth++;
@@ -1029,7 +1036,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Error shutting down STA dispatcher ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: Error shutting down STA dispatcher ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
         }
 
         try
@@ -1045,7 +1052,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Error joining STA thread ({DescribeException(ex)})");
+            LoggingService.Debug($"ApplicationContextService: Error joining STA thread ({DescribeExceptionEvidence(ex, includeInnerExceptionsAndStack: false)})");
         }
 
         _staDispatcher = null;

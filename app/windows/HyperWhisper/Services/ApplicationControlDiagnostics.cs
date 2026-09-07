@@ -12,6 +12,8 @@ internal static class ApplicationControlDiagnostics
         long? AssemblyFileSizeBytes,
         string AuthenticodeStatus,
         int? WinVerifyTrustHResult,
+        string? TrustProbeExceptionType,
+        int? TrustProbeExceptionHResult,
         string ZoneStreamStatus,
         int? ZoneId,
         string InspectionStage);
@@ -49,7 +51,7 @@ internal static class ApplicationControlDiagnostics
             catch (Exception inspectionException)
             {
                 ProbeFailed("inspection", inspectionException);
-                snapshot = new(false, null, "check_failed", null, "unreadable", null, "inspection_failed");
+                snapshot = new(false, null, "check_failed", null, null, null, "unreadable", null, "inspection_failed");
             }
             var payload = BuildPayload(snapshot, stage, exception, captureElapsedMilliseconds);
             LoggingService.Error(
@@ -92,16 +94,18 @@ internal static class ApplicationControlDiagnostics
         catch (Exception exception)
         {
             ProbeFailed("assembly_presence", exception);
-            return Log(new(false, null, "check_failed", null, "unreadable", null, "assembly_presence_failed"));
+            return Log(new(false, null, "check_failed", null, null, null, "unreadable", null, "assembly_presence_failed"));
         }
 
         if (!present)
         {
-            return Log(new(false, null, "not_checked", null, "absent", null, "assembly_not_found"));
+            return Log(new(false, null, "not_checked", null, null, null, "absent", null, "assembly_not_found"));
         }
 
         long? size = null;
         int? trustResult = null;
+        string? trustProbeExceptionType = null;
+        int? trustProbeExceptionHResult = null;
         var trustStatus = "check_failed";
         var zoneStatus = "unreadable";
         int? zoneId = null;
@@ -125,7 +129,8 @@ internal static class ApplicationControlDiagnostics
         catch (Exception exception)
         {
             inspectionStage = "trust_check_failed";
-            trustResult = exception.HResult;
+            trustProbeExceptionType = ExceptionType(exception);
+            trustProbeExceptionHResult = exception.HResult;
             ProbeFailed("winverifytrust", exception);
         }
 
@@ -139,7 +144,16 @@ internal static class ApplicationControlDiagnostics
             ProbeFailed("zone_identifier", exception);
         }
 
-        return Log(new(true, size, trustStatus, trustResult, zoneStatus, zoneId, inspectionStage));
+        return Log(new(
+            true,
+            size,
+            trustStatus,
+            trustResult,
+            trustProbeExceptionType,
+            trustProbeExceptionHResult,
+            zoneStatus,
+            zoneId,
+            inspectionStage));
     }
 
     internal static string DescribeTrustStatus(int? result) => result switch
@@ -183,6 +197,8 @@ internal static class ApplicationControlDiagnostics
                 ["classifier_assembly_present"] = snapshot.AssemblyPresent,
                 ["classifier_file_size_bytes"] = (object?)snapshot.AssemblyFileSizeBytes ?? "unknown",
                 ["classifier_winverifytrust_hresult"] = HResult(snapshot.WinVerifyTrustHResult),
+                ["classifier_trust_probe_exception_type"] = snapshot.TrustProbeExceptionType ?? "none",
+                ["classifier_trust_probe_exception_hresult"] = HResult(snapshot.TrustProbeExceptionHResult),
                 ["classifier_zone_id"] = (object?)snapshot.ZoneId ?? "unknown",
                 ["classifier_load_succeeded"] = false,
                 ["classifier_outer_exception_type"] = ExceptionType(exception),
@@ -208,8 +224,11 @@ internal static class ApplicationControlDiagnostics
             extras: new(payload.Extras, StringComparer.Ordinal),
             tags: new(payload.Tags, StringComparer.Ordinal),
             fingerprint: ["application-control", "classifier-load-failed"],
-            dedupeKey: "application-control:classifier-load-failed");
+            dedupeKey: BuildDedupeKey(payload));
     }
+
+    internal static string BuildDedupeKey(Payload payload) =>
+        $"application-control:classifier-load-failed:{payload.Tags["capture_stage"]}";
 
     private static string SafeStage(string stage) => stage switch
     {
@@ -260,6 +279,8 @@ internal static class ApplicationControlDiagnostics
             $"file_size_bytes={snapshot.AssemblyFileSizeBytes?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}, " +
             $"authenticode_status={snapshot.AuthenticodeStatus}, " +
             $"winverifytrust_hresult={HResult(snapshot.WinVerifyTrustHResult)}, " +
+            $"trust_probe_exception_type={snapshot.TrustProbeExceptionType ?? "none"}, " +
+            $"trust_probe_exception_hresult={HResult(snapshot.TrustProbeExceptionHResult)}, " +
             $"zone_stream_status={snapshot.ZoneStreamStatus}, " +
             $"zone_id={snapshot.ZoneId?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}, " +
             $"inspection_stage={snapshot.InspectionStage})");

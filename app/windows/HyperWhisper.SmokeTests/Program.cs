@@ -113,7 +113,8 @@ internal static class Program
                 const string privateUrl = "https://private.example.test/download";
                 var zone = ApplicationControlDiagnostics.ParseZoneId($"ZoneId=3\r\nHostUrl={privateUrl}");
                 var snapshot = new ApplicationControlDiagnostics.Snapshot(
-                    true, 48128, "untrusted", unchecked((int)0x800B0109), zone.Status, zone.ZoneId, "complete");
+                    true, 48128, "untrusted", unchecked((int)0x800B0109), null, null,
+                    zone.Status, zone.ZoneId, "complete");
                 var sentinel = new FileLoadException(
                     "private path must not enter the payload",
                     @"C:\Users\private-user\HyperWhisper.AppClassification.dll");
@@ -154,6 +155,17 @@ internal static class Program
                     "exception content entered the custom failure payload");
                 Assert(!values.Any(value => value.Contains(privateUrl, StringComparison.OrdinalIgnoreCase)),
                     "URL-like zone data entered the payload");
+
+                var standardPayload = capturedPayload with
+                {
+                    Tags = new Dictionary<string, string>(capturedPayload.Tags, StringComparer.Ordinal)
+                    {
+                        ["capture_stage"] = "standard_recording"
+                    }
+                };
+                Assert(ApplicationControlDiagnostics.BuildDedupeKey(capturedPayload) !=
+                    ApplicationControlDiagnostics.BuildDedupeKey(standardPayload),
+                    "distinct capture stages share one diagnostic dedupe key");
             });
 
             Run("ApplicationControlDiagnostics inspects only after capture failure", () =>
@@ -187,6 +199,20 @@ internal static class Program
                     "TRUST_E_SUBJECT_FORM_UNKNOWN is mislabeled");
                 Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0109)) == "untrusted",
                     "a certificate-chain failure is not untrusted");
+
+                var probeException = new DllNotFoundException("private probe message");
+                var probeSnapshot = new ApplicationControlDiagnostics.Snapshot(
+                    true, 48128, "check_failed", null, typeof(DllNotFoundException).FullName,
+                    probeException.HResult, "absent", null, "trust_check_failed");
+                var probePayload = ApplicationControlDiagnostics.BuildPayload(
+                    probeSnapshot, "prompt_builder", new FileLoadException(), 1);
+                Assert((string)probePayload.Extras["classifier_winverifytrust_hresult"] == "not_checked",
+                    "a managed probe exception is reported as a WinVerifyTrust return code");
+                Assert((string)probePayload.Extras["classifier_trust_probe_exception_type"] ==
+                    typeof(DllNotFoundException).FullName &&
+                    (string)probePayload.Extras["classifier_trust_probe_exception_hresult"] ==
+                    $"0x{unchecked((uint)probeException.HResult):X8}",
+                    "the trust probe exception evidence is missing");
             });
 
             Run("ApplicationContextService exception evidence is privacy-safe", () =>
