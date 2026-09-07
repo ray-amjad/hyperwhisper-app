@@ -314,7 +314,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
             }
             catch (Exception ex)
             {
-                LoggingService.Error("ApplicationContextService: STA thread crashed", ex);
+                LoggingService.Error(
+                    $"ApplicationContextService: STA thread crashed ({DescribeException(ex)})");
             }
         })
         {
@@ -469,18 +470,21 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
                 AppTypeSource = appClassification.Source,
             };
 
-            LoggingService.Info($"ApplicationContextService: {processName}, {category}" +
-                $", appType={appClassification.AppType.ToPromptValue()}/{appClassification.Confidence}/{appClassification.Source}" +
-                (focusedElementType != null ? $", {focusedElementType}" : "") +
-                (focusedContent != null ? $", content_len={focusedContent.Length}" : "") +
-                (browserHost != null ? $", host=\"{browserHost}\"" : "") +
-                (browserTabTitle != null ? $", tab=\"{browserTabTitle}\"" : ""));
+            LoggingService.Info(
+                "ApplicationContextService: Context gathered " +
+                $"(category={category}, " +
+                $"app_type={appClassification.AppType.ToPromptValue()}, " +
+                $"confidence={appClassification.Confidence}, " +
+                $"source={appClassification.Source}, " +
+                $"focused_element_type={focusedElementType ?? "none"}, " +
+                $"focused_content_length={focusedContent?.Length ?? 0})");
 
             return context;
         }
         catch (Exception ex)
         {
-            LoggingService.Error("ApplicationContextService: GatherContext failed", ex);
+            LoggingService.Error(
+                $"ApplicationContextService: GatherContext failed ({DescribeException(ex)})");
             return null;
         }
     }
@@ -532,7 +536,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: GetWindowTitleText failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: GetWindowTitleText failed ({DescribeException(ex)})");
             return "";
         }
     }
@@ -570,7 +575,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: GetProcessFromWindow failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: GetProcessFromWindow failed ({DescribeException(ex)})");
             return "";
         }
     }
@@ -607,7 +613,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: ResolveUwpProcessName failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: ResolveUwpProcessName failed ({DescribeException(ex)})");
         }
 
         return resolvedName;
@@ -688,7 +695,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Browser host extraction failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: Browser host extraction failed ({DescribeException(ex)})");
             return null;
         }
     }
@@ -723,7 +731,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Browser host UIA query failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: Browser host UIA query failed ({DescribeException(ex)})");
         }
 
         return null;
@@ -793,7 +802,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: GetFocusedElementInfo failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: GetFocusedElementInfo failed ({DescribeException(ex)})");
             return null;
         }
     }
@@ -841,7 +851,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: UIA element query failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: UIA element query failed ({DescribeException(ex)})");
             return null;
         }
     }
@@ -900,7 +911,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: TextPattern failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: TextPattern failed ({DescribeException(ex)})");
         }
 
         return null;
@@ -923,7 +935,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: ValuePattern failed: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: ValuePattern failed ({DescribeException(ex)})");
         }
 
         return null;
@@ -939,6 +952,10 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
 
         return text[..maxLength] + "...";
     }
+
+    private static string DescribeException(Exception exception) =>
+        $"exception_type={exception.GetType().Name}, " +
+        $"hresult=0x{unchecked((uint)exception.HResult):X8}";
 
     // =========================================================================
     // TEXT FORMAT INFERENCE
@@ -980,7 +997,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Error shutting down STA dispatcher: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: Error shutting down STA dispatcher ({DescribeException(ex)})");
         }
 
         try
@@ -996,7 +1014,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Debug($"ApplicationContextService: Error joining STA thread: {ex.Message}");
+            LoggingService.Debug(
+                $"ApplicationContextService: Error joining STA thread ({DescribeException(ex)})");
         }
 
         _staDispatcher = null;
