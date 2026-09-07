@@ -843,6 +843,170 @@
     // -----------------------------------------------------------------------
 
     #[test]
+    fn assemblyai_upload_wrapper_streams_audio_and_returns_the_uploaded_url() {
+        let mut p = params();
+        p.api_key = "assembly-key".to_string();
+        p.audio_path = "/tmp/assembly-recording.m4a".to_string();
+        p.base_url = Some("https://assembly.example.test/v2///".to_string());
+
+        let request = assemblyai_build_upload_request(p).expect("upload request");
+        assert_eq!(method_tag(&request.method), "POST");
+        assert_eq!(request.url, "https://assembly.example.test/v2/upload");
+        assert_eq!(
+            header(&request, "Authorization").as_deref(),
+            Some("assembly-key"),
+            "AssemblyAI uses a bare key, not a bearer token"
+        );
+        match request.body {
+            Body::FileStream { path, content_type } => {
+                assert_eq!(path, "/tmp/assembly-recording.m4a");
+                assert_eq!(content_type, "application/octet-stream");
+            }
+            _ => panic!("the upload wrapper must return a streamed file body"),
+        }
+
+        let upload_url = assemblyai_parse_upload_response(response(
+            200,
+            r#"{"upload_url":"https://cdn.assemblyai.test/audio-123"}"#,
+        )).expect("upload response");
+        assert_eq!(upload_url, "https://cdn.assemblyai.test/audio-123");
+    }
+
+    #[test]
+    fn assemblyai_create_wrapper_keeps_model_language_medical_and_vocabulary_fields() {
+        let mut p = params();
+        p.api_key = "assembly-key".to_string();
+        p.model = "universal-3-pro-medical".to_string();
+        p.language = Some("fr-CA".to_string());
+        p.vocabulary = vec![
+            "HyperWhisper".to_string(),
+            "this phrase has more than six separate words total".to_string(),
+        ];
+        p.base_url = None;
+
+        let request = assemblyai_build_create_request(
+            p,
+            "https://cdn.assemblyai.test/audio-123".to_string(),
+        ).expect("create request");
+        assert_eq!(request.url, "https://api.assemblyai.com/v2/transcript");
+        assert_eq!(header(&request, "Authorization").as_deref(), Some("assembly-key"));
+        let body: serde_json::Value = match request.body {
+            Body::Bytes { content_type, data } => {
+                assert_eq!(content_type, "application/json");
+                serde_json::from_slice(&data).expect("create JSON")
+            }
+            _ => panic!("the create wrapper must return a JSON body"),
+        };
+        assert_eq!(body["audio_url"], "https://cdn.assemblyai.test/audio-123");
+        assert_eq!(body["speech_models"], serde_json::json!(["universal-3-5-pro"]));
+        assert_eq!(body["domain"], "medical-v1");
+        assert_eq!(body["language_code"], "fr-CA");
+        assert_eq!(body["keyterms_prompt"], serde_json::json!(["HyperWhisper"]));
+        assert!(body.get("language_detection").is_none());
+
+        let job_id = assemblyai_parse_create_response(response(
+            201,
+            r#"{"id":"job-456","status":"queued"}"#,
+        )).expect("create response");
+        assert_eq!(job_id, "job-456");
+    }
+
+    #[test]
+    fn assemblyai_poll_wrapper_builds_the_job_request_without_a_body() {
+        let mut p = params();
+        p.api_key = "assembly-key".to_string();
+        p.base_url = None;
+
+        let request = assemblyai_build_poll_request(p, "job-456".to_string())
+            .expect("poll request");
+        assert_eq!(method_tag(&request.method), "GET");
+        assert_eq!(request.url, "https://api.assemblyai.com/v2/transcript/job-456");
+        assert_eq!(header(&request, "Authorization").as_deref(), Some("assembly-key"));
+        assert!(matches!(request.body, Body::Empty));
+    }
+
+    #[test]
+    fn assemblyai_sync_wrapper_canonicalizes_wav_and_carries_the_config() {
+        let mut p = params();
+        p.api_key = "assembly-key".to_string();
+        p.model = "universal-2".to_string();
+        p.language = Some("en-US".to_string());
+        p.vocabulary = vec!["HyperWhisper".to_string(), "UniFFI".to_string()];
+        p.prompt = Some("Keep product names exact.".to_string());
+        p.audio_path = "/tmp/sync-recording.wav".to_string();
+        p.audio_mime = Some("audio/vnd.wave".to_string());
+        p.base_url = None;
+
+        let request = assemblyai_build_sync_request(p).expect("sync request");
+        assert_eq!(assemblyai_sync_max_duration_secs(), 120.0);
+        assert_eq!(assemblyai_sync_timeout_ms(), 15_000);
+        assert_eq!(request.url, "https://sync.assemblyai.com/v1/transcribe");
+        assert_eq!(header(&request, "Authorization").as_deref(), Some("assembly-key"));
+        assert_eq!(header(&request, "X-AAI-Model").as_deref(), Some("universal-3-5-pro"));
+
+        let parts = parts_of(&request.body);
+        let (file_field, path, mime, filename) = file_ref(parts);
+        assert_eq!(file_field, "audio");
+        assert_eq!(path, "/tmp/sync-recording.wav");
+        assert_eq!(mime, "audio/wav");
+        assert_eq!(filename, "sync-recording.wav");
+        let config: serde_json::Value = serde_json::from_str(
+            &field(parts, "config").expect("sync config field"),
+        ).expect("sync config JSON");
+        assert_eq!(config["language_codes"], serde_json::json!(["en"]));
+        assert_eq!(config["keyterms_prompt"], serde_json::json!(["HyperWhisper", "UniFFI"]));
+        assert_eq!(config["prompt"], "Keep product names exact.");
+    }
+
+    #[test]
+    fn assemblyai_sync_wrapper_preserves_fallback_gates_and_response_types() {
+        let mut automatic = params();
+        automatic.language = Some("auto".to_string());
+        automatic.audio_mime = Some("audio/wav".to_string());
+        assert!(matches!(
+            expect_error(assemblyai_build_sync_request(automatic), "auto language must use async"),
+            HwTranscriptionError::Parse { .. }
+        ));
+
+        let mut compressed = params();
+        compressed.language = Some("en".to_string());
+        compressed.audio_mime = Some("audio/mpeg".to_string());
+        assert!(matches!(
+            expect_error(assemblyai_build_sync_request(compressed), "compressed audio must use async"),
+            HwTranscriptionError::Parse { .. }
+        ));
+
+        let mut medical = params();
+        medical.model = "universal-2-medical".to_string();
+        medical.language = Some("en".to_string());
+        medical.audio_mime = Some("audio/wav".to_string());
+        assert!(matches!(
+            expect_error(assemblyai_build_sync_request(medical), "medical mode must use async"),
+            HwTranscriptionError::Parse { .. }
+        ));
+
+        let transcript = assemblyai_parse_sync_response(response(
+            200,
+            r#"{"text":"a synchronous transcript","confidence":0.98}"#,
+        )).expect("sync transcript");
+        assert_eq!(transcript.text, "a synchronous transcript");
+        assert!(matches!(
+            expect_error(
+                assemblyai_parse_sync_response(response(413, r#"{"detail":"audio exceeds the sync limit"}"#)),
+                "oversized sync response must fail"
+            ),
+            HwTranscriptionError::FileTooLarge
+        ));
+        assert!(matches!(
+            expect_error(
+                assemblyai_parse_sync_response(response(200, r#"{"text":"   "}"#)),
+                "blank sync transcript must be no speech"
+            ),
+            HwTranscriptionError::NoSpeech
+        ));
+    }
+
+    #[test]
     fn assemblyai_poll_reports_pending_until_the_transcript_is_done() {
         let pending = assemblyai_parse_poll_response(response(200, r#"{"status":"queued"}"#))
             .expect("pending");
