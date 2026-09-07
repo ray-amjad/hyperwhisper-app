@@ -9,9 +9,9 @@ namespace HyperWhisper.Services;
 internal static class ApplicationControlDiagnostics
 {
     internal const string ClassifierAssemblyName = "HyperWhisper.AppClassification.dll";
+    private const string ClassifierAssemblySimpleName = "HyperWhisper.AppClassification";
     private static readonly Lazy<Snapshot> ClassifierSnapshot = new(Inspect, LazyThreadSafetyMode.ExecutionAndPublication);
     private static int _registered;
-    private static int _handling;
     private static int _reported;
 
     internal sealed record Snapshot(
@@ -40,7 +40,21 @@ internal static class ApplicationControlDiagnostics
     }
 
     private static void OnFirstChanceException(object? sender, FirstChanceExceptionEventArgs args) =>
-        HandleFirstChanceException(args.Exception, () => ClassifierSnapshot.Value, ReportFailure);
+        HandleFirstChanceException(
+            args.Exception,
+            () => ClassifierSnapshot.Value,
+            ReportFailure,
+            Unregister);
+
+    private static void Unregister()
+    {
+        if (Interlocked.Exchange(ref _registered, 0) == 0)
+        {
+            return;
+        }
+
+        AppDomain.CurrentDomain.FirstChanceException -= OnFirstChanceException;
+    }
 
     internal static bool IsClassifierLoadFailure(Exception exception)
     {
@@ -51,10 +65,43 @@ internal static class ApplicationControlDiagnostics
 
         try
         {
-            return string.Equals(
-                Path.GetFileName(fileLoadException.FileName),
-                ClassifierAssemblyName,
-                StringComparison.OrdinalIgnoreCase);
+            var unresolvedName = fileLoadException.FileName;
+            if (string.IsNullOrWhiteSpace(unresolvedName))
+            {
+                return false;
+            }
+
+            if (string.Equals(unresolvedName, ClassifierAssemblySimpleName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(Path.GetFileName(unresolvedName), ClassifierAssemblyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var displayNameParts = unresolvedName.Split(',', StringSplitOptions.TrimEntries);
+            if (displayNameParts.Length < 2
+                || !string.Equals(displayNameParts[0], ClassifierAssemblySimpleName, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            for (var index = 1; index < displayNameParts.Length; index++)
+            {
+                var attribute = displayNameParts[index];
+                var equalsIndex = attribute.IndexOf('=');
+                if (equalsIndex <= 0 || equalsIndex == attribute.Length - 1)
+                {
+                    return false;
+                }
+
+                var key = attribute[..equalsIndex].Trim();
+                if (key is not ("Version" or "Culture" or "PublicKeyToken" or
+                    "ProcessorArchitecture" or "Retargetable" or "ContentType"))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
         catch
         {
@@ -65,25 +112,21 @@ internal static class ApplicationControlDiagnostics
     internal static bool HandleFirstChanceException(
         Exception exception,
         Func<Snapshot> inspect,
-        Action<Payload> report)
+        Action<Payload> report,
+        Action unsubscribe)
     {
         if (!IsClassifierLoadFailure(exception) || Volatile.Read(ref _reported) != 0)
         {
             return false;
         }
 
-        if (Interlocked.CompareExchange(ref _handling, 1, 0) != 0)
+        if (Interlocked.CompareExchange(ref _reported, 1, 0) != 0)
         {
             return false;
         }
 
         try
         {
-            if (Interlocked.CompareExchange(ref _reported, 1, 0) != 0)
-            {
-                return false;
-            }
-
             Snapshot snapshot;
             try
             {
@@ -119,7 +162,16 @@ internal static class ApplicationControlDiagnostics
         }
         finally
         {
-            Volatile.Write(ref _handling, 0);
+            try
+            {
+                unsubscribe();
+            }
+            catch (Exception unsubscribeException)
+            {
+                LoggingService.Error(
+                    $"ApplicationControlDiagnostics: First-chance handler removal failed " +
+                    $"(exception_type={unsubscribeException.GetType().Name}, hresult={HResult(unsubscribeException.HResult)})");
+            }
         }
     }
 

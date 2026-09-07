@@ -120,6 +120,7 @@ internal static class Program
                     @"C:\Users\private-user\HyperWhisper.AppClassification.dll");
                 ApplicationControlDiagnostics.Payload? capturedPayload = null;
                 var reentered = true;
+                var unsubscribed = false;
 
                 Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(new InvalidOperationException()),
                     "a non-load exception passed the classifier filter");
@@ -127,7 +128,29 @@ internal static class Program
                         new FileLoadException("other", @"C:\Users\private-user\Other.dll")),
                     "an unrelated assembly passed the classifier filter");
                 Assert(ApplicationControlDiagnostics.IsClassifierLoadFailure(sentinel),
-                    "the classifier load exception did not pass the filter");
+                    "the classifier DLL path did not pass the filter");
+                Assert(ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("private", "HyperWhisper.AppClassification")),
+                    "the classifier simple assembly name did not pass the filter");
+                Assert(ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException(
+                            "private",
+                            "HyperWhisper.AppClassification, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null")),
+                    "the classifier display name did not pass the filter");
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("private", "HyperWhisper.AppClassification.Other, Version=1.0.0.0")),
+                    "an assembly-name prefix passed the classifier filter");
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("private", "HyperWhisper.AppClassification, not-a-display-name")),
+                    "an invalid display name passed the classifier filter");
+
+                var unrelatedHandled = ApplicationControlDiagnostics.HandleFirstChanceException(
+                    new FileLoadException("other", @"C:\Users\private-user\Other.dll"),
+                    () => throw new InvalidOperationException("an unrelated load was inspected"),
+                    _ => throw new InvalidOperationException("an unrelated load was reported"),
+                    () => unsubscribed = true);
+                Assert(!unrelatedHandled && !unsubscribed,
+                    "an unrelated load removed the first-chance handler");
 
                 var handled = ApplicationControlDiagnostics.HandleFirstChanceException(
                     sentinel,
@@ -138,11 +161,14 @@ internal static class Program
                         reentered = ApplicationControlDiagnostics.HandleFirstChanceException(
                             sentinel,
                             () => snapshot,
-                            _ => throw new InvalidOperationException("a duplicate diagnostic was reported"));
-                    });
+                            _ => throw new InvalidOperationException("a duplicate diagnostic was reported"),
+                            () => throw new InvalidOperationException("a duplicate diagnostic removed the handler"));
+                    },
+                    () => unsubscribed = true);
 
                 Assert(handled, "the first-chance callback did not handle the classifier load failure");
                 Assert(!reentered, "the first-chance callback reentered for the same load failure");
+                Assert(unsubscribed, "the matching load did not remove the first-chance handler");
                 Assert(capturedPayload != null, "the failure reporter did not receive a payload");
                 Assert(capturedPayload.Tags["classifier_authenticode_status"] == "untrusted" &&
                     capturedPayload.Tags["capture_stage"] == "first_chance_exception" &&
@@ -195,6 +221,7 @@ internal static class Program
             {
                 const string privatePath = @"C:\Users\private-user\Documents\spoken-note.txt";
                 string evidence;
+                string debugEvidence;
                 try
                 {
                     throw new InvalidOperationException(
@@ -204,6 +231,7 @@ internal static class Program
                 catch (Exception exception)
                 {
                     evidence = ApplicationContextService.DescribeExceptionEvidence(exception);
+                    debugEvidence = ApplicationContextService.DescribeExceptionEvidence(exception, includeStack: false);
                 }
 
                 Assert(evidence.Contains(typeof(InvalidOperationException).FullName!, StringComparison.Ordinal),
@@ -216,6 +244,22 @@ internal static class Program
                     !evidence.Contains("private inner message", StringComparison.Ordinal) &&
                     !evidence.Contains("private-user", StringComparison.Ordinal),
                     "exception content entered the evidence");
+                Assert(debugEvidence.Contains(typeof(InvalidOperationException).FullName!, StringComparison.Ordinal) &&
+                    debugEvidence.Contains(typeof(ArgumentException).FullName!, StringComparison.Ordinal),
+                    "debug evidence dropped the exception type chain");
+                Assert(debugEvidence.Contains(
+                        $"hresult=0x{unchecked((uint)new InvalidOperationException().HResult):X8}",
+                        StringComparison.Ordinal) &&
+                    debugEvidence.Contains(
+                        $"hresult=0x{unchecked((uint)new ArgumentException().HResult):X8}",
+                        StringComparison.Ordinal),
+                    "debug evidence dropped the HRESULT chain");
+                Assert(!debugEvidence.Contains("stack=", StringComparison.Ordinal),
+                    "debug evidence included a stack");
+                Assert(!debugEvidence.Contains("private outer message", StringComparison.Ordinal) &&
+                    !debugEvidence.Contains("private inner message", StringComparison.Ordinal) &&
+                    !debugEvidence.Contains("private-user", StringComparison.Ordinal),
+                    "exception content entered the debug evidence");
             });
 
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
