@@ -585,6 +585,195 @@ internal static class Program
                     "new OpenAI modes should default to GPT-5.6 Luna");
             });
 
+            // Issue #314: `/post-process` used to project `provider` and `model`
+            // straight off the working Mode, so every fallback inside
+            // PostProcessingService (retired-id migration, provider default, the
+            // cloud route's own X-LLM-Model, a repaired custom-endpoint model)
+            // landed after the label was decided and the caller was told, silently,
+            // a model that never saw its text.
+            Run("Local API /post-process labels name what actually ran", () =>
+            {
+                static (string Provider, string Model) Labels(
+                    string? storedProvider, string? storedModel,
+                    string? resolvedProvider, string? resolvedModel)
+                    => HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.ResponseLabels(
+                        storedProvider, storedModel, resolvedProvider, resolvedModel);
+
+                // The reported case: the Mode names a model that belongs to
+                // another provider, the service falls back to the provider
+                // default, and the response used to name the dead id.
+                var fellBack = Labels("anthropic", "gpt-4.1-nano", "anthropic", "claude-haiku-4-5");
+                Assert(fellBack.Provider == "anthropic" && fellBack.Model == "claude-haiku-4-5",
+                    "/post-process still reports the Mode's model instead of the one that ran");
+
+                // ---------------------------------------------------------------
+                // UNIT-ONLY, AND SAY SO. On Windows today the PROVIDER half of
+                // this rule cannot fire end-to-end. `PostProcessingService` derives
+                // its resolved provider from the SAME `Mode.PostProcessingProvider`
+                // the endpoint passes as `storedProvider`, and nothing mutates the
+                // Mode in between — so `NamesTheSameProvider` is true on every
+                // reachable input and the wire `provider` always equals the stored
+                // spelling. The two cases below are (stored, resolved) pairs this
+                // head cannot emit. They pin `ResponseLabels` as a unit, against a
+                // future path that resolves a provider somewhere else and against a
+                // careless simplification of the helper — they are NOT evidence
+                // that the head reports a substitution, and they pass regardless of
+                // the endpoint code. The MODEL half below IS reachable.
+                // ---------------------------------------------------------------
+
+                // UNREACHABLE TODAY (see above): a genuine provider substitution.
+                var swapped = Labels("openai", "gpt-4.1-nano", "local_llm", "gemma-4-31b");
+                Assert(swapped.Provider == "local_llm" && swapped.Model == "gemma-4-31b",
+                    "/post-process does not report a genuine provider substitution");
+
+                // PROVIDER SPELLING IS PRESERVED — the rule that keeps this fix
+                // from rewriting every ordinary cloud response. Windows resolves
+                // HyperWhisper Cloud as "hyperwhispercloud"; a Mode synced from
+                // macOS stores "hyperwhisper", and both name the same provider.
+                Assert(PostProcessingProvider.HyperWhisperCloud.ToStringValue() == "hyperwhispercloud"
+                        && PostProcessingProviderExtensions.FromString("hyperwhisper")
+                            == PostProcessingProvider.HyperWhisperCloud,
+                    "the HyperWhisper Cloud provider spellings this rule reconciles have drifted");
+                var macSpelling = Labels("hyperwhisper", "gpt-4.1-nano", "hyperwhispercloud", "claude-haiku-4-5");
+                Assert(macSpelling.Provider == "hyperwhisper" && macSpelling.Model == "claude-haiku-4-5",
+                    "/post-process rewrote the caller's provider spelling when the provider did not change");
+                var winSpelling = Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", "claude-haiku-4-5");
+                Assert(winSpelling.Provider == "hyperwhispercloud",
+                    "/post-process changed the Windows-native cloud provider spelling");
+                Assert(Labels("OpenAI", "x", "openai", "x").Provider == "OpenAI",
+                    "/post-process did not echo the caller's provider casing");
+
+                // Custom endpoints: the `custom:<guid>` string IS the resolved
+                // provider. Two DIFFERENT endpoints both parse to `None`, so a
+                // parse-only comparison would wrongly preserve the stale one.
+                const string EndpointA = "custom:0f5f6b1e-4b4a-4e0b-9c2e-6f8c3f2a1d77";
+                const string EndpointB = "custom:11111111-2222-3333-4444-555555555555";
+                var custom = Labels(EndpointA, "ignored-by-custom-endpoints", EndpointA, "llama3.2");
+                Assert(custom.Provider == EndpointA && custom.Model == "llama3.2",
+                    "/post-process did not report the custom endpoint's own provider string and model");
+                // UNREACHABLE TODAY (see above): the endpoint hands the SAME
+                // `custom:<guid>` string to both sides, so two different endpoints
+                // never meet here. It pins the parse-only trap in
+                // `NamesTheSameProvider` — every custom string parses to `None`, so
+                // dropping the exact-match arm would echo the stale endpoint.
+                Assert(Labels(EndpointA, "m", EndpointB, "m").Provider == EndpointB,
+                    "/post-process confused two different custom endpoints for each other");
+
+                // Nothing ran: fall back to the Mode, and never invent a value.
+                var noRun = Labels("openai", "gpt-4.1-nano", null, null);
+                Assert(noRun.Provider == "openai" && noRun.Model == "gpt-4.1-nano",
+                    "/post-process did not fall back to the stored labels when nothing ran");
+                var noRunNoMode = Labels(null, null, null, null);
+                Assert(noRunNoMode.Provider == "hyperwhisper" && noRunNoMode.Model.Length == 0,
+                    "/post-process invented a label when nothing ran and nothing was stored");
+                // A blank resolved PROVIDER means nothing ran.
+                var blank = Labels("openai", "gpt-4.1-nano", "   ", null);
+                Assert(blank.Provider == "openai" && blank.Model == "gpt-4.1-nano",
+                    "/post-process treated a blank resolved provider as an answer");
+                // A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. A custom
+                // endpoint saved with a blank model name posts `"model": ""` and a
+                // single-model server answers 200. Reporting the Mode's stored
+                // value there would name a leftover BYOK cloud id for text a local
+                // endpoint produced — issue #314 verbatim — so `""` is reported.
+                var ranUnnamed = Labels(EndpointA, "gpt-4.1-nano", EndpointA, "");
+                Assert(ranUnnamed.Provider == EndpointA && ranUnnamed.Model.Length == 0,
+                    "/post-process reported the Mode's model for a run that named none");
+                Assert(Labels("  ", null, "anthropic", "claude-haiku-4-5").Provider == "anthropic",
+                    "/post-process kept a blank stored provider over the one that ran");
+
+                // The contract the endpoint leans on: only Applied carries the
+                // pair, so a non-null resolved value already means "an LLM ran"
+                // and a run that picks a model then fails leaves no stale label.
+                var applied = PostProcessingResult.Applied("out", "anthropic", "claude-haiku-4-5");
+                Assert(applied.WasApplied
+                        && applied.ResolvedProvider == "anthropic"
+                        && applied.ResolvedModel == "claude-haiku-4-5",
+                    "PostProcessingResult.Applied does not carry the resolved provider/model");
+                var skipped = PostProcessingResult.Skipped("in");
+                Assert(!skipped.WasApplied
+                        && skipped.ResolvedProvider == null
+                        && skipped.ResolvedModel == null,
+                    "PostProcessingResult.Skipped leaked a resolved provider/model");
+
+                // The cloud branch labels the model from `CloudPostProcessingModel`
+                // (the X-LLM-Model value it really sends), NOT `Mode.LanguageModel`
+                // — which that branch never reads, so the old response reported an
+                // unrelated field rather than merely a stale one. Assert the exact
+                // catalog value: `FromString` answers `CloudPostProcessingModel
+                // .Fallback` for an id it cannot resolve, so a weaker "non-empty and
+                // not the Mode's model" check passes even when the entry is gone.
+                var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-4-5");
+                var cloudLabel = cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId;
+                var fallbackModel = CloudPostProcessingModel.Fallback;
+                var fallbackLabel = fallbackModel.ToLlmModelHeader() ?? fallbackModel.ModelId;
+                Assert(cloudLabel == "claude-haiku-4-5",
+                    "the anthropic cloud post-processing engine no longer yields the claude-haiku-4-5 X-LLM-Model label");
+                Assert(cloudLabel != fallbackLabel,
+                    "the cloud label check is no longer distinguishable from the catalog fallback");
+                Assert(Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", cloudLabel).Model == cloudLabel,
+                    "/post-process does not report the cloud model it actually sent");
+            });
+
+            // Issue #314, group B: a `local_llm` run resolves its GGUF from
+            // `LocalPostProcessingModel ?? LanguageModel`, so writing the caller's
+            // `model` only to `LanguageModel` let a mode that already had a
+            // `LocalPostProcessingModel` run the baseline GGUF and (now honestly)
+            // report it. The portable head already writes both fields.
+            Run("Local API /post-process applies a model override to the local GGUF field", () =>
+            {
+                var local = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "local_llm",
+                        Model = "gemma-4-31B-it-Q4_K_M.gguf",
+                    });
+                Assert(local.PostProcessingMode == 2 && local.PostProcessingProvider == "local_llm",
+                    "a local_llm provider override did not switch the working mode to local post-processing");
+                Assert(local.LocalPostProcessingModel == "gemma-4-31B-it-Q4_K_M.gguf",
+                    "the caller's model override never reached the field a local run resolves from");
+                Assert(local.LanguageModel == "gemma-4-31B-it-Q4_K_M.gguf",
+                    "the caller's model override no longer reaches LanguageModel");
+
+                // A CLOUD run must not gain a local GGUF it never asked for.
+                var cloud = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "openai",
+                        Model = "gpt-4.1-nano",
+                    });
+                Assert(cloud.PostProcessingMode == 1 && cloud.LocalPostProcessingModel == null,
+                    "a cloud model override leaked into the local GGUF field");
+
+                // The write is keyed on the PROVIDER, not on `PostProcessingMode`,
+                // because that is what `PostProcessingService.ProcessAsync` routes
+                // on — it parses `Mode.PostProcessingProvider` and never reads
+                // `PostProcessingMode` past the `== 0` skip. `"local"` is the
+                // reachable proof: `FromString` maps it to `LocalLlm` (so the run
+                // IS local) while `IsLocalLlmProvider` above does not (so the mode
+                // int is 1, not 2). A mode-int guard skipped the write on exactly
+                // this input. The worse shape — a SAVED mode with post-processing
+                // off whose provider is still `local_llm`, where the skipped write
+                // meant a stale GGUF ran and was honestly reported as a model the
+                // caller never asked for — needs `ModeService` and is covered by
+                // this predicate alignment rather than end to end.
+                Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
+                        && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
+                    "the local_llm spellings ProcessAsync routes on have drifted");
+                var altSpelling = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "local",
+                        Model = "gemma-4-12b-it-Q4_K_M.gguf",
+                    });
+                Assert(altSpelling.PostProcessingMode == 1,
+                    "the PostProcessingMode this case depends on being 1 has changed");
+                Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
+                    "the model override missed the local GGUF field for a run ProcessAsync routes local");
+            });
+
             Run("Retired cloud models resolve to selectable canonical models", () =>
             {
                 var cases = new (string OldId, CloudTranscriptionProvider Provider, string Replacement)[]

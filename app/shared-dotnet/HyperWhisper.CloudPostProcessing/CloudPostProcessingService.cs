@@ -170,7 +170,12 @@ public sealed class CloudPostProcessingService : IDisposable
             responseJson,
             LlmPostProcessing.WireProtocolFor(provider.Value),
             transcript,
-            $"{DisplayName(request.Provider)} · {model}");
+            $"{DisplayName(request.Provider)} · {model}",
+            // The POST-fallback id, not `request.Model`. `ResolveModel` silently
+            // substitutes a retired or unknown model id for the provider default,
+            // and reporting the requested id would name a model that never saw
+            // the text (issue #314).
+            model);
     }
 
     private async Task<CloudPostProcessingResult> ProcessCustomAsync(
@@ -181,10 +186,13 @@ public sealed class CloudPostProcessingService : IDisposable
         var custom = request.CustomEndpoint!;
         var credential = await _credentials.GetCredentialAsync(
             CloudPostProcessingProvider.Custom, custom.Id, cancellationToken);
+        // The exact string that goes in the request body's `model` field, so the
+        // reported model is the one the endpoint was actually asked for (#314).
+        var model = custom.Model.Trim();
 
         using var message = LlmPostProcessing.BuildRequest(new PortableLlmRequest(
             PortableLlmProvider.Custom,
-            custom.Model.Trim(),
+            model,
             credential?.ApiKey ?? string.Empty,
             request.SystemPrompt,
             request.SystemInfo,
@@ -193,7 +201,7 @@ public sealed class CloudPostProcessingService : IDisposable
 
         var responseJson = await SendAsync(message, cancellationToken);
         return Evaluate(responseJson, PortableLlmWireProtocol.OpenAiChat, transcript,
-            $"Custom endpoint · {custom.Model.Trim()}");
+            $"Custom endpoint · {model}", model);
     }
 
     private async Task<CloudPostProcessingResult> ProcessHyperWhisperCloudAsync(
@@ -246,18 +254,36 @@ public sealed class CloudPostProcessingService : IDisposable
                 transcript, CloudPostProcessingFailureCode.RejectedResponse,
                 "HyperWhisper Cloud returned an invalid response.");
         }
-        return CloudPostProcessingResult.Applied(corrected, route.Value.Label);
+        // `ModelHeader` is the `X-LLM-Model` value actually sent — the same value
+        // the macOS and Windows heads now report for this provider (#314). The
+        // caller's stored `CloudPostProcessingModel` is only a catalog key, and
+        // `Resolve` falls back to the catalog default when it does not match.
+        //
+        // DELIBERATELY NOT the `X-LLM-Provider` RESPONSE header. The hosted route
+        // runs its own server-side fallback (a 5xx on the primary provider, or a
+        // prompt-leakage reroute) and names the pair that answered in that header
+        // — but the value is `servedLLMName(provider, model)`, a provider-prefixed
+        // DISPLAY label ("groq-gpt-oss-120b" for the model id
+        // "openai/gpt-oss-120b"), and it is set on EVERY 200, not only after a
+        // reroute. Reporting it here would make `model` speak two vocabularies —
+        // a catalog model id for BYOK/local/custom runs, a backend display label
+        // for hosted ones — and a client that feeds `model` back into a mode would
+        // write an id no catalog can resolve. Until the backend exposes the served
+        // MODEL ID separately, a backend-side reroute stays invisible in this
+        // field; `openapi.yaml` says so.
+        return CloudPostProcessingResult.Applied(corrected, route.Value.Label, route.Value.ModelHeader);
     }
 
     private static CloudPostProcessingResult Evaluate(
         string responseJson,
         PortableLlmWireProtocol protocol,
         string transcript,
-        string provider)
+        string provider,
+        string model)
     {
         var evaluation = SharedCoreBridge.EvaluateLlmResponseJson(protocol, responseJson, transcript);
         return evaluation.Accepted
-            ? CloudPostProcessingResult.Applied(evaluation.Text, provider)
+            ? CloudPostProcessingResult.Applied(evaluation.Text, provider, model)
             : CloudPostProcessingResult.Failed(
                 evaluation.Text,
                 CloudPostProcessingFailureCode.RejectedResponse,

@@ -1057,12 +1057,56 @@ static async Task LocalApiPostProcessingTransientModes()
         Assert((await repository.ListAsync()).Single().PostProcessingMode == 0,
             "Local API override mutated the persisted mode");
 
-        _ = await adapter.ProcessAsync(
+        var local = await adapter.ProcessAsync(
             new PostProcessRequest("raw", null, null, "custom prompt", "localLlm", "local.gguf"),
             CancellationToken.None);
         Assert(processor.Mode is
             { PostProcessingMode: 2, PostProcessingProvider: "local_llm", Preset: "custom", LocalPostProcessingModel: "local.gguf" },
             "local transient prompt/provider/model overrides did not match Windows semantics");
+        Assert(local.Model == "local.gguf",
+            "a local run with no resolved model did not fall back to the stored GGUF filename");
+
+        // ...but that request sets BOTH `LanguageModel` and `LocalPostProcessingModel`,
+        // so it cannot tell the two fallback arms apart. A saved LOCAL mode with no
+        // `LanguageModel` at all is the only shape that reaches
+        // `?? mode.LocalPostProcessingModel` — without it the response would name
+        // `""` for a run that used a real GGUF.
+        var localOnly = new Mode
+        {
+            Name = "Local only", PostProcessingMode = 2,
+            PostProcessingProvider = "local_llm", Preset = "hyper",
+            LanguageModel = null, LocalPostProcessingModel = "baseline.gguf",
+        };
+        await repository.UpsertAsync(localOnly);
+        var localOnlyResult = await adapter.ProcessAsync(
+            new PostProcessRequest("raw", localOnly.Id.ToString("D"), null, null, null, null),
+            CancellationToken.None);
+        Assert(localOnlyResult.Model == "baseline.gguf",
+            "a saved local mode with no LanguageModel did not fall back to its GGUF filename");
+
+        // Issue #314: the model the processor actually RAN wins over the one
+        // stored on the working Mode. Without this the response names
+        // `gpt-test` — a model that never saw the text — after any fallback or
+        // substitution inside the cloud/local post-processors.
+        processor.ResolvedModel = "grok-4.3";
+        var substituted = await adapter.ProcessAsync(
+            new PostProcessRequest("raw", disabled.Id.ToString("D"), "message", null, "openai", "gpt-test", context),
+            CancellationToken.None);
+        Assert(substituted.Model == "grok-4.3",
+            "the resolved model did not win over the model stored on the Mode");
+
+        // A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN, matching macOS
+        // `responseLabels` and Windows `ResponseLabels`. Only NULL — the processor
+        // named nothing — falls back to the Mode. A processor that ran and
+        // answered blank reports blank: substituting the Mode's stored id there
+        // would name `gpt-test` for text this run produced, which is #314 itself.
+        processor.ResolvedModel = "   ";
+        var blank = await adapter.ProcessAsync(
+            new PostProcessRequest("raw", disabled.Id.ToString("D"), "message", null, "openai", "gpt-test", context),
+            CancellationToken.None);
+        Assert(blank.Model.Length == 0,
+            "a run that did not name its model reported the Mode's stored model instead");
+        processor.ResolvedModel = null;
     }
     finally
     {
@@ -1150,6 +1194,13 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
     public Mode? Mode { get; private set; }
     public ApplicationContextSnapshot? Context { get; private set; }
 
+    /// <summary>
+    /// The model this fake claims actually ran (issue #314). Null means "the
+    /// processor did not name one", which is the pre-fix behaviour and must
+    /// still fall back to the labels stored on the Mode.
+    /// </summary>
+    public string? ResolvedModel { get; set; }
+
     public Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
         Mode mode,
@@ -1164,7 +1215,8 @@ sealed class CapturingPostProcessor : ITranscriptionPostProcessor
     {
         Mode = mode;
         Context = applicationContext;
-        return Task.FromResult(PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider"));
+        return Task.FromResult(
+            PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider", ResolvedModel));
     }
 }
 

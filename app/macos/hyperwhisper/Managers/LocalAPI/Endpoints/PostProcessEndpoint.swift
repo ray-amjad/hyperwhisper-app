@@ -118,8 +118,26 @@ enum PostProcessEndpoint {
             )
         }
 
-        let providerLabel = working.mode.postProcessingProvider ?? "hyperwhisper"
-        let modelLabel = working.mode.languageModel ?? ""
+        // Report the provider and model that ACTUALLY ran (issue #314), not the
+        // ones stored on the Mode — every fallback inside `AIPostProcessor`
+        // happens after the Mode was read. `preset` is not remapped anywhere, so
+        // it still comes straight off the working Mode.
+        // `storedCloudModel` is the nothing-ran fallback for a HyperWhisper Cloud
+        // mode, whose engine is `cloudPostProcessingModel` and not `languageModel`.
+        // Resolved through the same expression the run path reports
+        // (`AIPostProcessor.performHyperWhisperCloudPostProcessing`) so the two
+        // cannot name the value differently.
+        let storedCloudPPModel = CloudPostProcessingModel.fromStorageValue(working.mode.cloudPostProcessingModel)
+        let labels = responseLabels(
+            storedProvider: working.mode.postProcessingProvider,
+            storedModel: working.mode.languageModel,
+            storedCloudModel: storedCloudPPModel.llmModelHeader ?? storedCloudPPModel.modelId,
+            storedProcessingMode: working.mode.postProcessingMode,
+            resolvedProvider: mutationSignal.resolvedProvider,
+            resolvedModel: mutationSignal.resolvedModel
+        )
+        let providerLabel = labels.provider
+        let modelLabel = labels.model
         let presetLabel = working.mode.preset ?? "hyper"
 
         if working.isTransient { cleanupTransientMode(working.mode) }
@@ -134,6 +152,103 @@ enum PostProcessEndpoint {
             post_processed: didPostProcess
         )
         return LocalAPIResponder.ok(response)
+    }
+
+    // MARK: - Response Labels
+
+    /// Decide the `provider` and `model` fields of the response body: what
+    /// actually ran, falling back to the working Mode's stored values only when
+    /// nothing ran (issue #314).
+    ///
+    /// `AIPostProcessor` writes the resolved pair onto the request-scoped
+    /// `MutationSignal` at — and only at — the four sites that also set
+    /// `didMutate`, so a non-nil resolved value already means "an LLM produced
+    /// this text". No separate `didMutate` cross-check is needed here, and a run
+    /// that picked a model and then failed cannot leave a stale label behind.
+    ///
+    /// PROVIDER SPELLING IS PRESERVED. When the caller's stored provider names
+    /// the same provider that ran, the caller's own spelling is echoed back
+    /// verbatim, so this field changes ONLY in the cases that are the bug — a
+    /// genuine provider substitution. (macOS stores the same
+    /// `PostProcessingProvider.rawValue` strings it puts on the wire, so today
+    /// only case differs; Windows has a real divergence here, which is why the
+    /// rule is stated rather than assumed.)
+    ///
+    /// A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. The model fallback keys
+    /// on `resolvedModel == nil` — "nothing ran" — NOT on the resolved string
+    /// being empty. An LLM that ran and answered `""` (segments of one dictation
+    /// post-processed by DIFFERENT models, so no single id names the combined
+    /// text; or a stored custom endpoint whose `modelName` is blank AND whose URL
+    /// needs repair — the lenient validator returns before the empty-model check
+    /// and still hands back a callable URL, so `"model": ""` goes to a
+    /// single-model server that answers 200) is reported as `""`, because
+    /// substituting the Mode's stored
+    /// value there would name a leftover cloud id for text a local endpoint
+    /// produced — issue #314 verbatim. `""` means "an LLM ran and did not name
+    /// its model"; `post_processed: true` still says a run happened.
+    ///
+    /// NOTHING-RAN FALLS BACK THE SAME WAY THE ROUTER DOES. `storedProcessingMode`
+    /// is `Mode.postProcessingMode`, and the stored-provider fallback below is the
+    /// same three-step resolution as the two existing copies
+    /// (`TranscriptionProviderRouter.checkPostProcessingProviderHealth` and
+    /// `TranscriptionPipeline+Transcription`): a `.local` mode is `local_llm`
+    /// whatever the stored string says, and an unset stored provider takes the
+    /// processing mode's own default rather than an unconditional `hyperwhisper`.
+    /// Reading `postProcessingProvider` alone answered `hyperwhisper` for a local
+    /// mode with no stored provider, which is a provider the same mode would never
+    /// have routed to.
+    ///
+    /// AND IT NAMES THE FIELD THAT MODE'S OWN ENGINE READS. A HyperWhisper Cloud
+    /// run never reads `Mode.languageModel` — its engine is
+    /// `Mode.cloudPostProcessingModel` — and `PersistenceController` stamps
+    /// `languageModel = "gpt-5.6-luna"` (an OpenAI BYOK id) on EVERY non-local
+    /// mode created without an explicit value, including via `POST /modes`. So
+    /// the stored fallback for a cloud mode is `storedCloudModel` — the caller
+    /// passes `CloudPostProcessingModel.fromStorageValue(...).llmModelHeader ??
+    /// .modelId`, the same expression the run path reports — and everything else
+    /// keeps `storedModel`. Otherwise a failed cloud call answered
+    /// `provider: "hyperwhisper", model: "gpt-5.6-luna"`, a pair that cannot
+    /// exist. (A `custom:<uuid>` mode still falls back to `storedModel`: the
+    /// endpoint's own model name lives on the endpoint, not on the Mode.)
+    static func responseLabels(
+        storedProvider: String?,
+        storedModel: String?,
+        storedCloudModel: String?,
+        storedProcessingMode: Int16,
+        resolvedProvider: String?,
+        resolvedModel: String?
+    ) -> (provider: String, model: String) {
+        let stored = storedProvider?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let resolved = resolvedProvider?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let processingMode = PostProcessingMode(rawValue: storedProcessingMode) ?? .off
+
+        let provider: String
+        if resolved.isEmpty {
+            if processingMode == .local {
+                provider = PostProcessingProvider.localLLM.rawValue
+            } else if !stored.isEmpty {
+                provider = stored
+            } else {
+                provider = processingMode.defaultProvider?.rawValue
+                    ?? PostProcessingProvider.hyperwhisper.rawValue
+            }
+        } else if !stored.isEmpty, stored.caseInsensitiveCompare(resolved) == .orderedSame {
+            provider = stored
+        } else {
+            provider = resolved
+        }
+
+        let model: String
+        if let resolvedModel {
+            // An LLM ran. Report what it named, even when that is `""`.
+            model = resolvedModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if provider.caseInsensitiveCompare(PostProcessingProvider.hyperwhisper.rawValue) == .orderedSame {
+            model = storedCloudModel ?? ""
+        } else {
+            model = storedModel ?? ""
+        }
+
+        return (provider, model)
     }
 
     // MARK: - Working Mode

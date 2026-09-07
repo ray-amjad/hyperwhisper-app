@@ -26,6 +26,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("credential decoding is strict and cleared", TestCredentialSecurity),
     ("oversized response is rejected", TestOversizedResponse),
     ("stale model falls back deterministically", TestModelFallback),
+    ("applied routes report the model that ran", TestResolvedModelIsReported),
     ("redirect does not replay credentials", TestRedirectFailure),
 };
 
@@ -352,6 +353,75 @@ static async Task TestModelFallback()
     var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.Cerebras, "retired-model"));
     Assert(result.WasApplied, "fallback request failed");
     Assert(seen?.Body.Contains("\"model\":\"gpt-oss-120b\"", StringComparison.Ordinal) == true, "default model was not selected");
+    // Issue #314: the result must name the model that RAN, not the retired id
+    // the caller asked for. This is the exact silent substitution the issue is
+    // about, and it is what the Local API `model` field is built from.
+    Assert(result.Model == "gpt-oss-120b", "result reported the requested model, not the substituted one");
+}
+
+// Issue #314: every applied route names the model that actually ran, and no
+// failed route names one at all — the invariant the Linux Local API endpoint
+// relies on instead of a `WasApplied` cross-check.
+static async Task TestResolvedModelIsReported()
+{
+    using var byok = Service(
+        new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, OpenAiResponse("<<CLEANED>>ok<<END>>")))),
+        ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
+    var byokResult = await byok.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
+    Assert(byokResult.Model == "gpt-4.1-mini", "BYOK route did not report its model");
+
+    var id = Guid.NewGuid();
+    var customCredentials = new MemoryCredentialSource();
+    customCredentials.Set(CloudPostProcessingProvider.Custom, "custom-secret", id);
+    using var custom = Service(
+        new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, OpenAiResponse("custom result")))),
+        customCredentials);
+    var customResult = await custom.ProcessAsync(Request(CloudPostProcessingProvider.Custom) with
+    {
+        CustomEndpoint = new(id, "https://endpoint.invalid/v1/chat/completions", "private-model"),
+    });
+    Assert(customResult.Model == "private-model", "custom route did not report its endpoint model");
+
+    var cloudCredentials = new MemoryCredentialSource();
+    cloudCredentials.SetLicense("license-secret", "device-safe");
+    using var cloud = Service(
+        new StubHandler(_ => Task.FromResult(Json(HttpStatusCode.OK, "{\"corrected\":\"cloud result\"}"))),
+        cloudCredentials);
+    var cloudResult = await cloud.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud) with
+    {
+        HyperWhisperCloudModel = "groq:openai/gpt-oss-120b",
+    });
+    // The `X-LLM-Model` value we sent, matching what macOS and Windows report.
+    Assert(cloudResult.Model == "openai/gpt-oss-120b", "cloud route did not report its X-LLM-Model value");
+
+    // ONE VOCABULARY. The backend sets an `X-LLM-Provider` RESPONSE header on
+    // EVERY 200 — `servedLLMName(provider, model)`, a provider-prefixed DISPLAY
+    // label, not a model id: the pair (groq, "openai/gpt-oss-120b") is served as
+    // "groq-gpt-oss-120b". Reporting that as `model` would make the field speak
+    // the catalog vocabulary for BYOK/local/custom runs and the backend's display
+    // vocabulary for hosted ones. It is IGNORED here on purpose; a backend-side
+    // reroute is invisible in this field until the backend exposes a served MODEL
+    // ID of its own. See the open question on #314.
+    using var served = Service(
+        new StubHandler(_ =>
+        {
+            var message = Json(HttpStatusCode.OK, "{\"corrected\":\"cloud result\"}");
+            message.Headers.TryAddWithoutValidation("X-LLM-Provider", " cerebras-gpt-oss-120b ");
+            return Task.FromResult(message);
+        }),
+        cloudCredentials);
+    var servedResult = await served.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud) with
+    {
+        HyperWhisperCloudModel = "groq:openai/gpt-oss-120b",
+    });
+    Assert(servedResult.Model == "openai/gpt-oss-120b",
+        "cloud route reported the backend's served display label as the model id");
+
+    using var failing = Service(
+        new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError))),
+        ApiKey(CloudPostProcessingProvider.OpenAi, "sk-test"));
+    var failed = await failing.ProcessAsync(Request(CloudPostProcessingProvider.OpenAi, "gpt-4.1-mini"));
+    Assert(!failed.WasApplied && failed.Model is null, "a failed run reported a model that never produced text");
 }
 
 static async Task TestRedirectFailure()

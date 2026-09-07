@@ -71,8 +71,11 @@ internal sealed class LinuxPostProcessingRouter : ITranscriptionPostProcessor, I
             HyperWhisperCloudModel: provider == CloudPostProcessingProvider.HyperWhisperCloud
                 ? mode.CloudPostProcessingModel : null,
             CustomEndpoint: custom), cancellationToken).ConfigureAwait(false);
+        // `result.Model` is the post-fallback id the cloud service actually sent
+        // (issue #314); pass it through untouched rather than re-reading
+        // `mode.LanguageModel`, which is what was configured, not what ran.
         return result.WasApplied && !string.IsNullOrWhiteSpace(result.Provider)
-            ? PortablePostProcessingResult.Applied(result.Text, result.Provider)
+            ? PortablePostProcessingResult.Applied(result.Text, result.Provider, result.Model)
             : PortablePostProcessingResult.Skipped(
                 transcript,
                 $"postprocessing.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "failed"}",
