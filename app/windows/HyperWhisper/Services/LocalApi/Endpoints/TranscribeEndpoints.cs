@@ -793,45 +793,15 @@ internal static class TranscribeEndpoints
     /// mode used as defaults) or built from scratch, then patched with the
     /// per-call overrides.
     /// </summary>
-    private static Mode BuildTransientMode(Mode? baseline, string? engine, string? model, string? language)
+    internal static Mode BuildTransientMode(Mode? baseline, string? engine, string? model, string? language)
     {
         Mode mode;
         if (baseline != null)
         {
-            mode = new Mode
-            {
-                Id = Guid.NewGuid(),
-                Name = "__local_api_transient__",
-                Preset = baseline.Preset,
-                Language = baseline.Language,
-                Model = baseline.Model,
-                ModelType = baseline.ModelType,
-                Punctuation = baseline.Punctuation,
-                Capitalization = baseline.Capitalization,
-                ProfanityFilter = baseline.ProfanityFilter,
-                CustomInstructions = baseline.CustomInstructions,
-                UserSystemPrompt = baseline.UserSystemPrompt,
-                LanguageModel = baseline.LanguageModel,
-                CloudProvider = baseline.CloudProvider,
-                CloudTranscriptionModel = baseline.CloudTranscriptionModel,
-                CloudTranscriptionDomain = baseline.CloudTranscriptionDomain,
-                ProviderType = baseline.ProviderType,
-                PostProcessingMode = baseline.PostProcessingMode,
-                PostProcessingProvider = baseline.PostProcessingProvider,
-                EnglishSpelling = baseline.EnglishSpelling,
-                CloudAccuracyTier = baseline.CloudAccuracyTier,
-                RemoveTrailingPeriod = baseline.RemoveTrailingPeriod,
-                EnableScreenOCR = baseline.EnableScreenOCR,
-                GeminiCustomPrompt = baseline.GeminiCustomPrompt,
-                CloudPostProcessingModel = baseline.CloudPostProcessingModel,
-                LocalEngine = baseline.LocalEngine,
-                LocalParakeetModel = baseline.LocalParakeetModel,
-                LocalPostProcessingModel = baseline.LocalPostProcessingModel,
-                CustomVocabulary = baseline.CustomVocabulary,
-                SortOrder = int.MaxValue,
-                CreatedDate = DateTime.UtcNow,
-                ModifiedDate = DateTime.UtcNow
-            };
+            mode = LocalApiTransientMode.Create(
+                baseline,
+                "__local_api_transient__",
+                LocalApiTransientModeFields.SharedAndTranscription);
         }
         else
         {

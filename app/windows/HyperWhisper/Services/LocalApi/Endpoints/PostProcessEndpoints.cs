@@ -178,9 +178,8 @@ internal static class PostProcessEndpoints
 
     /// <summary>
     /// Build the in-memory Mode that drives this request. Three shapes:
-    ///   1. `mode_id` alone, no overrides → load saved Mode, force
-    ///      PostProcessingMode to 1 if it was 0 (request implies caller wants
-    ///      post-processing on), and use as-is.
+    ///   1. `mode_id` alone, no overrides → load saved Mode and use it
+    ///      as-is, or reject it if post-processing is disabled.
     ///   2. `mode_id` + any of preset/prompt/provider/model → clone saved Mode
     ///      and apply overrides.
     ///   3. No `mode_id` but preset/prompt/provider/model present → build a
@@ -242,7 +241,10 @@ internal static class PostProcessEndpoints
                     LocalApiErrorCode.ModeNotFound,
                     $"No mode with id '{modeId}'");
             }
-            mode = CloneMode(stored);
+            mode = LocalApiTransientMode.Create(
+                stored,
+                "__local_api_pp_transient__",
+                LocalApiTransientModeFields.Shared);
         }
         else
         {
@@ -284,45 +286,6 @@ internal static class PostProcessEndpoints
         return string.Equals(id, "local_llm", StringComparison.OrdinalIgnoreCase)
             || string.Equals(id, "localLLM", StringComparison.OrdinalIgnoreCase)
             || string.Equals(id, "localLlm", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Shallow clone of a saved Mode into a transient, non-persisted instance.
-    /// </summary>
-    private static Mode CloneMode(Mode baseline)
-    {
-        return new Mode
-        {
-            Id = Guid.NewGuid(),
-            Name = "__local_api_pp_transient__",
-            Preset = baseline.Preset,
-            Language = baseline.Language,
-            Model = baseline.Model,
-            Punctuation = baseline.Punctuation,
-            Capitalization = baseline.Capitalization,
-            ProfanityFilter = baseline.ProfanityFilter,
-            CustomInstructions = baseline.CustomInstructions,
-            UserSystemPrompt = baseline.UserSystemPrompt,
-            LanguageModel = baseline.LanguageModel,
-            CloudProvider = baseline.CloudProvider,
-            CloudTranscriptionModel = baseline.CloudTranscriptionModel,
-            ProviderType = baseline.ProviderType,
-            PostProcessingMode = baseline.PostProcessingMode,
-            PostProcessingProvider = baseline.PostProcessingProvider,
-            EnglishSpelling = baseline.EnglishSpelling,
-            CloudAccuracyTier = baseline.CloudAccuracyTier,
-            RemoveTrailingPeriod = baseline.RemoveTrailingPeriod,
-            EnableScreenOCR = baseline.EnableScreenOCR,
-            GeminiCustomPrompt = baseline.GeminiCustomPrompt,
-            CloudPostProcessingModel = baseline.CloudPostProcessingModel,
-            LocalEngine = baseline.LocalEngine,
-            LocalParakeetModel = baseline.LocalParakeetModel,
-            LocalPostProcessingModel = baseline.LocalPostProcessingModel,
-            CustomVocabulary = baseline.CustomVocabulary,
-            SortOrder = int.MaxValue,
-            CreatedDate = DateTime.UtcNow,
-            ModifiedDate = DateTime.UtcNow
-        };
     }
 
     /// <summary>
