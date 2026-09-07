@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
@@ -10,6 +11,11 @@ namespace HyperWhisper.Services;
 internal static class ApplicationControlDiagnostics
 {
     internal const string ClassifierAssemblyName = "HyperWhisper.AppClassification.dll";
+
+    private const string FailureMessage = "Application context classifier load failed";
+    private const string FailureDedupeKey = "application-control:classifier-load-failed";
+    private static readonly HashSet<string> _reportedFailures = new(StringComparer.Ordinal);
+    private static readonly object _reportedFailuresLock = new();
 
     private const int TrustSuccess = 0;
     private const int TrustEProviderUnknown = unchecked((int)0x800B0001);
@@ -32,6 +38,81 @@ internal static class ApplicationControlDiagnostics
         IReadOnlyDictionary<string, string> Tags,
         IReadOnlyDictionary<string, object> Extras,
         IReadOnlyList<string> Fingerprint);
+
+    /// <summary>
+    /// Holds the original exception separately from the metadata-only payload.
+    /// Custom fields never copy the exception message, file name, or stack.
+    /// </summary>
+    internal sealed record FailureReport(Exception Exception, Payload Payload);
+
+    /// <summary>
+    /// Inspects the classifier before the first application-context capture and preserves
+    /// the delegate's return value or exception exactly.
+    /// </summary>
+    internal static ApplicationContext? Gather(
+        string captureStage,
+        Func<ApplicationContext?> gatherContext) =>
+        Gather(captureStage, gatherContext, InspectClassifierAssembly, ReportFailure);
+
+    /// <summary>
+    /// Test seam that replaces inspection and reporting, so smoke checks cannot send Sentry data.
+    /// </summary>
+    internal static ApplicationContext? Gather(
+        string captureStage,
+        Func<ApplicationContext?> gatherContext,
+        Func<Snapshot> inspectClassifierAssembly,
+        Action<FailureReport> reportFailure)
+    {
+        var safeCaptureStage = DescribeCaptureStage(captureStage);
+        var stopwatch = Stopwatch.StartNew();
+        var snapshot = inspectClassifierAssembly();
+
+        try
+        {
+            var context = gatherContext();
+            stopwatch.Stop();
+
+            LoggingService.Info(
+                "ApplicationControlDiagnostics: Application context capture completed " +
+                $"(capture_stage={safeCaptureStage}, classifier_load_succeeded=true, " +
+                $"elapsed_ms={stopwatch.ElapsedMilliseconds})");
+
+            return context;
+        }
+        catch (Exception exception)
+        {
+            stopwatch.Stop();
+            var payload = BuildFailurePayload(
+                snapshot,
+                safeCaptureStage,
+                exception,
+                stopwatch.ElapsedMilliseconds);
+
+            LoggingService.Error(
+                "ApplicationControlDiagnostics: Application context capture failed " +
+                $"(capture_stage={safeCaptureStage}, classifier_load_succeeded=false, " +
+                $"outer_exception_type={payload.Extras["classifier_outer_exception_type"]}, " +
+                $"outer_hresult={payload.Extras["classifier_outer_hresult"]}, " +
+                $"innermost_exception_type={payload.Extras["classifier_innermost_exception_type"]}, " +
+                $"innermost_hresult={payload.Extras["classifier_innermost_hresult"]}, " +
+                $"elapsed_ms={stopwatch.ElapsedMilliseconds})");
+
+            try
+            {
+                reportFailure(new FailureReport(exception, payload));
+            }
+            catch (Exception reportingException)
+            {
+                // A diagnostic failure must not replace the application-context failure.
+                LoggingService.Error(
+                    "ApplicationControlDiagnostics: Failure report could not be recorded " +
+                    $"(exception_type={reportingException.GetType().Name}, " +
+                    $"hresult={FormatHResult(reportingException.HResult)})");
+            }
+
+            throw;
+        }
+    }
 
     /// <summary>
     /// Inspects the fixed classifier assembly. Probe failures never expose the resolved path.
@@ -196,6 +277,76 @@ internal static class ApplicationControlDiagnostics
             extras,
             new[] { "application-control", "classifier-load-failed" });
     }
+
+    /// <summary>Extends the inspection payload with metadata from the failed first load.</summary>
+    internal static Payload BuildFailurePayload(
+        Snapshot snapshot,
+        string captureStage,
+        Exception exception,
+        long elapsedMilliseconds)
+    {
+        var basePayload = BuildPayload(snapshot);
+        var innermostException = GetInnermostException(exception);
+        var tags = new Dictionary<string, string>(basePayload.Tags, StringComparer.Ordinal)
+        {
+            ["capture_stage"] = DescribeCaptureStage(captureStage)
+        };
+        var extras = new Dictionary<string, object>(basePayload.Extras, StringComparer.Ordinal)
+        {
+            ["classifier_load_succeeded"] = false,
+            ["classifier_outer_exception_type"] = DescribeExceptionType(exception),
+            ["classifier_outer_hresult"] = FormatHResult(exception.HResult),
+            ["classifier_innermost_exception_type"] = DescribeExceptionType(innermostException),
+            ["classifier_innermost_hresult"] = FormatHResult(innermostException.HResult),
+            ["classifier_capture_elapsed_ms"] = elapsedMilliseconds,
+            ["classifier_reported_once_per_run"] = true
+        };
+
+        return new Payload(tags, extras, basePayload.Fingerprint);
+    }
+
+    private static void ReportFailure(FailureReport report)
+    {
+        if (!SettingsService.Instance.EnableErrorLogging)
+        {
+            return;
+        }
+
+        lock (_reportedFailuresLock)
+        {
+            if (!_reportedFailures.Add(FailureDedupeKey))
+            {
+                return;
+            }
+        }
+
+        SentryService.Capture(
+            report.Exception,
+            message: FailureMessage,
+            extras: new Dictionary<string, object>(report.Payload.Extras, StringComparer.Ordinal),
+            tags: new Dictionary<string, string>(report.Payload.Tags, StringComparer.Ordinal),
+            fingerprint: report.Payload.Fingerprint.ToArray());
+    }
+
+    private static string DescribeCaptureStage(string captureStage) => captureStage switch
+    {
+        "standard_recording" => "standard_recording",
+        "streaming_recording" => "streaming_recording",
+        _ => "unknown"
+    };
+
+    private static Exception GetInnermostException(Exception exception)
+    {
+        while (exception.InnerException != null)
+        {
+            exception = exception.InnerException;
+        }
+
+        return exception;
+    }
+
+    private static string DescribeExceptionType(Exception exception) =>
+        exception.GetType().FullName ?? exception.GetType().Name;
 
     private static (string Status, int? ZoneId) ReadZoneIdentifier(string assemblyPath)
     {

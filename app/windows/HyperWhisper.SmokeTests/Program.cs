@@ -196,6 +196,100 @@ internal static class Program
                 }
             });
 
+            Run("ApplicationControlDiagnostics returns the identical captured context", () =>
+            {
+                var context = new HyperWhisper.Services.ApplicationContext();
+                var snapshot = new ApplicationControlDiagnostics.Snapshot(
+                    AssemblyPresent: false,
+                    AssemblyFileSizeBytes: null,
+                    AuthenticodeStatus: "not_checked",
+                    WinVerifyTrustHResult: null,
+                    ZoneStreamStatus: "absent",
+                    ZoneId: null,
+                    InspectionStage: "assembly_not_found");
+                var order = new List<string>();
+                var reportCount = 0;
+
+                var returned = ApplicationControlDiagnostics.Gather(
+                    "standard_recording",
+                    () =>
+                    {
+                        order.Add("delegate");
+                        return context;
+                    },
+                    () =>
+                    {
+                        order.Add("inspect");
+                        return snapshot;
+                    },
+                    _ => reportCount++);
+
+                Assert(ReferenceEquals(returned, context), "the wrapper replaced the captured context");
+                Assert(order.SequenceEqual(new[] { "inspect", "delegate" }),
+                    "the classifier inspection did not run before context capture");
+                Assert(reportCount == 0, "a successful capture produced a failure report");
+            });
+
+            Run("ApplicationControlDiagnostics rethrows the identical load exception", () =>
+            {
+                var snapshot = new ApplicationControlDiagnostics.Snapshot(
+                    AssemblyPresent: true,
+                    AssemblyFileSizeBytes: 48128,
+                    AuthenticodeStatus: "untrusted",
+                    WinVerifyTrustHResult: unchecked((int)0x800B0109),
+                    ZoneStreamStatus: "present",
+                    ZoneId: 3,
+                    InspectionStage: "complete");
+                var sentinel = new FileLoadException(
+                    "private path must not enter the payload",
+                    @"C:\Users\private-user\HyperWhisper.AppClassification.dll");
+                ApplicationControlDiagnostics.FailureReport? capturedReport = null;
+
+                try
+                {
+                    _ = ApplicationControlDiagnostics.Gather(
+                        "streaming_recording",
+                        () => throw sentinel,
+                        () => snapshot,
+                        report => capturedReport = report);
+                    Assert(false, "the wrapper swallowed the load exception");
+                }
+                catch (FileLoadException exception)
+                {
+                    Assert(ReferenceEquals(exception, sentinel), "the wrapper replaced the load exception");
+                }
+
+                Assert(capturedReport != null, "the failure reporter did not receive a report");
+                Assert(ReferenceEquals(capturedReport.Exception, sentinel),
+                    "the failure reporter did not receive the original exception");
+                Assert(capturedReport.Payload.Tags["capture_stage"] == "streaming_recording",
+                    "the capture stage is missing");
+                Assert(!(bool)capturedReport.Payload.Extras["classifier_load_succeeded"],
+                    "the failed load was marked successful");
+                Assert((string)capturedReport.Payload.Extras["classifier_outer_exception_type"] ==
+                    typeof(FileLoadException).FullName, "the outer exception type is missing");
+                Assert((string)capturedReport.Payload.Extras["classifier_outer_hresult"] ==
+                    $"0x{unchecked((uint)sentinel.HResult):X8}", "the outer HRESULT is missing");
+                Assert((string)capturedReport.Payload.Extras["classifier_innermost_exception_type"] ==
+                    typeof(FileLoadException).FullName, "the innermost exception type is missing");
+                Assert((string)capturedReport.Payload.Extras["classifier_innermost_hresult"] ==
+                    $"0x{unchecked((uint)sentinel.HResult):X8}", "the innermost HRESULT is missing");
+                Assert((long)capturedReport.Payload.Extras["classifier_capture_elapsed_ms"] >= 0,
+                    "the elapsed time is invalid");
+
+                foreach (var key in capturedReport.Payload.Extras.Keys)
+                {
+                    Assert(!SentryService.IsRedactedExtraKey(key),
+                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                }
+
+                var values = capturedReport.Payload.Tags.Values
+                    .Concat(capturedReport.Payload.Extras.Values.Select(
+                        value => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty));
+                Assert(!values.Any(value => value.Contains("private-user", StringComparison.OrdinalIgnoreCase)),
+                    "exception content entered the custom failure payload");
+            });
+
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
             {
                 foreach (var key in new[] { Key.A, Key.D9, Key.F24, Key.OemPeriod, Key.Return })

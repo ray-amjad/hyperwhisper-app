@@ -1305,7 +1305,9 @@ public partial class MainViewModel : ViewModelBase
         _pasteService?.CaptureForegroundWindow();
 
         // Capture application context BEFORE showing overlay (overlay steals focus)
-        _capturedApplicationContext = ApplicationContextService.Instance.GatherContext();
+        _capturedApplicationContext = ApplicationControlDiagnostics.Gather(
+            "standard_recording",
+            () => ApplicationContextService.Instance.GatherContext());
 
         // Capture screen OCR text if enabled on this mode.
         if (recordingMode.EnableScreenOCR && recordingMode.PostProcessingMode != 0)
@@ -1486,7 +1488,9 @@ public partial class MainViewModel : ViewModelBase
         }
 
         _pasteService?.CaptureForegroundWindow();
-        _capturedApplicationContext = ApplicationContextService.Instance.GatherContext();
+        _capturedApplicationContext = ApplicationControlDiagnostics.Gather(
+            "streaming_recording",
+            () => ApplicationContextService.Instance.GatherContext());
         _streamingFailureMessage = null;
         _streamingPastedFinalSegment = false;
         _streamingTargetLost = false;
