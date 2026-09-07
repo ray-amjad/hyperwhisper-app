@@ -12,20 +12,14 @@ import { transcribeWithProvider } from '../providers/dispatch';
 import {
   fallbackChainFor,
   getProviderDef,
-  isSelfOnly,
   servedNameFor,
   type SttProviderId,
 } from '../lib/stt-models';
-import {
-  reportLatencySamples,
-  type LatencyFailureKind,
-  type LatencySample,
-} from '../lib/latency-report';
 // Content-type aware, unlike the billing estimators: a failed attempt still has
 // to land in the right clip-length bucket on the public /latency page.
 // runProviderAttempt is how the same page learns whether an attempt ever reached
 // the provider at all.
-import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
+import { runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
 // The providers layer's own answer to "can this Fly region reach this provider",
 // so the route never needs a provider's blocked-region list, its replay region,
 // or its id in a filter. See providers/geo-availability.ts.
@@ -39,6 +33,8 @@ import { isLatencyOptOut } from './transcribe-request';
 import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
 import { prepareTranscriptionRequest } from './transcribe-preparation';
 import { completeTranscription } from './transcribe-completion';
+import { providerChainFailureResponse } from './transcribe-failure';
+import { createTranscriptionLatencyRecorder } from './transcribe-latency';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
@@ -46,33 +42,6 @@ export type Provider = SttProviderId;
 export { estimateCreditsForProviderFallbacks };
 
 export { isLatencyOptOut };
-
-/**
- * The public page's failure taxonomy for whatever the attempt threw. Keeps the
- * mapping in one place so the catch arms below stay pure control flow.
- */
-function failureKindFor(error: unknown): LatencyFailureKind {
-  if (error instanceof ProviderUnavailableError) return error.kind;
-  if (error instanceof ProviderInputError) return 'input_rejected';
-  // A revoked key or a bug in an adapter lands here. Without a sample the page
-  // would report a 0% error rate for a provider that fails every call.
-  return 'unknown';
-}
-
-/**
- * How long a failed attempt cost the user, from the route's own clock.
- *
- * Deliberately NOT ProviderUnavailableError.elapsedMs: for the async providers
- * (AssemblyAI, Soniox, Google Chirp) that field times only the single
- * fetchWithTimeout that failed, while the upload, the job creation and every
- * earlier poll are already spent — a 90-second wait reported as the 8 seconds
- * of its last poll. The adapter's own number stays in the structured log, where
- * "which call failed" is the question; the page answers "how long did this
- * take", which is this one.
- */
-function elapsedFor(attemptStart: number): number {
-  return performance.now() - attemptStart;
-}
 
 export async function transcribeRoute(c: Context) {
   const preparation = await prepareTranscriptionRequest(c);
@@ -168,64 +137,11 @@ export async function transcribeRoute(c: Context) {
      */
     emptyTranscript?: true;
   }> = [];
-  // Anonymous per-attempt timings for the public /latency page. Collected here
-  // and sent once, after the response is decided, so reporting never adds wall
-  // time to the latency it is measuring.
-  const latencySamples: LatencySample[] = [];
-  // Read once, up front: neither input can change mid-request, and the send
-  // site below is the only thing that consults the result.
-  //
-  // Two independent reasons not to report, both resolved here. The header is
-  // the user's live answer. Eligibility is whether they were ever asked: the
-  // opt-out switch shipped in macOS 2.43.0 and Windows 1.10.0, and sharing is
-  // on by default, so recording an older build would apply that default to
-  // someone who had no way to decline it. See lib/latency-eligibility.ts.
-  // The clip length every row of this request is filed under — one estimate,
-  // from the bytes on the wire and the Content-Type describing them, used
-  // identically on success and on failure.
-  //
-  // Deliberately NOT the adapter's `result.durationSeconds`. That is a BILLING
-  // number, and when an upstream omits a duration the adapters fall back to
-  // estimateSecondsFromBytes() — a flat 64 kbps assumption that overstates the
-  // 16 kHz/16-bit mono WAV both desktop apps upload by ~4x. openai's default
-  // model (gpt-4o-transcribe) reports only tokens, so it takes that fallback on
-  // every call, and mistral/soniox/assemblyai take it whenever upstream omits a
-  // duration: a 3-second dictation would be stored as 12 seconds and bucketed
-  // 'medium'. Preferring it on success and estimating on failure also made the
-  // two incomparable, and put one clip in different buckets depending on
-  // whether the provider that answered happened to report a length. One
-  // estimator for every row is what makes a cell a like-for-like comparison.
-  const audioSeconds = estimateAudioSeconds(audioBuffer.byteLength, contentType);
-
-  // The one place an attempt becomes a sample. Every arm out of the loop below
-  // goes through it — success, retryable failure, and the failures that end the
-  // request outright — so "one row per attempt" holds by construction instead
-  // of by remembering to push. The loop is wrapped in a try/finally that sends
-  // whatever this collected, so an early return can no longer lose the most
-  // interesting rows this page has.
-  const recordAttempt = (sample: {
-    provider: Provider;
-    /**
-     * On success the model that actually ran (the adapter's, when it reports
-     * one); on a failure the model the attempt was made with, since none ran.
-     */
-    model?: string;
-    /** 0-based position in the chain; stored 1-based. */
-    index: number;
-    latencyMs: number;
-    /** Absent on success. */
-    failureKind?: LatencyFailureKind;
-  }) => {
-    latencySamples.push({
-      provider: sample.provider,
-      model: sample.model || undefined,
-      latencyMs: sample.latencyMs,
-      ok: sample.failureKind === undefined,
-      failureKind: sample.failureKind,
-      attempt: sample.index + 1,
-      audioSeconds,
-    });
-  };
+  const latency = createTranscriptionLatencyRecorder(
+    audioBuffer,
+    contentType,
+    latencyReportable,
+  );
 
   try {
     for (const [index, current] of chain.entries()) {
@@ -312,7 +228,7 @@ export async function transcribeRoute(c: Context) {
           resultSource: result.source,
           attemptMs: Math.round(attemptMs),
         });
-        recordAttempt({
+        latency.recordAttempt({
           provider: current,
           model: usedModel,
           index,
@@ -333,13 +249,7 @@ export async function transcribeRoute(c: Context) {
         // upstream 4xx) happens strictly after the request went out, so it is
         // still recorded — that direction is the bug this must not reintroduce.
         if (network.reachedProvider) {
-          recordAttempt({
-            provider: current,
-            model: attemptModel,
-            index,
-            latencyMs: elapsedFor(attemptStart),
-            failureKind: failureKindFor(error),
-          });
+          latency.recordFailure(current, attemptModel, index, attemptStart, error);
           // The same signal, read a second way: an attempt made AFTER a refusal
           // that reached the wire is the one extra upstream call the spec budgets,
           // spent. One that never reached it (no API key, a size cap, a
@@ -463,7 +373,7 @@ export async function transcribeRoute(c: Context) {
             attempt: index + 1,
             kind: terminalKind,
             message: error instanceof Error ? error.message : String(error),
-            attemptMs: Math.round(elapsedFor(attemptStart)),
+            attemptMs: Math.round(performance.now() - attemptStart),
             // The request is NOT ending here. Without this an operator reading the
             // line would expect the matching `request_fail` that never comes.
             afterEmptyTranscriptRefusal: true,
@@ -472,7 +382,7 @@ export async function transcribeRoute(c: Context) {
           attemptFailures.push({
             provider: current,
             kind: terminalKind,
-            attemptMs: Math.round(elapsedFor(attemptStart)),
+            attemptMs: Math.round(performance.now() - attemptStart),
           });
           lastError = error instanceof Error ? error : new Error(String(error));
           continue;
@@ -530,63 +440,21 @@ export async function transcribeRoute(c: Context) {
     // that must not be reported still collects samples, it just never sends
     // them, so they die with the request. Gating the single send is what makes
     // that impossible to leak past — there is no second way out of this loop.
-    if (latencyReportable) {
-      reportLatencySamples(latencySamples);
-    }
+    latency.report();
   }
 
   // All providers in the chain failed.
   if (!result) {
-    // Every provider rejected the input with a non-auth 4xx and none was merely
-    // unavailable — the input itself is the problem, so a retry won't help.
-    // Surface a 400 with the upstream message instead of a misleading 429/502
-    // ("rate-limited"/"unavailable") that would have the client back off and
-    // retry the same bad request. (issue ray-amjad/hyperwhisper#333)
-    if (lastInputError && !sawUnavailable) {
-      logEvent(requestId, startTime, 'transcribe.request_fail', {
-        kind: 'all_providers_rejected_input',
-        provider,
-        fallbackCount,
-        status: lastInputError.status,
-        message: lastInputError.message,
-      });
-      return errorResponse(400, 'Transcription input rejected',
-        `No transcription provider accepted this request: ${lastInputError.message}`,
-        { requestId, provider },
-      );
-    }
-
-    // Self-only chains (e.g. azure-mai, google-chirp) mean the user explicitly
-    // opted into a single upstream. Surfacing a 429 implies "we'll retry
-    // through siblings, just back off" — which is a lie when there are no
-    // siblings. Return 502 with the upstream's actual error message so client
-    // retry logic doesn't storm against a broken region.
-    //
-    // Ask the registry rather than measuring `chain`: that array is this
-    // request's own copy and may already have had a provider filtered out of
-    // it (the ElevenLabs geo-block above), so its length answers "how many did
-    // we try here", not "does this provider have siblings at all".
-    if (isSelfOnly(provider)) {
-      logEvent(requestId, startTime, 'transcribe.request_fail', {
-        kind: 'self_only_chain_failed',
-        provider,
-        fallbackCount,
-        attemptFailures,
-        message: lastError?.message,
-      });
-      return errorResponse(502, `${servedNameFor(provider)} unavailable`,
-        lastError?.message ?? `${servedNameFor(provider)} is currently unavailable. Please try again shortly.`,
-        { requestId, provider },
-      );
-    }
-
-    logEvent(requestId, startTime, 'transcribe.request_fail', {
-      kind: 'all_providers_unavailable',
+    return providerChainFailureResponse({
+      requestId,
+      startTime,
+      provider,
       fallbackCount,
       attemptFailures,
-      message: lastError?.message,
+      lastError,
+      lastInputError,
+      sawUnavailable,
     });
-    return errorResponse(429, 'All providers unavailable', 'All transcription providers are currently rate-limited. Please try again shortly.', { requestId });
   }
   return completeTranscription({
     c,
