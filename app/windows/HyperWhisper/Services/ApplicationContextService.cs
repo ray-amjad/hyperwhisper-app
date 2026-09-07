@@ -506,9 +506,7 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
                     "Application context capture was cancelled."));
         }
 
-        var context = ApplicationControlDiagnostics.Gather(
-            "platform_provider",
-            GatherContext);
+        var context = GatherContext();
         return ValueTask.FromResult(
             PlatformContracts.PlatformResult<PlatformContracts.ApplicationContextSnapshot?>.Success(
                 context == null ? null : WindowsApplicationContextMapper.ToPlatform(context)));

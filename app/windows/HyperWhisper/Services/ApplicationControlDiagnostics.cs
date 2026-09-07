@@ -1,13 +1,19 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace HyperWhisper.Services;
 
 internal static class ApplicationControlDiagnostics
 {
     internal const string ClassifierAssemblyName = "HyperWhisper.AppClassification.dll";
+    private static readonly Lazy<Snapshot> ClassifierSnapshot = new(Inspect, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static int _registered;
+    private static int _handling;
+    private static int _reported;
+
     internal sealed record Snapshot(
         bool AssemblyPresent,
         long? AssemblyFileSizeBytes,
@@ -23,27 +29,61 @@ internal static class ApplicationControlDiagnostics
         IReadOnlyDictionary<string, string> Tags,
         IReadOnlyDictionary<string, object> Extras);
 
-    internal static ApplicationContext? Gather(
-        string captureStage,
-        Func<ApplicationContext?> gatherContext) =>
-        Gather(captureStage, gatherContext, Inspect, ReportFailure);
-
-    internal static ApplicationContext? Gather(
-        string captureStage,
-        Func<ApplicationContext?> gatherContext,
-        Func<Snapshot> inspect,
-        Action<Exception, Payload> report)
+    internal static void Register()
     {
-        var stage = SafeStage(captureStage);
-        var stopwatch = Stopwatch.StartNew();
+        if (Interlocked.Exchange(ref _registered, 1) != 0)
+        {
+            return;
+        }
+
+        AppDomain.CurrentDomain.FirstChanceException += OnFirstChanceException;
+    }
+
+    private static void OnFirstChanceException(object? sender, FirstChanceExceptionEventArgs args) =>
+        HandleFirstChanceException(args.Exception, () => ClassifierSnapshot.Value, ReportFailure);
+
+    internal static bool IsClassifierLoadFailure(Exception exception)
+    {
+        if (exception is not FileLoadException fileLoadException)
+        {
+            return false;
+        }
 
         try
         {
-            return gatherContext();
+            return string.Equals(
+                Path.GetFileName(fileLoadException.FileName),
+                ClassifierAssemblyName,
+                StringComparison.OrdinalIgnoreCase);
         }
-        catch (Exception exception)
+        catch
         {
-            var captureElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
+            return false;
+        }
+    }
+
+    internal static bool HandleFirstChanceException(
+        Exception exception,
+        Func<Snapshot> inspect,
+        Action<Payload> report)
+    {
+        if (!IsClassifierLoadFailure(exception) || Volatile.Read(ref _reported) != 0)
+        {
+            return false;
+        }
+
+        if (Interlocked.CompareExchange(ref _handling, 1, 0) != 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (Interlocked.CompareExchange(ref _reported, 1, 0) != 0)
+            {
+                return false;
+            }
+
             Snapshot snapshot;
             try
             {
@@ -54,18 +94,19 @@ internal static class ApplicationControlDiagnostics
                 ProbeFailed("inspection", inspectionException);
                 snapshot = new(false, null, "check_failed", null, null, null, "unreadable", null, "inspection_failed");
             }
-            var payload = BuildPayload(snapshot, stage, exception, captureElapsedMilliseconds);
+
+            var payload = BuildPayload(snapshot, exception);
             LoggingService.Error(
-                $"ApplicationControlDiagnostics: Context capture failed " +
-                $"(capture_stage={stage}, classifier_load_succeeded=false, " +
+                $"ApplicationControlDiagnostics: Classifier load blocked " +
+                $"(capture_stage=first_chance_exception, classifier_load_succeeded=false, " +
                 $"outer_exception_type={payload.Extras["classifier_outer_exception_type"]}, " +
                 $"outer_hresult={payload.Extras["classifier_outer_hresult"]}, " +
                 $"innermost_exception_type={payload.Extras["classifier_innermost_exception_type"]}, " +
-                $"innermost_hresult={payload.Extras["classifier_innermost_hresult"]}, " +
-                $"elapsed_ms={captureElapsedMilliseconds})");
+                $"innermost_hresult={payload.Extras["classifier_innermost_hresult"]})");
+
             try
             {
-                report(exception, payload);
+                report(payload);
             }
             catch (Exception reportException)
             {
@@ -74,7 +115,11 @@ internal static class ApplicationControlDiagnostics
                     $"(exception_type={reportException.GetType().Name}, hresult={HResult(reportException.HResult)})");
             }
 
-            throw;
+            return true;
+        }
+        finally
+        {
+            Volatile.Write(ref _handling, 0);
         }
     }
 
@@ -172,9 +217,7 @@ internal static class ApplicationControlDiagnostics
 
     internal static Payload BuildPayload(
         Snapshot snapshot,
-        string captureStage,
-        Exception exception,
-        long elapsedMilliseconds)
+        Exception exception)
     {
         var inner = exception;
         while (inner.InnerException != null)
@@ -191,7 +234,7 @@ internal static class ApplicationControlDiagnostics
                 ["classifier_authenticode_status"] = snapshot.AuthenticodeStatus,
                 ["classifier_zone_stream_status"] = snapshot.ZoneStreamStatus,
                 ["classifier_inspection_stage"] = snapshot.InspectionStage,
-                ["capture_stage"] = SafeStage(captureStage)
+                ["capture_stage"] = "first_chance_exception"
             },
             new Dictionary<string, object>(StringComparer.Ordinal)
             {
@@ -205,12 +248,11 @@ internal static class ApplicationControlDiagnostics
                 ["classifier_outer_exception_type"] = ExceptionType(exception),
                 ["classifier_outer_hresult"] = HResult(exception.HResult),
                 ["classifier_innermost_exception_type"] = ExceptionType(inner),
-                ["classifier_innermost_hresult"] = HResult(inner.HResult),
-                ["classifier_capture_elapsed_ms"] = elapsedMilliseconds
+                ["classifier_innermost_hresult"] = HResult(inner.HResult)
             });
     }
 
-    private static void ReportFailure(Exception _, Payload payload)
+    private static void ReportFailure(Payload payload)
     {
         if (!SettingsService.Instance.EnableErrorLogging)
         {
@@ -225,20 +267,8 @@ internal static class ApplicationControlDiagnostics
             extras: new(payload.Extras, StringComparer.Ordinal),
             tags: new(payload.Tags, StringComparer.Ordinal),
             fingerprint: ["application-control", "classifier-load-failed"],
-            dedupeKey: BuildDedupeKey(payload));
+            dedupeKey: "application-control:classifier-load-failed");
     }
-
-    internal static string BuildDedupeKey(Payload payload) =>
-        $"application-control:classifier-load-failed:{payload.Tags["capture_stage"]}";
-
-    private static string SafeStage(string stage) => stage switch
-    {
-        "standard_recording" => stage,
-        "streaming_recording" => stage,
-        "prompt_builder" => stage,
-        "platform_provider" => stage,
-        _ => "unknown"
-    };
 
     private static (string Status, int? ZoneId) ReadZoneId(string path)
     {

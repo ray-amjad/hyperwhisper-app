@@ -139,6 +139,10 @@ public partial class App : WpfApplication
             LoggingService.Info("Sentry error logging disabled by user preference");
         }
 
+        // Observe blocked loads before any application-context classifier code runs.
+        // The handler records fixed assembly metadata only and does not change control flow.
+        ApplicationControlDiagnostics.Register();
+
         // FIRST-LAUNCH DEFAULTS
         // On fresh install, automatically register the app to start with Windows.
         // Users can disable this later in Settings > General.

@@ -108,7 +108,7 @@ internal static class Program
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
             });
 
-            Run("ApplicationControlDiagnostics rethrows the identical load exception", () =>
+            Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
             {
                 const string privateUrl = "https://private.example.test/download";
                 var zone = ApplicationControlDiagnostics.ParseZoneId($"ZoneId=3\r\nHostUrl={privateUrl}");
@@ -118,34 +118,40 @@ internal static class Program
                 var sentinel = new FileLoadException(
                     "private path must not enter the payload",
                     @"C:\Users\private-user\HyperWhisper.AppClassification.dll");
-                Exception? reportedException = null;
                 ApplicationControlDiagnostics.Payload? capturedPayload = null;
+                var reentered = true;
 
-                try
-                {
-                    _ = ApplicationControlDiagnostics.Gather(
-                        "streaming_recording",
-                        () => throw sentinel,
-                        () => snapshot,
-                        (exception, payload) => (reportedException, capturedPayload) = (exception, payload));
-                    Assert(false, "the wrapper swallowed the load exception");
-                }
-                catch (FileLoadException exception)
-                {
-                    Assert(ReferenceEquals(exception, sentinel), "the wrapper replaced the load exception");
-                }
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(new InvalidOperationException()),
+                    "a non-load exception passed the classifier filter");
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("other", @"C:\Users\private-user\Other.dll")),
+                    "an unrelated assembly passed the classifier filter");
+                Assert(ApplicationControlDiagnostics.IsClassifierLoadFailure(sentinel),
+                    "the classifier load exception did not pass the filter");
 
+                var handled = ApplicationControlDiagnostics.HandleFirstChanceException(
+                    sentinel,
+                    () => snapshot,
+                    payload =>
+                    {
+                        capturedPayload = payload;
+                        reentered = ApplicationControlDiagnostics.HandleFirstChanceException(
+                            sentinel,
+                            () => snapshot,
+                            _ => throw new InvalidOperationException("a duplicate diagnostic was reported"));
+                    });
+
+                Assert(handled, "the first-chance callback did not handle the classifier load failure");
+                Assert(!reentered, "the first-chance callback reentered for the same load failure");
                 Assert(capturedPayload != null, "the failure reporter did not receive a payload");
-                Assert(ReferenceEquals(reportedException, sentinel), "the reporter replaced the exception");
                 Assert(capturedPayload.Tags["classifier_authenticode_status"] == "untrusted" &&
-                    capturedPayload.Tags["capture_stage"] == "streaming_recording" &&
+                    capturedPayload.Tags["capture_stage"] == "first_chance_exception" &&
                     (int)capturedPayload.Extras["classifier_zone_id"] == 3, "diagnostic metadata is missing");
                 var expectedHResult = $"0x{unchecked((uint)sentinel.HResult):X8}";
                 Assert((string)capturedPayload.Extras["classifier_outer_exception_type"] == typeof(FileLoadException).FullName &&
                     (string)capturedPayload.Extras["classifier_outer_hresult"] == expectedHResult &&
                     (string)capturedPayload.Extras["classifier_innermost_hresult"] == expectedHResult,
                     "exception type or HRESULT is missing");
-                Assert((long)capturedPayload.Extras["classifier_capture_elapsed_ms"] >= 0, "elapsed time is invalid");
                 Assert(!capturedPayload.Extras.Keys.Any(SentryService.IsRedactedExtraKey), "an extra is redacted");
 
                 var values = capturedPayload.Tags.Values
@@ -155,36 +161,6 @@ internal static class Program
                     "exception content entered the custom failure payload");
                 Assert(!values.Any(value => value.Contains(privateUrl, StringComparison.OrdinalIgnoreCase)),
                     "URL-like zone data entered the payload");
-
-                var standardPayload = capturedPayload with
-                {
-                    Tags = new Dictionary<string, string>(capturedPayload.Tags, StringComparer.Ordinal)
-                    {
-                        ["capture_stage"] = "standard_recording"
-                    }
-                };
-                Assert(ApplicationControlDiagnostics.BuildDedupeKey(capturedPayload) !=
-                    ApplicationControlDiagnostics.BuildDedupeKey(standardPayload),
-                    "distinct capture stages share one diagnostic dedupe key");
-            });
-
-            Run("ApplicationControlDiagnostics inspects only after capture failure", () =>
-            {
-                var context = new HyperWhisper.Services.ApplicationContext();
-                var inspectionCount = 0;
-
-                var returned = ApplicationControlDiagnostics.Gather(
-                    "standard_recording",
-                    () => context,
-                    () =>
-                    {
-                        inspectionCount++;
-                        throw new InvalidOperationException("inspection must not run on success");
-                    },
-                    (_, _) => throw new InvalidOperationException("success must not be reported"));
-
-                Assert(ReferenceEquals(returned, context), "the successful context was replaced");
-                Assert(inspectionCount == 0, "assembly inspection ran on successful capture");
             });
 
             Run("ApplicationControlDiagnostics maps distinct trust failures", () =>
@@ -205,7 +181,7 @@ internal static class Program
                     true, 48128, "check_failed", null, typeof(DllNotFoundException).FullName,
                     probeException.HResult, "absent", null, "trust_check_failed");
                 var probePayload = ApplicationControlDiagnostics.BuildPayload(
-                    probeSnapshot, "prompt_builder", new FileLoadException(), 1);
+                    probeSnapshot, new FileLoadException());
                 Assert((string)probePayload.Extras["classifier_winverifytrust_hresult"] == "not_checked",
                     "a managed probe exception is reported as a WinVerifyTrust return code");
                 Assert((string)probePayload.Extras["classifier_trust_probe_exception_type"] ==
