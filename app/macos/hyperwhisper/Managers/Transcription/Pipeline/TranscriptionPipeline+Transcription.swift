@@ -145,11 +145,9 @@ extension TranscriptionPipeline {
 
             await MainActor.run { state = .transcribing(provider: provider.name, progress: 0.1) }
 
-            // Convert "auto" to nil for provider auto-detection.
-            let languageArg: String? = {
-                guard let raw = mode?.language?.lowercased() else { return nil }
-                return raw == "auto" ? nil : raw
-            }()
+            // Convert "auto" to nil for provider auto-detection — through the
+            // one shared copy of that rule (#318).
+            let languageArg: String? = ModeSnapshot.effectiveLanguage(mode?.language)
             capturedLanguage = languageArg ?? "auto"
 
             // Thread pre-captured application context to HyperWhisper Cloud provider
