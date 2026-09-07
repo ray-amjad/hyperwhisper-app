@@ -15,6 +15,7 @@
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Automation;
@@ -314,7 +315,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
             }
             catch (Exception ex)
             {
-                LoggingService.Error($"ApplicationContextService: STA thread crashed ({DescribeException(ex)})");
+                LoggingService.Error(
+                    $"ApplicationContextService: STA thread crashed ({DescribeExceptionEvidence(ex)})");
             }
         })
         {
@@ -478,7 +480,8 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         }
         catch (Exception ex)
         {
-            LoggingService.Error($"ApplicationContextService: GatherContext failed ({DescribeException(ex)})");
+            LoggingService.Error(
+                $"ApplicationContextService: GatherContext failed ({DescribeExceptionEvidence(ex)})");
             return null;
         }
     }
@@ -943,6 +946,48 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     private static string DescribeException(Exception exception) =>
         $"exception_type={exception.GetType().Name}, " +
         $"hresult=0x{unchecked((uint)exception.HResult):X8}";
+
+    internal static string DescribeExceptionEvidence(Exception exception)
+    {
+        var result = new StringBuilder();
+        Exception? current = exception;
+        var depth = 0;
+
+        while (current != null)
+        {
+            if (depth > 0)
+            {
+                result.Append("; ");
+            }
+
+            result.Append("depth=").Append(depth)
+                .Append(", exception_type=").Append(current.GetType().FullName ?? current.GetType().Name)
+                .Append(", hresult=0x").Append(unchecked((uint)current.HResult).ToString("X8"))
+                .Append(", stack=").Append(DescribeStack(current));
+
+            current = current.InnerException;
+            depth++;
+        }
+
+        return result.ToString();
+    }
+
+    private static string DescribeStack(Exception exception)
+    {
+        var frames = new StackTrace(exception, fNeedFileInfo: false).GetFrames();
+        if (frames == null || frames.Length == 0)
+        {
+            return "unavailable";
+        }
+
+        return string.Join(" <- ", frames.Select(frame =>
+        {
+            var method = frame.GetMethod();
+            var typeName = method?.DeclaringType?.FullName ?? "unknown_type";
+            var methodName = method?.Name ?? "unknown_method";
+            return $"{typeName}.{methodName}";
+        }));
+    }
 
     // =========================================================================
     // TEXT FORMAT INFERENCE

@@ -189,6 +189,33 @@ internal static class Program
                     "a certificate-chain failure is not untrusted");
             });
 
+            Run("ApplicationContextService exception evidence is privacy-safe", () =>
+            {
+                const string privatePath = @"C:\Users\private-user\Documents\spoken-note.txt";
+                string evidence;
+                try
+                {
+                    throw new InvalidOperationException(
+                        $"private outer message {privatePath}",
+                        new ArgumentException("private inner message"));
+                }
+                catch (Exception exception)
+                {
+                    evidence = ApplicationContextService.DescribeExceptionEvidence(exception);
+                }
+
+                Assert(evidence.Contains(typeof(InvalidOperationException).FullName!, StringComparison.Ordinal),
+                    "outer exception type is missing");
+                Assert(evidence.Contains(typeof(ArgumentException).FullName!, StringComparison.Ordinal),
+                    "inner exception type is missing");
+                Assert(evidence.Contains("HyperWhisper.SmokeTests.Program", StringComparison.Ordinal),
+                    "the privacy-safe call stack is missing");
+                Assert(!evidence.Contains("private outer message", StringComparison.Ordinal) &&
+                    !evidence.Contains("private inner message", StringComparison.Ordinal) &&
+                    !evidence.Contains("private-user", StringComparison.Ordinal),
+                    "exception content entered the evidence");
+            });
+
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
             {
                 foreach (var key in new[] { Key.A, Key.D9, Key.F24, Key.OemPeriod, Key.Return })
