@@ -186,6 +186,30 @@ static async Task TestRouterAsync(string root)
                 + "of geminiTranscribe, so the tier default must win.");
     }
 
+    // --- HyperWhisper Cloud must carry a base URL -----------------------------
+    //
+    // Every other cloud provider has a fixed host baked into hw-net. Ours does
+    // not: `hyperwhisper_cloud.rs` reads `params.base_url` and returns
+    // BadRequest{status:0,"HyperWhisper Cloud requires base_url"} when it is
+    // empty, BEFORE any I/O. That surfaces to the user as
+    // "The provider rejected the transcription request. / workflow.invalidrequest",
+    // which reads like a backend fault and is not one — no request ever leaves
+    // the process. Linux is the only head that transcribes through this router,
+    // and all six of its seeded modes are HyperWhisper Cloud modes, so dropping
+    // this line means a default Linux install can never transcribe at all.
+    {
+        var cloudMode = new Mode
+        {
+            ProviderType = "cloud",
+            CloudProvider = "hyperwhisper",
+            CloudAccuracyTier = "elevenLabsScribeV2",
+        };
+        await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: cloudMode));
+        Assert(!string.IsNullOrWhiteSpace(cloud.LastRequest!.BaseUrl),
+            "HyperWhisper Cloud request carried no BaseUrl. hw-net rejects that locally with "
+                + "`workflow.invalidrequest` and no request is ever sent.");
+    }
+
     // The same canonicalisation, one layer down, on the bridge the Mode editor
     // and the Local API both call. Asserted separately so a regression names the
     // layer that broke rather than only the route that noticed.

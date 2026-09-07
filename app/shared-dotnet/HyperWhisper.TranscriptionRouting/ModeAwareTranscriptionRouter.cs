@@ -213,6 +213,13 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
             string.Empty,
             language,
             vocabulary,
+            // HyperWhisper Cloud is the one provider whose host is ours, so the Rust builder has no
+            // default to fall back on: `hyperwhisper_cloud.rs` rejects an empty base_url with
+            // BadRequest{status:0} before any I/O. Leaving it null made every Cloud transcription on
+            // the only head that routes through here — Linux — fail with `workflow.invalidrequest`,
+            // and all six seeded modes are Cloud modes, so a default install could never transcribe.
+            // The same property already carries the DEBUG/staging split both native heads use.
+            BaseUrl: HyperWhisper.SharedCore.LlmPostProcessing.DefaultHyperWhisperCloudBaseUrl,
             RoutedProvider: SharedCoreBridge.CloudSttProvider(tier) ?? "deepgram",
             RoutedModel: routedModel,
             RoutedDomain: NormalizeDomain(mode.CloudTranscriptionDomain));
