@@ -101,7 +101,9 @@ public static class PromptBuilder
         // which also gathers when nil. (Windows HEAD passed null through, but the
         // `@hasApplicationContext` gate makes the assembled output equivalent.)
         var appContext = applicationContext
-            ?? ApplicationContextService.Instance.GatherContext();
+            ?? ApplicationControlDiagnostics.Gather(
+                "prompt_builder",
+                () => ApplicationContextService.Instance.GatherContext());
 
         var preset = PresetFromNative(PresetTypeExtensions.FromString(mode.Preset));
         var customInstructions = preset == uniffi.hyperwhisper_core.Preset.Custom

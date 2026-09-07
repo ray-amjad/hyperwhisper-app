@@ -7,8 +7,6 @@ namespace HyperWhisper.Services;
 internal static class ApplicationControlDiagnostics
 {
     internal const string ClassifierAssemblyName = "HyperWhisper.AppClassification.dll";
-    private static int _failureReported;
-
     internal sealed record Snapshot(
         bool AssemblyPresent,
         long? AssemblyFileSizeBytes,
@@ -35,19 +33,25 @@ internal static class ApplicationControlDiagnostics
     {
         var stage = SafeStage(captureStage);
         var stopwatch = Stopwatch.StartNew();
-        var snapshot = inspect();
 
         try
         {
-            var context = gatherContext();
-            LoggingService.Info(
-                $"ApplicationControlDiagnostics: Context capture completed " +
-                $"(capture_stage={stage}, classifier_load_succeeded=true, elapsed_ms={stopwatch.ElapsedMilliseconds})");
-            return context;
+            return gatherContext();
         }
         catch (Exception exception)
         {
-            var payload = BuildPayload(snapshot, stage, exception, stopwatch.ElapsedMilliseconds);
+            var captureElapsedMilliseconds = stopwatch.ElapsedMilliseconds;
+            Snapshot snapshot;
+            try
+            {
+                snapshot = inspect();
+            }
+            catch (Exception inspectionException)
+            {
+                ProbeFailed("inspection", inspectionException);
+                snapshot = new(false, null, "check_failed", null, "unreadable", null, "inspection_failed");
+            }
+            var payload = BuildPayload(snapshot, stage, exception, captureElapsedMilliseconds);
             LoggingService.Error(
                 $"ApplicationControlDiagnostics: Context capture failed " +
                 $"(capture_stage={stage}, classifier_load_succeeded=false, " +
@@ -55,7 +59,7 @@ internal static class ApplicationControlDiagnostics
                 $"outer_hresult={payload.Extras["classifier_outer_hresult"]}, " +
                 $"innermost_exception_type={payload.Extras["classifier_innermost_exception_type"]}, " +
                 $"innermost_hresult={payload.Extras["classifier_innermost_hresult"]}, " +
-                $"elapsed_ms={stopwatch.ElapsedMilliseconds})");
+                $"elapsed_ms={captureElapsedMilliseconds})");
             try
             {
                 report(exception, payload);
@@ -141,9 +145,9 @@ internal static class ApplicationControlDiagnostics
     internal static string DescribeTrustStatus(int? result) => result switch
     {
         0 => "trusted",
-        unchecked((int)0x800B0001) or
-        unchecked((int)0x800B0003) or
         unchecked((int)0x800B0100) => "unsigned",
+        unchecked((int)0x800B0001) => "provider_unknown",
+        unchecked((int)0x800B0003) => "subject_form_unknown",
         null => "check_failed",
         _ => "untrusted"
     };
@@ -189,26 +193,30 @@ internal static class ApplicationControlDiagnostics
             });
     }
 
-    private static void ReportFailure(Exception exception, Payload payload)
+    private static void ReportFailure(Exception _, Payload payload)
     {
-        if (!SettingsService.Instance.EnableErrorLogging ||
-            Interlocked.Exchange(ref _failureReported, 1) != 0)
+        if (!SettingsService.Instance.EnableErrorLogging)
         {
             return;
         }
 
-        SentryService.Capture(
-            exception,
+        // Do not send the original exception. FileLoadException can put an installed
+        // user path in its message and FileName property. The payload retains only
+        // the exception type and HRESULT needed to identify the enforcement path.
+        SentryService.CaptureDiagnosticEvent(
             message: "Application context classifier load failed",
             extras: new(payload.Extras, StringComparer.Ordinal),
             tags: new(payload.Tags, StringComparer.Ordinal),
-            fingerprint: ["application-control", "classifier-load-failed"]);
+            fingerprint: ["application-control", "classifier-load-failed"],
+            dedupeKey: "application-control:classifier-load-failed");
     }
 
     private static string SafeStage(string stage) => stage switch
     {
         "standard_recording" => stage,
         "streaming_recording" => stage,
+        "prompt_builder" => stage,
+        "platform_provider" => stage,
         _ => "unknown"
     };
 

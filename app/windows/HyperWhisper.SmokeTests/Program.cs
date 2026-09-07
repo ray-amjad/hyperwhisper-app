@@ -156,6 +156,39 @@ internal static class Program
                     "URL-like zone data entered the payload");
             });
 
+            Run("ApplicationControlDiagnostics inspects only after capture failure", () =>
+            {
+                var context = new HyperWhisper.Services.ApplicationContext();
+                var inspectionCount = 0;
+
+                var returned = ApplicationControlDiagnostics.Gather(
+                    "standard_recording",
+                    () => context,
+                    () =>
+                    {
+                        inspectionCount++;
+                        throw new InvalidOperationException("inspection must not run on success");
+                    },
+                    (_, _) => throw new InvalidOperationException("success must not be reported"));
+
+                Assert(ReferenceEquals(returned, context), "the successful context was replaced");
+                Assert(inspectionCount == 0, "assembly inspection ran on successful capture");
+            });
+
+            Run("ApplicationControlDiagnostics maps distinct trust failures", () =>
+            {
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(0) == "trusted",
+                    "WinVerifyTrust success is not trusted");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0100)) == "unsigned",
+                    "TRUST_E_NOSIGNATURE is not unsigned");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0001)) == "provider_unknown",
+                    "TRUST_E_PROVIDER_UNKNOWN is mislabeled");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0003)) == "subject_form_unknown",
+                    "TRUST_E_SUBJECT_FORM_UNKNOWN is mislabeled");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0109)) == "untrusted",
+                    "a certificate-chain failure is not untrusted");
+            });
+
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
             {
                 foreach (var key in new[] { Key.A, Key.D9, Key.F24, Key.OemPeriod, Key.Return })
