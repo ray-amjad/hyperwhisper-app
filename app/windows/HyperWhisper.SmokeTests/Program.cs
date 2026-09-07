@@ -108,6 +108,94 @@ internal static class Program
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
             });
 
+            Run("ApplicationControlDiagnostics maps every trust status", () =>
+            {
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(0) == "trusted",
+                    "WinVerifyTrust success is not trusted");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0100)) == "unsigned",
+                    "TRUST_E_NOSIGNATURE is not unsigned");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0001)) == "unsigned",
+                    "TRUST_E_PROVIDER_UNKNOWN is not unsigned");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0003)) == "unsigned",
+                    "TRUST_E_SUBJECT_FORM_UNKNOWN is not unsigned");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0109)) == "untrusted",
+                    "a certificate-chain failure is not untrusted");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(null) == "check_failed",
+                    "a missing WinVerifyTrust result is not check_failed");
+            });
+
+            Run("ApplicationControlDiagnostics parses only a safe numeric ZoneId", () =>
+            {
+                const string zoneData =
+                    "[ZoneTransfer]\r\n" +
+                    "ZoneId=3\r\n" +
+                    "ReferrerUrl=https://private.example.test/a\r\n" +
+                    "HostUrl=https://private.example.test/download\r\n";
+
+                var parsed = ApplicationControlDiagnostics.ParseZoneId(zoneData);
+                Assert(parsed.Status == "present", $"expected present, got {parsed.Status}");
+                Assert(parsed.ZoneId == 3, $"expected ZoneId 3, got {parsed.ZoneId}");
+
+                var missing = ApplicationControlDiagnostics.ParseZoneId(
+                    "[ZoneTransfer]\r\nHostUrl=https://private.example.test/download\r\n");
+                Assert(missing.Status == "invalid", $"missing ZoneId should be invalid, got {missing.Status}");
+                Assert(missing.ZoneId == null, "missing ZoneId produced a number");
+
+                var invalid = ApplicationControlDiagnostics.ParseZoneId("[ZoneTransfer]\r\nZoneId=999\r\n");
+                Assert(invalid.Status == "invalid", $"out-of-range ZoneId should be invalid, got {invalid.Status}");
+                Assert(invalid.ZoneId == null, "an invalid ZoneId entered the result");
+            });
+
+            Run("ApplicationControlDiagnostics builds a complete privacy-safe payload", () =>
+            {
+                const string testPath = @"C:\Users\private-user\Downloads\HyperWhisper.AppClassification.dll";
+                const string privateUrl = "https://private.example.test/download";
+                var parsedZone = ApplicationControlDiagnostics.ParseZoneId(
+                    $"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl={privateUrl}\r\n");
+                var snapshot = new ApplicationControlDiagnostics.Snapshot(
+                    AssemblyPresent: true,
+                    AssemblyFileSizeBytes: 48128,
+                    AuthenticodeStatus: "trusted",
+                    WinVerifyTrustHResult: 0,
+                    ZoneStreamStatus: parsedZone.Status,
+                    ZoneId: parsedZone.ZoneId,
+                    InspectionStage: "complete");
+
+                var payload = ApplicationControlDiagnostics.BuildPayload(snapshot);
+
+                Assert(payload.Tags["component"] == "application_context", "component tag is missing");
+                Assert(payload.Tags["diagnostic_name"] == "classifier_load_failed", "diagnostic tag is missing");
+                Assert(payload.Tags["classifier_assembly_name"] == ApplicationControlDiagnostics.ClassifierAssemblyName,
+                    "the fixed assembly name is missing");
+                Assert(payload.Tags["classifier_authenticode_status"] == "trusted", "trust status is missing");
+                Assert(payload.Tags["classifier_zone_stream_status"] == "present", "zone status is missing");
+                Assert(payload.Tags["classifier_inspection_stage"] == "complete", "inspection stage is missing");
+                Assert((bool)payload.Extras["classifier_assembly_present"], "assembly presence is missing");
+                Assert((long)payload.Extras["classifier_file_size_bytes"] == 48128, "file size is missing");
+                Assert((string)payload.Extras["classifier_winverifytrust_hresult"] == "0x00000000", "trust HRESULT is missing");
+                Assert((int)payload.Extras["classifier_zone_id"] == 3, "ZoneId is missing");
+                Assert(payload.Fingerprint.SequenceEqual(new[] { "application-control", "classifier-load-failed" }),
+                    "the Sentry fingerprint is not stable");
+
+                foreach (var key in payload.Extras.Keys)
+                {
+                    Assert(!SentryService.IsRedactedExtraKey(key),
+                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                }
+
+                var payloadValues = payload.Tags.Values
+                    .Concat(payload.Extras.Values.Select(value => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty))
+                    .Concat(payload.Fingerprint);
+
+                foreach (var value in payloadValues)
+                {
+                    Assert(!value.Contains(testPath, StringComparison.OrdinalIgnoreCase),
+                        "the resolved test path entered the payload");
+                    Assert(!value.Contains(privateUrl, StringComparison.OrdinalIgnoreCase),
+                        "URL-like zone data entered the payload");
+                }
+            });
+
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
             {
                 foreach (var key in new[] { Key.A, Key.D9, Key.F24, Key.OemPeriod, Key.Return })
