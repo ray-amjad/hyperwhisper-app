@@ -220,6 +220,11 @@ const OPENAI_DEFAULT_CHAT_MODEL = 'gpt-5-mini';
 const GEMINI_CHAT_RATES: Record<string, LLMChatRate> = {
   'gemini-2.5-flash': { promptPerToken: 0.30 / 1_000_000, completionPerToken: 2.50 / 1_000_000 },
   'gemini-2.5-flash-lite': { promptPerToken: 0.10 / 1_000_000, completionPerToken: 0.40 / 1_000_000 },
+  // INTRODUCTORY PRICING — $0.75/$3.75 per 1M runs to 2026-12-31. Re-confirm
+  // against ai.google.dev/gemini-api/docs/pricing on the first model watch of
+  // 2027 and update this rate AND the pricePerMInput/pricePerMOutput +
+  // priceNote on the gemini-3.8-flash row in cloud-pp-catalog.json together.
+  'gemini-3.8-flash': { promptPerToken: 0.75 / 1_000_000, completionPerToken: 3.75 / 1_000_000 },
 };
 const GEMINI_DEFAULT_CHAT_MODEL = 'gemini-2.5-flash';
 

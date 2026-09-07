@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-05",
+  "lastUpdated": "2026-09-06",
   "models": [
     {
       "provider": "appleSpeech",
@@ -430,9 +430,9 @@
       "id": "gemini-3.8-flash",
       "kind": "text",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "notes": "GA 2026-09-02. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
+      "notes": "GA 2026-09-02. Available BYOK and via HyperWhisper Cloud — the first gemini-3.x id routed through hyperwhisper-cloud's llm-provider.ts (LLM_PROVIDER_MODELS.gemini.allowed + LLM_SERVED_NAMES.gemini), kept in sync with the cloud-pp-catalog.json gemini row. Introductory pricing $0.75/$3.75 per 1M expires 2026-12-31. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
     },
     {
       "provider": "gemini",
