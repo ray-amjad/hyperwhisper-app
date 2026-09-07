@@ -2315,6 +2315,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             // Compress audio in background after the terminal status is durable.
+            // ast-grep-ignore: no-discarded-task-run -- compression is deliberately off the critical path, after the terminal status is durable
             _ = Task.Run(() =>
             {
                 try
