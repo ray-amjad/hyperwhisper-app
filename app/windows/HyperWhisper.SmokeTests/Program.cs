@@ -6464,6 +6464,28 @@ internal static class Program
             // so the 60 s window is crossed without a wall-clock wait.
             // =================================================================
 
+            RunAsync("cloud health probe sends provider auth and maps provider replies", async () =>
+            {
+                var handler = new CapturingHandler();
+                using var client = new HttpClient(handler);
+                using var health = new CloudProviderHealthService(() => DateTime.UtcNow, client);
+
+                handler.Next = () => Respond(HttpStatusCode.OK, "{}");
+                var openAi = await health.ProbeAsync(CloudTranscriptionProvider.OpenAI, "openai-key");
+
+                Assert(openAi == ProviderHealth.Healthy, $"OpenAI status {openAi}");
+                Assert(handler.LastAuthorizationScheme == "Bearer", $"OpenAI auth scheme {handler.LastAuthorizationScheme}");
+                Assert(handler.LastAuthorizationParameter == "openai-key", "OpenAI bearer key was not sent");
+
+                handler.Next = () => Respond(HttpStatusCode.BadRequest, "{}");
+                var gemini = await health.ProbeAsync(CloudTranscriptionProvider.Gemini, "gemini key");
+
+                Assert(gemini == ProviderHealth.Unauthorized, $"Gemini HTTP 400 status {gemini}");
+                Assert(handler.LastRequestUri?.Query == "?key=gemini%20key",
+                    $"Gemini query {handler.LastRequestUri?.Query}");
+                Assert(handler.LastAuthorizationScheme is null, "Gemini sent an authorization header");
+            });
+
             const CloudTranscriptionProvider healthProvider = CloudTranscriptionProvider.GoogleSpeech;
 
             static TranscriptionException ProviderDown() => new(
@@ -10648,11 +10670,15 @@ internal static class Program
         public Func<HttpResponseMessage>? Next;
         public int Sends;
         public Uri? LastRequestUri;
+        public string? LastAuthorizationScheme;
+        public string? LastAuthorizationParameter;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Sends++;
             LastRequestUri = request.RequestUri;
+            LastAuthorizationScheme = request.Headers.Authorization?.Scheme;
+            LastAuthorizationParameter = request.Headers.Authorization?.Parameter;
             if (Next is null)
                 throw new InvalidOperationException("CapturingHandler.Next was not set");
             return Task.FromResult(Next());
