@@ -16,9 +16,29 @@ struct TranscriptionAttemptDiagnostics: Sendable, Equatable {
     let backendSTTProvider: String?
     let backendSTTModel: String?
     let backendNoSpeechDetected: Bool?
-    let httpStatusCode: Int
-    let responseLatencyMs: Int
+    let httpStatusCode: Int?
+    let responseLatencyMs: Int?
     var providerAttemptMs: Int?
+
+    static func failureSnapshot(
+        providerDiagnostics: TranscriptionAttemptDiagnostics?,
+        providerDisplayName: String,
+        providerAttemptMs: Int
+    ) -> TranscriptionAttemptDiagnostics {
+        var diagnostics = providerDiagnostics ?? TranscriptionAttemptDiagnostics(
+            attemptSource: "provider_uninstrumented",
+            providerDisplayName: providerDisplayName,
+            backendRequestId: nil,
+            backendSTTProvider: nil,
+            backendSTTModel: nil,
+            backendNoSpeechDetected: nil,
+            httpStatusCode: nil,
+            responseLatencyMs: nil,
+            providerAttemptMs: nil
+        )
+        diagnostics.providerAttemptMs = providerAttemptMs
+        return diagnostics
+    }
 }
 
 /// Protocol that all transcription providers must implement

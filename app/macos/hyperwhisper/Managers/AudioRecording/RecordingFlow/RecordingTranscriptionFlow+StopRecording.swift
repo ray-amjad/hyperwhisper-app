@@ -687,7 +687,7 @@ extension RecordingTranscriptionFlow {
                 // still in scope — the no-speech diagnostic groups on it and runs
                 // on a detached task, where a managed object must not follow.
                 modeIdentity: TranscriptionDiagnosticsService.modeIdentity(for: transcriptionMode),
-                attemptDiagnostics: transcriptionMgr.lastFailedAttemptDiagnostics,
+                attemptDiagnostics: transcriptionPipeline?.lastFailedAttemptDiagnostics,
                 duration: recordingDuration,
                 audioURL: audioURL
             )

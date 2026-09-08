@@ -10,6 +10,7 @@
 //  thresholds, the fingerprint shape).
 //
 
+import Foundation
 import Testing
 @testable import HyperWhisper
 
@@ -251,6 +252,45 @@ struct NoSpeechDiagnosticsTests {
         ] {
             #expect(payload.extras[key] as? String == "unknown")
         }
+    }
+
+    @Test func uninstrumentedProviderFailureKeepsMeasuredAttemptTime() {
+        let diagnostics = TranscriptionAttemptDiagnostics.failureSnapshot(
+            providerDiagnostics: nil,
+            providerDisplayName: "Local Provider",
+            providerAttemptMs: 321
+        )
+
+        #expect(diagnostics.attemptSource == "provider_uninstrumented")
+        #expect(diagnostics.providerDisplayName == "Local Provider")
+        #expect(diagnostics.providerAttemptMs == 321)
+        #expect(diagnostics.httpStatusCode == nil)
+        #expect(diagnostics.responseLatencyMs == nil)
+        #expect(diagnostics.backendNoSpeechDetected == nil)
+    }
+
+    @Test func audioAnalysisFailurePayloadContainsOnlySafeCauseMetadata() {
+        var failedAudio = audio(analysisSucceeded: false)
+        failedAudio.analysisFailure = "audio_decode_failed"
+        failedAudio.analysisErrorDomain = NSCocoaErrorDomain
+        failedAudio.analysisErrorCode = 260
+
+        let payload = TranscriptionDiagnosticsService.buildPayload(
+            audio: failedAudio,
+            audioFileExists: true,
+            audioFileExtension: "wav",
+            modeIdentity: nil,
+            attemptDiagnostics: nil,
+            responseNoSpeechDetected: nil,
+            diagnosticStage: "live_recording",
+            diagnosticSource: "provider_no_speech",
+            presentation: TranscriptionDiagnosticsService.presentation(for: .noSpeech)!
+        )
+
+        #expect(payload.extras["audio_analysis_failure"] as? String == "audio_decode_failed")
+        #expect(payload.extras["audio_analysis_error_domain"] as? String == NSCocoaErrorDomain)
+        #expect(payload.extras["audio_analysis_error_code"] as? Int == 260)
+        #expect(payload.extras["audio_analysis_error"] == nil)
     }
 
     // MARK: - Fingerprint (shape shared, root not)

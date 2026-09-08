@@ -234,11 +234,16 @@ extension TranscriptionPipeline {
                 )
                 if let transcriptionError = error as? TranscriptionError,
                    case .noSpeechDetected = transcriptionError {
-                    var diagnostics = provider.lastAttemptDiagnostics
-                    diagnostics?.providerAttemptMs = providerAttemptMs
+                    let diagnostics = TranscriptionAttemptDiagnostics.failureSnapshot(
+                        providerDiagnostics: provider.lastAttemptDiagnostics,
+                        providerDisplayName: provider.name,
+                        providerAttemptMs: providerAttemptMs
+                    )
                     lastFailedAttemptDiagnostics = diagnostics
+                    let httpStatus = diagnostics.httpStatusCode.map(String.init) ?? "unknown"
+                    let responseLatencyMs = diagnostics.responseLatencyMs.map(String.init) ?? "unknown"
                     AppLogger.transcription.warning(
-                        "Provider no-speech failure · source=\(diagnostics?.attemptSource ?? "unknown", privacy: .public) · provider=\(diagnostics?.providerDisplayName ?? provider.name, privacy: .public) · backendProvider=\(diagnostics?.backendSTTProvider ?? "unknown", privacy: .public) · backendModel=\(diagnostics?.backendSTTModel ?? "unknown", privacy: .public) · status=\(diagnostics?.httpStatusCode ?? -1, privacy: .public) · responseLatencyMs=\(diagnostics?.responseLatencyMs ?? -1, privacy: .public) · providerAttemptMs=\(providerAttemptMs, privacy: .public) · requestId=\(diagnostics?.backendRequestId ?? "unknown", privacy: .public)"
+                        "Provider no-speech failure · source=\(diagnostics.attemptSource, privacy: .public) · provider=\(diagnostics.providerDisplayName, privacy: .public) · backendProvider=\(diagnostics.backendSTTProvider ?? "unknown", privacy: .public) · backendModel=\(diagnostics.backendSTTModel ?? "unknown", privacy: .public) · status=\(httpStatus, privacy: .public) · responseLatencyMs=\(responseLatencyMs, privacy: .public) · providerAttemptMs=\(providerAttemptMs, privacy: .public) · requestId=\(diagnostics.backendRequestId ?? "unknown", privacy: .public)"
                     )
                 }
                 if let cloudProviderType {

@@ -85,7 +85,11 @@ struct AudioAnalysisDiagnostics {
     /// for context only; nothing classifies on it. Matches the Windows
     /// `MeasuredSampleCount`.
     var measuredSampleCount: Int?
-    var analysisError: String?
+    /// A fixed code that describes which analysis step failed. It contains no path.
+    var analysisFailure: String?
+    /// Foundation error identity. The localized message is deliberately excluded.
+    var analysisErrorDomain: String?
+    var analysisErrorCode: Int?
 }
 
 // MARK: - Service
@@ -373,14 +377,17 @@ enum TranscriptionDiagnosticsService {
             "backend_request_id": attemptDiagnostics?.backendRequestId ?? "unknown",
             "backend_stt_provider": attemptDiagnostics?.backendSTTProvider ?? "unknown",
             "backend_stt_model": attemptDiagnostics?.backendSTTModel ?? "unknown",
-            "backend_http_status": attemptDiagnostics.map { $0.httpStatusCode as Any } ?? "unknown",
-            "backend_response_latency_ms": attemptDiagnostics.map { $0.responseLatencyMs as Any } ?? "unknown",
+            "backend_http_status": (attemptDiagnostics?.httpStatusCode).map { $0 as Any } ?? "unknown",
+            "backend_response_latency_ms": (attemptDiagnostics?.responseLatencyMs).map { $0 as Any } ?? "unknown",
             "provider_attempt_ms": (attemptDiagnostics?.providerAttemptMs).map { $0 as Any } ?? "unknown",
             "mic_boost_failed": micBoostFailed
         ]
         // The SOURCE container's format, not the measurement basis (16 kHz mono).
         if let sampleRate = audio.sampleRate { extras["audio_sample_rate_hz"] = sampleRate }
         if let channels = audio.channels { extras["audio_channels"] = channels }
+        if let failure = audio.analysisFailure { extras["audio_analysis_failure"] = failure }
+        if let domain = audio.analysisErrorDomain { extras["audio_analysis_error_domain"] = domain }
+        if let code = audio.analysisErrorCode { extras["audio_analysis_error_code"] = code }
 
         return DiagnosticPayload(tags: tags, extras: extras)
     }
@@ -400,7 +407,7 @@ enum TranscriptionDiagnosticsService {
                 analysisSucceeded: false,
                 durationSeconds: fallbackDurationSeconds,
                 fileSizeBytes: 0,
-                analysisError: "Audio file not found"
+                analysisFailure: "audio_file_not_found"
             )
         }
 
@@ -440,6 +447,7 @@ enum TranscriptionDiagnosticsService {
             )
             samples = try await converter.convert(from: audioURL, options: options)
         } catch {
+            let nsError = error as NSError
             return AudioAnalysisDiagnostics(
                 analysisSucceeded: false,
                 durationSeconds: containerDuration > 0 ? containerDuration : fallbackDurationSeconds,
@@ -447,7 +455,9 @@ enum TranscriptionDiagnosticsService {
                 sampleRate: sourceSampleRate,
                 channels: sourceChannels,
                 decodedSampleCount: decodedFrameCount,
-                analysisError: error.localizedDescription
+                analysisFailure: "audio_decode_failed",
+                analysisErrorDomain: nsError.domain,
+                analysisErrorCode: nsError.code
             )
         }
 
