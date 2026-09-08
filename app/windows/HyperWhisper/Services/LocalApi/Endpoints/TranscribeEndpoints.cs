@@ -885,6 +885,12 @@ internal static class TranscribeEndpoints
 
         if (cloudProvider != CloudTranscriptionProvider.None)
         {
+            // Capture BEFORE overwriting CloudProvider below: deciding whether an
+            // inherited model is foreign needs the provider it came from. Mirrors
+            // macOS `applyEngineModel`.
+            var priorProvider = mode.CloudProvider;
+            var priorModel = mode.CloudTranscriptionModel;
+
             mode.ProviderType = "cloud";
             mode.Model = "cloud";
             mode.CloudProvider = cloudProvider.GetIdentifier();
@@ -900,11 +906,50 @@ internal static class TranscribeEndpoints
             if (!string.IsNullOrEmpty(model))
             {
                 mode.CloudTranscriptionModel = model;
+                return;
             }
-            else if (cloudProvider == CloudTranscriptionProvider.Meta)
+
+            // NO EXPLICIT MODEL AND NO INFERRED TIER (issue #500). This arm used
+            // to assign nothing except for Meta, so `CloudTranscriptionModel`
+            // stayed null and `/transcribe` answered `model: ""` for a run that
+            // really did use a model. Report what will actually run instead.
+            //
+            // Keep an inherited id only when it legitimately belongs to THIS
+            // provider — either the mode was already on it (the caller is just
+            // re-asserting the engine, so their saved sub-model stands) or the id
+            // is in this provider's list. Otherwise it is foreign: the mixed
+            // `mode_id` + `engine` form would otherwise report the baseline's
+            // model, from a different vendor, for the engine that ran. macOS
+            // guards the same two cases with the same test.
+            var belongsToProvider =
+                !string.IsNullOrEmpty(priorModel)
+                && (string.Equals(priorProvider, mode.CloudProvider, StringComparison.OrdinalIgnoreCase)
+                    || CloudTranscriptionModels.GetModelsForProvider(cloudProvider)
+                        .Any(m => string.Equals(m.Id, priorModel, StringComparison.OrdinalIgnoreCase)));
+            if (belongsToProvider)
             {
-                mode.CloudTranscriptionModel = CloudTranscriptionModels.GetDefault(cloudProvider)?.Id ?? "";
+                return;
             }
+
+            if (cloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
+            {
+                // HyperWhisper Cloud dispatches on the ACCURACY TIER, not on
+                // `CloudTranscriptionModel` — so the tier is what names the model
+                // that runs, and `GetDefault` here would answer the `"default"`
+                // sentinel (`CloudTranscriptionModel.cs`), which is a routing
+                // placeholder and not a model id any caller can use. Resolving
+                // the tier is also what makes `engine: "cloud"` agree with the
+                // `mode_id` form, which is the comparison the issue makes.
+                mode.CloudTranscriptionModel = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                    .DefaultModelIdForId(mode.CloudAccuracyTier) ?? "";
+                return;
+            }
+
+            // Every other cloud provider dispatches on the model id, so its own
+            // default is the one that will run. Meta used to be special-cased
+            // here; it is not special, it was just the only arm anybody had
+            // filled in.
+            mode.CloudTranscriptionModel = CloudTranscriptionModels.GetDefault(cloudProvider)?.Id ?? "";
             return;
         }
 

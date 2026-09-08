@@ -501,7 +501,16 @@ components:
         ok: { type: boolean }
         text: { type: string }
         engine: { type: string }
-        model: { type: string }
+        model:
+          type: string
+          description: >-
+            The model that actually ran, not the one the request named. When
+            the request sends `engine` and no `model`, this is the engine's
+            resolved default, so a caller driving the API by `engine` rather
+            than by `mode_id` can still record which model produced the text.
+            For HyperWhisper Cloud that is the model behind the mode's accuracy
+            tier (for example `scribe_v2`), because that tier is what the
+            service dispatches on.
         language: { type: string, nullable: true }
         timings:
           type: object

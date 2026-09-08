@@ -6225,6 +6225,99 @@ internal static class Program
                 Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
             });
 
+            Run("/transcribe names the cloud model that actually ran", () =>
+            {
+                // Issue #500. `engine: "cloud"` / `"hyperwhisper"` with no
+                // explicit `model` transcribed correctly but reported
+                // `model: ""`: the cloud arm of `ApplyEngineModel` assigned
+                // `CloudTranscriptionModel` only when a tier was inferred, a
+                // model was given, or the provider was Meta — so the ordinary
+                // case fell through and `ModelLabel` projected null.
+                var catalog = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared;
+
+                // A fresh transient is what `/transcribe` builds when the caller
+                // sends `engine` and no `mode_id`. It carries the default tier
+                // and NO transcription model — the exact shape that reported "".
+                static Mode FreshTransient() => new()
+                {
+                    ProviderType = "local",
+                    LocalEngine = "whisper",
+                    Model = "base",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                };
+
+                var tierDefault = catalog.DefaultModelIdForId("elevenLabsScribeV2");
+                Assert(!string.IsNullOrEmpty(tierDefault),
+                    "the catalog has no default model for the default accuracy tier");
+
+                foreach (var alias in new[] { "cloud", "hyperwhisper" })
+                {
+                    var mode = FreshTransient();
+                    TranscribeEndpoints.ApplyEngineModel(mode, alias, model: null);
+                    Assert(mode.CloudProvider == "hyperwhisper",
+                        $"engine='{alias}' did not select HyperWhisper Cloud");
+                    Assert(!string.IsNullOrEmpty(mode.CloudTranscriptionModel),
+                        $"engine='{alias}' reported an empty model (issue #500)");
+                    // HyperWhisper Cloud routes on the TIER, so the tier's
+                    // default is the model that runs. `GetDefault` would answer
+                    // the "default" routing sentinel, which is not a model id.
+                    Assert(mode.CloudTranscriptionModel == tierDefault,
+                        $"engine='{alias}' did not report the tier's model");
+                    Assert(mode.CloudTranscriptionModel != "default",
+                        $"engine='{alias}' reported the routing sentinel as a model id");
+                }
+
+                // A BYOK provider routes on the model id, so its own default is
+                // what runs. Meta used to be the only arm that did this.
+                var byok = FreshTransient();
+                TranscribeEndpoints.ApplyEngineModel(byok, "openai", model: null);
+                Assert(byok.CloudTranscriptionModel == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "engine='openai' did not report the provider default model");
+                Assert(!string.IsNullOrEmpty(byok.CloudTranscriptionModel),
+                    "engine='openai' reported an empty model (issue #500)");
+
+                // An explicit model still wins outright.
+                var explicitModel = FreshTransient();
+                TranscribeEndpoints.ApplyEngineModel(explicitModel, "openai", "gpt-4o-transcribe");
+                Assert(explicitModel.CloudTranscriptionModel == "gpt-4o-transcribe",
+                    "an explicit model was not honoured");
+
+                // Re-asserting the SAME provider must preserve the caller's saved
+                // sub-model — the mixed `mode_id` + `engine` form. HyperWhisper
+                // Cloud sub-models are not in GetModelsForProvider, so this is
+                // carried by the provider-equality half of the test.
+                var reassert = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "some-saved-sub-model",
+                };
+                TranscribeEndpoints.ApplyEngineModel(reassert, "cloud", model: null);
+                Assert(reassert.CloudTranscriptionModel == "some-saved-sub-model",
+                    "re-asserting the same engine clobbered the saved sub-model");
+
+                // ...but a model inherited from ANOTHER provider is foreign and
+                // must not be reported for the engine that ran. Without this the
+                // fix would trade an empty label for a confidently wrong one.
+                var foreign = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "scribe_v2",
+                };
+                TranscribeEndpoints.ApplyEngineModel(foreign, "openai", model: null);
+                Assert(foreign.CloudTranscriptionModel != "scribe_v2",
+                    "an OpenAI run reported the baseline's HyperWhisper Cloud model");
+                Assert(foreign.CloudTranscriptionModel == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "a foreign inherited model was not replaced by the provider default");
+            });
+
             Run("the bearer check accepts only the real token", () =>
             {
                 var token = HyperwhisperCoreMethods.LocalApiGenerateToken(new byte[32]);
