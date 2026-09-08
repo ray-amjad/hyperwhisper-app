@@ -11473,6 +11473,9 @@ internal static class Program
                     var row = (FrameworkElement)System.Windows.Media.VisualTreeHelper.GetParent(block);
                     var leftInRow = block.TransformToAncestor(row).Transform(new Point(0, 0)).X;
                     var right = leftInRow + block.ActualWidth;
+                    Console.WriteLine($"DIAG {label}: row={row.GetType().Name} rowW={row.ActualWidth:F1} rowH={row.ActualHeight:F1} "
+                        + $"x={leftInRow:F1} w={block.ActualWidth:F1} h={block.ActualHeight:F1} "
+                        + $"natural={UnconstrainedWidthOf(block):F1} line={LineHeightOf(block):F1}");
                     if (Math.Abs(right - row.ActualWidth) > 0.5)
                     {
                         problems.Add(
