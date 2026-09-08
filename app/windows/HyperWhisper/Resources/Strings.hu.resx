@@ -2389,6 +2389,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>A kulcs ellenőrizve, a kreditek megerősítve. A felvételek a HyperWhisper Cloudba kerülnek.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktiváld ezt a számítógépet a HyperWhisper Cloud kapcsolat befejezéséhez.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Ez a számítógép aktiválva van. A felvételek a HyperWhisper Cloudba kerülnek.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloud aktiválása</value>
   </data>

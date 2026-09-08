@@ -2389,6 +2389,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>המפתח אומת, הקרדיטים אושרו. ההקלטות יישלחו ל-HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>הפעל מחשב זה כדי להשלים את החיבור ל-HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>מחשב זה הופעל. ההקלטות יישלחו ל-HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>הפעל Cloud</value>
   </data>

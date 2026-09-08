@@ -2389,6 +2389,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Anahtar doğrulandı, krediler onaylandı. Kayıtlar HyperWhisper Cloud'a gidecek.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>HyperWhisper Cloud bağlantısını tamamlamak için bu bilgisayarı etkinleştirin.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Bu bilgisayar etkinleştirildi. Kayıtlar HyperWhisper Cloud’a gönderilecek.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloud'u Etkinleştir</value>
   </data>

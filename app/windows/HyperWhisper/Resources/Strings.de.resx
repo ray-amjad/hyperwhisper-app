@@ -2389,6 +2389,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Schlüssel überprüft, Guthaben bestätigt. Aufnahmen gehen an HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktiviere diesen PC, um die Verbindung mit HyperWhisper Cloud abzuschließen.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Dieser PC ist aktiviert. Aufnahmen gehen an HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloud aktivieren</value>
   </data>
