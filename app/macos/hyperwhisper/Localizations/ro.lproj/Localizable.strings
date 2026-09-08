@@ -794,6 +794,7 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.field.name" = "Nume";
 "modes.field.name.placeholder" = "de ex., Note de întâlnire";
 "modes.field.name.editPlaceholder" = "Nume mod";
+"modes.field.name.defaultLocked" = "Acesta este modul implicit, așa că numele său nu poate fi modificat. Puteți redenumi orice alt mod.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Furnizor";
 "modes.provider.local" = "Local";

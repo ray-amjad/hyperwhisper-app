@@ -76,7 +76,7 @@ static void AllCatalogsLoad()
     // strings, plus app.unknown.error and errors.textNotDelivered. 671 -> 849.
     // This job is path-filtered, so it did not run on that merge and main only
     // went red days later, on an unrelated PR that touched localization.
-    Equal(849, PortableLocalizer.BaseKeyCount, "base key count");
+    Equal(850, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

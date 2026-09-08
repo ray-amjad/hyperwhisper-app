@@ -794,6 +794,7 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.field.name" = "Ad";
 "modes.field.name.placeholder" = "örn., Toplantı Notları";
 "modes.field.name.editPlaceholder" = "Mod adı";
+"modes.field.name.defaultLocked" = "Bu varsayılan moddur, bu nedenle adı değiştirilemez. Diğer tüm modları yeniden adlandırabilirsiniz.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Sağlayıcı";
 "modes.provider.local" = "Yerel";

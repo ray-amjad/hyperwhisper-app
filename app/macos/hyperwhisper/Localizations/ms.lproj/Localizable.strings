@@ -794,6 +794,7 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.field.name" = "Nama";
 "modes.field.name.placeholder" = "cth. Nota Mesyuarat";
 "modes.field.name.editPlaceholder" = "Nama mod";
+"modes.field.name.defaultLocked" = "Ini ialah mod lalai, jadi namanya tidak boleh ditukar. Anda boleh menamakan semula mana-mana mod lain.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Pembekal";
 "modes.provider.local" = "Tempatan";

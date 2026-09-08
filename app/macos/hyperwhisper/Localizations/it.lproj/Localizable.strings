@@ -794,6 +794,7 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 "modes.field.name" = "Nome";
 "modes.field.name.placeholder" = "es., Note Riunione";
 "modes.field.name.editPlaceholder" = "Nome modalità";
+"modes.field.name.defaultLocked" = "Questa è la modalità predefinita, quindi il suo nome non può essere modificato. Puoi rinominare qualsiasi altra modalità.";
 "modes.field.model" = "Modello";
 "modes.field.provider" = "Provider";
 "modes.provider.local" = "Locale";

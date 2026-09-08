@@ -794,6 +794,7 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.field.name" = "Meno";
 "modes.field.name.placeholder" = "napr. Záznamy zo stretnutí";
 "modes.field.name.editPlaceholder" = "Meno režimu";
+"modes.field.name.defaultLocked" = "Toto je predvolený režim, preto jeho názov nemožno zmeniť. Ktorýkoľvek iný režim môžete premenovať.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Poskytovateľ";
 "modes.provider.local" = "Lokálne";

@@ -794,6 +794,7 @@
 "modes.field.name" = "Име";
 "modes.field.name.placeholder" = "напр. Бележки от среща";
 "modes.field.name.editPlaceholder" = "Име на режима";
+"modes.field.name.defaultLocked" = "Това е режимът по подразбиране, затова името му не може да бъде променено. Можете да преименувате всеки друг режим.";
 "modes.field.model" = "Модел";
 "modes.field.provider" = "Доставчик";
 "modes.provider.local" = "Локален";

@@ -51,6 +51,17 @@
                                  BorderBrush="{DynamicResource BorderBrush}"
                                  Padding="10,8"
                                  TextChanged="ModeNameBox_TextChanged"/>
+                        <!-- Shown only for the default mode, whose name field is
+                             disabled. A greyed-out text box with nothing next to it
+                             reads as a broken control rather than a deliberate rule
+                             (issue #494), so the rule says itself. -->
+                        <TextBlock x:Name="ModeNameLockedHint"
+                                   Text="{loc:Loc mode.editor.field.name.defaultLocked}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,4,0,0"
+                                   Visibility="Collapsed"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

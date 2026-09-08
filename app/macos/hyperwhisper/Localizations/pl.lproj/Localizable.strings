@@ -794,6 +794,7 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.field.name" = "Nazwa";
 "modes.field.name.placeholder" = "na przykład Notatki ze spotkania";
 "modes.field.name.editPlaceholder" = "Nazwa trybu";
+"modes.field.name.defaultLocked" = "To jest tryb domyślny, więc jego nazwy nie można zmienić. Nazwę każdego innego trybu można zmienić.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Dostawca";
 "modes.provider.local" = "Lokalny";

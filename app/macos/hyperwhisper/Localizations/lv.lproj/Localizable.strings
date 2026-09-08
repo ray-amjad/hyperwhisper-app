@@ -794,6 +794,7 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.field.name" = "Nosaukums";
 "modes.field.name.placeholder" = "piem., sanāksmes piezīmes";
 "modes.field.name.editPlaceholder" = "Režīma nosaukums";
+"modes.field.name.defaultLocked" = "Šis ir noklusējuma režīms, tāpēc tā nosaukumu nevar mainīt. Jebkuru citu režīmu var pārdēvēt.";
 "modes.field.model" = "Modelis";
 "modes.field.provider" = "Sniedzējs";
 "modes.provider.local" = "Lokāls";

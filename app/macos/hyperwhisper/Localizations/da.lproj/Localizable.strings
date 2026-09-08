@@ -794,6 +794,7 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.field.name" = "Navn";
 "modes.field.name.placeholder" = "f.eks. Mødenoter";
 "modes.field.name.editPlaceholder" = "Tilstandsnavn";
+"modes.field.name.defaultLocked" = "Dette er standardtilstanden, så dens navn kan ikke ændres. Du kan omdøbe alle andre tilstande.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Udbyder";
 "modes.provider.local" = "Lokal";

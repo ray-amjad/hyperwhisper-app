@@ -794,6 +794,7 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.field.name" = "Név";
 "modes.field.name.placeholder" = "pl., Találkozó jegyzetek";
 "modes.field.name.editPlaceholder" = "Mód neve";
+"modes.field.name.defaultLocked" = "Ez az alapértelmezett mód, ezért a neve nem módosítható. Bármelyik másik módot átnevezheti.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Szolgáltató";
 "modes.provider.local" = "Helyi";

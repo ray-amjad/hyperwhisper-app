@@ -794,6 +794,7 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.field.name" = "Ime";
 "modes.field.name.placeholder" = "npr. Zapiski sestanka";
 "modes.field.name.editPlaceholder" = "Ime načina";
+"modes.field.name.defaultLocked" = "To je privzeti način, zato njegovega imena ni mogoče spremeniti. Vsak drug način lahko preimenujete.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Ponudnik";
 "modes.provider.local" = "Lokalni";
