@@ -100,7 +100,9 @@ public partial class ErrorToastWindow : Window
         // before placing: Show() on a re-used window does not always flush layout
         // first, and a stale height puts the pill in the wrong place.
         UpdateLayout();
-        var height = double.IsNaN(Height) ? ActualHeight : Height;
+        // ActualHeight is what the last layout pass produced; Height stays NaN while
+        // SizeToContent owns it, and MinHeight is the pill's floor before first layout.
+        var height = ActualHeight > 0 ? ActualHeight : MinHeight;
 
         // Try to find the recording overlay window and position above it
         var recordingWindow = FindRecordingOverlayWindow();
@@ -111,19 +113,23 @@ public partial class ErrorToastWindow : Window
             // Position centered above the recording dialog, 12px gap (matching macOS)
             Left = recordingWindow.Left + (recordingWindow.ActualWidth - Width) / 2;
             Top = recordingWindow.Top - height - 12;
+
+            // A tall toast above a dialog near the top of the screen would otherwise
+            // start off the top edge and hide its own first lines. Only for a dialog
+            // inside the primary work area: SystemParameters.WorkArea describes no
+            // other monitor - which is the assumption RecordingOverlayWindow's own
+            // PositionOverlay makes too - and a dialog on a monitor ABOVE the primary
+            // has a legitimately negative Top that must be left alone.
+            if (Top < workArea.Top && recordingWindow.Top >= workArea.Top)
+            {
+                Top = workArea.Top;
+            }
         }
         else
         {
             // Fallback: bottom-center of work area, 80 pixels from bottom
             Left = workArea.Left + (workArea.Width - Width) / 2;
-            Top = workArea.Bottom - height - 80;
-        }
-
-        // A tall toast above a recording dialog near the top of the screen would
-        // otherwise start off the top edge, hiding the first lines of the message.
-        if (Top < workArea.Top)
-        {
-            Top = workArea.Top;
+            Top = Math.Max(workArea.Top, workArea.Bottom - height - 80);
         }
     }
 
