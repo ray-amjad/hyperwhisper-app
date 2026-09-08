@@ -11447,6 +11447,10 @@ internal static class Program
                     new DateTime(2026, 9, 8, 1, 5, 0).ToString("g"),
                     7);
 
+                // Every row is measured before anything is asserted, so one bad row does
+                // not hide the state of the other two.
+                var problems = new List<string>();
+
                 foreach (var (label, page, block) in rows)
                 {
                     page.Measure(new Size(PageWidth, PageHeight));
@@ -11466,22 +11470,30 @@ internal static class Program
                     var row = (FrameworkElement)System.Windows.Media.VisualTreeHelper.GetParent(block);
                     var leftInRow = block.TransformToAncestor(row).Transform(new Point(0, 0)).X;
                     var right = leftInRow + block.ActualWidth;
-                    Assert(Math.Abs(right - row.ActualWidth) <= 0.5,
-                        $"{label} was laid out {block.ActualWidth:F0}px wide at x={leftInRow:F0}, ending at "
-                        + $"{right:F0}px inside a {row.ActualWidth:F0}px row. It should end exactly at the row's "
-                        + "edge: a horizontal StackPanel measures with infinite width, so the block takes its "
-                        + "own single-line width and TextWrapping=\"Wrap\" never fires.");
+                    if (Math.Abs(right - row.ActualWidth) > 0.5)
+                    {
+                        problems.Add(
+                            $"{label} was laid out {block.ActualWidth:F0}px wide at x={leftInRow:F0}, ending at "
+                            + $"{right:F0}px inside a {row.ActualWidth:F0}px {row.GetType().Name} row; it should "
+                            + "end exactly at the row's edge");
+                    }
 
                     // 2. And a string that is too long for the column really is on more
                     //    than one line, rather than cut at the column edge.
-                    if (UnconstrainedWidthOf(block) > block.ActualWidth + 0.5)
+                    if (UnconstrainedWidthOf(block) > block.ActualWidth + 0.5
+                        && block.ActualHeight <= LineHeightOf(block) * 1.5)
                     {
-                        Assert(block.ActualHeight > LineHeightOf(block) * 1.5,
+                        problems.Add(
                             $"{label} wants {UnconstrainedWidthOf(block):F0}px, was given "
-                            + $"{block.ActualWidth:F0}px, and is still one {block.ActualHeight:F0}px line: "
-                            + "the overflow is cut, not wrapped.");
+                            + $"{block.ActualWidth:F0}px, and is still one {block.ActualHeight:F0}px line, "
+                            + "so the overflow is cut rather than wrapped");
                     }
                 }
+
+                Assert(problems.Count == 0,
+                    "a horizontal StackPanel measures its children with infinite width, so "
+                    + "TextWrapping=\"Wrap\" never fires inside one and the text is clipped at the "
+                    + "column edge. Use a two-column Grid. " + string.Join("; ", problems));
             });
 
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
