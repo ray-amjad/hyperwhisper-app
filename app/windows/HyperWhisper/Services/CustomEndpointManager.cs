@@ -89,12 +89,20 @@ public class CustomEndpointManager : IDisposable
     /// <summary>
     /// Add a new custom endpoint.
     /// </summary>
+    /// <param name="lastTestSuccess">
+    /// The outcome of a Test Connection run against exactly this URL, model and
+    /// key, or null when the configuration being saved has never been tested.
+    /// The Add window used to show its test result and drop it, so a saved
+    /// endpoint always started life with no recorded outcome however many times
+    /// the user had tested it (#509).
+    /// </param>
     /// <returns>The created endpoint, or null if validation fails.</returns>
     public CustomPostProcessingEndpoint? AddEndpoint(
         string name,
         string endpointURL,
         string modelName,
-        string? apiKey = null)
+        string? apiKey = null,
+        bool? lastTestSuccess = null)
     {
         var endpoint = new CustomPostProcessingEndpoint
         {
@@ -102,7 +110,9 @@ public class CustomEndpointManager : IDisposable
             Name = name.Trim(),
             EndpointURL = endpointURL.Trim(),
             ModelName = modelName.Trim(),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            LastTestSuccess = lastTestSuccess,
+            LastTestedAt = lastTestSuccess.HasValue ? DateTime.UtcNow : null
         };
 
         var validationError = endpoint.Validate();
@@ -131,12 +141,19 @@ public class CustomEndpointManager : IDisposable
     /// <summary>
     /// Update an existing custom endpoint.
     /// </summary>
+    /// <param name="lastTestSuccess">
+    /// The outcome of a Test Connection run against exactly the configuration
+    /// being saved, or null when this save has no test behind it. Null does not
+    /// preserve an older outcome that a URL or model change has invalidated —
+    /// see the clearing below.
+    /// </param>
     public bool UpdateEndpoint(
         Guid id,
         string? name = null,
         string? endpointURL = null,
         string? modelName = null,
-        string? apiKey = null)
+        string? apiKey = null,
+        bool? lastTestSuccess = null)
     {
         var endpoints = SettingsService.Instance.CustomEndpoints;
         var index = endpoints.FindIndex(e => e.Id == id);
@@ -164,7 +181,33 @@ public class CustomEndpointManager : IDisposable
         }
 
         if (modelName != null)
-            endpoint.ModelName = modelName.Trim();
+        {
+            var newModel = modelName.Trim();
+            if (newModel != endpoint.ModelName)
+            {
+                endpoint.ModelName = newModel;
+                // A pass against the old model says nothing about the new one:
+                // the model name is half of what the probe sends.
+                endpoint.LastTestedAt = null;
+                endpoint.LastTestSuccess = null;
+            }
+        }
+
+        // The key is the third thing the probe sends, so a new one invalidates
+        // an old verdict just as a new URL does.
+        if (apiKey != null && !string.Equals(apiKey, GetApiKey(id) ?? "", StringComparison.Ordinal))
+        {
+            endpoint.LastTestedAt = null;
+            endpoint.LastTestSuccess = null;
+        }
+
+        // Applied after the clearing above, so a test that really did run
+        // against the values being saved survives an edit to them.
+        if (lastTestSuccess.HasValue)
+        {
+            endpoint.LastTestedAt = DateTime.UtcNow;
+            endpoint.LastTestSuccess = lastTestSuccess;
+        }
 
         var validationError = endpoint.Validate();
         if (validationError != null)

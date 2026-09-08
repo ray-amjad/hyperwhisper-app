@@ -1231,6 +1231,108 @@ internal static class Program
                     $"probe went to '{handler.LastRequestUri}'");
             });
 
+            // Issue #509. The Model Library called a custom endpoint "Connected"
+            // when nothing had ever connected to it. Two independent gaps, so
+            // two independent groups of assertions: the outcome was never
+            // recorded, and "no outcome" was mapped to the healthy branch.
+            Run("a custom endpoint records its test outcome and never claims an untested one", () =>
+            {
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var manager = CustomEndpointManager.Instance;
+                    const string Url = "https://percy.example.com/v1/chat/completions";
+
+                    // (1) Saving without a test leaves NO verdict behind. This is
+                    // the state every endpoint ever created used to be in.
+                    var untested = manager.AddEndpoint("untested", Url, "m-1");
+                    Assert(untested is not null, "AddEndpoint should accept a valid configuration");
+                    Assert(untested!.LastTestSuccess is null && untested.LastTestedAt is null,
+                        "a save with no test behind it must record no verdict");
+
+                    // (2) A failed test is carried into the saved endpoint. Before
+                    // the fix the window showed this result and dropped it.
+                    var failed = manager.AddEndpoint("failed", Url, "m-1", null, lastTestSuccess: false);
+                    Assert(failed?.LastTestSuccess == false, "a failed test must be recorded");
+                    Assert(failed?.LastTestedAt is not null, "a recorded verdict must be dated");
+
+                    var passed = manager.AddEndpoint("passed", Url, "m-1", null, lastTestSuccess: true);
+                    Assert(passed?.LastTestSuccess == true, "a successful test must be recorded");
+
+                    // (3) A verdict only describes the configuration it was measured
+                    // against. Editing the URL or the model must retire it, or the
+                    // row goes on claiming a server it has never reached.
+                    Assert(manager.UpdateEndpoint(passed!.Id, endpointURL: "https://elsewhere.example.com/v1/chat/completions"),
+                        "UpdateEndpoint should accept a valid URL change");
+                    Assert(manager.GetEndpoint(passed.Id)?.LastTestSuccess is null,
+                        "a URL change must retire the old verdict");
+
+                    var reTested = manager.AddEndpoint("re-tested", Url, "m-1", null, lastTestSuccess: true);
+                    Assert(manager.UpdateEndpoint(reTested!.Id, modelName: "m-2"),
+                        "UpdateEndpoint should accept a model change");
+                    Assert(manager.GetEndpoint(reTested.Id)?.LastTestSuccess is null,
+                        "a model change must retire the old verdict");
+
+                    // A rename is not a configuration change, so a real verdict survives it.
+                    var renamed = manager.AddEndpoint("renamed", Url, "m-1", null, lastTestSuccess: true);
+                    Assert(manager.UpdateEndpoint(renamed!.Id, name: "renamed twice"),
+                        "UpdateEndpoint should accept a rename");
+                    Assert(manager.GetEndpoint(renamed.Id)?.LastTestSuccess == true,
+                        "a rename must not retire a verdict that still holds");
+
+                    manager.AddEndpoint("local", "http://localhost:1234/v1/chat/completions", "m-1");
+
+                    // (4) The three verdicts reach the Model Library as three
+                    // states. `null` sharing the `true` branch is the bug.
+                    var library = new ModelLibraryManager(
+                        new WhisperModelService(),
+                        new ParakeetModelService(),
+                        new LocalLlmModelService(),
+                        ApiKeyService.Instance,
+                        CloudProviderHealthService.Instance);
+
+                    var rows = library.Rebuild()
+                        .Where(r => r.Source == LibraryModelSource.CustomEndpoint)
+                        .ToDictionary(r => r.DisplayName, r => r);
+
+                    Assert(rows["untested"].StatusKind == LibraryModelStatusKind.Untested,
+                        $"a never-tested endpoint should be Untested, got {rows["untested"].StatusKind}");
+                    Assert(rows["failed"].StatusKind == LibraryModelStatusKind.Error,
+                        "a failed endpoint should be Error");
+                    Assert(rows["passed"].StatusKind == LibraryModelStatusKind.Untested,
+                        "an endpoint whose URL changed after its test should be Untested");
+                    Assert(rows["renamed twice"].StatusKind == LibraryModelStatusKind.Enabled,
+                        "an endpoint that really passed should be Enabled");
+
+                    // (5) And the label the user reads. "Connected" is the exact
+                    // word the issue was filed about.
+                    Assert(new LibraryModelViewModel(rows["untested"]).StatusText == "Not tested",
+                        $"expected 'Not tested', got '{new LibraryModelViewModel(rows["untested"]).StatusText}'");
+                    Assert(new LibraryModelViewModel(rows["failed"]).StatusText == "Test failed",
+                        "a failed endpoint should read 'Test failed'");
+                    Assert(new LibraryModelViewModel(rows["renamed twice"]).StatusText == "Connected",
+                        "an endpoint that really passed should still read 'Connected'");
+                    Assert(new LibraryModelViewModel(rows["untested"]).TagVisibility == System.Windows.Visibility.Collapsed,
+                        "an untested endpoint must not carry the 'Verified' tag");
+
+                    // (6) The honesty change is about the label. A localhost
+                    // endpoint is an offline row, and it must not drop out of
+                    // "Installed Only" just because nobody has probed it.
+                    Assert(rows["local"].LocationKind == LibraryModelLocationKind.Offline,
+                        "a localhost endpoint should be an offline row");
+                    Assert(rows["local"].StatusKind == LibraryModelStatusKind.Untested,
+                        "the localhost endpoint was never tested either");
+                    Assert(rows["local"].IsInstalled,
+                        "an untested local endpoint must stay in 'Installed Only'");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
+            });
+
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
             {
                 using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
