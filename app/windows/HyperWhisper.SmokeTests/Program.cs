@@ -11612,6 +11612,110 @@ internal static class Program
                 }
             });
 
+            Run("settings: an info notice is given the whole column, so it wraps — issue #503", () =>
+            {
+                // A horizontal StackPanel measures its children with infinite available
+                // width. TextWrapping="Wrap" is therefore dead inside one: the TextBlock
+                // asks for its full single-line width, gets it, and is then cut off by the
+                // 560px ContentMaxWidthForm cap on the column. The Storage notice is 113
+                // characters and was clipped mid-sentence in English; the Backup notice
+                // happened to fit in English and would clip in a longer locale.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                // The settings frame's real width: MainWindow is a fixed 1000px, minus the
+                // 232px SidebarWidth and the 200px settings nav column. PagePadding then
+                // takes 48, so the content column is 520 — NARROWER than the 560px
+                // ContentMaxWidthForm cap, which is why the cap alone does not describe
+                // what the user sees. A width picked wider than 560 misses this bug.
+                const double PageWidth = 1000 - 232 - 200;
+                const double PageHeight = 680 - 44;
+
+                var storagePage = new StorageSettingsPage();
+                var backupPage = new BackupExportSettingsPage();
+
+                var rows = new (string Label, System.Windows.Controls.Page Page, System.Windows.Controls.TextBlock Block)[]
+                {
+                    ("StorageSettingsPage.StorageNoticeText", storagePage, storagePage.StorageNoticeText),
+                    ("StorageSettingsPage.LastCleanupText", storagePage, storagePage.LastCleanupText),
+                    ("BackupExportSettingsPage.BackupNoticeText", backupPage, backupPage.BackupNoticeText),
+                };
+
+                // The last-cleanup panel is collapsed until auto-delete is on, and a
+                // collapsed element is never laid out. Show it and give the line the real
+                // string, which is what UpdateLastCleanupInfo would have put there.
+                storagePage.LastCleanupInfoPanel.Visibility = Visibility.Visible;
+                storagePage.LastCleanupText.Text = HyperWhisper.Localization.Loc.S(
+                    "settings.storage.autoDelete.lastCleanup",
+                    new DateTime(2026, 9, 8, 1, 5, 0).ToString("g"),
+                    7);
+
+                // Every row is measured before anything is asserted, so one bad row does
+                // not hide the state of the other two.
+                var problems = new List<string>();
+
+                foreach (var (label, page, block) in rows)
+                {
+                    page.Measure(new Size(PageWidth, PageHeight));
+                    page.Arrange(new Rect(0, 0, PageWidth, PageHeight));
+                    page.UpdateLayout();
+
+                    Assert(!string.IsNullOrWhiteSpace(block.Text),
+                        $"{label} has no text, so this case would assert nothing");
+                    Assert(block.TextWrapping == TextWrapping.Wrap,
+                        $"{label} is not set to wrap; this case is about whether wrapping can fire");
+
+                    // 1. The text column ends exactly where its row ends. Over is the
+                    //    English Storage bug: the row is layout-clipped to the 560px column,
+                    //    so whatever hangs past it is invisible and unscrollable. Under is
+                    //    the Backup notice: it took its own single-line width and happens to
+                    //    fit today, which is not a property any of the 39 locales inherit.
+                    var row = (FrameworkElement)System.Windows.Media.VisualTreeHelper.GetParent(block);
+                    var leftInRow = block.TransformToAncestor(row).Transform(new Point(0, 0)).X;
+                    var right = leftInRow + block.ActualWidth;
+                    if (Math.Abs(right - row.ActualWidth) > 0.5)
+                    {
+                        problems.Add(
+                            $"{label} was laid out {block.ActualWidth:F0}px wide at x={leftInRow:F0}, ending at "
+                            + $"{right:F0}px inside a {row.ActualWidth:F0}px {row.GetType().Name} row; it should "
+                            + "end exactly at the row's edge");
+                    }
+
+                    // 2. And the row itself stays inside the settings content column. A
+                    //    horizontal StackPanel whose children want more than it was given
+                    //    does NOT shrink them: it takes their full width and hangs over the
+                    //    column edge, where the ScrollViewer clips it. That is the English
+                    //    Storage bug, and it is invisible to check 1 because the overhanging
+                    //    row and its overhanging child agree with each other.
+                    var column = (FrameworkElement)((System.Windows.Controls.ScrollViewer)page.Content).Content;
+                    var rightInColumn = block.TransformToAncestor(column).Transform(new Point(0, 0)).X
+                                        + block.ActualWidth;
+                    if (rightInColumn > column.ActualWidth + 0.5)
+                    {
+                        problems.Add(
+                            $"{label} ends {rightInColumn - column.ActualWidth:F0}px past the right edge of the "
+                            + $"{column.ActualWidth:F0}px content column, so that much of it is clipped away and "
+                            + "cannot be scrolled to");
+                    }
+
+                    // 3. And a string that is too long for the column really is on more
+                    //    than one line, rather than cut at the column edge.
+                    if (UnconstrainedWidthOf(block) > block.ActualWidth + 0.5
+                        && block.ActualHeight <= LineHeightOf(block) * 1.5)
+                    {
+                        problems.Add(
+                            $"{label} wants {UnconstrainedWidthOf(block):F0}px, was given "
+                            + $"{block.ActualWidth:F0}px, and is still one {block.ActualHeight:F0}px line, "
+                            + "so the overflow is cut rather than wrapped");
+                    }
+                }
+
+                Assert(problems.Count == 0,
+                    "a horizontal StackPanel measures its children with infinite width, so "
+                    + "TextWrapping=\"Wrap\" never fires inside one and the text is clipped at the "
+                    + "column edge. Use a two-column Grid. " + string.Join("; ", problems));
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -12965,6 +13069,21 @@ internal static class Program
         return new System.Windows.Media.FormattedText(
             block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
             block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+    }
+
+    /// <summary>
+    /// The height of ONE line of this TextBlock's text. Comparing ActualHeight
+    /// against it is how a layout case tells "wrapped onto a second line" from
+    /// "cut at the column edge", without hard-coding a font's line spacing.
+    /// </summary>
+    private static double LineHeightOf(System.Windows.Controls.TextBlock block)
+    {
+        var typeface = new System.Windows.Media.Typeface(
+            block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+
+        return new System.Windows.Media.FormattedText(
+            "Ag", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+            block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Height;
     }
 
     /// <summary>
