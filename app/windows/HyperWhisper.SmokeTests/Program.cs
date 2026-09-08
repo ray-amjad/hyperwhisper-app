@@ -10432,13 +10432,17 @@ internal static class Program
                     $"the mode editor has {combos.Count} dropdowns - this case expects the " +
                     "editor's full set, so it is looking at the wrong tree");
 
-                foreach (var combo in combos)
-                {
-                    // A dropdown needs at least two items for a wheel turn to have
-                    // anywhere to go; one that is still empty proves nothing.
-                    if (combo.Items.Count < 2)
-                        continue;
+                // A dropdown needs at least two items for a wheel turn to have anywhere
+                // to go; one that is still empty proves nothing. Counted BEFORE the loop
+                // rather than skipped inside it, so that a future editor whose combos all
+                // populate lazily fails here instead of passing on an empty loop.
+                var loaded = combos.Where(c => c.Items.Count >= 2).ToList();
+                Assert(loaded.Count >= 6,
+                    $"only {loaded.Count} of the editor's {combos.Count} dropdowns have items " +
+                    "here, which is too few for this case to be proving anything");
 
+                foreach (var combo in loaded)
+                {
                     combo.SelectedIndex = 0;
                     var before = combo.SelectedIndex;
 
@@ -10469,7 +10473,7 @@ internal static class Program
                     "the editor's content fits its 700px window here, so nothing could scroll " +
                     "and the forwarding half of this case proves nothing");
 
-                var wheelTarget = combos.First(c => c.Items.Count >= 2);
+                var wheelTarget = loaded[0];
                 scroller.ScrollToVerticalOffset(0);
                 scroller.UpdateLayout();
                 RaiseWheelPair(wheelTarget, -120);
@@ -10479,23 +10483,35 @@ internal static class Program
                     $"the wheel over {NameOrType(wheelTarget)} left the page at offset " +
                     $"{scroller.VerticalOffset} - the dropdown ate the event instead of passing it on");
 
-                // THE OPEN-DROPDOWN HALF IS NOT COVERED HERE, AND THIS IS THE TRIPWIRE
-                // THAT SAYS SO. An open dropdown must keep the wheel - it is scrolling
-                // the list it is showing - but ComboBox coerces IsDropDownOpen back to
-                // false while the control is not loaded, and nothing in this console
-                // process is ever loaded: there is no PresentationSource, so no Popup can
-                // be hosted. Setting the property is a no-op, and a case that raised a
-                // wheel event "over an open dropdown" here would be testing the closed
-                // path under a misleading name.
+                // THE OPEN DROPDOWN KEEPS THE WHEEL. It is scrolling the list it is
+                // showing, so taking the event away from it would break picking a value
+                // out of a long list - the Cloud model dropdown here has dozens.
                 //
-                // It is verified on a real GUI instead (see the PR). If this assertion
-                // ever fails, the harness has gained the ability to open a dropdown and
-                // the real assertion belongs here.
-                var open = combos.First(c => c.Items.Count >= 2);
+                // ComboBox coerces IsDropDownOpen back to false while the control is
+                // unloaded, and nothing in this console process is ever loaded: there is
+                // no PresentationSource, so no Popup can be hosted. Hence the guard takes
+                // the open state as an argument and this drives it directly. The tripwire
+                // below keeps that claim honest - if the harness ever gains a real Popup,
+                // it fails and this becomes a plain event-pair case like the one above.
+                var open = loaded[0];
                 open.IsDropDownOpen = true;
                 Assert(!open.IsDropDownOpen,
-                    "a dropdown now opens in the console harness - replace this tripwire with the " +
-                    "real check: an OPEN ComboBox must leave PreviewMouseWheel unhandled");
+                    "a dropdown now opens in the console harness - drive the guard through a " +
+                    "real PreviewMouseWheel instead of passing isDropDownOpen by hand");
+
+                var openArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                ComboBoxWheelGuard.Decide(open, isDropDownOpen: true, openArgs);
+                Assert(!openArgs.Handled,
+                    "the guard swallowed the wheel over an OPEN dropdown - the list it is showing " +
+                    "would no longer scroll, so a long model list cannot be browsed");
+
+                var closedArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                ComboBoxWheelGuard.Decide(open, isDropDownOpen: false, closedArgs);
+                Assert(closedArgs.Handled,
+                    "the guard let the wheel through over a CLOSED dropdown, which is the whole " +
+                    "of #493");
             });
 
             Run("every dropdown in the app is covered, not just the mode editor's", () =>
@@ -10524,9 +10540,15 @@ internal static class Program
                 Assert(combo.SelectedIndex == 0,
                     $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn");
 
-                // Up as well as down: ComboBox.OnMouseWheel reads the sign.
+                // Up as well as down: ComboBox.OnMouseWheel reads the sign, so a guard
+                // written as `if (e.Delta >= 0) return;` would leave half the bug in
+                // place. Asserting the return value is what catches that - the selection
+                // check below cannot, because a detached ComboBox has no items host and
+                // does not move even unguarded.
                 combo.SelectedIndex = 2;
-                RaiseWheelPair(combo, 120);
+                Assert(RaiseWheelPair(combo, 120),
+                    "an upward wheel turn was left unhandled, so WPF will promote it and " +
+                    "ComboBox.OnMouseWheel will move the selection back up the list");
                 Assert(combo.SelectedIndex == 2,
                     $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn upward");
             });

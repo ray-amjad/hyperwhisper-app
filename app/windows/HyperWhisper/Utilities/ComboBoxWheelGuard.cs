@@ -46,15 +46,29 @@ public static class ComboBoxWheelGuard
     }
 
     /// <summary>
-    /// A closed dropdown gives the wheel to whatever is scrolling around it; an
-    /// open one keeps it, because scrolling the list it is showing is the point.
+    /// The class handler itself. It does one thing beyond reading the dropdown's
+    /// open state - see <see cref="Decide"/>, which holds the rule and is what the
+    /// smoke suite drives, because a console process cannot host an open Popup.
     /// </summary>
     internal static void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (e.Handled || sender is not WpfComboBox combo)
-            return;
+        if (sender is WpfComboBox combo)
+            Decide(combo, combo.IsDropDownOpen, e);
+    }
 
-        if (combo.IsDropDownOpen)
+    /// <summary>
+    /// A closed dropdown gives the wheel to whatever is scrolling around it; an
+    /// open one keeps it, because scrolling the list it is showing is the point.
+    ///
+    /// The open state is a PARAMETER rather than a read off <paramref name="combo"/>
+    /// so that both halves of that sentence can be tested. ComboBox coerces
+    /// IsDropDownOpen back to false while the control is unloaded, and nothing in
+    /// the console smoke host is ever loaded, so a test that set the property would
+    /// silently be exercising the closed path under the other name.
+    /// </summary>
+    internal static void Decide(WpfComboBox combo, bool isDropDownOpen, MouseWheelEventArgs e)
+    {
+        if (e.Handled || isDropDownOpen)
             return;
 
         // Handled BEFORE anything else, and whether or not there is something to
@@ -64,17 +78,11 @@ public static class ComboBoxWheelGuard
         // scroller around it must still ignore the wheel rather than edit itself.
         e.Handled = true;
 
-        if (ParentOf(combo) is not UIElement parent)
-            return;
-
-        // Re-raised on the PARENT, not on the ComboBox: starting the bubble above
-        // the control keeps it out of the path, so the ScrollViewer gets the wheel
-        // and this handler cannot see its own event again.
-        parent.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
-        {
-            RoutedEvent = UIElement.MouseWheelEvent,
-            Source = combo
-        });
+        // Forwarded from the PARENT, not from the ComboBox: starting the bubble
+        // above the control keeps it out of the path, so the ScrollViewer gets the
+        // wheel and this handler cannot see its own event again.
+        if (ParentOf(combo) is UIElement parent)
+            MouseWheelForwarding.RaiseOnParent(parent, combo, e);
     }
 
     /// <summary>

@@ -99,11 +99,10 @@ public partial class OnboardingStage : WpfUserControl
 
         e.Handled = true;
 
-        parent.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
-        {
-            RoutedEvent = MouseWheelEvent,
-            Source = sender
-        });
+        // Same re-raise as ComboBoxWheelGuard's, and deliberately the same code: the
+        // POLICY above differs (that one forwards whenever the dropdown is closed,
+        // this one only at a scroll limit), but the mechanics must not drift apart.
+        Utilities.MouseWheelForwarding.RaiseOnParent(parent, sender, e);
     }
 
     private static bool CanScroll(ScrollViewer scroll, int delta)
