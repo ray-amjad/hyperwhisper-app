@@ -10569,6 +10569,54 @@ internal static class Program
                     $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn upward");
             });
 
+            Run("onboarding: a region with nothing to scroll hands the wheel back to the stage", () =>
+            {
+                // The OTHER caller of MouseWheelForwarding.RaiseOnParent. The re-raise
+                // used to be copied into both this and ComboBoxWheelGuard, and the two
+                // copies had already drifted; #493 made it one helper, and this is the
+                // side that had no test, so the extraction was unverified in the
+                // direction it could most easily break.
+                //
+                // The case is the scroll LIMIT, which is what the attached property
+                // exists for: an inner region that cannot move must not eat the wheel,
+                // or the onboarding page stops scrolling once the pointer wanders over
+                // a short transcript box.
+                EnsureSmokeApplication();
+
+                var stage = new System.Windows.Controls.StackPanel();
+                var inner = new System.Windows.Controls.ScrollViewer
+                {
+                    Height = 200,
+                    Content = new TextBlock { Text = "one short line" }
+                };
+                stage.Children.Add(inner);
+                OnboardingStage.SetBubblesMouseWheel(inner, true);
+
+                stage.Measure(new Size(400, 400));
+                stage.Arrange(new Rect(0, 0, 400, 400));
+                stage.UpdateLayout();
+
+                Assert(inner.ScrollableHeight <= 0,
+                    $"the inner region can scroll {inner.ScrollableHeight}px here, so it is " +
+                    "entitled to keep the wheel and this case proves nothing");
+
+                var forwarded = 0;
+                stage.AddHandler(
+                    UIElement.MouseWheelEvent,
+                    new MouseWheelEventHandler((_, _) => forwarded++));
+
+                var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                inner.RaiseEvent(preview);
+
+                Assert(preview.Handled,
+                    "the stage's forwarder left the wheel to WPF, which would scroll the inner " +
+                    "region and the page both");
+                Assert(forwarded == 1,
+                    $"the stage received {forwarded} forwarded wheel events, not 1 - a region at " +
+                    "its limit swallowed the turn instead of passing it up");
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
