@@ -10160,6 +10160,104 @@ internal static class Program
 
             SynchronizationContext.SetSynchronizationContext(balancePreviousContext);
 
+            Run("vocabulary: the whole replacement box is the replacement field — issue #496", () =>
+            {
+                // The replacement row is DRAWN as a 64px text area. The TextBox inside
+                // it used to carry VerticalAlignment="Top", so it auto-sized to one
+                // line and the other ~44px was bare Grid. A click there is hit-testable
+                // but not focusable: focus left the field and everything typed after it
+                // was discarded with no error. That is data loss, so it is asserted by
+                // MEASURING the laid-out tree, not by grepping XAML.
+                //
+                // No DatabaseInitializer here: VocabularyPage's constructor only runs
+                // InitializeComponent and takes the service singleton, whose constructor
+                // is empty. Every read hangs off OnLoaded, which never fires on a
+                // detached tree.
+                var application = EnsureSmokeApplication();
+
+                // The page binds through a converter App.xaml declares inline, which
+                // LoadApplicationResources does not carry; StaticResource resolves at
+                // parse time, so it has to be there before the page is constructed.
+                if (!application.Resources.Contains("BoolToVisibilityConverter"))
+                    application.Resources["BoolToVisibilityConverter"] = new BoolToVisibilityConverter();
+
+                var page = new HyperWhisper.Views.Pages.VocabularyPage();
+
+                // The row is revealed by Ctrl+Enter at runtime; a collapsed element
+                // measures 0 and would pass this check while proving nothing.
+                page.ReplacementBorder.Visibility = Visibility.Visible;
+                page.Measure(new Size(900, 700));
+                page.Arrange(new Rect(0, 0, 900, 700));
+                page.UpdateLayout();
+
+                var box = page.ReplacementBox;
+                var host = System.Windows.Media.VisualTreeHelper.GetParent(box)
+                    as System.Windows.Controls.Grid;
+                Assert(host is not null,
+                    "the replacement TextBox is no longer hosted in a Grid — this case's geometry is stale");
+
+                Assert(host!.ActualHeight >= 64,
+                    $"the replacement box drew {host.ActualHeight:F2} tall, not the 64 the design asks for");
+
+                // The field must BE the box, not a line sitting at the top of it.
+                Assert(Math.Abs(box.ActualHeight - host.ActualHeight) <= 0.5,
+                    $"the replacement TextBox measured {box.ActualHeight:F2} inside a " +
+                    $"{host.ActualHeight:F2} box. The rest of the box is dead space that " +
+                    "steals focus and silently eats the user's replacement text.");
+
+                // The exact click the issue reports: the obvious middle of the box, well
+                // below the first text line. InputHitTest is not available here — this
+                // console harness has no PresentationSource, so nothing is ever rendered
+                // and every hit test answers null. The honest substitute is the geometry
+                // WPF would hit-test against: the TextBox's own bounds in the host's
+                // coordinates.
+                var clickPoint = new System.Windows.Point(host.ActualWidth / 2, host.ActualHeight - 8);
+                var boxBounds = box.TransformToAncestor(host)
+                    .TransformBounds(new Rect(box.RenderSize));
+
+                Assert(boxBounds.Contains(clickPoint),
+                    $"a click at {clickPoint} — the middle of the replacement box — falls outside " +
+                    $"ReplacementBox, which occupies only {boxBounds}. Focus moves off the field " +
+                    "and the next keystrokes are lost.");
+
+                // Bounds only matter if a point inside them is hit-testable, and the
+                // surface that answers a mouse click is the template's Border, not the
+                // TextBox object: a Border with a null Background is invisible to the
+                // mouse and reopens the same hole with the same geometry. Reading the
+                // TextBox's own Background would prove nothing — the implicit style in
+                // Generic.xaml gives every TextBox one whether the page asks or not.
+                var surface = FindDescendant<System.Windows.Controls.Border>(box);
+                Assert(surface is not null,
+                    "the TextBox template no longer has a Border — this case's hit surface is stale");
+                Assert(surface!.Background is not null,
+                    "the replacement field's template Border has no Background, so its empty area is " +
+                    "transparent to the mouse and a click there falls through to the container");
+                Assert(Math.Abs(surface.ActualHeight - host.ActualHeight) <= 0.5,
+                    $"the clickable surface measured {surface.ActualHeight:F2} inside a " +
+                    $"{host.ActualHeight:F2} box");
+
+                // The other half of the fix, measured rather than grepped: the content
+                // host has to fill the box too. Generic.xaml's implicit TextBox style
+                // sets VerticalContentAlignment="Center" and template-binds it to
+                // PART_ContentHost, so dropping the page's Stretch would recentre the
+                // caret and the first typed line ~22px below the placeholder, with
+                // every height above still passing.
+                var contentHost = box.Template.FindName("PART_ContentHost", box)
+                    as System.Windows.Controls.ScrollViewer;
+                Assert(contentHost is not null,
+                    "the TextBox template no longer names PART_ContentHost — this case's geometry is stale");
+                Assert(Math.Abs(contentHost!.ActualHeight - box.ActualHeight) <= 0.5,
+                    $"PART_ContentHost measured {contentHost.ActualHeight:F2} inside a " +
+                    $"{box.ActualHeight:F2} field, so the text is aligned to a fraction of the box " +
+                    "and no longer starts where the placeholder draws");
+
+                var contentTop = contentHost.TransformToAncestor(box)
+                    .TransformBounds(new Rect(contentHost.RenderSize)).Top;
+                Assert(contentTop <= 0.5,
+                    $"PART_ContentHost starts {contentTop:F2} below the top of the field; the " +
+                    "replacement text would not line up with the placeholder it replaces");
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -11128,13 +11226,7 @@ internal static class Program
     private static IReadOnlyList<(OnboardingStep Step, System.Windows.Controls.Page Page)>
         BuildOnboardingStepPages(out OnboardingFlowViewModel flow)
     {
-        // One Application per AppDomain, and an earlier case may already own it.
-        var application = System.Windows.Application.Current;
-        if (application is null)
-        {
-            application = new System.Windows.Application();
-            LoadApplicationResources(application);
-        }
+        EnsureSmokeApplication();
 
         var harness = new OnboardingHarness();
         flow = harness.Flow;
@@ -11362,6 +11454,22 @@ internal static class Program
             for (var i = 0; i < count; i++)
                 Collect(System.Windows.Media.VisualTreeHelper.GetChild(node, i));
         }
+    }
+
+    /// <summary>
+    /// The Application every WPF case needs, created once. There is one per AppDomain
+    /// and an earlier case may already own it, so this is a get-or-create rather than a
+    /// constructor call.
+    /// </summary>
+    private static System.Windows.Application EnsureSmokeApplication()
+    {
+        var application = System.Windows.Application.Current;
+        if (application is not null)
+            return application;
+
+        application = new System.Windows.Application();
+        LoadApplicationResources(application);
+        return application;
     }
 
     private static void LoadApplicationResources(System.Windows.Application application)
