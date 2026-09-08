@@ -144,6 +144,24 @@ describe('fallback map', () => {
   });
 });
 
+describe('retry policy', () => {
+  test('has an entry for every provider', () => {
+    expect(Object.keys(__tables.LLM_PROVIDER_RETRIES).sort()).toEqual([...ALL_PROVIDERS].sort());
+  });
+
+  test('preserves each provider retry count', () => {
+    expect(__tables.LLM_PROVIDER_RETRIES).toEqual({
+      anthropic: 2,
+      cerebras: 0,
+      grok: 1,
+      openai: 1,
+      gemini: 2,
+      mistral: 2,
+      groq: 3,
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Allowlist  <->  billing parity
 //
