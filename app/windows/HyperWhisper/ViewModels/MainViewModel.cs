@@ -278,6 +278,9 @@ public partial class MainViewModel : ViewModelBase
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
         RegisterShortcutsFromSettings();
+        // After, not before: RegisterShortcutsFromSettings is what refreshes HotkeyText,
+        // and the Start Recording badge shows the same chord the status bar does.
+        RefreshGettingStartedShortcuts();
         UpdateMicrophoneKeepWarm();
     }
 
@@ -658,13 +661,53 @@ public partial class MainViewModel : ViewModelBase
 
         GettingStartedItems = new ObservableCollection<GettingStartedItem>
         {
-            new() { Id = "recording", Icon = "\U0001F3A4", IconColor = System.Windows.Media.Color.FromRgb(0, 122, 255), Title = Localization.Loc.S("home.gettingStarted.recording.title"), Description = Localization.Loc.S("home.gettingStarted.recording.description"), ShortcutText = HotkeyText, IsCompleted = completedSteps.Contains("recording") },
+            new() { Id = "recording", Icon = "\U0001F3A4", IconColor = System.Windows.Media.Color.FromRgb(0, 122, 255), Title = Localization.Loc.S("home.gettingStarted.recording.title"), Description = Localization.Loc.S("home.gettingStarted.recording.description"), IsCompleted = completedSteps.Contains("recording") },
             new() { Id = "shortcuts", Icon = "\u2328\uFE0F", IconColor = System.Windows.Media.Color.FromRgb(175, 82, 222), Title = Localization.Loc.S("home.gettingStarted.shortcuts.title"), Description = Localization.Loc.S("home.gettingStarted.shortcuts.description"), IsCompleted = completedSteps.Contains("shortcuts") },
-            new() { Id = "mode", Icon = "\U0001F3AF", IconColor = System.Windows.Media.Color.FromRgb(52, 199, 89), Title = Localization.Loc.S("home.gettingStarted.mode.title"), Description = Localization.Loc.S("home.gettingStarted.mode.description"), ShortcutText = _settingsService.ChangeModeShortcut.ToDisplayString(), IsCompleted = completedSteps.Contains("mode") },
+            new() { Id = "mode", Icon = "\U0001F3AF", IconColor = System.Windows.Media.Color.FromRgb(52, 199, 89), Title = Localization.Loc.S("home.gettingStarted.mode.title"), Description = Localization.Loc.S("home.gettingStarted.mode.description"), IsCompleted = completedSteps.Contains("mode") },
             new() { Id = "vocabulary", Icon = "\U0001F4DA", IconColor = System.Windows.Media.Color.FromRgb(255, 149, 0), Title = Localization.Loc.S("home.gettingStarted.vocabulary.title"), Description = Localization.Loc.S("home.gettingStarted.vocabulary.description"), IsCompleted = completedSteps.Contains("vocabulary") },
         };
 
+        // Seeded through the same method that keeps them current, so the initial
+        // badge and the refreshed badge cannot disagree about which row shows what.
+        RefreshGettingStartedShortcuts();
+
         ShowGettingStarted = completedSteps.Count < 4;
+    }
+
+    private void RefreshGettingStartedShortcuts() =>
+        ApplyShortcutsToGettingStarted(
+            GettingStartedItems,
+            HotkeyText,
+            _settingsService.ChangeModeShortcut.ToDisplayString());
+
+    /// <summary>
+    /// Puts the current hotkeys onto the Getting Started rows that teach them.
+    /// </summary>
+    /// <remarks>
+    /// Two rows carry a badge, and both were stale after a shortcut change: the rows
+    /// are built once, by InitializeGettingStarted, whose only caller is
+    /// OnNavigatedToAsync behind an "if (IsInitialized) return;". So Home kept telling
+    /// a new user to press a chord that no longer did anything while the status bar
+    /// beside it was already right, and only a restart fixed it.
+    ///
+    /// static and internal so the smoke suite can assert the mapping without standing
+    /// up a MainViewModel and the dozen services behind it.
+    /// </remarks>
+    internal static void ApplyShortcutsToGettingStarted(
+        IEnumerable<GettingStartedItem> items, string toggleText, string changeModeText)
+    {
+        foreach (var item in items)
+        {
+            switch (item.Id)
+            {
+                case "recording":
+                    item.ShortcutText = toggleText;
+                    break;
+                case "mode":
+                    item.ShortcutText = changeModeText;
+                    break;
+            }
+        }
     }
 
     [RelayCommand]
