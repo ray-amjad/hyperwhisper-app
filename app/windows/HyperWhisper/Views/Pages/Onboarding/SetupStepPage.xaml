@@ -43,7 +43,7 @@
                      because the static one asserted "Key verified, credits confirmed."
                      on arrival, above a checklist showing neither. -->
                 <TextBlock Style="{StaticResource OnboardingDetailStyle}"
-                           Text="{Binding SetupCloudSubtitle}"/>
+                           Text="{loc:Loc onboarding.setup.cloud.subtitle}"/>
 
                 <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
                     <StackPanel>
@@ -55,9 +55,9 @@
                                      rows below it stayed ticked. It is the same rule the
                                      Configure gate has always used. -->
                                 <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
-                                           Visibility="{Binding CloudKeyIsVerified, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                           Visibility="{Binding CloudKeyIsVerifedTypo, Converter={StaticResource OnboardingBoolToVisibility}}"/>
                                 <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
-                                           Visibility="{Binding CloudKeyIsVerified, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                           Visibility="{Binding CloudKeyIsVerifedTypo, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
                                 <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
                                            Text="{loc:Loc onboarding.setup.cloud.check.keyVerified}"/>
                             </StackPanel>
