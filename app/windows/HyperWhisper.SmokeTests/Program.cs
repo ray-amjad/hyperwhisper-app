@@ -8055,6 +8055,35 @@ internal static class Program
                 Assert(!h.Flow.CanContinue, "and it must not open the BYOK gate either");
             });
 
+            RunAsync("onboarding: the BYOK setup checklist keeps the key verified across Back", async () =>
+            {
+                // The BYOK "API key verified" row on the same page had the identical
+                // defect for the identical reason: it bound the bare KeyValidated, which
+                // is cleared on every entry to Configure, while "Saved to Windows
+                // Credential Manager" below it reads the per-session record and stayed
+                // ticked. Same fix, so the same case, one branch over.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.ApiKeyInput = "sk-test";
+                h.Flow.TestProviderKey();
+                await h.LastTask;
+                Assert(h.Flow.ProviderKeyIsVerified, "precondition: probed and stored");
+
+                Assert(h.Flow.Advance(), "setup must be reachable");
+                Assert(h.Flow.Back(), "back to configure must work");
+                Assert(h.Flow.Advance(), "forward to setup must work");
+
+                Assert(!h.Flow.KeyValidated, "the inline result is cleared on every appearance");
+                Assert(h.Flow.ProviderKeyIsVerified, "but the checklist row must not untick");
+                Assert(h.Flow.IsSelectedSourceUsable,
+                    "the row below it was never in doubt, which is what made the contradiction");
+                Assert(!h.Flow.CloudKeyIsVerified, "and the cloud row stays out of the BYOK branch");
+            });
+
             RunAsync("onboarding: the cloud setup subtitle never claims a state the step has not reached", async () =>
             {
                 // #491 part 1. The subtitle was the static
@@ -8062,28 +8091,60 @@ internal static class Program
                 // Cloud." - printed on arrival, directly above a checklist with both of
                 // those rows EMPTY, an "Activate Cloud" button showing and Continue
                 // disabled. It described the end of the step from its beginning.
+                //
+                // Three states, because the checklist has three rows and the credits
+                // fetch is asynchronous AND allowed to fail: claiming "credits
+                // confirmed" the instant the licence goes active would just move the
+                // same contradiction one row down.
+                var subtitle = HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle");
+                var pendingKey = HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.pending");
+                var pendingBalance =
+                    HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.balancePending");
+
+                // Loc.S echoes the KEY back when the resource is missing, so a dropped
+                // resx entry would make every comparison below pass on its own.
+                foreach (var (name, text) in new[]
+                         {
+                             ("onboarding.setup.cloud.subtitle", subtitle),
+                             ("onboarding.setup.cloud.subtitle.pending", pendingKey),
+                             ("onboarding.setup.cloud.subtitle.balancePending", pendingBalance)
+                         })
+                {
+                    Assert(text != name, $"{name} resolved to its own key - it is not in Strings.resx");
+                }
+
+                Assert(
+                    subtitle != pendingKey && subtitle != pendingBalance && pendingKey != pendingBalance,
+                    "the three states must read differently, or two of them are the same state");
+
                 var h = new OnboardingHarness();
                 h.GrantMicrophone();
                 h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
                 h.Flow.LicenseKeyInput = "HW-GOOD";
 
-                var pending = h.Flow.SetupCloudSubtitle;
                 Assert(!h.Flow.IsSelectedSourceUsable, "precondition: not activated yet");
-                Assert(
-                    pending == HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.pending"),
+                Assert(h.Flow.SetupCloudSubtitle == pendingKey,
                     "an unactivated step gets the sentence that asks for the activation");
-                Assert(
-                    pending != HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
-                    "and never the one that says it already happened");
 
+                // Activation with the credits fetch failing - the #463 shape, where the
+                // balance never arrives and the row below stays unticked.
+                h.Credits.ThrowOnRefresh = true;
                 h.Flow.ActivateCloudLicense();
                 await h.LastTask;
 
                 Assert(h.Flow.IsSelectedSourceUsable, "precondition: activated");
-                Assert(
-                    h.Flow.SetupCloudSubtitle
-                        == HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
-                    "once it HAS happened, the original sentence is true and is used");
+                Assert(!h.Flow.AreCreditsConfirmed, "precondition: the balance did not arrive");
+                Assert(h.Flow.SetupCloudSubtitle == pendingBalance,
+                    "activated with no balance must not claim the credits were confirmed");
+
+                h.Credits.ThrowOnRefresh = false;
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, "$66.30 remaining");
+                h.Flow.RefreshCredits(force: true);
+                await h.LastTask;
+
+                Assert(h.Flow.AreCreditsConfirmed, "precondition: the balance arrived");
+                Assert(h.Flow.SetupCloudSubtitle == subtitle,
+                    "only once all three rows are true is the original sentence used");
             });
 
             RunAsync("onboarding: validation is remembered per provider, not globally", async () =>
@@ -10450,6 +10511,77 @@ internal static class Program
                 Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
 
                 AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+            });
+
+            RunAsync("onboarding: the cloud setup step RENDERS the state it reports", async () =>
+            {
+                // #491, at the binding layer. The four view-model cases next to the flow
+                // seams prove the properties are right; they cannot prove SetupStepPage
+                // reads them. A typo in a binding path is silent in WPF - the row simply
+                // never ticks - so this lays the real page out in both states and reads
+                // what is on it.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, "$66.30 remaining");
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.Advance(), "setup must be reachable");
+
+                // Arrival: verified, not yet activated.
+                var arrival = VisualTextOf(
+                    LayOutOnboardingStepPage(OnboardingStep.Setup, h.Flow, 760, 521));
+
+                Assert(
+                    arrival.Contains(
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.pending"),
+                        StringComparer.Ordinal),
+                    "the unactivated step must render the sentence that asks for the activation");
+                Assert(
+                    !arrival.Contains(
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
+                        StringComparer.Ordinal),
+                    "and must not render the one that says it already happened");
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.Back() && h.Flow.Advance(), "a Back-and-forward must move both ways");
+
+                var afterBack = LayOutOnboardingStepPage(OnboardingStep.Setup, h.Flow, 760, 521);
+                var texts = VisualTextOf(afterBack);
+
+                Assert(
+                    texts.Contains(
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
+                        StringComparer.Ordinal),
+                    "an activated step with a balance renders the original sentence");
+
+                // The tick itself, not the row's label: the label is always there, and
+                // it was the GLYPH that disappeared after Back.
+                var keyVerifiedRow = DescendantsOf<System.Windows.Controls.TextBlock>(afterBack)
+                    .FirstOrDefault(t => string.Equals(
+                        t.Text,
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.check.keyVerified"),
+                        StringComparison.Ordinal));
+
+                Assert(keyVerifiedRow is not null, "the Access key verified row is on the page");
+
+                var glyphs = DescendantsOf<System.Windows.Controls.TextBlock>(
+                        (DependencyObject)System.Windows.Media.VisualTreeHelper.GetParent(keyVerifiedRow!)!)
+                    .Where(t => t != keyVerifiedRow)
+                    .ToList();
+
+                Assert(
+                    glyphs.Count(t => t.Visibility == Visibility.Visible) == 1,
+                    "exactly one of the tick and the pending circle is ever shown");
+                Assert(
+                    glyphs.Any(t => t.Visibility == Visibility.Visible
+                                    && t.Style == afterBack.TryFindResource("OnboardingCheckGlyphStyle")),
+                    "and after a Back-and-forward on an activated device it has to be the TICK");
             });
 
             SynchronizationContext.SetSynchronizationContext(balancePreviousContext);

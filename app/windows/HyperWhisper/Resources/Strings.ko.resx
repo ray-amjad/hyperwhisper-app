@@ -2392,6 +2392,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
     <value>이 PC를 활성화해 HyperWhisper Cloud 연결을 완료하세요.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>이 PC는 활성화되었습니다. 녹음은 HyperWhisper Cloud로 전송됩니다.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloud 활성화</value>
   </data>

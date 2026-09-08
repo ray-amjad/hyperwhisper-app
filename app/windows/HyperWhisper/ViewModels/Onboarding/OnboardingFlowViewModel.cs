@@ -253,12 +253,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                     return CloudKeyIsVerified;
 
                 case OnboardingSourceKind.YourProvider:
-                    // KeyValidated is cleared every time this step appears, so the
-                    // per-session record keeps the gate open across Back navigation.
-                    // A key that merely sits in the credential store but was never
-                    // probed this session does not count, and neither does a key
-                    // that passed and has since been edited.
-                    return KeyValidated || SelectedProviderKeyIsValidated;
+                    return ProviderKeyIsVerified;
 
                 default:
                     return false;
@@ -296,6 +291,27 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             return _license.IsActive
                 || KeyValidated
                 || (key.Length > 0 && key == _lastValidatedLicenseKey);
+        }
+    }
+
+    /// <summary>
+    /// The BYOK half of the same question. <see cref="KeyValidated"/> is cleared on
+    /// every entry to the Configure step, so the per-session record is what carries a
+    /// pass across Back navigation. A key that merely sits in the credential store but
+    /// was never probed this session does not count, and neither does a key that
+    /// passed and has since been edited.
+    ///
+    /// The BYOK "API key verified" row on the Setup step had the same defect as the
+    /// Cloud one for the same reason, so it reads this rather than a second rule.
+    /// </summary>
+    public bool ProviderKeyIsVerified
+    {
+        get
+        {
+            if (SelectedSource != OnboardingSourceKind.YourProvider)
+                return false;
+
+            return KeyValidated || SelectedProviderKeyIsValidated;
         }
     }
 
@@ -2361,9 +2377,10 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         // has to re-raise it. All of them already come through here.
         OnPropertyChanged(nameof(KeyValidated));
 
-        // Derived from KeyValidated, the licence and the per-session record, so it
-        // moves on strictly fewer occasions than KeyValidated - but never on more.
+        // Both derive from KeyValidated plus a per-session record, so they move on
+        // strictly fewer occasions than KeyValidated - but never on more.
         OnPropertyChanged(nameof(CloudKeyIsVerified));
+        OnPropertyChanged(nameof(ProviderKeyIsVerified));
     }
 
     /// <summary>

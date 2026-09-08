@@ -2392,6 +2392,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
     <value>Activeer deze pc om de verbinding met HyperWhisper Cloud te voltooien.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Deze pc is geactiveerd. Opnames gaan naar HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloud activeren</value>
   </data>

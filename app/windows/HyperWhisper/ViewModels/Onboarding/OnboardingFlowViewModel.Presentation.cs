@@ -411,14 +411,30 @@ public sealed partial class OnboardingFlowViewModel
     /// "Activate Cloud" button and a disabled Continue. The step's whole job is the
     /// activation the subtitle was already claiming had happened.
     ///
-    /// The condition is the one the card itself swaps on, so the sentence and the
-    /// control below it can never disagree: unactivated shows the button and the ask,
-    /// activated shows the balance and the summary.
+    /// It reads the SAME two flags the checklist rows below it read, in the same
+    /// order, so the sentence cannot contradict the ticks:
+    ///
+    /// <list type="bullet">
+    /// <item>not activated — the ask, matching the "Activate Cloud" button on show;</item>
+    /// <item>activated, balance not in — states the activation and claims nothing
+    /// about credits. The fetch is display-only and swallows its failures by design
+    /// (RefreshCreditsCoreAsync), and it is asynchronous even when it succeeds, so
+    /// "credits confirmed" is not true the moment the licence goes active;</item>
+    /// <item>activated with a balance — the original sentence, now true.</item>
+    /// </list>
     /// </summary>
-    public string SetupCloudSubtitle =>
-        Loc.S(IsSelectedSourceUsable
-            ? "onboarding.setup.cloud.subtitle"
-            : "onboarding.setup.cloud.subtitle.pending");
+    public string SetupCloudSubtitle
+    {
+        get
+        {
+            if (!IsSelectedSourceUsable)
+                return Loc.S("onboarding.setup.cloud.subtitle.pending");
+
+            return Loc.S(AreCreditsConfirmed
+                ? "onboarding.setup.cloud.subtitle"
+                : "onboarding.setup.cloud.subtitle.balancePending");
+        }
+    }
 
     public string SelectedModelDisplayName => SelectedModel?.DisplayName ?? string.Empty;
 
@@ -806,7 +822,10 @@ public sealed partial class OnboardingFlowViewModel
                 nameof(SelectedModelProgressPercent), nameof(SelectedModelProgressPercentText),
                 nameof(DownloadingPillText)
             },
-            [nameof(HasCredits)] = new[] { nameof(AreCreditsConfirmed), nameof(SourceSummary) },
+            [nameof(HasCredits)] = new[]
+            {
+                nameof(AreCreditsConfirmed), nameof(SetupCloudSubtitle), nameof(SourceSummary)
+            },
             [nameof(CreditsFormatted)] = new[] { nameof(SourceSummary) },
             [nameof(CreditsCountFormatted)] = new[] { nameof(SourceSummary) },
             [nameof(DeviceOptions)] = new[] { nameof(DeviceRows) },

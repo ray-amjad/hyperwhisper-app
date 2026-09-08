@@ -2392,6 +2392,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
     <value>Aktiveerige see arvuti, et lõpetada ühendamine HyperWhisper Cloudiga.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>See arvuti on aktiveeritud. Salvestused lähevad HyperWhisper Cloud’i.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktiveeri Cloud</value>
   </data>

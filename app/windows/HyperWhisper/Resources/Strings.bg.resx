@@ -2392,6 +2392,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
     <value>Активирайте този компютър, за да завършите свързването с HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Този компютър е активиран. Записите ще отиват в HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Активирай Cloud</value>
   </data>

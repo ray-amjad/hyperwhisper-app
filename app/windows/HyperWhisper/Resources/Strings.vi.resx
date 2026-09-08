@@ -2391,6 +2391,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
     <value>Kích hoạt PC này để hoàn tất kết nối với HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>PC này đã được kích hoạt. Bản ghi sẽ được gửi tới HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Kích hoạt Cloud</value>
   </data>

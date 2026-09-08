@@ -281,10 +281,13 @@
                     <StackPanel>
                         <Border Style="{StaticResource OnboardingCardRowStyle}">
                             <StackPanel Orientation="Horizontal">
+                                <!-- ProviderKeyIsVerified, not KeyValidated: the same
+                                     untick-on-Back defect as the Cloud row above, for
+                                     the same reason. -->
                                 <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
-                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                           Visibility="{Binding ProviderKeyIsVerified, Converter={StaticResource OnboardingBoolToVisibility}}"/>
                                 <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
-                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                           Visibility="{Binding ProviderKeyIsVerified, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
                                 <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
                                            Text="{Binding ProviderValidatedCheckText}"/>
                             </StackPanel>
