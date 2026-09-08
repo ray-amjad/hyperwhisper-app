@@ -42,7 +42,7 @@ public partial class BackupExportSettingsPage : Page
     /// follow anything on this page that changes the vocabulary — the import card is
     /// a few pixels below it.
     /// </summary>
-    internal void RefreshVocabularyExportLabel()
+    private void RefreshVocabularyExportLabel()
     {
         var vocabCount = VocabularyService.Instance.GetAll().Count;
         ExportVocabularyCheckbox.Content =
@@ -245,10 +245,19 @@ public partial class BackupExportSettingsPage : Page
     }
 
     /// <summary>
-    /// Everything the page owes the user once an import has landed. Split out from the
-    /// click handler so it can be exercised without a file dialog and a modal
-    /// confirmation.
+    /// What THIS PAGE owes the user once an import has landed: the summary line, the
+    /// collapsed selection panel, and an export label that matches the vocabulary the
+    /// import just changed. Split out from the click handler, which cannot be reached
+    /// without a file dialog and a modal confirmation.
     /// </summary>
+    /// <remarks>
+    /// Scoped to this page on purpose. The same import also writes modes, and that
+    /// path raises no ModeChanged, so state held elsewhere in the app is not brought
+    /// up to date here — that is a separate defect and a separate fix.
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
     internal void ApplyImportSuccess(ImportSummary result)
     {
         var summary = Loc.S("settings.backup.import.summary",
