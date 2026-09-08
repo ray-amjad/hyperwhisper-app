@@ -415,10 +415,7 @@ public sealed partial class OnboardingFlowViewModel
     /// control below it can never disagree: unactivated shows the button and the ask,
     /// activated shows the balance and the summary.
     /// </summary>
-    public string SetupCloudSubtitle =>
-        Loc.S(IsSelectedSourceUsable
-            ? "onboarding.setup.cloud.subtitle"
-            : "onboarding.setup.cloud.subtitle.pending");
+    public string SetupCloudSubtitle => Loc.S("onboarding.setup.cloud.subtitle");
 
     public string SelectedModelDisplayName => SelectedModel?.DisplayName ?? string.Empty;
 

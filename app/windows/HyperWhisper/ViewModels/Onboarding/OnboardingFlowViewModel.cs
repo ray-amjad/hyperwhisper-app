@@ -292,10 +292,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             if (SelectedSource != OnboardingSourceKind.HyperWhisperCloud)
                 return false;
 
-            var key = LicenseKeyInput.Trim();
-            return _license.IsActive
-                || KeyValidated
-                || (key.Length > 0 && key == _lastValidatedLicenseKey);
+            return KeyValidated;
         }
     }
 
