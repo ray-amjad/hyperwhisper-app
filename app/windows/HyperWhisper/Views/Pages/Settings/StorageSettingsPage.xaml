@@ -66,18 +66,27 @@
                 </StackPanel>
             </Border>
 
-            <StackPanel Orientation="Horizontal" Margin="4,0,4,12">
+            <!-- Grid, not a horizontal StackPanel: a horizontal StackPanel measures its
+                 children with infinite available width, so TextWrapping="Wrap" can never
+                 fire and the notice is clipped at the column's MaxWidth. Issue #503. -->
+            <Grid Margin="4,0,4,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                 <TextBlock Text="&#xE946;"
                            FontFamily="Segoe MDL2 Assets"
                            FontSize="12"
                            Foreground="{DynamicResource TextSecondaryBrush}"
                            VerticalAlignment="Top"
                            Margin="0,1,8,0"/>
-                <TextBlock Text="{loc:Loc settings.storage.notice}"
+                <TextBlock x:Name="StorageNoticeText"
+                           Grid.Column="1"
+                           Text="{loc:Loc settings.storage.notice}"
                            FontSize="12"
                            Foreground="{DynamicResource TextSecondaryBrush}"
                            TextWrapping="Wrap"/>
-            </StackPanel>
+            </Grid>
 
             <!-- Audio Compression Card -->
             <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
@@ -168,7 +177,14 @@
                                 Visibility="Collapsed">
                         <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
 
-                        <StackPanel Orientation="Horizontal">
+                        <!-- Same reason as the notice above: this line carries a date and a
+                             count, so it is the other row on this page that a longer locale
+                             would clip. Issue #503. -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <TextBlock Text="&#xE823;"
                                        FontFamily="Segoe MDL2 Assets"
                                        FontSize="11"
@@ -176,10 +192,11 @@
                                        VerticalAlignment="Top"
                                        Margin="0,1,8,0"/>
                             <TextBlock x:Name="LastCleanupText"
+                                       Grid.Column="1"
                                        FontSize="11"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap"/>
-                        </StackPanel>
+                        </Grid>
                     </StackPanel>
 
                     <!-- Delete Now Button -->

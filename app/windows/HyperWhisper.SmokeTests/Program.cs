@@ -11412,6 +11412,80 @@ internal static class Program
                 }
             });
 
+            Run("settings: an info notice is given the whole column, so it wraps — issue #503", () =>
+            {
+                // A horizontal StackPanel measures its children with infinite available
+                // width. TextWrapping="Wrap" is therefore dead inside one: the TextBlock
+                // asks for its full single-line width, gets it, and is then cut off by the
+                // 560px ContentMaxWidthForm cap on the column. The Storage notice is 113
+                // characters and was clipped mid-sentence in English; the Backup notice
+                // happened to fit in English and would clip in a longer locale.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                // Wider than ContentMaxWidthForm plus PagePadding, so the column cap is
+                // what decides the width — exactly as in the 1000px-wide real window.
+                const double PageWidth = 700;
+                const double PageHeight = 620;
+
+                var storagePage = new StorageSettingsPage();
+                var backupPage = new BackupExportSettingsPage();
+
+                var rows = new (string Label, System.Windows.Controls.Page Page, System.Windows.Controls.TextBlock Block)[]
+                {
+                    ("StorageSettingsPage.StorageNoticeText", storagePage, storagePage.StorageNoticeText),
+                    ("StorageSettingsPage.LastCleanupText", storagePage, storagePage.LastCleanupText),
+                    ("BackupExportSettingsPage.BackupNoticeText", backupPage, backupPage.BackupNoticeText),
+                };
+
+                // The last-cleanup panel is collapsed until auto-delete is on, and a
+                // collapsed element is never laid out. Show it and give the line the real
+                // string, which is what UpdateLastCleanupInfo would have put there.
+                storagePage.LastCleanupInfoPanel.Visibility = Visibility.Visible;
+                storagePage.LastCleanupText.Text = HyperWhisper.Localization.Loc.S(
+                    "settings.storage.autoDelete.lastCleanup",
+                    new DateTime(2026, 9, 8, 1, 5, 0).ToString("g"),
+                    7);
+
+                foreach (var (label, page, block) in rows)
+                {
+                    page.Measure(new Size(PageWidth, PageHeight));
+                    page.Arrange(new Rect(0, 0, PageWidth, PageHeight));
+                    page.UpdateLayout();
+
+                    Assert(!string.IsNullOrWhiteSpace(block.Text),
+                        $"{label} has no text, so this case would assert nothing");
+                    Assert(block.TextWrapping == TextWrapping.Wrap,
+                        $"{label} is not set to wrap; this case is about whether wrapping can fire");
+
+                    // 1. Nothing runs off the right-hand edge of the page.
+                    var leftInPage = block.TransformToAncestor(page).Transform(new Point(0, 0)).X;
+                    Assert(leftInPage + block.ActualWidth <= PageWidth + 0.5,
+                        $"{label} ends at {leftInPage + block.ActualWidth:F0}px inside a {PageWidth:F0}px page, "
+                        + "so its tail is clipped and cannot be scrolled to.");
+
+                    // 2. It was handed the whole remaining width of its row. This is what a
+                    //    horizontal StackPanel never does, and it is what makes the string
+                    //    safe in the 39 localised builds, not just in English.
+                    var row = (FrameworkElement)System.Windows.Media.VisualTreeHelper.GetParent(block);
+                    var leftInRow = block.TransformToAncestor(row).Transform(new Point(0, 0)).X;
+                    Assert(leftInRow + block.ActualWidth >= row.ActualWidth - 0.5,
+                        $"{label} was laid out {block.ActualWidth:F0}px wide at x={leftInRow:F0} inside a "
+                        + $"{row.ActualWidth:F0}px row, so it took its own single-line width rather than the "
+                        + "column's. A longer translation would overflow instead of wrapping.");
+
+                    // 3. And a string that is too long for the column really is on more
+                    //    than one line, rather than cut at the column edge.
+                    if (UnconstrainedWidthOf(block) > block.ActualWidth + 0.5)
+                    {
+                        Assert(block.ActualHeight > LineHeightOf(block) * 1.5,
+                            $"{label} wants {UnconstrainedWidthOf(block):F0}px, was given "
+                            + $"{block.ActualWidth:F0}px, and is still one {block.ActualHeight:F0}px line: "
+                            + "the overflow is cut, not wrapped.");
+                    }
+                }
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -12607,6 +12681,21 @@ internal static class Program
         return new System.Windows.Media.FormattedText(
             block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
             block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+    }
+
+    /// <summary>
+    /// The height of ONE line of this TextBlock's text. Comparing ActualHeight
+    /// against it is how a layout case tells "wrapped onto a second line" from
+    /// "cut at the column edge", without hard-coding a font's line spacing.
+    /// </summary>
+    private static double LineHeightOf(System.Windows.Controls.TextBlock block)
+    {
+        var typeface = new System.Windows.Media.Typeface(
+            block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+
+        return new System.Windows.Media.FormattedText(
+            "Ag", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+            block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Height;
     }
 
     /// <summary>
