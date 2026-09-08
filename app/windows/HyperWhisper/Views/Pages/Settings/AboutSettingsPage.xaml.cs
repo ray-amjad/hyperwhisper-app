@@ -23,7 +23,12 @@ public partial class AboutSettingsPage : Page
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version;
-        VersionText.Text = $"Version {version?.Major}.{version?.Minor}.{version?.Build}";
+        // The number itself is an identifier and stays as it is; only the word
+        // around it is translated, the same way GeneralSettingsPage already does
+        // it with settings.version.detail (issue #516).
+        VersionText.Text = Loc.S(
+            "settings.about.version",
+            $"{version?.Major}.{version?.Minor}.{version?.Build}");
     }
 
     private void OpenLogFolder_Click(object sender, RoutedEventArgs e)

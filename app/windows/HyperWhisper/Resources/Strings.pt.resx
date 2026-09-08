@@ -1084,6 +1084,30 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>Click and press the keys you want to use</value>
   </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Atalhos com um único modificador, como Ctrl, Alt, Shift ou Win, não são suportados. Use uma tecla com modificadores ou um atalho com vários modificadores, como Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Este atalho já é usado para {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>O atalho {0} usa apenas um modificador isolado. Use uma tecla com modificadores ou um atalho com vários modificadores, como Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>O atalho {0} já está a ser usado por outra aplicação. Escolha uma combinação diferente.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>O atalho {0} está reservado pelo Windows e não pode ser usado.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Não foi possível registar o atalho {0} (erro do Windows {1}). Experimente uma combinação diferente.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Conflito de atalhos</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Abrir definições de atalhos</value>
+  </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
     <value>Failed to initialize database: {0}</value>
@@ -1692,6 +1716,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
     <value>Version {0} ({1})</value>
+  </data>
+  <data name="settings.about.version" xml:space="preserve">
+    <value>Versão {0}</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>

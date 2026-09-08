@@ -52,6 +52,12 @@
                                 Padding="9,4"
                                 Background="{DynamicResource BadgeGrayBackgroundBrush}"
                                 VerticalAlignment="Center">
+                            <!-- Deliberately NOT a loc key. "Windows" is a product
+                                 name, and Microsoft keeps it untranslated in every
+                                 one of the 39 languages this app ships; a key here
+                                 would only invite a wrong translation later. This
+                                 is the same reasoning as
+                                 PortableLocalizer.PreserveIdentifier. -->
                             <TextBlock Text="Windows"
                                        FontSize="12"
                                        Foreground="{DynamicResource BadgeGrayForegroundBrush}"/>

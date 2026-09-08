@@ -81,7 +81,7 @@
                                 <Button Content="Change Shortcut"
                                         Style="{StaticResource MacButtonStyle}"
                                         Click="FocusStreamingShortcut_Click"/>
-                                <Button Content="Open Shortcut Settings"
+                                <Button Content="{loc:Loc settings.shortcuts.conflict.openSettings}"
                                         Style="{StaticResource MacButtonStyle}"
                                         Margin="8,0,0,0"
                                         Click="OpenShortcutSettings_Click"/>

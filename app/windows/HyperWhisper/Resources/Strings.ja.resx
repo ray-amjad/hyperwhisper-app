@@ -457,6 +457,9 @@
   <data name="settings.version.detail" xml:space="preserve">
     <value>バージョン {0} ({1})</value>
   </data>
+  <data name="settings.about.version" xml:space="preserve">
+    <value>バージョン {0}</value>
+  </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>ヘルプセンター</value>
   </data>
@@ -1171,6 +1174,30 @@
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>クリックして使用したいキーを押してください</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Ctrl、Alt、Shift、Win などの修飾キー単体のショートカットはサポートされていません。修飾キーと組み合わせたキー、または Ctrl+Win のような複数修飾キーのショートカットを使用してください。</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>このショートカットは既に{0}に割り当てられています（{1}）</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>ショートカット {0} は修飾キー単体です。修飾キーと組み合わせたキー、または Ctrl+Win のような複数修飾キーのショートカットを使用してください。</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>ショートカット {0} は既に他のアプリケーションで使用されています。別の組み合わせを選んでください。</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>ショートカット {0} は Windows によって予約されているため使用できません。</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>ショートカット {0} を登録できませんでした（Windows エラー {1}）。別の組み合わせをお試しください。</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>ショートカットの競合</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>ショートカット設定を開く</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">

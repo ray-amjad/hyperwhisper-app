@@ -88,7 +88,22 @@ static void AllCatalogsLoad()
     // Plus one for the History multi-selection heading, which was a bare English
     // literal in HistoryPage.xaml with no key at all (issue #505). 853 -> 854:
     //   history.selection.count
-    Equal(854, PortableLocalizer.BaseKeyCount, "base key count");
+    // Plus nine for the Shortcuts and About pages, whose error text, conflict
+    // banner and version line were all hard-coded English (issue #516). Eight of
+    // them replace TWELVE literals: the single-modifier sentence existed twice,
+    // the conflict title and the settings button twice each, and the four
+    // duplicate messages were four interpolations of one sentence.
+    // 854 -> 863:
+    //   settings.shortcuts.error.singleModifier
+    //   settings.shortcuts.error.duplicate
+    //   settings.shortcuts.error.bareModifier
+    //   settings.shortcuts.error.inUse
+    //   settings.shortcuts.error.reserved
+    //   settings.shortcuts.error.registerFailed
+    //   settings.shortcuts.conflict.title
+    //   settings.shortcuts.conflict.openSettings
+    //   settings.about.version
+    Equal(863, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

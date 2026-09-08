@@ -10,6 +10,7 @@
 // - 1409: ERROR_HOTKEY_ALREADY_REGISTERED (in use by another app)
 // - 1413: ERROR_HOTKEY_NOT_REGISTERED (reserved by Windows)
 
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
 namespace HyperWhisper.Services;
@@ -27,11 +28,28 @@ public static class ShortcutValidationService
 
         if (shortcut.IsSingleBareModifier)
         {
-            return "Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.";
+            return Loc.S("settings.shortcuts.error.singleModifier");
         }
 
         return null; // Valid
     }
+
+    /// <summary>
+    /// The localized label for one of the four shortcut roles, so the duplicate
+    /// message names the row the user can actually see on the page.
+    ///
+    /// The role strings themselves ("Toggle", "Cancel", "ChangeMode",
+    /// "Streaming") are call-site identifiers and settings keys, not display
+    /// text: they must NOT be translated. Only the label is.
+    /// </summary>
+    private static string RoleLabel(string role) => role switch
+    {
+        "Toggle" => Loc.S("settings.shortcuts.toggle.label"),
+        "Cancel" => Loc.S("settings.shortcuts.cancel.label"),
+        "ChangeMode" => Loc.S("settings.shortcuts.changeMode.label"),
+        "Streaming" => Loc.S("settings.shortcuts.streaming.label"),
+        _ => role
+    };
 
     /// <summary>
     /// Validates shortcut against HyperWhisper action shortcuts.
@@ -54,24 +72,28 @@ public static class ShortcutValidationService
         // Check against Toggle (unless we're setting Toggle)
         if (currentRole != "Toggle" && shortcut.Equals(toggleShortcut))
         {
-            return $"This shortcut is already used for Toggle Recording ({toggleShortcut.ToDisplayString()})";
+            return Loc.S("settings.shortcuts.error.duplicate",
+                RoleLabel("Toggle"), toggleShortcut.ToDisplayString());
         }
 
         // Check against Cancel (unless we're setting Cancel)
         if (currentRole != "Cancel" && shortcut.Equals(cancelShortcut))
         {
-            return $"This shortcut is already used for Cancel Recording ({cancelShortcut.ToDisplayString()})";
+            return Loc.S("settings.shortcuts.error.duplicate",
+                RoleLabel("Cancel"), cancelShortcut.ToDisplayString());
         }
 
         // Check against ChangeMode (unless we're setting ChangeMode)
         if (currentRole != "ChangeMode" && shortcut.Equals(changeModeShortcut))
         {
-            return $"This shortcut is already used for Change Mode ({changeModeShortcut.ToDisplayString()})";
+            return Loc.S("settings.shortcuts.error.duplicate",
+                RoleLabel("ChangeMode"), changeModeShortcut.ToDisplayString());
         }
 
         if (currentRole != "Streaming" && shortcut.Equals(streamingShortcut))
         {
-            return $"This shortcut is already used for Streaming ({streamingShortcut.ToDisplayString()})";
+            return Loc.S("settings.shortcuts.error.duplicate",
+                RoleLabel("Streaming"), streamingShortcut.ToDisplayString());
         }
 
         return null; // No duplicates
@@ -100,16 +122,18 @@ public static class ShortcutValidationService
     /// </summary>
     public static string GetRegistrationErrorMessage(int win32ErrorCode, KeyboardShortcut shortcut)
     {
+        var display = shortcut.ToDisplayString();
+
         if (shortcut.IsSingleBareModifier)
         {
-            return $"The shortcut {shortcut.ToDisplayString()} uses a single bare modifier. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.";
+            return Loc.S("settings.shortcuts.error.bareModifier", display);
         }
 
         return win32ErrorCode switch
         {
-            1409 => $"The shortcut {shortcut.ToDisplayString()} is already in use by another application. Please choose a different combination.",
-            1413 => $"The shortcut {shortcut.ToDisplayString()} is reserved by Windows and cannot be used.",
-            _ => $"Failed to register shortcut {shortcut.ToDisplayString()} (Windows error {win32ErrorCode}). Please try a different combination."
+            1409 => Loc.S("settings.shortcuts.error.inUse", display),
+            1413 => Loc.S("settings.shortcuts.error.reserved", display),
+            _ => Loc.S("settings.shortcuts.error.registerFailed", display, win32ErrorCode)
         };
     }
 }

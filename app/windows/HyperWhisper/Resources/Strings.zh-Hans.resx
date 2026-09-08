@@ -457,6 +457,9 @@
   <data name="settings.version.detail" xml:space="preserve">
     <value>版本 {0} ({1})</value>
   </data>
+  <data name="settings.about.version" xml:space="preserve">
+    <value>版本 {0}</value>
+  </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>帮助中心</value>
   </data>
@@ -1171,6 +1174,30 @@
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>点击并按下你想要使用的按键</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>不支持仅使用 Ctrl、Alt、Shift 或 Win 等单个修饰键的快捷键。请使用带修饰键的按键，或 Ctrl+Win 这样的多修饰键快捷键。</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>该快捷键已用于{0}（{1}）</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>快捷键 {0} 只使用了一个单独的修饰键。请使用带修饰键的按键，或 Ctrl+Win 这样的多修饰键快捷键。</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>快捷键 {0} 已被其他应用程序占用。请选择其他组合。</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>快捷键 {0} 已被 Windows 保留，无法使用。</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>无法注册快捷键 {0}（Windows 错误 {1}）。请尝试其他组合。</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>快捷键冲突</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>打开快捷键设置</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">

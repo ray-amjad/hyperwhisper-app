@@ -1084,6 +1084,30 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>Click and press the keys you want to use</value>
   </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Az egyetlen módosítóbillentyűből álló gyorsbillentyűk, például a Ctrl, az Alt, a Shift vagy a Win, nem támogatottak. Használjon módosítókkal ellátott billentyűt vagy több módosítós gyorsbillentyűt, például Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Ez a gyorsbillentyű már foglalt: {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>A(z) {0} gyorsbillentyű egyetlen önálló módosítóbillentyűt használ. Használjon módosítókkal ellátott billentyűt vagy több módosítós gyorsbillentyűt, például Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>A(z) {0} gyorsbillentyűt már használja egy másik alkalmazás. Válasszon másik kombinációt.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>A(z) {0} gyorsbillentyűt a Windows lefoglalta, ezért nem használható.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>A(z) {0} gyorsbillentyű regisztrálása nem sikerült (Windows-hiba: {1}). Próbáljon meg másik kombinációt.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Gyorsbillentyű-ütközés</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Gyorsbillentyűk beállításainak megnyitása</value>
+  </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
     <value>Failed to initialize database: {0}</value>
@@ -1692,6 +1716,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
     <value>Version {0} ({1})</value>
+  </data>
+  <data name="settings.about.version" xml:space="preserve">
+    <value>Verzió {0}</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>

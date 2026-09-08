@@ -6,6 +6,7 @@
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 
@@ -293,10 +294,12 @@ public partial class ShortcutRecorderBox : WpfUserControl
         // multi-modifier chords such as Ctrl+Win.
         if (shortcut.IsSingleBareModifier)
         {
-            const string message =
-                "Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. "
-                + "Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.";
-            ShowError(message);
+            // ShortcutValidationService.ValidateActionShortcut() below returns this
+            // same sentence, so it is asked for rather than repeated: two copies of
+            // one message drift, and this copy is the one that was still English
+            // after the other was localized (issue #516).
+            ShowError(ShortcutValidationService.ValidateActionShortcut(shortcut)
+                      ?? Loc.S("settings.shortcuts.error.singleModifier"));
             RestoreFieldText();
             LoggingService.Debug($"ShortcutRecorderBox: rejected single-modifier shortcut for {Role}: {shortcut}");
             return;

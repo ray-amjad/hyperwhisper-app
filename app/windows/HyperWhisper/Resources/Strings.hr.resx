@@ -1084,6 +1084,30 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>Click and press the keys you want to use</value>
   </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Prečaci s jednim modifikatorom kao što su Ctrl, Alt, Shift ili Win nisu podržani. Upotrijebite tipku s modifikatorima ili prečac s više modifikatora, primjerice Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Ovaj se prečac već koristi za {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>Prečac {0} koristi samo jedan modifikator. Upotrijebite tipku s modifikatorima ili prečac s više modifikatora, primjerice Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Prečac {0} već koristi druga aplikacija. Odaberite drugu kombinaciju.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>Prečac {0} rezerviran je za Windows i ne može se koristiti.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Registracija prečaca {0} nije uspjela (pogreška sustava Windows {1}). Pokušajte s drugom kombinacijom.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Sukob prečaca</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Otvori postavke prečaca</value>
+  </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
     <value>Failed to initialize database: {0}</value>
@@ -1692,6 +1716,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
     <value>Version {0} ({1})</value>
+  </data>
+  <data name="settings.about.version" xml:space="preserve">
+    <value>Verzija {0}</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
