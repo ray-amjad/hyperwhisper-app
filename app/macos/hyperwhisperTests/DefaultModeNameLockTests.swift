@@ -28,9 +28,16 @@ import Testing
 @Suite("Default mode name lock")
 struct DefaultModeNameLockTests {
 
+    // The controller is a PARAMETER, and every caller holds it for the length of
+    // the test. A store created and dropped inside this helper deallocates on
+    // return, the Mode faults, and every attribute reads back as its zero value -
+    // which made both isDefault:true cases fail while both false cases "passed".
     @MainActor
-    private func makeMode(name: String, isDefault: Bool) -> Mode {
-        let persistence = PersistenceController(inMemory: true)
+    private func makeMode(
+        in persistence: PersistenceController,
+        name: String,
+        isDefault: Bool
+    ) -> Mode {
         let mode = Mode(context: persistence.container.viewContext)
         mode.id = UUID()
         mode.name = name
@@ -41,14 +48,16 @@ struct DefaultModeNameLockTests {
     @MainActor
     @Test func locksTheDefaultWhateverItIsCalled() {
         // The restored-backup shape: flagged, but not named "Default".
-        let restored = makeMode(name: "Work", isDefault: true)
+        let persistence = PersistenceController(inMemory: true)
+        let restored = makeMode(in: persistence, name: "Work", isDefault: true)
         #expect(ModeEditorView.isNameLocked(restored))
     }
 
     @MainActor
     @Test func doesNotLockAnOrdinaryModeNamedDefault() {
         // The trap the old string compare fell into.
-        let impostor = makeMode(name: "Default", isDefault: false)
+        let persistence = PersistenceController(inMemory: true)
+        let impostor = makeMode(in: persistence, name: "Default", isDefault: false)
         #expect(!ModeEditorView.isNameLocked(impostor))
     }
 
@@ -56,7 +65,8 @@ struct DefaultModeNameLockTests {
     @Test func locksTheSeededDefault() {
         // The ordinary case both predicates agreed on, kept so a change that
         // breaks it cannot hide behind the two above.
-        let seeded = makeMode(name: "Default", isDefault: true)
+        let persistence = PersistenceController(inMemory: true)
+        let seeded = makeMode(in: persistence, name: "Default", isDefault: true)
         #expect(ModeEditorView.isNameLocked(seeded))
     }
 
