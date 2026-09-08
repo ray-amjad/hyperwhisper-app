@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Đổi chế độ</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Nhấp rồi nhấn các phím bạn muốn dùng</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Không hỗ trợ phím tắt chỉ gồm một phím bổ trợ như Ctrl, Alt, Shift hoặc Win. Hãy dùng một phím kèm phím bổ trợ hoặc phím tắt nhiều phím bổ trợ như Ctrl+Win.</value>

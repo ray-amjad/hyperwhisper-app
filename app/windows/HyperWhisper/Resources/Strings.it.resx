@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Cambia modalità</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Fai clic e premi i tasti che vuoi usare</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Le scorciatoie con un solo tasto modificatore come Ctrl, Alt, Shift o Win non sono supportate. Usa un tasto con modificatori o una scorciatoia con più modificatori, ad esempio Ctrl+Win.</value>

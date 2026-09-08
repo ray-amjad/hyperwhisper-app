@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Canvia el mode</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Fes clic i prem les tecles que vulguis fer servir</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Les dreceres amb un sol modificador com Ctrl, Alt, Shift o Win no s'admeten. Fes servir una tecla amb modificadors o una drecera amb diversos modificadors, com ara Ctrl+Win.</value>

@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Modu Değiştir</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Tıklayın ve kullanmak istediğiniz tuşlara basın</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl, Alt, Shift veya Win gibi tek değiştirici tuştan oluşan kısayollar desteklenmez. Değiştiricilerle birlikte bir tuş ya da Ctrl+Win gibi çok değiştiricili bir kısayol kullanın.</value>

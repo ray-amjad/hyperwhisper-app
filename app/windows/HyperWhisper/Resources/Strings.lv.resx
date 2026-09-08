@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Mainīt režīmu</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Noklikšķiniet un nospiediet taustiņus, kurus vēlaties izmantot</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Īsinājumtaustiņi ar vienu modifikatora taustiņu, piemēram, Ctrl, Alt, Shift vai Win, netiek atbalstīti. Izmantojiet taustiņu ar modifikatoriem vai vairāku modifikatoru kombināciju, piemēram, Ctrl+Win.</value>

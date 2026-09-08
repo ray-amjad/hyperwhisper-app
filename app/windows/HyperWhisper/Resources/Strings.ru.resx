@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Сменить режим</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Нажмите здесь, а затем нужные клавиши</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Сочетания из одной клавиши-модификатора, таких как Ctrl, Alt, Shift или Win, не поддерживаются. Используйте клавишу с модификаторами или сочетание из нескольких модификаторов, например Ctrl+Win.</value>

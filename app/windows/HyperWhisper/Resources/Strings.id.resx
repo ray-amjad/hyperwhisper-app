@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Ubah Mode</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klik lalu tekan tombol yang ingin Anda gunakan</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Pintasan dengan satu tombol pengubah seperti Ctrl, Alt, Shift, atau Win tidak didukung. Gunakan tombol dengan pengubah atau pintasan multi-pengubah seperti Ctrl+Win.</value>

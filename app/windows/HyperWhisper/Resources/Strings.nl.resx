@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Modus wijzigen</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klik en druk op de toetsen die je wilt gebruiken</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Sneltoetsen met slechts één modificatietoets zoals Ctrl, Alt, Shift of Win worden niet ondersteund. Gebruik een toets met modificatietoetsen of een sneltoets met meerdere modificatietoetsen, bijvoorbeeld Ctrl+Win.</value>

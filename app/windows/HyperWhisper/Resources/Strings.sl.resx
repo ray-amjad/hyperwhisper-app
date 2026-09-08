@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Zamenjaj način</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Kliknite in pritisnite tipke, ki jih želite uporabiti</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Bližnjice z eno samo pomožno tipko, kot so Ctrl, Alt, Shift ali Win, niso podprte. Uporabite tipko s pomožnimi tipkami ali bližnjico z več pomožnimi tipkami, na primer Ctrl+Win.</value>

@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Promijeni način rada</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Kliknite i pritisnite tipke koje želite koristiti</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Prečaci s jednim modifikatorom kao što su Ctrl, Alt, Shift ili Win nisu podržani. Upotrijebite tipku s modifikatorima ili prečac s više modifikatora, primjerice Ctrl+Win.</value>

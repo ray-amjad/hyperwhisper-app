@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>모드 변경</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>클릭한 다음 사용할 키를 누르세요</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl, Alt, Shift, Win과 같은 단일 수정 키 단축키는 지원되지 않습니다. 수정 키와 함께 사용하는 키 또는 Ctrl+Win과 같은 다중 수정 키 단축키를 사용하세요.</value>

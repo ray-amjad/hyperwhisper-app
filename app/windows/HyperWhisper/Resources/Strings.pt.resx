@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Mudar modo</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Clique e prima as teclas que pretende usar</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Atalhos com um único modificador, como Ctrl, Alt, Shift ou Win, não são suportados. Use uma tecla com modificadores ou um atalho com vários modificadores, como Ctrl+Win.</value>

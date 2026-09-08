@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>मोड बदलें</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>क्लिक करें और जो कुंजियाँ इस्तेमाल करनी हैं वे दबाएँ</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ctrl, Alt, Shift या Win जैसे एकल मॉडिफ़ायर शॉर्टकट समर्थित नहीं हैं। मॉडिफ़ायर के साथ कोई कुंजी या Ctrl+Win जैसा बहु-मॉडिफ़ायर शॉर्टकट इस्तेमाल करें।</value>

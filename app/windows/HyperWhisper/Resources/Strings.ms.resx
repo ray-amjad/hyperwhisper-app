@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Tukar Mod</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klik dan tekan kekunci yang anda mahu gunakan</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Pintasan dengan satu kekunci pengubah suai seperti Ctrl, Alt, Shift atau Win tidak disokong. Gunakan kekunci dengan pengubah suai atau pintasan berbilang pengubah suai seperti Ctrl+Win.</value>

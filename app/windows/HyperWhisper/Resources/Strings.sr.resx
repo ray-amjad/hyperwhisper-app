@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Промени режим</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Кликните и притисните тастере које желите да користите</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Пречице са само једним модификатором, као што су Ctrl, Alt, Shift или Win, нису подржане. Користите тастер са модификаторима или пречицу са више модификатора, на пример Ctrl+Win.</value>

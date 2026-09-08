@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>變更模式</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>點擊後按下你想使用的按鍵</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>不支援僅使用 Ctrl、Alt、Shift 或 Win 等單一修飾鍵的快速鍵。請使用搭配修飾鍵的按鍵，或 Ctrl+Win 這類多修飾鍵的快速鍵。</value>

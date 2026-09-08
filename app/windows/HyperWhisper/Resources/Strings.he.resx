@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>שינוי מצב</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>לחץ והקש על המקשים שברצונך להשתמש בהם</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>קיצורי דרך עם מקש החלפה יחיד כמו Ctrl, Alt, Shift או Win אינם נתמכים. השתמש במקש עם מקשי החלפה או בקיצור עם כמה מקשי החלפה, כגון Ctrl+Win.</value>

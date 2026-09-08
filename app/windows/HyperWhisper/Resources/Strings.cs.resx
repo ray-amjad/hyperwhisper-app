@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Změnit režim</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klikněte a stiskněte klávesy, které chcete použít</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Zkratky s jedním modifikátorem, jako je Ctrl, Alt, Shift nebo Win, nejsou podporovány. Použijte klávesu s modifikátory nebo zkratku s více modifikátory, například Ctrl+Win.</value>

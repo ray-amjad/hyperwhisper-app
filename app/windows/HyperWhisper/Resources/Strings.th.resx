@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>เปลี่ยนโหมด</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>คลิกแล้วกดปุ่มที่ต้องการใช้</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>ไม่รองรับทางลัดที่ใช้ปุ่มปรับแต่งเพียงปุ่มเดียว เช่น Ctrl, Alt, Shift หรือ Win กรุณาใช้ปุ่มร่วมกับปุ่มปรับแต่ง หรือทางลัดที่มีปุ่มปรับแต่งหลายปุ่ม เช่น Ctrl+Win</value>

@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Skift tilstand</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klik, og tryk på de taster, du vil bruge</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Genveje med kun én modifikatortast som Ctrl, Alt, Shift eller Win understøttes ikke. Brug en tast med modifikatorer eller en genvej med flere modifikatorer, f.eks. Ctrl+Win.</value>

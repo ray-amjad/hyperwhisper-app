@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Skipta um ham</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Smelltu og ýttu á lyklana sem þú vilt nota</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Flýtilyklar með aðeins einum breytilykli á borð við Ctrl, Alt, Shift eða Win eru ekki studdir. Notaðu lykil með breytilyklum eða flýtilykil með fleiri en einum breytilykli, til dæmis Ctrl+Win.</value>

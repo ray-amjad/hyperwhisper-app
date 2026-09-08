@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>تغيير الوضع</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>انقر واضغط المفاتيح التي تريد استخدامها</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>اختصارات المُعدِّل الفردي مثل Ctrl أو Alt أو Shift أو Win غير مدعومة. استخدم مفتاحًا مع مُعدِّلات أو اختصارًا متعدد المُعدِّلات مثل Ctrl+Win.</value>

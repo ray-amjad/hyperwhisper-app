@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Muuda režiimi</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klõpsa ja vajuta klahve, mida soovid kasutada</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Ühe muuteklahviga kiirklahve, nagu Ctrl, Alt, Shift või Win, ei toetata. Kasuta muuteklahvidega klahvi või mitme muuteklahviga kiirklahvi, näiteks Ctrl+Win.</value>

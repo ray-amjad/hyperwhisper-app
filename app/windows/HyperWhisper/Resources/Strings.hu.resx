@@ -1082,7 +1082,7 @@ You must have at least one mode.</value>
     <value>Mód váltása</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Kattintson, majd nyomja le a használni kívánt billentyűket</value>
   </data>
   <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
     <value>Az egyetlen módosítóbillentyűből álló gyorsbillentyűk, például a Ctrl, az Alt, a Shift vagy a Win, nem támogatottak. Használjon módosítókkal ellátott billentyűt vagy több módosítós gyorsbillentyűt, például Ctrl+Win.</value>
