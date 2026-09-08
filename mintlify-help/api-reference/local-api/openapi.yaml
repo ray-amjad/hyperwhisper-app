@@ -16,8 +16,9 @@ info:
     key, file not found, transcription engine errored, etc.) also return HTTP
     200 with `{"ok": false, "error": {"code": "...", "message": "...", "hint": "..."}}`.
     HTTP 4xx is reserved for protocol failures: malformed JSON (400), missing
-    or invalid bearer token (401), or a rejected Host/Origin header (403,
-    macOS only — a DNS-rebinding guard applied to every route).
+    or invalid bearer token (401), or a rejected Host/Origin header (403 — a
+    DNS-rebinding guard applied to every route, including the unauthenticated
+    /health, on every platform).
   version: "1.0.0"
 servers:
   - url: http://127.0.0.1:{port}
