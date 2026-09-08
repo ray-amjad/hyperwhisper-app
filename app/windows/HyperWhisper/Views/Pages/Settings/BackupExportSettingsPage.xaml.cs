@@ -18,9 +18,7 @@ public partial class BackupExportSettingsPage : Page
         InitializeComponent();
 
         // Vocabulary export label carries the live count for context.
-        var vocabCount = VocabularyService.Instance.GetAll().Count;
-        ExportVocabularyCheckbox.Content =
-            Loc.S("settings.backup.export.section.vocabulary", vocabCount);
+        RefreshVocabularyExportLabel();
 
         // Attach selection handlers only after InitializeComponent has created the
         // complete control tree. XAML-level Checked handlers can run while BAML is
@@ -36,6 +34,19 @@ public partial class BackupExportSettingsPage : Page
     private void ExportSection_Changed(object sender, RoutedEventArgs e)
     {
         UpdateExportButtonState();
+    }
+
+    /// <summary>
+    /// Re-reads the live vocabulary count into the export checkbox label. This is the
+    /// number the user reads before ticking Vocabulary and exporting, so it has to
+    /// follow anything on this page that changes the vocabulary — the import card is
+    /// a few pixels below it.
+    /// </summary>
+    internal void RefreshVocabularyExportLabel()
+    {
+        var vocabCount = VocabularyService.Instance.GetAll().Count;
+        ExportVocabularyCheckbox.Content =
+            Loc.S("settings.backup.export.section.vocabulary", vocabCount);
     }
 
     private void AttachExportSectionHandlers()
@@ -225,18 +236,32 @@ public partial class BackupExportSettingsPage : Page
 
         if (result.IsSuccess)
         {
-            var s = result.Value!;
-            var summary = Loc.S("settings.backup.import.summary",
-                s.ModesImported, s.VocabularyAdded, s.VocabularyConflicts);
-            ShowStatus(ImportStatusText,
-                Loc.S("settings.backup.import.success", summary), isError: false);
-            ImportSelectionPanel.Visibility = Visibility.Collapsed;
-            _pendingImportPath = null;
+            ApplyImportSuccess(result.Value!);
         }
         else
         {
             ShowStatus(ImportStatusText, result.Error!, isError: true);
         }
+    }
+
+    /// <summary>
+    /// Everything the page owes the user once an import has landed. Split out from the
+    /// click handler so it can be exercised without a file dialog and a modal
+    /// confirmation.
+    /// </summary>
+    internal void ApplyImportSuccess(ImportSummary result)
+    {
+        var summary = Loc.S("settings.backup.import.summary",
+            result.ModesImported, result.VocabularyAdded, result.VocabularyConflicts);
+        ShowStatus(ImportStatusText,
+            Loc.S("settings.backup.import.success", summary), isError: false);
+        ImportSelectionPanel.Visibility = Visibility.Collapsed;
+        _pendingImportPath = null;
+
+        // The import just changed the vocabulary the export label counts, and that
+        // label is on this same screen. Without this it keeps the number the page was
+        // constructed with until the user navigates away and back.
+        RefreshVocabularyExportLabel();
     }
 
     private static void ShowStatus(TextBlock textBlock, string message, bool isError)
