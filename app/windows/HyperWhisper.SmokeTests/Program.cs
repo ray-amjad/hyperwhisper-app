@@ -11842,6 +11842,43 @@ internal static class Program
                 }
             });
 
+            Run("home: the Getting Started badges follow the shortcut, with no restart", () =>
+            {
+                // #515. The rows are built once, by InitializeGettingStarted, whose
+                // only caller is OnNavigatedToAsync behind an "if (IsInitialized)
+                // return;" - and ShortcutText was init-only, so nothing could update
+                // them in place either. Home went on telling a new user to press
+                // Ctrl+Alt after they had rebound Toggle to Alt+F9, on the one row
+                // whose whole job is to teach them the hotkey, while the status bar
+                // beside it was already right. Only a restart fixed it.
+                var items = new List<GettingStartedItem>
+                {
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts" },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+
+                MainViewModel.ApplyShortcutsToGettingStarted(items, "Ctrl+Alt", "Ctrl+Shift+.");
+                Assert(items[0].ShortcutText == "Ctrl+Alt",
+                    "the Start Recording row carries the toggle hotkey");
+                Assert(items[2].ShortcutText == "Ctrl+Shift+.",
+                    "and the Create a Mode row carries the change-mode hotkey - both rows were stale");
+                Assert(items[1].ShortcutText is null && items[3].ShortcutText is null,
+                    "the rows that teach no hotkey keep no badge: Home's DataTrigger hides it on null");
+
+                // The badge has to be able to CHANGE, and to say so. Init-only made
+                // both impossible, which is why navigating away and back did nothing.
+                var changed = new List<string?>();
+                items[0].PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+                MainViewModel.ApplyShortcutsToGettingStarted(items, "Alt+F9", "Ctrl+Shift+,");
+                Assert(items[0].ShortcutText == "Alt+F9" && items[2].ShortcutText == "Ctrl+Shift+,",
+                    "a later pass rebinds both badges");
+                Assert(changed.Contains(nameof(GettingStartedItem.ShortcutText)),
+                    "and it raises PropertyChanged, or the Home badge keeps painting the old chord");
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
