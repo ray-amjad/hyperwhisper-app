@@ -305,7 +305,16 @@ public sealed class ModelLibraryManager
                 ProviderAssetName = isLocalEndpoint ? "providerLocalLLM" : "providerOpenAI",
                 Kind = LibraryModelKind.Text,
                 LocationKind = isLocalEndpoint ? LibraryModelLocationKind.Offline : LibraryModelLocationKind.Cloud,
-                StatusKind = endpoint.LastTestSuccess == false ? LibraryModelStatusKind.Error : LibraryModelStatusKind.Enabled,
+                // Three outcomes, three states. `null` — never tested, or not
+                // tested since the URL/model/key changed — used to share the
+                // `true` branch, so every endpoint anyone ever created rendered
+                // as "Connected" about a server the app had never reached (#509).
+                StatusKind = endpoint.LastTestSuccess switch
+                {
+                    true => LibraryModelStatusKind.Enabled,
+                    false => LibraryModelStatusKind.Error,
+                    null => LibraryModelStatusKind.Untested
+                },
                 StatusMessage = endpoint.LastTestSuccess == false ? "Test failed" : null,
                 Source = LibraryModelSource.CustomEndpoint,
                 SizeDescription = isLocalEndpoint ? "Local" : null,

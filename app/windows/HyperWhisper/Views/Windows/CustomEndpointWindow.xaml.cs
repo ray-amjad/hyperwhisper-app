@@ -18,6 +18,20 @@ public partial class CustomEndpointWindow : Window
     private bool _isLoading = true;
     private bool _isTesting;
 
+    /// <summary>
+    /// The last Test Connection outcome, together with the exact configuration
+    /// it was measured against.
+    /// </summary>
+    /// <remarks>
+    /// The window used to render its test result and throw it away, so a saved
+    /// endpoint reached the Model Library with no recorded outcome and was
+    /// labelled "Connected" seconds after a test that failed (#509). The tested
+    /// values are kept alongside the verdict because the user is free to edit
+    /// the URL, model or key after testing; a verdict that no longer describes
+    /// what is being saved is not carried over.
+    /// </remarks>
+    private (string Url, string Model, string ApiKey, bool Success)? _lastTest;
+
     /// <summary>The saved endpoint after successful save.</summary>
     public CustomPostProcessingEndpoint? SavedEndpoint { get; private set; }
 
@@ -272,9 +286,12 @@ public partial class CustomEndpointWindow : Window
         TestingPanel.Visibility = Visibility.Visible;
 
         var (url, model) = GetEndpointUrlAndModel();
+        var apiKey = ApiKeyBox.Password;
 
         var result = await CustomEndpointManager.Instance.TestEndpointAsync(
-            url, model, ApiKeyBox.Password);
+            url, model, apiKey);
+
+        _lastTest = (url, model, apiKey, result.success);
 
         TestingPanel.Visibility = Visibility.Collapsed;
 
@@ -332,6 +349,8 @@ public partial class CustomEndpointWindow : Window
             return;
         }
 
+        var testOutcome = TestOutcomeFor(endpointUrl, modelName, apiKey);
+
         if (_existingEndpoint != null)
         {
             // Update existing
@@ -340,7 +359,8 @@ public partial class CustomEndpointWindow : Window
                 name: name,
                 endpointURL: endpointUrl,
                 modelName: modelName,
-                apiKey: apiKey);
+                apiKey: apiKey,
+                lastTestSuccess: testOutcome);
 
             if (success)
             {
@@ -353,7 +373,8 @@ public partial class CustomEndpointWindow : Window
             // Create new
             SavedEndpoint = CustomEndpointManager.Instance.AddEndpoint(
                 name, endpointUrl, modelName,
-                string.IsNullOrEmpty(apiKey) ? null : apiKey);
+                string.IsNullOrEmpty(apiKey) ? null : apiKey,
+                lastTestSuccess: testOutcome);
 
             if (SavedEndpoint != null)
             {
@@ -361,6 +382,19 @@ public partial class CustomEndpointWindow : Window
             }
         }
     }
+
+    /// <summary>
+    /// The recorded Test Connection outcome, but only when it was measured
+    /// against the configuration now being saved. Null means "not tested",
+    /// which the Model Library renders as such rather than as "Connected".
+    /// </summary>
+    internal bool? TestOutcomeFor(string endpointUrl, string modelName, string apiKey)
+        => _lastTest is { } test
+            && string.Equals(test.Url, endpointUrl, StringComparison.Ordinal)
+            && string.Equals(test.Model, modelName, StringComparison.Ordinal)
+            && string.Equals(test.ApiKey, apiKey, StringComparison.Ordinal)
+            ? test.Success
+            : null;
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {

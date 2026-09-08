@@ -584,8 +584,13 @@
                 </StackPanel>
             </Border>
 
-            <StackPanel Orientation="Horizontal" Margin="0,4,0,14">
-                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+            <!-- Status legend. It has to name every label the Status column can
+                 render: it listed three and the column showed five, so the two
+                 an unreachable or failing endpoint produces were unexplained
+                 (#509). A WrapPanel, because a horizontal StackPanel would clip
+                 the tail of the list at a narrow window instead of wrapping. -->
+            <WrapPanel Orientation="Horizontal" Margin="0,4,0,14">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,4">
                     <TextBlock Text="&#xE785;"
                                FontFamily="Segoe MDL2 Assets"
                                FontSize="12"
@@ -597,7 +602,7 @@
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,4">
                     <TextBlock Text="&#xE72E;"
                                FontFamily="Segoe MDL2 Assets"
                                FontSize="12"
@@ -609,7 +614,19 @@
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,4">
+                    <TextBlock Text="&#xE946;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <TextBlock Text="Not tested"
+                               FontSize="11"
+                               Margin="6,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,4">
                     <TextBlock Text="&#xE7BA;"
                                FontFamily="Segoe MDL2 Assets"
                                FontSize="12"
@@ -621,7 +638,31 @@
                                VerticalAlignment="Center"
                                Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
-            </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,4">
+                    <TextBlock Text="&#xE7BA;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource WarningBrush}"/>
+                    <TextBlock Text="Provider unreachable"
+                               FontSize="11"
+                               Margin="6,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="&#xE7BA;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource WarningBrush}"/>
+                    <TextBlock Text="Test failed"
+                               FontSize="11"
+                               Margin="6,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
+            </WrapPanel>
 
             <Border Background="{DynamicResource CardBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
