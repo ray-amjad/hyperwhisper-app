@@ -43,6 +43,50 @@ private final class FixedAutoDeleteSettings: AutoDeleteSettingsManager {
     override var deletionCutoffDate: Date? { cutoff }
 }
 
+/// Models a serial-writer transaction that fails before it can return a
+/// committed value snapshot. The service must treat `nil` as a hard abort.
+private final class FailedWriterSavePersistenceController: PersistenceController {
+    override func deleteTranscriptsOlderThanInBackground(
+        _ cutoffDate: Date
+    ) async -> AutoDeleteTransactionSnapshot? {
+        await performWriteRequiringSave { context -> AutoDeleteTransactionSnapshot? in
+            let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
+
+            let transcripts: [Transcript]
+            do {
+                transcripts = try context.fetch(request)
+            } catch {
+                preconditionFailure("Failed to stage the writer save fixture: \(error)")
+            }
+
+            var paths: [String] = []
+            for transcript in transcripts {
+                if let audioPath = transcript.audioFilePath {
+                    paths.append(audioPath)
+                }
+                if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String {
+                    paths.append(trimmedPath)
+                }
+                context.delete(transcript)
+            }
+
+            // `text` is required. This invalid insert makes the writer save fail
+            // after it stages the real transcript deletion above.
+            let unsavable = Transcript(context: context)
+            unsavable.id = UUID()
+            unsavable.date = Date().addingTimeInterval(3600)
+            unsavable.duration = 1
+
+            return AutoDeleteTransactionSnapshot(
+                audioPaths: paths,
+                transcriptsDeleted: transcripts.count
+            )
+        }
+    }
+}
+
 // MARK: - Tests
 
 /// Coverage for `AutoDeleteCleanupService.performCleanup()` itself
@@ -256,25 +300,16 @@ struct AutoDeleteCleanupServiceTests {
 
     /// A save that does not commit must not delete a single file.
     ///
-    /// `PersistenceController.save()` swallows its error, so a failed save looks
-    /// exactly like a successful one to the caller and the pending row deletes
-    /// simply stay pending. Before the bail-out guard, the pass unlinked every
-    /// collected path anyway and reported a clean success — leaving live History
-    /// rows whose play buttons silently fail, the precise failure the
-    /// save-before-unlink ordering exists to prevent. Disk-full
-    /// (`NSFileWriteOutOfSpaceError`) is the realistic trigger, and it is the
-    /// exact condition auto-delete is supposed to relieve.
-    ///
-    /// The save is made to fail honestly rather than by mocking: an unsaved
-    /// `Transcript` missing its mandatory `text` fails `validateForInsert` on
-    /// the *whole context's* next save. That is also a faithful model of the
-    /// production trigger — one bad pending edit anywhere on the app-wide
-    /// `viewContext` sinks the auto-delete save with it.
+    /// The cleanup transaction now runs on the private serial writer, so an
+    /// invalid `viewContext` row no longer reaches its save. This fixture mocks
+    /// only the persistence boundary. It stages the same fetch, path snapshot,
+    /// and deletes on the writer, then adds one invalid row so the real writer
+    /// save fails and `performWriteRequiringSave` rolls the transaction back.
     @Test func failedSaveDeletesNoFilesAndRollsBackTheRows() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let persistence = PersistenceController(inMemory: true)
+        let persistence = FailedWriterSavePersistenceController(inMemory: true)
         let context = persistence.container.viewContext
 
         let originalPath = try makeFile(in: directory, byteCount: 1024)
@@ -286,17 +321,6 @@ struct AutoDeleteCleanupServiceTests {
             trimmedAudioFilePath: trimmedPath
         )
         try context.save()
-
-        // Inserted AFTER the good save, so only the cleanup's save sees it.
-        // `text` is non-optional in the model and is left nil, so this row fails
-        // `validateForInsert` and takes the whole context's save down with it.
-        // It is given a future date and a real id so that it is well-formed for
-        // the `date < cutoff` fetch and is simply too new to be collected — the
-        // save is the only thing it breaks.
-        let unsavable = Transcript(context: context)
-        unsavable.id = UUID()
-        unsavable.date = Date().addingTimeInterval(3600)
-        unsavable.duration = 1
 
         let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
@@ -310,8 +334,7 @@ struct AutoDeleteCleanupServiceTests {
         // The files are still referenced by a live row, so they must survive.
         #expect(FileManager.default.fileExists(atPath: originalPath))
         #expect(FileManager.default.fileExists(atPath: trimmedPath))
-        // Rolled back: the transcript is back, the invalid row is gone, and the
-        // context is clean for whatever runs next.
+        // The failed writer transaction did not change the view-context row.
         let remaining = try transcriptCount(in: context)
         #expect(remaining == 1)
         #expect(!context.hasChanges)

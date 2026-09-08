@@ -101,6 +101,15 @@ struct VocabularyEntrySnapshot: Sendable {
     let replacement: String?
 }
 
+// MARK: - Auto-Delete Transaction Snapshot
+
+/// Plain values produced by the serial writer after an auto-delete transaction
+/// commits. No managed object or context crosses the writer queue boundary.
+struct AutoDeleteTransactionSnapshot: Sendable {
+    let audioPaths: [String]
+    let transcriptsDeleted: Int
+}
+
 // MARK: - Persistence Controller
 
 /// Manages the Core Data stack and provides access to the managed object context
@@ -1271,6 +1280,49 @@ class PersistenceController: ObservableObject {
         }
         await MainActor.run { self.scheduleViewContextMaintenance() }
         return result
+    }
+
+    /// Delete expired transcripts as one uninterrupted serial-writer transaction.
+    ///
+    /// The cutoff fetch, ordered path snapshot, row deletes, and save all run on
+    /// `writerContext`. The returned snapshot contains values only and is handed
+    /// out only after the save commits. A fetch or save failure returns `nil`, so
+    /// callers must not unlink any files or record successful cleanup state.
+    func deleteTranscriptsOlderThanInBackground(_ cutoffDate: Date) async -> AutoDeleteTransactionSnapshot? {
+        return await performWriteRequiringSave { context -> AutoDeleteTransactionSnapshot? in
+            let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
+
+            let transcripts: [Transcript]
+            do {
+                transcripts = try context.fetch(request)
+            } catch {
+                AppLogger.coreData.error("Failed to fetch transcripts for auto-delete: \(error, privacy: .public)")
+                SentryService.capture(
+                    error: error,
+                    message: "Failed to fetch transcripts for auto-delete",
+                    tags: ["component": "AutoDeleteCleanupService"]
+                )
+                return nil
+            }
+
+            var paths: [String] = []
+            for transcript in transcripts {
+                if let audioPath = transcript.audioFilePath {
+                    paths.append(audioPath)
+                }
+                if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String {
+                    paths.append(trimmedPath)
+                }
+                context.delete(transcript)
+            }
+
+            return AutoDeleteTransactionSnapshot(
+                audioPaths: paths,
+                transcriptsDeleted: transcripts.count
+            )
+        }
     }
 
     /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
