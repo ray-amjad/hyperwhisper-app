@@ -10675,6 +10675,58 @@ internal static class Program
                     "replacement text would not line up with the placeholder it replaces");
             });
 
+            Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
+            {
+                // The export card reads "Vocabulary (N)". N was read once, in the page
+                // constructor, so an import a few pixels below it left the user looking
+                // at the old number until they navigated away and back — and that is the
+                // number they read before ticking Vocabulary and exporting.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var page = new BackupExportSettingsPage();
+                var before = page.ExportVocabularyCheckbox.Content as string;
+                Assert(!string.IsNullOrEmpty(before),
+                    "the export vocabulary checkbox has no label to keep up to date");
+
+                // The word an import would have added. Written through the same service
+                // BackupService's merge writes through, then removed again: this suite
+                // runs against a real database that later cases share.
+                var word = "percy497-" + Guid.NewGuid().ToString("N")[..8];
+                Assert(VocabularyService.Instance.TryAdd(word, "issue 497 probe", out var addError),
+                    $"could not stage a vocabulary word for this case: {addError ?? "no reason given"}");
+
+                var staged = VocabularyService.Instance.GetAll().FirstOrDefault(v => v.Word == word);
+                try
+                {
+                    Assert(staged is not null, "the staged vocabulary word is not in the table");
+
+                    // Exactly what the click handler does once ImportSelective succeeds.
+                    page.ApplyImportSuccess(new ImportSummary
+                    {
+                        ModesImported = 0,
+                        VocabularyAdded = 1,
+                        VocabularyConflicts = 0
+                    });
+
+                    var after = page.ExportVocabularyCheckbox.Content as string;
+                    Assert(after != before,
+                        $"the export label still reads '{after}' after an import added a word. " +
+                        "It is stale until the user leaves the page and comes back.");
+
+                    var expected = HyperWhisper.Localization.Loc.S(
+                        "settings.backup.export.section.vocabulary",
+                        VocabularyService.Instance.GetAll().Count);
+                    Assert(after == expected,
+                        $"the export label reads '{after}', the real vocabulary is '{expected}'");
+                }
+                finally
+                {
+                    if (staged is not null)
+                        VocabularyService.Instance.Delete(staged.Id);
+                }
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
