@@ -11423,10 +11423,13 @@ internal static class Program
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
                 EnsureSmokeApplication();
 
-                // Wider than ContentMaxWidthForm plus PagePadding, so the column cap is
-                // what decides the width — exactly as in the 1000px-wide real window.
-                const double PageWidth = 700;
-                const double PageHeight = 620;
+                // The settings frame's real width: MainWindow is a fixed 1000px, minus the
+                // 232px SidebarWidth and the 200px settings nav column. PagePadding then
+                // takes 48, so the content column is 520 — NARROWER than the 560px
+                // ContentMaxWidthForm cap, which is why the cap alone does not describe
+                // what the user sees. A width picked wider than 560 misses this bug.
+                const double PageWidth = 1000 - 232 - 200;
+                const double PageHeight = 680 - 44;
 
                 var storagePage = new StorageSettingsPage();
                 var backupPage = new BackupExportSettingsPage();
