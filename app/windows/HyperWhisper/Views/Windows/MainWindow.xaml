@@ -289,7 +289,11 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
                     <TextBlock Text="{loc:Loc statusbar.mode}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"/>
-                    <TextBlock Text="{Binding CurrentMode.Name, FallbackValue='None'}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Medium"/>
+                    <!-- Trimmed and capped like the post-processing status above it: the mode
+                         name is user text of any length, and this column is Auto, so an
+                         untrimmed name grows the column until it squeezes StatusText (column 0)
+                         and ModelStatus (column 3) out of the status bar entirely. -->
+                    <TextBlock Text="{Binding CurrentMode.Name, FallbackValue='None'}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Medium" TextTrimming="CharacterEllipsis" MaxWidth="220" ToolTip="{Binding CurrentMode.Name}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{loc:Loc statusbar.model}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"/>

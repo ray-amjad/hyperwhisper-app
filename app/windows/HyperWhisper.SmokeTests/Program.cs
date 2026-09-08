@@ -10112,6 +10112,90 @@ internal static class Program
                 }
             });
 
+            Run("modes: a 300-character mode name is ellipsised on the card, not clipped under the gear", () =>
+            {
+                // #492. A mode name is free user text with no cap anywhere - not in the
+                // editor, not in the entity, not in the column. The card header is a
+                // three-column Grid (name *, offline badge Auto, gear Auto), so the star
+                // column does stop the name pushing the gear off the card; what it does
+                // NOT do is say the name was cut. Without TextTrimming the TextBlock
+                // hard-clips mid-glyph right under the gear button, which reads as a
+                // rendering fault rather than as a long name.
+                //
+                // MEASURED, not grepped: the attribute can be added to the wrong
+                // TextBlock, and a future container change could reintroduce the clip
+                // with the attribute still present.
+                EnsureWpfApplication();
+
+                var longName = "LongName" + new string('X', 292);
+                var page = new HyperWhisper.Views.Pages.ModesPage();
+                var list = (System.Windows.Controls.ListBox)page.FindName("ModeListBox")!;
+
+                // ModesPage only reaches ModeService from its Loaded handler, and a
+                // detached element is never Loaded, so the list is fed directly here.
+                list.ItemsSource = new[]
+                {
+                    new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = longName,
+                        ProviderType = "cloud",
+                        CloudProvider = "hyperwhisper",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    }
+                };
+
+                page.Measure(new Size(1000, 700));
+                page.Arrange(new Rect(0, 0, 1000, 700));
+                page.UpdateLayout();
+
+                var nameBlock = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Name == "ModeNameText");
+                Assert(nameBlock is not null, "the mode card no longer has a ModeNameText");
+
+                // The row itself is untouched: this is a display fix, and the card must
+                // still carry the whole name so the tooltip and any copy of it are right.
+                Assert(nameBlock!.Text == longName,
+                    $"the card bound {nameBlock.Text.Length} characters of a {longName.Length}-character " +
+                    "name - the name is being truncated in data, which is not the fix");
+
+                Assert(nameBlock.TextTrimming == TextTrimming.CharacterEllipsis,
+                    $"ModeNameText trims with {nameBlock.TextTrimming}: a name wider than its column " +
+                    "is cut off mid-glyph with nothing to show it continues");
+
+                // Prove the case actually exercises the overflow. If the card were ever
+                // wide enough to fit 300 characters, every assertion above would pass
+                // while proving nothing at all.
+                var typeface = new System.Windows.Media.Typeface(
+                    nameBlock.FontFamily, nameBlock.FontStyle, nameBlock.FontWeight, nameBlock.FontStretch);
+                var unconstrained = new System.Windows.Media.FormattedText(
+                    longName, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+                    nameBlock.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+                Assert(nameBlock.ActualWidth > 0,
+                    "ModeNameText measured 0 - it never took part in the layout pass");
+                Assert(unconstrained > nameBlock.ActualWidth,
+                    $"the {longName.Length}-character name wanted {unconstrained:F0}px and got " +
+                    $"{nameBlock.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
+
+                // And the gear is still reachable: fully inside the card, clear of the name.
+                var container = (System.Windows.Controls.ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+                Assert(container is not null, "the ListBox generated no container for the mode");
+                var gear = DescendantsOf<System.Windows.Controls.Button>(container!)
+                    .FirstOrDefault(b => b.Tag is Mode);
+                Assert(gear is not null && gear.ActualWidth > 0, "the mode card has no laid-out gear button");
+
+                var gearLeft = gear!.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+                var nameLeft = nameBlock.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+
+                Assert(gearLeft + gear.ActualWidth <= container!.ActualWidth + 0.5,
+                    $"the gear button ends at {gearLeft + gear.ActualWidth:F1} on a {container.ActualWidth:F1} " +
+                    "wide card - a long name has pushed it off the card");
+                Assert(nameLeft + nameBlock.ActualWidth <= gearLeft + 0.5,
+                    $"the name ends at {nameLeft + nameBlock.ActualWidth:F1} and the gear starts at " +
+                    $"{gearLeft:F1} - the name is rendering underneath the gear button");
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -11080,13 +11164,7 @@ internal static class Program
     private static IReadOnlyList<(OnboardingStep Step, System.Windows.Controls.Page Page)>
         BuildOnboardingStepPages(out OnboardingFlowViewModel flow)
     {
-        // One Application per AppDomain, and an earlier case may already own it.
-        var application = System.Windows.Application.Current;
-        if (application is null)
-        {
-            application = new System.Windows.Application();
-            LoadApplicationResources(application);
-        }
+        EnsureWpfApplication();
 
         var harness = new OnboardingHarness();
         flow = harness.Flow;
@@ -11178,11 +11256,40 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// The one WPF Application this process gets, carrying the same resources
+    /// App.xaml gives the real one. A page that resolves a {StaticResource} at
+    /// parse time throws outright when the key is missing, so anything a case
+    /// wants to construct has to find every key here.
+    /// </summary>
+    private static System.Windows.Application EnsureWpfApplication()
+    {
+        // One Application per AppDomain, and an earlier case may already own it.
+        var application = System.Windows.Application.Current;
+        if (application is null)
+        {
+            application = new System.Windows.Application();
+            LoadApplicationResources(application);
+        }
+
+        return application;
+    }
+
     private static void LoadApplicationResources(System.Windows.Application application)
     {
         AddResourceDictionary(application, "Themes/LightColors.xaml");
         AddResourceDictionary(application, "Themes/Brushes.xaml");
         AddResourceDictionary(application, "Themes/Generic.xaml");
+
+        // App.xaml declares these next to the three theme dictionaries. They are
+        // resolved by {StaticResource} in page XAML, i.e. at parse time, so a page
+        // that uses one cannot even be constructed without them.
+        application.Resources["EnumToBoolConverter"] = new EnumToBoolConverter();
+        application.Resources["BoolToVisibilityConverter"] = new BoolToVisibilityConverter();
+        application.Resources["ModeToSubtitleConverter"] = new ModeToSubtitleConverter();
+        application.Resources["LanguageCodeToDisplayNameConverter"] = new LanguageCodeToDisplayNameConverter();
+        application.Resources["PostProcessingVisibilityConverter"] = new PostProcessingVisibilityConverter();
+        application.Resources["PostProcessingDisplayConverter"] = new PostProcessingDisplayConverter();
     }
 
     private static void AddResourceDictionary(System.Windows.Application application, string resourcePath)

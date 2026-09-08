@@ -132,12 +132,18 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Mode Name (accent color when selected) -->
+                                    <!-- TextTrimming, not just the star column: the star column
+                                         already bounds the name, but an untrimmed TextBlock hard-
+                                         clips mid-glyph under the gear button with nothing to say
+                                         the name continues. The tooltip carries the full name. -->
                                     <TextBlock x:Name="ModeNameText"
                                                Text="{Binding Name}"
                                                FontSize="16"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                               VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Name}"/>
 
                                     <!-- Offline Badge (inline with name) -->
                                     <Border x:Name="OfflineBadge"
