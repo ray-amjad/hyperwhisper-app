@@ -209,6 +209,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Eliminar Seleccionados</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>{0} grabaciones seleccionadas</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Archivo de audio no disponible</value>
   </data>

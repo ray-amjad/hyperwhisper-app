@@ -209,6 +209,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>删除所选</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>已选择 {0} 条录音</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>音频文件不可用</value>
   </data>

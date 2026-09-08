@@ -209,6 +209,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>選択を削除</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>{0} 件の録音を選択中</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>音声ファイルが利用できません</value>
   </data>

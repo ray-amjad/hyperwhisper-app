@@ -85,7 +85,10 @@ static void AllCatalogsLoad()
     // Plus one so cancelling a FILE transcription stops claiming a recording was
     // cancelled (issue #506). 852 -> 853:
     //   status.fileTranscriptionCancelled
-    Equal(853, PortableLocalizer.BaseKeyCount, "base key count");
+    // Plus one for the History multi-selection heading, which was a bare English
+    // literal in HistoryPage.xaml with no key at all (issue #505). 853 -> 854:
+    //   history.selection.count
+    Equal(854, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

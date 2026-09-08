@@ -89,6 +89,21 @@ public partial class HistoryViewModel : ViewModelBase
     /// <summary>Count of selected items for display.</summary>
     public int SelectionCount => SelectedTranscripts.Count;
 
+    /// <summary>
+    /// The multi-selection pane's heading, e.g. "3 recordings selected".
+    /// 
+    /// Built here rather than composed in XAML from a &lt;Run&gt; bound to
+    /// <see cref="SelectionCount"/> followed by a literal: that literal was English and
+    /// had no resource key at all in a 39-locale app (issue #505), and a translation
+    /// cannot always keep the number first anyway.
+    /// 
+    /// One plural form is deliberate. The pane is shown by
+    /// <see cref="HasMultipleSelection"/>, which is <c>Count &gt; 1</c>, so the string is
+    /// never asked to render 1 - the same assumption the sibling
+    /// <c>transcripts.delete.multiple.*</c> strings already make.
+    /// </summary>
+    public string SelectionSummary => Loc.S("history.selection.count", SelectionCount);
+
     // =========================================================================
     // FILTERING STATE
     // =========================================================================
@@ -556,6 +571,7 @@ public partial class HistoryViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(HasMultipleSelection));
         OnPropertyChanged(nameof(SelectionCount));
+        OnPropertyChanged(nameof(SelectionSummary));
     }
 
     /// <summary>
@@ -575,6 +591,7 @@ public partial class HistoryViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(HasMultipleSelection));
         OnPropertyChanged(nameof(SelectionCount));
+        OnPropertyChanged(nameof(SelectionSummary));
     }
 
     // =========================================================================

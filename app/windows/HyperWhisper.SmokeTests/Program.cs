@@ -12145,6 +12145,69 @@ internal static class Program
                 }
             });
 
+            Run("history: the multi-selection heading is localized — issue #505", () =>
+            {
+                // #505. HistoryPage.xaml built the heading as
+                // `<Run Text="{Binding SelectionCount}"/> recordings selected` - a bare
+                // English literal with no resource key at all, one line above a Delete
+                // button that IS localized, in an app that ships 39 catalogs. It is now
+                // one string from the view model, so the number can move within the
+                // sentence, which several of those languages need.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var history = new HistoryViewModel();
+                history.UpdateSelection(new[]
+                {
+                    new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "one" }),
+                    new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "two" }),
+                    new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "three" })
+                });
+
+                Assert(history.SelectionCount == 3, $"the probe selected {history.SelectionCount}, not 3");
+                Assert(history.HasMultipleSelection, "the multi-selection pane would not be shown at all");
+
+                var english = history.SelectionSummary;
+                Assert(english == "3 recordings selected",
+                    $"the English heading reads '{english}'");
+
+                // The point of the issue: it changes with the catalog. Loc.S returns the
+                // KEY when the resource is missing, so this also catches "bound to a
+                // property, still no resource".
+                var previousCulture = HyperWhisper.Resources.Strings.Culture;
+                try
+                {
+                    foreach (var culture in new[] { "de", "ja", "ru" })
+                    {
+                        HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
+                        var translated = history.SelectionSummary;
+                        Assert(translated != "history.selection.count",
+                            $"{culture}: the heading rendered the raw resource key");
+                        Assert(translated != english,
+                            $"{culture}: the heading is still the English '{translated}'");
+                        Assert(translated.Contains('3'),
+                            $"{culture}: '{translated}' lost the count - the placeholder did not survive");
+                        Assert(translated.IndexOf("recordings selected", StringComparison.Ordinal) < 0,
+                            $"{culture}: '{translated}' still carries the English words");
+                    }
+                }
+                finally
+                {
+                    HyperWhisper.Resources.Strings.Culture = previousCulture;
+                }
+
+                // One plural form is only safe because the pane never shows for a single
+                // row. If that ever changes, the string has to grow a singular, so pin
+                // the assumption HERE rather than leave it in a comment.
+                history.UpdateSelection(new[]
+                {
+                    new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "only one" })
+                });
+                Assert(!history.HasMultipleSelection,
+                    "the multi-selection pane now shows for ONE row, so its heading would read " +
+                    "'1 recordings selected' - it needs a singular form as well");
+            });
+
             Run("delivery: a refused clipboard write is reported unless the gate refused it", () =>
             {
                 // C3. Honouring CopyToClipboard's return value was right, and it
