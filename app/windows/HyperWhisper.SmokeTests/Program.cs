@@ -6178,6 +6178,199 @@ internal static class Program
             });
 
             // =================================================================
+            // Local API /transcribe deterministic text passes (issues #495, #498)
+            //
+            // /transcribe declines the AI rewrite — /post-process is the
+            // formatting endpoint. It used to decline the orchestrator's three
+            // DETERMINISTIC passes with it, because they sat behind the same
+            // `applyPostProcessing` flag, and then it read RawText anyway. So a
+            // caller got the provider's untouched string: no vocabulary
+            // replacement (#495), no dictated break command and no filler-word
+            // removal (#498).
+            //
+            // The two halves are one bug. Flipping the orchestrator gate alone
+            // changed nothing on the wire because the response still read
+            // RawText; reading FinalText alone changed nothing because the gate
+            // left FinalText == RawText. Both are asserted here, in that order.
+            // =================================================================
+
+            Run("the orchestrator runs filler removal, break commands and vocabulary with the AI rewrite off — issues #495, #498", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                // The shipped default, restated so the assertion does not depend
+                // on whatever an earlier test left behind.
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                var added = vocabulary.TryAdd("eta", "estimated time of arrival", out var vocabError);
+                Assert(added, $"could not seed the vocabulary entry for the test: {vocabError}");
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+                Assert(seeded != null, "the seeded vocabulary entry did not come back from VocabularyService");
+
+                try
+                {
+                    // PostProcessingMode 1 on purpose: the "Hyper" mode is the one
+                    // whose GUI path DOES run the LLM. With the rewrite declined it
+                    // must still take the deterministic arm, which is what made the
+                    // two modes return byte-identical raw text in #498.
+                    var mode = new Mode
+                    {
+                        Name = "Local API deterministic passes",
+                        ProviderType = "local",
+                        Language = "en",
+                        PostProcessingMode = 1
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. Uh, that is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    Assert(result.RawText == raw,
+                        $"RawText must stay the provider's own output, got '{result.RawText}'");
+
+                    // #495 — the vocabulary replacement.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary replacement was not applied, got '{result.FinalText}'");
+
+                    // #498 — the dictated break command.
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"the dictated paragraph break did not become a break, got '{result.FinalText}'");
+                    Assert(!result.FinalText.Contains("New paragraph", StringComparison.OrdinalIgnoreCase),
+                        $"the break command survived as a literal phrase, got '{result.FinalText}'");
+
+                    // #498 — filler-word removal, gated on the global setting.
+                    Assert(!result.FinalText.Contains("Um,", StringComparison.OrdinalIgnoreCase)
+                        && !result.FinalText.Contains("Uh,", StringComparison.OrdinalIgnoreCase),
+                        $"filler words survived with RemoveFillerWords on, got '{result.FinalText}'");
+
+                    // The AI rewrite really was declined: no provider is recorded
+                    // and no post-processed text is stored.
+                    Assert(!result.WasPostProcessed && result.PostProcessingProvider == null,
+                        "declining the AI rewrite still recorded a post-processing provider");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                vocabulary.TryAdd("eta", "estimated time of arrival", out _);
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+
+                try
+                {
+                    // "auto" is the language of every shipped Mode and of every
+                    // transient Mode the Local API builds, so this — not "en" —
+                    // is the shape of the common /transcribe request.
+                    var mode = new Mode
+                    {
+                        Name = "Local API auto language",
+                        ProviderType = "local",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. That is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    // Language-independent: both still run.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary must not depend on the language, got '{result.FinalText}'");
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"break commands must not depend on the language, got '{result.FinalText}'");
+
+                    // Language-gated: "er"/"um" are real words elsewhere, so the
+                    // shared core no-ops for "auto" (issue #278). This is the
+                    // documented behaviour, not a gap in the #498 fix.
+                    Assert(result.FinalText.Contains("Um,", StringComparison.Ordinal),
+                        $"an auto-language transcript must keep its fillers, got '{result.FinalText}'");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
+            {
+                var mode = new Mode
+                {
+                    Name = "Local API response projection",
+                    ProviderType = "local",
+                    Language = "en"
+                };
+
+                var result = new TranscriptionResult(
+                    RawText: "Um, the eta is thirty minutes",
+                    FinalText: "The estimated time of arrival is thirty minutes",
+                    TranscriptionProvider: "Local");
+
+                var response = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 42);
+
+                Assert(response.Text == result.FinalText,
+                    $"the /transcribe response must carry FinalText, got '{response.Text}'");
+                Assert(response.Text != result.RawText,
+                    "the /transcribe response is still carrying the provider's raw text");
+                Assert(response.LatencyMs == 42 && response.Timings.DecodeMs == 42,
+                    "the /transcribe response lost the measured latency");
+            });
+
+            // =================================================================
             // Local API wire contract (issue #289)
             //
             // #289 observed that `find app/macos app/windows -ipath '*test*'
@@ -11275,6 +11468,24 @@ internal static class Program
             }
         }
         return lines.ToArray();
+    }
+
+    /// <summary>
+    /// An <c>ITranscriptionProvider</c> that returns one fixed string and never
+    /// opens the audio file, so a test can drive the REAL
+    /// <c>TranscriptionOrchestrator.TranscribeAsync</c> — including its STEP 3
+    /// text passes — without a loaded model or a microphone (issues #495, #498).
+    /// </summary>
+    private sealed class FixedTextTranscriptionProvider(string text) : ITranscriptionProvider
+    {
+        public bool IsAvailable => true;
+        public string Name => "SmokeTestFixedText";
+
+        public Task<string> TranscribeAsync(
+            string audioPath,
+            string? language = null,
+            IReadOnlyList<string>? vocabulary = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(text);
     }
 
     /// <summary>
