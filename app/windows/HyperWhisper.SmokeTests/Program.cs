@@ -11341,25 +11341,31 @@ internal static class Program
                     $"the badge bound {modeText.Text.Length} characters of a {longName.Length}-character " +
                     "name - the name is being truncated in data, which is not the fix");
 
-                Assert(modeText.TextTrimming == TextTrimming.CharacterEllipsis,
-                    $"DetailModeText trims with {modeText.TextTrimming}: a name wider than the pane is " +
-                    "cut off mid-glyph with nothing to show it continues");
-
-                // Prove the case exercises the overflow.
-                Assert(modeText.ActualWidth > 0,
-                    "DetailModeText measured 0 - it never took part in the layout pass");
-                Assert(UnconstrainedWidthOf(modeText) > modeText.ActualWidth,
-                    $"the {longName.Length}-character name wanted {UnconstrainedWidthOf(modeText):F0}px and " +
-                    $"got {modeText.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
-
-                // THE BUG, STATED AS THE BUG: the badge stays inside the page. On main
-                // its right edge sat hundreds of pixels past it, off the window.
+                // THE BUG, STATED AS THE BUG, AND FIRST: the badge stays inside the
+                // page. Without the MaxWidth its right edge sits ~2600px past a 768px
+                // page, entirely off the window. This is asserted ahead of the
+                // attribute checks below deliberately — a geometry failure is the one
+                // that says the user cannot see the badge, and it is the message
+                // whoever breaks this next should read first.
                 var badge = (System.Windows.Controls.Border)System.Windows.Media.VisualTreeHelper.GetParent(
                     System.Windows.Media.VisualTreeHelper.GetParent(modeText));
                 var badgeLeft = badge.TransformToAncestor(page).Transform(new Point(0, 0)).X;
                 Assert(badgeLeft + badge.ActualWidth <= pageWidth + 0.5,
                     $"the mode badge ends at {badgeLeft + badge.ActualWidth:F1} on a {pageWidth:F0} wide " +
                     "page - a long mode name has pushed it off the right of the detail pane");
+
+                // Prove the case exercises the overflow. If the pane were ever wide
+                // enough for 300 characters, everything here would pass proving nothing.
+                Assert(modeText.ActualWidth > 0,
+                    "DetailModeText measured 0 - it never took part in the layout pass");
+                Assert(UnconstrainedWidthOf(modeText) > modeText.ActualWidth,
+                    $"the {longName.Length}-character name wanted {UnconstrainedWidthOf(modeText):F0}px and " +
+                    $"got {modeText.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
+
+                // And it says it was cut, rather than stopping mid-glyph.
+                Assert(modeText.TextTrimming == TextTrimming.CharacterEllipsis,
+                    $"DetailModeText trims with {modeText.TextTrimming}: a name wider than the pane is " +
+                    "cut off mid-glyph with nothing to show it continues");
 
                 // And the duration badge beside it is untouched and still whole.
                 var durationText = DescendantsOf<System.Windows.Controls.TextBlock>(page)
