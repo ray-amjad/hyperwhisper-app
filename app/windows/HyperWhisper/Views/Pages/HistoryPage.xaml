@@ -289,11 +289,13 @@
                         VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="&#x2713;" FontSize="48" HorizontalAlignment="Center"
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
-                <TextBlock FontSize="18" FontWeight="Medium"
+                <!-- The count and its sentence come from the view model as one localized
+                     string. A <Run> plus a literal cannot be translated, and cannot put
+                     the number anywhere but first (issue #505). -->
+                <TextBlock Text="{Binding SelectionSummary, Mode=OneWay}"
+                           FontSize="18" FontWeight="Medium"
                            Foreground="{DynamicResource TextPrimaryBrush}"
-                           HorizontalAlignment="Center" Margin="0,16,0,8">
-                    <Run Text="{Binding SelectionCount, Mode=OneWay}"/> recordings selected
-                </TextBlock>
+                           HorizontalAlignment="Center" Margin="0,16,0,8"/>
                 <Button Content="{loc:Loc history.action.deleteSelected}"
                         Command="{Binding DeleteSelectedCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
