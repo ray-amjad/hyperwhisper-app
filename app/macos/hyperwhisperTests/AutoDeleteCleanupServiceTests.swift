@@ -237,6 +237,46 @@ struct AutoDeleteCleanupServiceTests {
         #expect(try transcriptCount(in: context) == 0)
     }
 
+    /// A trimmed file created after cleanup snapshots the row cannot be added
+    /// through the view context. The serialized setter observes the committed
+    /// delete and removes the new file because no transcript owns it.
+    @Test func cleanupRemovesTrimmedFileCreatedAfterItsSnapshot() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = DelayedWriterSavePersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let originalPath = try makeFile(in: directory, byteCount: 64)
+        let lateTrimmedPath = try makeFile(in: directory, byteCount: 128)
+        let transcript = insertTranscript(
+            into: context,
+            date: Date().addingTimeInterval(-3600),
+            audioFilePath: originalPath
+        )
+        try context.save()
+
+        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+        let cleanup = Task { await service.performCleanup() }
+        let cleanupSaveBlocked = await persistence.gate.waitUntilBlocked()
+        #expect(cleanupSaveBlocked)
+
+        let attachPath = Task {
+            await persistence.setTrimmedAudioPath(transcript, trimmedPath: lateTrimmedPath)
+        }
+        persistence.gate.release()
+
+        let completedStats = await cleanup.value
+        let stats = try #require(completedStats)
+        let pathAttached = await attachPath.value
+
+        #expect(stats.transcriptsDeleted == 1)
+        #expect(!pathAttached)
+        #expect(!FileManager.default.fileExists(atPath: originalPath))
+        #expect(!FileManager.default.fileExists(atPath: lateTrimmedPath))
+        #expect(try transcriptCount(in: context) == 0)
+    }
+
     /// One production transaction is bounded even for a large old backlog.
     @Test func productionTransactionLimitsEachWriterBatch() async throws {
         let persistence = PersistenceController(inMemory: true)

@@ -1833,17 +1833,39 @@ class PersistenceController: ObservableObject {
         container.viewContext.refreshAllObjects()
     }
 
-    /// Sets the trimmed audio file path for a transcript
-    /// Called after VAD (Voice Activity Detection) processing creates a trimmed version
+    /// Sets the trimmed audio file path for a transcript on the serial writer.
+    ///
+    /// Auto-delete uses the same writer. If cleanup runs first, the row no
+    /// longer exists and this method removes the new, unowned file. If this
+    /// write runs first, cleanup snapshots the committed path before deleting
+    /// the row. Both queue orders therefore leave no orphaned trimmed file.
     ///
     /// - Parameters:
     ///   - transcript: The transcript to update
     ///   - trimmedPath: The file path to the VAD-trimmed audio file
     @MainActor
-    func setTrimmedAudioPath(_ transcript: Transcript, trimmedPath: String) {
-        transcript.setValue(trimmedPath, forKey: "trimmedAudioFilePath")
-        save()
+    @discardableResult
+    func setTrimmedAudioPath(_ transcript: Transcript, trimmedPath: String) async -> Bool {
+        let transcriptID = transcript.objectID
+        let saved = await performWriteRequiringSave { context -> Bool? in
+            guard let writerTranscript = try? context.existingObject(with: transcriptID) as? Transcript,
+                  !writerTranscript.isDeleted else {
+                return nil
+            }
+            writerTranscript.setValue(trimmedPath, forKey: "trimmedAudioFilePath")
+            return true
+        } == true
+
+        guard saved else {
+            // The VAD output has no Core Data owner if the row was deleted or
+            // the path save failed. Remove it instead of leaking it on disk.
+            _ = await FileDeletion.deleteFiles(at: [trimmedPath])
+            AppLogger.coreData.warning("Could not attach trimmed audio path; removed the unowned file")
+            return false
+        }
+
         AppLogger.coreData.debug("Set trimmed audio path for transcript: \(trimmedPath, privacy: .public)")
+        return true
     }
 
     /// Deletes a transcript
