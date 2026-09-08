@@ -53,6 +53,18 @@ HyperWhisper makes the token the first time the server starts. macOS keeps the t
 
 To make a new token, click the regenerate button. This button is a circular arrows icon on macOS, a rotate button on Windows, and a **Regenerate** button on Linux. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
 
+### Host and Origin check
+
+The server also examines the `Host`, `Origin`, and `Sec-Fetch-Site` headers on each request. The server returns `403` for a request that is not a true loopback call. This check protects you against DNS-rebinding attacks from a browser tab. macOS, Windows, and Linux all make this check, and all three make it on every route, including the unauthenticated `GET /health`.
+
+A request is a true loopback call when all three of these are true:
+
+- `Host` is `127.0.0.1:<port>` or `localhost:<port>`, with the port that the server is bound to. A missing `Host` header is a rejection.
+- `Origin` is absent, empty, or `http://127.0.0.1:<port>` or `http://localhost:<port>`. Any other value is a rejection.
+- `Sec-Fetch-Site` is absent, `same-origin`, or `none`. A browser sends `cross-site` for a rebound request, and that is a rejection.
+
+A command-line client sends the correct `Host` and no `Origin`, so it needs no change. Do not set your own `Host` header, and do not send an `Origin` header for a different site.
+
 ## MCP setup tab
 
 The MCP setup tab shows the configuration to paste into your MCP client. The bridge reads the discovery file when it starts. Thus no port and no token appear in the client configuration.
@@ -228,9 +240,7 @@ On macOS, `postProcessingMode` must be `0`, `1`, or `2` on create and patch. A P
 For a macOS PATCH, an omitted field stays unchanged. An explicit JSON `null` clears these string fields: `customInstructions`, `userSystemPrompt`, `languageModel`, `cloudTranscriptionModel`, `cloudTranscriptionDomain`, `cloudProvider`, `postProcessingProvider`, `englishSpelling`, `cloudAccuracyTier`, `geminiCustomPrompt`, and `cloudPostProcessingModel`. Windows treats `null` like an omitted value for these PATCH fields.
 
 <Note>
-  The two platforms are different in three ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows ignores these parameters and always returns the full catalog.
-
-  macOS also examines the `Host` and `Origin` headers on each request. macOS returns `403` for a request that is not a true loopback call. This check protects you against DNS-rebinding attacks from a browser tab. Windows does not make this check.
+  The two platforms are different in two ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows ignores these parameters and always returns the full catalog.
 
   Windows accepts and returns five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the Windows settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them.
 </Note>
