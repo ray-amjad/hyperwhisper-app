@@ -26,7 +26,34 @@ public partial class ModeEditorWindow : Window
         _mode = mode;
         _isCreateMode = false;
 
+        ApplyDefaultModeNameLock();
         Loaded += OnLoaded;
+    }
+
+    /// <summary>
+    /// THE DEFAULT MODE'S NAME IS FIXED, AND NOW SAYS SO (issue #494).
+    ///
+    /// Keyed on IsDefault, which is the mode's identity. macOS used to key the same
+    /// rule on <c>name == "Default"</c>, which is the mode's LABEL: it locked any
+    /// mode a user happened to name "Default", and it stopped locking the real
+    /// default the moment a restored backup carried a different name. Both platforms
+    /// read the flag now.
+    ///
+    /// A disabled TextBox with nothing beside it reads as a broken control, so a
+    /// hint carries the reason. Visible text rather than a tooltip: WPF does not show
+    /// a tooltip on a disabled control unless ToolTipService.ShowOnDisabled is set,
+    /// and a rule the user has to hover to discover is barely better than no rule at
+    /// all when the thing they are confused by is a dead field.
+    ///
+    /// Called from the constructors rather than from Loaded. It reads nothing but
+    /// _mode, which is fixed from construction, so there is nothing to wait for - and
+    /// a window that is never shown, which is how the smoke suite inspects this one,
+    /// would otherwise never apply the rule at all.
+    /// </summary>
+    private void ApplyDefaultModeNameLock()
+    {
+        ModeNameBox.IsEnabled = !_mode.IsDefault;
+        ModeNameLockedHint.Visibility = _mode.IsDefault ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public ModeEditorWindow(bool isCreateMode)
@@ -62,6 +89,10 @@ public partial class ModeEditorWindow : Window
             ModifiedDate = DateTime.UtcNow
         };
 
+        // A brand-new mode is never the default (IsDefault is false just above), so
+        // this only ever unlocks - but it is called here too so the two constructors
+        // cannot drift into disagreeing about it.
+        ApplyDefaultModeNameLock();
         Loaded += OnLoaded;
     }
 
@@ -84,22 +115,6 @@ public partial class ModeEditorWindow : Window
             DeleteModeButton.Visibility = Visibility.Collapsed;
             SaveModeButton.Content = Loc.S("modes.button.create");
         }
-
-        // THE DEFAULT MODE'S NAME IS FIXED, AND NOW SAYS SO (issue #494).
-        //
-        // Keyed on IsDefault, which is the mode's identity. macOS used to key the
-        // same rule on `name == "Default"`, which is the mode's LABEL: it locked any
-        // mode a user happened to name "Default", and it stopped locking the real
-        // default the moment a restored backup carried a different name. Both
-        // platforms read the flag now.
-        //
-        // A disabled TextBox with nothing beside it reads as a broken control, so a
-        // hint carries the reason. Visible text rather than a tooltip: WPF does not
-        // show a tooltip on a disabled control unless ToolTipService.ShowOnDisabled
-        // is set, and a rule the user has to hover to discover is barely better than
-        // no rule at all when the thing they are confused by is a dead field.
-        ModeNameBox.IsEnabled = !_mode.IsDefault;
-        ModeNameLockedHint.Visibility = _mode.IsDefault ? Visibility.Visible : Visibility.Collapsed;
 
         // Update save button state based on name
         UpdateSaveButtonState();
