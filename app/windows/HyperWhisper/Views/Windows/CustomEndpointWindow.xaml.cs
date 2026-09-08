@@ -63,9 +63,17 @@ public partial class CustomEndpointWindow : Window
     {
         _isLoading = true;
 
+        // The heading and the OS window title are the same sentence, so they are
+        // written from the same string. They were not: the heading switched to
+        // "Edit Endpoint" and Window.Title kept the "Add Endpoint" the XAML set,
+        // which is what the taskbar entry and Alt+Tab showed while the user was
+        // editing an endpoint that already existed (#510).
+        var heading = _existingEndpoint != null ? "Edit Endpoint" : "Add Endpoint";
+        Title = heading;
+        TitleText.Text = heading;
+
         if (_existingEndpoint != null)
         {
-            TitleText.Text = "Edit Endpoint";
             SaveButton.Content = "Save Changes";
 
             // Load existing data

@@ -1390,6 +1390,49 @@ internal static class Program
                 }
             });
 
+            // Issue #510. The heading said "Edit Endpoint" and Window.Title still
+            // said "Add Endpoint", so the taskbar entry and Alt+Tab named the
+            // wrong operation. The two now come from one string, and this asserts
+            // they agree in both directions.
+            Run("the endpoint window's title bar names the operation its heading does", () =>
+            {
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var existing = CustomEndpointManager.Instance.AddEndpoint(
+                        "Percy", "https://percy.example.com/v1/chat/completions", "m-1", out _);
+                    Assert(existing is not null, "the fixture endpoint should save");
+
+                    // A detached window is never Loaded, and OnLoaded is where the
+                    // window decides which operation it is.
+                    var edit = new HyperWhisper.Views.Windows.CustomEndpointWindow(existing!);
+                    edit.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    var editHeading = (System.Windows.Controls.TextBlock)edit.FindName("TitleText")!;
+
+                    Assert(edit.Title == "Edit Endpoint",
+                        $"the edit window's title bar should read 'Edit Endpoint', got '{edit.Title}'");
+                    Assert(edit.Title == editHeading.Text,
+                        $"title bar '{edit.Title}' and heading '{editHeading.Text}' must agree");
+
+                    var add = new HyperWhisper.Views.Windows.CustomEndpointWindow();
+                    add.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    var addHeading = (System.Windows.Controls.TextBlock)add.FindName("TitleText")!;
+
+                    Assert(add.Title == "Add Endpoint",
+                        $"the add window's title bar should read 'Add Endpoint', got '{add.Title}'");
+                    Assert(add.Title == addHeading.Text,
+                        $"title bar '{add.Title}' and heading '{addHeading.Text}' must agree");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
+            });
+
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
             {
                 using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
