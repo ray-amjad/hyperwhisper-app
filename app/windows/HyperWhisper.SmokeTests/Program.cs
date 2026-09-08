@@ -11197,6 +11197,7 @@ internal static class Program
         var given = readout.ActualWidth;
         readout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var wanted = readout.DesiredSize.Width - readout.Margin.Left - readout.Margin.Right;
+        Console.WriteLine($"[dbg] {step} given={given:F2} wanted={wanted:F2} trim={readout.TextTrimming} wrap={readout.TextWrapping} pageW={page.ActualWidth:F2}");
 
         if (wanted <= given + 0.5)
             return;
