@@ -1193,6 +1193,10 @@ class PersistenceController: ObservableObject {
 
     /// Save-site slug for the serial background writer.
     private static let writerSaveSite = "background_writer"
+
+    /// Maximum rows deleted by one auto-delete writer transaction. The fetch
+    /// reads one extra row only to decide whether the service must continue.
+    private static let autoDeleteBatchLimit = 100
     
     // MARK: - Background Writer (serial)
 
@@ -1253,50 +1257,49 @@ class PersistenceController: ObservableObject {
         deleteWinsConflicts: Bool,
         _ block: @escaping (NSManagedObjectContext) -> T?
     ) async -> T? {
+        let result = await performWriterTransaction(deleteWinsConflicts: deleteWinsConflicts) { context in
+            let value = block(context)
+            return (value: value, shouldCommit: value != nil)
+        }
+        return result.saved ? result.value : nil
+    }
+
+    private func performWriteReportingSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> (value: T, saved: Bool) {
+        await performWriterTransaction { context in
+            (value: block(context), shouldCommit: true)
+        }
+    }
+
+    /// Shared serial-writer transaction envelope. `shouldCommit` lets the
+    /// requiring-save API preserve its intentional nil-abort behavior without
+    /// changing `performWrite` callers whose value can itself be optional.
+    private func performWriterTransaction<T: Sendable>(
+        deleteWinsConflicts: Bool = false,
+        _ block: @escaping (NSManagedObjectContext) -> (value: T, shouldCommit: Bool)
+    ) async -> (value: T, saved: Bool) {
         let context = writerContext
-        let result: (value: T?, saved: Bool, changed: Bool) = await context.perform {
+        let result: (value: T, saved: Bool, changed: Bool) = await context.perform {
             let previousMergePolicy = context.mergePolicy
             if deleteWinsConflicts {
                 context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
             }
             defer { context.mergePolicy = previousMergePolicy }
 
-            let value = block(context)
+            let operation = block(context)
             let changed = context.hasChanges
-            // A nil result means that the operation aborted. Do not let partial
-            // mutations from a failed fetch or validation commit accidentally.
-            guard value != nil else {
+            guard operation.shouldCommit else {
                 if changed {
                     context.rollback()
                     context.refreshAllObjects()
                 }
-                return (nil, false, changed)
+                return (operation.value, false, changed)
             }
 
             let saved = !changed || self.savePendingWriterChanges(context)
             if changed {
                 context.refreshAllObjects()
             }
-            return (value, saved, changed)
-        }
-        if result.changed {
-            await MainActor.run { self.scheduleViewContextMaintenance() }
-        }
-        return result.saved ? result.value : nil
-    }
-
-    private func performWriteReportingSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> (value: T, saved: Bool) {
-        let context = writerContext
-        let result: (value: T, saved: Bool, changed: Bool) = await context.perform {
-            let value = block(context)
-            var saved = true
-            let changed = context.hasChanges
-            if changed {
-                saved = self.savePendingWriterChanges(context)
-                // Re-fault so the long-lived writer doesn't accumulate objects.
-                context.refreshAllObjects()
-            }
-            return (value, saved, changed)
+            return (operation.value, saved, changed)
         }
         if result.changed {
             await MainActor.run { self.scheduleViewContextMaintenance() }
@@ -1342,7 +1345,7 @@ class PersistenceController: ObservableObject {
             request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
             // Keep stop-to-paste writes and the termination barrier responsive,
             // even when an old installation has a large cleanup backlog.
-            request.fetchLimit = 101
+            request.fetchLimit = Self.autoDeleteBatchLimit + 1
 
             let transcripts: [Transcript]
             do {
@@ -1358,7 +1361,7 @@ class PersistenceController: ObservableObject {
                 return nil
             }
 
-            let batch = Array(transcripts.prefix(100))
+            let batch = Array(transcripts.prefix(Self.autoDeleteBatchLimit))
             var paths: [String] = []
             for transcript in batch {
                 if let audioPath = transcript.audioFilePath {

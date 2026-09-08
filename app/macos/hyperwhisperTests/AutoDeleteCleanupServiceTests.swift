@@ -298,6 +298,42 @@ struct AutoDeleteCleanupServiceTests {
         #expect(try transcriptCount(in: context) == 150)
     }
 
+    /// The service must accumulate every bounded writer batch and stop after
+    /// the final short batch. This covers the complete 100 + 100 + 5 loop.
+    @Test func serviceAccumulatesMultipleBatchesAndTerminates() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        var paths: [String] = []
+        for index in 0..<205 {
+            let path = try makeFile(in: directory, byteCount: 1)
+            paths.append(path)
+            insertTranscript(
+                into: context,
+                date: Date().addingTimeInterval(TimeInterval(-index - 1)),
+                audioFilePath: path
+            )
+        }
+        try context.save()
+
+        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+
+        let completedStats = await service.performCleanup()
+        let stats = try #require(completedStats)
+
+        #expect(stats.transcriptsDeleted == 205)
+        #expect(stats.audioFilesDeleted == 205)
+        #expect(stats.bytesFreed == 205)
+        #expect(try transcriptCount(in: context) == 0)
+        #expect(paths.allSatisfy { !FileManager.default.fileExists(atPath: $0) })
+        #expect(!service.isCleanupInProgress)
+        #expect(service.lastCleanupDate != nil)
+        #expect(service.lastCleanupStats?.transcriptsDeleted == 205)
+    }
+
     /// A queued writer transaction must suspend cleanup without holding the main
     /// actor. The closed gate makes the pending Core Data work deterministic.
     @Test func pendingCoreDataWorkLeavesMainActorResponsive() async throws {
