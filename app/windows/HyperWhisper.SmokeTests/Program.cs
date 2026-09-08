@@ -6178,6 +6178,199 @@ internal static class Program
             });
 
             // =================================================================
+            // Local API /transcribe deterministic text passes (issues #495, #498)
+            //
+            // /transcribe declines the AI rewrite — /post-process is the
+            // formatting endpoint. It used to decline the orchestrator's three
+            // DETERMINISTIC passes with it, because they sat behind the same
+            // `applyPostProcessing` flag, and then it read RawText anyway. So a
+            // caller got the provider's untouched string: no vocabulary
+            // replacement (#495), no dictated break command and no filler-word
+            // removal (#498).
+            //
+            // The two halves are one bug. Flipping the orchestrator gate alone
+            // changed nothing on the wire because the response still read
+            // RawText; reading FinalText alone changed nothing because the gate
+            // left FinalText == RawText. Both are asserted here, in that order.
+            // =================================================================
+
+            Run("the orchestrator runs filler removal, break commands and vocabulary with the AI rewrite off — issues #495, #498", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                // The shipped default, restated so the assertion does not depend
+                // on whatever an earlier test left behind.
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                var added = vocabulary.TryAdd("eta", "estimated time of arrival", out var vocabError);
+                Assert(added, $"could not seed the vocabulary entry for the test: {vocabError}");
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+                Assert(seeded != null, "the seeded vocabulary entry did not come back from VocabularyService");
+
+                try
+                {
+                    // PostProcessingMode 1 on purpose: the "Hyper" mode is the one
+                    // whose GUI path DOES run the LLM. With the rewrite declined it
+                    // must still take the deterministic arm, which is what made the
+                    // two modes return byte-identical raw text in #498.
+                    var mode = new Mode
+                    {
+                        Name = "Local API deterministic passes",
+                        ProviderType = "local",
+                        Language = "en",
+                        PostProcessingMode = 1
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. Uh, that is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    Assert(result.RawText == raw,
+                        $"RawText must stay the provider's own output, got '{result.RawText}'");
+
+                    // #495 — the vocabulary replacement.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary replacement was not applied, got '{result.FinalText}'");
+
+                    // #498 — the dictated break command.
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"the dictated paragraph break did not become a break, got '{result.FinalText}'");
+                    Assert(!result.FinalText.Contains("New paragraph", StringComparison.OrdinalIgnoreCase),
+                        $"the break command survived as a literal phrase, got '{result.FinalText}'");
+
+                    // #498 — filler-word removal, gated on the global setting.
+                    Assert(!result.FinalText.Contains("Um,", StringComparison.OrdinalIgnoreCase)
+                        && !result.FinalText.Contains("Uh,", StringComparison.OrdinalIgnoreCase),
+                        $"filler words survived with RemoveFillerWords on, got '{result.FinalText}'");
+
+                    // The AI rewrite really was declined: no provider is recorded
+                    // and no post-processed text is stored.
+                    Assert(!result.WasPostProcessed && result.PostProcessingProvider == null,
+                        "declining the AI rewrite still recorded a post-processing provider");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                vocabulary.TryAdd("eta", "estimated time of arrival", out _);
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+
+                try
+                {
+                    // "auto" is the language of every shipped Mode and of every
+                    // transient Mode the Local API builds, so this — not "en" —
+                    // is the shape of the common /transcribe request.
+                    var mode = new Mode
+                    {
+                        Name = "Local API auto language",
+                        ProviderType = "local",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. That is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    // Language-independent: both still run.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary must not depend on the language, got '{result.FinalText}'");
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"break commands must not depend on the language, got '{result.FinalText}'");
+
+                    // Language-gated: "er"/"um" are real words elsewhere, so the
+                    // shared core no-ops for "auto" (issue #278). This is the
+                    // documented behaviour, not a gap in the #498 fix.
+                    Assert(result.FinalText.Contains("Um,", StringComparison.Ordinal),
+                        $"an auto-language transcript must keep its fillers, got '{result.FinalText}'");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
+            {
+                var mode = new Mode
+                {
+                    Name = "Local API response projection",
+                    ProviderType = "local",
+                    Language = "en"
+                };
+
+                var result = new TranscriptionResult(
+                    RawText: "Um, the eta is thirty minutes",
+                    FinalText: "The estimated time of arrival is thirty minutes",
+                    TranscriptionProvider: "Local");
+
+                var response = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 42);
+
+                Assert(response.Text == result.FinalText,
+                    $"the /transcribe response must carry FinalText, got '{response.Text}'");
+                Assert(response.Text != result.RawText,
+                    "the /transcribe response is still carrying the provider's raw text");
+                Assert(response.LatencyMs == 42 && response.Timings.DecodeMs == 42,
+                    "the /transcribe response lost the measured latency");
+            });
+
+            // =================================================================
             // Local API wire contract (issue #289)
             //
             // #289 observed that `find app/macos app/windows -ipath '*test*'
@@ -6223,6 +6416,193 @@ internal static class Program
                 Assert(!Allowed(null, null, null, 51671), "a request with no Host header must be rejected");
                 Assert(!Allowed("127.0.0.1:51672", null, null, 51671), "the wrong port must be rejected");
                 Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
+            });
+
+            Run("/transcribe names the cloud model that actually ran", () =>
+            {
+                // Issue #500. `engine: "cloud"` / `"hyperwhisper"` with no
+                // explicit `model` transcribed correctly but reported
+                // `model: ""`: the cloud arm of `ApplyEngineModel` assigned
+                // `CloudTranscriptionModel` only when a tier was inferred, a
+                // model was given, or the provider was Meta — so the ordinary
+                // case fell through and `ModelLabel` projected null.
+                var catalog = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared;
+                var tierDefault = catalog.DefaultModelIdForId("elevenLabsScribeV2");
+                Assert(!string.IsNullOrEmpty(tierDefault),
+                    "the catalog has no default model for the default accuracy tier");
+
+                // Drive the REAL builder and the REAL projection, so the seeded
+                // transient defaults, the engine dispatch and `ModelLabel` are
+                // all inside the assertion. Hand-rolling a Mode here would pass
+                // even if `BuildTransientMode` stopped seeding a tier.
+                static string LabelFor(string? engine, string? model, Mode? baseline = null) =>
+                    TranscribeEndpoints.ModelLabel(
+                        TranscribeEndpoints.BuildTransientMode(baseline, engine, model, language: null));
+
+                foreach (var alias in new[] { "cloud", "hyperwhisper" })
+                {
+                    var label = LabelFor(alias, model: null);
+                    Assert(!string.IsNullOrEmpty(label),
+                        $"engine='{alias}' reported an empty model (issue #500)");
+                    // HyperWhisper Cloud routes on the TIER, so the tier's model
+                    // is what runs. `GetDefault` would answer the "default"
+                    // routing sentinel, which is not a model id.
+                    Assert(label == tierDefault,
+                        $"engine='{alias}' did not report the tier's model");
+                    Assert(label != "default",
+                        $"engine='{alias}' reported the routing sentinel as a model id");
+                }
+
+                // The BARE `mode_id` form must agree with the `engine` form for
+                // the same Mode. This is the case a fix planted only in
+                // `ApplyEngineModel` would miss: that method never runs without
+                // an `engine`, and a HyperWhisper Cloud mode whose model field
+                // was never written is the ordinary state.
+                var storedNoModel = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                };
+                Assert(TranscribeEndpoints.ModelLabel(storedNoModel) == tierDefault,
+                    "a stored HyperWhisper Cloud mode with no model reported an empty label");
+
+                // An id that does not belong to the tier is NOT what runs:
+                // `ResolveDictationModelId` heals it on the send path, so the
+                // label must heal identically rather than echo the stale value.
+                var staleInTier = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "nova-3-general",
+                };
+                Assert(TranscribeEndpoints.ModelLabel(staleInTier) == tierDefault,
+                    "an out-of-tier model was reported instead of the model that runs");
+                Assert(TranscribeEndpoints.ModelLabel(new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "default",
+                }) == tierDefault,
+                    "the legacy 'default' sentinel was reported as a model id");
+
+                // A legacy accuracy-tier spelling must still resolve. The label
+                // normalizes the tier the same way the send path does, so an
+                // unrecognised spelling cannot produce "".
+                Assert(!string.IsNullOrEmpty(TranscribeEndpoints.ModelLabel(new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "a-tier-spelling-the-catalog-does-not-list",
+                })), "an unrecognised accuracy tier reported an empty model");
+
+                // A BYOK provider routes on the model id, so its own default is
+                // what runs. Meta used to be the only arm that did this.
+                Assert(LabelFor("openai", model: null) == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "engine='openai' did not report the provider default model");
+                Assert(!string.IsNullOrEmpty(LabelFor("openai", model: null)),
+                    "engine='openai' reported an empty model (issue #500)");
+
+                // An explicit model is still honoured for a BYOK provider, which
+                // sends it verbatim.
+                Assert(LabelFor("openai", "gpt-4o-transcribe") == "gpt-4o-transcribe",
+                    "an explicit model was not honoured");
+
+                // Re-asserting the SAME provider must preserve the caller's saved
+                // sub-model, and a sub-model pinned INSIDE the tier must survive
+                // an engine that names that same tier.
+                var pinnedInTier = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "openai",
+                    CloudTranscriptionModel = "gpt-4o-transcribe",
+                };
+                Assert(LabelFor("openai", null, pinnedInTier) == "gpt-4o-transcribe",
+                    "re-asserting the same engine clobbered the saved sub-model");
+
+                // ...but a model inherited from ANOTHER vendor is foreign. For a
+                // BYOK provider this is not only a label problem: the field is
+                // sent verbatim, so leaving it would change the model that RUNS.
+                var foreign = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "scribe_v2",
+                };
+                var foreignLabel = LabelFor("openai", null, foreign);
+                Assert(foreignLabel != "scribe_v2",
+                    "an OpenAI run reported the baseline's HyperWhisper Cloud model");
+                Assert(foreignLabel == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "a foreign inherited model was not replaced by the provider default");
+
+                // A legacy alias that resolves within the provider is NOT foreign
+                // and must not be silently upgraded to a different-priced model.
+                var legacyAlias = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "assemblyai",
+                    CloudTranscriptionModel = "universal",
+                };
+                Assert(LabelFor("assemblyai", null, legacyAlias) == "universal",
+                    "a legacy provider alias was treated as foreign and replaced");
+            });
+
+            Run("/post-process emits the documented post_processed flag", () =>
+            {
+                // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
+                // `Bool` (`LocalAPITypes.swift`, `PostProcessResponse`) and
+                // `openapi.yaml` documents it as the field that separates a
+                // real rewrite from a no-op. Windows omitted the key entirely,
+                // so a client sharing the macOS `Codable` model threw
+                // `keyNotFound` on every Windows reply.
+                //
+                // WHAT THIS PINS, AND WHAT IT DOES NOT. It pins the SERIALISED
+                // SHAPE: the `[JsonPropertyName]` spelling, the full key set,
+                // and that both boolean values survive the responder's own
+                // `JsonOptions` (the options are the thing that decides what
+                // reaches the wire, so a bare `JsonSerializer` here would test
+                // the wrong object). It does NOT pin which branch of
+                // `PostProcessEndpoints` picks which value — that needs
+                // `ModeService` and a live host, which this harness has no way
+                // to stand up. The `required` modifier on the property is what
+                // stops a new branch omitting the field: it is a compile error,
+                // not a test. The portable suite covers the endpoint wiring
+                // end-to-end over real HTTP for the head that can be hosted.
+                static JsonNode Wire(bool postProcessed) =>
+                    JsonSerializer.SerializeToNode(
+                        new PostProcessResponse
+                        {
+                            Text = "text",
+                            Provider = postProcessed ? "hyperwhispercloud" : "none",
+                            Model = "model",
+                            Preset = "note",
+                            LatencyMs = 7,
+                            PostProcessed = postProcessed
+                        },
+                        LocalApiResponder.JsonOptions)!;
+
+                string[] expected = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
+                foreach (var flag in new[] { true, false })
+                {
+                    var node = Wire(flag);
+                    var keys = node.AsObject().Select(pair => pair.Key).Order().ToArray();
+                    Assert(keys.SequenceEqual(expected.Order()),
+                        $"the /post-process body drifted from the documented shape (post_processed={flag}): got {string.Join(",", keys)}");
+                    Assert(node["post_processed"]!.GetValue<bool>() == flag,
+                        "post_processed must carry the value it was given");
+                }
             });
 
             Run("the bearer check accepts only the real token", () =>
@@ -10112,6 +10492,54 @@ internal static class Program
                 }
             });
 
+            // Same reason as the two blocks above: RunAsync blocks on the awaited task,
+            // and this region runs AFTER the onboarding block put the WPF
+            // DispatcherSynchronizationContext back. A continuation posted to a
+            // dispatcher this console harness never pumps would hang the suite rather
+            // than fail it, so detach for the duration.
+            var balancePreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("onboarding: the cloud credit balance is never cut without an ellipsis", async () =>
+            {
+                // Both cloud steps draw CreditsFormatted with OnboardingBigNumberStyle
+                // (30 pt) in the `*` column of a two-column row whose `Auto` column
+                // holds a pill (Setup) or the "Get credits" button (Configure). The
+                // formatted balance is wider than what is left of that row, and the
+                // style set no TextTrimming and no TextWrapping, so the text ran under
+                // the neighbour and was cut mid-word at the card edge: the Configure
+                // step rendered "$66.30 remainir" and the Setup step
+                // "$66.30 remaining (~10523 min", with nothing to say either had been
+                // cut. The caption directly below has always trimmed.
+                //
+                // The gateway's own numbers: FormattedBalance divides the credit count
+                // by 1000 to get the dollars (HyperWhisperCloudCredits.cs:112-119), so
+                // 66300 credits IS "$66.30 remaining".
+                var balance = "$66.30 remaining (~10523 minutes)";
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, balance);
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+                Assert(h.Flow.CreditsFormatted == balance, "precondition: the balance landed");
+
+                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, balance);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+
+                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+            });
+
+            SynchronizationContext.SetSynchronizationContext(balancePreviousContext);
+
             Run("modes: a 300-character mode name is ellipsised on the card, not clipped under the gear", () =>
             {
                 // #492. A mode name is free user text with no cap anywhere - not in the
@@ -10615,6 +11043,58 @@ internal static class Program
                 Assert(forwarded == 1,
                     $"the stage received {forwarded} forwarded wheel events, not 1 - a region at " +
                     "its limit swallowed the turn instead of passing it up");
+            });
+
+            Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
+            {
+                // The export card reads "Vocabulary (N)". N was read once, in the page
+                // constructor, so an import a few pixels below it left the user looking
+                // at the old number until they navigated away and back — and that is the
+                // number they read before ticking Vocabulary and exporting.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var page = new BackupExportSettingsPage();
+                var before = page.ExportVocabularyCheckbox.Content as string;
+                Assert(!string.IsNullOrEmpty(before),
+                    "the export vocabulary checkbox has no label to keep up to date");
+
+                // The word an import would have added. Written through the same service
+                // BackupService's merge writes through, then removed again: this suite
+                // runs against a real database that later cases share.
+                var word = "percy497-" + Guid.NewGuid().ToString("N")[..8];
+                Assert(VocabularyService.Instance.TryAdd(word, "issue 497 probe", out var addError),
+                    $"could not stage a vocabulary word for this case: {addError ?? "no reason given"}");
+
+                var staged = VocabularyService.Instance.GetAll().FirstOrDefault(v => v.Word == word);
+                try
+                {
+                    Assert(staged is not null, "the staged vocabulary word is not in the table");
+
+                    // Exactly what the click handler does once ImportSelective succeeds.
+                    page.ApplyImportSuccess(new ImportSummary
+                    {
+                        ModesImported = 0,
+                        VocabularyAdded = 1,
+                        VocabularyConflicts = 0
+                    });
+
+                    var after = page.ExportVocabularyCheckbox.Content as string;
+                    Assert(after != before,
+                        $"the export label still reads '{after}' after an import added a word. " +
+                        "It is stale until the user leaves the page and comes back.");
+
+                    var expected = HyperWhisper.Localization.Loc.S(
+                        "settings.backup.export.section.vocabulary",
+                        VocabularyService.Instance.GetAll().Count);
+                    Assert(after == expected,
+                        $"the export label reads '{after}', the real vocabulary is '{expected}'");
+                }
+                finally
+                {
+                    if (staged is not null)
+                        VocabularyService.Instance.Delete(staged.Id);
+                }
             });
 
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
@@ -11507,6 +11987,24 @@ internal static class Program
     }
 
     /// <summary>
+    /// An <c>ITranscriptionProvider</c> that returns one fixed string and never
+    /// opens the audio file, so a test can drive the REAL
+    /// <c>TranscriptionOrchestrator.TranscribeAsync</c> — including its STEP 3
+    /// text passes — without a loaded model or a microphone (issues #495, #498).
+    /// </summary>
+    private sealed class FixedTextTranscriptionProvider(string text) : ITranscriptionProvider
+    {
+        public bool IsAvailable => true;
+        public string Name => "SmokeTestFixedText";
+
+        public Task<string> TranscribeAsync(
+            string audioPath,
+            string? language = null,
+            IReadOnlyList<string>? vocabulary = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(text);
+    }
+
+    /// <summary>
     /// Minimal IStreamingProviderStrategy for exercising StreamingTranscriptionClient
     /// methods (like AppendFinalTranscript) that never touch the provider strategy.
     /// Any member a test does end up hitting should throw loudly rather than fake
@@ -11649,6 +12147,137 @@ internal static class Program
     /// <summary>The control's x:Name if it has one, so a failure names the dropdown.</summary>
     private static string NameOrType(FrameworkElement element) =>
         string.IsNullOrEmpty(element.Name) ? $"an unnamed {element.GetType().Name}" : element.Name;
+
+    /// <summary>
+    /// Assert the cloud balance readout on a step is not silently cut, at every window
+    /// size the product can render that step at.
+    /// </summary>
+    private static void AssertBalanceReadoutFits(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance)
+    {
+        // Both window sizes the product can actually render the step at. The window
+        // is NoResize and FitToWorkArea clamps it between a floor and the design
+        // size, so a desktop gets 760 wide and a 1366x768 laptop at 200% gets 683.
+        // The narrow end is where the readout is squeezed hardest, and asserting
+        // only at 760 would miss it.
+        var design = OnboardingWindow.FitToWorkArea(1920, 1032);
+        var clamped = OnboardingWindow.FitToWorkArea(1366 / 2.0, (768 - 72) / 2.0);
+
+        // 521 is the page area the design-size window leaves once its own chrome is
+        // out - the number BuildOnboardingStepPages already lays pages out at.
+        var chrome = design.Height - 521;
+
+        foreach (var window in new[] { design, clamped })
+        {
+            AssertBalanceReadoutFitsAt(
+                step, flow, balance, window.Width, Math.Max(1, window.Height - chrome));
+        }
+    }
+
+    private static void AssertBalanceReadoutFitsAt(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance,
+        double width,
+        double height)
+    {
+        var page = LayOutOnboardingStepPage(step, flow, width, height);
+        var where = $"{step} at {width:F0} DIP";
+
+        var readout = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+            .FirstOrDefault(t => string.Equals(t.Text, balance, StringComparison.Ordinal));
+
+        Assert(readout is not null, $"{where}: the balance readout is not on the page at all");
+        Assert(readout!.ActualWidth > 0, $"{where}: the balance readout was never laid out");
+
+        // The readout's own parent chain, not a search for any two-column Grid: the
+        // stock ScrollViewer template inside OnboardingStage is itself a `*`/Auto Grid
+        // and would happily stand in for the credits row, turning the assertion below
+        // into "does not exceed the whole viewport".
+        var column = System.Windows.Media.VisualTreeHelper.GetParent(readout);
+        var row = column is null ? null : System.Windows.Media.VisualTreeHelper.GetParent(column);
+
+        Assert(
+            row is System.Windows.Controls.Grid { ColumnDefinitions.Count: 2 },
+            $"{where}: the balance readout is no longer one level inside a two-column row - " +
+            "this case measures the wrong thing until it is pointed at the new shape");
+
+        var grid = (System.Windows.Controls.Grid)row!;
+        var neighbour = grid.Children
+            .OfType<FrameworkElement>()
+            .FirstOrDefault(child => System.Windows.Controls.Grid.GetColumn(child) == 1);
+
+        Assert(neighbour is not null, $"{where}: the row's second column is empty");
+
+        var readoutRight = readout
+            .TransformToAncestor(grid)
+            .Transform(new Point(readout.ActualWidth, 0)).X;
+        var neighbourLeft = neighbour!
+            .TransformToAncestor(grid)
+            .Transform(new Point(0, 0)).X;
+
+        // A vertical StackPanel arranges a child at max(its own width, the child's
+        // desired width), so an untrimmed 30 pt line does not stop at the end of its
+        // column - it is arranged past it and drawn underneath whatever the Auto
+        // column holds. That is the defect, and it is what this measures.
+        Assert(
+            readoutRight <= neighbourLeft + 0.5,
+            $"{where}: '{balance}' is arranged out to {readoutRight:F0} DIP while the " +
+            $"{neighbour.GetType().Name} beside it starts at {neighbourLeft:F0}. The readout " +
+            "runs under its neighbour and is cut with nothing to say it was cut.");
+
+        // Staying inside the column is only half of it. A readout that wants more room
+        // than the column has must also SAY it was shortened, or the same value is
+        // still cut mid-word - just tidily. Capping the width alone would satisfy the
+        // measurement above and reproduce the defect.
+        var natural = UnconstrainedWidthOf(readout);
+
+        if (natural <= readout.ActualWidth + 0.5)
+            return;
+
+        Assert(
+            readout.TextTrimming != TextTrimming.None
+            || readout.TextWrapping != TextWrapping.NoWrap,
+            $"{where}: '{balance}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
+            "column and neither trims nor wraps, so it is cut with no ellipsis");
+    }
+
+    /// <summary>
+    /// Lay out one onboarding step page against a flow the caller has already driven.
+    ///
+    /// Separate from BuildOnboardingStepPages because the cloud readouts only exist
+    /// once the flow is in a state that shows them, and that helper always uses a
+    /// virgin harness.
+    /// </summary>
+    private static System.Windows.Controls.Page LayOutOnboardingStepPage(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        double width,
+        double height)
+    {
+        EnsureSmokeApplication();
+
+        System.Windows.Controls.Page page = step switch
+        {
+            OnboardingStep.Configure => new ConfigureStepPage(),
+            OnboardingStep.Setup => new SetupStepPage(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(step), step, "only the two cloud steps carry a balance readout")
+        };
+
+        page.DataContext = flow;
+
+        // The stage is a ScrollViewer, so the height only decides whether a vertical
+        // scrollbar appears and takes width away from the row: the shorter the page,
+        // the stricter this is.
+        page.Measure(new Size(width, height));
+        page.Arrange(new Rect(0, 0, width, height));
+        page.UpdateLayout();
+
+        return page;
+    }
 
     /// <summary>
     /// The width this TextBlock's own text wants with nothing constraining it.

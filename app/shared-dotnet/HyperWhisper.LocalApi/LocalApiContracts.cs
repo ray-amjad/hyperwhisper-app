@@ -158,7 +158,15 @@ public sealed record PostProcessRequest(
     string? Provider,
     string? Model,
     LocalApiApplicationContext? ApplicationContext = null);
-public sealed record PostProcessResult(string Text, string Provider, string Model, string Preset, int LatencyMs);
+/// <param name="PostProcessed">
+/// Whether an LLM actually ran and produced <paramref name="Text"/>. Surfaces
+/// as the documented `post_processed` wire field (issue #499); macOS declares
+/// it non-optional, so a client sharing that decoder cannot read a body without
+/// it. This head throws rather than degrading, so today it is always true on a
+/// 200 — it is carried explicitly anyway, so a future graceful-degradation path
+/// has to state its answer instead of inheriting one.
+/// </param>
+public sealed record PostProcessResult(string Text, string Provider, string Model, string Preset, int LatencyMs, bool PostProcessed);
 
 public interface ILocalApiBackend
 {
