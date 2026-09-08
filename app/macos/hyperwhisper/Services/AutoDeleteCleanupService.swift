@@ -300,7 +300,7 @@ class AutoDeleteCleanupService: ObservableObject {
 
         // STEP 1 (serial writer): fetch, snapshot paths, delete rows, and save as
         // one uninterrupted transaction. Only plain values return to this actor.
-        guard let transaction = await persistenceController.deleteTranscriptsOlderThanInBackground(cutoffDate) else {
+        guard var transaction = await persistenceController.deleteTranscriptsOlderThanInBackground(cutoffDate) else {
             logger.error("Auto-delete aborted: Core Data transaction failed; no audio files were deleted.")
             SentryService.captureMessage(
                 "Auto-delete aborted: Core Data transaction failed",
@@ -325,35 +325,45 @@ class AutoDeleteCleanupService: ObservableObject {
             return stats
         }
 
-        logger.info("Found \(transaction.transcriptsDeleted, privacy: .public) transcripts to delete")
-
-        // The path list is deliberately not de-duplicated. Duplicate entries
-        // preserve the existing sequential deletion and stats behavior.
-        let paths = transaction.audioPaths
-
-        // STEP 2 (off the main actor): the blocking filesystem work.
-        let results = await FileDeletion.deleteFiles(at: paths)
-
-        // STEP 3 (back on the main actor): tally and log. `deleteFiles` returns
-        // one result per input path, in order, so `zip` pairs them up.
+        // Each Core Data transaction has at most 100 rows. Yield between batches
+        // so stop-flow writes can enter the shared writer and quit only waits for
+        // one bounded transaction.
+        var transcriptsDeleted = 0
         var audioFilesDeleted = 0
         var bytesFreed: Int64 = 0
         var failedDeletionCount = 0
-        for (path, result) in zip(paths, results) {
-            if result.deleted {
-                audioFilesDeleted += 1
-                bytesFreed += result.bytesFreed
-                logger.debug("Deleted audio file: \(path, privacy: .public)")
-            } else if let failureDescription = result.failureDescription {
-                // Log the path, not just the description. The Core Data row is
-                // already committed as deleted by this point, so this line is
-                // the only surviving record that the file exists — and
-                // `failureDescription` is a bare `localizedDescription`, which
-                // for POSIX-domain errors ("Permission denied") names neither
-                // the file nor its directory.
-                failedDeletionCount += 1
-                logger.error("Failed to delete audio file: \(path, privacy: .public) — \(failureDescription, privacy: .public)")
+        var pathsAttempted = 0
+
+        while true {
+            logger.info("Found \(transaction.transcriptsDeleted, privacy: .public) transcripts to delete in this batch")
+            transcriptsDeleted += transaction.transcriptsDeleted
+
+            // The path list is deliberately not de-duplicated. Duplicate entries
+            // preserve the existing sequential deletion and stats behavior.
+            let paths = transaction.audioPaths
+            pathsAttempted += paths.count
+            let results = await FileDeletion.deleteFiles(at: paths)
+
+            for (path, result) in zip(paths, results) {
+                if result.deleted {
+                    audioFilesDeleted += 1
+                    bytesFreed += result.bytesFreed
+                    logger.debug("Deleted audio file: \(path, privacy: .public)")
+                } else if let failureDescription = result.failureDescription {
+                    failedDeletionCount += 1
+                    logger.error("Failed to delete audio file: \(path, privacy: .public) — \(failureDescription, privacy: .public)")
+                }
             }
+
+            guard transaction.hasMore else { break }
+            await Task.yield()
+            guard let next = await persistenceController.deleteTranscriptsOlderThanInBackground(cutoffDate) else {
+                // Earlier batches are already committed and their files are
+                // already handled, so report truthful partial success.
+                logger.error("Auto-delete stopped after a later Core Data batch failed")
+                break
+            }
+            transaction = next
         }
 
         // One event per pass, not one per file: a failing volume fails every
@@ -367,7 +377,7 @@ class AutoDeleteCleanupService: ObservableObject {
                 level: .warning,
                 extras: [
                     "failedDeletions": failedDeletionCount,
-                    "pathsAttempted": paths.count
+                    "pathsAttempted": pathsAttempted
                 ],
                 tags: ["component": "AutoDeleteCleanupService"]
             )
@@ -377,7 +387,7 @@ class AutoDeleteCleanupService: ObservableObject {
         lastCleanupDate = Date()
 
         let stats = CleanupStats(
-            transcriptsDeleted: transaction.transcriptsDeleted,
+            transcriptsDeleted: transcriptsDeleted,
             audioFilesDeleted: audioFilesDeleted,
             bytesFreed: bytesFreed,
             durationSeconds: duration
