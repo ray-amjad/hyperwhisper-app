@@ -6228,17 +6228,24 @@ internal static class Program
             Run("/post-process emits the documented post_processed flag", () =>
             {
                 // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
-                // `Bool` (`LocalAPITypes.swift:347`) and `openapi.yaml:558`
-                // documents it as the field that separates a real rewrite from
-                // a graceful degradation. Windows omitted the key entirely, so
-                // a client sharing the macOS `Codable` model threw
+                // `Bool` (`LocalAPITypes.swift`, `PostProcessResponse`) and
+                // `openapi.yaml` documents it as the field that separates a
+                // real rewrite from a no-op. Windows omitted the key entirely,
+                // so a client sharing the macOS `Codable` model threw
                 // `keyNotFound` on every Windows reply.
                 //
-                // Serialised through the responder's own `JsonOptions`, because
-                // that is what decides whether a field reaches the wire —
-                // `DefaultIgnoreCondition = WhenWritingNull` is why a nullable
-                // spelling of this field would have silently vanished when
-                // false.
+                // WHAT THIS PINS, AND WHAT IT DOES NOT. It pins the SERIALISED
+                // SHAPE: the `[JsonPropertyName]` spelling, the full key set,
+                // and that both boolean values survive the responder's own
+                // `JsonOptions` (the options are the thing that decides what
+                // reaches the wire, so a bare `JsonSerializer` here would test
+                // the wrong object). It does NOT pin which branch of
+                // `PostProcessEndpoints` picks which value — that needs
+                // `ModeService` and a live host, which this harness has no way
+                // to stand up. The `required` modifier on the property is what
+                // stops a new branch omitting the field: it is a compile error,
+                // not a test. The portable suite covers the endpoint wiring
+                // end-to-end over real HTTP for the head that can be hosted.
                 static JsonNode Wire(bool postProcessed) =>
                     JsonSerializer.SerializeToNode(
                         new PostProcessResponse
@@ -6262,13 +6269,6 @@ internal static class Program
                     Assert(node["post_processed"]!.GetValue<bool>() == flag,
                         "post_processed must carry the value it was given");
                 }
-
-                // The degraded branch is the one that matters: `ok` stays true
-                // and the caller gets its own text back, so `post_processed` is
-                // the ONLY field in the body that says no LLM ran. It must
-                // survive serialisation as an explicit `false`, not be dropped.
-                Assert(Wire(false).ToJsonString().Contains("\"post_processed\":false", StringComparison.Ordinal),
-                    "a false post_processed must still be written to the wire");
             });
 
             Run("the bearer check accepts only the real token", () =>

@@ -390,7 +390,7 @@ static async Task EndpointContractSnapshots()
     using (var post = JsonDocument.Parse(await postResponse.Content.ReadAsStreamAsync()))
     {
         Assert(postResponse.StatusCode == HttpStatusCode.OK, "post-process override contract failed");
-        AssertProperties(post.RootElement, "ok", "text", "provider", "model", "preset", "latency_ms");
+        AssertProperties(post.RootElement, "ok", "text", "provider", "model", "preset", "latency_ms", "post_processed");
         Assert(fixture.Backend.PostProcess is { Prompt: "Be concise", Provider: "groq", Model: "llama" },
             "post-process provider/model overrides were lost");
     }
@@ -530,6 +530,25 @@ static async Task PostProcessContextContract()
     Assert(json.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.True,
         "post_processed must be a real boolean and must be true when an LLM ran");
     Assert(fixture.Backend.PostProcess?.ApplicationContext?.ToSnapshot().AppType == "terminal", "post-process applicationContext was lost");
+
+    // Drive the OTHER half through the real endpoint. Asserting only `true`
+    // cannot distinguish a head that forwards `PostProcessResult.PostProcessed`
+    // from one that writes a constant — and a wrongly-constant `true` is worse
+    // than the missing key this issue is about, because it claims a rewrite
+    // that never happened.
+    fixture.Backend.PostProcessApplied = false;
+    using (var skipped = await fixture.Client.PostAsync("/post-process", JsonContent("""{"text":"raw words","preset":"hyper"}""")))
+    using (var skippedJson = JsonDocument.Parse(await skipped.Content.ReadAsStreamAsync()))
+    {
+        Assert(skipped.StatusCode == HttpStatusCode.OK, "a skipped post-process must still be HTTP 200");
+        Assert(skippedJson.RootElement.EnumerateObject().Select(item => item.Name).Order().SequenceEqual(exact.Order()),
+            "a skipped post-process must carry the same key set");
+        Assert(skippedJson.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.False,
+            "post_processed must be false when no LLM ran, not dropped and not true");
+        Assert(skippedJson.RootElement.GetProperty("ok").GetBoolean(),
+            "graceful degradation keeps ok:true — post_processed is the only signal");
+    }
+    fixture.Backend.PostProcessApplied = true;
 
     using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
     Assert((await fixture.Client.PostAsync("/post-process", conflicting)).StatusCode == HttpStatusCode.BadRequest,
@@ -1047,8 +1066,15 @@ sealed class FakeBackend : ILocalApiBackend
                 [new(0, 0, 0.5, "hello")], [new("hello", 0, 0.5, 0.9)])
             : new("hello", "fake", "fake", "en", 1, 1, 2);
     }
+    /// <summary>
+    /// What <see cref="PostProcessAsync"/> reports as `post_processed`. Settable
+    /// so a test can drive BOTH halves of the flag through the real endpoint: a
+    /// fake that hard-codes `true` cannot tell a head that forwards the value
+    /// from one that writes a constant (issue #499).
+    /// </summary>
+    public bool PostProcessApplied { get; set; } = true;
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
-    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, true)); }
+    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied)); }
     public ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken ct)
     { RecordingQuery = query; return ValueTask.FromResult<IReadOnlyList<RecordingEntry>>([]); }
     public ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken ct) => ValueTask.FromResult<RecordingEntry?>(null);
