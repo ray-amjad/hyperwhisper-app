@@ -108,6 +108,7 @@ struct VocabularyEntrySnapshot: Sendable {
 struct AutoDeleteTransactionSnapshot: Sendable {
     let audioPaths: [String]
     let transcriptsDeleted: Int
+    let hasMore: Bool
 }
 
 // MARK: - Persistence Controller
@@ -1245,41 +1246,87 @@ class PersistenceController: ObservableObject {
     /// meaningful if the row was saved — on save failure the writer rolls back, so
     /// handing the ID out anyway would point at a row that doesn't exist.
     func performWriteRequiringSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T?) async -> T? {
-        let outcome = await performWriteReportingSave(block)
-        return outcome.saved ? outcome.value : nil
+        await performWriteRequiringSave(deleteWinsConflicts: false, block)
+    }
+
+    private func performWriteRequiringSave<T: Sendable>(
+        deleteWinsConflicts: Bool,
+        _ block: @escaping (NSManagedObjectContext) -> T?
+    ) async -> T? {
+        let context = writerContext
+        let result: (value: T?, saved: Bool, changed: Bool) = await context.perform {
+            let previousMergePolicy = context.mergePolicy
+            if deleteWinsConflicts {
+                context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+            }
+            defer { context.mergePolicy = previousMergePolicy }
+
+            let value = block(context)
+            let changed = context.hasChanges
+            // A nil result means that the operation aborted. Do not let partial
+            // mutations from a failed fetch or validation commit accidentally.
+            guard value != nil else {
+                if changed {
+                    context.rollback()
+                    context.refreshAllObjects()
+                }
+                return (nil, false, changed)
+            }
+
+            let saved = !changed || self.savePendingWriterChanges(context)
+            if changed {
+                context.refreshAllObjects()
+            }
+            return (value, saved, changed)
+        }
+        if result.changed {
+            await MainActor.run { self.scheduleViewContextMaintenance() }
+        }
+        return result.saved ? result.value : nil
     }
 
     private func performWriteReportingSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> (value: T, saved: Bool) {
         let context = writerContext
-        let result: (value: T, saved: Bool) = await context.perform {
+        let result: (value: T, saved: Bool, changed: Bool) = await context.perform {
             let value = block(context)
             var saved = true
-            if context.hasChanges {
-                do {
-                    try context.save()
-                    CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.writerContextKey)
-                } catch {
-                    saved = false
-                    let nsError = error as NSError
-                    // Read before `rollback()` below, which empties these sets.
-                    // A throwing save keeps its pending changes, so this is the
-                    // write that failed — and it costs nothing when saves work.
-                    let shape = CoreDataSaveDiagnostics.contextShape(context)
-                    AppLogger.logCoreData(
-                        .save(site: PersistenceController.writerSaveSite, contextKey: CoreDataSaveDiagnostics.writerContextKey),
-                        error: nsError,
-                        metadata: shape
-                    )
-                    // Never leave the long-lived writer context poisoned.
-                    context.rollback()
-                }
+            let changed = context.hasChanges
+            if changed {
+                saved = self.savePendingWriterChanges(context)
                 // Re-fault so the long-lived writer doesn't accumulate objects.
                 context.refreshAllObjects()
             }
-            return (value, saved)
+            return (value, saved, changed)
         }
-        await MainActor.run { self.scheduleViewContextMaintenance() }
-        return result
+        if result.changed {
+            await MainActor.run { self.scheduleViewContextMaintenance() }
+        }
+        return (result.value, result.saved)
+    }
+
+    private func savePendingWriterChanges(_ context: NSManagedObjectContext) -> Bool {
+        do {
+            try saveWriterContext(context)
+            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.writerContextKey)
+            return true
+        } catch {
+            let nsError = error as NSError
+            // Read before `rollback()` below, which empties these sets.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            AppLogger.logCoreData(
+                .save(site: PersistenceController.writerSaveSite, contextKey: CoreDataSaveDiagnostics.writerContextKey),
+                error: nsError,
+                metadata: shape
+            )
+            context.rollback()
+            return false
+        }
+    }
+
+    /// One overrideable persistence boundary lets tests prove production callers'
+    /// save-failure behavior without copying their fetch and mutation bodies.
+    func saveWriterContext(_ context: NSManagedObjectContext) throws {
+        try context.save()
     }
 
     /// Delete expired transcripts as one uninterrupted serial-writer transaction.
@@ -1289,10 +1336,13 @@ class PersistenceController: ObservableObject {
     /// out only after the save commits. A fetch or save failure returns `nil`, so
     /// callers must not unlink any files or record successful cleanup state.
     func deleteTranscriptsOlderThanInBackground(_ cutoffDate: Date) async -> AutoDeleteTransactionSnapshot? {
-        return await performWriteRequiringSave { context -> AutoDeleteTransactionSnapshot? in
+        return await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
             let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
             request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
             request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
+            // Keep stop-to-paste writes and the termination barrier responsive,
+            // even when an old installation has a large cleanup backlog.
+            request.fetchLimit = 101
 
             let transcripts: [Transcript]
             do {
@@ -1302,13 +1352,15 @@ class PersistenceController: ObservableObject {
                 SentryService.capture(
                     error: error,
                     message: "Failed to fetch transcripts for auto-delete",
-                    tags: ["component": "AutoDeleteCleanupService"]
+                    tags: ["component": "AutoDeleteCleanupService"],
+                    includeRecentLogs: false
                 )
                 return nil
             }
 
+            let batch = Array(transcripts.prefix(100))
             var paths: [String] = []
-            for transcript in transcripts {
+            for transcript in batch {
                 if let audioPath = transcript.audioFilePath {
                     paths.append(audioPath)
                 }
@@ -1320,7 +1372,8 @@ class PersistenceController: ObservableObject {
 
             return AutoDeleteTransactionSnapshot(
                 audioPaths: paths,
-                transcriptsDeleted: transcripts.count
+                transcriptsDeleted: batch.count,
+                hasMore: transcripts.count > batch.count
             )
         }
     }
