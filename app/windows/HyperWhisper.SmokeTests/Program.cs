@@ -10388,6 +10388,140 @@ internal static class Program
                     "replacement text would not line up with the placeholder it replaces");
             });
 
+            Run("mode editor: the wheel over a closed dropdown scrolls the page, it does not edit the mode", () =>
+            {
+                // #493. WPF's ComboBox moves its own selection on the wheel even when
+                // closed, and marks the event handled either way. Every dropdown here
+                // sits in one long ScrollViewer, so a user who picks a value - which
+                // leaves the control focused - and then scrolls to the next section
+                // silently rewrites the mode's transcription engine, with the model row
+                // and the credit line following it. Save Changes then stores an engine
+                // nobody chose.
+                //
+                // This is asserted by REPLAYING THE EVENT PAIR WPF itself raises: the
+                // tunnelling PreviewMouseWheel first, then - only if nothing handled it,
+                // which is exactly the promotion rule InputManager applies - the bubbling
+                // MouseWheel that ComboBox.OnMouseWheel reads. Raising only the preview
+                // would pass with no fix at all, because the selection is changed by the
+                // event that would then never be raised.
+                EnsureSmokeApplication();
+
+                var editor = new ModeEditorWindow(new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Wheel",
+                    ProviderType = "cloud",
+                    CloudProvider = "elevenlabs",
+                    Language = "auto"
+                });
+
+                var root = (FrameworkElement)editor.Content;
+                editor.Content = null;
+                root.Measure(new Size(550, 700));
+                root.Arrange(new Rect(0, 0, 550, 700));
+                root.UpdateLayout();
+
+                var scroller = FindDescendant<System.Windows.Controls.ScrollViewer>(root);
+                Assert(scroller is not null, "the mode editor is no longer one ScrollViewer");
+
+                var combos = DescendantsOf<System.Windows.Controls.ComboBox>(root);
+
+                // EVERY dropdown, not the one the issue happened to be over. There are a
+                // dozen and the report named six; a per-control fix would leave the rest.
+                Assert(combos.Count >= 8,
+                    $"the mode editor has {combos.Count} dropdowns - this case expects the " +
+                    "editor's full set, so it is looking at the wrong tree");
+
+                foreach (var combo in combos)
+                {
+                    // A dropdown needs at least two items for a wheel turn to have
+                    // anywhere to go; one that is still empty proves nothing.
+                    if (combo.Items.Count < 2)
+                        continue;
+
+                    combo.SelectedIndex = 0;
+                    var before = combo.SelectedIndex;
+
+                    var handled = RaiseWheelPair(combo, -120);
+
+                    Assert(combo.SelectedIndex == before,
+                        $"{NameOrType(combo)}: one wheel turn moved the selection from {before} to " +
+                        $"{combo.SelectedIndex} - the dialog silently edited the mode");
+                    Assert(handled,
+                        $"{NameOrType(combo)}: the wheel was left unhandled, so WPF will still " +
+                        "promote it to the bubbling event the ComboBox changes its selection on");
+                }
+
+                // And the wheel is not simply swallowed: the page has to scroll, which is
+                // what the user was turning the wheel for.
+                Assert(scroller!.ScrollableHeight > 0,
+                    "the editor's content fits its 700px window here, so nothing could scroll " +
+                    "and the forwarding half of this case proves nothing");
+
+                var wheelTarget = combos.First(c => c.Items.Count >= 2);
+                scroller.ScrollToVerticalOffset(0);
+                scroller.UpdateLayout();
+                RaiseWheelPair(wheelTarget, -120);
+                scroller.UpdateLayout();
+
+                Assert(scroller.VerticalOffset > 0,
+                    $"the wheel over {NameOrType(wheelTarget)} left the page at offset " +
+                    $"{scroller.VerticalOffset} - the dropdown ate the event instead of passing it on");
+
+                // An OPEN dropdown keeps the wheel: it is scrolling the list it is
+                // showing, which is the one case where the default is right.
+                var open = combos.First(c => c.Items.Count >= 2);
+                open.IsDropDownOpen = true;
+                try
+                {
+                    var openArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                    {
+                        RoutedEvent = UIElement.PreviewMouseWheelEvent
+                    };
+                    open.RaiseEvent(openArgs);
+                    Assert(!openArgs.Handled,
+                        $"{NameOrType(open)}: the guard took the wheel from an OPEN dropdown, so its " +
+                        "item list can no longer be scrolled");
+                }
+                finally
+                {
+                    open.IsDropDownOpen = false;
+                }
+            });
+
+            Run("every dropdown in the app is covered, not just the mode editor's", () =>
+            {
+                // #493 asked whether the Settings pages and the Model Library need the
+                // same treatment. Streaming, Shortcuts and Sound settings, the History
+                // page and the custom-endpoint window all hold ComboBoxes inside
+                // ScrollViewers; the Model Library (ModelsSettingsPage) holds none.
+                //
+                // The rule is registered for the TYPE rather than per control, so a bare
+                // ComboBox that belongs to no page is the honest proof of that: if this
+                // passes, every dropdown in the process is covered, including ones added
+                // later to pages this suite never constructs.
+                EnsureSmokeApplication();
+
+                var host = new System.Windows.Controls.StackPanel();
+                var combo = new System.Windows.Controls.ComboBox();
+                combo.Items.Add("first");
+                combo.Items.Add("second");
+                combo.Items.Add("third");
+                host.Children.Add(combo);
+                combo.SelectedIndex = 0;
+
+                Assert(RaiseWheelPair(combo, -120),
+                    "a plain ComboBox did not get the class handler, so the rule is not app-wide");
+                Assert(combo.SelectedIndex == 0,
+                    $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn");
+
+                // Up as well as down: ComboBox.OnMouseWheel reads the sign.
+                combo.SelectedIndex = 2;
+                RaiseWheelPair(combo, 120);
+                Assert(combo.SelectedIndex == 2,
+                    $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn upward");
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -11389,6 +11523,37 @@ internal static class Program
 
         return pages;
     }
+
+    /// <summary>
+    /// Replays the mouse-wheel event pair WPF's InputManager raises for one wheel
+    /// turn: the tunnelling PreviewMouseWheel, then - only if nothing handled it -
+    /// the bubbling MouseWheel. That promotion rule is the whole mechanism a
+    /// PreviewMouseWheel guard relies on, so a case that raises only the preview
+    /// would pass against no fix at all.
+    /// </summary>
+    /// <returns>Whether the preview was handled, i.e. whether the bubble was suppressed.</returns>
+    private static bool RaiseWheelPair(UIElement element, int delta)
+    {
+        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
+        {
+            RoutedEvent = UIElement.PreviewMouseWheelEvent
+        };
+        element.RaiseEvent(preview);
+
+        if (preview.Handled)
+            return true;
+
+        element.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
+        {
+            RoutedEvent = UIElement.MouseWheelEvent
+        });
+
+        return false;
+    }
+
+    /// <summary>The control's x:Name if it has one, so a failure names the dropdown.</summary>
+    private static string NameOrType(FrameworkElement element) =>
+        string.IsNullOrEmpty(element.Name) ? $"an unnamed {element.GetType().Name}" : element.Name;
 
     /// <summary>
     /// The width this TextBlock's own text wants with nothing constraining it.
