@@ -2659,11 +2659,9 @@ public partial class ModeEditorWindow : Window
                         "auto",
                     };
 
-                    var filteredAzure = new List<LanguageInfo>();
-                    foreach (var lang in LanguageInfo.AllLanguages)
-                    {
-                        if (allowedAzure.Contains(lang.Code)) filteredAzure.Add(lang);
-                    }
+                    var filteredAzure = LanguageInfo.AllLanguages
+                        .Where(lang => allowedAzure.Contains(lang.Code))
+                        .ToList();
 
                     // Same safety net as the tier branch: never show a near-empty
                     // picker, fall through to the full list instead.
@@ -2689,11 +2687,9 @@ public partial class ModeEditorWindow : Window
                 var allowed = Services.AppClassification.CloudSttCatalog.Shared.PickerLanguageCodesForId(tierId);
                 if (allowed is { Count: > 0 })
                 {
-                    var filtered = new List<LanguageInfo>();
-                    foreach (var lang in LanguageInfo.AllLanguages)
-                    {
-                        if (allowed.Contains(lang.Code)) filtered.Add(lang);
-                    }
+                    var filtered = LanguageInfo.AllLanguages
+                        .Where(lang => allowed.Contains(lang.Code))
+                        .ToList();
 
                     // Safety net: never show a near-empty picker. If normalization
                     // collapsed the set to ~just "auto" (a malformed/unmappable
