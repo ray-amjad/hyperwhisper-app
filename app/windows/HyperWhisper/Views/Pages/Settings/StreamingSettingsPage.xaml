@@ -353,7 +353,18 @@
                                 CornerRadius="{StaticResource InputCornerRadius}"
                                 Padding="12,10"
                                 Margin="42,0,0,10">
-                            <StackPanel Orientation="Horizontal">
+                            <!-- A two-column Grid, not a horizontal StackPanel. A
+                                 horizontal StackPanel measures its children with
+                                 infinite available width, so the TextBlock never
+                                 learns a constraint, lays out on one line and is
+                                 clipped by this Border: TextWrapping="Wrap" was set
+                                 here and could never fire (#508). The starred column
+                                 hands the text the width that is really left. -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
                                 <TextBlock Text="&#xE946;"
                                            FontFamily="Segoe MDL2 Assets"
                                            FontSize="13"
@@ -361,10 +372,11 @@
                                            VerticalAlignment="Top"
                                            Margin="0,2,8,0"/>
                                 <TextBlock x:Name="ProviderStatusText"
+                                           Grid.Column="1"
                                            FontSize="12"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            TextWrapping="Wrap"/>
-                            </StackPanel>
+                            </Grid>
                         </Border>
 
                         <Border x:Name="VocabularyWarningPanel"
@@ -375,7 +387,14 @@
                                 CornerRadius="{StaticResource InputCornerRadius}"
                                 Padding="12,10"
                                 Margin="42,0,0,18">
-                            <StackPanel Orientation="Horizontal">
+                            <!-- Same cause, same remedy: this row is the status
+                                 row's twin, one Border below it, and it carries the
+                                 longer sentence of the two. -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
                                 <TextBlock Text="&#xE7BA;"
                                            FontFamily="Segoe MDL2 Assets"
                                            Foreground="{DynamicResource WarningForegroundBrush}"
@@ -383,10 +402,11 @@
                                            Margin="0,2,8,0"
                                            FontSize="13"/>
                                 <TextBlock x:Name="VocabularyWarningText"
+                                           Grid.Column="1"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            TextWrapping="Wrap"
                                            FontSize="12"/>
-                            </StackPanel>
+                            </Grid>
                         </Border>
 
                         <TextBlock Text="Language"
