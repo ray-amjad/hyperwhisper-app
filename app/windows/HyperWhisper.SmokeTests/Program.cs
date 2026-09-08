@@ -11601,6 +11601,27 @@ internal static class Program
                         "the last key up commits the whole chord, whatever order it was released in - got ["
                         + string.Join(", ", captured) + "]");
 
+                    // A key still held from a FINISHED gesture must not hold the next
+                    // one open. Press F8 (commits), keep holding it, and tap Alt then
+                    // Shift as two separate taps: if the held F8 kept the set
+                    // non-empty, releasing it would commit a merged Alt+Shift that was
+                    // never typed - the same class of phantom chord as #513 itself.
+                    captured.Clear();
+                    var straggler = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    straggler.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    straggler.HandleKeyDown(Key.F8, control: false, alt: false, shift: false, win: false);
+                    Assert(captured.Count == 1 && captured[0] == "F8",
+                        "precondition: a bare function key is a complete chord and commits at once");
+
+                    straggler.HandleKeyDown(Key.LeftAlt, control: false, alt: true, shift: false, win: false);
+                    straggler.HandleKeyUp(Key.LeftAlt);
+                    straggler.HandleKeyDown(Key.LeftShift, control: false, alt: false, shift: true, win: false);
+                    straggler.HandleKeyUp(Key.LeftShift);
+                    straggler.HandleKeyUp(Key.F8);
+                    Assert(!captured.Contains("Alt+Shift"),
+                        "two separate taps are not one chord, whatever is still held from a finished gesture - got ["
+                        + string.Join(", ", captured) + "]");
+
                     // And a lone modifier is still refused, on that same one path.
                     captured.Clear();
                     var bare = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };

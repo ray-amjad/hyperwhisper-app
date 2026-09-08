@@ -229,6 +229,14 @@ public partial class ShortcutRecorderBox : WpfUserControl
         {
             // The chord is complete: nothing can be added to a chord that already has
             // its key, so this key-down is the end of the gesture.
+            //
+            // Forget what is still down with it. Those keys belong to a gesture that
+            // is OVER, and leaving them in the set would let them hold the NEXT one
+            // open past its own end: press F8 (commits F8) and then, without letting
+            // F8 go, tap Alt and tap Shift - two separate taps, never held together -
+            // and the still-held F8 keeps the set non-empty until it is released, at
+            // which point the merged Alt+Shift commits as though it had been typed.
+            _heldKeys.Clear();
             _pending = null;
             _gestureClosed = true;
             Commit(shortcut);
