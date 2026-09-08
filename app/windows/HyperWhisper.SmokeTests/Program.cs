@@ -5250,7 +5250,8 @@ internal static class Program
                 Assert(page.ExportButton.IsEnabled,
                     "expected ExportButton to be re-enabled after re-checking a section");
 
-                application.Shutdown();
+                // No Shutdown(): the Application is shared with every other WPF case
+                // now, so tearing it down here would depend on this case running last.
             });
 
             Run("VocabularyProcessor.ApplyReplacements trims even with no vocabulary configured — issue #92", () =>
