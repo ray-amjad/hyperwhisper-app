@@ -219,6 +219,22 @@ Set the timeout of your own HTTP client higher than its default value. Many clie
 
 The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full request and response schemas.
 
+### What `/transcribe` does to the text
+
+`/transcribe` does not run AI post-processing. `/post-process` is the endpoint for that. This is true even when the Mode you name has AI post-processing on.
+
+The deterministic text steps are different. They are your own settings, and they contain no AI. On Windows, the `text` field gives you the transcript after these three steps:
+
+- **Remove filler words**, when that setting is on. This step is for English only.
+- **Dictated break commands.** "New line" and "new paragraph" become a line break in the text.
+- **[Vocabulary](/vocabulary) replacements.**
+
+Thus the `text` for one audio file agrees with the text that dictation gives you for the same audio file and the same Mode.
+
+<Note>
+  macOS is different. It applies vocabulary replacements only, and only for the local engines that apply them inside the engine. It does not remove filler words and it does not obey a dictated break command on this route.
+</Note>
+
 ### Mode write rules
 
 `POST /modes` and `PATCH /modes/{id}` reject an empty mode name and a case-insensitive duplicate. Windows trims whitespace at the start and end of the name. macOS also normalizes Unicode and trims invisible-only characters from the boundaries. A macOS name must contain at least one visible base character.
