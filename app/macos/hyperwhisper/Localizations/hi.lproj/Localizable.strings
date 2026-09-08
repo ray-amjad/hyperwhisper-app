@@ -794,6 +794,7 @@
 "modes.field.name" = "नाम";
 "modes.field.name.placeholder" = "जैसे, मीटिंग नोट्स";
 "modes.field.name.editPlaceholder" = "मोड नाम";
+"modes.field.name.defaultLocked" = "यह डिफ़ॉल्ट मोड है, इसलिए इसका नाम नहीं बदला जा सकता। आप किसी भी अन्य मोड का नाम बदल सकते हैं।";
 "modes.field.model" = "मॉडल";
 "modes.field.provider" = "प्रदाता";
 "modes.provider.local" = "स्थानीय";

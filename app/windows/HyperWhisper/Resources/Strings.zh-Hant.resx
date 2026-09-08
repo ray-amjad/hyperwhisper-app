@@ -222,6 +222,9 @@
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
   </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>這是預設模式，因此無法變更其名稱。你可以重新命名其他任何模式。</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>

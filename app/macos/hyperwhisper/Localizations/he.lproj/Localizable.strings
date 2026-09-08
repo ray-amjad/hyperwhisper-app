@@ -794,6 +794,7 @@
 "modes.field.name" = "שם";
 "modes.field.name.placeholder" = "למשל, הערות פגישה";
 "modes.field.name.editPlaceholder" = "שם מצב";
+"modes.field.name.defaultLocked" = "זהו מצב ברירת המחדל, ולכן לא ניתן לשנות את שמו. אפשר לשנות את השם של כל מצב אחר.";
 "modes.field.model" = "מודל";
 "modes.field.provider" = "ספק";
 "modes.provider.local" = "מקומי";

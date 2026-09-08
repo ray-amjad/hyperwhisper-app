@@ -795,6 +795,7 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "modes.field.name" = "Nombre";
 "modes.field.name.placeholder" = "p. ej., Notas de reunión";
 "modes.field.name.editPlaceholder" = "Nombre del modo";
+"modes.field.name.defaultLocked" = "Este es el modo predeterminado, por lo que su nombre no se puede cambiar. Puede cambiar el nombre de cualquier otro modo.";
 "modes.field.model" = "Modelo";
 "modes.field.provider" = "Proveedor";
 "modes.provider.local" = "Local";

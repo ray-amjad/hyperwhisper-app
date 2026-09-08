@@ -794,6 +794,7 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.field.name" = "Namn";
 "modes.field.name.placeholder" = "T.ex. mötesanteckningar";
 "modes.field.name.editPlaceholder" = "Lägesnamn";
+"modes.field.name.defaultLocked" = "Det här är standardläget, så dess namn kan inte ändras. Du kan byta namn på alla andra lägen.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Leverantör";
 "modes.provider.local" = "Lokal";

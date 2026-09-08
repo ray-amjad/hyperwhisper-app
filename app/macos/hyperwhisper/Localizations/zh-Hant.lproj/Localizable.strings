@@ -794,6 +794,7 @@
 "modes.field.name" = "名稱";
 "modes.field.name.placeholder" = "例如，會議筆記";
 "modes.field.name.editPlaceholder" = "模式名稱";
+"modes.field.name.defaultLocked" = "這是預設模式，因此無法變更其名稱。你可以重新命名其他任何模式。";
 "modes.field.model" = "模型";
 "modes.field.provider" = "提供商";
 "modes.provider.local" = "本地";

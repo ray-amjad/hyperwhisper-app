@@ -794,6 +794,7 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.field.name" = "Tên";
 "modes.field.name.placeholder" = "ví dụ: Ghi chú Cuộc họp";
 "modes.field.name.editPlaceholder" = "Tên chế độ";
+"modes.field.name.defaultLocked" = "Đây là chế độ mặc định nên không thể đổi tên. Bạn có thể đổi tên bất kỳ chế độ nào khác.";
 "modes.field.model" = "Mô hình";
 "modes.field.provider" = "Nhà cung cấp";
 "modes.provider.local" = "Cục bộ";

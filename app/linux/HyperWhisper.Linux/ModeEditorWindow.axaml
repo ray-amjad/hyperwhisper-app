@@ -37,8 +37,17 @@
           </StackPanel>
           <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
                      Text="{ReflectionBinding [mode.editor.field.name], Source={StaticResource Localization}}"/>
+          <!-- The default mode's name is fixed on Windows (ModeEditorWindow.xaml.cs) and on
+               macOS (ModeEditorView.swift); Linux let it be renamed, so a backup taken here and
+               restored there froze a mode under whatever name Linux had given it. Both the gate
+               and the reason come from the same IsDefaultModeSelected, so the field can never be
+               dead without the sentence beside it. Issue #494. -->
           <TextBox x:Name="ModeNameInput" Text="{Binding Name}"
+                   IsEnabled="{Binding !IsDefaultModeSelected}"
                    PlaceholderText="{ReflectionBinding [mode.editor.field.name], Source={StaticResource Localization}}"/>
+          <TextBlock x:Name="ModeNameLockedHint" Classes="caption" TextWrapping="Wrap" Margin="0,4,0,0"
+                     IsVisible="{Binding IsDefaultModeSelected}"
+                     Text="{ReflectionBinding [mode.editor.field.name.defaultLocked], Source={StaticResource Localization}}"/>
         </StackPanel>
       </Border>
 

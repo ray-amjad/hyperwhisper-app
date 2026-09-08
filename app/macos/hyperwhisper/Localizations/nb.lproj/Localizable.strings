@@ -794,6 +794,7 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.field.name" = "Navn";
 "modes.field.name.placeholder" = "f.eks. møtenotater";
 "modes.field.name.editPlaceholder" = "Modusnavn";
+"modes.field.name.defaultLocked" = "Dette er standardmodusen, så navnet kan ikke endres. Du kan gi alle andre moduser nytt navn.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Leverandør";
 "modes.provider.local" = "Lokal";

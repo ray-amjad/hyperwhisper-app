@@ -794,6 +794,7 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.field.name" = "Vardas";
 "modes.field.name.placeholder" = "pvz., susitikimo pastabos";
 "modes.field.name.editPlaceholder" = "Režimo vardas";
+"modes.field.name.defaultLocked" = "Tai numatytasis režimas, todėl jo pavadinimo keisti negalima. Bet kurį kitą režimą galite pervadinti.";
 "modes.field.model" = "Modelis";
 "modes.field.provider" = "Teikėjas";
 "modes.provider.local" = "Vietinis";

@@ -794,6 +794,7 @@
 "modes.field.name" = "ชื่อ";
 "modes.field.name.placeholder" = "เช่น บันทึกการประชุม";
 "modes.field.name.editPlaceholder" = "ชื่อโหมด";
+"modes.field.name.defaultLocked" = "นี่คือโหมดเริ่มต้น จึงไม่สามารถเปลี่ยนชื่อได้ คุณสามารถเปลี่ยนชื่อโหมดอื่นได้";
 "modes.field.model" = "โมเดล";
 "modes.field.provider" = "ผู้ให้บริการ";
 "modes.provider.local" = "ท้องถิ่น";

@@ -222,6 +222,9 @@
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
   </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Đây là chế độ mặc định nên không thể đổi tên. Bạn có thể đổi tên bất kỳ chế độ nào khác.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>

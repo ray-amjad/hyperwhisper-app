@@ -11090,6 +11090,47 @@ internal static class Program
                     "replacement text would not line up with the placeholder it replaces");
             });
 
+            Run("mode editor: the default mode's locked name says why, and only the default's is locked", () =>
+            {
+                // #494. The default mode's Name field is disabled, correctly, but with
+                // nothing to say so: a greyed-out text box that still looks like a text
+                // box reads as a broken control rather than a deliberate rule.
+                //
+                // Both halves are asserted, because a hint that shows on EVERY mode
+                // would be just as wrong as no hint at all - it would tell five
+                // renameable modes that they cannot be renamed.
+                EnsureSmokeApplication();
+
+                static ModeEditorWindow Editor(bool isDefault) => new(new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = isDefault ? "Hyper" : "Message",
+                    IsDefault = isDefault,
+                    ProviderType = "cloud",
+                    CloudProvider = "elevenlabs",
+                    Language = "auto"
+                });
+
+                var defaultEditor = Editor(isDefault: true);
+                Assert(!defaultEditor.ModeNameBox.IsEnabled,
+                    "the default mode's name field is editable - the rule this hint explains is gone");
+                Assert(defaultEditor.ModeNameLockedHint.Visibility == Visibility.Visible,
+                    "the default mode's name field is disabled with no explanation beside it, which " +
+                    "is exactly what #494 reported");
+
+                var hint = defaultEditor.ModeNameLockedHint.Text;
+                Assert(!string.IsNullOrWhiteSpace(hint) && hint != "mode.editor.field.name.defaultLocked",
+                    $"the hint reads '{hint}' - the localization key did not resolve, so the user " +
+                    "sees a resource id where the reason should be");
+
+                var ordinaryEditor = Editor(isDefault: false);
+                Assert(ordinaryEditor.ModeNameBox.IsEnabled,
+                    "an ordinary mode's name field is disabled - every mode but the default renames");
+                Assert(ordinaryEditor.ModeNameLockedHint.Visibility == Visibility.Collapsed,
+                    "an ordinary mode is told its name cannot be changed, which is untrue and is " +
+                    "the mirror image of the reported bug");
+            });
+
             Run("mode editor: the wheel over a closed dropdown scrolls the page, it does not edit the mode", () =>
             {
                 // #493. WPF's ComboBox moves its own selection on the wheel even when

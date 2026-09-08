@@ -794,6 +794,7 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.field.name" = "Ime";
 "modes.field.name.placeholder" = "npr., Zapisnici sa sastanka";
 "modes.field.name.editPlaceholder" = "Ime načina";
+"modes.field.name.defaultLocked" = "Ovo je zadani način rada pa se njegov naziv ne može promijeniti. Svaki drugi način rada možete preimenovati.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Pružatelj usluga";
 "modes.provider.local" = "Lokalno";

@@ -26,7 +26,23 @@ public partial class ModeEditorWindow : Window
         _mode = mode;
         _isCreateMode = false;
 
+        ApplyDefaultModeNameLock();
         Loaded += OnLoaded;
+    }
+
+    /// <summary>
+    /// The default mode's name is fixed, and the field says so rather than just going
+    /// grey (issue #494). Keyed on IsDefault - the mode's identity, not its label.
+    ///
+    /// Here and not in Loaded: it reads only _mode, which is fixed from construction,
+    /// so a window that is never shown still applies the rule.
+    /// </summary>
+    private void ApplyDefaultModeNameLock()
+    {
+        ModeNameBox.IsEnabled = !_mode.IsDefault;
+        ModeNameLockedHint.Visibility = _mode.IsDefault ? Visibility.Visible : Visibility.Collapsed;
+        System.Windows.Automation.AutomationProperties.SetHelpText(
+            ModeNameBox, _mode.IsDefault ? ModeNameLockedHint.Text : string.Empty);
     }
 
     public ModeEditorWindow(bool isCreateMode)
@@ -62,6 +78,9 @@ public partial class ModeEditorWindow : Window
             ModifiedDate = DateTime.UtcNow
         };
 
+        // No ApplyDefaultModeNameLock() here: this constructor sets IsDefault = false
+        // above, so the lock could only ever be a no-op, and the XAML already ships
+        // the unlocked state.
         Loaded += OnLoaded;
     }
 
@@ -84,9 +103,6 @@ public partial class ModeEditorWindow : Window
             DeleteModeButton.Visibility = Visibility.Collapsed;
             SaveModeButton.Content = Loc.S("modes.button.create");
         }
-
-        // Disable name field for Default mode
-        ModeNameBox.IsEnabled = !_mode.IsDefault;
 
         // Update save button state based on name
         UpdateSaveButtonState();

@@ -81,7 +81,8 @@ static void AllCatalogsLoad()
     // states and printed the finished one on arrival. 849 -> 851:
     //   onboarding.setup.cloud.subtitle.pending
     //   onboarding.setup.cloud.subtitle.balancePending
-    Equal(851, PortableLocalizer.BaseKeyCount, "base key count");
+    // Plus one for the default mode's locked-name explanation (issue #494).
+    Equal(852, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

@@ -222,6 +222,9 @@
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
   </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Este é o modo predefinido, por isso o seu nome não pode ser alterado. Pode mudar o nome de qualquer outro modo.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>

@@ -794,6 +794,7 @@
 "modes.field.name" = "Όνομα";
 "modes.field.name.placeholder" = "π.χ., Σημειώσεις Συνάντησης";
 "modes.field.name.editPlaceholder" = "Όνομα λειτουργίας";
+"modes.field.name.defaultLocked" = "Αυτή είναι η προεπιλεγμένη λειτουργία, επομένως το όνομά της δεν μπορεί να αλλάξει. Μπορείτε να μετονομάσετε οποιαδήποτε άλλη λειτουργία.";
 "modes.field.model" = "Μοντέλο";
 "modes.field.provider" = "Πάροχος";
 "modes.provider.local" = "Τοπικό";

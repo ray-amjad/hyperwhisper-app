@@ -222,6 +222,9 @@
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
   </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Ini ialah mod lalai, jadi namanya tidak boleh ditukar. Anda boleh menamakan semula mana-mana mod lain.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>

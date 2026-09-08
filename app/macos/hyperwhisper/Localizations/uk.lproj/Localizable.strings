@@ -794,6 +794,7 @@
 "modes.field.name" = "Ім'я";
 "modes.field.name.placeholder" = "наприклад, Замітки зустрічі";
 "modes.field.name.editPlaceholder" = "Назва режиму";
+"modes.field.name.defaultLocked" = "Це режим за замовчуванням, тому його назву не можна змінити. Будь-який інший режим можна перейменувати.";
 "modes.field.model" = "Модель";
 "modes.field.provider" = "Постачальник";
 "modes.provider.local" = "Локально";

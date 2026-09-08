@@ -794,6 +794,7 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.field.name" = "Name";
 "modes.field.name.placeholder" = "z. B. Besprechungsnotizen";
 "modes.field.name.editPlaceholder" = "Modusname";
+"modes.field.name.defaultLocked" = "Dies ist der Standardmodus, daher kann sein Name nicht geändert werden. Jeden anderen Modus können Sie umbenennen.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Anbieter";
 "modes.provider.local" = "Lokal";

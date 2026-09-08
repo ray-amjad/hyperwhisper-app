@@ -222,6 +222,9 @@
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
   </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Bu varsayılan moddur, bu nedenle adı değiştirilemez. Diğer tüm modları yeniden adlandırabilirsiniz.</value>
+  </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
   </data>

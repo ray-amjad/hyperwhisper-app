@@ -794,6 +794,7 @@
 "modes.field.name" = "이름";
 "modes.field.name.placeholder" = "예: 회의록";
 "modes.field.name.editPlaceholder" = "모드 이름";
+"modes.field.name.defaultLocked" = "기본 모드이므로 이름을 변경할 수 없습니다. 다른 모드는 이름을 변경할 수 있습니다.";
 "modes.field.model" = "모델";
 "modes.field.provider" = "제공자";
 "modes.provider.local" = "로컬";

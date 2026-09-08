@@ -794,6 +794,7 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 "modes.field.name" = "Nazev";
 "modes.field.name.placeholder" = "napr. Poznamky ze schuzky";
 "modes.field.name.editPlaceholder" = "Nazev rezimu";
+"modes.field.name.defaultLocked" = "Toto je výchozí režim, proto jeho název nelze změnit. Kterýkoli jiný režim přejmenovat můžete.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Poskytovatel";
 "modes.provider.local" = "Lokalni";

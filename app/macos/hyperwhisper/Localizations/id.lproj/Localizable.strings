@@ -794,6 +794,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.field.name" = "Nama";
 "modes.field.name.placeholder" = "misalnya, Catatan Rapat";
 "modes.field.name.editPlaceholder" = "Nama mode";
+"modes.field.name.defaultLocked" = "Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Penyedia";
 "modes.provider.local" = "Lokal";
