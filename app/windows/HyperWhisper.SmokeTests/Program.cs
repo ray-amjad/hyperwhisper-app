@@ -5229,8 +5229,7 @@ internal static class Program
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
 
-                var application = new System.Windows.Application();
-                LoadApplicationResources(application);
+                EnsureSmokeApplication();
 
                 // Constructing the page exercises the exact construction-order NRE this
                 // regression test covers. Export selection handlers must not run until
@@ -5251,7 +5250,8 @@ internal static class Program
                 Assert(page.ExportButton.IsEnabled,
                     "expected ExportButton to be re-enabled after re-checking a section");
 
-                application.Shutdown();
+                // No Shutdown(): the Application is shared with every other WPF case
+                // now, so tearing it down here would depend on this case running last.
             });
 
             Run("VocabularyProcessor.ApplyReplacements trims even with no vocabulary configured — issue #92", () =>
@@ -10160,6 +10160,186 @@ internal static class Program
 
             SynchronizationContext.SetSynchronizationContext(balancePreviousContext);
 
+            Run("modes: a 300-character mode name is ellipsised on the card, not clipped under the gear", () =>
+            {
+                // #492. A mode name is free user text with no cap anywhere - not in the
+                // editor, not in the entity, not in the column. The card header is a
+                // three-column Grid (name *, offline badge Auto, gear Auto), so the star
+                // column does stop the name pushing the gear off the card; what it does
+                // NOT do is say the name was cut. Without TextTrimming the TextBlock
+                // hard-clips mid-glyph right under the gear button, which reads as a
+                // rendering fault rather than as a long name.
+                //
+                // The offline badge between them is collapsed here and, today, always:
+                // its DataTrigger binds IsOfflineCapable, which exists on the macOS Mode
+                // and on no C# type, so WPF no-ops it. That is its own defect and is
+                // filed separately; the geometry below deliberately does not depend on
+                // the badge's width either way.
+                //
+                // MEASURED, not grepped: the attribute can be added to the wrong
+                // TextBlock, and a future container change could reintroduce the clip
+                // with the attribute still present.
+                EnsureSmokeApplication();
+
+                var longName = "LongName" + new string('X', 292);
+                var page = new HyperWhisper.Views.Pages.ModesPage();
+                var list = (System.Windows.Controls.ListBox)page.FindName("ModeListBox")!;
+
+                // ModesPage only reaches ModeService from its Loaded handler, and a
+                // detached element is never Loaded, so the list is fed directly here.
+                list.ItemsSource = new[]
+                {
+                    new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = longName,
+                        ProviderType = "cloud",
+                        CloudProvider = "hyperwhisper",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    }
+                };
+
+                page.Measure(new Size(1000, 700));
+                page.Arrange(new Rect(0, 0, 1000, 700));
+                page.UpdateLayout();
+
+                var nameBlock = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Name == "ModeNameText");
+                Assert(nameBlock is not null, "the mode card no longer has a ModeNameText");
+
+                // The row itself is untouched: this is a display fix, and the card must
+                // still carry the whole name so the tooltip and any copy of it are right.
+                Assert(nameBlock!.Text == longName,
+                    $"the card bound {nameBlock.Text.Length} characters of a {longName.Length}-character " +
+                    "name - the name is being truncated in data, which is not the fix");
+
+                Assert(nameBlock.TextTrimming == TextTrimming.CharacterEllipsis,
+                    $"ModeNameText trims with {nameBlock.TextTrimming}: a name wider than its column " +
+                    "is cut off mid-glyph with nothing to show it continues");
+
+                // Prove the case actually exercises the overflow. If the card were ever
+                // wide enough to fit 300 characters, every assertion above would pass
+                // while proving nothing at all.
+                var unconstrained = UnconstrainedWidthOf(nameBlock);
+                Assert(nameBlock.ActualWidth > 0,
+                    "ModeNameText measured 0 - it never took part in the layout pass");
+                Assert(unconstrained > nameBlock.ActualWidth,
+                    $"the {longName.Length}-character name wanted {unconstrained:F0}px and got " +
+                    $"{nameBlock.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
+
+                // And the gear is still reachable: fully inside the card, clear of the name.
+                var container = (System.Windows.Controls.ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+                Assert(container is not null, "the ListBox generated no container for the mode");
+                var gear = DescendantsOf<System.Windows.Controls.Button>(container!)
+                    .FirstOrDefault(b => b.Tag is Mode);
+                Assert(gear is not null && gear.ActualWidth > 0, "the mode card has no laid-out gear button");
+
+                var gearLeft = gear!.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+                var nameLeft = nameBlock.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+
+                Assert(gearLeft + gear.ActualWidth <= container!.ActualWidth + 0.5,
+                    $"the gear button ends at {gearLeft + gear.ActualWidth:F1} on a {container.ActualWidth:F1} " +
+                    "wide card - a long name has pushed it off the card");
+                Assert(nameLeft + nameBlock.ActualWidth <= gearLeft + 0.5,
+                    $"the name ends at {nameLeft + nameBlock.ActualWidth:F1} and the gear starts at " +
+                    $"{gearLeft:F1} - the name is rendering underneath the gear button");
+            });
+
+            Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>
+            {
+                // #492, and this is the half the issue actually complained about: with a
+                // 300-character name the status bar showed the name and nothing else -
+                // "Ready - Press Ctrl+Alt to record" and "Model: HyperWhisper Cloud
+                // (Ready)" were both gone, because the mode name sits in an Auto column
+                // and an Auto column grows to whatever it is given.
+                //
+                // The window is a fixed 1000 wide and CanMinimize, so this row's budget
+                // is fixed too and can be measured exactly: 1000 less the 232 sidebar
+                // (Generic.xaml ContentSidebarWidth) less the StatusBarStyle's 12,5
+                // padding on each side.
+                EnsureSmokeApplication();
+
+                const double budget = 1000 - 232 - 24;
+                var longName = "LongName" + new string('X', 292);
+
+                // Both cases, because the post-processing column is what makes the
+                // budget tight: it is Collapsed on a cloud mode and visible on a local
+                // post-processing one, and only the second case was ever near the edge.
+                foreach (var withPostProcessing in new[] { false, true })
+                {
+                    var bar = new StatusBarView
+                    {
+                        // Bindings are duck-typed, so the row can be measured against a
+                        // probe instead of the real MainViewModel - which builds the
+                        // audio stack and the tray icon in its constructor.
+                        DataContext = new StatusBarProbe
+                        {
+                            StatusText = HyperWhisper.Localization.Loc.S("status.ready.withHotkey", "Ctrl+Alt"),
+                            CurrentMode = new Mode { Name = longName },
+                            // The longest shape ModelStatus takes: "Local: {0} ({1} Ready)".
+                            ModelStatus = HyperWhisper.Localization.Loc.S(
+                                "status.model.localReady", "Parakeet TDT 0.6B v3", "GPU"),
+                            HasLocalPostProcessingStatus = withPostProcessing,
+                            LocalPostProcessingStatus = "Llama 3.2 3B Instruct Q4_K_M"
+                        }
+                    };
+
+                    bar.Measure(new Size(budget, 26));
+                    bar.Arrange(new Rect(0, 0, budget, 26));
+                    bar.UpdateLayout();
+
+                    var label = withPostProcessing ? "with post-processing" : "cloud mode";
+
+                    // THE BUG, STATED AS THE BUG: nothing may be pushed out of the row.
+                    // On main the name's Auto column took the whole width and both of
+                    // these measured nothing at all.
+                    foreach (var (name, block) in new[]
+                             {
+                                 ("StatusText", bar.StatusText),
+                                 ("ModelStatusText", bar.ModelStatusText)
+                             })
+                    {
+                        Assert(block.ActualWidth > 0,
+                            $"{label}: {name} measured 0 - the mode name has taken the whole bar");
+                    }
+
+                    // On a cloud mode - the issue's own repro, and the common case, since
+                    // the post-processing column only appears for a LOCAL LLM - both must
+                    // be WHOLE and not merely present. A hint trimmed to "Ready - Press
+                    // Ct..." would satisfy the check above while still hiding the hotkey.
+                    //
+                    // The tight case is deliberately not held to this. Four items in a
+                    // fixed 744px row, two of them long local model names, genuinely do
+                    // not all fit; the caps decide who gives way, and every one of them
+                    // now says so with an ellipsis instead of vanishing.
+                    if (!withPostProcessing)
+                    {
+                        foreach (var (name, block) in new[]
+                                 {
+                                     ("StatusText", bar.StatusText),
+                                     ("ModelStatusText", bar.ModelStatusText)
+                                 })
+                        {
+                            Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
+                                $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
+                                $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
+                        }
+                    }
+
+                    Assert(bar.DesiredSize.Width <= budget + 0.5,
+                        $"{label}: the status bar wants {bar.DesiredSize.Width:F1}px of a " +
+                        $"{budget:F0}px row, so its right-hand item leaves the window");
+
+                    // And the mode name is the item that gives way, with an ellipsis.
+                    Assert(bar.ModeNameText.TextTrimming == TextTrimming.CharacterEllipsis,
+                        $"{label}: the mode name trims with {bar.ModeNameText.TextTrimming}");
+                    Assert(bar.ModeNameText.ActualWidth < UnconstrainedWidthOf(bar.ModeNameText),
+                        $"{label}: the {longName.Length}-character name was not truncated at all, " +
+                        "so this case proves nothing");
+                }
+            });
+
             Run("vocabulary: the whole replacement box is the replacement field — issue #496", () =>
             {
                 // The replacement row is DRAWN as a 64px text area. The TextBox inside
@@ -10173,13 +10353,11 @@ internal static class Program
                 // InitializeComponent and takes the service singleton, whose constructor
                 // is empty. Every read hangs off OnLoaded, which never fires on a
                 // detached tree.
-                var application = EnsureSmokeApplication();
-
-                // The page binds through a converter App.xaml declares inline, which
-                // LoadApplicationResources does not carry; StaticResource resolves at
-                // parse time, so it has to be there before the page is constructed.
-                if (!application.Resources.Contains("BoolToVisibilityConverter"))
-                    application.Resources["BoolToVisibilityConverter"] = new BoolToVisibilityConverter();
+                // The page binds through BoolToVisibilityConverter, which App.xaml
+                // declares inline and {StaticResource} resolves at parse time. The
+                // helper loads App.xaml itself, so it is already there - this used to
+                // need a hand-registration here.
+                EnsureSmokeApplication();
 
                 var page = new HyperWhisper.Views.Pages.VocabularyPage();
 
@@ -11348,8 +11526,7 @@ internal static class Program
         // than the column has must also SAY it was shortened, or the same value is
         // still cut mid-word - just tidily. Capping the width alone would satisfy the
         // measurement above and reproduce the defect.
-        readout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var natural = readout.DesiredSize.Width - readout.Margin.Left - readout.Margin.Right;
+        var natural = UnconstrainedWidthOf(readout);
 
         if (natural <= readout.ActualWidth + 0.5)
             return;
@@ -11396,6 +11573,35 @@ internal static class Program
         page.UpdateLayout();
 
         return page;
+    }
+
+    /// <summary>
+    /// The width this TextBlock's own text wants with nothing constraining it.
+    /// Comparing that against ActualWidth is how a layout case tells "fits" from
+    /// "was cut", without hard-coding a pixel number that a font change invalidates.
+    /// </summary>
+    private static double UnconstrainedWidthOf(System.Windows.Controls.TextBlock block)
+    {
+        var typeface = new System.Windows.Media.Typeface(
+            block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+
+        return new System.Windows.Media.FormattedText(
+            block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+            block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+    }
+
+    /// <summary>
+    /// Everything MainWindow's status bar binds, and nothing else. WPF bindings
+    /// are duck-typed, so the row can be laid out against this instead of the real
+    /// MainViewModel, whose constructor builds the audio stack and the tray icon.
+    /// </summary>
+    private sealed class StatusBarProbe
+    {
+        public string StatusText { get; init; } = "";
+        public Mode? CurrentMode { get; init; }
+        public string ModelStatus { get; init; } = "";
+        public string LocalPostProcessingStatus { get; init; } = "";
+        public bool HasLocalPostProcessingStatus { get; init; }
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
@@ -11457,33 +11663,27 @@ internal static class Program
     }
 
     /// <summary>
-    /// The Application every WPF case needs, created once. There is one per AppDomain
-    /// and an earlier case may already own it, so this is a get-or-create rather than a
-    /// constructor call.
+    /// The one WPF Application this process gets, and it is the app's OWN
+    /// <see cref="App"/> with App.xaml's resources loaded.
+    ///
+    /// That matters, and a hand-written copy of those resources would not: page
+    /// XAML resolves {StaticResource} at PARSE time, so a page whose converter or
+    /// brush is missing cannot be constructed at all, and the failure lands as a
+    /// XamlParseException in whichever case first touches the new key. Loading
+    /// App.xaml means the harness cannot drift from the app.
+    ///
+    /// Only InitializeComponent runs. OnStartup, StartupUri and therefore
+    /// SingleInstanceGuard and MainWindow are all Run()'s doing, and this process
+    /// never calls Run().
     /// </summary>
     private static System.Windows.Application EnsureSmokeApplication()
     {
-        var application = System.Windows.Application.Current;
-        if (application is not null)
-            return application;
+        // One Application per AppDomain, and an earlier case may already own it.
+        if (System.Windows.Application.Current is { } existing)
+            return existing;
 
-        application = new System.Windows.Application();
-        LoadApplicationResources(application);
+        var application = new App();
+        application.InitializeComponent();
         return application;
-    }
-
-    private static void LoadApplicationResources(System.Windows.Application application)
-    {
-        AddResourceDictionary(application, "Themes/LightColors.xaml");
-        AddResourceDictionary(application, "Themes/Brushes.xaml");
-        AddResourceDictionary(application, "Themes/Generic.xaml");
-    }
-
-    private static void AddResourceDictionary(System.Windows.Application application, string resourcePath)
-    {
-        application.Resources.MergedDictionaries.Add(new ResourceDictionary
-        {
-            Source = new Uri($"pack://application:,,,/HyperWhisper;component/{resourcePath}", UriKind.Absolute)
-        });
     }
 }
