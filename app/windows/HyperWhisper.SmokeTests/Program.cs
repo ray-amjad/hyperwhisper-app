@@ -12370,7 +12370,7 @@ internal static class Program
                     about.UpdateLayout();
                     var aboutText = VisualTextOf(about);
                     Assert(aboutText.Any(t => t.StartsWith(
-                            HyperWhisper.Localization.Loc.S("settings.about.version", string.Empty).Trim(),
+                            HyperWhisper.Localization.Loc.S("menu.version.label", string.Empty).Trim(),
                             StringComparison.Ordinal)),
                         "the About version line is not the localized string");
                     Assert(!aboutText.Any(t => t.StartsWith("Version ", StringComparison.Ordinal)),
