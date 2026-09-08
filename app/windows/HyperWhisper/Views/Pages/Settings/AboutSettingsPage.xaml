@@ -40,8 +40,12 @@
                                        FontSize="16"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <!-- Empty on purpose. OnLoaded writes the localized
+                                 line; a seed value here is English, is the wrong
+                                 version number, and is what any render that does
+                                 not raise Loaded shows for good. -->
                             <TextBlock x:Name="VersionText"
-                                       Text="Version 1.0.0"
+                                       Text=""
                                        FontSize="12"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0"/>

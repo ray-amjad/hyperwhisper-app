@@ -6,7 +6,6 @@
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
-using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 
@@ -292,14 +291,16 @@ public partial class ShortcutRecorderBox : WpfUserControl
     {
         // VALIDATE: reject unsafe single bare modifiers, but allow intentional
         // multi-modifier chords such as Ctrl+Win.
-        if (shortcut.IsSingleBareModifier)
+        //
+        // The RULE and the SENTENCE both belong to ValidateActionShortcut. This
+        // used to re-test IsSingleBareModifier here and carry its own copy of the
+        // message, which is how one copy stayed English after the other was
+        // localized (issue #516) - and how the two could disagree about which
+        // chords are legal at all.
+        var actionError = ShortcutValidationService.ValidateActionShortcut(shortcut);
+        if (actionError != null)
         {
-            // ShortcutValidationService.ValidateActionShortcut() below returns this
-            // same sentence, so it is asked for rather than repeated: two copies of
-            // one message drift, and this copy is the one that was still English
-            // after the other was localized (issue #516).
-            ShowError(ShortcutValidationService.ValidateActionShortcut(shortcut)
-                      ?? Loc.S("settings.shortcuts.error.singleModifier"));
+            ShowError(actionError);
             RestoreFieldText();
             LoggingService.Debug($"ShortcutRecorderBox: rejected single-modifier shortcut for {Role}: {shortcut}");
             return;
@@ -322,7 +323,10 @@ public partial class ShortcutRecorderBox : WpfUserControl
         {
             ShowError(validationError);
             RestoreFieldText();
-            LoggingService.Warn($"ShortcutRecorderBox: shortcut validation failed for {Role}: {validationError}");
+            // The chord and the role, not the sentence: that sentence is now a
+            // catalogue value, and a support log that changes language with the
+            // user's display setting cannot be grepped across a corpus.
+            LoggingService.Warn($"ShortcutRecorderBox: shortcut validation failed for {Role}: {shortcut}");
             return;
         }
 

@@ -35,20 +35,25 @@ public static class ShortcutValidationService
     }
 
     /// <summary>
-    /// The localized label for one of the four shortcut roles, so the duplicate
-    /// message names the row the user can actually see on the page.
+    /// The four action roles, each with the resource key for the label the
+    /// Shortcuts page already prints above its row. The duplicate message names
+    /// a row, so it has to name it the way the user sees it.
     ///
     /// The role strings themselves ("Toggle", "Cancel", "ChangeMode",
-    /// "Streaming") are call-site identifiers and settings keys, not display
-    /// text: they must NOT be translated. Only the label is.
+    /// "Streaming") are call-site identifiers and settings keys, NOT display
+    /// text: they are never translated. Only the label is.
+    ///
+    /// A table rather than four branches: once the four sentences became one
+    /// template, the four checks differed only by these two fields, and a
+    /// copy-paste slip between them would silently name the wrong row in every
+    /// language while still compiling and still reading correctly.
     /// </summary>
-    private static string RoleLabel(string role) => role switch
+    private static readonly (string Role, string LabelKey)[] ActionRoles =
     {
-        "Toggle" => Loc.S("settings.shortcuts.toggle.label"),
-        "Cancel" => Loc.S("settings.shortcuts.cancel.label"),
-        "ChangeMode" => Loc.S("settings.shortcuts.changeMode.label"),
-        "Streaming" => Loc.S("settings.shortcuts.streaming.label"),
-        _ => role
+        ("Toggle", "settings.shortcuts.toggle.label"),
+        ("Cancel", "settings.shortcuts.cancel.label"),
+        ("ChangeMode", "settings.shortcuts.changeMode.label"),
+        ("Streaming", "settings.shortcuts.streaming.label"),
     };
 
     /// <summary>
@@ -69,31 +74,20 @@ public static class ShortcutValidationService
         var actionError = ValidateActionShortcut(shortcut);
         if (actionError != null) return actionError;
 
-        // Check against Toggle (unless we're setting Toggle)
-        if (currentRole != "Toggle" && shortcut.Equals(toggleShortcut))
+        // Check against each of the four action shortcuts, skipping the one the
+        // caller is setting. Order is the page's order, which is the order this
+        // used to test them in.
+        var assigned = new[] { toggleShortcut, cancelShortcut, changeModeShortcut, streamingShortcut };
+        for (var i = 0; i < ActionRoles.Length; i++)
         {
-            return Loc.S("settings.shortcuts.error.duplicate",
-                RoleLabel("Toggle"), toggleShortcut.ToDisplayString());
-        }
+            var (role, labelKey) = ActionRoles[i];
+            if (currentRole == role || !shortcut.Equals(assigned[i]))
+            {
+                continue;
+            }
 
-        // Check against Cancel (unless we're setting Cancel)
-        if (currentRole != "Cancel" && shortcut.Equals(cancelShortcut))
-        {
             return Loc.S("settings.shortcuts.error.duplicate",
-                RoleLabel("Cancel"), cancelShortcut.ToDisplayString());
-        }
-
-        // Check against ChangeMode (unless we're setting ChangeMode)
-        if (currentRole != "ChangeMode" && shortcut.Equals(changeModeShortcut))
-        {
-            return Loc.S("settings.shortcuts.error.duplicate",
-                RoleLabel("ChangeMode"), changeModeShortcut.ToDisplayString());
-        }
-
-        if (currentRole != "Streaming" && shortcut.Equals(streamingShortcut))
-        {
-            return Loc.S("settings.shortcuts.error.duplicate",
-                RoleLabel("Streaming"), streamingShortcut.ToDisplayString());
+                Loc.S(labelKey), assigned[i].ToDisplayString());
         }
 
         return null; // No duplicates

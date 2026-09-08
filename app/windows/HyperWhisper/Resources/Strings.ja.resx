@@ -457,9 +457,6 @@
   <data name="settings.version.detail" xml:space="preserve">
     <value>バージョン {0} ({1})</value>
   </data>
-  <data name="settings.about.version" xml:space="preserve">
-    <value>バージョン {0}</value>
-  </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>ヘルプセンター</value>
   </data>
@@ -1196,8 +1193,14 @@
   <data name="settings.shortcuts.conflict.title" xml:space="preserve">
     <value>ショートカットの競合</value>
   </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>ストリーミングのショートカットの競合</value>
+  </data>
   <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
     <value>ショートカット設定を開く</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>ショートカットを変更</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">

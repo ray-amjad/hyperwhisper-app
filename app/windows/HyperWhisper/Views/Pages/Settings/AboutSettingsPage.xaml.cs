@@ -22,13 +22,16 @@ public partial class AboutSettingsPage : Page
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        // The number itself is an identifier and stays as it is; only the word
-        // around it is translated, the same way GeneralSettingsPage already does
-        // it with settings.version.detail (issue #516).
-        VersionText.Text = Loc.S(
-            "settings.about.version",
-            $"{version?.Major}.{version?.Minor}.{version?.Build}");
+        // menu.version.label rather than a third "Version {0}" key: it is the
+        // same one-argument version line the tray menu already renders
+        // (MainWindow.xaml.cs), and the macOS catalog carries the same key, so
+        // the two cannot drift apart. The number is an identifier and stays as
+        // it is; only the word around it is translated (issue #516).
+        //
+        // ToString(3) with the "Unknown" fallback matches both other sites. The
+        // interpolation this replaced printed ".." for a null Version.
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "Unknown";
+        VersionText.Text = Loc.S("menu.version.label", version);
     }
 
     private void OpenLogFolder_Click(object sender, RoutedEventArgs e)

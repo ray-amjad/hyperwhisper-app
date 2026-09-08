@@ -1105,8 +1105,14 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.conflict.title" xml:space="preserve">
     <value>Kortkommandokonflikt</value>
   </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Konflikt med strömningskortkommando</value>
+  </data>
   <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
     <value>Öppna inställningar för kortkommandon</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Ändra kortkommando</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1716,9 +1722,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
     <value>Version {0} ({1})</value>
-  </data>
-  <data name="settings.about.version" xml:space="preserve">
-    <value>Version {0}</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>

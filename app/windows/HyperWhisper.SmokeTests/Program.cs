@@ -12226,10 +12226,11 @@ internal static class Program
                 // #516. Everything the Shortcuts page says when it REFUSES a chord was
                 // a hard-coded English literal, in a 39-catalog app: the single-modifier
                 // sentence (twice - service and recorder), the four duplicate messages,
-                // the three registration failures, the conflict banner title (twice)
-                // and its button (twice), plus About's version line. The strings a user
-                // needs most in order to understand a refusal were the ones they could
-                // not read.
+                // the three registration failures, the shortcut conflict banner's title
+                // (twice) and its settings button (twice), the streaming conflict
+                // banner's own title and Change Shortcut button, and About's version
+                // line. Sixteen literals, ten keys. The strings a user needs most in
+                // order to understand a refusal were the ones they could not read.
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
                 EnsureSmokeApplication();
 
@@ -12245,20 +12246,14 @@ internal static class Program
                         chord, "Cancel", chord, unused, unused, unused)!,
                     ShortcutValidationService.GetRegistrationErrorMessage(1409, chord),
                     ShortcutValidationService.GetRegistrationErrorMessage(1413, chord),
-                    ShortcutValidationService.GetRegistrationErrorMessage(4242, chord)
+                    ShortcutValidationService.GetRegistrationErrorMessage(4242, chord),
+                    HyperWhisper.Localization.Loc.S("settings.streaming.conflict.title"),
+                    HyperWhisper.Localization.Loc.S("settings.shortcuts.conflict.changeShortcut")
                 };
 
                 try
                 {
                     HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("en");
-
-                    // The recorder must not carry its own copy of the sentence any
-                    // more: both paths have to agree, character for character, or one
-                    // of them is a literal again.
-                    var box = new ShortcutRecorderBox { Role = "Toggle" };
-                    box.ShowError(ShortcutValidationService.ValidateActionShortcut(ctrl)!);
-                    Assert(box.ErrorMessage == ShortcutValidationService.ValidateActionShortcut(ctrl),
-                        "the recorder still has its own copy of the single-modifier sentence");
 
                     var english = Refusals();
                     foreach (var text in english)
@@ -12304,12 +12299,25 @@ internal static class Program
                     foreach (var culture in new[] { "ja", "ru" })
                     {
                         HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
-                        var line = HyperWhisper.Localization.Loc.S("settings.about.version", "1.12.0");
+                        var line = HyperWhisper.Localization.Loc.S("menu.version.label", "1.12.0");
                         Assert(!line.StartsWith("Version ", StringComparison.Ordinal),
                             $"{culture}: the version line is still the English '{line}'");
                         Assert(line.Contains("1.12.0", StringComparison.Ordinal),
                             $"{culture}: '{line}' lost the version number");
                     }
+
+                    // The recorder must not carry its own copy of the single-modifier
+                    // sentence. Driven through the REAL gesture path, in German: an
+                    // assertion that only compares the service against itself would
+                    // stay green with the recorder's old English literal in place.
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("de");
+                    var box = new ShortcutRecorderBox { Role = "Toggle", DisplayText = "Ctrl+Alt" };
+                    box.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    box.HandleKeyUp(Key.LeftCtrl);
+                    Assert(box.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        $"the recorder refused a bare Ctrl with '{box.ErrorMessage}', which is not the "
+                        + "catalogue's sentence - it still has a copy of its own");
 
                     // The two XAML sites, measured rather than grepped. The banner is
                     // Collapsed until a conflict happens, so this reads the text, not
@@ -12325,6 +12333,32 @@ internal static class Program
                         "the conflict banner title is not the localized string");
                     Assert(!onPage.Contains("Shortcut Conflict"),
                         "the conflict banner is still the English literal");
+
+                    // The streaming page carries a SECOND conflict banner, whose
+                    // heading and first button were the two literals left behind
+                    // when only its "Open Shortcut Settings" button was converted.
+                    var streaming = new StreamingSettingsPage();
+                    streaming.Measure(new Size(900, 900));
+                    streaming.Arrange(new Rect(0, 0, 900, 900));
+                    streaming.UpdateLayout();
+                    var streamingText = VisualTextOf(streaming);
+                    foreach (var key in new[]
+                             {
+                                 "settings.streaming.conflict.title",
+                                 "settings.shortcuts.conflict.changeShortcut",
+                                 "settings.shortcuts.conflict.openSettings"
+                             })
+                    {
+                        Assert(streamingText.Contains(HyperWhisper.Localization.Loc.S(key)),
+                            $"the streaming conflict banner is missing {key}");
+                    }
+                    foreach (var literal in new[]
+                             { "Streaming shortcut conflict", "Change Shortcut", "Open Shortcut Settings" })
+                    {
+                        Assert(!streamingText.Contains(literal),
+                            $"the streaming conflict banner still shows the English literal '{literal}' - "
+                            + "one banner in two languages is what #516 was about");
+                    }
 
                     // About fills its version line from Loaded, so raise it: Measure
                     // and Arrange alone never do.
@@ -12459,7 +12493,12 @@ internal static class Program
 
                     Assert(captured.Count == 0,
                         "a refused chord reports NOTHING - not itself, and not the Ctrl+Shift behind it");
-                    Assert(recorder.ErrorMessage != null && recorder.ErrorMessage.Contains("Streaming"),
+                    // Against the catalogue value, not the English word: the role
+                    // label became a resource in #516, so a literal here would fail
+                    // on a non-English host and on any English copy edit.
+                    Assert(recorder.ErrorMessage != null && recorder.ErrorMessage.Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.streaming.label"),
+                            StringComparison.Ordinal),
                         "and the user is told which role already holds it");
                     Assert(recorder.Field.Text == "Esc",
                         "the field goes back to what is really configured, not the half-typed prefix");
@@ -12526,8 +12565,9 @@ internal static class Program
                     bare.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
                     bare.HandleKeyUp(Key.LeftCtrl);
                     Assert(captured.Count == 0, "a lone Ctrl is still not a shortcut");
-                    Assert(bare.ErrorMessage != null && bare.ErrorMessage.Contains("Single modifier"),
-                        "and it still says why");
+                    Assert(bare.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        "and it still says why - in the catalogue's words, not a literal of its own");
                     Assert(bare.Field.Text == "Esc", "and it leaves the field showing what is configured");
                 }
                 finally
