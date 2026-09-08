@@ -11194,24 +11194,46 @@ internal static class Program
         Assert(readout is not null, $"{step}: the balance readout is not on the page at all");
         Assert(readout!.ActualWidth > 0, $"{step}: the balance readout was never laid out");
 
-        var given = readout.ActualWidth;
-        readout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var wanted = readout.DesiredSize.Width - readout.Margin.Left - readout.Margin.Right;
-        Console.WriteLine($"[dbg] {step} given={given:F2} wanted={wanted:F2} trim={readout.TextTrimming} wrap={readout.TextWrapping} pageW={page.ActualWidth:F2}");
-        for (DependencyObject? a = readout; a is not null; a = System.Windows.Media.VisualTreeHelper.GetParent(a))
+        // The two-column row: the readout's column is `*`, the neighbour's is Auto.
+        var row = AncestorGridWithTwoColumns(readout);
+        Assert(row is not null, $"{step}: the balance readout is not in a two-column row any more");
+
+        var neighbour = row!.Children
+            .OfType<FrameworkElement>()
+            .FirstOrDefault(child => System.Windows.Controls.Grid.GetColumn(child) == 1);
+
+        Assert(neighbour is not null, $"{step}: the row's second column is empty");
+
+        var readoutRight = readout
+            .TransformToAncestor(row)
+            .Transform(new Point(readout.ActualWidth, 0)).X;
+        var neighbourLeft = neighbour!
+            .TransformToAncestor(row)
+            .Transform(new Point(0, 0)).X;
+
+        // A vertical StackPanel arranges a child at max(its own width, the child's
+        // desired width), so an untrimmed 30 pt line does not stop at the end of its
+        // column - it is arranged past it and drawn underneath whatever the Auto
+        // column holds. That is the defect, and it is what this measures.
+        Assert(
+            readoutRight <= neighbourLeft + 0.5,
+            $"{step}: '{balance}' is arranged out to {readoutRight:F0} DIP while the " +
+            $"{neighbour.GetType().Name} beside it starts at {neighbourLeft:F0}. The readout " +
+            "runs under its neighbour and is cut with nothing to say it was cut.");
+    }
+
+    /// <summary>The nearest ancestor Grid that splits its row into two columns.</summary>
+    private static System.Windows.Controls.Grid? AncestorGridWithTwoColumns(DependencyObject node)
+    {
+        for (var a = System.Windows.Media.VisualTreeHelper.GetParent(node);
+             a is not null;
+             a = System.Windows.Media.VisualTreeHelper.GetParent(a))
         {
-            if (a is FrameworkElement fe)
-                Console.WriteLine($"[dbg]   {fe.GetType().Name} actual={fe.ActualWidth:F2} desired={fe.DesiredSize.Width:F2} clip={fe.ClipToBounds}");
+            if (a is System.Windows.Controls.Grid { ColumnDefinitions.Count: 2 } grid)
+                return grid;
         }
 
-        if (wanted <= given + 0.5)
-            return;
-
-        Assert(
-            readout.TextTrimming != TextTrimming.None
-            || readout.TextWrapping != TextWrapping.NoWrap,
-            $"{step}: '{balance}' wants {wanted:F0} DIP and was given {given:F0}, and the " +
-            "readout neither trims nor wraps - it is cut mid-word with nothing to say so");
+        return null;
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
