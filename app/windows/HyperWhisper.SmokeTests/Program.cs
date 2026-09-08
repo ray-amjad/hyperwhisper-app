@@ -11198,6 +11198,11 @@ internal static class Program
         readout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var wanted = readout.DesiredSize.Width - readout.Margin.Left - readout.Margin.Right;
         Console.WriteLine($"[dbg] {step} given={given:F2} wanted={wanted:F2} trim={readout.TextTrimming} wrap={readout.TextWrapping} pageW={page.ActualWidth:F2}");
+        for (DependencyObject? a = readout; a is not null; a = System.Windows.Media.VisualTreeHelper.GetParent(a))
+        {
+            if (a is FrameworkElement fe)
+                Console.WriteLine($"[dbg]   {fe.GetType().Name} actual={fe.ActualWidth:F2} desired={fe.DesiredSize.Width:F2} clip={fe.ClipToBounds}");
+        }
 
         if (wanted <= given + 0.5)
             return;
