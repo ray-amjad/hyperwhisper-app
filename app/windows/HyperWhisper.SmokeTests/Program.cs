@@ -10112,6 +10112,43 @@ internal static class Program
                 }
             });
 
+            RunAsync("onboarding: the cloud credit balance is never cut without an ellipsis", async () =>
+            {
+                // Both cloud steps draw CreditsFormatted with OnboardingBigNumberStyle
+                // (30 pt) in the `*` column of a two-column row whose `Auto` column
+                // holds a pill (Setup) or the "Get credits" button (Configure). The
+                // formatted balance is wider than what is left of that row, and the
+                // style set no TextTrimming and no TextWrapping, so the text ran under
+                // the neighbour and was cut mid-word at the card edge: the Configure
+                // step rendered "$66.30 remainir" and the Setup step
+                // "$66.30 remaining (~10523 min", with nothing to say either had been
+                // cut. The caption directly below has always trimmed.
+                //
+                // The assertion is the behaviour, not the setter: a readout that does
+                // not fit the width it was given has to trim or wrap.
+                var balance = "$66.30 remaining (~10523 minutes)";
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66.30, 10523, balance);
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+                Assert(h.Flow.CreditsFormatted == balance, "precondition: the balance landed");
+
+                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, balance);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+
+                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -11118,6 +11155,57 @@ internal static class Program
         }
 
         return pages;
+    }
+
+    /// <summary>
+    /// Lay out one onboarding step page against a flow the caller has already driven,
+    /// then assert the cloud balance readout on it is not silently cut.
+    ///
+    /// The page is built here rather than through BuildOnboardingStepPages because the
+    /// readout only exists once the flow is in a state that shows it, and that helper
+    /// always uses a virgin harness.
+    /// </summary>
+    private static void AssertBalanceReadoutFits(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance)
+    {
+        var application = System.Windows.Application.Current;
+        if (application is null)
+        {
+            application = new System.Windows.Application();
+            LoadApplicationResources(application);
+        }
+
+        System.Windows.Controls.Page page = step == OnboardingStep.Configure
+            ? new ConfigureStepPage()
+            : new SetupStepPage();
+
+        page.DataContext = flow;
+
+        // The window's own size, so a readout that overflows here overflows there.
+        page.Measure(new Size(760, 521));
+        page.Arrange(new Rect(0, 0, 760, 521));
+        page.UpdateLayout();
+
+        var readout = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+            .FirstOrDefault(t => string.Equals(t.Text, balance, StringComparison.Ordinal));
+
+        Assert(readout is not null, $"{step}: the balance readout is not on the page at all");
+        Assert(readout!.ActualWidth > 0, $"{step}: the balance readout was never laid out");
+
+        var given = readout.ActualWidth;
+        readout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var wanted = readout.DesiredSize.Width - readout.Margin.Left - readout.Margin.Right;
+
+        if (wanted <= given + 0.5)
+            return;
+
+        Assert(
+            readout.TextTrimming != TextTrimming.None
+            || readout.TextWrapping != TextWrapping.NoWrap,
+            $"{step}: '{balance}' wants {wanted:F0} DIP and was given {given:F0}, and the " +
+            "readout neither trims nor wraps - it is cut mid-word with nothing to say so");
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
