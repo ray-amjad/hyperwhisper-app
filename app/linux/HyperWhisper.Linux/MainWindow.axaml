@@ -735,7 +735,16 @@
                       BorderThickness="1" BorderBrush="{DynamicResource HwBorderBrush}">
                 <Grid RowDefinitions="Auto,Auto,Auto">
                   <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
-                    <TextBlock Text="{Binding Name}" Classes="modeName"/>
+                    <!-- The star column already stops the name pushing the gear off the card.
+                         What it does NOT do is say the name was cut: without the TextTrimming
+                         that TextBlock.modeName now carries, an over-long name hard-clips
+                         mid-glyph right under the gear and reads as a rendering fault (#526,
+                         the Windows fix is ModesPage.xaml via #521). The tip carries it whole. -->
+                    <TextBlock x:Name="ModeNameText" Text="{Binding Name}" Classes="modeName">
+                      <ToolTip.Tip>
+                        <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360"/>
+                      </ToolTip.Tip>
+                    </TextBlock>
                     <Button Grid.Column="1" Classes="cardGear" Tag="{Binding}" Click="OnEditMode"
                             ToolTip.Tip="{ReflectionBinding [linux.ui.mode.editor], Source={StaticResource Localization}}">
                       <Path Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwTextSecondaryBrush}"
@@ -2479,24 +2488,39 @@
            the error code and the shortcut hint into StatusText rather than laying three
            TextBlocks side by side. The mode and model groups always show, with a None
            fallback, instead of disappearing when nothing is selected. -->
+      <!-- EVERY ITEM IN THIS ROW IS BOUNDED (#526, mirroring the Windows #521/#492 fix).
+           The window is a fixed 1000 wide and CanResize="False", so this row has a hard
+           budget: three Auto columns and one star. An Auto column grows to whatever it is
+           given, and a mode name is free user text with no cap anywhere - not in the editor,
+           not in the entity, not in the column. One unbounded Auto item therefore spends the
+           whole budget and the others simply leave the window. The caps below decide who
+           gives way, and every one of them now says so with an ellipsis rather than
+           vanishing or being cut mid-glyph. Same numbers as StatusBarView.xaml on Windows. -->
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-        <TextBlock x:Name="StatusText" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11" VerticalAlignment="Center"/>
+        <TextBlock x:Name="StatusText" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0"
                     IsVisible="{Binding HasLocalPostProcessingStatus}">
           <Ellipse Width="6" Height="6" Fill="{DynamicResource HwWarningForegroundBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
           <TextBlock Text="{ReflectionBinding [statusbar.postProcessing], Source={StaticResource Localization}}" Foreground="{DynamicResource HwTextTertiaryBrush}" FontSize="11"/>
-          <TextBlock Text="{Binding LocalPostProcessingStatus}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
+          <TextBlock x:Name="StatusPostProcessingText" Text="{Binding LocalPostProcessingStatus}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
         </StackPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
           <TextBlock Text="{ReflectionBinding [statusbar.mode], Source={StaticResource Localization}}" Foreground="{DynamicResource HwTextTertiaryBrush}" FontSize="11"/>
-          <TextBlock Text="{Binding Modes.Selected.Name, FallbackValue=None, TargetNullValue=None}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11" FontWeight="Medium"/>
+          <TextBlock x:Name="StatusModeName" Text="{Binding Modes.Selected.Name, FallbackValue=None, TargetNullValue=None}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11" FontWeight="Medium" TextTrimming="CharacterEllipsis" MaxWidth="120">
+            <!-- An explicit wrapping tip, not ToolTip.Tip="{Binding ...}": a plain string tip
+                 does not wrap, so a 300-character name would render as one line far wider
+                 than the screen and stay unreadable. -->
+            <ToolTip.Tip>
+              <TextBlock Text="{Binding Modes.Selected.Name}" TextWrapping="Wrap" MaxWidth="360"/>
+            </ToolTip.Tip>
+          </TextBlock>
         </StackPanel>
         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock Text="{ReflectionBinding [statusbar.model], Source={StaticResource Localization}}" Foreground="{DynamicResource HwTextTertiaryBrush}" FontSize="11"/>
           <!-- Mode.Model is the LOCAL engine's column and no seeded mode is a local mode, so this
                read "None" on every default install. The converter picks the column that matches
                the mode's own provider type. -->
-          <TextBlock Text="{Binding Modes.Selected, Converter={StaticResource StatusBarModelConverter}, FallbackValue=None, TargetNullValue=None}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11"/>
+          <TextBlock x:Name="StatusModelName" Text="{Binding Modes.Selected, Converter={StaticResource StatusBarModelConverter}, FallbackValue=None, TargetNullValue=None}" Foreground="{DynamicResource HwTextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
         </StackPanel>
       </Grid>
     </Border>
