@@ -2707,18 +2707,7 @@ public partial class ModeEditorWindow : Window
         // Whisper or Cloud: restore full language list if it was filtered
         if (LanguageCombo.Items.Count < LanguageInfo.AllLanguages.Length)
         {
-            var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-            LoadLanguages();
-
-            bool found = false;
-            if (!string.IsNullOrEmpty(currentLang))
-            {
-                foreach (ComboBoxItem item in LanguageCombo.Items)
-                {
-                    if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                }
-            }
-            if (!found && LanguageCombo.Items.Count > 0) LanguageCombo.SelectedIndex = 0;
+            ReplaceLanguageItems(LanguageInfo.AllLanguages);
         }
     }
 
