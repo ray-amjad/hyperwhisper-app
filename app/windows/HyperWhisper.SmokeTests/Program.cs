@@ -10256,6 +10256,29 @@ internal static class Program
                             $"{label}: {name} measured 0 - the mode name has taken the whole bar");
                     }
 
+                    // On a cloud mode - the issue's own repro, and the common case, since
+                    // the post-processing column only appears for a LOCAL LLM - both must
+                    // be WHOLE and not merely present. A hint trimmed to "Ready - Press
+                    // Ct..." would satisfy the check above while still hiding the hotkey.
+                    //
+                    // The tight case is deliberately not held to this. Four items in a
+                    // fixed 744px row, two of them long local model names, genuinely do
+                    // not all fit; the caps decide who gives way, and every one of them
+                    // now says so with an ellipsis instead of vanishing.
+                    if (!withPostProcessing)
+                    {
+                        foreach (var (name, block) in new[]
+                                 {
+                                     ("StatusText", bar.StatusText),
+                                     ("ModelStatusText", bar.ModelStatusText)
+                                 })
+                        {
+                            Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
+                                $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
+                                $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
+                        }
+                    }
+
                     Assert(bar.DesiredSize.Width <= budget + 0.5,
                         $"{label}: the status bar wants {bar.DesiredSize.Width:F1}px of a " +
                         $"{budget:F0}px row, so its right-hand item leaves the window");
@@ -10266,30 +10289,6 @@ internal static class Program
                     Assert(bar.ModeNameText.ActualWidth < UnconstrainedWidthOf(bar.ModeNameText),
                         $"{label}: the {longName.Length}-character name was not truncated at all, " +
                         "so this case proves nothing");
-
-                    if (withPostProcessing)
-                        continue;
-
-                    // On a cloud mode - the issue's own repro, and the common case,
-                    // since the post-processing column only appears for a LOCAL LLM -
-                    // the two items must be WHOLE and not merely present. A trimmed
-                    // hint would pass the check above while still hiding the hotkey.
-                    //
-                    // The tight case is deliberately not held to this. Four items in a
-                    // fixed 744px row, one of them a local model name and another a
-                    // local LLM name, genuinely do not all fit; the caps decide who
-                    // gives way, and every one of them now says so with an ellipsis
-                    // instead of vanishing.
-                    foreach (var (name, block) in new[]
-                             {
-                                 ("StatusText", bar.StatusText),
-                                 ("ModelStatusText", bar.ModelStatusText)
-                             })
-                    {
-                        Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
-                            $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
-                            $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
-                    }
                 }
             });
 
