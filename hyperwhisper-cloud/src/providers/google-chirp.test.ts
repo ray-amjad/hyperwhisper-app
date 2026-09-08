@@ -396,6 +396,38 @@ describe('transcribeWithGoogleChirp — sync recognize error mapping', () => {
   });
 });
 
+describe('transcribeWithGoogleChirp — successful response decoding boundaries', () => {
+  test('rejects an empty sync response with the phase and response encodings', async () => {
+    fetchHandler = () => new Response('', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Encoding': 'gzip',
+      },
+    });
+
+    await expect(transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'))
+      .rejects.toThrow(
+        'Google Speech returned empty 200 body during sync_recognize (content-type=application/json, content-encoding=gzip)',
+      );
+    expect((globalThis.fetch as any).mock.calls.length).toBe(1);
+  });
+
+  test('rejects a non-JSON sync response with a bounded diagnostic preview', async () => {
+    const upstreamBody = '<html>temporary proxy response</html>';
+    fetchHandler = () => new Response(upstreamBody, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    });
+
+    await expect(transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'))
+      .rejects.toThrow(
+        `Google Speech returned non-JSON 200 body during sync_recognize (content-type=text/html, len=${upstreamBody.length}): ${upstreamBody}`,
+      );
+    expect((globalThis.fetch as any).mock.calls.length).toBe(1);
+  });
+});
+
 describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
   beforeEach(() => {
     gcsConfigured = true;
@@ -571,6 +603,65 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     uploadShouldThrow = new ProviderUnavailableError('GCS upload', 'network error: boom');
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav')).rejects.toThrow(ProviderUnavailableError);
     expect(deleteCalls.length).toBe(0);
+  });
+
+  test('a successful batch submit without an operation name deletes the scratch object without cancelling', async () => {
+    fetchHandler = () => Response.json({});
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow('Google Speech batchRecognize did not return an operation name');
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith(':cancel'),
+    )).toBe(false);
+  });
+
+  test('an empty successful batch submit reports its phase and still deletes the scratch object', async () => {
+    fetchHandler = () => new Response('', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow(
+        'Google Speech returned empty 200 body during batch_submit (content-type=application/json, content-encoding=none)',
+      );
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+  });
+
+  test('a malformed successful poll cancels the known operation and deletes the scratch object', async () => {
+    fetchHandler = (url) => {
+      if (url.includes(':batchRecognize')) return Response.json({ name: 'operations/malformed-poll' });
+      if (url.endsWith(':cancel')) return new Response(null, { status: 200 });
+      return new Response('not-json', {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    };
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow(
+        'Google Speech returned non-JSON 200 body during batch_poll (content-type=text/plain, len=8): not-json',
+      );
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/malformed-poll:cancel'),
+    )).toBe(true);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+  });
+
+  test('a failed cancellation does not mask the batch operation error or prevent scratch cleanup', async () => {
+    fetchHandler = (url) => {
+      if (url.includes(':batchRecognize')) return Response.json({ name: 'operations/cancel-fails' });
+      if (url.endsWith(':cancel')) throw new Error('cancel network failure');
+      return Response.json({ done: true, error: { code: 3, message: 'invalid audio' } });
+    };
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow('Google Speech batchRecognize failed (3): invalid audio');
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/cancel-fails:cancel'),
+    )).toBe(true);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
   });
 });
 
