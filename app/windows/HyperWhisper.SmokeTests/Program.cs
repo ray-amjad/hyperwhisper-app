@@ -10584,6 +10584,47 @@ internal static class Program
                     "and after a Back-and-forward on an activated device it has to be the TICK");
             });
 
+            RunAsync("onboarding: the BYOK setup step RENDERS the state it reports", async () =>
+            {
+                // The same binding-path check for the twin row one branch over. There is
+                // no BYOK provider key on the test box, so this is the only place the
+                // BYOK row is exercised end to end: the fake gateway makes the probe
+                // pass, and the page is laid out for real.
+                var b = new OnboardingHarness();
+                b.GrantMicrophone();
+                b.AdvanceTo(OnboardingStep.Source);
+                b.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                b.AdvanceTo(OnboardingStep.Configure);
+
+                b.Flow.ApiKeyInput = "sk-test";
+                b.Flow.TestProviderKey();
+                await b.LastTask;
+                Assert(b.Flow.Advance(), "setup must be reachable");
+                Assert(b.Flow.Back() && b.Flow.Advance(), "a Back-and-forward must move both ways");
+                Assert(!b.Flow.KeyValidated, "precondition: the inline result was cleared");
+
+                var page = LayOutOnboardingStepPage(OnboardingStep.Setup, b.Flow, 760, 521);
+
+                var row = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => string.Equals(
+                        t.Text, b.Flow.ProviderValidatedCheckText, StringComparison.Ordinal));
+
+                Assert(row is not null, "the API key verified row is on the page");
+
+                var rowGlyphs = DescendantsOf<System.Windows.Controls.TextBlock>(
+                        (DependencyObject)System.Windows.Media.VisualTreeHelper.GetParent(row!)!)
+                    .Where(t => t != row)
+                    .ToList();
+
+                Assert(
+                    rowGlyphs.Count(t => t.Visibility == Visibility.Visible) == 1,
+                    "exactly one of the tick and the pending circle is ever shown");
+                Assert(
+                    rowGlyphs.Any(t => t.Visibility == Visibility.Visible
+                                       && t.Style == page.TryFindResource("OnboardingCheckGlyphStyle")),
+                    "and after a Back-and-forward on a probed and stored key it has to be the TICK");
+            });
+
             SynchronizationContext.SetSynchronizationContext(balancePreviousContext);
 
             Run("modes: a 300-character mode name is ellipsised on the card, not clipped under the gear", () =>
