@@ -250,4 +250,71 @@ struct LocalAPIContractTests {
         // closed on every platform at once.
         #expect(!localApiAuthorize(authorizationHeader: "Bearer \(token)", expectedToken: ""))
     }
+
+    // MARK: - The deterministic text passes on /transcribe
+
+    /// `/transcribe` declines the AI rewrite, so it is permanently on the
+    /// pipeline's no-post-processing branch — and that branch's three
+    /// deterministic passes belong to this route's `text` too. This head used
+    /// to return `resolution.provider.transcribe(...)` unchanged, so none of
+    /// them ran (issue #530).
+    ///
+    /// Drives the shared Rust core through the real `TranscriptionTextProcessing`
+    /// shims, so this is the same filler list and the same break-command regex
+    /// that dictation uses. The vocabulary pass reads the app's own store and
+    /// is a no-op for this text; the live `/transcribe` check on a real Mac is
+    /// what covers that third pass end to end.
+    @MainActor
+    @Test func transcribeAppliesTheDeterministicTextPasses() {
+        let raw = "um the build is fine new line thanks"
+
+        let processed = TranscribeEndpoint.applyDeterministicTextPasses(
+            to: raw,
+            language: "en",
+            mode: nil,
+            removeFillerWords: true,
+            vocabularyProcessor: VocabularyProcessor()
+        )
+        #expect(!processed.hasPrefix("um "), "filler words survived with the setting on")
+        #expect(processed.contains("\n"), "the dictated break command was not honoured")
+        #expect(!processed.lowercased().contains("new line"), "the break command was left as words")
+    }
+
+    /// Filler removal is the ONLY pass gated on "Remove filler words". Turning
+    /// that setting off must not silently disable the break commands or the
+    /// vocabulary rules — the failure the portable head had in the opposite
+    /// direction, where fillers were stripped whatever the setting said.
+    @MainActor
+    @Test func onlyFillerRemovalIsGatedOnItsSetting() {
+        let raw = "um the build is fine new line thanks"
+
+        let processed = TranscribeEndpoint.applyDeterministicTextPasses(
+            to: raw,
+            language: "en",
+            mode: nil,
+            removeFillerWords: false,
+            vocabularyProcessor: VocabularyProcessor()
+        )
+        #expect(processed.hasPrefix("um "), "filler words were removed with the setting off")
+        #expect(processed.contains("\n"), "turning filler removal off also disabled break commands")
+    }
+
+    /// The shared core strips fillers for English only — "er" and "um" are real
+    /// words elsewhere (issue #278). The route passes the language the provider
+    /// DETECTED rather than the requested one, so a `"language": "auto"`
+    /// request still gets the pass when the audio turns out to be English; this
+    /// pins the other direction, that a non-English transcript keeps its words.
+    @MainActor
+    @Test func fillerRemovalStaysLanguageAware() {
+        let german = "um die Sache ist gut"
+
+        let processed = TranscribeEndpoint.applyDeterministicTextPasses(
+            to: german,
+            language: "de",
+            mode: nil,
+            removeFillerWords: true,
+            vocabularyProcessor: VocabularyProcessor()
+        )
+        #expect(processed.hasPrefix("um "), "a German transcript lost a real German word")
+    }
 }
