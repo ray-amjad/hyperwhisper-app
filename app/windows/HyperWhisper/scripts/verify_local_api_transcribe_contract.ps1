@@ -24,9 +24,13 @@ $ResponderSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Servic
 $MacEndpointSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\LocalAPI\Endpoints\TranscribeEndpoint.swift")
 $MacRouterSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\Transcription\Coordinators\TranscriptionProviderRouter.swift")
 
+# `ReadFromJsonAsync` until the body-size limit landed; the route now reads
+# through LocalApiLimits so an over-limit upload is a business failure rather
+# than "Invalid JSON body". This assertion had been failing on main since that
+# change, which is why it did not catch issues #495 and #498.
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern 'app\.MapPost\("/transcribe".*?ReadFromJsonAsync<TranscribeRequest>.*?ResolveAudioSource\(req\).*?ResolveMode\(req\).*?orchestrator\.TranscribeAsync\(' `
+    -Pattern 'app\.MapPost\("/transcribe".*?ReadJsonBodyAsync<TranscribeRequest>.*?ResolveAudioSource\(req\).*?ResolveMode\(req\).*?orchestrator\.TranscribeAsync\(' `
     -Label "Windows /transcribe maps JSON request through audio, mode, and orchestrator resolution"
 
 Assert-Match `
