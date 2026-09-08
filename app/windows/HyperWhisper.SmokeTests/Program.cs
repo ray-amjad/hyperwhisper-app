@@ -10444,12 +10444,23 @@ internal static class Program
 
                     var handled = RaiseWheelPair(combo, -120);
 
+                    // The load-bearing assertion is `handled`, not the selection. WPF
+                    // only promotes an UNHANDLED preview to the bubbling MouseWheel, and
+                    // that bubble is the sole route by which ComboBox.OnMouseWheel edits
+                    // the value - so suppressing the promotion is the fix, exactly.
+                    //
+                    // The selection check is a backstop and cannot carry this case on its
+                    // own: a detached ComboBox in a console process has no items host, so
+                    // it does not actually move even with the guard removed. The
+                    // user-visible half - "ElevenLabs became Groq" - is proved on a real
+                    // GUI instead; see the PR.
+                    Assert(handled,
+                        $"{NameOrType(combo)}: the wheel was left unhandled, so WPF will " +
+                        "promote it to the bubbling event ComboBox.OnMouseWheel changes the " +
+                        "selection on");
                     Assert(combo.SelectedIndex == before,
                         $"{NameOrType(combo)}: one wheel turn moved the selection from {before} to " +
                         $"{combo.SelectedIndex} - the dialog silently edited the mode");
-                    Assert(handled,
-                        $"{NameOrType(combo)}: the wheel was left unhandled, so WPF will still " +
-                        "promote it to the bubbling event the ComboBox changes its selection on");
                 }
 
                 // And the wheel is not simply swallowed: the page has to scroll, which is
