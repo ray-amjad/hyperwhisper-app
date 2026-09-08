@@ -10160,28 +10160,30 @@ internal static class Program
                     $"{host.ActualHeight:F2} box. The rest of the box is dead space that " +
                     "steals focus and silently eats the user's replacement text.");
 
-                // The exact click the issue reports: the obvious middle of the box,
-                // well below the first text line.
+                // The exact click the issue reports: the obvious middle of the box, well
+                // below the first text line. InputHitTest is not available here — this
+                // console harness has no PresentationSource, so nothing is ever rendered
+                // and every hit test answers null. The honest substitute is the geometry
+                // WPF would hit-test against: the TextBox's own bounds in the host's
+                // coordinates, plus the two properties that decide whether a point
+                // inside those bounds reaches the control at all.
                 var clickPoint = new System.Windows.Point(host.ActualWidth / 2, host.ActualHeight - 8);
-                var hit = host.InputHitTest(clickPoint) as DependencyObject;
-                Assert(hit is not null,
-                    $"nothing at all is hit-testable at {clickPoint} inside the replacement box");
+                var boxBounds = box.TransformToAncestor(host)
+                    .TransformBounds(new Rect(box.RenderSize));
 
-                var reachedTextBox = false;
-                for (var node = hit; node is not null;
-                     node = System.Windows.Media.VisualTreeHelper.GetParent(node))
-                {
-                    if (ReferenceEquals(node, box))
-                    {
-                        reachedTextBox = true;
-                        break;
-                    }
-                }
+                Assert(boxBounds.Contains(clickPoint),
+                    $"a click at {clickPoint} — the middle of the replacement box — falls outside " +
+                    $"ReplacementBox, which occupies only {boxBounds}. Focus moves off the field " +
+                    "and the next keystrokes are lost.");
 
-                Assert(reachedTextBox,
-                    $"a click at {clickPoint} — the middle of the replacement box — lands on " +
-                    $"{hit!.GetType().Name}, which is outside ReplacementBox. Focus moves off the " +
-                    "field and the next keystrokes are lost.");
+                // Bounds only matter if a point inside them is hit-testable. A null
+                // Background would make the empty area of the box transparent to the
+                // mouse and reopen the same hole with the same geometry.
+                Assert(box.IsHitTestVisible && box.Focusable,
+                    "ReplacementBox is not hit-test-visible or not focusable, so clicking it cannot take focus");
+                Assert(box.Background is not null,
+                    "ReplacementBox has a null Background, so its empty area is invisible to the mouse " +
+                    "and a click there still falls through to the container");
             });
 
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
