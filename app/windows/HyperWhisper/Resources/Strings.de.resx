@@ -1073,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Aufnahme umschalten</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Aufnahme abbrechen</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Modus wechseln</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klicken Sie und drücken Sie die gewünschten Tasten</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Tastenkürzel mit nur einer Modifikatortaste wie Ctrl, Alt, Shift oder Win werden nicht unterstützt. Verwenden Sie eine Taste mit Modifikatoren oder ein Kürzel mit mehreren Modifikatoren, zum Beispiel Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Dieses Tastenkürzel wird bereits für {0} verwendet ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>Das Tastenkürzel {0} verwendet nur eine einzelne Modifikatortaste. Verwenden Sie eine Taste mit Modifikatoren oder ein Kürzel mit mehreren Modifikatoren, zum Beispiel Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Das Tastenkürzel {0} wird bereits von einer anderen Anwendung verwendet. Bitte wählen Sie eine andere Kombination.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>Das Tastenkürzel {0} ist von Windows reserviert und kann nicht verwendet werden.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Das Tastenkürzel {0} konnte nicht registriert werden (Windows-Fehler {1}). Bitte versuchen Sie eine andere Kombination.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Tastenkürzel-Konflikt</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Konflikt beim Streaming-Tastenkürzel</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Tastenkürzel-Einstellungen öffnen</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Tastenkürzel ändern</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">

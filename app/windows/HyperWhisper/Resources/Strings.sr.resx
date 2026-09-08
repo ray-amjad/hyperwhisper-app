@@ -1073,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Укључи/искључи снимање</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Откажи снимање</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Промени режим</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Кликните и притисните тастере које желите да користите</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Пречице са само једним модификатором, као што су Ctrl, Alt, Shift или Win, нису подржане. Користите тастер са модификаторима или пречицу са више модификатора, на пример Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Ова пречица се већ користи за {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>Пречица {0} користи само један модификатор. Користите тастер са модификаторима или пречицу са више модификатора, на пример Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Пречицу {0} већ користи друга апликација. Изаберите другу комбинацију.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>Пречица {0} је резервисана за Windows и не може се користити.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Регистровање пречице {0} није успело (Windows грешка {1}). Покушајте другу комбинацију.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Сукоб пречица</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Сукоб пречице за стриминг</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Отвори подешавања пречица</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Промени пречицу</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1670,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>Верзија {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1691,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>Верзија {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1868,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>Стриминг</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>

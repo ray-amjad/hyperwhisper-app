@@ -1073,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Opname in-/uitschakelen</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Opname annuleren</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Modus wijzigen</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klik en druk op de toetsen die je wilt gebruiken</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Sneltoetsen met slechts één modificatietoets zoals Ctrl, Alt, Shift of Win worden niet ondersteund. Gebruik een toets met modificatietoetsen of een sneltoets met meerdere modificatietoetsen, bijvoorbeeld Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Deze sneltoets wordt al gebruikt voor {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>De sneltoets {0} gebruikt slechts één losse modificatietoets. Gebruik een toets met modificatietoetsen of een sneltoets met meerdere modificatietoetsen, bijvoorbeeld Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>De sneltoets {0} wordt al door een andere toepassing gebruikt. Kies een andere combinatie.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>De sneltoets {0} is gereserveerd door Windows en kan niet worden gebruikt.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Registreren van de sneltoets {0} is mislukt (Windows-fout {1}). Probeer een andere combinatie.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Sneltoetsconflict</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Sneltoetsconflict bij streamen</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Sneltoetsinstellingen openen</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Sneltoets wijzigen</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1670,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>Versie {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1691,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>Versie {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1868,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>Streamen</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>

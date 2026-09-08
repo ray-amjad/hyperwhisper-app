@@ -1073,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Pārslēgt ierakstīšanu</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Atcelt ierakstīšanu</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Mainīt režīmu</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Noklikšķiniet un nospiediet taustiņus, kurus vēlaties izmantot</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Īsinājumtaustiņi ar vienu modifikatora taustiņu, piemēram, Ctrl, Alt, Shift vai Win, netiek atbalstīti. Izmantojiet taustiņu ar modifikatoriem vai vairāku modifikatoru kombināciju, piemēram, Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Šis īsinājumtaustiņš jau tiek izmantots šeit: {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>Īsinājumtaustiņš {0} izmanto tikai vienu modifikatora taustiņu. Izmantojiet taustiņu ar modifikatoriem vai vairāku modifikatoru kombināciju, piemēram, Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Īsinājumtaustiņu {0} jau izmanto cita lietojumprogramma. Lūdzu, izvēlieties citu kombināciju.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>Īsinājumtaustiņš {0} ir rezervēts operētājsistēmā Windows, un to nevar izmantot.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Neizdevās reģistrēt īsinājumtaustiņu {0} (Windows kļūda {1}). Lūdzu, izmēģiniet citu kombināciju.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Īsinājumtaustiņu konflikts</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Straumēšanas īsinājumtaustiņu konflikts</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Atvērt īsinājumtaustiņu iestatījumus</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Mainīt īsinājumtaustiņu</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1670,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>Versija {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1691,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>Versija {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1868,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>Straumēšana</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>

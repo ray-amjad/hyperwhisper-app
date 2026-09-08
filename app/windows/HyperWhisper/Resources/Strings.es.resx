@@ -1172,6 +1172,36 @@ Debe tener al menos un modo.</value>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>Haga clic y presione las teclas que desea usar</value>
   </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Los atajos con un solo modificador como Ctrl, Alt, Shift o Win no son compatibles. Usa una tecla con modificadores o un atajo con varios modificadores, como Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Este atajo ya se usa para {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>El atajo {0} usa un único modificador suelto. Usa una tecla con modificadores o un atajo con varios modificadores, como Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Otra aplicación ya usa el atajo {0}. Elige una combinación diferente.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>El atajo {0} está reservado por Windows y no se puede usar.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>No se pudo registrar el atajo {0} (error de Windows {1}). Prueba con otra combinación.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Conflicto de atajos</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Conflicto del atajo de streaming</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Abrir configuración de atajos</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Cambiar atajo</value>
+  </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
     <value>No se pudo inicializar la base de datos: {0}</value>

@@ -1438,6 +1438,36 @@ You must have at least one mode.</value>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>Click and press the keys you want to use</value>
   </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>This shortcut is already used for {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>The shortcut {0} uses a single bare modifier. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>The shortcut {0} is already in use by another application. Please choose a different combination.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>The shortcut {0} is reserved by Windows and cannot be used.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Failed to register shortcut {0} (Windows error {1}). Please try a different combination.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Shortcut Conflict</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Streaming shortcut conflict</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Open Shortcut Settings</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Change Shortcut</value>
+  </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
     <value>Failed to initialize database: {0}</value>

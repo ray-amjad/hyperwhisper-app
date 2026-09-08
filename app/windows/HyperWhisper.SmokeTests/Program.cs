@@ -12221,6 +12221,167 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts/about: the refusal text and the version line are localized — issue #516", () =>
+            {
+                // #516. Everything the Shortcuts page says when it REFUSES a chord was
+                // a hard-coded English literal, in a 39-catalog app: the single-modifier
+                // sentence (twice - service and recorder), the four duplicate messages,
+                // the three registration failures, the shortcut conflict banner's title
+                // (twice) and its settings button (twice), the streaming conflict
+                // banner's own title and Change Shortcut button, and About's version
+                // line. Sixteen literals, ten keys. The strings a user needs most in
+                // order to understand a refusal were the ones they could not read.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var ctrl = new KeyboardShortcut { Control = true };
+                var chord = new KeyboardShortcut { Control = true, Shift = true, Key = Key.Space };
+                var unused = new KeyboardShortcut();
+                var previousCulture = HyperWhisper.Resources.Strings.Culture;
+
+                string[] Refusals() => new[]
+                {
+                    ShortcutValidationService.ValidateActionShortcut(ctrl)!,
+                    ShortcutValidationService.ValidateDuplicate(
+                        chord, "Cancel", chord, unused, unused, unused)!,
+                    ShortcutValidationService.GetRegistrationErrorMessage(1409, chord),
+                    ShortcutValidationService.GetRegistrationErrorMessage(1413, chord),
+                    ShortcutValidationService.GetRegistrationErrorMessage(4242, chord),
+                    HyperWhisper.Localization.Loc.S("settings.streaming.conflict.title"),
+                    HyperWhisper.Localization.Loc.S("settings.shortcuts.conflict.changeShortcut")
+                };
+
+                try
+                {
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("en");
+
+                    var english = Refusals();
+                    foreach (var text in english)
+                    {
+                        Assert(!string.IsNullOrWhiteSpace(text), "a refusal with no message at all");
+                        Assert(!text.StartsWith("settings.", StringComparison.Ordinal),
+                            $"'{text}' is a raw resource key - the key is missing from the base catalog");
+                    }
+
+                    // The duplicate message names the ROW, so the label has to be the
+                    // localized one the user can see, not the internal role token.
+                    Assert(english[1].Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.toggle.label"),
+                            StringComparison.Ordinal),
+                        $"'{english[1]}' does not name the row it collides with");
+                    Assert(english[1].Contains(chord.ToDisplayString(), StringComparison.Ordinal),
+                        $"'{english[1]}' lost the chord");
+                    Assert(english[4].Contains("4242", StringComparison.Ordinal),
+                        $"'{english[4]}' lost the Win32 code, which is the only thing that arm adds");
+
+                    // And the whole set moves with the catalog. Every one of these was
+                    // frozen in English before this change.
+                    foreach (var culture in new[] { "de", "ja", "ru" })
+                    {
+                        HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
+                        var translated = Refusals();
+
+                        for (var i = 0; i < english.Length; i++)
+                        {
+                            Assert(translated[i] != english[i],
+                                $"{culture}: message {i} is still the English '{translated[i]}'");
+                        }
+
+                        // The chord is an identifier: no catalog may drop it.
+                        Assert(translated[1].Contains(chord.ToDisplayString(), StringComparison.Ordinal)
+                               && translated[2].Contains(chord.ToDisplayString(), StringComparison.Ordinal),
+                            $"{culture}: a translation lost the chord");
+                    }
+
+                    // About's version line is checked against ja and ru only. "Version
+                    // {0}" is the CORRECT German, Danish and Swedish translation too,
+                    // so a `!= english` assertion there would demand a wrong string.
+                    foreach (var culture in new[] { "ja", "ru" })
+                    {
+                        HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
+                        var line = HyperWhisper.Localization.Loc.S("menu.version.label", "1.12.0");
+                        Assert(!line.StartsWith("Version ", StringComparison.Ordinal),
+                            $"{culture}: the version line is still the English '{line}'");
+                        Assert(line.Contains("1.12.0", StringComparison.Ordinal),
+                            $"{culture}: '{line}' lost the version number");
+                    }
+
+                    // The recorder must not carry its own copy of the single-modifier
+                    // sentence. Driven through the REAL gesture path, in German: an
+                    // assertion that only compares the service against itself would
+                    // stay green with the recorder's old English literal in place.
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("de");
+                    var box = new ShortcutRecorderBox { Role = "Toggle", DisplayText = "Ctrl+Alt" };
+                    box.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    box.HandleKeyUp(Key.LeftCtrl);
+                    Assert(box.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        $"the recorder refused a bare Ctrl with '{box.ErrorMessage}', which is not the "
+                        + "catalogue's sentence - it still has a copy of its own");
+
+                    // The two XAML sites, measured rather than grepped. The banner is
+                    // Collapsed until a conflict happens, so this reads the text, not
+                    // the visibility.
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("de");
+                    var shortcuts = new ShortcutsSettingsPage();
+                    shortcuts.Measure(new Size(900, 900));
+                    shortcuts.Arrange(new Rect(0, 0, 900, 900));
+                    shortcuts.UpdateLayout();
+                    var onPage = VisualTextOf(shortcuts);
+                    Assert(onPage.Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.conflict.title")),
+                        "the conflict banner title is not the localized string");
+                    Assert(!onPage.Contains("Shortcut Conflict"),
+                        "the conflict banner is still the English literal");
+
+                    // The streaming page carries a SECOND conflict banner, whose
+                    // heading and first button were the two literals left behind
+                    // when only its "Open Shortcut Settings" button was converted.
+                    var streaming = new StreamingSettingsPage();
+                    streaming.Measure(new Size(900, 900));
+                    streaming.Arrange(new Rect(0, 0, 900, 900));
+                    streaming.UpdateLayout();
+                    var streamingText = VisualTextOf(streaming);
+                    foreach (var key in new[]
+                             {
+                                 "settings.streaming.conflict.title",
+                                 "settings.shortcuts.conflict.changeShortcut",
+                                 "settings.shortcuts.conflict.openSettings"
+                             })
+                    {
+                        Assert(streamingText.Contains(HyperWhisper.Localization.Loc.S(key)),
+                            $"the streaming conflict banner is missing {key}");
+                    }
+                    foreach (var literal in new[]
+                             { "Streaming shortcut conflict", "Change Shortcut", "Open Shortcut Settings" })
+                    {
+                        Assert(!streamingText.Contains(literal),
+                            $"the streaming conflict banner still shows the English literal '{literal}' - "
+                            + "one banner in two languages is what #516 was about");
+                    }
+
+                    // About fills its version line from Loaded, so raise it: Measure
+                    // and Arrange alone never do.
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("ru");
+                    var about = new AboutSettingsPage();
+                    about.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    about.Measure(new Size(900, 900));
+                    about.Arrange(new Rect(0, 0, 900, 900));
+                    about.UpdateLayout();
+                    var aboutText = VisualTextOf(about);
+                    Assert(aboutText.Any(t => t.StartsWith(
+                            HyperWhisper.Localization.Loc.S("menu.version.label", string.Empty).Trim(),
+                            StringComparison.Ordinal)),
+                        "the About version line is not the localized string");
+                    Assert(!aboutText.Any(t => t.StartsWith("Version ", StringComparison.Ordinal)),
+                        "the About version line is still the English 'Version <n>'");
+                }
+                finally
+                {
+                    HyperWhisper.Resources.Strings.Culture = previousCulture;
+                }
+            });
+
             Run("delivery: a refused clipboard write is reported unless the gate refused it", () =>
             {
                 // C3. Honouring CopyToClipboard's return value was right, and it
@@ -12332,7 +12493,12 @@ internal static class Program
 
                     Assert(captured.Count == 0,
                         "a refused chord reports NOTHING - not itself, and not the Ctrl+Shift behind it");
-                    Assert(recorder.ErrorMessage != null && recorder.ErrorMessage.Contains("Streaming"),
+                    // Against the catalogue value, not the English word: the role
+                    // label became a resource in #516, so a literal here would fail
+                    // on a non-English host and on any English copy edit.
+                    Assert(recorder.ErrorMessage != null && recorder.ErrorMessage.Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.streaming.label"),
+                            StringComparison.Ordinal),
                         "and the user is told which role already holds it");
                     Assert(recorder.Field.Text == "Esc",
                         "the field goes back to what is really configured, not the half-typed prefix");
@@ -12399,8 +12565,9 @@ internal static class Program
                     bare.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
                     bare.HandleKeyUp(Key.LeftCtrl);
                     Assert(captured.Count == 0, "a lone Ctrl is still not a shortcut");
-                    Assert(bare.ErrorMessage != null && bare.ErrorMessage.Contains("Single modifier"),
-                        "and it still says why");
+                    Assert(bare.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        "and it still says why - in the catalogue's words, not a literal of its own");
                     Assert(bare.Field.Text == "Esc", "and it leaves the field showing what is configured");
                 }
                 finally

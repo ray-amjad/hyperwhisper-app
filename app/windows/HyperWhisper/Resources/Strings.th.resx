@@ -1073,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>สลับการบันทึก</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>ยกเลิกการบันทึก</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>เปลี่ยนโหมด</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>คลิกแล้วกดปุ่มที่ต้องการใช้</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>ไม่รองรับทางลัดที่ใช้ปุ่มปรับแต่งเพียงปุ่มเดียว เช่น Ctrl, Alt, Shift หรือ Win กรุณาใช้ปุ่มร่วมกับปุ่มปรับแต่ง หรือทางลัดที่มีปุ่มปรับแต่งหลายปุ่ม เช่น Ctrl+Win</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>ทางลัดนี้ถูกใช้สำหรับ {0} แล้ว ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>ทางลัด {0} ใช้ปุ่มปรับแต่งเพียงปุ่มเดียว กรุณาใช้ปุ่มร่วมกับปุ่มปรับแต่ง หรือทางลัดที่มีปุ่มปรับแต่งหลายปุ่ม เช่น Ctrl+Win</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>ทางลัด {0} ถูกใช้งานโดยแอปพลิเคชันอื่นแล้ว กรุณาเลือกชุดปุ่มอื่น</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>ทางลัด {0} ถูกสงวนไว้โดย Windows จึงไม่สามารถใช้ได้</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>ไม่สามารถลงทะเบียนทางลัด {0} ได้ (ข้อผิดพลาด Windows {1}) กรุณาลองชุดปุ่มอื่น</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>ทางลัดขัดแย้งกัน</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>ทางลัดการสตรีมขัดแย้งกัน</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>เปิดการตั้งค่าทางลัด</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>เปลี่ยนทางลัด</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1670,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>เวอร์ชัน {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1691,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>เวอร์ชัน {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1868,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>การสตรีม</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>

@@ -88,7 +88,33 @@ static void AllCatalogsLoad()
     // Plus one for the History multi-selection heading, which was a bare English
     // literal in HistoryPage.xaml with no key at all (issue #505). 853 -> 854:
     //   history.selection.count
-    Equal(854, PortableLocalizer.BaseKeyCount, "base key count");
+    // Plus ten for the Shortcuts, Streaming and About pages, whose error text,
+    // conflict banners and version line were all hard-coded English (issue
+    // #516). Ten keys replace SIXTEEN literals, counted site by site:
+    //   singleModifier   x2  the validation service AND the recorder's own copy
+    //   duplicate        x4  four interpolations of one sentence
+    //   bareModifier     x1
+    //   inUse            x1
+    //   reserved         x1
+    //   registerFailed   x1
+    //   conflict.title   x2  HomePage AND ShortcutsSettingsPage
+    //   openSettings     x2  HomePage AND StreamingSettingsPage
+    //   changeShortcut   x1
+    //   streaming title  x1
+    // 854 -> 864:
+    //   settings.shortcuts.error.singleModifier
+    //   settings.shortcuts.error.duplicate
+    //   settings.shortcuts.error.bareModifier
+    //   settings.shortcuts.error.inUse
+    //   settings.shortcuts.error.reserved
+    //   settings.shortcuts.error.registerFailed
+    //   settings.shortcuts.conflict.title
+    //   settings.shortcuts.conflict.openSettings
+    //   settings.shortcuts.conflict.changeShortcut
+    //   settings.streaming.conflict.title
+    // About's version line takes NO new key: menu.version.label is the same
+    // one-argument string, shared with the macOS catalog.
+    Equal(864, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
