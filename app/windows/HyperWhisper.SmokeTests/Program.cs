@@ -6418,6 +6418,147 @@ internal static class Program
                 Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
             });
 
+            Run("/transcribe names the cloud model that actually ran", () =>
+            {
+                // Issue #500. `engine: "cloud"` / `"hyperwhisper"` with no
+                // explicit `model` transcribed correctly but reported
+                // `model: ""`: the cloud arm of `ApplyEngineModel` assigned
+                // `CloudTranscriptionModel` only when a tier was inferred, a
+                // model was given, or the provider was Meta — so the ordinary
+                // case fell through and `ModelLabel` projected null.
+                var catalog = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared;
+                var tierDefault = catalog.DefaultModelIdForId("elevenLabsScribeV2");
+                Assert(!string.IsNullOrEmpty(tierDefault),
+                    "the catalog has no default model for the default accuracy tier");
+
+                // Drive the REAL builder and the REAL projection, so the seeded
+                // transient defaults, the engine dispatch and `ModelLabel` are
+                // all inside the assertion. Hand-rolling a Mode here would pass
+                // even if `BuildTransientMode` stopped seeding a tier.
+                static string LabelFor(string? engine, string? model, Mode? baseline = null) =>
+                    TranscribeEndpoints.ModelLabel(
+                        TranscribeEndpoints.BuildTransientMode(baseline, engine, model, language: null));
+
+                foreach (var alias in new[] { "cloud", "hyperwhisper" })
+                {
+                    var label = LabelFor(alias, model: null);
+                    Assert(!string.IsNullOrEmpty(label),
+                        $"engine='{alias}' reported an empty model (issue #500)");
+                    // HyperWhisper Cloud routes on the TIER, so the tier's model
+                    // is what runs. `GetDefault` would answer the "default"
+                    // routing sentinel, which is not a model id.
+                    Assert(label == tierDefault,
+                        $"engine='{alias}' did not report the tier's model");
+                    Assert(label != "default",
+                        $"engine='{alias}' reported the routing sentinel as a model id");
+                }
+
+                // The BARE `mode_id` form must agree with the `engine` form for
+                // the same Mode. This is the case a fix planted only in
+                // `ApplyEngineModel` would miss: that method never runs without
+                // an `engine`, and a HyperWhisper Cloud mode whose model field
+                // was never written is the ordinary state.
+                var storedNoModel = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                };
+                Assert(TranscribeEndpoints.ModelLabel(storedNoModel) == tierDefault,
+                    "a stored HyperWhisper Cloud mode with no model reported an empty label");
+
+                // An id that does not belong to the tier is NOT what runs:
+                // `ResolveDictationModelId` heals it on the send path, so the
+                // label must heal identically rather than echo the stale value.
+                var staleInTier = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "nova-3-general",
+                };
+                Assert(TranscribeEndpoints.ModelLabel(staleInTier) == tierDefault,
+                    "an out-of-tier model was reported instead of the model that runs");
+                Assert(TranscribeEndpoints.ModelLabel(new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "default",
+                }) == tierDefault,
+                    "the legacy 'default' sentinel was reported as a model id");
+
+                // A legacy accuracy-tier spelling must still resolve. The label
+                // normalizes the tier the same way the send path does, so an
+                // unrecognised spelling cannot produce "".
+                Assert(!string.IsNullOrEmpty(TranscribeEndpoints.ModelLabel(new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "a-tier-spelling-the-catalog-does-not-list",
+                })), "an unrecognised accuracy tier reported an empty model");
+
+                // A BYOK provider routes on the model id, so its own default is
+                // what runs. Meta used to be the only arm that did this.
+                Assert(LabelFor("openai", model: null) == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "engine='openai' did not report the provider default model");
+                Assert(!string.IsNullOrEmpty(LabelFor("openai", model: null)),
+                    "engine='openai' reported an empty model (issue #500)");
+
+                // An explicit model is still honoured for a BYOK provider, which
+                // sends it verbatim.
+                Assert(LabelFor("openai", "gpt-4o-transcribe") == "gpt-4o-transcribe",
+                    "an explicit model was not honoured");
+
+                // Re-asserting the SAME provider must preserve the caller's saved
+                // sub-model, and a sub-model pinned INSIDE the tier must survive
+                // an engine that names that same tier.
+                var pinnedInTier = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "openai",
+                    CloudTranscriptionModel = "gpt-4o-transcribe",
+                };
+                Assert(LabelFor("openai", null, pinnedInTier) == "gpt-4o-transcribe",
+                    "re-asserting the same engine clobbered the saved sub-model");
+
+                // ...but a model inherited from ANOTHER vendor is foreign. For a
+                // BYOK provider this is not only a label problem: the field is
+                // sent verbatim, so leaving it would change the model that RUNS.
+                var foreign = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "scribe_v2",
+                };
+                var foreignLabel = LabelFor("openai", null, foreign);
+                Assert(foreignLabel != "scribe_v2",
+                    "an OpenAI run reported the baseline's HyperWhisper Cloud model");
+                Assert(foreignLabel == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "a foreign inherited model was not replaced by the provider default");
+
+                // A legacy alias that resolves within the provider is NOT foreign
+                // and must not be silently upgraded to a different-priced model.
+                var legacyAlias = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "assemblyai",
+                    CloudTranscriptionModel = "universal",
+                };
+                Assert(LabelFor("assemblyai", null, legacyAlias) == "universal",
+                    "a legacy provider alias was treated as foreign and replaced");
+            });
+
             Run("/post-process emits the documented post_processed flag", () =>
             {
                 // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
