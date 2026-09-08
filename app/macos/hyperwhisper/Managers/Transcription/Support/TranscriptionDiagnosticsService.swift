@@ -92,6 +92,11 @@ struct AudioAnalysisDiagnostics {
 
 enum TranscriptionDiagnosticsService {
 
+    struct DiagnosticPayload {
+        let tags: [String: String]
+        let extras: [String: Any]
+    }
+
     /// The decode target. Also the divisor for `decodedDuration` below.
     private static let analysisSampleRate: Double = 16000.0
 
@@ -143,7 +148,7 @@ enum TranscriptionDiagnosticsService {
     ///   - emptyTranscriptWithoutFlag: the provider returned an empty transcript
     ///     *without* setting its no-speech flag — a provider anomaly, reported
     ///     whatever the signal looks like. This is arm 3, which macOS never had.
-    ///     See ``captureNoSpeechDiagnostic(audioURL:fallbackDurationSeconds:mode:modeIdentity:diagnosticStage:diagnosticSource:error:backendNoSpeechDetected:emptyTranscriptWithoutFlag:inputDeviceName:micBoostFailed:)``
+    ///     This remains available to the pure classifier for future callers.
     ///     for why it is not reachable on macOS today.
     static func classify(
         _ audio: AudioAnalysisDiagnostics,
@@ -232,30 +237,18 @@ enum TranscriptionDiagnosticsService {
     ///     is exactly the provider's own no-speech signal. It is a parameter
     ///     rather than a literal here so the value comes from the call site that
     ///     knows it, not from the classifier.
-    ///   - emptyTranscriptWithoutFlag: **currently unreachable on macOS.**
-    ///     `TranscriptionError.noSpeechDetected` is a case with no associated
-    ///     values, and both producers collapse into it — `RustRetry` maps the
-    ///     provider's `.NoSpeech` to it, and `LibWhisperProvider` throws it for
-    ///     an empty local transcript — so nothing downstream can tell "the
-    ///     backend said no-speech" from "the transcript was empty and no flag was
-    ///     set". Arm 3 therefore never fires here. Widening the error case to
-    ///     carry the flag is a transport change on a shipped path and is out of
-    ///     scope for #291; the parameter exists so that when the transport does
-    ///     carry it, this is a one-line call-site change and not another
-    ///     divergence from the shared classifier.
     ///   - micBoostFailed: `RecordingLifecycle.lastMicBoostFailed`. A quiet
     ///     recording caused by a failed auto-boost is a capture-quality defect,
     ///     not the user staying silent, so it rides along as a tag.
     static func captureNoSpeechDiagnostic(
         audioURL: URL,
         fallbackDurationSeconds: Double,
-        mode: String,
         modeIdentity: NoSpeechModeIdentity?,
+        attemptDiagnostics: TranscriptionAttemptDiagnostics?,
         diagnosticStage: String,
         diagnosticSource: String,
         error: Error,
         backendNoSpeechDetected: Bool,
-        emptyTranscriptWithoutFlag: Bool = false,
         inputDeviceName: String? = nil,
         micBoostFailed: Bool = false
     ) async {
@@ -266,10 +259,14 @@ enum TranscriptionDiagnosticsService {
             fallbackDurationSeconds: fallbackDurationSeconds
         )
 
+        // A response snapshot with a missing flag is an explicit "unknown".
+        // The call-site value is only the fallback for providers with no snapshot.
+        let responseNoSpeechDetected = attemptDiagnostics == nil
+            ? backendNoSpeechDetected
+            : attemptDiagnostics?.backendNoSpeechDetected
         let outcome = classify(
             audio,
-            backendNoSpeechDetected: backendNoSpeechDetected,
-            emptyTranscriptWithoutFlag: emptyTranscriptWithoutFlag
+            backendNoSpeechDetected: responseNoSpeechDetected ?? backendNoSpeechDetected
         )
 
         guard let presentation = presentation(for: outcome) else {
@@ -279,8 +276,51 @@ enum TranscriptionDiagnosticsService {
             return
         }
 
-        let coreMode = coreIdentity(modeIdentity)
+        let payload = buildPayload(
+            audio: audio,
+            audioFileExists: FileManager.default.fileExists(atPath: audioURL.path),
+            audioFileExtension: audioURL.pathExtension,
+            modeIdentity: modeIdentity,
+            attemptDiagnostics: attemptDiagnostics,
+            responseNoSpeechDetected: responseNoSpeechDetected,
+            diagnosticStage: diagnosticStage,
+            diagnosticSource: diagnosticSource,
+            presentation: presentation,
+            inputDeviceName: inputDeviceName,
+            micBoostFailed: micBoostFailed
+        )
 
+        SentryService.capture(
+            error: error,
+            message: presentation.message,
+            extras: payload.extras,
+            tags: payload.tags,
+            fingerprint: noSpeechFingerprint(
+                fingerprintRoot: presentation.fingerprintRoot,
+                diagnosticStage: diagnosticStage,
+                diagnosticSource: diagnosticSource,
+                mode: coreIdentity(modeIdentity)
+            ),
+            includeRecentLogs: false
+        )
+    }
+
+    /// Build the exact metadata payload used by the capture path.
+    static func buildPayload(
+        audio: AudioAnalysisDiagnostics,
+        audioFileExists: Bool,
+        audioFileExtension: String,
+        modeIdentity: NoSpeechModeIdentity?,
+        attemptDiagnostics: TranscriptionAttemptDiagnostics?,
+        responseNoSpeechDetected: Bool?,
+        diagnosticStage: String,
+        diagnosticSource: String,
+        presentation: DiagnosticPresentation,
+        inputDeviceName: String? = nil,
+        micBoostFailed: Bool = false
+    ) -> DiagnosticPayload {
+        let coreMode = coreIdentity(modeIdentity)
+        let noSpeechTag = responseNoSpeechDetected.map { $0 ? "true" : "false" } ?? "unknown"
         var tags: [String: String] = [
             "component": "transcription",
             "diagnostic_name": presentation.name,
@@ -292,7 +332,8 @@ enum TranscriptionDiagnosticsService {
             "provider_type": modeIdentity?.providerType ?? "unknown",
             "cloud_provider": noSpeechCloudProviderTag(mode: coreMode),
             "local_engine": noSpeechLocalEngineTag(mode: coreMode),
-            "backend_no_speech_detected": backendNoSpeechDetected ? "true" : "false",
+            "provider_attempt_source": attemptDiagnostics?.attemptSource ?? "unknown",
+            "backend_no_speech_detected": noSpeechTag,
             "audio_analysis_succeeded": audio.analysisSucceeded ? "true" : "false",
             // Bucketed to 5 dB steps on purpose: a raw float as a tag has
             // near-100% cardinality, which defeats faceting entirely.
@@ -304,8 +345,8 @@ enum TranscriptionDiagnosticsService {
         }
 
         var extras: [String: Any] = [
-            "audio_file_exists": FileManager.default.fileExists(atPath: audioURL.path),
-            "audio_file_extension": audioURL.pathExtension,
+            "audio_file_exists": audioFileExists,
+            "audio_file_extension": audioFileExtension,
             "audio_file_size_bytes": audio.fileSizeBytes,
             "audio_duration_seconds": audio.durationSeconds,
             "audio_peak_dbfs": audio.peakDbfs,
@@ -328,30 +369,20 @@ enum TranscriptionDiagnosticsService {
             // field used to carry the post-conversion count.
             "audio_decoded_sample_count": audio.decodedSampleCount.map { String($0) } ?? "unknown",
             "audio_measured_sample_count": audio.measuredSampleCount.map { String($0) } ?? "unknown",
-            "mode_name": mode,
-            "backend_empty_transcript_without_flag": emptyTranscriptWithoutFlag,
+            "provider_display_name": attemptDiagnostics?.providerDisplayName ?? "unknown",
+            "backend_request_id": attemptDiagnostics?.backendRequestId ?? "unknown",
+            "backend_stt_provider": attemptDiagnostics?.backendSTTProvider ?? "unknown",
+            "backend_stt_model": attemptDiagnostics?.backendSTTModel ?? "unknown",
+            "backend_http_status": attemptDiagnostics.map { $0.httpStatusCode as Any } ?? "unknown",
+            "backend_response_latency_ms": attemptDiagnostics.map { $0.responseLatencyMs as Any } ?? "unknown",
+            "provider_attempt_ms": (attemptDiagnostics?.providerAttemptMs).map { $0 as Any } ?? "unknown",
             "mic_boost_failed": micBoostFailed
         ]
         // The SOURCE container's format, not the measurement basis (16 kHz mono).
         if let sampleRate = audio.sampleRate { extras["audio_sample_rate_hz"] = sampleRate }
         if let channels = audio.channels { extras["audio_channels"] = channels }
-        if let analysisError = audio.analysisError { extras["audio_analysis_error"] = analysisError }
 
-        SentryService.capture(
-            error: error,
-            message: presentation.message,
-            extras: extras,
-            tags: tags,
-            // Five elements, from the shared builder. This was three, so every
-            // existing macOS no-speech issue re-groups once — an accepted,
-            // one-time cost of gaining the provider axis Windows already had.
-            fingerprint: noSpeechFingerprint(
-                fingerprintRoot: presentation.fingerprintRoot,
-                diagnosticStage: diagnosticStage,
-                diagnosticSource: diagnosticSource,
-                mode: coreMode
-            )
-        )
+        return DiagnosticPayload(tags: tags, extras: extras)
     }
 
     // MARK: Measurement

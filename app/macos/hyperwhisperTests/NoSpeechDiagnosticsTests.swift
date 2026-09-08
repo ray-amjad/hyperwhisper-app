@@ -182,6 +182,77 @@ struct NoSpeechDiagnosticsTests {
             backendNoSpeechDetected: true) == .skip)
     }
 
+    @Test func responseFlagAndMetadataReachTheRealPayload() {
+        let diagnostics = TranscriptionAttemptDiagnostics(
+            attemptSource: "cloud_instrumented",
+            providerDisplayName: "HyperWhisper Cloud",
+            backendRequestId: "request-123",
+            backendSTTProvider: "deepgram",
+            backendSTTModel: "nova-3",
+            backendNoSpeechDetected: true,
+            httpStatusCode: 200,
+            responseLatencyMs: 420,
+            providerAttemptMs: 510
+        )
+        let signal = audio(peakDbfs: -18, rmsDbfs: -22, nonSilentRatio: 0.4)
+        #expect(TranscriptionDiagnosticsService.classify(
+            signal,
+            backendNoSpeechDetected: diagnostics.backendNoSpeechDetected ?? false
+        ) == .noSpeech)
+
+        let payload = TranscriptionDiagnosticsService.buildPayload(
+            audio: signal,
+            audioFileExists: true,
+            audioFileExtension: "wav",
+            modeIdentity: TranscriptionDiagnosticsService.modeIdentity(
+                rawModel: "cloud", cloudProvider: "hyperwhisper"),
+            attemptDiagnostics: diagnostics,
+            responseNoSpeechDetected: diagnostics.backendNoSpeechDetected,
+            diagnosticStage: "live_recording",
+            diagnosticSource: "provider_no_speech",
+            presentation: TranscriptionDiagnosticsService.presentation(for: .noSpeech)!
+        )
+
+        #expect(payload.tags["provider_attempt_source"] == "cloud_instrumented")
+        #expect(payload.tags["backend_no_speech_detected"] == "true")
+        let expectedStrings = [
+            "provider_display_name": "HyperWhisper Cloud", "backend_request_id": "request-123",
+            "backend_stt_provider": "deepgram", "backend_stt_model": "nova-3"
+        ]
+        for (key, value) in expectedStrings { #expect(payload.extras[key] as? String == value) }
+        #expect(payload.extras["backend_http_status"] as? Int == 200)
+        #expect(payload.extras["backend_response_latency_ms"] as? Int == 420)
+        #expect(payload.extras["provider_attempt_ms"] as? Int == 510)
+        for key in ["backend_empty_transcript_without_flag", "mode_name"] {
+            #expect(payload.extras[key] == nil)
+        }
+        #expect(payload.extras.keys.allSatisfy { !SentryService.isRedactedExtraKey($0) })
+    }
+
+    @Test func missingResponseMetadataUsesUnknown() {
+        let payload = TranscriptionDiagnosticsService.buildPayload(
+            audio: audio(),
+            audioFileExists: true,
+            audioFileExtension: "wav",
+            modeIdentity: nil,
+            attemptDiagnostics: nil,
+            responseNoSpeechDetected: nil,
+            diagnosticStage: "live_recording",
+            diagnosticSource: "provider_no_speech",
+            presentation: TranscriptionDiagnosticsService.presentation(for: .noSpeech)!
+        )
+
+        #expect(payload.tags["provider_attempt_source"] == "unknown" &&
+                payload.tags["backend_no_speech_detected"] == "unknown")
+        for key in [
+            "provider_display_name", "backend_request_id", "backend_stt_provider",
+            "backend_stt_model", "backend_http_status", "backend_response_latency_ms",
+            "provider_attempt_ms"
+        ] {
+            #expect(payload.extras[key] as? String == "unknown")
+        }
+    }
+
     // MARK: - Fingerprint (shape shared, root not)
 
     @Test func theFingerprintHasFiveElementsAndKeepsTheMacOSRoot() {
