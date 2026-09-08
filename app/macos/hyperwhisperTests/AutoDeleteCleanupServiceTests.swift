@@ -237,10 +237,10 @@ struct AutoDeleteCleanupServiceTests {
         #expect(try transcriptCount(in: context) == 0)
     }
 
-    /// A trimmed file created after cleanup snapshots the row cannot be added
+    /// A trimmed path attached after cleanup snapshots the row cannot be added
     /// through the view context. The serialized setter observes the committed
     /// delete and removes the new file because no transcript owns it.
-    @Test func cleanupRemovesTrimmedFileCreatedAfterItsSnapshot() async throws {
+    @Test func cleanupRemovesTrimmedPathAttachedAfterItsSnapshot() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
 
@@ -261,9 +261,12 @@ struct AutoDeleteCleanupServiceTests {
         let cleanupSaveBlocked = await persistence.gate.waitUntilBlocked()
         #expect(cleanupSaveBlocked)
 
+        var attachStarted = false
         let attachPath = Task {
-            await persistence.setTrimmedAudioPath(transcript, trimmedPath: lateTrimmedPath)
+            attachStarted = true
+            return await persistence.setTrimmedAudioPath(transcript, trimmedPath: lateTrimmedPath)
         }
+        await Self.waitUntil { attachStarted }
         persistence.gate.release()
 
         let completedStats = await cleanup.value
