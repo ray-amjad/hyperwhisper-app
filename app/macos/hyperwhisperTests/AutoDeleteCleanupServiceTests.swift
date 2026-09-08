@@ -46,44 +46,22 @@ private final class FixedAutoDeleteSettings: AutoDeleteSettingsManager {
 /// Models a serial-writer transaction that fails before it can return a
 /// committed value snapshot. The service must treat `nil` as a hard abort.
 private final class FailedWriterSavePersistenceController: PersistenceController {
-    override func deleteTranscriptsOlderThanInBackground(
-        _ cutoffDate: Date
-    ) async -> AutoDeleteTransactionSnapshot? {
-        await performWriteRequiringSave { context -> AutoDeleteTransactionSnapshot? in
-            let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-            request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
+    private struct ExpectedSaveFailure: Error {}
 
-            let transcripts: [Transcript]
-            do {
-                transcripts = try context.fetch(request)
-            } catch {
-                preconditionFailure("Failed to stage the writer save fixture: \(error)")
-            }
+    override func saveWriterContext(_ context: NSManagedObjectContext) throws {
+        throw ExpectedSaveFailure()
+    }
+}
 
-            var paths: [String] = []
-            for transcript in transcripts {
-                if let audioPath = transcript.audioFilePath {
-                    paths.append(audioPath)
-                }
-                if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String {
-                    paths.append(trimmedPath)
-                }
-                context.delete(transcript)
-            }
+/// Pauses the real production transaction after it stages deletes but before
+/// its save. A view-context save can then create the exact conflict from the
+/// production race without copying the method under test.
+private final class DelayedWriterSavePersistenceController: PersistenceController {
+    let gate = AutoDeleteWriterGate()
 
-            // `text` is required. This invalid insert makes the writer save fail
-            // after it stages the real transcript deletion above.
-            let unsavable = Transcript(context: context)
-            unsavable.id = UUID()
-            unsavable.date = Date().addingTimeInterval(3600)
-            unsavable.duration = 1
-
-            return AutoDeleteTransactionSnapshot(
-                audioPaths: paths,
-                transcriptsDeleted: transcripts.count
-            )
-        }
+    override func saveWriterContext(_ context: NSManagedObjectContext) throws {
+        gate.block()
+        try super.saveWriterContext(context)
     }
 }
 
@@ -110,7 +88,7 @@ private final class AutoDeleteWriterGate: @unchecked Sendable {
 
     func block() {
         entered.signal()
-        releaseSemaphore.wait()
+        _ = releaseSemaphore.wait(timeout: .now() + 5)
     }
 
     func waitUntilBlocked() async -> Bool {
@@ -227,7 +205,57 @@ struct AutoDeleteCleanupServiceTests {
 
         #expect(snapshot.transcriptsDeleted == 2)
         #expect(snapshot.audioPaths == [firstOriginalPath, firstTrimmedPath, secondOriginalPath])
+        #expect(!snapshot.hasMore)
         #expect(try transcriptCount(in: context) == 1)
+    }
+
+    /// A view-context update saved after cleanup stages its delete must not make
+    /// the row survive while cleanup unlinks its audio file.
+    @Test func cleanupDeleteWinsConcurrentViewContextSave() async throws {
+        let persistence = DelayedWriterSavePersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let transcript = insertTranscript(
+            into: context,
+            date: Date().addingTimeInterval(-3600),
+            audioFilePath: "/test/concurrent.wav"
+        )
+        try context.save()
+
+        let cleanup = Task {
+            await persistence.deleteTranscriptsOlderThanInBackground(Date())
+        }
+        let saveBlocked = await persistence.gate.waitUntilBlocked()
+        #expect(saveBlocked)
+
+        transcript.text = "concurrent edit"
+        try context.save()
+        persistence.gate.release()
+
+        let completedSnapshot = await cleanup.value
+        let snapshot = try #require(completedSnapshot)
+        #expect(snapshot.transcriptsDeleted == 1)
+        #expect(try transcriptCount(in: context) == 0)
+    }
+
+    /// One production transaction is bounded even for a large old backlog.
+    @Test func productionTransactionLimitsEachWriterBatch() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        for index in 0..<250 {
+            insertTranscript(
+                into: context,
+                date: Date().addingTimeInterval(TimeInterval(-index - 1)),
+                audioFilePath: nil
+            )
+        }
+        try context.save()
+
+        let completedFirst = await persistence.deleteTranscriptsOlderThanInBackground(Date())
+        let first = try #require(completedFirst)
+
+        #expect(first.transcriptsDeleted == 100)
+        #expect(first.hasMore)
+        #expect(try transcriptCount(in: context) == 150)
     }
 
     /// A queued writer transaction must suspend cleanup without holding the main
@@ -524,11 +552,9 @@ struct AutoDeleteCleanupServiceTests {
 
     /// A save that does not commit must not delete a single file.
     ///
-    /// The cleanup transaction now runs on the private serial writer, so an
-    /// invalid `viewContext` row no longer reaches its save. This fixture mocks
-    /// only the persistence boundary. It stages the same fetch, path snapshot,
-    /// and deletes on the writer, then adds one invalid row so the real writer
-    /// save fails and `performWriteRequiringSave` rolls the transaction back.
+    /// The cleanup transaction now runs on the private serial writer. This
+    /// fixture overrides only the save boundary, so the production fetch, path
+    /// snapshot, deletes, rollback, and service failure handling all run.
     @Test func failedSaveDeletesNoFilesAndRollsBackTheRows() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -546,6 +572,13 @@ struct AutoDeleteCleanupServiceTests {
         )
         try context.save()
 
+        // This unrelated invalid edit must remain pending across the failed
+        // writer transaction. Cleanup must not roll back user work.
+        let pendingTranscript = Transcript(context: context)
+        pendingTranscript.id = UUID()
+        pendingTranscript.date = Date().addingTimeInterval(3600)
+        pendingTranscript.duration = 1
+
         let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
         let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
 
@@ -560,8 +593,11 @@ struct AutoDeleteCleanupServiceTests {
         #expect(FileManager.default.fileExists(atPath: trimmedPath))
         // The failed writer transaction did not change the view-context row.
         let remaining = try transcriptCount(in: context)
-        #expect(remaining == 1)
-        #expect(!context.hasChanges)
+        #expect(remaining == 2)
+        // Cleanup does not roll back unrelated view-context work. The removed
+        // rollback was an accidental side effect that could discard user edits.
+        #expect(!pendingTranscript.isDeleted)
+        #expect(context.hasChanges)
         // And the pass still released the flag, so the next tick can retry.
         #expect(!service.isCleanupInProgress)
     }
