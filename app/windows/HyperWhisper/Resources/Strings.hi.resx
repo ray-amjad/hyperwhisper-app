@@ -2392,6 +2392,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>कुंजी सत्यापित, क्रेडिट पुष्ट। रिकॉर्डिंग HyperWhisper Cloud में जाएंगी।</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>HyperWhisper Cloud से कनेक्शन पूरा करने के लिए इस PC को सक्रिय करें।</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>यह PC सक्रिय है। रिकॉर्डिंग HyperWhisper Cloud में जाएंगी।</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloud सक्रिय करें</value>
   </data>

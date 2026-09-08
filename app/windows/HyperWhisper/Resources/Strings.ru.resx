@@ -2392,6 +2392,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Ключ проверен, кредиты подтверждены. Записи будут отправляться в HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Активируйте этот компьютер, чтобы завершить подключение к HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Этот компьютер активирован. Записи будут отправляться в HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Активировать Cloud</value>
   </data>

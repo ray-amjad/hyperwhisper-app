@@ -2392,6 +2392,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Кључ потврђен, кредити потврђени. Снимци ће ићи на HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Активирајте овај рачунар да бисте довршили повезивање са HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Овај рачунар је активиран. Снимци ће ићи на HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Активирај Cloud</value>
   </data>

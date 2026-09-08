@@ -2392,6 +2392,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Klucz zweryfikowany, kredyty potwierdzone. Nagrania trafią do HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktywuj ten komputer, aby dokończyć łączenie z HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Ten komputer jest aktywowany. Nagrania będą trafiać do HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktywuj Cloud</value>
   </data>

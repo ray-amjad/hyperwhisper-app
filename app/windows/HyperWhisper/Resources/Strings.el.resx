@@ -2392,6 +2392,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Το κλειδί επαληθεύτηκε, οι πιστώσεις επιβεβαιώθηκαν. Οι εγγραφές θα πηγαίνουν στο HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Ενεργοποιήστε αυτόν τον υπολογιστή για να ολοκληρώσετε τη σύνδεση με το HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Αυτός ο υπολογιστής είναι ενεργοποιημένος. Οι εγγραφές θα πηγαίνουν στο HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Ενεργοποίηση Cloud</value>
   </data>

@@ -76,7 +76,13 @@ static void AllCatalogsLoad()
     // strings, plus app.unknown.error and errors.textNotDelivered. 671 -> 849.
     // This job is path-filtered, so it did not run on that merge and main only
     // went red days later, on an unrelated PR that touched localization.
-    Equal(850, PortableLocalizer.BaseKeyCount, "base key count");
+    //
+    // Two for the Cloud setup step's subtitle, which had ONE string for three
+    // states and printed the finished one on arrival. 849 -> 851:
+    //   onboarding.setup.cloud.subtitle.pending
+    //   onboarding.setup.cloud.subtitle.balancePending
+    // Plus one for the default mode's locked-name explanation (issue #494).
+    Equal(852, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

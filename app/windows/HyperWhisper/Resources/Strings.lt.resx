@@ -2392,6 +2392,12 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Raktas patvirtintas, kreditai patvirtinti. Įrašai bus siunčiami į HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktyvinkite šį kompiuterį, kad užbaigtumėte prisijungimą prie HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Šis kompiuteris aktyvintas. Įrašai bus siunčiami į HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktyvuoti „Cloud“</value>
   </data>
