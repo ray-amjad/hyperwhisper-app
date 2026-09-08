@@ -50,6 +50,14 @@ public partial class MainViewModel : ViewModelBase
     private StreamingTranscriptionClient? _streamingClient;
     private System.Timers.Timer? _durationTimer;
     private CancellationTokenSource? _activeTranscriptionCts;
+
+    /// <summary>
+    /// True while the transcription behind <see cref="_activeTranscriptionCts"/> came
+    /// from a file on disk rather than the microphone. The generic cancel paths cannot
+    /// tell the two apart from <see cref="IsTranscribing"/> alone, and they have to,
+    /// because they name what was cancelled (issue #506).
+    /// </summary>
+    private bool _fileTranscriptionActive;
     private bool _toggleShortcutHeld;
     private bool _isStreamingSession;
     private bool _isStreamingStarting;
@@ -487,6 +495,19 @@ public partial class MainViewModel : ViewModelBase
     /// purpose.
     /// </summary>
     internal static bool ShouldReportUndeliveredTranscript() => !TextDeliveryGate.IsSuppressed;
+
+    /// <summary>
+    /// The status line a cancelled transcription leaves behind, split out for the
+    /// same reason: one decision in one place, pinnable without a MainViewModel.
+    ///
+    /// A file import reads audio off disk and never opens the microphone, so
+    /// cancelling one must not report that a recording was cancelled (issue #506).
+    /// The microphone paths keep the string they always had.
+    /// </summary>
+    internal static string CancelledStatusText(bool cancelledFileTranscription) =>
+        Loc.S(cancelledFileTranscription
+            ? "status.fileTranscriptionCancelled"
+            : "status.recordingCancelled");
 
     private void ReportUndeliveredTranscript()
     {
@@ -2400,7 +2421,7 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Info("TranscriptionFlow: Transcription cancelled by user");
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            StatusText = CancelledStatusText(cancelledFileTranscription: false);
             if (transcript != null)
             {
                 transcriptDeleted = HistoryService.Instance.DeleteTranscript(transcript.Id);
@@ -2599,7 +2620,9 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Debug("Cancelled transcription via Escape");
                 HideOverlayRequested?.Invoke(this, EventArgs.Empty);
                 HideFileProgressRequested?.Invoke(this, EventArgs.Empty);
-                StatusText = Loc.S("status.recordingCancelled");
+                // This branch serves BOTH kinds of transcription, so it has to ask which
+                // one it just cancelled rather than assume the microphone (issue #506).
+                StatusText = CancelledStatusText(_fileTranscriptionActive);
             }
             return;
         }
@@ -2724,7 +2747,7 @@ public partial class MainViewModel : ViewModelBase
                 });
 
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            StatusText = CancelledStatusText(cancelledFileTranscription: false);
             _toggleShortcutHeld = false;
             _pushToTalkMonitor.Reset();
             _shortcutService.ResetKeyboardState();
@@ -2761,7 +2784,7 @@ public partial class MainViewModel : ViewModelBase
 
         await CleanupStreamingSessionAsync();
         HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-        StatusText = Loc.S("status.recordingCancelled");
+        StatusText = CancelledStatusText(cancelledFileTranscription: false);
         _toggleShortcutHeld = false;
         _pushToTalkMonitor.Reset();
         _shortcutService.ResetKeyboardState();
@@ -2917,6 +2940,7 @@ public partial class MainViewModel : ViewModelBase
 
         // STEP 3: Show progress window
         IsTranscribing = true;
+        _fileTranscriptionActive = true;
         ShowFileProgressRequested?.Invoke(this, new FileTranscriptionProgressEventArgs(
             fileName,
             onCancel: () =>
@@ -3060,7 +3084,9 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Info("TranscribeFileAsync: File transcription cancelled by user");
             HideFileProgressRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            // The audio came off disk and the microphone was never opened, so
+            // "Recording cancelled" would describe something that did not happen (#506).
+            StatusText = CancelledStatusText(cancelledFileTranscription: true);
 
             if (transcript != null)
             {
@@ -3146,6 +3172,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             IsTranscribing = false;
+            _fileTranscriptionActive = false;
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;
