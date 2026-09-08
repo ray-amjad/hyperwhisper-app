@@ -10816,6 +10816,235 @@ internal static class Program
                     "replacement text would not line up with the placeholder it replaces");
             });
 
+            Run("mode editor: the wheel over a closed dropdown scrolls the page, it does not edit the mode", () =>
+            {
+                // #493. WPF's ComboBox moves its own selection on the wheel even when
+                // closed, and marks the event handled either way. Every dropdown here
+                // sits in one long ScrollViewer, so a user who picks a value - which
+                // leaves the control focused - and then scrolls to the next section
+                // silently rewrites the mode's transcription engine, with the model row
+                // and the credit line following it. Save Changes then stores an engine
+                // nobody chose.
+                //
+                // This is asserted by REPLAYING THE EVENT PAIR WPF itself raises: the
+                // tunnelling PreviewMouseWheel first, then - only if nothing handled it,
+                // which is exactly the promotion rule InputManager applies - the bubbling
+                // MouseWheel that ComboBox.OnMouseWheel reads. Raising only the preview
+                // would pass with no fix at all, because the selection is changed by the
+                // event that would then never be raised.
+                EnsureSmokeApplication();
+
+                var editor = new ModeEditorWindow(new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Wheel",
+                    ProviderType = "cloud",
+                    CloudProvider = "elevenlabs",
+                    Language = "auto"
+                });
+
+                var root = (FrameworkElement)editor.Content;
+                editor.Content = null;
+                root.Measure(new Size(550, 700));
+                root.Arrange(new Rect(0, 0, 550, 700));
+                root.UpdateLayout();
+
+                var scroller = FindDescendant<System.Windows.Controls.ScrollViewer>(root);
+                Assert(scroller is not null, "the mode editor is no longer one ScrollViewer");
+
+                var combos = DescendantsOf<System.Windows.Controls.ComboBox>(root);
+
+                // EVERY dropdown, not the one the issue happened to be over. There are a
+                // dozen and the report named six; a per-control fix would leave the rest.
+                Assert(combos.Count >= 8,
+                    $"the mode editor has {combos.Count} dropdowns - this case expects the " +
+                    "editor's full set, so it is looking at the wrong tree");
+
+                // A dropdown needs at least two items for a wheel turn to have anywhere
+                // to go. Only four of the twelve fill at construction - the rest populate
+                // in response to a selection, which needs a loaded control this console
+                // process cannot give them - so the set is NAMED rather than counted.
+                //
+                // Skipping the empty ones silently inside the loop was how this started,
+                // and it hid that two thirds of the loop was doing nothing; naming them
+                // means an editor that stops populating CloudProviderCombo - the control
+                // #493 was actually reported over - fails here instead of passing on a
+                // shorter list. The other eight are covered by the type-level rule, which
+                // the next case proves on a ComboBox belonging to no page at all.
+                var loaded = combos.Where(c => c.Items.Count >= 2).ToList();
+                var loadedNames = loaded.Select(NameOrType).OrderBy(n => n, StringComparer.Ordinal).ToList();
+                Assert(
+                    loadedNames.SequenceEqual(new[]
+                    {
+                        "CloudProviderCombo",
+                        "EnglishSpellingCombo",
+                        "PostProcessingProviderCombo",
+                        "PresetCombo"
+                    }),
+                    $"the editor's populated dropdowns are now [{string.Join(", ", loadedNames)}] - " +
+                    "if one was renamed or now fills lazily, update this list; if one stopped " +
+                    "populating, the wheel over it is no longer being tested at all");
+
+                foreach (var combo in loaded)
+                {
+                    combo.SelectedIndex = 0;
+                    var before = combo.SelectedIndex;
+
+                    var handled = RaiseWheelPair(combo, -120);
+
+                    // The load-bearing assertion is `handled`, not the selection. WPF
+                    // only promotes an UNHANDLED preview to the bubbling MouseWheel, and
+                    // that bubble is the sole route by which ComboBox.OnMouseWheel edits
+                    // the value - so suppressing the promotion is the fix, exactly.
+                    //
+                    // The selection check is a backstop and cannot carry this case on its
+                    // own: a detached ComboBox in a console process has no items host, so
+                    // it does not actually move even with the guard removed. The
+                    // user-visible half - "ElevenLabs became Groq" - is proved on a real
+                    // GUI instead; see the PR.
+                    Assert(handled,
+                        $"{NameOrType(combo)}: the wheel was left unhandled, so WPF will " +
+                        "promote it to the bubbling event ComboBox.OnMouseWheel changes the " +
+                        "selection on");
+                    Assert(combo.SelectedIndex == before,
+                        $"{NameOrType(combo)}: one wheel turn moved the selection from {before} to " +
+                        $"{combo.SelectedIndex} - the dialog silently edited the mode");
+                }
+
+                // And the wheel is not simply swallowed: the page has to scroll, which is
+                // what the user was turning the wheel for.
+                Assert(scroller!.ScrollableHeight > 0,
+                    "the editor's content fits its 700px window here, so nothing could scroll " +
+                    "and the forwarding half of this case proves nothing");
+
+                var wheelTarget = loaded[0];
+                scroller.ScrollToVerticalOffset(0);
+                scroller.UpdateLayout();
+                RaiseWheelPair(wheelTarget, -120);
+                scroller.UpdateLayout();
+
+                Assert(scroller.VerticalOffset > 0,
+                    $"the wheel over {NameOrType(wheelTarget)} left the page at offset " +
+                    $"{scroller.VerticalOffset} - the dropdown ate the event instead of passing it on");
+
+                // THE OPEN DROPDOWN KEEPS THE WHEEL. It is scrolling the list it is
+                // showing, so taking the event away from it would break picking a value
+                // out of a long list - the Cloud model dropdown here has dozens.
+                //
+                // ComboBox coerces IsDropDownOpen back to false while the control is
+                // unloaded, and nothing in this console process is ever loaded: there is
+                // no PresentationSource, so no Popup can be hosted. Hence the guard takes
+                // the open state as an argument and this drives it directly. The tripwire
+                // below keeps that claim honest - if the harness ever gains a real Popup,
+                // it fails and this becomes a plain event-pair case like the one above.
+                var open = loaded[0];
+                open.IsDropDownOpen = true;
+                Assert(!open.IsDropDownOpen,
+                    "a dropdown now opens in the console harness - drive the guard through a " +
+                    "real PreviewMouseWheel instead of passing isDropDownOpen by hand");
+
+                var openArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                ComboBoxWheelGuard.Decide(open, isDropDownOpen: true, openArgs);
+                Assert(!openArgs.Handled,
+                    "the guard swallowed the wheel over an OPEN dropdown - the list it is showing " +
+                    "would no longer scroll, so a long model list cannot be browsed");
+
+                var closedArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                ComboBoxWheelGuard.Decide(open, isDropDownOpen: false, closedArgs);
+                Assert(closedArgs.Handled,
+                    "the guard let the wheel through over a CLOSED dropdown, which is the whole " +
+                    "of #493");
+            });
+
+            Run("every dropdown in the app is covered, not just the mode editor's", () =>
+            {
+                // #493 asked whether the Settings pages and the Model Library need the
+                // same treatment. Streaming, Shortcuts and Sound settings, the History
+                // page and the custom-endpoint window all hold ComboBoxes inside
+                // ScrollViewers; the Model Library (ModelsSettingsPage) holds none.
+                //
+                // The rule is registered for the TYPE rather than per control, so a bare
+                // ComboBox that belongs to no page is the honest proof of that: if this
+                // passes, every dropdown in the process is covered, including ones added
+                // later to pages this suite never constructs.
+                EnsureSmokeApplication();
+
+                var host = new System.Windows.Controls.StackPanel();
+                var combo = new System.Windows.Controls.ComboBox();
+                combo.Items.Add("first");
+                combo.Items.Add("second");
+                combo.Items.Add("third");
+                host.Children.Add(combo);
+                combo.SelectedIndex = 0;
+
+                Assert(RaiseWheelPair(combo, -120),
+                    "a plain ComboBox did not get the class handler, so the rule is not app-wide");
+                Assert(combo.SelectedIndex == 0,
+                    $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn");
+
+                // Up as well as down: ComboBox.OnMouseWheel reads the sign, so a guard
+                // written as `if (e.Delta >= 0) return;` would leave half the bug in
+                // place. Asserting the return value is what catches that - the selection
+                // check below cannot, because a detached ComboBox has no items host and
+                // does not move even unguarded.
+                combo.SelectedIndex = 2;
+                Assert(RaiseWheelPair(combo, 120),
+                    "an upward wheel turn was left unhandled, so WPF will promote it and " +
+                    "ComboBox.OnMouseWheel will move the selection back up the list");
+                Assert(combo.SelectedIndex == 2,
+                    $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn upward");
+            });
+
+            Run("onboarding: a region with nothing to scroll hands the wheel back to the stage", () =>
+            {
+                // The OTHER caller of MouseWheelForwarding.RaiseOnParent. The re-raise
+                // used to be copied into both this and ComboBoxWheelGuard, and the two
+                // copies had already drifted; #493 made it one helper, and this is the
+                // side that had no test, so the extraction was unverified in the
+                // direction it could most easily break.
+                //
+                // The case is the scroll LIMIT, which is what the attached property
+                // exists for: an inner region that cannot move must not eat the wheel,
+                // or the onboarding page stops scrolling once the pointer wanders over
+                // a short transcript box.
+                EnsureSmokeApplication();
+
+                var stage = new System.Windows.Controls.StackPanel();
+                var inner = new System.Windows.Controls.ScrollViewer
+                {
+                    Height = 200,
+                    Content = new System.Windows.Controls.TextBlock { Text = "one short line" }
+                };
+                stage.Children.Add(inner);
+                OnboardingStage.SetBubblesMouseWheel(inner, true);
+
+                stage.Measure(new Size(400, 400));
+                stage.Arrange(new Rect(0, 0, 400, 400));
+                stage.UpdateLayout();
+
+                Assert(inner.ScrollableHeight <= 0,
+                    $"the inner region can scroll {inner.ScrollableHeight}px here, so it is " +
+                    "entitled to keep the wheel and this case proves nothing");
+
+                var forwarded = 0;
+                stage.AddHandler(
+                    UIElement.MouseWheelEvent,
+                    new MouseWheelEventHandler((_, _) => forwarded++));
+
+                var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                inner.RaiseEvent(preview);
+
+                Assert(preview.Handled,
+                    "the stage's forwarder left the wheel to WPF, which would scroll the inner " +
+                    "region and the page both");
+                Assert(forwarded == 1,
+                    $"the stage received {forwarded} forwarded wheel events, not 1 - a region at " +
+                    "its limit swallowed the turn instead of passing it up");
+            });
+
             Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
             {
                 // The export card reads "Vocabulary (N)". N was read once, in the page
@@ -11887,6 +12116,37 @@ internal static class Program
 
         return pages;
     }
+
+    /// <summary>
+    /// Replays the mouse-wheel event pair WPF's InputManager raises for one wheel
+    /// turn: the tunnelling PreviewMouseWheel, then - only if nothing handled it -
+    /// the bubbling MouseWheel. That promotion rule is the whole mechanism a
+    /// PreviewMouseWheel guard relies on, so a case that raises only the preview
+    /// would pass against no fix at all.
+    /// </summary>
+    /// <returns>Whether the preview was handled, i.e. whether the bubble was suppressed.</returns>
+    private static bool RaiseWheelPair(UIElement element, int delta)
+    {
+        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
+        {
+            RoutedEvent = UIElement.PreviewMouseWheelEvent
+        };
+        element.RaiseEvent(preview);
+
+        if (preview.Handled)
+            return true;
+
+        element.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
+        {
+            RoutedEvent = UIElement.MouseWheelEvent
+        });
+
+        return false;
+    }
+
+    /// <summary>The control's x:Name if it has one, so a failure names the dropdown.</summary>
+    private static string NameOrType(FrameworkElement element) =>
+        string.IsNullOrEmpty(element.Name) ? $"an unnamed {element.GetType().Name}" : element.Name;
 
     /// <summary>
     /// Assert the cloud balance readout on a step is not silently cut, at every window
