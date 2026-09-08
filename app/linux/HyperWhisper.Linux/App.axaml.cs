@@ -32,6 +32,7 @@ public partial class App : Application
         Resources["AnyItemsConverter"] = new AnyItemsConverter();
         Resources["ModeProviderLineConverter"] = new ModeProviderLineConverter();
         Resources["ModePostProcessingConverter"] = new ModePostProcessingConverter();
+        Resources["StatusBarModelConverter"] = new StatusBarModelConverter();
         Resources["HistoryGroupHeaderConverter"] = new HistoryGroupHeaderConverter(Localization);
         Resources["TranscriptStatusConverter"] = new TranscriptStatusConverter();
         Resources["TranscriptFontConverter"] = new TranscriptFontConverter();

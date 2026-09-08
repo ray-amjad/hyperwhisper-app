@@ -1034,6 +1034,15 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         IsTestingKey = false;
         RefreshSetupError();
         _taskBox.Clear(OnboardingTaskKeys.LicenseTest);
+
+        // StepDidChange fetches the balance on ENTRY to this step, which on a first-run machine
+        // happens while the app is still unlicensed, so that fetch asks about the device id and
+        // comes back "Invalid license key". Nothing re-fetched after the probe, so the big number
+        // above "credits available" stayed on its "…" placeholder for good on a perfectly valid
+        // key. The probe does not STORE the key -- only activation does -- so the key is passed
+        // explicitly; without it this fetch would ask about the device id again and fail again.
+        if (outcome.IsValid)
+            RefreshCredits(force: true, licenseKeyOverride: key);
     }
 
     /// <summary>
@@ -1425,21 +1434,23 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     }
 
     /// <summary>Kick a balance refresh. Failures are swallowed into "unknown".</summary>
-    public void RefreshCredits(bool force)
+    public void RefreshCredits(bool force) => RefreshCredits(force, licenseKeyOverride: null);
+
+    private void RefreshCredits(bool force, string? licenseKeyOverride)
     {
         if (!_isLive)
             return;
 
-        RunTracked(OnboardingTaskKeys.CreditsRefresh, ct => RefreshCreditsCoreAsync(force, ct));
+        RunTracked(OnboardingTaskKeys.CreditsRefresh, ct => RefreshCreditsCoreAsync(force, licenseKeyOverride, ct));
     }
 
-    private async Task RefreshCreditsCoreAsync(bool force, CancellationToken cancellationToken)
+    private async Task RefreshCreditsCoreAsync(bool force, string? licenseKeyOverride, CancellationToken cancellationToken)
     {
         ApplyCredits();
 
         try
         {
-            await _credits.RefreshAsync(force, cancellationToken);
+            await _credits.RefreshAsync(force, cancellationToken, licenseKeyOverride);
         }
         catch (OperationCanceledException)
         {

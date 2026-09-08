@@ -74,6 +74,8 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private bool _trayAvailable;
     private bool _localApiTokenRevealed;
+    private static readonly TimeSpan HistorySearchDebounce = TimeSpan.FromMilliseconds(250);
+    private CancellationTokenSource? _historySearchDebounce;
 
     public MainWindow() : this(new LinuxDesktopServices())
     {
@@ -372,15 +374,27 @@ public partial class MainWindow : Window
 
     private DispatcherTimer? _settingsAutoSave;
 
+    /// <summary>
+    /// The build's own version. The informational version carries the source revision after a
+    /// '+'; every consumer here wants the number a person would quote in a support mail, so only
+    /// what precedes it is kept. The Local API reports this as <c>app_version</c>, so a literal
+    /// here makes every client believe an out-of-date build is running.
+    /// </summary>
+    private static string AppVersion
+    {
+        get
+        {
+            var informational = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?? typeof(MainWindow).Assembly.GetName().Version?.ToString()
+                ?? "unknown";
+            var plus = informational.IndexOf('+');
+            return plus > 0 ? informational[..plus] : informational;
+        }
+    }
+
     private AboutViewModel CreateAboutViewModel(string diagnosticDirectory)
     {
-        // The informational version carries the source revision after a '+'. The About card shows
-        // the number a person would quote in a support mail, so keep only what precedes it.
-        var informational = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? typeof(MainWindow).Assembly.GetName().Version?.ToString()
-            ?? "unknown";
-        var plus = informational.IndexOf('+');
-        var version = plus > 0 ? informational[..plus] : informational;
+        var version = AppVersion;
         var packageVersion = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? version;
         var capabilities = LinuxDiagnosticCapabilityProbe.Detect(_platformServices);
         return new AboutViewModel(
@@ -1312,11 +1326,11 @@ public partial class MainWindow : Window
                     _platformServices.DeviceIdentity, _settings),
                 _platformServices.PrivateFiles,
                 _platformServices.Paths,
-                "1.0.0",
+                AppVersion,
                 new LinuxLocalApiPostProcessor(_postProcessingRouter, modes),
                 vocabulary: new VocabularyRepository(_database));
             _localApiHost = new PortableLocalApiHost(
-                _platformServices.PrivateFiles, _platformServices.Paths, backend, "1.0.0",
+                _platformServices.PrivateFiles, _platformServices.Paths, backend, AppVersion,
                 _viewModel.Settings.LocalApiPort);
             var state = await _localApiHost.StartAsync(cancellationToken).ConfigureAwait(false);
             if (!state.IsRunning)
@@ -1920,6 +1934,29 @@ public partial class MainWindow : Window
             _ => null
         };
         _viewModel.History.EndDate = null;
+        RunHistorySearch();
+    }
+
+    /// <summary>
+    /// The search box only wrote <c>SearchText</c>, which nothing reads until a query runs, so
+    /// typing filtered nothing. Every keystroke would be one database query, so the query is
+    /// delayed until the user stops typing; each new keystroke cancels the previous timer.
+    /// </summary>
+    private void OnHistorySearchTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        _historySearchDebounce?.Cancel();
+        _historySearchDebounce?.Dispose();
+        var cts = new CancellationTokenSource();
+        _historySearchDebounce = cts;
+        _ = Task.Delay(HistorySearchDebounce, cts.Token).ContinueWith(
+            _ => Dispatcher.UIThread.Post(RunHistorySearch),
+            cts.Token,
+            TaskContinuationOptions.OnlyOnRanToCompletion,
+            TaskScheduler.Default);
+    }
+
+    private void RunHistorySearch()
+    {
         if (_viewModel.History.SearchCommand.CanExecute(null)) _viewModel.History.SearchCommand.Execute(null);
     }
 
@@ -2158,7 +2195,12 @@ public partial class MainWindow : Window
         var parts = new List<string>(3);
         var message = _viewModel.Status.Message;
         if (!string.IsNullOrWhiteSpace(message)) parts.Add(message);
-        if (_viewModel.Status.HasError && !string.IsNullOrWhiteSpace(_viewModel.Status.ErrorCode))
+        // The raw error code used to be appended next to the message, so the status bar read
+        // "No audio input device is available. - workflow.start_failed - Press Ctrl+Alt to record".
+        // The code is an internal identifier and reads as a crash. Windows shows only the message.
+        // It is still shown when there is no message, so an error is never silent, and it is always
+        // in the diagnostic log.
+        else if (_viewModel.Status.HasError && !string.IsNullOrWhiteSpace(_viewModel.Status.ErrorCode))
             parts.Add(_viewModel.Status.ErrorCode!);
         var shortcut = _viewModel.Settings.ToggleShortcutDisplay;
         if (!string.IsNullOrEmpty(shortcut))
@@ -2385,8 +2427,12 @@ public partial class MainWindow : Window
     /// </summary>
     private async void OnStartRecording(object? sender, RoutedEventArgs e)
     {
-        _viewModel.Home.ToggleGettingStartedStep("recording");
+        // The step used to be ticked before the recording was even attempted, so a machine with no
+        // working microphone showed "Try your first transcription" as done while the status line
+        // below it reported the failure. Tick it only once a recording is actually running.
         await _interaction.StartRecordingAsync();
+        if (_viewModel.Recording is { HasError: false, State: "Recording" })
+            _viewModel.Home.ToggleGettingStartedStep("recording");
     }
     private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
     private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();

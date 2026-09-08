@@ -411,6 +411,33 @@ try
             && cloudMode.CloudTranscriptionDomain == "medical" && cloudMode.CloudTranscriptionModel == "mai-1.5"
             && cloudMode.CustomVocabulary?.Count == 2 && cloudMode.EnableScreenOCR,
             "new cloud mode did not persist routing and context fields");
+
+        // A cloud mode created straight from the HyperWhisper Cloud segment: the type never
+        // changes, so the ProviderType setter's local-id guard never runs and TranscriptionModel
+        // is still at its on-device default. That default used to be saved as the mode's cloud
+        // model, putting a local Whisper id on a cloud mode.
+        shell.Modes.Selected = null;
+        shell.Modes.Name = "Cloud default model";
+        shell.Modes.IsHwCloudSource = true;
+        shell.Modes.TranscriptionModel = "base";
+        await shell.Modes.SaveAsync();
+        var defaultCloudMode = (await new ModeRepository(database).ListAsync())
+            .Single(item => item.Name == "Cloud default model");
+        Assert(defaultCloudMode.CloudTranscriptionModel is null,
+            $"a cloud mode was saved with the local model id '{defaultCloudMode.CloudTranscriptionModel}'");
+
+        // The model combo went blank on an engine switch because this rebuilt a new list on every
+        // read and Avalonia clears SelectedItem whenever ItemsSource is a different instance.
+        shell.Modes.Selected = null;
+        shell.Modes.IsOnDeviceSource = true;
+        shell.Modes.LocalEngine = "whisper";
+        var whisperModels = shell.Modes.LocalModels;
+        Assert(ReferenceEquals(whisperModels, shell.Modes.LocalModels),
+            "LocalModels handed back a new list instance for an unchanged engine");
+        shell.Modes.LocalEngine = "parakeet";
+        Assert(!ReferenceEquals(whisperModels, shell.Modes.LocalModels),
+            "LocalModels did not rebuild when the engine changed");
+
         cloudMode.ModelType = "linux-model-type";
         cloudMode.IsSystemProvided = true;
         cloudMode.CreatedDate = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
@@ -521,6 +548,12 @@ try
         Assert(accountHttp.ValidateDeviceName is { Length: 128 }
             && !accountHttp.ValidateDeviceName.Any(char.IsControl),
             "account activation did not bound and sanitize the device name");
+        // Activation returns the licence but no balance, and nothing else fetched one, so the
+        // balance card stayed empty and "Cost per Minute" read ~0.0 until the user found Refresh.
+        Assert(account.Credits == "42.5" && account.MinutesRemaining == "7",
+            "activation did not fetch the credit balance");
+        Assert(account.Status.Message.Contains("Account activated", StringComparison.Ordinal),
+            "the credit fetch replaced the activation confirmation");
         await account.RefreshCreditsAsync();
         Assert(account.Credits == "42.5" && account.MinutesRemaining == "7",
             "account credit refresh did not update display state");

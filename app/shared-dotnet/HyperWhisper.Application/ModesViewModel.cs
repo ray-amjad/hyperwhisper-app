@@ -212,8 +212,29 @@ public sealed class ModesViewModel : ViewModelBase
     /// LocalModelCombo (ModeEditorWindow.xaml:104) from the same catalog, so the card offers a
     /// pick list rather than a free-text box.
     /// </summary>
-    public IReadOnlyList<string> LocalModels =>
-        [.. PortableModelCatalog.All.Where(model => model.Kind == LocalModelKind).Select(model => model.Id)];
+    /// One cached list per engine.
+    ///
+    /// This used to build a NEW list on every read, and a single engine change notifies it twice
+    /// (NormalizeLocalModel assigns TranscriptionModel, whose setter notifies again). Avalonia
+    /// clears SelectedItem whenever ItemsSource is a different instance, so the model combo went
+    /// blank while the value underneath stayed correct. The list depends only on the engine, so
+    /// the same instance is handed back until the engine changes.
+    public IReadOnlyList<string> LocalModels
+    {
+        get
+        {
+            var kind = LocalModelKind;
+            if (_localModels is null || _localModelsKind != kind)
+            {
+                _localModelsKind = kind;
+                _localModels = [.. PortableModelCatalog.All.Where(model => model.Kind == kind).Select(model => model.Id)];
+            }
+            return _localModels;
+        }
+    }
+
+    private IReadOnlyList<string>? _localModels;
+    private ManagedModelKind? _localModelsKind;
 
     /// <summary>
     /// Mirrors the guard above. Switching TO cloud already drops a local model id; without the
@@ -719,7 +740,19 @@ public sealed class ModesViewModel : ViewModelBase
         if (mode.ProviderType == "cloud")
         {
             mode.CloudProvider = CloudProvider;
-            mode.CloudTranscriptionModel = string.IsNullOrWhiteSpace(TranscriptionModel) ? null : TranscriptionModel.Trim();
+            // A LOCAL model id must never reach the cloud column. TranscriptionModel is shared by
+            // the on-device picker and the BYOK picker, and it starts at the on-device default
+            // "base". The ProviderType setter drops a local id on the way to cloud, but that runs
+            // only when the type actually CHANGES, so a mode that is already cloud — every mode
+            // created from the HyperWhisper Cloud segment — kept "base" and was saved with
+            // CloudTranscriptionModel="base". The mode card then printed a Whisper id on a cloud
+            // mode, and ModeUsingModel matched it against the local catalog. A real cloud model id
+            // such as "mai-1.5" is unaffected and still persists.
+            var cloudModel = TranscriptionModel.Trim();
+            var isLocalModelId = PortableModelCatalog.All.Any(model =>
+                model.Kind is ManagedModelKind.Whisper or ManagedModelKind.Parakeet
+                && string.Equals(model.Id, cloudModel, StringComparison.Ordinal));
+            mode.CloudTranscriptionModel = cloudModel.Length == 0 || isLocalModelId ? null : cloudModel;
             // Canonicalise BEFORE the allow-list check. The list holds catalog ids
             // only, and the comparison is ordinal, so a legacy alias (`googleChirp3`,
             // `chirp_3`, `high`, …) would otherwise miss every entry and be silently

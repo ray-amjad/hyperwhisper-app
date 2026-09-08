@@ -91,4 +91,45 @@ public static class ProviderAssets
     /// <summary>Whether a bare asset name has a PNG behind it.</summary>
     public static bool Exists(string? assetName)
         => !string.IsNullOrEmpty(assetName) && ShippedNames.Contains(assetName);
+
+    /// <summary>
+    /// The chip colour a logo is drawn on, as a "#RRGGBB" string.
+    ///
+    /// Each PNG is single-colour ink on transparency, and the ink differs per vendor: OpenAI,
+    /// Groq and ElevenLabs are white, Nemotron and Parakeet are near-black. So no ONE background
+    /// makes them all legible — a light tile hid every white mark and a dark tile hid every dark
+    /// one. Windows never had the problem because it gives each logo its own brand chip
+    /// (ApiKeysSettingsPage.xaml: OpenAI on #10A37F, Groq on #F55036, and so on). These are those
+    /// colours, so both heads draw the same mark on the same chip.
+    /// </summary>
+    /// <returns>The brand colour, or a neutral dark chip for a name with no brand entry.</returns>
+    public static string ChipColorFor(string? assetName)
+        => assetName is not null && ChipColors.TryGetValue(assetName, out var color) ? color : NeutralChipColor;
+
+    /// <summary>The chip a monogram is drawn on, and the fallback for an unbranded logo.</summary>
+    public const string NeutralChipColor = "#1F2024";
+
+    private static readonly Dictionary<string, string> ChipColors = new(StringComparer.Ordinal)
+    {
+        ["providerOpenAI"] = "#10A37F",
+        ["providerGroq"] = "#F55036",
+        ["providerDeepgram"] = "#13EF93",
+        ["providerAssemblyAI"] = "#6B5BFF",
+        ["providerElevenLabs"] = "#0F0F0F",
+        ["providerMistral"] = "#FA500F",
+        ["providerSoniox"] = "#2A6DF4",
+        ["providerGemini"] = "#8E75B2",
+        ["providerGrok"] = "#0F0F0F",
+        ["providerAnthropic"] = "#D97757",
+        ["providerCerebras"] = "#F15A27",
+        ["providerMicrosoft"] = "#1877F2",
+        ["providerGoogle"] = "#FFFFFF",
+        // No vendor brand stands behind an on-device engine or the Apple mark, so these four take
+        // the chip their own INK needs. Measured on the rendered rows: the Whisper mark is white
+        // (srgb 242-255 across the tile), the other three are near-black.
+        ["providerApple"] = "#F2F3F5",
+        ["providerLocalWhisper"] = NeutralChipColor,
+        ["providerParakeet"] = "#F2F3F5",
+        ["providerLocalLLM"] = "#F2F3F5",
+    };
 }

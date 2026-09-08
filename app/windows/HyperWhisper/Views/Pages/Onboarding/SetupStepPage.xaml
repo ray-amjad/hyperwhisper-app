@@ -105,8 +105,14 @@
                         <Border Style="{StaticResource OnboardingCardBlockStyle}"
                                 Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}">
                             <StackPanel>
+                                <!-- The content is a glyph plus two swapped TextBlocks, so UIA
+                                     derived no name at all and a screen reader announced an
+                                     unlabelled button. It is the gating control of the step:
+                                     Continue stays disabled until it is pressed. -->
                                 <Button Style="{StaticResource OnboardingBlockPrimaryButtonStyle}"
                                         Command="{Binding ActivateCloudLicenseCommand}"
+                                        AutomationProperties.AutomationId="ActivateCloudButton"
+                                        AutomationProperties.Name="{loc:Loc onboarding.setup.cloud.activate}"
                                         IsEnabled="{Binding CanActivateLicense}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE73E;"
