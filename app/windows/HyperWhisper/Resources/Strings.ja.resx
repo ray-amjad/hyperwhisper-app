@@ -893,6 +893,9 @@
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>録音がキャンセルされました</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>ファイルの文字起こしをキャンセルしました</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>不明</value>
   </data>

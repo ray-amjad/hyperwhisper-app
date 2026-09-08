@@ -808,6 +808,9 @@ Tej czynności nie można cofnąć.</value>
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>Anulowano transkrypcję pliku</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

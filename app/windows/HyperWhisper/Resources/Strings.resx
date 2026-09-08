@@ -1068,6 +1068,9 @@ Do you want to restart now?</value>
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>File transcription cancelled</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

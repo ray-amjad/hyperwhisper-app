@@ -485,6 +485,19 @@ public partial class MainViewModel : ViewModelBase
     /// </summary>
     internal static bool ShouldReportUndeliveredTranscript() => !TextDeliveryGate.IsSuppressed;
 
+    /// <summary>
+    /// The status line a cancelled transcription leaves behind, split out for the
+    /// same reason: one decision in one place, pinnable without a MainViewModel.
+    ///
+    /// A file import reads audio off disk and never opens the microphone, so
+    /// cancelling one must not report that a recording was cancelled (issue #506).
+    /// The microphone paths keep the string they always had.
+    /// </summary>
+    internal static string CancelledStatusText(bool cancelledFileTranscription) =>
+        Loc.S(cancelledFileTranscription
+            ? "status.fileTranscriptionCancelled"
+            : "status.recordingCancelled");
+
     private void ReportUndeliveredTranscript()
     {
         if (!ShouldReportUndeliveredTranscript())
@@ -2357,7 +2370,7 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Info("TranscriptionFlow: Transcription cancelled by user");
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            StatusText = CancelledStatusText(cancelledFileTranscription: false);
             if (transcript != null)
             {
                 transcriptDeleted = HistoryService.Instance.DeleteTranscript(transcript.Id);
@@ -2556,7 +2569,7 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Debug("Cancelled transcription via Escape");
                 HideOverlayRequested?.Invoke(this, EventArgs.Empty);
                 HideFileProgressRequested?.Invoke(this, EventArgs.Empty);
-                StatusText = Loc.S("status.recordingCancelled");
+                StatusText = CancelledStatusText(cancelledFileTranscription: false);
             }
             return;
         }
@@ -2681,7 +2694,7 @@ public partial class MainViewModel : ViewModelBase
                 });
 
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            StatusText = CancelledStatusText(cancelledFileTranscription: false);
             _toggleShortcutHeld = false;
             _pushToTalkMonitor.Reset();
             _shortcutService.ResetKeyboardState();
@@ -2718,7 +2731,7 @@ public partial class MainViewModel : ViewModelBase
 
         await CleanupStreamingSessionAsync();
         HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-        StatusText = Loc.S("status.recordingCancelled");
+        StatusText = CancelledStatusText(cancelledFileTranscription: false);
         _toggleShortcutHeld = false;
         _pushToTalkMonitor.Reset();
         _shortcutService.ResetKeyboardState();
@@ -3017,7 +3030,9 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Info("TranscribeFileAsync: File transcription cancelled by user");
             HideFileProgressRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            // The audio came off disk and the microphone was never opened, so
+            // "Recording cancelled" would describe something that did not happen (#506).
+            StatusText = CancelledStatusText(cancelledFileTranscription: true);
 
             if (transcript != null)
             {

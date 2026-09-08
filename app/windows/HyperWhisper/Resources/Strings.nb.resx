@@ -808,6 +808,9 @@ Denne handlingen kan ikke angres.</value>
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>Filtranskripsjon avbrutt</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>

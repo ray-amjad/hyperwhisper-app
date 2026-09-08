@@ -11651,6 +11651,33 @@ internal static class Program
                 }
             });
 
+            Run("cancel: a cancelled FILE transcription does not report a cancelled recording — issue #506", () =>
+            {
+                // #506. TranscribeFileAsync's OperationCanceledException handler reused
+                // status.recordingCancelled, so cancelling a file imported from disk
+                // said "Recording cancelled" on a box where the microphone was never
+                // opened - and, on the reporter's VM, where there is no audio device at
+                // all. The other four callers of that key are genuine microphone paths,
+                // so the key was right and the one call site was not; the choice is now
+                // one method, which is what this pins.
+                var recording = MainViewModel.CancelledStatusText(cancelledFileTranscription: false);
+                var file = MainViewModel.CancelledStatusText(cancelledFileTranscription: true);
+
+                // Loc.S returns the key name for a key that is not in the catalog, so
+                // this also catches the resource never having been added.
+                Assert(recording == HyperWhisper.Localization.Loc.S("status.recordingCancelled")
+                        && recording != "status.recordingCancelled",
+                    $"the microphone paths now say '{recording}' - their string was already right");
+                Assert(file != "status.fileTranscriptionCancelled",
+                    "status.fileTranscriptionCancelled is not in Strings.resx, so the file path " +
+                    "renders a raw resource key at the user");
+                Assert(file != recording,
+                    $"cancelling a file import still reports '{file}' - the microphone string");
+                Assert(file.IndexOf("record", StringComparison.OrdinalIgnoreCase) < 0,
+                    $"the file-import status reads '{file}', which still tells the user something " +
+                    "was recorded");
+            });
+
             Run("delivery: a refused clipboard write is reported unless the gate refused it", () =>
             {
                 // C3. Honouring CopyToClipboard's return value was right, and it

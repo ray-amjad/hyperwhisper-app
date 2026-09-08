@@ -808,6 +808,9 @@ Questa azione non può essere annullata.</value>
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>Trascrizione del file annullata</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
