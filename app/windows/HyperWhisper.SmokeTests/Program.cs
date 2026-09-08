@@ -11888,10 +11888,8 @@ internal static class Program
                         + "now\" and \"never run\" are different facts, and the second is the one that "
                         + "makes a user press the button again");
 
-                    var expectedLine = HyperWhisper.Localization.Loc.S(
-                        "settings.storage.autoDelete.lastCleanup",
-                        autoDelete.LastCleanupTime!.Value.ToString("g"),
-                        0);
+                    var expectedLine = StorageSettingsPage.FormatLastCleanupLine(
+                        autoDelete.LastCleanupTime!.Value, 0, TimeZoneInfo.Local);
                     Assert(page.LastCleanupText.Text == expectedLine,
                         $"the line reads '{page.LastCleanupText.Text}', expected '{expectedLine}'");
 
@@ -11933,6 +11931,69 @@ internal static class Program
 
                     settings.AutoDeleteDaysOld = daysBefore;
                     settings.AutoDeleteEnabled = enabledBefore;
+                }
+            });
+
+            Run("storage: the last-cleanup line is the user's local time, not UTC — issue #504", () =>
+            {
+                EnsureSmokeApplication();
+
+                // The reported instant. On the reporter's UTC-7 box the line read
+                // "9/8/2026 8:05 AM" while the tray clock read 1:05 AM: DateTime.UtcNow is
+                // recorded, and ToString("g") formats a UTC DateTime WITHOUT converting it,
+                // so a UTC instant was printed in a local-looking format, 7 hours ahead.
+                var stampUtc = new DateTime(2026, 9, 8, 8, 5, 0, DateTimeKind.Utc);
+
+                // A fixed custom offset, not the runner's zone: GitHub's Windows runners are
+                // on UTC, where a missing conversion is invisible. This makes the case
+                // discriminating on every machine.
+                var minusSeven = TimeZoneInfo.CreateCustomTimeZone(
+                    "percy-504-utc-minus-7", TimeSpan.FromHours(-7), "UTC-07", "UTC-07");
+
+                var line = StorageSettingsPage.FormatLastCleanupLine(stampUtc, 7, minusSeven);
+
+                var localReading = new DateTime(2026, 9, 8, 1, 5, 0).ToString("g");
+                var utcReading = stampUtc.ToString("g");
+                Assert(localReading != utcReading, "this case's two readings must differ to prove anything");
+
+                Assert(line.Contains(localReading),
+                    $"the line reads '{line}'; in UTC-7 it must show '{localReading}', "
+                    + "the same convention History uses for the same underlying UTC timestamps");
+                Assert(!line.Contains(utcReading),
+                    $"the line reads '{line}', which is the raw UTC instant '{utcReading}' printed as "
+                    + "if it were local — 7 hours in this user's future");
+
+                // Unspecified is what a DateTime can come back as from settings.json, and it
+                // is UTC there. It must not be shifted a second time.
+                var unspecified = DateTime.SpecifyKind(stampUtc, DateTimeKind.Unspecified);
+                Assert(StorageSettingsPage.FormatLastCleanupLine(unspecified, 7, minusSeven) == line,
+                    "an Unspecified stamp read back from settings.json rendered differently from the "
+                    + "Utc one it was written as");
+
+                // A Local-kind stamp must be converted to UTC first, not thrown on.
+                var asLocal = stampUtc.ToLocalTime();
+                Assert(StorageSettingsPage.FormatLastCleanupLine(asLocal, 7, minusSeven) == line,
+                    "a Local-kind stamp did not render as the same instant");
+
+                // And the page uses the helper rather than formatting the UTC value itself.
+                var settings = SettingsService.Instance;
+                var stampBefore = settings.AutoDeleteLastCleanupUtc;
+                var countBefore = settings.AutoDeleteLastCleanupDeleted;
+                try
+                {
+                    settings.RecordAutoDeleteCleanup(stampUtc, 7);
+
+                    var page = new StorageSettingsPage();
+                    page.UpdateLastCleanupInfo();
+
+                    var expected = StorageSettingsPage.FormatLastCleanupLine(stampUtc, 7, TimeZoneInfo.Local);
+                    Assert(page.LastCleanupText.Text == expected,
+                        $"the page renders '{page.LastCleanupText.Text}', expected '{expected}'");
+                }
+                finally
+                {
+                    if (stampBefore.HasValue)
+                        settings.RecordAutoDeleteCleanup(stampBefore.Value, countBefore);
                 }
             });
 

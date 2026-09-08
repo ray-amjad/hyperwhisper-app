@@ -71,14 +71,42 @@ public partial class StorageSettingsPage : Page
 
         if (lastTime.HasValue)
         {
-            LastCleanupText.Text = Loc.S("settings.storage.autoDelete.lastCleanup",
-                                         lastTime.Value.ToString("g"),
-                                         deletedCount);
+            LastCleanupText.Text = FormatLastCleanupLine(lastTime.Value, deletedCount, TimeZoneInfo.Local);
         }
         else
         {
             LastCleanupText.Text = Loc.S("settings.storage.autoDelete.noCleanupYet");
         }
+    }
+
+    /// <summary>
+    /// The "Last cleanup: … - Deleted N recording(s)" line, with the recorded instant
+    /// converted out of UTC into <paramref name="zone"/>.
+    /// </summary>
+    /// <remarks>
+    /// The conversion is the whole point. The sweep records DateTime.UtcNow, and
+    /// ToString("g") formats a UTC DateTime without converting it — so the line printed a
+    /// UTC instant in a local-looking format, seven hours into the future for a user in
+    /// UTC-7 (issue #504). Every other timestamp the app renders already converts:
+    /// History's row times and detail header (TranscriptViewModel.FormattedTime /
+    /// FormattedDate), its Today/Yesterday section headers, and its date filters all call
+    /// ToLocalTime, so this line was the only one out of step.
+    ///
+    /// The zone is a parameter, not TimeZoneInfo.Local read inside, so a test can pin an
+    /// offset instead of inheriting whatever the CI runner is set to — on a UTC runner a
+    /// missing conversion is invisible.
+    /// </remarks>
+    internal static string FormatLastCleanupLine(DateTime lastCleanupUtc, int deletedCount, TimeZoneInfo zone)
+    {
+        // ConvertTimeFromUtc rejects a Local Kind and reads Unspecified as UTC, which is
+        // what a value round-tripped through settings.json may arrive as.
+        var utc = lastCleanupUtc.Kind == DateTimeKind.Local
+            ? lastCleanupUtc.ToUniversalTime()
+            : lastCleanupUtc;
+
+        return Loc.S("settings.storage.autoDelete.lastCleanup",
+                     TimeZoneInfo.ConvertTimeFromUtc(utc, zone).ToString("g"),
+                     deletedCount);
     }
 
     private void UpdateStorageError(string? message)
