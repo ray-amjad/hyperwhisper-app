@@ -11712,7 +11712,7 @@ internal static class Program
                 }
             });
 
-            Run("settings: an info notice is given the whole column, so it wraps — issue #503", () =>
+            Run("settings: an info notice is given the whole column, so it wraps — issues #503, #508", () =>
             {
                 // A horizontal StackPanel measures its children with infinite available
                 // width. TextWrapping="Wrap" is therefore dead inside one: the TextBlock
@@ -11733,12 +11733,15 @@ internal static class Program
 
                 var storagePage = new StorageSettingsPage();
                 var backupPage = new BackupExportSettingsPage();
+                var streamingPage = new StreamingSettingsPage();
 
                 var rows = new (string Label, System.Windows.Controls.Page Page, System.Windows.Controls.TextBlock Block)[]
                 {
                     ("StorageSettingsPage.StorageNoticeText", storagePage, storagePage.StorageNoticeText),
                     ("StorageSettingsPage.LastCleanupText", storagePage, storagePage.LastCleanupText),
                     ("BackupExportSettingsPage.BackupNoticeText", backupPage, backupPage.BackupNoticeText),
+                    ("StreamingSettingsPage.ProviderStatusText", streamingPage, streamingPage.ProviderStatusText),
+                    ("StreamingSettingsPage.VocabularyWarningText", streamingPage, streamingPage.VocabularyWarningText),
                 };
 
                 // The last-cleanup panel is collapsed until auto-delete is on, and a
@@ -11749,6 +11752,19 @@ internal static class Program
                     "settings.storage.autoDelete.lastCleanup",
                     new DateTime(2026, 9, 8, 1, 5, 0).ToString("g"),
                     7);
+
+                // Same on Streaming: the options block is hidden until streaming is
+                // enabled and the vocabulary warning until there is vocabulary to
+                // warn about. Both rows get the LONGEST string the catalog can put
+                // in them, because the bug scales with the sentence — the Deepgram
+                // line lost four characters and the Gemini line lost "PI keys
+                // manager.", the part that says where to go (#508).
+                streamingPage.StreamingOptionsPanel.Visibility = Visibility.Visible;
+                streamingPage.VocabularyWarningPanel.Visibility = Visibility.Visible;
+                streamingPage.ProviderStatusText.Text = HyperWhisper.Localization.Loc.S(
+                    "settings.streaming.providerStatus.geminiTranscribe.missingKey");
+                streamingPage.VocabularyWarningText.Text = HyperWhisper.Localization.Loc.S(
+                    "settings.streaming.warning.vocabularyAutoDetect");
 
                 // Every row is measured before anything is asserted, so one bad row does
                 // not hide the state of the other two.
@@ -11787,7 +11803,10 @@ internal static class Program
                     //    column edge, where the ScrollViewer clips it. That is the English
                     //    Storage bug, and it is invisible to check 1 because the overhanging
                     //    row and its overhanging child agree with each other.
-                    var column = (FrameworkElement)((System.Windows.Controls.ScrollViewer)page.Content).Content;
+                    //    Found by walking up to the row's own ScrollViewer rather than
+                    //    assuming the page IS one: Storage and Backup put the
+                    //    ScrollViewer at the root, Streaming puts it in row 2 of a Grid.
+                    var column = (FrameworkElement)ScrollViewerAbove(block).Content;
                     var rightInColumn = block.TransformToAncestor(column).Transform(new Point(0, 0)).X
                                         + block.ActualWidth;
                     if (rightInColumn > column.ActualWidth + 0.5)
@@ -13184,6 +13203,29 @@ internal static class Program
         return new System.Windows.Media.FormattedText(
             "Ag", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
             block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Height;
+    }
+
+    /// <summary>
+    /// The ScrollViewer this element scrolls inside. Its Content is the settings
+    /// content column — the width a notice row really has to stay within.
+    /// </summary>
+    /// <remarks>
+    /// Walked rather than assumed. Storage and Backup make the ScrollViewer the
+    /// page root, so <c>page.Content</c> is it; Streaming puts a header, a
+    /// separator and then the ScrollViewer in a three-row Grid, and casting its
+    /// root would throw.
+    /// </remarks>
+    private static System.Windows.Controls.ScrollViewer ScrollViewerAbove(DependencyObject element)
+    {
+        for (var node = System.Windows.Media.VisualTreeHelper.GetParent(element);
+             node != null;
+             node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is System.Windows.Controls.ScrollViewer scrollViewer) return scrollViewer;
+        }
+
+        throw new InvalidOperationException(
+            $"{element.GetType().Name} is not inside a ScrollViewer, so it has no content column to measure against.");
     }
 
     /// <summary>
