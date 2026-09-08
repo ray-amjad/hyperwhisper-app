@@ -6418,6 +6418,52 @@ internal static class Program
                 Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
             });
 
+            Run("/post-process emits the documented post_processed flag", () =>
+            {
+                // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
+                // `Bool` (`LocalAPITypes.swift`, `PostProcessResponse`) and
+                // `openapi.yaml` documents it as the field that separates a
+                // real rewrite from a no-op. Windows omitted the key entirely,
+                // so a client sharing the macOS `Codable` model threw
+                // `keyNotFound` on every Windows reply.
+                //
+                // WHAT THIS PINS, AND WHAT IT DOES NOT. It pins the SERIALISED
+                // SHAPE: the `[JsonPropertyName]` spelling, the full key set,
+                // and that both boolean values survive the responder's own
+                // `JsonOptions` (the options are the thing that decides what
+                // reaches the wire, so a bare `JsonSerializer` here would test
+                // the wrong object). It does NOT pin which branch of
+                // `PostProcessEndpoints` picks which value — that needs
+                // `ModeService` and a live host, which this harness has no way
+                // to stand up. The `required` modifier on the property is what
+                // stops a new branch omitting the field: it is a compile error,
+                // not a test. The portable suite covers the endpoint wiring
+                // end-to-end over real HTTP for the head that can be hosted.
+                static JsonNode Wire(bool postProcessed) =>
+                    JsonSerializer.SerializeToNode(
+                        new PostProcessResponse
+                        {
+                            Text = "text",
+                            Provider = postProcessed ? "hyperwhispercloud" : "none",
+                            Model = "model",
+                            Preset = "note",
+                            LatencyMs = 7,
+                            PostProcessed = postProcessed
+                        },
+                        LocalApiResponder.JsonOptions)!;
+
+                string[] expected = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
+                foreach (var flag in new[] { true, false })
+                {
+                    var node = Wire(flag);
+                    var keys = node.AsObject().Select(pair => pair.Key).Order().ToArray();
+                    Assert(keys.SequenceEqual(expected.Order()),
+                        $"the /post-process body drifted from the documented shape (post_processed={flag}): got {string.Join(",", keys)}");
+                    Assert(node["post_processed"]!.GetValue<bool>() == flag,
+                        "post_processed must carry the value it was given");
+                }
+            });
+
             Run("the bearer check accepts only the real token", () =>
             {
                 var token = HyperwhisperCoreMethods.LocalApiGenerateToken(new byte[32]);

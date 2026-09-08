@@ -165,6 +165,22 @@ paths:
   /post-process:
     post:
       summary: Rewrite text with AI post-processing
+      description: |
+        `post_processed` says whether an LLM actually ran. Every platform sends
+        the key on every `ok: true` body, and macOS decodes it as a
+        non-optional `Bool`, so always read it rather than assuming a 200 means
+        a rewrite happened.
+
+        WHAT COUNTS AS A GRACEFUL DEGRADATION STILL DIFFERS PER PLATFORM, and
+        this is a known gap rather than a documented guarantee. For a bad key,
+        a model or network error, or an offline provider: macOS answers
+        `ok: true` with the raw input and `post_processed: false`; Windows
+        answers an `ok: false` / `TRANSCRIPTION_FAILED` envelope; the
+        portable/Linux head answers an `ok: false` / `ENGINE_UNAVAILABLE`
+        envelope. A `post_processed: false` on a 200 therefore means a silent
+        skip (post-processing off for the resolved mode, or an empty system
+        prompt) on Windows and Linux, and either that or a provider failure on
+        macOS. Handle both the `ok: false` envelope and `post_processed: false`.
       requestBody:
         required: true
         content:
@@ -565,7 +581,7 @@ components:
         model: { type: string }
         preset: { type: string }
         latency_ms: { type: integer }
-        post_processed: { type: boolean, description: "true when an LLM actually ran and produced post-processed text; false when a failure path (bad key, model/network error, offline) returned the raw input unchanged. ok stays true for graceful degradation, so read this to know post-processing happened." }
+        post_processed: { type: boolean, description: "true when an LLM actually ran and produced post-processed text; false when a failure path returned the raw input unchanged. ok stays true for graceful degradation, so read this to know post-processing happened. Sent by every platform on every ok:true body; macOS decodes it as a non-optional Bool. Which failures degrade to ok:true and which answer an ok:false envelope instead still differs per platform — see the note on this endpoint." }
 
     RecordingDTO:
       type: object
