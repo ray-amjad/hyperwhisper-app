@@ -9,6 +9,7 @@ using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Platform;
+using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages;
 using HyperWhisper.Views.Pages.Settings;
@@ -622,6 +623,14 @@ public partial class MainWindow : Window
             _fileTranscriptionMenu = new System.Windows.Forms.ToolStripMenuItem(Loc.S("menu.transcribe.file"));
             menu.Items.Add(_fileTranscriptionMenu);
 
+            // Both submenus list MODE NAMES, which are free user text of any
+            // length, so both bound the label with MenuItemText.Bound and hand
+            // the whole name to a tooltip (issue #525). ShowItemToolTips is set
+            // explicitly rather than relied on: it is the ToolStrip default, but
+            // it is the entire reason the full name is still reachable.
+            _modeMenu.DropDown.ShowItemToolTips = true;
+            _fileTranscriptionMenu.DropDown.ShowItemToolTips = true;
+
             // Subscribe to audio device and mode changes to refresh the menus
             _viewModel.PropertyChanged += (s, e) =>
             {
@@ -904,8 +913,13 @@ public partial class MainWindow : Window
             bool isSelected = selectedMode != null && selectedMode.Id == mode.Id;
 
             var modeName = string.IsNullOrWhiteSpace(mode.Name) ? Loc.S("menu.mode.unnamed") : mode.Name;
-            var modeItem = new System.Windows.Forms.ToolStripMenuItem(modeName)
+
+            // A ToolStripDropDownMenu sizes to its widest item and does not
+            // ellipsise, so the name is bounded here rather than at render time
+            // (issue #525). The full name stays on the tooltip and in the log.
+            var modeItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(modeName))
             {
+                ToolTipText = MenuItemText.NeedsFullTextTooltip(modeName) ? modeName : null,
                 Checked = isSelected,
                 // The flow stages the default Mode row and snapshots the active
                 // selection; a change made here is discarded by both Complete()
@@ -953,8 +967,11 @@ public partial class MainWindow : Window
         foreach (var mode in modes)
         {
             var modeName = string.IsNullOrWhiteSpace(mode.Name) ? Loc.S("menu.mode.unnamed") : mode.Name;
-            var modeItem = new System.Windows.Forms.ToolStripMenuItem(modeName)
+
+            // Bounded for the same reason as the Select Mode submenu above.
+            var modeItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(modeName))
             {
+                ToolTipText = MenuItemText.NeedsFullTextTooltip(modeName) ? modeName : null,
                 Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading && !IsOnboardingOpen,
                 Tag = mode
             };
