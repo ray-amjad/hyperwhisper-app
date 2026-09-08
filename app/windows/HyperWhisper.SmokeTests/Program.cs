@@ -11521,6 +11521,127 @@ internal static class Program
                 Assert(box.Field.BorderThickness.Left <= 1, "including the border");
             });
 
+            Run("shortcuts: the recorder commits once per gesture, not once per key-down", () =>
+            {
+                // #513. Field_PreviewKeyDown validated and reported on EVERY key-down,
+                // so typing a three-key chord was three captures. Ctrl+Shift+Space over
+                // the Cancel field produced: Ctrl (refused), Ctrl+Shift (ACCEPTED AND
+                // STORED), Ctrl+Shift+Space (refused as Streaming's). The user read the
+                // last verdict and kept the middle one - a bare two-modifier chord that
+                // fires on any Ctrl+Shift in Windows, survives a restart, and is not
+                // what the modifier-only migration undoes (IsSingleBareModifier is
+                // false for two modifiers).
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var savedToggle = settings.ToggleShortcut;
+                var savedCancel = settings.CancelShortcut;
+                var savedChangeMode = settings.ChangeModeShortcut;
+                var savedStreaming = settings.StreamingShortcut;
+                try
+                {
+                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+
+                    var recorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    var captured = new List<string>();
+                    recorder.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+
+                    // Type the chord that is already Streaming's, one key at a time.
+                    recorder.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    recorder.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    Assert(captured.Count == 0,
+                        "the modifiers of a chord still being typed are not a finished shortcut");
+
+                    recorder.HandleKeyDown(Key.Space, control: true, alt: false, shift: true, win: false);
+                    recorder.HandleKeyUp(Key.Space);
+                    recorder.HandleKeyUp(Key.LeftShift);
+                    recorder.HandleKeyUp(Key.LeftCtrl);
+
+                    Assert(captured.Count == 0,
+                        "a refused chord reports NOTHING - not itself, and not the Ctrl+Shift behind it");
+                    Assert(recorder.ErrorMessage != null && recorder.ErrorMessage.Contains("Streaming"),
+                        "and the user is told which role already holds it");
+                    Assert(recorder.Field.Text == "Esc",
+                        "the field goes back to what is really configured, not the half-typed prefix");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "Esc",
+                        "the setting the user was only EDITING is untouched - the whole point of #513");
+
+                    // The happy path still works, and still commits exactly once.
+                    recorder.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    recorder.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    recorder.HandleKeyDown(Key.K, control: true, alt: false, shift: true, win: false);
+                    recorder.HandleKeyUp(Key.K);
+                    recorder.HandleKeyUp(Key.LeftShift);
+                    recorder.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Shift+K",
+                        "one gesture is one capture, of the chord that was actually typed - got ["
+                        + string.Join(", ", captured) + "]");
+
+                    // Modifier-only chords are legal here ON PURPOSE - the default
+                    // Toggle is Ctrl+Alt and push-to-talk takes them - so the gesture
+                    // cannot end on "key-up of a non-modifier" that never arrives. It
+                    // ends when the LAST key is released, which is also what stops a
+                    // fumbled reach for the final key committing the prefix.
+                    captured.Clear();
+                    var modifierOnly = new ShortcutRecorderBox { Role = "Toggle", DisplayText = "Ctrl+Alt" };
+                    modifierOnly.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    modifierOnly.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    modifierOnly.HandleKeyDown(Key.LWin, control: true, alt: false, shift: false, win: true);
+                    Assert(captured.Count == 0, "still held down, so still unfinished");
+
+                    modifierOnly.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 0,
+                        "one modifier released while another is still down is mid-gesture, not the end of one");
+
+                    modifierOnly.HandleKeyUp(Key.LWin);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Win",
+                        "the last key up commits the whole chord, whatever order it was released in - got ["
+                        + string.Join(", ", captured) + "]");
+
+                    // A key still held from a FINISHED gesture must not hold the next
+                    // one open. Press F8 (commits), keep holding it, and tap Alt then
+                    // Shift as two separate taps: if the held F8 kept the set
+                    // non-empty, releasing it would commit a merged Alt+Shift that was
+                    // never typed - the same class of phantom chord as #513 itself.
+                    captured.Clear();
+                    var straggler = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    straggler.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    straggler.HandleKeyDown(Key.F8, control: false, alt: false, shift: false, win: false);
+                    Assert(captured.Count == 1 && captured[0] == "F8",
+                        "precondition: a bare function key is a complete chord and commits at once");
+
+                    straggler.HandleKeyDown(Key.LeftAlt, control: false, alt: true, shift: false, win: false);
+                    straggler.HandleKeyUp(Key.LeftAlt);
+                    straggler.HandleKeyDown(Key.LeftShift, control: false, alt: false, shift: true, win: false);
+                    straggler.HandleKeyUp(Key.LeftShift);
+                    straggler.HandleKeyUp(Key.F8);
+                    Assert(!captured.Contains("Alt+Shift"),
+                        "two separate taps are not one chord, whatever is still held from a finished gesture - got ["
+                        + string.Join(", ", captured) + "]");
+
+                    // And a lone modifier is still refused, on that same one path.
+                    captured.Clear();
+                    var bare = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    bare.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    bare.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    bare.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 0, "a lone Ctrl is still not a shortcut");
+                    Assert(bare.ErrorMessage != null && bare.ErrorMessage.Contains("Single modifier"),
+                        "and it still says why");
+                    Assert(bare.Field.Text == "Esc", "and it leaves the field showing what is configured");
+                }
+                finally
+                {
+                    settings.ToggleShortcut = savedToggle;
+                    settings.CancelShortcut = savedCancel;
+                    settings.ChangeModeShortcut = savedChangeMode;
+                    settings.StreamingShortcut = savedStreaming;
+                }
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
