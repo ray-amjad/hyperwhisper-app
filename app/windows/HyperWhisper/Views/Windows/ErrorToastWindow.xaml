@@ -14,6 +14,8 @@
 
     <!-- Error Toast: Pill-shaped container matching macOS InlineErrorToast design -->
     <!-- Slightly wider than recording dialog (360 vs 200) to accommodate message + countdown -->
+    <!-- The width is fixed and the height grows: a message that needs more than one line
+         wraps onto the next one instead of being cut (issue #489). -->
     <Border x:Name="MainBorder"
             CornerRadius="20"
             Background="#D9000000"
@@ -51,7 +53,13 @@
                                Margin="0,2,0,0"/>
                 </Grid>
 
-                <!-- Error Message (Truncated single line) -->
+                <!-- Error Message -->
+                <!-- Wraps across the width the 360px pill actually has: the star column
+                     less the icon, the countdown and the optional settings button. A
+                     MaxWidth here would re-impose the recording pill's 200px and cut the
+                     message, which is what issue #489 was. MaxHeight keeps a runaway
+                     provider exception from growing the toast off the screen; the last
+                     line it can show is ellipsized rather than half-drawn. -->
                 <TextBlock x:Name="ErrorMessage"
                            Grid.Column="1"
                            Text="Error message here"
@@ -59,8 +67,9 @@
                            FontSize="11"
                            FontWeight="Medium"
                            VerticalAlignment="Center"
+                           TextWrapping="Wrap"
                            TextTrimming="CharacterEllipsis"
-                           MaxWidth="200"/>
+                           MaxHeight="90"/>
 
                 <!-- Countdown Timer -->
                 <Border Grid.Column="2"

@@ -1,7 +1,9 @@
 // ERROR TOAST WINDOW
 // A compact, auto-dismissing error pill that appears above the recording dialog.
-// Matches macOS InlineErrorToast design: 360x40 pill with warning icon,
-// truncated error message, countdown timer, and optional settings button.
+// Matches macOS InlineErrorToast design: a 360px-wide pill with warning icon,
+// error message, countdown timer, and optional settings button.
+// The pill is 40px tall for a short message and grows downwards for a longer
+// one - the message wraps rather than being trimmed at one line (issue #489).
 //
 // BEHAVIOR:
 // - Appears with fade-in animation
@@ -94,21 +96,34 @@ public partial class ErrorToastWindow : Window
 
     private void PositionAboveRecordingDialog()
     {
+        // The height depends on how many lines the message wrapped onto, so measure
+        // before placing: Show() on a re-used window does not always flush layout
+        // first, and a stale height puts the pill in the wrong place.
+        UpdateLayout();
+        var height = double.IsNaN(Height) ? ActualHeight : Height;
+
         // Try to find the recording overlay window and position above it
         var recordingWindow = FindRecordingOverlayWindow();
+        var workArea = SystemParameters.WorkArea;
 
         if (recordingWindow != null && recordingWindow.IsVisible)
         {
             // Position centered above the recording dialog, 12px gap (matching macOS)
             Left = recordingWindow.Left + (recordingWindow.ActualWidth - Width) / 2;
-            Top = recordingWindow.Top - Height - 12;
+            Top = recordingWindow.Top - height - 12;
         }
         else
         {
             // Fallback: bottom-center of work area, 80 pixels from bottom
-            var workArea = SystemParameters.WorkArea;
             Left = workArea.Left + (workArea.Width - Width) / 2;
-            Top = workArea.Bottom - Height - 80;
+            Top = workArea.Bottom - height - 80;
+        }
+
+        // A tall toast above a recording dialog near the top of the screen would
+        // otherwise start off the top edge, hiding the first lines of the message.
+        if (Top < workArea.Top)
+        {
+            Top = workArea.Top;
         }
     }
 
