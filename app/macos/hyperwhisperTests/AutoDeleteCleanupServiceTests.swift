@@ -87,6 +87,43 @@ private final class FailedWriterSavePersistenceController: PersistenceController
     }
 }
 
+/// Models a fetch that fails before the auto-delete transaction can produce a
+/// value snapshot. Core Data's in-memory store cannot deterministically stage a
+/// fetch error, so this test double stops at the persistence boundary.
+private final class FailedWriterFetchPersistenceController: PersistenceController {
+    private(set) var attemptedCutoffDate: Date?
+
+    override func deleteTranscriptsOlderThanInBackground(
+        _ cutoffDate: Date
+    ) async -> AutoDeleteTransactionSnapshot? {
+        attemptedCutoffDate = cutoffDate
+        return nil
+    }
+}
+
+/// A deterministic barrier for a synchronous Core Data writer block. Tests wait
+/// for `block()` to start without blocking the main actor, then release the
+/// writer after they have inspected state or queued another transaction.
+private final class AutoDeleteWriterGate: @unchecked Sendable {
+    private let entered = DispatchSemaphore(value: 0)
+    private let releaseSemaphore = DispatchSemaphore(value: 0)
+
+    func block() {
+        entered.signal()
+        releaseSemaphore.wait()
+    }
+
+    func waitUntilBlocked() async -> Bool {
+        await Task.detached {
+            self.entered.wait(timeout: .now() + 5) == .success
+        }.value
+    }
+
+    func release() {
+        releaseSemaphore.signal()
+    }
+}
+
 // MARK: - Tests
 
 /// Coverage for `AutoDeleteCleanupService.performCleanup()` itself
@@ -99,14 +136,21 @@ private final class FailedWriterSavePersistenceController: PersistenceController
 /// bail-out that must leave every file alone when the Core Data save does not
 /// commit.
 ///
-/// What these do NOT pin is the ordering itself — that the Core Data delete and
-/// save happen BEFORE the off-actor hop, and that the blocking deletes really
-/// leave the main actor. Both need a seam this service does not have (an
-/// injectable deleter, or an observable point between the save and the unlink),
-/// and both are the actual substance of HYPERWHISPER-HF. Treat the ordering as
-/// covered by review, not by this suite.
+/// Writer gates below also pin the ordering itself: pending Core Data work yields
+/// the main actor, and cleanup queued behind a path rewrite snapshots the path
+/// that the writer commits before cleanup starts.
 @MainActor
 struct AutoDeleteCleanupServiceTests {
+
+    private static func waitUntil(
+        _ condition: @escaping @MainActor () -> Bool
+    ) async {
+        for _ in 0..<1_000 {
+            if condition() { return }
+            await Task.yield()
+        }
+        Issue.record("Timed out while waiting for auto-delete state")
+    }
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
@@ -148,6 +192,69 @@ struct AutoDeleteCleanupServiceTests {
         // generated `Transcript` subclass.
         let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
         return try context.count(for: request)
+    }
+
+    /// The production persistence operation must return only the ordered value
+    /// snapshot and delete only rows strictly older than the cutoff.
+    @Test func productionTransactionReturnsPathsAndDeletesOnlyExpiredRows() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let cutoff = Date()
+        let firstOriginalPath = "/test/expired-first.wav"
+        let firstTrimmedPath = "/test/expired-first-trimmed.wav"
+        let secondOriginalPath = "/test/expired-second.wav"
+
+        insertTranscript(
+            into: context,
+            date: cutoff.addingTimeInterval(-120),
+            audioFilePath: firstOriginalPath,
+            trimmedAudioFilePath: firstTrimmedPath
+        )
+        insertTranscript(
+            into: context,
+            date: cutoff.addingTimeInterval(-60),
+            audioFilePath: secondOriginalPath
+        )
+        insertTranscript(
+            into: context,
+            date: cutoff.addingTimeInterval(60),
+            audioFilePath: "/test/recent.wav"
+        )
+        try context.save()
+
+        let completedSnapshot = await persistence.deleteTranscriptsOlderThanInBackground(cutoff)
+        let snapshot = try #require(completedSnapshot)
+
+        #expect(snapshot.transcriptsDeleted == 2)
+        #expect(snapshot.audioPaths == [firstOriginalPath, firstTrimmedPath, secondOriginalPath])
+        #expect(try transcriptCount(in: context) == 1)
+    }
+
+    /// A queued writer transaction must suspend cleanup without holding the main
+    /// actor. The closed gate makes the pending Core Data work deterministic.
+    @Test func pendingCoreDataWorkLeavesMainActorResponsive() async throws {
+        let persistence = PersistenceController(inMemory: true)
+        let gate = AutoDeleteWriterGate()
+        let blocker = Task {
+            await persistence.performWrite { _ in gate.block() }
+        }
+        let writerBlocked = await gate.waitUntilBlocked()
+        #expect(writerBlocked)
+
+        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+        let cleanup = Task { await service.performCleanup() }
+        await Self.waitUntil { service.isCleanupInProgress }
+
+        MainActor.assertIsolated()
+        #expect(service.isCleanupInProgress)
+
+        gate.release()
+        await blocker.value
+        let completedStats = await cleanup.value
+        let stats = try #require(completedStats)
+        #expect(stats.transcriptsDeleted == 0)
+        #expect(!service.isCleanupInProgress)
     }
 
     /// A pass that finds nothing expired must leave `isCleanupInProgress` false.
@@ -296,6 +403,123 @@ struct AutoDeleteCleanupServiceTests {
         #expect(stats.bytesFreed == 512)
         let remaining = try transcriptCount(in: context)
         #expect(remaining == 0)
+    }
+
+    /// A fetch failure is a hard abort. The service must preserve all rows and
+    /// files, record no success state, and release its in-progress flag.
+    @Test func failedFetchDeletesNothingAndRecordsNoSuccess() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = FailedWriterFetchPersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let path = try makeFile(in: directory, byteCount: 128)
+        insertTranscript(
+            into: context,
+            date: Date().addingTimeInterval(-3600),
+            audioFilePath: path
+        )
+        try context.save()
+
+        let cutoff = Date()
+        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: cutoff)
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+
+        let stats = await service.performCleanup()
+
+        #expect(persistence.attemptedCutoffDate == cutoff)
+        #expect(stats == nil)
+        #expect(service.lastCleanupStats == nil)
+        #expect(service.lastCleanupDate == nil)
+        #expect(FileManager.default.fileExists(atPath: path))
+        #expect(try transcriptCount(in: context) == 1)
+        #expect(!service.isCleanupInProgress)
+    }
+
+    /// Cleanup queued behind an audio-path rewrite must read the committed path
+    /// from the same writer. It must not unlink the stale pre-rewrite path.
+    @Test func cleanupSnapshotsCommittedPathAfterSerializedRewrite() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let stalePath = try makeFile(in: directory, byteCount: 64)
+        let committedPath = try makeFile(in: directory, byteCount: 128)
+        let transcript = insertTranscript(
+            into: context,
+            date: Date().addingTimeInterval(-3600),
+            audioFilePath: stalePath
+        )
+        try context.save()
+        let transcriptID = transcript.objectID
+
+        let gate = AutoDeleteWriterGate()
+        let rewrite = Task {
+            await persistence.performWrite { writerContext in
+                let writerTranscript = try? writerContext.existingObject(with: transcriptID) as? Transcript
+                writerTranscript?.audioFilePath = committedPath
+                gate.block()
+            }
+        }
+        let rewritePending = await gate.waitUntilBlocked()
+        #expect(rewritePending)
+
+        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+        let cleanup = Task { await service.performCleanup() }
+        await Self.waitUntil { service.isCleanupInProgress }
+
+        gate.release()
+        await rewrite.value
+        let completedStats = await cleanup.value
+        let stats = try #require(completedStats)
+
+        #expect(stats.transcriptsDeleted == 1)
+        #expect(stats.audioFilesDeleted == 1)
+        #expect(stats.bytesFreed == 128)
+        #expect(FileManager.default.fileExists(atPath: stalePath))
+        #expect(!FileManager.default.fileExists(atPath: committedPath))
+        #expect(try transcriptCount(in: context) == 0)
+    }
+
+    /// Pending, invalid edits on the view context must not reach the writer save
+    /// and poison an otherwise valid cleanup transaction.
+    @Test func pendingViewContextEditsDoNotPoisonWriterCleanup() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let expiredPath = try makeFile(in: directory, byteCount: 256)
+        insertTranscript(
+            into: context,
+            date: Date().addingTimeInterval(-3600),
+            audioFilePath: expiredPath
+        )
+        try context.save()
+
+        // `text` is required. This unrelated pending insert would make a
+        // view-context save fail, but it never enters the writer transaction.
+        let pendingTranscript = Transcript(context: context)
+        pendingTranscript.id = UUID()
+        pendingTranscript.date = Date().addingTimeInterval(3600)
+        pendingTranscript.duration = 1
+
+        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+
+        let completedStats = await service.performCleanup()
+        let stats = try #require(completedStats)
+
+        #expect(stats.transcriptsDeleted == 1)
+        #expect(stats.audioFilesDeleted == 1)
+        #expect(stats.bytesFreed == 256)
+        #expect(!FileManager.default.fileExists(atPath: expiredPath))
+        #expect(!pendingTranscript.isDeleted)
+        #expect(context.hasChanges)
+        #expect(try transcriptCount(in: context) == 1)
+        #expect(!service.isCleanupInProgress)
     }
 
     /// A save that does not commit must not delete a single file.
