@@ -11462,6 +11462,104 @@ internal static class Program
                     "its limit swallowed the turn instead of passing it up");
             });
 
+            Run("error toast: the whole message is readable, however long it is — issue #489", () =>
+            {
+                // #489. The pill is 360 wide and its own comment says the extra width is
+                // there "to accommodate message + countdown", but the message TextBlock
+                // carried MaxWidth="200" — the RECORDING pill's width — plus
+                // CharacterEllipsis. So ~60px of the toast stayed empty and everything
+                // past roughly 35 characters was cut: the live report showed
+                // "Transcription failed: HyperWhisper Cl…" for a 62-character message.
+                //
+                // MEASURED, not grepped. The window is never Shown here (the CI runner
+                // has no interactive desktop to place it on); its content is measured
+                // directly, which is the same layout pass Show() would run.
+                EnsureSmokeApplication();
+
+                // The real worst case in Strings.resx: 121 characters whose final clause
+                // is the one that tells the user the transcript is safe.
+                var longest = HyperWhisper.Localization.Loc.S("errors.textNotDelivered");
+                Assert(longest.Length > 100,
+                    $"errors.textNotDelivered is now {longest.Length} characters, so this case " +
+                    "no longer exercises a message that needs more than one line");
+
+                static (double Height, System.Windows.Controls.TextBlock Message) LayOutToast(string text)
+                {
+                    var toast = new ErrorToastWindow();
+                    var root = (FrameworkElement)toast.Content;
+                    toast.ErrorMessage.Text = text;
+
+                    // WindowStyle=None + AllowsTransparency, so the content gets the
+                    // window's whole 360px width and the height is SizeToContent's.
+                    root.Measure(new Size(360, double.PositiveInfinity));
+                    root.Arrange(new Rect(0, 0, 360, root.DesiredSize.Height));
+                    root.UpdateLayout();
+                    return (root.DesiredSize.Height, toast.ErrorMessage);
+                }
+
+                // The height this text needs when wrapped into `width`. Comparing it
+                // against ActualHeight is how the case tells "all of it is on screen"
+                // from "the rest was trimmed", without a pixel constant a font change
+                // would invalidate.
+                static double WrappedHeightOf(System.Windows.Controls.TextBlock block, double width)
+                {
+                    var typeface = new System.Windows.Media.Typeface(
+                        block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+                    return new System.Windows.Media.FormattedText(
+                        block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+                        typeface, block.FontSize, System.Windows.Media.Brushes.Black, 1.0)
+                    { MaxTextWidth = width }.Height;
+                }
+
+                var (longHeight, longMessage) = LayOutToast(longest);
+
+                Assert(longMessage.TextWrapping == TextWrapping.Wrap,
+                    $"the message wraps with {longMessage.TextWrapping}: a message longer than one " +
+                    "line is cut instead of continuing onto the next one");
+
+                // The regression this issue actually was: a width cap borrowed from the
+                // 200px recording pill.
+                Assert(double.IsNaN(longMessage.MaxWidth) || longMessage.MaxWidth >= 260,
+                    $"the message is capped at {longMessage.MaxWidth}px inside a 360px toast, so it " +
+                    "is trimmed with the pill still part empty");
+                Assert(longMessage.ActualWidth > 200,
+                    $"the message was laid out {longMessage.ActualWidth:F0}px wide - no wider than the " +
+                    "recording pill, so the toast's extra width is still unused");
+
+                // Prove the case exercises wrapping at all, then that nothing was lost.
+                var needed = WrappedHeightOf(longMessage, longMessage.ActualWidth);
+                Assert(needed > longMessage.FontSize * 1.5,
+                    $"the {longest.Length}-character message fits on one {longMessage.ActualWidth:F0}px " +
+                    "line, so this case would pass against no fix at all");
+                Assert(longMessage.ActualHeight + 0.5 >= needed,
+                    $"the message rendered {longMessage.ActualHeight:F1}px tall for text that needs " +
+                    $"{needed:F1}px at that width - the last lines are not on screen");
+                Assert(longMessage.Text == longest,
+                    "the toast is truncating the message in data, which is not the fix");
+                Assert(longHeight > 40,
+                    $"the toast is still {longHeight:F1}px tall for a message that needs " +
+                    $"{needed:F0}px of text - the window did not grow to fit it");
+
+                // And a SHORT message must still look like the pill it was: one line,
+                // the same 40px-ish height, not a box with empty space under the text.
+                var (shortHeight, shortMessage) = LayOutToast("Transcription failed");
+                Assert(WrappedHeightOf(shortMessage, shortMessage.ActualWidth) <= shortMessage.FontSize * 1.5,
+                    "the short probe wrapped, so it cannot say what a one-line toast looks like");
+                Assert(shortHeight <= 40,
+                    $"a one-line message now makes a {shortHeight:F1}px toast; the pill was 40px");
+
+                // A provider exception is arbitrary text, and an unbounded toast would
+                // walk off the top of the screen. It grows, but not without limit.
+                var (runawayHeight, _) = LayOutToast(new string('x', 40) + " " + string.Join(" ",
+                    Enumerable.Repeat("providerfailure", 120)));
+                Assert(runawayHeight <= 130,
+                    $"a 1900-character provider message made a {runawayHeight:F0}px toast - it is " +
+                    "unbounded and will cover the screen");
+                Assert(runawayHeight >= longHeight,
+                    $"the runaway message ({runawayHeight:F0}px) made a SHORTER toast than the " +
+                    $"121-character one ({longHeight:F0}px), so the cap is cutting real messages");
+            });
+
             Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
             {
                 // The export card reads "Vocabulary (N)". N was read once, in the page
