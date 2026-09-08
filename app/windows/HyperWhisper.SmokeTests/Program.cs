@@ -1433,6 +1433,38 @@ internal static class Program
                 }
             });
 
+            // Issue #511. "Your license key is no longer valid. Enter a new key
+            // below, or get credits to create one." is a statement about a licence
+            // this device once had. A fresh install that mistyped its first-ever
+            // key got it too, because the branch tested the status and nothing
+            // else — so the first thing the page ever said about the customer's
+            // account was untrue, and it pointed at billing instead of the typo.
+            Run("the lapsed-licence banner needs a licence that lapsed — issue #511", () =>
+            {
+                // No stored key means no licence has ever worked on this device:
+                // LicenseNetworkService persists a key only after it validates.
+                foreach (var status in Enum.GetValues<LicenseStatus>())
+                {
+                    Assert(!LicenseManager.ShouldExplainLapsedLicense(status, hasStoredKey: false),
+                        $"{status} with no stored key claimed a licence had lapsed on a device that "
+                        + "has never had one");
+                }
+
+                // With a stored key the banner is right, and it is the whole point
+                // of the branch — a returning customer must not get a fresh-install
+                // screen with no explanation.
+                Assert(LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Expired, hasStoredKey: true),
+                    "a stored key that expired must still be explained");
+                Assert(LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Invalid, hasStoredKey: true),
+                    "a stored key that was revoked must still be explained");
+
+                // And a working or unlicensed device is not a lapse either way.
+                Assert(!LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Active, hasStoredKey: true),
+                    "an active licence must not be reported as lapsed");
+                Assert(!LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Trial, hasStoredKey: true),
+                    "a device back in trial must not be reported as lapsed");
+            });
+
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
             {
                 using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
