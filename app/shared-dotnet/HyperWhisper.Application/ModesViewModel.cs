@@ -107,6 +107,7 @@ public sealed class ModesViewModel : ViewModelBase
             PersistSelectedMode(value.Id);
             IsCreating = false;
             LoadEditorFrom(value);
+            Notify(nameof(IsDefaultModeSelected));
         }
     }
 
@@ -379,10 +380,23 @@ public sealed class ModesViewModel : ViewModelBase
     public bool IsCreating
     {
         get => _isCreating;
-        private set { if (Set(ref _isCreating, value)) Notify(nameof(IsEditing)); }
+        private set { if (Set(ref _isCreating, value)) { Notify(nameof(IsEditing)); Notify(nameof(IsDefaultModeSelected)); } }
     }
     /// <summary>The inverse of <see cref="IsCreating"/>; Delete is offered only when editing.</summary>
     public bool IsEditing => !_isCreating;
+
+    /// <summary>
+    /// True when the editor is open on the one mode whose name is fixed (issue #494).
+    ///
+    /// The FLAG, not the name. macOS used to key the same rule on <c>name == "Default"</c>,
+    /// which locked any mode a user happened to call that and stopped locking the real default
+    /// as soon as a restored backup carried another name. Windows has always read IsDefault
+    /// (ModeEditorWindow.xaml.cs), and Linux reads it here.
+    ///
+    /// A mode being created is never the default, hence the IsCreating guard: without it the
+    /// create dialog would inherit the flag from whichever mode was selected behind it.
+    /// </summary>
+    public bool IsDefaultModeSelected => !_isCreating && _selected?.IsDefault == true;
 
     /// <summary>Mode.Preset, round-tripped. Drives <see cref="ShowCustomInstructions"/>.</summary>
     public string Preset

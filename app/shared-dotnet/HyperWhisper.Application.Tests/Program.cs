@@ -248,6 +248,19 @@ try
     Assert(modeSelection.Selected?.Id == mode.Id,
         "missing selected mode did not prefer the default over sort order");
     modeSelection.Selected = modeSelection.Items.Single(item => item.Id == alternateMode.Id);
+
+    // #494. Linux binds both the Name field's IsEnabled and the sentence beside it to
+    // this one property, so a wrong answer here either locks a renameable mode or
+    // offers to rename the default. Keyed on the FLAG: `alternateMode` is an ordinary
+    // mode and `mode` is the default, and neither is called "Default".
+    Assert(!modeSelection.IsDefaultModeSelected,
+        "an ordinary mode reports as the default, so Linux would lock a renameable mode");
+    modeSelection.Selected = modeSelection.Items.Single(item => item.Id == mode.Id);
+    Assert(modeSelection.IsDefaultModeSelected,
+        "the default mode does not report as default, so Linux would offer to rename it");
+    // Restored: the assertion below reads the selection this persisted.
+    modeSelection.Selected = modeSelection.Items.Single(item => item.Id == alternateMode.Id);
+
     var reloadedModeSelection = new ModesViewModel(modes, reloadedSettings);
     await reloadedModeSelection.RefreshAsync();
     Assert(reloadedModeSelection.Selected?.Id == alternateMode.Id,

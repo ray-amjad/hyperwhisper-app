@@ -831,7 +831,13 @@ struct ModeEditorView: View {
     /// constraining what it is called). Windows has always keyed the same rule on
     /// `IsDefault`; issue #494 was the two platforms disagreeing about it.
     private var isDefaultMode: Bool {
-        configuration.mode?.isDefault == true
+        Self.isNameLocked(configuration.mode)
+    }
+
+    /// Static so hyperwhisperTests can assert the rule without standing up the view;
+    /// the regression it guards is precisely a return to the string compare.
+    static func isNameLocked(_ mode: Mode?) -> Bool {
+        mode?.isDefault == true
     }
 
     private var editorBasicSettings: some View {
@@ -851,6 +857,10 @@ struct ModeEditorView: View {
                         )
                         .textFieldStyle(.roundedBorder)
                         .disabled(isDefaultMode)
+                        // The reason travels with the field, not only as the label
+                        // below it: VoiceOver reaches a disabled control but has no
+                        // way to associate a loose sibling Text with it.
+                        .accessibilityHint(isDefaultMode ? Text(localized: "modes.field.name.defaultLocked") : Text(""))
                     }
 
                     // A disabled field with nothing beside it reads as a broken

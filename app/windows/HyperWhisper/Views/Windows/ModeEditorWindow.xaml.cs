@@ -31,29 +31,18 @@ public partial class ModeEditorWindow : Window
     }
 
     /// <summary>
-    /// THE DEFAULT MODE'S NAME IS FIXED, AND NOW SAYS SO (issue #494).
+    /// The default mode's name is fixed, and the field says so rather than just going
+    /// grey (issue #494). Keyed on IsDefault - the mode's identity, not its label.
     ///
-    /// Keyed on IsDefault, which is the mode's identity. macOS used to key the same
-    /// rule on <c>name == "Default"</c>, which is the mode's LABEL: it locked any
-    /// mode a user happened to name "Default", and it stopped locking the real
-    /// default the moment a restored backup carried a different name. Both platforms
-    /// read the flag now.
-    ///
-    /// A disabled TextBox with nothing beside it reads as a broken control, so a
-    /// hint carries the reason. Visible text rather than a tooltip: WPF does not show
-    /// a tooltip on a disabled control unless ToolTipService.ShowOnDisabled is set,
-    /// and a rule the user has to hover to discover is barely better than no rule at
-    /// all when the thing they are confused by is a dead field.
-    ///
-    /// Called from the constructors rather than from Loaded. It reads nothing but
-    /// _mode, which is fixed from construction, so there is nothing to wait for - and
-    /// a window that is never shown, which is how the smoke suite inspects this one,
-    /// would otherwise never apply the rule at all.
+    /// Here and not in Loaded: it reads only _mode, which is fixed from construction,
+    /// so a window that is never shown still applies the rule.
     /// </summary>
     private void ApplyDefaultModeNameLock()
     {
         ModeNameBox.IsEnabled = !_mode.IsDefault;
         ModeNameLockedHint.Visibility = _mode.IsDefault ? Visibility.Visible : Visibility.Collapsed;
+        System.Windows.Automation.AutomationProperties.SetHelpText(
+            ModeNameBox, _mode.IsDefault ? ModeNameLockedHint.Text : string.Empty);
     }
 
     public ModeEditorWindow(bool isCreateMode)
@@ -89,10 +78,9 @@ public partial class ModeEditorWindow : Window
             ModifiedDate = DateTime.UtcNow
         };
 
-        // A brand-new mode is never the default (IsDefault is false just above), so
-        // this only ever unlocks - but it is called here too so the two constructors
-        // cannot drift into disagreeing about it.
-        ApplyDefaultModeNameLock();
+        // No ApplyDefaultModeNameLock() here: this constructor sets IsDefault = false
+        // above, so the lock could only ever be a no-op, and the XAML already ships
+        // the unlocked state.
         Loaded += OnLoaded;
     }
 
