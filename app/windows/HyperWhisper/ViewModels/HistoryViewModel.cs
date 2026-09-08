@@ -97,10 +97,16 @@ public partial class HistoryViewModel : ViewModelBase
     /// had no resource key at all in a 39-locale app (issue #505), and a translation
     /// cannot always keep the number first anyway.
     /// 
-    /// One plural form is deliberate. The pane is shown by
+    /// One plural form is deliberate for English. The pane is shown by
     /// <see cref="HasMultipleSelection"/>, which is <c>Count &gt; 1</c>, so the string is
     /// never asked to render 1 - the same assumption the sibling
     /// <c>transcripts.delete.multiple.*</c> strings already make.
+    ///
+    /// It is NOT enough for every catalog: Czech, Polish, Russian and their
+    /// neighbours want a different form for 2-4 than for 5+, and Arabic and Hebrew
+    /// want a dual for exactly 2. This app has no plural selector at all - every
+    /// counted string in every catalog has this same limitation - so one form is
+    /// what can be shipped here, and a real fix is a plural API, not another key.
     /// </summary>
     public string SelectionSummary => Loc.S("history.selection.count", SelectionCount);
 
@@ -568,10 +574,7 @@ public partial class HistoryViewModel : ViewModelBase
     {
         SelectedTranscript = null;
         SelectedTranscripts.Clear();
-        OnPropertyChanged(nameof(HasSelection));
-        OnPropertyChanged(nameof(HasMultipleSelection));
-        OnPropertyChanged(nameof(SelectionCount));
-        OnPropertyChanged(nameof(SelectionSummary));
+        NotifySelectionChanged();
     }
 
     /// <summary>
@@ -588,6 +591,21 @@ public partial class HistoryViewModel : ViewModelBase
         // Update single selection for detail view
         SelectedTranscript = SelectedTranscripts.Count == 1 ? SelectedTranscripts[0] : null;
 
+        NotifySelectionChanged();
+    }
+
+    /// <summary>
+    /// Raises every property that reads <see cref="SelectedTranscripts"/>. The
+    /// collection is a plain <c>List</c>, so nothing else notices when it changes:
+    /// each mutation site has to say so. There are three, and until this commit
+    /// <see cref="OnTranscriptDeleted"/> was silent — a transcript deleted from
+    /// somewhere else while rows were selected left the pane showing the old count
+    /// over a shorter selection. That was survivable while the count was a bare
+    /// <c>&lt;Run&gt;</c>; it is the same staleness now, but it is now a whole
+    /// sentence, so it is routed through one helper that all three sites call.
+    /// </summary>
+    private void NotifySelectionChanged()
+    {
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(HasMultipleSelection));
         OnPropertyChanged(nameof(SelectionCount));
@@ -893,11 +911,19 @@ public partial class HistoryViewModel : ViewModelBase
             {
                 _transcriptLookup.Remove(id);
                 Transcripts.Remove(vm);
-                SelectedTranscripts.Remove(vm);
+                var wasSelected = SelectedTranscripts.Remove(vm);
 
                 if (SelectedTranscript?.Id == id)
                 {
                     SelectedTranscript = null;
+                }
+
+                if (wasSelected)
+                {
+                    // The multi-selection heading counts this list. Removing a row
+                    // from it without saying so leaves the sentence one row ahead
+                    // of the selection it describes.
+                    NotifySelectionChanged();
                 }
 
                 NotifyEmptyStateChanged();
