@@ -10112,6 +10112,78 @@ internal static class Program
                 }
             });
 
+            Run("vocabulary: the whole replacement box is the replacement field — issue #496", () =>
+            {
+                // The replacement row is DRAWN as a 64px text area. The TextBox inside
+                // it used to carry VerticalAlignment="Top", so it auto-sized to one
+                // line and the other ~44px was bare Grid. A click there is hit-testable
+                // but not focusable: focus left the field and everything typed after it
+                // was discarded with no error. That is data loss, so it is asserted by
+                // MEASURING and by HIT-TESTING the rendered tree, not by grepping XAML.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                // One Application per AppDomain, and an earlier case may already own it.
+                var application = System.Windows.Application.Current;
+                if (application is null)
+                {
+                    application = new System.Windows.Application();
+                    LoadApplicationResources(application);
+                }
+
+                // The page binds through a converter App.xaml declares inline, which
+                // LoadApplicationResources does not carry; StaticResource resolves at
+                // parse time, so it has to be there before the page is constructed.
+                if (!application.Resources.Contains("BoolToVisibilityConverter"))
+                    application.Resources["BoolToVisibilityConverter"] = new BoolToVisibilityConverter();
+
+                var page = new HyperWhisper.Views.Pages.VocabularyPage();
+
+                // The row is revealed by Ctrl+Enter at runtime; a collapsed element
+                // measures 0 and would pass this check while proving nothing.
+                page.ReplacementBorder.Visibility = Visibility.Visible;
+                page.Measure(new Size(900, 700));
+                page.Arrange(new Rect(0, 0, 900, 700));
+                page.UpdateLayout();
+
+                var box = page.ReplacementBox;
+                var host = System.Windows.Media.VisualTreeHelper.GetParent(box)
+                    as System.Windows.Controls.Grid;
+                Assert(host is not null,
+                    "the replacement TextBox is no longer hosted in a Grid — this case's geometry is stale");
+
+                Assert(host!.ActualHeight >= 64,
+                    $"the replacement box drew {host.ActualHeight:F2} tall, not the 64 the design asks for");
+
+                // The field must BE the box, not a line sitting at the top of it.
+                Assert(Math.Abs(box.ActualHeight - host.ActualHeight) <= 0.5,
+                    $"the replacement TextBox measured {box.ActualHeight:F2} inside a " +
+                    $"{host.ActualHeight:F2} box. The rest of the box is dead space that " +
+                    "steals focus and silently eats the user's replacement text.");
+
+                // The exact click the issue reports: the obvious middle of the box,
+                // well below the first text line.
+                var clickPoint = new System.Windows.Point(host.ActualWidth / 2, host.ActualHeight - 8);
+                var hit = host.InputHitTest(clickPoint) as DependencyObject;
+                Assert(hit is not null,
+                    $"nothing at all is hit-testable at {clickPoint} inside the replacement box");
+
+                var reachedTextBox = false;
+                for (var node = hit; node is not null;
+                     node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+                {
+                    if (ReferenceEquals(node, box))
+                    {
+                        reachedTextBox = true;
+                        break;
+                    }
+                }
+
+                Assert(reachedTextBox,
+                    $"a click at {clickPoint} — the middle of the replacement box — lands on " +
+                    $"{hit!.GetType().Name}, which is outside ReplacementBox. Focus moves off the " +
+                    "field and the next keystrokes are lost.");
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
