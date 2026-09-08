@@ -1,0 +1,16 @@
+id: no-discarded-task-run
+language: csharp
+severity: error
+message: "Discarded Task.Run is fire-and-forget: an exception inside it is never observed."
+note: |
+  The `_ = Task.Run(...)` migration finished on 2026-08-25. Every remaining site
+  is deliberate and carries an `// ast-grep-ignore: no-discarded-task-run`
+  comment with its reason directly above it. If you need a new one, add the same
+  comment and say why the hop is required — do not delete this rule.
+files:
+  - "app/**/*.cs"
+ignores:
+  - "**/obj/**"
+  - "**/bin/**"
+rule:
+  pattern: _ = Task.Run($$$)

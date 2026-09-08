@@ -812,6 +812,7 @@ public sealed class LocalLlmService : IDisposable
             // semaphore alive for the worker's pending Release(), then unload once it exits.
             LoggingService.Warn(
                 $"LocalLlmService: Dispose timed out after {DisposeTimeout.TotalSeconds:F0}s waiting for in-flight inference; scheduling deferred unload");
+            // ast-grep-ignore: no-discarded-task-run -- Dispose() is synchronous and cannot await, so the deferred unload must outlive it
             _ = Task.Run(CleanupAfterDisposeTimeout);
         }
     }

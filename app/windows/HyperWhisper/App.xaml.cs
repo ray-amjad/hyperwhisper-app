@@ -199,6 +199,7 @@ public partial class App : WpfApplication
         // Load stored license from cache (validates against server if cache expired)
         // Fire-and-forget to avoid blocking UI thread - license will validate in background
         // Using Task.Run to avoid deadlock from .Wait() on UI thread
+        // ast-grep-ignore: no-discarded-task-run -- the caller is on the UI thread, so a blocking wait here deadlocks (see the comment above)
         _ = Task.Run(async () =>
         {
             try
