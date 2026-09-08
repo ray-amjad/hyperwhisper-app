@@ -1073,13 +1073,13 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Activer/désactiver l'enregistrement</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Annuler l'enregistrement</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Changer de mode</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>Click and press the keys you want to use</value>
