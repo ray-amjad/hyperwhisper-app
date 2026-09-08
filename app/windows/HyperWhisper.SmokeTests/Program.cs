@@ -1247,42 +1247,42 @@ internal static class Program
 
                     // (1) Saving without a test leaves NO verdict behind. This is
                     // the state every endpoint ever created used to be in.
-                    var untested = manager.AddEndpoint("untested", Url, "m-1");
+                    var untested = manager.AddEndpoint("untested", Url, "m-1", out _);
                     Assert(untested is not null, "AddEndpoint should accept a valid configuration");
                     Assert(untested!.LastTestSuccess is null && untested.LastTestedAt is null,
                         "a save with no test behind it must record no verdict");
 
                     // (2) A failed test is carried into the saved endpoint. Before
                     // the fix the window showed this result and dropped it.
-                    var failed = manager.AddEndpoint("failed", Url, "m-1", null, lastTestSuccess: false);
+                    var failed = manager.AddEndpoint("failed", Url, "m-1", out _, null, lastTestSuccess: false);
                     Assert(failed?.LastTestSuccess == false, "a failed test must be recorded");
                     Assert(failed?.LastTestedAt is not null, "a recorded verdict must be dated");
 
-                    var passed = manager.AddEndpoint("passed", Url, "m-1", null, lastTestSuccess: true);
+                    var passed = manager.AddEndpoint("passed", Url, "m-1", out _, null, lastTestSuccess: true);
                     Assert(passed?.LastTestSuccess == true, "a successful test must be recorded");
 
                     // (3) A verdict only describes the configuration it was measured
                     // against. Editing the URL or the model must retire it, or the
                     // row goes on claiming a server it has never reached.
-                    Assert(manager.UpdateEndpoint(passed!.Id, endpointURL: "https://elsewhere.example.com/v1/chat/completions"),
+                    Assert(manager.UpdateEndpoint(passed!.Id, out _, endpointURL: "https://elsewhere.example.com/v1/chat/completions"),
                         "UpdateEndpoint should accept a valid URL change");
                     Assert(manager.GetEndpoint(passed.Id)?.LastTestSuccess is null,
                         "a URL change must retire the old verdict");
 
-                    var reTested = manager.AddEndpoint("re-tested", Url, "m-1", null, lastTestSuccess: true);
-                    Assert(manager.UpdateEndpoint(reTested!.Id, modelName: "m-2"),
+                    var reTested = manager.AddEndpoint("re-tested", Url, "m-1", out _, null, lastTestSuccess: true);
+                    Assert(manager.UpdateEndpoint(reTested!.Id, out _, modelName: "m-2"),
                         "UpdateEndpoint should accept a model change");
                     Assert(manager.GetEndpoint(reTested.Id)?.LastTestSuccess is null,
                         "a model change must retire the old verdict");
 
                     // A rename is not a configuration change, so a real verdict survives it.
-                    var renamed = manager.AddEndpoint("renamed", Url, "m-1", null, lastTestSuccess: true);
-                    Assert(manager.UpdateEndpoint(renamed!.Id, name: "renamed twice"),
+                    var renamed = manager.AddEndpoint("renamed", Url, "m-1", out _, null, lastTestSuccess: true);
+                    Assert(manager.UpdateEndpoint(renamed!.Id, out _, name: "renamed twice"),
                         "UpdateEndpoint should accept a rename");
                     Assert(manager.GetEndpoint(renamed.Id)?.LastTestSuccess == true,
                         "a rename must not retire a verdict that still holds");
 
-                    manager.AddEndpoint("local", "http://localhost:1234/v1/chat/completions", "m-1");
+                    manager.AddEndpoint("local", "http://localhost:1234/v1/chat/completions", "m-1", out _);
 
                     // (4) The three verdicts reach the Model Library as three
                     // states. `null` sharing the `true` branch is the bug.
@@ -1326,6 +1326,63 @@ internal static class Program
                         "the localhost endpoint was never tested either");
                     Assert(rows["local"].IsInstalled,
                         "an untested local endpoint must stay in 'Installed Only'");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
+            });
+
+            // Issue #507. A malformed Base URL made Save do nothing at all: the
+            // validator produced the exact sentence the user needed and the
+            // manager wrote it to the log and returned null, with no way for the
+            // window to get at it and no else branch to show it.
+            Run("a refused custom endpoint hands back the reason, and leaves nothing behind", () =>
+            {
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var manager = CustomEndpointManager.Instance;
+
+                    // The reported case: "not a url" in the Base URL box.
+                    var refused = manager.AddEndpoint("bad", "not a url", "test-model", out var addError);
+                    Assert(refused is null, "an unparsable URL must not be saved");
+                    Assert(!string.IsNullOrWhiteSpace(addError),
+                        "a refused add must say why — silence is what #507 was filed about");
+                    Assert(addError == new CustomPostProcessingEndpoint
+                        {
+                            Name = "bad", EndpointURL = "not a url", ModelName = "test-model"
+                        }.Validate(),
+                        $"the reason must be the validator's own sentence, got '{addError}'");
+
+                    // A scheme the app cannot speak is refused the same way.
+                    Assert(manager.AddEndpoint("bad", "ftp://percy.example.com/v1", "m", out var ftpError) is null,
+                        "a non-HTTP scheme must not be saved");
+                    Assert(!string.IsNullOrWhiteSpace(ftpError), "a refused scheme must say why");
+
+                    // And an accepted save reports no error at all.
+                    var ok = manager.AddEndpoint("good", "https://percy.example.com/v1/chat/completions", "m",
+                        out var okError);
+                    Assert(ok is not null && okError is null,
+                        "a valid endpoint must be saved with no error");
+
+                    // The edit path, which #507 reports separately. It must refuse
+                    // the change AND leave the live endpoint untouched: the settings
+                    // getter hands out the live List and an endpoint is a class, so
+                    // the old order mutated the object it then refused to save.
+                    Assert(!manager.UpdateEndpoint(ok!.Id, out var editError,
+                            endpointURL: "ftp://percy.example.com/v1"),
+                        "a malformed URL must not be accepted on the edit path either");
+                    Assert(!string.IsNullOrWhiteSpace(editError), "a refused edit must say why");
+                    Assert(manager.GetEndpoint(ok.Id)?.EndpointURL == "https://percy.example.com/v1/chat/completions",
+                        "a refused edit must not leave the rejected URL on the endpoint");
+
+                    // An id that is not there is a refusal the user can act on too.
+                    Assert(!manager.UpdateEndpoint(Guid.NewGuid(), out var missingError, name: "x"),
+                        "an unknown id must not report success");
+                    Assert(!string.IsNullOrWhiteSpace(missingError), "an unknown id must say why");
                 }
                 finally
                 {

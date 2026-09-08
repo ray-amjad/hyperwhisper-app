@@ -96,11 +96,19 @@ public class CustomEndpointManager : IDisposable
     /// endpoint always started life with no recorded outcome however many times
     /// the user had tested it (#509).
     /// </param>
+    /// <param name="validationError">
+    /// Why the endpoint was refused, or null when it was accepted. The caller is
+    /// expected to SHOW this. It used to go only to the log, so a malformed Base
+    /// URL made the Add button do nothing at all — no message, no highlight, and
+    /// the one sentence that would have explained it written to a file the user
+    /// never opens (#507).
+    /// </param>
     /// <returns>The created endpoint, or null if validation fails.</returns>
     public CustomPostProcessingEndpoint? AddEndpoint(
         string name,
         string endpointURL,
         string modelName,
+        out string? validationError,
         string? apiKey = null,
         bool? lastTestSuccess = null)
     {
@@ -115,7 +123,7 @@ public class CustomEndpointManager : IDisposable
             LastTestedAt = lastTestSuccess.HasValue ? DateTime.UtcNow : null
         };
 
-        var validationError = endpoint.Validate();
+        validationError = endpoint.Validate();
         if (validationError != null)
         {
             LoggingService.Warn($"CustomEndpointManager: Validation failed: {validationError}");
@@ -147,55 +155,68 @@ public class CustomEndpointManager : IDisposable
     /// preserve an older outcome that a URL or model change has invalidated —
     /// see the clearing below.
     /// </param>
+    /// <param name="validationError">
+    /// Why the change was refused, or null when it was accepted. As on
+    /// <see cref="AddEndpoint"/>, the caller is expected to show it: Save
+    /// Changes used to close over a refused edit in silence (#507).
+    /// </param>
     public bool UpdateEndpoint(
         Guid id,
+        out string? validationError,
         string? name = null,
         string? endpointURL = null,
         string? modelName = null,
         string? apiKey = null,
         bool? lastTestSuccess = null)
     {
+        validationError = null;
+
         var endpoints = SettingsService.Instance.CustomEndpoints;
         var index = endpoints.FindIndex(e => e.Id == id);
         if (index < 0)
         {
             LoggingService.Warn($"CustomEndpointManager: Endpoint not found: {id}");
+            validationError = "This endpoint no longer exists.";
             return false;
         }
 
         var endpoint = endpoints[index];
 
-        if (name != null)
-            endpoint.Name = name.Trim();
+        var newName = name?.Trim() ?? endpoint.Name;
+        var newURL = endpointURL?.Trim() ?? endpoint.EndpointURL;
+        var newModel = modelName?.Trim() ?? endpoint.ModelName;
 
-        if (endpointURL != null)
+        // Judged BEFORE anything is written back. The list this came from is the
+        // live one — the settings getter hands out the same List, and an endpoint
+        // is a class — so mutating first and validating afterwards left the
+        // rejected URL sitting in memory on an edit that "did nothing" (#507).
+        validationError = new CustomPostProcessingEndpoint
         {
-            var newURL = endpointURL.Trim();
-            if (newURL != endpoint.EndpointURL)
-            {
-                endpoint.EndpointURL = newURL;
-                // Clear test status when URL changes
-                endpoint.LastTestedAt = null;
-                endpoint.LastTestSuccess = null;
-            }
+            Id = endpoint.Id,
+            Name = newName,
+            EndpointURL = newURL,
+            ModelName = newModel,
+            CreatedAt = endpoint.CreatedAt
+        }.Validate();
+
+        if (validationError != null)
+        {
+            LoggingService.Warn($"CustomEndpointManager: Validation failed: {validationError}");
+            return false;
         }
 
-        if (modelName != null)
-        {
-            var newModel = modelName.Trim();
-            if (newModel != endpoint.ModelName)
-            {
-                endpoint.ModelName = newModel;
-                // A pass against the old model says nothing about the new one:
-                // the model name is half of what the probe sends.
-                endpoint.LastTestedAt = null;
-                endpoint.LastTestSuccess = null;
-            }
-        }
+        // A recorded verdict describes one URL, one model and one key. Change any
+        // of the three and it no longer describes what is being saved.
+        var retiresVerdict =
+            newURL != endpoint.EndpointURL ||
+            newModel != endpoint.ModelName ||
+            (apiKey != null && !string.Equals(apiKey, GetApiKey(id) ?? "", StringComparison.Ordinal));
 
-        // The key is the third thing the probe sends, so a new one invalidates
-        // an old verdict just as a new URL does.
-        if (apiKey != null && !string.Equals(apiKey, GetApiKey(id) ?? "", StringComparison.Ordinal))
+        endpoint.Name = newName;
+        endpoint.EndpointURL = newURL;
+        endpoint.ModelName = newModel;
+
+        if (retiresVerdict)
         {
             endpoint.LastTestedAt = null;
             endpoint.LastTestSuccess = null;
@@ -207,13 +228,6 @@ public class CustomEndpointManager : IDisposable
         {
             endpoint.LastTestedAt = DateTime.UtcNow;
             endpoint.LastTestSuccess = lastTestSuccess;
-        }
-
-        var validationError = endpoint.Validate();
-        if (validationError != null)
-        {
-            LoggingService.Warn($"CustomEndpointManager: Validation failed: {validationError}");
-            return false;
         }
 
         // Update API key if provided

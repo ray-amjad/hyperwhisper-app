@@ -356,6 +356,7 @@ public partial class CustomEndpointWindow : Window
             // Update existing
             var success = CustomEndpointManager.Instance.UpdateEndpoint(
                 _existingEndpoint.Id,
+                out var updateError,
                 name: name,
                 endpointURL: endpointUrl,
                 modelName: modelName,
@@ -367,12 +368,17 @@ public partial class CustomEndpointWindow : Window
                 SavedEndpoint = CustomEndpointManager.Instance.GetEndpoint(_existingEndpoint.Id);
                 DialogResult = true;
             }
+            else
+            {
+                ShowSaveRefused(updateError);
+            }
         }
         else
         {
             // Create new
             SavedEndpoint = CustomEndpointManager.Instance.AddEndpoint(
                 name, endpointUrl, modelName,
+                out var addError,
                 string.IsNullOrEmpty(apiKey) ? null : apiKey,
                 lastTestSuccess: testOutcome);
 
@@ -380,7 +386,31 @@ public partial class CustomEndpointWindow : Window
             {
                 DialogResult = true;
             }
+            else
+            {
+                ShowSaveRefused(addError);
+            }
         }
+    }
+
+    /// <summary>
+    /// Report a refused save in the same message box the three empty-field
+    /// checks above already use.
+    /// </summary>
+    /// <remarks>
+    /// There was no else on either save branch, so a Base URL the validator had
+    /// already rejected — with a usable sentence, written to the log and thrown
+    /// away — left the button looking dead (#507). The fallback covers a refusal
+    /// that arrives with no message: silence is the one outcome the user cannot
+    /// act on.
+    /// </remarks>
+    private static void ShowSaveRefused(string? reason)
+    {
+        System.Windows.MessageBox.Show(
+            string.IsNullOrWhiteSpace(reason) ? "This endpoint could not be saved." : reason,
+            "Validation",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
     }
 
     /// <summary>
