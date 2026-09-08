@@ -12095,6 +12095,56 @@ internal static class Program
                     "was recorded");
             });
 
+            Run("privacy: error reports are ON by default, which is what data-privacy.mdx now says — issue #517", () =>
+            {
+                // #517. data-privacy.mdx said error reports "are off unless you turn on
+                // Send error reports", while App.xaml.cs starts Sentry on a brand-new
+                // profile because the getter is `?? true`. The page a user reads to
+                // decide whether to trust the app was wrong about what the app does.
+                //
+                // The doc was the side that changed - macOS registers
+                // "enableErrorLogging": true, Linux reads the setting with a `true`
+                // fallback, and the same page's own Summary already said "to stop them,
+                // turn off ...". This pins the behaviour the corrected sentence claims,
+                // so flipping the default becomes a decision that fails CI and sends
+                // whoever makes it back to the page, instead of drifting again.
+                //
+                // The backing value is read through reflection because "unset" is what
+                // is being tested and no public setter can produce it: SettingsData is
+                // a private nested type and the property is a `bool?`.
+                var service = SettingsService.Instance;
+                var dataField = typeof(SettingsService).GetField(
+                    "_settings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert(dataField is not null,
+                    "SettingsService._settings is gone - this case can no longer see the unset state");
+
+                var data = dataField!.GetValue(service)!;
+                var property = data.GetType().GetProperty("EnableErrorLogging");
+                Assert(property is not null,
+                    "SettingsData.EnableErrorLogging is gone - the default this pins no longer exists");
+
+                var previous = property!.GetValue(data);
+                try
+                {
+                    property.SetValue(data, null);
+                    Assert(service.EnableErrorLogging,
+                        "error reports are now OFF on a profile that never touched the setting. "
+                        + "That is a deliberate privacy change, not a refactor: mintlify-help/"
+                        + "data-privacy.mdx and mintlify-help/general-settings.mdx both state the "
+                        + "setting is ON by default, and both have to change with it.");
+
+                    // And the setter still works in the direction a user needs, which is
+                    // the half of the promise the page is actually about.
+                    property.SetValue(data, false);
+                    Assert(!service.EnableErrorLogging,
+                        "turning the setting off does not take - the documented opt-out does nothing");
+                }
+                finally
+                {
+                    property.SetValue(data, previous);
+                }
+            });
+
             Run("delivery: a refused clipboard write is reported unless the gate refused it", () =>
             {
                 // C3. Honouring CopyToClipboard's return value was right, and it
