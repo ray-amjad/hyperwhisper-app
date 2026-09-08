@@ -2389,6 +2389,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Clau verificada, crèdits confirmats. Les gravacions aniran a HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Activa aquest PC per acabar de connectar-lo a HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Activa Cloud</value>
   </data>

@@ -2389,6 +2389,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Klíč ověřen, kredity potvrzeny. Nahrávky poputují do HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktivujte tento počítač a dokončete připojení k HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktivovat Cloud</value>
   </data>

@@ -2389,6 +2389,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Nøkkel bekreftet, kreditter bekreftet. Opptak sendes til HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktiver denne PC-en for å fullføre tilkoblingen til HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktiver Cloud</value>
   </data>

@@ -2389,6 +2389,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>تم التحقق من المفتاح وتأكيد الرصيد. ستُرسَل التسجيلات إلى HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>فعّل هذا الكمبيوتر لإكمال الاتصال بـ HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>تفعيل Cloud</value>
   </data>

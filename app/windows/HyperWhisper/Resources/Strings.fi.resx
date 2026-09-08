@@ -2389,6 +2389,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Avain vahvistettu, krediitit vahvistettu. Tallenteet lähetetään HyperWhisper Cloudiin.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktivoi tämä tietokone viimeistelläksesi yhteyden HyperWhisper Cloudiin.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktivoi Cloud</value>
   </data>

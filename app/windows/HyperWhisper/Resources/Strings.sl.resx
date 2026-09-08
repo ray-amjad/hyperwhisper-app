@@ -2389,6 +2389,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Ključ preverjen, dobropisi potrjeni. Posnetki bodo šli v HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktivirajte ta računalnik, da dokončate povezavo s HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktiviraj Cloud</value>
   </data>

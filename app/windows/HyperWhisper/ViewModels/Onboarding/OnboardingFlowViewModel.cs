@@ -250,20 +250,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                     return SelectedModel is not null;
 
                 case OnboardingSourceKind.HyperWhisperCloud:
-                    // A working key, not merely a typed one. Either the licence is
-                    // already active on this PC, the inline test passed, or the field
-                    // still holds the exact key that passed earlier this session
-                    // (Back navigation clears KeyValidated, not the fact that the key
-                    // was verified).
-                    //
-                    // KeyValidated is now SCOPED (see ValidationScope): it can only
-                    // read true for a pass recorded against this source and this
-                    // licence text, so a probe that lands after the user switched
-                    // source cannot open this branch's half of the gate.
-                    var key = LicenseKeyInput.Trim();
-                    return _license.IsActive
-                        || KeyValidated
-                        || (key.Length > 0 && key == _lastValidatedLicenseKey);
+                    return CloudKeyIsVerified;
 
                 case OnboardingSourceKind.YourProvider:
                     // KeyValidated is cleared every time this step appears, so the
@@ -276,6 +263,39 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                 default:
                     return false;
             }
+        }
+    }
+
+    /// <summary>
+    /// Has this Cloud access key been shown to work — a working key, not merely a
+    /// typed one. Either the licence is already active on this PC, the inline test
+    /// passed, or the field still holds the exact key that passed earlier this
+    /// session.
+    ///
+    /// <see cref="KeyValidated"/> is SCOPED (see ValidationScope) and is cleared on
+    /// every entry to the Configure step by <see cref="ResetConfigureTestResults"/>,
+    /// so on its own it says "an inline test is passing RIGHT NOW", not "this key has
+    /// verified". The per-session <see cref="_lastValidatedLicenseKey"/> is what
+    /// survives Back navigation, and an active licence is proof on its own: the server
+    /// accepted this key on this device.
+    ///
+    /// The Configure gate has always read exactly this. The "Access key verified" row
+    /// on the Setup step read the bare <see cref="KeyValidated"/> instead, so a single
+    /// Back-and-forward unticked it while the two rows below — activation and credits —
+    /// stayed ticked, and the card claimed the key was unverified on a device whose
+    /// account that same key had already activated.
+    /// </summary>
+    public bool CloudKeyIsVerified
+    {
+        get
+        {
+            if (SelectedSource != OnboardingSourceKind.HyperWhisperCloud)
+                return false;
+
+            var key = LicenseKeyInput.Trim();
+            return _license.IsActive
+                || KeyValidated
+                || (key.Length > 0 && key == _lastValidatedLicenseKey);
         }
     }
 
@@ -2340,6 +2360,10 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         // input that can move either - both key fields, the provider, the source -
         // has to re-raise it. All of them already come through here.
         OnPropertyChanged(nameof(KeyValidated));
+
+        // Derived from KeyValidated, the licence and the per-session record, so it
+        // moves on strictly fewer occasions than KeyValidated - but never on more.
+        OnPropertyChanged(nameof(CloudKeyIsVerified));
     }
 
     /// <summary>

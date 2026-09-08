@@ -39,17 +39,25 @@
                 </Border>
                 <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
                            Text="{loc:Loc onboarding.setup.cloud.title}"/>
+                <!-- Bound, not a {loc:Loc}: the sentence has to follow the step's state,
+                     because the static one asserted "Key verified, credits confirmed."
+                     on arrival, above a checklist showing neither. -->
                 <TextBlock Style="{StaticResource OnboardingDetailStyle}"
-                           Text="{loc:Loc onboarding.setup.cloud.subtitle}"/>
+                           Text="{Binding SetupCloudSubtitle}"/>
 
                 <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
                     <StackPanel>
                         <Border Style="{StaticResource OnboardingCardRowStyle}">
                             <StackPanel Orientation="Horizontal">
+                                <!-- CloudKeyIsVerified, not KeyValidated. KeyValidated is
+                                     cleared on every entry to the Configure step, so this
+                                     row unticked after one Back-and-forward while the two
+                                     rows below it stayed ticked. It is the same rule the
+                                     Configure gate has always used. -->
                                 <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
-                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                           Visibility="{Binding CloudKeyIsVerified, Converter={StaticResource OnboardingBoolToVisibility}}"/>
                                 <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
-                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                           Visibility="{Binding CloudKeyIsVerified, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
                                 <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
                                            Text="{loc:Loc onboarding.setup.cloud.check.keyVerified}"/>
                             </StackPanel>

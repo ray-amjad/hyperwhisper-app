@@ -7985,6 +7985,107 @@ internal static class Program
                 Assert(h.Flow.IsSelectedSourceUsable, "the per-session record keeps the setup gate open");
             });
 
+            RunAsync("onboarding: the cloud setup checklist keeps the key verified across Back", async () =>
+            {
+                // #491 part 2. The "Access key verified" row read the bare KeyValidated,
+                // which ResetConfigureTestResults clears on EVERY entry to the Configure
+                // step, in both directions. So one Back-and-forward unticked it while
+                // "Account activated for this device" and "Credits confirmed" below it
+                // stayed ticked and a live balance was still shown - the card claimed the
+                // key was unverified on a device whose account that same key had just
+                // activated.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, "$66.30 remaining");
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.CloudKeyIsVerified, "precondition: the probe passed");
+
+                Assert(h.Flow.Advance(), "setup must be reachable");
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: activated");
+                Assert(h.Flow.AreCreditsConfirmed, "precondition: the balance arrived");
+
+                Assert(h.Flow.Back(), "back to configure must work");
+                Assert(h.Flow.Advance(), "forward to setup must work");
+
+                Assert(!h.Flow.KeyValidated,
+                    "the inline result is still cleared on every appearance - that part was correct");
+                Assert(h.Flow.CloudKeyIsVerified,
+                    "but the checklist row must not untick: the key verified and the account is active");
+                Assert(h.Flow.IsSelectedSourceUsable && h.Flow.AreCreditsConfirmed,
+                    "the two rows below it were never in doubt, which is what made the contradiction");
+            });
+
+            Run("onboarding: an active cloud licence alone verifies the key", () =>
+            {
+                // The returning-user path: nothing was probed this session, the field is
+                // empty, but the server has already accepted this key on this device.
+                // ConfigureGateIsOpen has always read it that way; the checklist row now
+                // reads the same property rather than a second, narrower rule.
+                var h = new OnboardingHarness();
+                h.License.IsActive = true;
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+
+                Assert(!h.Flow.KeyValidated, "no inline test ran this session");
+                Assert(h.Flow.CloudKeyIsVerified, "an active licence is proof enough on its own");
+            });
+
+            Run("onboarding: the cloud key is only verified for the cloud source", () =>
+            {
+                // CloudKeyIsVerified feeds the Configure gate's cloud branch, so it must
+                // never read true under BYOK - a licence left active from an earlier run
+                // would otherwise tick a row about an API key that was never entered.
+                var h = new OnboardingHarness();
+                h.License.IsActive = true;
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                Assert(h.Flow.Advance(), "the BYOK branch reaches configure");
+
+                Assert(!h.Flow.CloudKeyIsVerified, "the licence says nothing about a BYOK key");
+                Assert(!h.Flow.CanContinue, "and it must not open the BYOK gate either");
+            });
+
+            RunAsync("onboarding: the cloud setup subtitle never claims a state the step has not reached", async () =>
+            {
+                // #491 part 1. The subtitle was the static
+                // "Key verified, credits confirmed. Recordings will go to HyperWhisper
+                // Cloud." - printed on arrival, directly above a checklist with both of
+                // those rows EMPTY, an "Activate Cloud" button showing and Continue
+                // disabled. It described the end of the step from its beginning.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+
+                var pending = h.Flow.SetupCloudSubtitle;
+                Assert(!h.Flow.IsSelectedSourceUsable, "precondition: not activated yet");
+                Assert(
+                    pending == HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.pending"),
+                    "an unactivated step gets the sentence that asks for the activation");
+                Assert(
+                    pending != HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
+                    "and never the one that says it already happened");
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: activated");
+                Assert(
+                    h.Flow.SetupCloudSubtitle
+                        == HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
+                    "once it HAS happened, the original sentence is true and is used");
+            });
+
             RunAsync("onboarding: validation is remembered per provider, not globally", async () =>
             {
                 var h = new OnboardingHarness();

@@ -402,6 +402,24 @@ public sealed partial class OnboardingFlowViewModel
     /// </summary>
     public bool AreCreditsConfirmed => IsSelectedSourceUsable && HasCredits;
 
+    /// <summary>
+    /// The Cloud setup step's subtitle, which has to describe the state the step is
+    /// actually in.
+    ///
+    /// It used to be the static "Key verified, credits confirmed." — printed on
+    /// arrival, directly above a checklist showing both of those rows EMPTY, an
+    /// "Activate Cloud" button and a disabled Continue. The step's whole job is the
+    /// activation the subtitle was already claiming had happened.
+    ///
+    /// The condition is the one the card itself swaps on, so the sentence and the
+    /// control below it can never disagree: unactivated shows the button and the ask,
+    /// activated shows the balance and the summary.
+    /// </summary>
+    public string SetupCloudSubtitle =>
+        Loc.S(IsSelectedSourceUsable
+            ? "onboarding.setup.cloud.subtitle"
+            : "onboarding.setup.cloud.subtitle.pending");
+
     public string SelectedModelDisplayName => SelectedModel?.DisplayName ?? string.Empty;
 
     public string SelectedModelSubtitle =>
@@ -774,7 +792,10 @@ public sealed partial class OnboardingFlowViewModel
                 nameof(SetupCloudErrorText), nameof(SetupOnDeviceErrorText), nameof(SetupProviderErrorText),
                 nameof(ShowsLicenseTestFailed), nameof(ShowsProviderTestError)
             },
-            [nameof(IsSelectedSourceUsable)] = new[] { nameof(AreCreditsConfirmed) },
+            [nameof(IsSelectedSourceUsable)] = new[]
+            {
+                nameof(AreCreditsConfirmed), nameof(SetupCloudSubtitle)
+            },
             [nameof(IsSelectedModelInstalled)] = new[]
             {
                 nameof(ModelOptions), nameof(ShowsDownloadButton)

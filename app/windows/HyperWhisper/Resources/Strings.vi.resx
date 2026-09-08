@@ -2388,6 +2388,9 @@ You can re-download it later.</value>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Key đã xác minh, tín dụng đã xác nhận. Bản ghi sẽ được gửi đến HyperWhisper Cloud.</value>
   </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Kích hoạt PC này để hoàn tất kết nối với HyperWhisper Cloud.</value>
+  </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Kích hoạt Cloud</value>
   </data>
