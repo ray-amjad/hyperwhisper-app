@@ -152,7 +152,17 @@ internal static class PostProcessEndpoints
                         Provider = "none",
                         Model = workingMode.LanguageModel ?? "",
                         Preset = workingMode.Preset ?? "hyper",
-                        LatencyMs = latencyMs
+                        LatencyMs = latencyMs,
+                        // Nothing ran; `result.Text` is the caller's own input
+                        // echoed back. `provider: "none"` above is this head's
+                        // OWN signal for that and is Windows-only — macOS
+                        // reports the configured provider here and leans on
+                        // `post_processed` alone, so the two fields are not
+                        // interchangeable across platforms and a client must
+                        // read this one. Not unified here: changing the
+                        // `provider` value is a wire break for existing
+                        // Windows callers and is not what #499 asks for.
+                        PostProcessed = false
                     });
                 }
 
@@ -162,7 +172,10 @@ internal static class PostProcessEndpoints
                     Provider = workingMode.PostProcessingProvider ?? "hyperwhisper",
                     Model = workingMode.LanguageModel ?? "",
                     Preset = workingMode.Preset ?? "hyper",
-                    LatencyMs = latencyMs
+                    LatencyMs = latencyMs,
+                    // Reached only past the `!result.WasApplied` guard above, so
+                    // an LLM ran and this text is its output.
+                    PostProcessed = true
                 });
             }
             finally

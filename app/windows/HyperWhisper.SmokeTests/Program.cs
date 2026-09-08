@@ -5229,8 +5229,7 @@ internal static class Program
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
 
-                var application = new System.Windows.Application();
-                LoadApplicationResources(application);
+                EnsureSmokeApplication();
 
                 // Constructing the page exercises the exact construction-order NRE this
                 // regression test covers. Export selection handlers must not run until
@@ -5251,7 +5250,8 @@ internal static class Program
                 Assert(page.ExportButton.IsEnabled,
                     "expected ExportButton to be re-enabled after re-checking a section");
 
-                application.Shutdown();
+                // No Shutdown(): the Application is shared with every other WPF case
+                // now, so tearing it down here would depend on this case running last.
             });
 
             Run("VocabularyProcessor.ApplyReplacements trims even with no vocabulary configured — issue #92", () =>
@@ -6178,6 +6178,199 @@ internal static class Program
             });
 
             // =================================================================
+            // Local API /transcribe deterministic text passes (issues #495, #498)
+            //
+            // /transcribe declines the AI rewrite — /post-process is the
+            // formatting endpoint. It used to decline the orchestrator's three
+            // DETERMINISTIC passes with it, because they sat behind the same
+            // `applyPostProcessing` flag, and then it read RawText anyway. So a
+            // caller got the provider's untouched string: no vocabulary
+            // replacement (#495), no dictated break command and no filler-word
+            // removal (#498).
+            //
+            // The two halves are one bug. Flipping the orchestrator gate alone
+            // changed nothing on the wire because the response still read
+            // RawText; reading FinalText alone changed nothing because the gate
+            // left FinalText == RawText. Both are asserted here, in that order.
+            // =================================================================
+
+            Run("the orchestrator runs filler removal, break commands and vocabulary with the AI rewrite off — issues #495, #498", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                // The shipped default, restated so the assertion does not depend
+                // on whatever an earlier test left behind.
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                var added = vocabulary.TryAdd("eta", "estimated time of arrival", out var vocabError);
+                Assert(added, $"could not seed the vocabulary entry for the test: {vocabError}");
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+                Assert(seeded != null, "the seeded vocabulary entry did not come back from VocabularyService");
+
+                try
+                {
+                    // PostProcessingMode 1 on purpose: the "Hyper" mode is the one
+                    // whose GUI path DOES run the LLM. With the rewrite declined it
+                    // must still take the deterministic arm, which is what made the
+                    // two modes return byte-identical raw text in #498.
+                    var mode = new Mode
+                    {
+                        Name = "Local API deterministic passes",
+                        ProviderType = "local",
+                        Language = "en",
+                        PostProcessingMode = 1
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. Uh, that is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    Assert(result.RawText == raw,
+                        $"RawText must stay the provider's own output, got '{result.RawText}'");
+
+                    // #495 — the vocabulary replacement.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary replacement was not applied, got '{result.FinalText}'");
+
+                    // #498 — the dictated break command.
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"the dictated paragraph break did not become a break, got '{result.FinalText}'");
+                    Assert(!result.FinalText.Contains("New paragraph", StringComparison.OrdinalIgnoreCase),
+                        $"the break command survived as a literal phrase, got '{result.FinalText}'");
+
+                    // #498 — filler-word removal, gated on the global setting.
+                    Assert(!result.FinalText.Contains("Um,", StringComparison.OrdinalIgnoreCase)
+                        && !result.FinalText.Contains("Uh,", StringComparison.OrdinalIgnoreCase),
+                        $"filler words survived with RemoveFillerWords on, got '{result.FinalText}'");
+
+                    // The AI rewrite really was declined: no provider is recorded
+                    // and no post-processed text is stored.
+                    Assert(!result.WasPostProcessed && result.PostProcessingProvider == null,
+                        "declining the AI rewrite still recorded a post-processing provider");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                vocabulary.TryAdd("eta", "estimated time of arrival", out _);
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+
+                try
+                {
+                    // "auto" is the language of every shipped Mode and of every
+                    // transient Mode the Local API builds, so this — not "en" —
+                    // is the shape of the common /transcribe request.
+                    var mode = new Mode
+                    {
+                        Name = "Local API auto language",
+                        ProviderType = "local",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. That is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    // Language-independent: both still run.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary must not depend on the language, got '{result.FinalText}'");
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"break commands must not depend on the language, got '{result.FinalText}'");
+
+                    // Language-gated: "er"/"um" are real words elsewhere, so the
+                    // shared core no-ops for "auto" (issue #278). This is the
+                    // documented behaviour, not a gap in the #498 fix.
+                    Assert(result.FinalText.Contains("Um,", StringComparison.Ordinal),
+                        $"an auto-language transcript must keep its fillers, got '{result.FinalText}'");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
+            {
+                var mode = new Mode
+                {
+                    Name = "Local API response projection",
+                    ProviderType = "local",
+                    Language = "en"
+                };
+
+                var result = new TranscriptionResult(
+                    RawText: "Um, the eta is thirty minutes",
+                    FinalText: "The estimated time of arrival is thirty minutes",
+                    TranscriptionProvider: "Local");
+
+                var response = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 42);
+
+                Assert(response.Text == result.FinalText,
+                    $"the /transcribe response must carry FinalText, got '{response.Text}'");
+                Assert(response.Text != result.RawText,
+                    "the /transcribe response is still carrying the provider's raw text");
+                Assert(response.LatencyMs == 42 && response.Timings.DecodeMs == 42,
+                    "the /transcribe response lost the measured latency");
+            });
+
+            // =================================================================
             // Local API wire contract (issue #289)
             //
             // #289 observed that `find app/macos app/windows -ipath '*test*'
@@ -6364,6 +6557,52 @@ internal static class Program
                 };
                 Assert(LabelFor("assemblyai", null, legacyAlias) == "universal",
                     "a legacy provider alias was treated as foreign and replaced");
+            });
+
+            Run("/post-process emits the documented post_processed flag", () =>
+            {
+                // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
+                // `Bool` (`LocalAPITypes.swift`, `PostProcessResponse`) and
+                // `openapi.yaml` documents it as the field that separates a
+                // real rewrite from a no-op. Windows omitted the key entirely,
+                // so a client sharing the macOS `Codable` model threw
+                // `keyNotFound` on every Windows reply.
+                //
+                // WHAT THIS PINS, AND WHAT IT DOES NOT. It pins the SERIALISED
+                // SHAPE: the `[JsonPropertyName]` spelling, the full key set,
+                // and that both boolean values survive the responder's own
+                // `JsonOptions` (the options are the thing that decides what
+                // reaches the wire, so a bare `JsonSerializer` here would test
+                // the wrong object). It does NOT pin which branch of
+                // `PostProcessEndpoints` picks which value — that needs
+                // `ModeService` and a live host, which this harness has no way
+                // to stand up. The `required` modifier on the property is what
+                // stops a new branch omitting the field: it is a compile error,
+                // not a test. The portable suite covers the endpoint wiring
+                // end-to-end over real HTTP for the head that can be hosted.
+                static JsonNode Wire(bool postProcessed) =>
+                    JsonSerializer.SerializeToNode(
+                        new PostProcessResponse
+                        {
+                            Text = "text",
+                            Provider = postProcessed ? "hyperwhispercloud" : "none",
+                            Model = "model",
+                            Preset = "note",
+                            LatencyMs = 7,
+                            PostProcessed = postProcessed
+                        },
+                        LocalApiResponder.JsonOptions)!;
+
+                string[] expected = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
+                foreach (var flag in new[] { true, false })
+                {
+                    var node = Wire(flag);
+                    var keys = node.AsObject().Select(pair => pair.Key).Order().ToArray();
+                    Assert(keys.SequenceEqual(expected.Order()),
+                        $"the /post-process body drifted from the documented shape (post_processed={flag}): got {string.Join(",", keys)}");
+                    Assert(node["post_processed"]!.GetValue<bool>() == flag,
+                        "post_processed must carry the value it was given");
+                }
             });
 
             Run("the bearer check accepts only the real token", () =>
@@ -10253,6 +10492,382 @@ internal static class Program
                 }
             });
 
+            // Same reason as the two blocks above: RunAsync blocks on the awaited task,
+            // and this region runs AFTER the onboarding block put the WPF
+            // DispatcherSynchronizationContext back. A continuation posted to a
+            // dispatcher this console harness never pumps would hang the suite rather
+            // than fail it, so detach for the duration.
+            var balancePreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("onboarding: the cloud credit balance is never cut without an ellipsis", async () =>
+            {
+                // Both cloud steps draw CreditsFormatted with OnboardingBigNumberStyle
+                // (30 pt) in the `*` column of a two-column row whose `Auto` column
+                // holds a pill (Setup) or the "Get credits" button (Configure). The
+                // formatted balance is wider than what is left of that row, and the
+                // style set no TextTrimming and no TextWrapping, so the text ran under
+                // the neighbour and was cut mid-word at the card edge: the Configure
+                // step rendered "$66.30 remainir" and the Setup step
+                // "$66.30 remaining (~10523 min", with nothing to say either had been
+                // cut. The caption directly below has always trimmed.
+                //
+                // The gateway's own numbers: FormattedBalance divides the credit count
+                // by 1000 to get the dollars (HyperWhisperCloudCredits.cs:112-119), so
+                // 66300 credits IS "$66.30 remaining".
+                var balance = "$66.30 remaining (~10523 minutes)";
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, balance);
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+                Assert(h.Flow.CreditsFormatted == balance, "precondition: the balance landed");
+
+                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, balance);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+
+                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+            });
+
+            SynchronizationContext.SetSynchronizationContext(balancePreviousContext);
+
+            Run("modes: a 300-character mode name is ellipsised on the card, not clipped under the gear", () =>
+            {
+                // #492. A mode name is free user text with no cap anywhere - not in the
+                // editor, not in the entity, not in the column. The card header is a
+                // three-column Grid (name *, offline badge Auto, gear Auto), so the star
+                // column does stop the name pushing the gear off the card; what it does
+                // NOT do is say the name was cut. Without TextTrimming the TextBlock
+                // hard-clips mid-glyph right under the gear button, which reads as a
+                // rendering fault rather than as a long name.
+                //
+                // The offline badge between them is collapsed here and, today, always:
+                // its DataTrigger binds IsOfflineCapable, which exists on the macOS Mode
+                // and on no C# type, so WPF no-ops it. That is its own defect and is
+                // filed separately; the geometry below deliberately does not depend on
+                // the badge's width either way.
+                //
+                // MEASURED, not grepped: the attribute can be added to the wrong
+                // TextBlock, and a future container change could reintroduce the clip
+                // with the attribute still present.
+                EnsureSmokeApplication();
+
+                var longName = "LongName" + new string('X', 292);
+                var page = new HyperWhisper.Views.Pages.ModesPage();
+                var list = (System.Windows.Controls.ListBox)page.FindName("ModeListBox")!;
+
+                // ModesPage only reaches ModeService from its Loaded handler, and a
+                // detached element is never Loaded, so the list is fed directly here.
+                list.ItemsSource = new[]
+                {
+                    new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = longName,
+                        ProviderType = "cloud",
+                        CloudProvider = "hyperwhisper",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    }
+                };
+
+                page.Measure(new Size(1000, 700));
+                page.Arrange(new Rect(0, 0, 1000, 700));
+                page.UpdateLayout();
+
+                var nameBlock = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Name == "ModeNameText");
+                Assert(nameBlock is not null, "the mode card no longer has a ModeNameText");
+
+                // The row itself is untouched: this is a display fix, and the card must
+                // still carry the whole name so the tooltip and any copy of it are right.
+                Assert(nameBlock!.Text == longName,
+                    $"the card bound {nameBlock.Text.Length} characters of a {longName.Length}-character " +
+                    "name - the name is being truncated in data, which is not the fix");
+
+                Assert(nameBlock.TextTrimming == TextTrimming.CharacterEllipsis,
+                    $"ModeNameText trims with {nameBlock.TextTrimming}: a name wider than its column " +
+                    "is cut off mid-glyph with nothing to show it continues");
+
+                // Prove the case actually exercises the overflow. If the card were ever
+                // wide enough to fit 300 characters, every assertion above would pass
+                // while proving nothing at all.
+                var unconstrained = UnconstrainedWidthOf(nameBlock);
+                Assert(nameBlock.ActualWidth > 0,
+                    "ModeNameText measured 0 - it never took part in the layout pass");
+                Assert(unconstrained > nameBlock.ActualWidth,
+                    $"the {longName.Length}-character name wanted {unconstrained:F0}px and got " +
+                    $"{nameBlock.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
+
+                // And the gear is still reachable: fully inside the card, clear of the name.
+                var container = (System.Windows.Controls.ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+                Assert(container is not null, "the ListBox generated no container for the mode");
+                var gear = DescendantsOf<System.Windows.Controls.Button>(container!)
+                    .FirstOrDefault(b => b.Tag is Mode);
+                Assert(gear is not null && gear.ActualWidth > 0, "the mode card has no laid-out gear button");
+
+                var gearLeft = gear!.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+                var nameLeft = nameBlock.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+
+                Assert(gearLeft + gear.ActualWidth <= container!.ActualWidth + 0.5,
+                    $"the gear button ends at {gearLeft + gear.ActualWidth:F1} on a {container.ActualWidth:F1} " +
+                    "wide card - a long name has pushed it off the card");
+                Assert(nameLeft + nameBlock.ActualWidth <= gearLeft + 0.5,
+                    $"the name ends at {nameLeft + nameBlock.ActualWidth:F1} and the gear starts at " +
+                    $"{gearLeft:F1} - the name is rendering underneath the gear button");
+            });
+
+            Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>
+            {
+                // #492, and this is the half the issue actually complained about: with a
+                // 300-character name the status bar showed the name and nothing else -
+                // "Ready - Press Ctrl+Alt to record" and "Model: HyperWhisper Cloud
+                // (Ready)" were both gone, because the mode name sits in an Auto column
+                // and an Auto column grows to whatever it is given.
+                //
+                // The window is a fixed 1000 wide and CanMinimize, so this row's budget
+                // is fixed too and can be measured exactly: 1000 less the 232 sidebar
+                // (Generic.xaml ContentSidebarWidth) less the StatusBarStyle's 12,5
+                // padding on each side.
+                EnsureSmokeApplication();
+
+                const double budget = 1000 - 232 - 24;
+                var longName = "LongName" + new string('X', 292);
+
+                // Both cases, because the post-processing column is what makes the
+                // budget tight: it is Collapsed on a cloud mode and visible on a local
+                // post-processing one, and only the second case was ever near the edge.
+                foreach (var withPostProcessing in new[] { false, true })
+                {
+                    var bar = new StatusBarView
+                    {
+                        // Bindings are duck-typed, so the row can be measured against a
+                        // probe instead of the real MainViewModel - which builds the
+                        // audio stack and the tray icon in its constructor.
+                        DataContext = new StatusBarProbe
+                        {
+                            StatusText = HyperWhisper.Localization.Loc.S("status.ready.withHotkey", "Ctrl+Alt"),
+                            CurrentMode = new Mode { Name = longName },
+                            // The longest shape ModelStatus takes: "Local: {0} ({1} Ready)".
+                            ModelStatus = HyperWhisper.Localization.Loc.S(
+                                "status.model.localReady", "Parakeet TDT 0.6B v3", "GPU"),
+                            HasLocalPostProcessingStatus = withPostProcessing,
+                            LocalPostProcessingStatus = "Llama 3.2 3B Instruct Q4_K_M"
+                        }
+                    };
+
+                    bar.Measure(new Size(budget, 26));
+                    bar.Arrange(new Rect(0, 0, budget, 26));
+                    bar.UpdateLayout();
+
+                    var label = withPostProcessing ? "with post-processing" : "cloud mode";
+
+                    // THE BUG, STATED AS THE BUG: nothing may be pushed out of the row.
+                    // On main the name's Auto column took the whole width and both of
+                    // these measured nothing at all.
+                    foreach (var (name, block) in new[]
+                             {
+                                 ("StatusText", bar.StatusText),
+                                 ("ModelStatusText", bar.ModelStatusText)
+                             })
+                    {
+                        Assert(block.ActualWidth > 0,
+                            $"{label}: {name} measured 0 - the mode name has taken the whole bar");
+                    }
+
+                    // On a cloud mode - the issue's own repro, and the common case, since
+                    // the post-processing column only appears for a LOCAL LLM - both must
+                    // be WHOLE and not merely present. A hint trimmed to "Ready - Press
+                    // Ct..." would satisfy the check above while still hiding the hotkey.
+                    //
+                    // The tight case is deliberately not held to this. Four items in a
+                    // fixed 744px row, two of them long local model names, genuinely do
+                    // not all fit; the caps decide who gives way, and every one of them
+                    // now says so with an ellipsis instead of vanishing.
+                    if (!withPostProcessing)
+                    {
+                        foreach (var (name, block) in new[]
+                                 {
+                                     ("StatusText", bar.StatusText),
+                                     ("ModelStatusText", bar.ModelStatusText)
+                                 })
+                        {
+                            Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
+                                $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
+                                $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
+                        }
+                    }
+
+                    Assert(bar.DesiredSize.Width <= budget + 0.5,
+                        $"{label}: the status bar wants {bar.DesiredSize.Width:F1}px of a " +
+                        $"{budget:F0}px row, so its right-hand item leaves the window");
+
+                    // And the mode name is the item that gives way, with an ellipsis.
+                    Assert(bar.ModeNameText.TextTrimming == TextTrimming.CharacterEllipsis,
+                        $"{label}: the mode name trims with {bar.ModeNameText.TextTrimming}");
+                    Assert(bar.ModeNameText.ActualWidth < UnconstrainedWidthOf(bar.ModeNameText),
+                        $"{label}: the {longName.Length}-character name was not truncated at all, " +
+                        "so this case proves nothing");
+                }
+            });
+
+            Run("vocabulary: the whole replacement box is the replacement field — issue #496", () =>
+            {
+                // The replacement row is DRAWN as a 64px text area. The TextBox inside
+                // it used to carry VerticalAlignment="Top", so it auto-sized to one
+                // line and the other ~44px was bare Grid. A click there is hit-testable
+                // but not focusable: focus left the field and everything typed after it
+                // was discarded with no error. That is data loss, so it is asserted by
+                // MEASURING the laid-out tree, not by grepping XAML.
+                //
+                // No DatabaseInitializer here: VocabularyPage's constructor only runs
+                // InitializeComponent and takes the service singleton, whose constructor
+                // is empty. Every read hangs off OnLoaded, which never fires on a
+                // detached tree.
+                // The page binds through BoolToVisibilityConverter, which App.xaml
+                // declares inline and {StaticResource} resolves at parse time. The
+                // helper loads App.xaml itself, so it is already there - this used to
+                // need a hand-registration here.
+                EnsureSmokeApplication();
+
+                var page = new HyperWhisper.Views.Pages.VocabularyPage();
+
+                // The row is revealed by Ctrl+Enter at runtime; a collapsed element
+                // measures 0 and would pass this check while proving nothing.
+                page.ReplacementBorder.Visibility = Visibility.Visible;
+                page.Measure(new Size(900, 700));
+                page.Arrange(new Rect(0, 0, 900, 700));
+                page.UpdateLayout();
+
+                var box = page.ReplacementBox;
+                var host = System.Windows.Media.VisualTreeHelper.GetParent(box)
+                    as System.Windows.Controls.Grid;
+                Assert(host is not null,
+                    "the replacement TextBox is no longer hosted in a Grid — this case's geometry is stale");
+
+                Assert(host!.ActualHeight >= 64,
+                    $"the replacement box drew {host.ActualHeight:F2} tall, not the 64 the design asks for");
+
+                // The field must BE the box, not a line sitting at the top of it.
+                Assert(Math.Abs(box.ActualHeight - host.ActualHeight) <= 0.5,
+                    $"the replacement TextBox measured {box.ActualHeight:F2} inside a " +
+                    $"{host.ActualHeight:F2} box. The rest of the box is dead space that " +
+                    "steals focus and silently eats the user's replacement text.");
+
+                // The exact click the issue reports: the obvious middle of the box, well
+                // below the first text line. InputHitTest is not available here — this
+                // console harness has no PresentationSource, so nothing is ever rendered
+                // and every hit test answers null. The honest substitute is the geometry
+                // WPF would hit-test against: the TextBox's own bounds in the host's
+                // coordinates.
+                var clickPoint = new System.Windows.Point(host.ActualWidth / 2, host.ActualHeight - 8);
+                var boxBounds = box.TransformToAncestor(host)
+                    .TransformBounds(new Rect(box.RenderSize));
+
+                Assert(boxBounds.Contains(clickPoint),
+                    $"a click at {clickPoint} — the middle of the replacement box — falls outside " +
+                    $"ReplacementBox, which occupies only {boxBounds}. Focus moves off the field " +
+                    "and the next keystrokes are lost.");
+
+                // Bounds only matter if a point inside them is hit-testable, and the
+                // surface that answers a mouse click is the template's Border, not the
+                // TextBox object: a Border with a null Background is invisible to the
+                // mouse and reopens the same hole with the same geometry. Reading the
+                // TextBox's own Background would prove nothing — the implicit style in
+                // Generic.xaml gives every TextBox one whether the page asks or not.
+                var surface = FindDescendant<System.Windows.Controls.Border>(box);
+                Assert(surface is not null,
+                    "the TextBox template no longer has a Border — this case's hit surface is stale");
+                Assert(surface!.Background is not null,
+                    "the replacement field's template Border has no Background, so its empty area is " +
+                    "transparent to the mouse and a click there falls through to the container");
+                Assert(Math.Abs(surface.ActualHeight - host.ActualHeight) <= 0.5,
+                    $"the clickable surface measured {surface.ActualHeight:F2} inside a " +
+                    $"{host.ActualHeight:F2} box");
+
+                // The other half of the fix, measured rather than grepped: the content
+                // host has to fill the box too. Generic.xaml's implicit TextBox style
+                // sets VerticalContentAlignment="Center" and template-binds it to
+                // PART_ContentHost, so dropping the page's Stretch would recentre the
+                // caret and the first typed line ~22px below the placeholder, with
+                // every height above still passing.
+                var contentHost = box.Template.FindName("PART_ContentHost", box)
+                    as System.Windows.Controls.ScrollViewer;
+                Assert(contentHost is not null,
+                    "the TextBox template no longer names PART_ContentHost — this case's geometry is stale");
+                Assert(Math.Abs(contentHost!.ActualHeight - box.ActualHeight) <= 0.5,
+                    $"PART_ContentHost measured {contentHost.ActualHeight:F2} inside a " +
+                    $"{box.ActualHeight:F2} field, so the text is aligned to a fraction of the box " +
+                    "and no longer starts where the placeholder draws");
+
+                var contentTop = contentHost.TransformToAncestor(box)
+                    .TransformBounds(new Rect(contentHost.RenderSize)).Top;
+                Assert(contentTop <= 0.5,
+                    $"PART_ContentHost starts {contentTop:F2} below the top of the field; the " +
+                    "replacement text would not line up with the placeholder it replaces");
+            });
+
+            Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
+            {
+                // The export card reads "Vocabulary (N)". N was read once, in the page
+                // constructor, so an import a few pixels below it left the user looking
+                // at the old number until they navigated away and back — and that is the
+                // number they read before ticking Vocabulary and exporting.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var page = new BackupExportSettingsPage();
+                var before = page.ExportVocabularyCheckbox.Content as string;
+                Assert(!string.IsNullOrEmpty(before),
+                    "the export vocabulary checkbox has no label to keep up to date");
+
+                // The word an import would have added. Written through the same service
+                // BackupService's merge writes through, then removed again: this suite
+                // runs against a real database that later cases share.
+                var word = "percy497-" + Guid.NewGuid().ToString("N")[..8];
+                Assert(VocabularyService.Instance.TryAdd(word, "issue 497 probe", out var addError),
+                    $"could not stage a vocabulary word for this case: {addError ?? "no reason given"}");
+
+                var staged = VocabularyService.Instance.GetAll().FirstOrDefault(v => v.Word == word);
+                try
+                {
+                    Assert(staged is not null, "the staged vocabulary word is not in the table");
+
+                    // Exactly what the click handler does once ImportSelective succeeds.
+                    page.ApplyImportSuccess(new ImportSummary
+                    {
+                        ModesImported = 0,
+                        VocabularyAdded = 1,
+                        VocabularyConflicts = 0
+                    });
+
+                    var after = page.ExportVocabularyCheckbox.Content as string;
+                    Assert(after != before,
+                        $"the export label still reads '{after}' after an import added a word. " +
+                        "It is stale until the user leaves the page and comes back.");
+
+                    var expected = HyperWhisper.Localization.Loc.S(
+                        "settings.backup.export.section.vocabulary",
+                        VocabularyService.Instance.GetAll().Count);
+                    Assert(after == expected,
+                        $"the export label reads '{after}', the real vocabulary is '{expected}'");
+                }
+                finally
+                {
+                    if (staged is not null)
+                        VocabularyService.Instance.Delete(staged.Id);
+                }
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -11143,6 +11758,24 @@ internal static class Program
     }
 
     /// <summary>
+    /// An <c>ITranscriptionProvider</c> that returns one fixed string and never
+    /// opens the audio file, so a test can drive the REAL
+    /// <c>TranscriptionOrchestrator.TranscribeAsync</c> — including its STEP 3
+    /// text passes — without a loaded model or a microphone (issues #495, #498).
+    /// </summary>
+    private sealed class FixedTextTranscriptionProvider(string text) : ITranscriptionProvider
+    {
+        public bool IsAvailable => true;
+        public string Name => "SmokeTestFixedText";
+
+        public Task<string> TranscribeAsync(
+            string audioPath,
+            string? language = null,
+            IReadOnlyList<string>? vocabulary = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(text);
+    }
+
+    /// <summary>
     /// Minimal IStreamingProviderStrategy for exercising StreamingTranscriptionClient
     /// methods (like AppendFinalTranscript) that never touch the provider strategy.
     /// Any member a test does end up hitting should throw loudly rather than fake
@@ -11221,13 +11854,7 @@ internal static class Program
     private static IReadOnlyList<(OnboardingStep Step, System.Windows.Controls.Page Page)>
         BuildOnboardingStepPages(out OnboardingFlowViewModel flow)
     {
-        // One Application per AppDomain, and an earlier case may already own it.
-        var application = System.Windows.Application.Current;
-        if (application is null)
-        {
-            application = new System.Windows.Application();
-            LoadApplicationResources(application);
-        }
+        EnsureSmokeApplication();
 
         var harness = new OnboardingHarness();
         flow = harness.Flow;
@@ -11259,6 +11886,166 @@ internal static class Program
         }
 
         return pages;
+    }
+
+    /// <summary>
+    /// Assert the cloud balance readout on a step is not silently cut, at every window
+    /// size the product can render that step at.
+    /// </summary>
+    private static void AssertBalanceReadoutFits(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance)
+    {
+        // Both window sizes the product can actually render the step at. The window
+        // is NoResize and FitToWorkArea clamps it between a floor and the design
+        // size, so a desktop gets 760 wide and a 1366x768 laptop at 200% gets 683.
+        // The narrow end is where the readout is squeezed hardest, and asserting
+        // only at 760 would miss it.
+        var design = OnboardingWindow.FitToWorkArea(1920, 1032);
+        var clamped = OnboardingWindow.FitToWorkArea(1366 / 2.0, (768 - 72) / 2.0);
+
+        // 521 is the page area the design-size window leaves once its own chrome is
+        // out - the number BuildOnboardingStepPages already lays pages out at.
+        var chrome = design.Height - 521;
+
+        foreach (var window in new[] { design, clamped })
+        {
+            AssertBalanceReadoutFitsAt(
+                step, flow, balance, window.Width, Math.Max(1, window.Height - chrome));
+        }
+    }
+
+    private static void AssertBalanceReadoutFitsAt(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance,
+        double width,
+        double height)
+    {
+        var page = LayOutOnboardingStepPage(step, flow, width, height);
+        var where = $"{step} at {width:F0} DIP";
+
+        var readout = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+            .FirstOrDefault(t => string.Equals(t.Text, balance, StringComparison.Ordinal));
+
+        Assert(readout is not null, $"{where}: the balance readout is not on the page at all");
+        Assert(readout!.ActualWidth > 0, $"{where}: the balance readout was never laid out");
+
+        // The readout's own parent chain, not a search for any two-column Grid: the
+        // stock ScrollViewer template inside OnboardingStage is itself a `*`/Auto Grid
+        // and would happily stand in for the credits row, turning the assertion below
+        // into "does not exceed the whole viewport".
+        var column = System.Windows.Media.VisualTreeHelper.GetParent(readout);
+        var row = column is null ? null : System.Windows.Media.VisualTreeHelper.GetParent(column);
+
+        Assert(
+            row is System.Windows.Controls.Grid { ColumnDefinitions.Count: 2 },
+            $"{where}: the balance readout is no longer one level inside a two-column row - " +
+            "this case measures the wrong thing until it is pointed at the new shape");
+
+        var grid = (System.Windows.Controls.Grid)row!;
+        var neighbour = grid.Children
+            .OfType<FrameworkElement>()
+            .FirstOrDefault(child => System.Windows.Controls.Grid.GetColumn(child) == 1);
+
+        Assert(neighbour is not null, $"{where}: the row's second column is empty");
+
+        var readoutRight = readout
+            .TransformToAncestor(grid)
+            .Transform(new Point(readout.ActualWidth, 0)).X;
+        var neighbourLeft = neighbour!
+            .TransformToAncestor(grid)
+            .Transform(new Point(0, 0)).X;
+
+        // A vertical StackPanel arranges a child at max(its own width, the child's
+        // desired width), so an untrimmed 30 pt line does not stop at the end of its
+        // column - it is arranged past it and drawn underneath whatever the Auto
+        // column holds. That is the defect, and it is what this measures.
+        Assert(
+            readoutRight <= neighbourLeft + 0.5,
+            $"{where}: '{balance}' is arranged out to {readoutRight:F0} DIP while the " +
+            $"{neighbour.GetType().Name} beside it starts at {neighbourLeft:F0}. The readout " +
+            "runs under its neighbour and is cut with nothing to say it was cut.");
+
+        // Staying inside the column is only half of it. A readout that wants more room
+        // than the column has must also SAY it was shortened, or the same value is
+        // still cut mid-word - just tidily. Capping the width alone would satisfy the
+        // measurement above and reproduce the defect.
+        var natural = UnconstrainedWidthOf(readout);
+
+        if (natural <= readout.ActualWidth + 0.5)
+            return;
+
+        Assert(
+            readout.TextTrimming != TextTrimming.None
+            || readout.TextWrapping != TextWrapping.NoWrap,
+            $"{where}: '{balance}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
+            "column and neither trims nor wraps, so it is cut with no ellipsis");
+    }
+
+    /// <summary>
+    /// Lay out one onboarding step page against a flow the caller has already driven.
+    ///
+    /// Separate from BuildOnboardingStepPages because the cloud readouts only exist
+    /// once the flow is in a state that shows them, and that helper always uses a
+    /// virgin harness.
+    /// </summary>
+    private static System.Windows.Controls.Page LayOutOnboardingStepPage(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        double width,
+        double height)
+    {
+        EnsureSmokeApplication();
+
+        System.Windows.Controls.Page page = step switch
+        {
+            OnboardingStep.Configure => new ConfigureStepPage(),
+            OnboardingStep.Setup => new SetupStepPage(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(step), step, "only the two cloud steps carry a balance readout")
+        };
+
+        page.DataContext = flow;
+
+        // The stage is a ScrollViewer, so the height only decides whether a vertical
+        // scrollbar appears and takes width away from the row: the shorter the page,
+        // the stricter this is.
+        page.Measure(new Size(width, height));
+        page.Arrange(new Rect(0, 0, width, height));
+        page.UpdateLayout();
+
+        return page;
+    }
+
+    /// <summary>
+    /// The width this TextBlock's own text wants with nothing constraining it.
+    /// Comparing that against ActualWidth is how a layout case tells "fits" from
+    /// "was cut", without hard-coding a pixel number that a font change invalidates.
+    /// </summary>
+    private static double UnconstrainedWidthOf(System.Windows.Controls.TextBlock block)
+    {
+        var typeface = new System.Windows.Media.Typeface(
+            block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+
+        return new System.Windows.Media.FormattedText(
+            block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+            block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+    }
+
+    /// <summary>
+    /// Everything MainWindow's status bar binds, and nothing else. WPF bindings
+    /// are duck-typed, so the row can be laid out against this instead of the real
+    /// MainViewModel, whose constructor builds the audio stack and the tray icon.
+    /// </summary>
+    private sealed class StatusBarProbe
+    {
+        public string StatusText { get; init; } = "";
+        public Mode? CurrentMode { get; init; }
+        public string ModelStatus { get; init; } = "";
+        public string LocalPostProcessingStatus { get; init; } = "";
+        public bool HasLocalPostProcessingStatus { get; init; }
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
@@ -11319,18 +12106,28 @@ internal static class Program
         }
     }
 
-    private static void LoadApplicationResources(System.Windows.Application application)
+    /// <summary>
+    /// The one WPF Application this process gets, and it is the app's OWN
+    /// <see cref="App"/> with App.xaml's resources loaded.
+    ///
+    /// That matters, and a hand-written copy of those resources would not: page
+    /// XAML resolves {StaticResource} at PARSE time, so a page whose converter or
+    /// brush is missing cannot be constructed at all, and the failure lands as a
+    /// XamlParseException in whichever case first touches the new key. Loading
+    /// App.xaml means the harness cannot drift from the app.
+    ///
+    /// Only InitializeComponent runs. OnStartup, StartupUri and therefore
+    /// SingleInstanceGuard and MainWindow are all Run()'s doing, and this process
+    /// never calls Run().
+    /// </summary>
+    private static System.Windows.Application EnsureSmokeApplication()
     {
-        AddResourceDictionary(application, "Themes/LightColors.xaml");
-        AddResourceDictionary(application, "Themes/Brushes.xaml");
-        AddResourceDictionary(application, "Themes/Generic.xaml");
-    }
+        // One Application per AppDomain, and an earlier case may already own it.
+        if (System.Windows.Application.Current is { } existing)
+            return existing;
 
-    private static void AddResourceDictionary(System.Windows.Application application, string resourcePath)
-    {
-        application.Resources.MergedDictionaries.Add(new ResourceDictionary
-        {
-            Source = new Uri($"pack://application:,,,/HyperWhisper;component/{resourcePath}", UriKind.Absolute)
-        });
+        var application = new App();
+        application.InitializeComponent();
+        return application;
     }
 }

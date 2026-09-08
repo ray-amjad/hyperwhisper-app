@@ -126,6 +126,9 @@ class TranscriptionPipeline: ObservableObject {
     /// Current transcription task (for cancellation).
     var currentTask: Task<TranscriptionResult, Error>?
 
+    /// Metadata from the provider attempt that most recently threw no-speech.
+    var lastFailedAttemptDiagnostics: TranscriptionAttemptDiagnostics?
+
     /// Selected mode awaiting a safe Parakeet readiness refresh.
     var pendingParakeetReadinessModeId: String?
 

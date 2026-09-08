@@ -15,10 +15,18 @@ namespace HyperWhisper.Services.LocalApi.Endpoints;
 /// <summary>
 /// `POST /transcribe` — accept either a file path or a base64 blob, resolve
 /// against a saved or transient Mode, dispatch through the orchestrator, and
-/// return the (possibly post-processed) text. Wire shape mirrors macOS
-/// `TranscribeEndpoint` so the same MCP wrapper / cURL snippet works against
-/// either build. `/post-process` is the formatting endpoint, so this route skips
-/// the GUI post-processing pipeline even when the resolved Mode enables it.
+/// return the transcript. Wire shape mirrors macOS `TranscribeEndpoint` so the
+/// same MCP wrapper / cURL snippet works against either build.
+/// <para>
+/// `/post-process` is the formatting endpoint, so this route declines the AI
+/// rewrite even when the resolved Mode enables it. That is the LLM only. The
+/// orchestrator's deterministic passes still run and their result is what the
+/// `text` field carries: filler-word removal (a global app setting with no LLM
+/// in it), dictated "new line" / "new paragraph" break commands, and the user's
+/// vocabulary replacements. Those three are the user's own configuration, and a
+/// transcript that silently dropped them did not match the app's own dictation
+/// output for the same audio and the same Mode (issues #495, #498).
+/// </para>
 /// </summary>
 [SupportedOSPlatform("windows")]
 internal static class TranscribeEndpoints
@@ -139,7 +147,7 @@ internal static class TranscribeEndpoints
                         applicationContext: applicationContext,
                         cancellationToken: ctx.RequestAborted,
                         callSite: TranscriptionCallSite.Api,
-                        applyPostProcessing: false);
+                        applyAiPostProcessing: false);
                 }
                 catch (TranscriptionException tex)
                 {
@@ -162,16 +170,7 @@ internal static class TranscribeEndpoints
 
                 var latencyMs = (int)Math.Round((DateTime.UtcNow - started).TotalMilliseconds);
 
-                var response = new TranscribeResponse
-                {
-                    Text = result.RawText,
-                    Engine = EngineLabel(effectiveMode),
-                    Model = ModelLabel(effectiveMode),
-                    Language = EffectiveLanguage(effectiveMode),
-                    Timings = new TranscribeTimings { LoadMs = 0, DecodeMs = latencyMs },
-                    LatencyMs = latencyMs
-                };
-                return LocalApiResponder.Ok(response);
+                return LocalApiResponder.Ok(BuildResponse(result, effectiveMode, latencyMs));
             }
             finally
             {
@@ -187,6 +186,55 @@ internal static class TranscribeEndpoints
                 }
             }
         });
+    }
+
+    /// <summary>
+    /// Projects a finished <see cref="TranscriptionResult"/> onto the wire shape.
+    /// </summary>
+    /// <remarks>
+    /// The <c>text</c> field carries <see cref="TranscriptionResult.FinalText"/>,
+    /// NOT <c>RawText</c>. <c>RawText</c> is the provider's output before the
+    /// orchestrator's STEP 3; <c>FinalText</c> is that string after the
+    /// deterministic passes the orchestrator always runs — filler-word removal,
+    /// dictated "new line" / "new paragraph" break commands, and the user's
+    /// vocabulary replacements.
+    ///
+    /// This route reads the raw field before, which silently discarded all three
+    /// (issues #495, #498). It is a pair with the <c>applyAiPostProcessing:
+    /// false</c> argument above: with the old orchestrator gate, reading
+    /// <c>FinalText</c> alone would still have returned the provider's raw
+    /// string, and flipping the gate alone would still have been thrown away
+    /// here. Both sites have to say "deterministic passes, no LLM" together, so
+    /// they are asserted together in HyperWhisper.SmokeTests.
+    ///
+    /// Extracted from the handler lambda so that assertion can reach it, in the
+    /// same `internal static` style as <see cref="ApplyEngineModel"/> and
+    /// <see cref="BuildTransientMode"/>.
+    ///
+    /// KNOWN EDGE, DELIBERATE: a transcript that is ONLY a break command ("New
+    /// paragraph.") or only fillers ("Um, uh") reduces to an empty string, so
+    /// this route can now answer <c>ok: true</c> with an empty <c>text</c> where
+    /// it previously echoed the provider's string. That is not special-cased
+    /// here, because the GUI dictation path inserts exactly the same empty
+    /// result for the same audio and Mode — raising a business failure only on
+    /// the API would recreate the divergence this change removes. The orchestrator's
+    /// no-speech guard still covers the real failure: a provider that returns
+    /// nothing at all.
+    /// </remarks>
+    internal static TranscribeResponse BuildResponse(
+        TranscriptionResult result,
+        Mode effectiveMode,
+        int latencyMs)
+    {
+        return new TranscribeResponse
+        {
+            Text = result.FinalText,
+            Engine = EngineLabel(effectiveMode),
+            Model = ModelLabel(effectiveMode),
+            Language = EffectiveLanguage(effectiveMode),
+            Timings = new TranscribeTimings { LoadMs = 0, DecodeMs = latencyMs },
+            LatencyMs = latencyMs
+        };
     }
 
     private static async Task EnsureLocalModelLoadedAsync(

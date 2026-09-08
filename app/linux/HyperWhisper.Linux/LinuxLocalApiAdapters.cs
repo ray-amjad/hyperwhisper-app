@@ -155,7 +155,12 @@ internal sealed class LinuxLocalApiPostProcessor(
             result.Provider,
             mode.LanguageModel ?? mode.LocalPostProcessingModel ?? string.Empty,
             mode.Preset,
-            (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+            // Always true here: the guard above throws when `WasApplied` is
+            // false, so this head has no graceful-degradation 200 to report.
+            // Read from the result rather than hard-coded, so the field cannot
+            // drift from the guard if that guard is ever relaxed.
+            result.WasApplied);
     }
 
     private async Task<Mode> BuildWorkingModeAsync(

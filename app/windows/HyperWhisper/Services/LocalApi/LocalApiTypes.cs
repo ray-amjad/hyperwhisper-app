@@ -380,6 +380,37 @@ internal sealed class PostProcessResponse
     [JsonPropertyName("model")] public string Model { get; init; } = "";
     [JsonPropertyName("preset")] public string Preset { get; init; } = "";
     [JsonPropertyName("latency_ms")] public int LatencyMs { get; init; }
+
+    /// <summary>
+    /// Whether an LLM actually ran and produced the returned text.
+    /// </summary>
+    /// <remarks>
+    /// NOT OPTIONAL, AND NOT INFERABLE FROM `ok` (issue #499). A 200 with
+    /// `ok: true` does not mean an LLM ran, so this is the field that
+    /// separates a real rewrite from a no-op. `openapi.yaml` documents it and
+    /// macOS declares it a non-optional `Bool` on its `Codable` model
+    /// (`LocalAPITypes.swift:347`); Windows omitted the key entirely, so a
+    /// client sharing the macOS decoder failed with `keyNotFound` on every
+    /// Windows reply.
+    ///
+    /// WHICH no-op it reports is narrower here than on macOS, and that
+    /// difference is NOT introduced by this field — it is the pre-existing
+    /// shape of the endpoint. A Windows provider failure (missing key, HTTP
+    /// error, offline) raises <c>WarningOccurred</c>, and the endpoint turns a
+    /// captured warning into an `ok: false` / `TRANSCRIPTION_FAILED` envelope
+    /// that carries no body fields at all. macOS instead answers `ok: true`
+    /// with the raw input and `post_processed: false` for the same causes. So
+    /// on Windows a `false` here means a SILENT skip — post-processing off for
+    /// the resolved mode, or an empty system prompt — and a caller must handle
+    /// the `ok: false` envelope as well. Documented on the `/post-process`
+    /// path in `openapi.yaml`.
+    ///
+    /// Set from <c>PostProcessingResult.WasApplied</c> — `false` on the
+    /// no-op branch, `true` on the branch that ran. Do not give this a
+    /// default: both call sites must state it, so a third one cannot silently
+    /// inherit `false`.
+    /// </remarks>
+    [JsonPropertyName("post_processed")] public required bool PostProcessed { get; init; }
 }
 
 // MARK: - /recordings ------------------------------------------------------
