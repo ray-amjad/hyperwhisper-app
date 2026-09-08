@@ -10468,25 +10468,23 @@ internal static class Program
                     $"the wheel over {NameOrType(wheelTarget)} left the page at offset " +
                     $"{scroller.VerticalOffset} - the dropdown ate the event instead of passing it on");
 
-                // An OPEN dropdown keeps the wheel: it is scrolling the list it is
-                // showing, which is the one case where the default is right.
+                // THE OPEN-DROPDOWN HALF IS NOT COVERED HERE, AND THIS IS THE TRIPWIRE
+                // THAT SAYS SO. An open dropdown must keep the wheel - it is scrolling
+                // the list it is showing - but ComboBox coerces IsDropDownOpen back to
+                // false while the control is not loaded, and nothing in this console
+                // process is ever loaded: there is no PresentationSource, so no Popup can
+                // be hosted. Setting the property is a no-op, and a case that raised a
+                // wheel event "over an open dropdown" here would be testing the closed
+                // path under a misleading name.
+                //
+                // It is verified on a real GUI instead (see the PR). If this assertion
+                // ever fails, the harness has gained the ability to open a dropdown and
+                // the real assertion belongs here.
                 var open = combos.First(c => c.Items.Count >= 2);
                 open.IsDropDownOpen = true;
-                try
-                {
-                    var openArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
-                    {
-                        RoutedEvent = UIElement.PreviewMouseWheelEvent
-                    };
-                    open.RaiseEvent(openArgs);
-                    Assert(!openArgs.Handled,
-                        $"{NameOrType(open)}: the guard took the wheel from an OPEN dropdown, so its " +
-                        "item list can no longer be scrolled");
-                }
-                finally
-                {
-                    open.IsDropDownOpen = false;
-                }
+                Assert(!open.IsDropDownOpen,
+                    "a dropdown now opens in the console harness - replace this tripwire with the " +
+                    "real check: an OPEN ComboBox must leave PreviewMouseWheel unhandled");
             });
 
             Run("every dropdown in the app is covered, not just the mode editor's", () =>
