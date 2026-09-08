@@ -47,10 +47,12 @@ public sealed class AutoDeleteService : IDisposable
     private bool _disposed;
     private bool _isCleanupInProgress;
 
-    // Statistics
-    private int _lastCleanupTranscriptsDeleted;
+    // Statistics. The timestamp and the transcript count live in settings.json, via
+    // SettingsService, because the Storage page's "last cleanup" line is a fact about
+    // the PROFILE: while they were fields here, a sweep was forgotten at shutdown and
+    // the line reverted to "No cleanup has run yet" on the next launch (issue #514).
+    // The audio-file count stays process-local because nothing renders it.
     private int _lastCleanupFilesDeleted;
-    private DateTime? _lastCleanupTime;
 
     // Services
     private SettingsService Settings => SettingsService.Instance;
@@ -172,6 +174,14 @@ public sealed class AutoDeleteService : IDisposable
             if (transcriptsToDelete.Count == 0)
             {
                 LoggingService.Debug("AutoDeleteService: No transcripts to delete");
+
+                // A sweep that deleted nothing still RAN, and the line under the days box
+                // reports when a sweep last ran. Returning here without recording it left
+                // the page saying "No cleanup has run yet" straight after the app had
+                // reported "Cleanup Complete" (issue #514) — and "never run" is the
+                // reading that makes a user press Delete Now again.
+                _lastCleanupFilesDeleted = 0;
+                Settings.RecordAutoDeleteCleanup(DateTime.UtcNow, 0);
                 return 0;
             }
 
@@ -191,9 +201,8 @@ public sealed class AutoDeleteService : IDisposable
             int deletedCount = History.DeleteTranscripts(ids);
 
             // Update statistics
-            _lastCleanupTranscriptsDeleted = deletedCount;
             _lastCleanupFilesDeleted = filesDeleted;
-            _lastCleanupTime = DateTime.UtcNow;
+            Settings.RecordAutoDeleteCleanup(DateTime.UtcNow, deletedCount);
 
             LoggingService.Info($"AutoDeleteService: Cleanup complete. Deleted {deletedCount} transcripts and {filesDeleted} audio files");
 
@@ -239,9 +248,11 @@ public sealed class AutoDeleteService : IDisposable
     // STATISTICS (for UI display)
     // =========================================================================
 
-    public int LastCleanupTranscriptsDeleted => _lastCleanupTranscriptsDeleted;
+    public int LastCleanupTranscriptsDeleted => Settings.AutoDeleteLastCleanupDeleted;
     public int LastCleanupFilesDeleted => _lastCleanupFilesDeleted;
-    public DateTime? LastCleanupTime => _lastCleanupTime;
+
+    /// <summary>UTC. The Storage page converts it for display.</summary>
+    public DateTime? LastCleanupTime => Settings.AutoDeleteLastCleanupUtc;
 
     // =========================================================================
     // DISPOSAL

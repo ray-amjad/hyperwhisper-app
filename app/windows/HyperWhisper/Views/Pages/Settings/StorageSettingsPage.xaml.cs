@@ -59,7 +59,12 @@ public partial class StorageSettingsPage : Page
         }
     }
 
-    private void UpdateLastCleanupInfo()
+    /// <summary>
+    /// Rewrites the line under the days box from the service's recorded sweep.
+    /// Internal so a smoke case can assert what the line says, the way
+    /// BackupExportSettingsPage.ApplyImportSuccess is.
+    /// </summary>
+    internal void UpdateLastCleanupInfo()
     {
         var lastTime = _autoDeleteService.LastCleanupTime;
         var deletedCount = _autoDeleteService.LastCleanupTranscriptsDeleted;

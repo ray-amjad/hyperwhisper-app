@@ -11835,6 +11835,107 @@ internal static class Program
                     + "column edge. Use a two-column Grid. " + string.Join("; ", problems));
             });
 
+            Run("storage: a cleanup that deleted nothing is still recorded, and survives a restart — issue #514", () =>
+            {
+                // Two separate reasons the Storage page said "No cleanup has run yet"
+                // immediately after the app reported "Cleanup Complete":
+                //   1. PerformCleanup returned early when there was nothing to delete,
+                //      before it stamped anything;
+                //   2. the stamp was a private field, so even a sweep that DID delete
+                //      something was forgotten at shutdown.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var history = HistoryService.Instance;
+                var autoDelete = AutoDeleteService.Instance;
+
+                var enabledBefore = settings.AutoDeleteEnabled;
+                var daysBefore = settings.AutoDeleteDaysOld;
+                var stampBefore = settings.AutoDeleteLastCleanupUtc;
+                var countBefore = settings.AutoDeleteLastCleanupDeleted;
+
+                // 365 is the maximum retention the page allows, so the sweep can only
+                // ever reach the row this case backdates — never another case's.
+                settings.AutoDeleteEnabled = true;
+                settings.AutoDeleteDaysOld = 365;
+
+                var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+
+                try
+                {
+                    // ARM 1: nothing to delete. This is the reported repro.
+                    var beforeZeroSweep = DateTime.UtcNow.AddSeconds(-1);
+                    int deletedNothing = autoDelete.PerformManualCleanup();
+
+                    Assert(deletedNothing == 0,
+                        $"expected an empty sweep, but it deleted {deletedNothing}; this case's "
+                        + "arms are no longer distinguishable");
+                    Assert(autoDelete.LastCleanupTime.HasValue,
+                        "a sweep that deleted nothing left LastCleanupTime null, so the page still "
+                        + "reads \"No cleanup has run yet\" right after the app said \"Cleanup Complete\"");
+                    Assert(autoDelete.LastCleanupTime!.Value >= beforeZeroSweep,
+                        $"LastCleanupTime is {autoDelete.LastCleanupTime:O}, which predates this sweep");
+                    Assert(autoDelete.LastCleanupTranscriptsDeleted == 0,
+                        $"an empty sweep reported {autoDelete.LastCleanupTranscriptsDeleted} deleted");
+
+                    // The line the user reads must change, not just the service field.
+                    var page = new StorageSettingsPage();
+                    page.UpdateLastCleanupInfo();
+                    var neverRun = HyperWhisper.Localization.Loc.S("settings.storage.autoDelete.noCleanupYet");
+                    Assert(page.LastCleanupText.Text != neverRun,
+                        $"the page still reads '{neverRun}' after a completed sweep. \"0 deleted just "
+                        + "now\" and \"never run\" are different facts, and the second is the one that "
+                        + "makes a user press the button again");
+
+                    var expectedLine = HyperWhisper.Localization.Loc.S(
+                        "settings.storage.autoDelete.lastCleanup",
+                        autoDelete.LastCleanupTime!.Value.ToString("g"),
+                        0);
+                    Assert(page.LastCleanupText.Text == expectedLine,
+                        $"the line reads '{page.LastCleanupText.Text}', expected '{expectedLine}'");
+
+                    // ARM 2: it survives a restart. The stamp is a fact about the profile,
+                    // so it has to be on disk, not in a field that dies with the process.
+                    Assert(File.Exists(settingsFile), $"no settings.json at {settingsFile}");
+                    using (var doc = JsonDocument.Parse(File.ReadAllText(settingsFile)))
+                    {
+                        Assert(doc.RootElement.TryGetProperty("AutoDeleteLastCleanupUtc", out var stampNode)
+                               && stampNode.ValueKind != JsonValueKind.Null,
+                            "settings.json carries no AutoDeleteLastCleanupUtc, so the next launch "
+                            + "reverts the line to \"No cleanup has run yet\"");
+                        Assert(doc.RootElement.TryGetProperty("AutoDeleteLastCleanupDeleted", out _),
+                            "settings.json carries no AutoDeleteLastCleanupDeleted");
+                    }
+
+                    // ARM 3: a sweep that DOES delete records the real count.
+                    var old = history.CreateProcessingTranscript(1.0, "percy514", audioFilePath: null);
+                    old.Date = DateTime.UtcNow.AddDays(-400);
+                    old.Status = TranscriptStatus.Completed;
+                    old.Text = "issue 514 probe";
+                    history.UpdateTranscript(old);
+
+                    int deletedOne = autoDelete.PerformManualCleanup();
+                    Assert(deletedOne == 1,
+                        $"the sweep deleted {deletedOne} rows; exactly the one backdated row was due");
+                    Assert(autoDelete.LastCleanupTranscriptsDeleted == 1,
+                        $"the recorded count is {autoDelete.LastCleanupTranscriptsDeleted}, not 1");
+                    Assert(history.GetTranscript(old.Id) is null,
+                        "the backdated transcript is still in the database");
+                }
+                finally
+                {
+                    // This suite runs against one shared profile. Put back what was there;
+                    // if nothing had ever run, the stamp this case left behind is harmless
+                    // because no other case reads it.
+                    if (stampBefore.HasValue)
+                        settings.RecordAutoDeleteCleanup(stampBefore.Value, countBefore);
+
+                    settings.AutoDeleteDaysOld = daysBefore;
+                    settings.AutoDeleteEnabled = enabledBefore;
+                }
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
