@@ -10305,6 +10305,54 @@ internal static class Program
                 }
             });
 
+            // Same reason as the two blocks above: RunAsync blocks on the awaited task,
+            // and this region runs AFTER the onboarding block put the WPF
+            // DispatcherSynchronizationContext back. A continuation posted to a
+            // dispatcher this console harness never pumps would hang the suite rather
+            // than fail it, so detach for the duration.
+            var balancePreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("onboarding: the cloud credit balance is never cut without an ellipsis", async () =>
+            {
+                // Both cloud steps draw CreditsFormatted with OnboardingBigNumberStyle
+                // (30 pt) in the `*` column of a two-column row whose `Auto` column
+                // holds a pill (Setup) or the "Get credits" button (Configure). The
+                // formatted balance is wider than what is left of that row, and the
+                // style set no TextTrimming and no TextWrapping, so the text ran under
+                // the neighbour and was cut mid-word at the card edge: the Configure
+                // step rendered "$66.30 remainir" and the Setup step
+                // "$66.30 remaining (~10523 min", with nothing to say either had been
+                // cut. The caption directly below has always trimmed.
+                //
+                // The gateway's own numbers: FormattedBalance divides the credit count
+                // by 1000 to get the dollars (HyperWhisperCloudCredits.cs:112-119), so
+                // 66300 credits IS "$66.30 remaining".
+                var balance = "$66.30 remaining (~10523 minutes)";
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, balance);
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+                Assert(h.Flow.CreditsFormatted == balance, "precondition: the balance landed");
+
+                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, balance);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+
+                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+            });
+
+            SynchronizationContext.SetSynchronizationContext(balancePreviousContext);
+
             Run("modes: a 300-character mode name is ellipsised on the card, not clipped under the gear", () =>
             {
                 // #492. A mode name is free user text with no cap anywhere - not in the
@@ -11599,6 +11647,137 @@ internal static class Program
         }
 
         return pages;
+    }
+
+    /// <summary>
+    /// Assert the cloud balance readout on a step is not silently cut, at every window
+    /// size the product can render that step at.
+    /// </summary>
+    private static void AssertBalanceReadoutFits(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance)
+    {
+        // Both window sizes the product can actually render the step at. The window
+        // is NoResize and FitToWorkArea clamps it between a floor and the design
+        // size, so a desktop gets 760 wide and a 1366x768 laptop at 200% gets 683.
+        // The narrow end is where the readout is squeezed hardest, and asserting
+        // only at 760 would miss it.
+        var design = OnboardingWindow.FitToWorkArea(1920, 1032);
+        var clamped = OnboardingWindow.FitToWorkArea(1366 / 2.0, (768 - 72) / 2.0);
+
+        // 521 is the page area the design-size window leaves once its own chrome is
+        // out - the number BuildOnboardingStepPages already lays pages out at.
+        var chrome = design.Height - 521;
+
+        foreach (var window in new[] { design, clamped })
+        {
+            AssertBalanceReadoutFitsAt(
+                step, flow, balance, window.Width, Math.Max(1, window.Height - chrome));
+        }
+    }
+
+    private static void AssertBalanceReadoutFitsAt(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance,
+        double width,
+        double height)
+    {
+        var page = LayOutOnboardingStepPage(step, flow, width, height);
+        var where = $"{step} at {width:F0} DIP";
+
+        var readout = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+            .FirstOrDefault(t => string.Equals(t.Text, balance, StringComparison.Ordinal));
+
+        Assert(readout is not null, $"{where}: the balance readout is not on the page at all");
+        Assert(readout!.ActualWidth > 0, $"{where}: the balance readout was never laid out");
+
+        // The readout's own parent chain, not a search for any two-column Grid: the
+        // stock ScrollViewer template inside OnboardingStage is itself a `*`/Auto Grid
+        // and would happily stand in for the credits row, turning the assertion below
+        // into "does not exceed the whole viewport".
+        var column = System.Windows.Media.VisualTreeHelper.GetParent(readout);
+        var row = column is null ? null : System.Windows.Media.VisualTreeHelper.GetParent(column);
+
+        Assert(
+            row is System.Windows.Controls.Grid { ColumnDefinitions.Count: 2 },
+            $"{where}: the balance readout is no longer one level inside a two-column row - " +
+            "this case measures the wrong thing until it is pointed at the new shape");
+
+        var grid = (System.Windows.Controls.Grid)row!;
+        var neighbour = grid.Children
+            .OfType<FrameworkElement>()
+            .FirstOrDefault(child => System.Windows.Controls.Grid.GetColumn(child) == 1);
+
+        Assert(neighbour is not null, $"{where}: the row's second column is empty");
+
+        var readoutRight = readout
+            .TransformToAncestor(grid)
+            .Transform(new Point(readout.ActualWidth, 0)).X;
+        var neighbourLeft = neighbour!
+            .TransformToAncestor(grid)
+            .Transform(new Point(0, 0)).X;
+
+        // A vertical StackPanel arranges a child at max(its own width, the child's
+        // desired width), so an untrimmed 30 pt line does not stop at the end of its
+        // column - it is arranged past it and drawn underneath whatever the Auto
+        // column holds. That is the defect, and it is what this measures.
+        Assert(
+            readoutRight <= neighbourLeft + 0.5,
+            $"{where}: '{balance}' is arranged out to {readoutRight:F0} DIP while the " +
+            $"{neighbour.GetType().Name} beside it starts at {neighbourLeft:F0}. The readout " +
+            "runs under its neighbour and is cut with nothing to say it was cut.");
+
+        // Staying inside the column is only half of it. A readout that wants more room
+        // than the column has must also SAY it was shortened, or the same value is
+        // still cut mid-word - just tidily. Capping the width alone would satisfy the
+        // measurement above and reproduce the defect.
+        var natural = UnconstrainedWidthOf(readout);
+
+        if (natural <= readout.ActualWidth + 0.5)
+            return;
+
+        Assert(
+            readout.TextTrimming != TextTrimming.None
+            || readout.TextWrapping != TextWrapping.NoWrap,
+            $"{where}: '{balance}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
+            "column and neither trims nor wraps, so it is cut with no ellipsis");
+    }
+
+    /// <summary>
+    /// Lay out one onboarding step page against a flow the caller has already driven.
+    ///
+    /// Separate from BuildOnboardingStepPages because the cloud readouts only exist
+    /// once the flow is in a state that shows them, and that helper always uses a
+    /// virgin harness.
+    /// </summary>
+    private static System.Windows.Controls.Page LayOutOnboardingStepPage(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        double width,
+        double height)
+    {
+        EnsureSmokeApplication();
+
+        System.Windows.Controls.Page page = step switch
+        {
+            OnboardingStep.Configure => new ConfigureStepPage(),
+            OnboardingStep.Setup => new SetupStepPage(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(step), step, "only the two cloud steps carry a balance readout")
+        };
+
+        page.DataContext = flow;
+
+        // The stage is a ScrollViewer, so the height only decides whether a vertical
+        // scrollbar appears and takes width away from the row: the shorter the page,
+        // the stricter this is.
+        page.Measure(new Size(width, height));
+        page.Arrange(new Rect(0, 0, width, height));
+        page.UpdateLayout();
+
+        return page;
     }
 
     /// <summary>
