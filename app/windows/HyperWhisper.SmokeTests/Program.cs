@@ -11473,9 +11473,6 @@ internal static class Program
                     var row = (FrameworkElement)System.Windows.Media.VisualTreeHelper.GetParent(block);
                     var leftInRow = block.TransformToAncestor(row).Transform(new Point(0, 0)).X;
                     var right = leftInRow + block.ActualWidth;
-                    Console.WriteLine($"DIAG {label}: row={row.GetType().Name} rowW={row.ActualWidth:F1} rowH={row.ActualHeight:F1} "
-                        + $"x={leftInRow:F1} w={block.ActualWidth:F1} h={block.ActualHeight:F1} "
-                        + $"natural={UnconstrainedWidthOf(block):F1} line={LineHeightOf(block):F1}");
                     if (Math.Abs(right - row.ActualWidth) > 0.5)
                     {
                         problems.Add(
@@ -11484,7 +11481,24 @@ internal static class Program
                             + "end exactly at the row's edge");
                     }
 
-                    // 2. And a string that is too long for the column really is on more
+                    // 2. And the row itself stays inside the settings content column. A
+                    //    horizontal StackPanel whose children want more than it was given
+                    //    does NOT shrink them: it takes their full width and hangs over the
+                    //    column edge, where the ScrollViewer clips it. That is the English
+                    //    Storage bug, and it is invisible to check 1 because the overhanging
+                    //    row and its overhanging child agree with each other.
+                    var column = (FrameworkElement)((System.Windows.Controls.ScrollViewer)page.Content).Content;
+                    var rightInColumn = block.TransformToAncestor(column).Transform(new Point(0, 0)).X
+                                        + block.ActualWidth;
+                    if (rightInColumn > column.ActualWidth + 0.5)
+                    {
+                        problems.Add(
+                            $"{label} ends {rightInColumn - column.ActualWidth:F0}px past the right edge of the "
+                            + $"{column.ActualWidth:F0}px content column, so that much of it is clipped away and "
+                            + "cannot be scrolled to");
+                    }
+
+                    // 3. And a string that is too long for the column really is on more
                     //    than one line, rather than cut at the column edge.
                     if (UnconstrainedWidthOf(block) > block.ActualWidth + 0.5
                         && block.ActualHeight <= LineHeightOf(block) * 1.5)
