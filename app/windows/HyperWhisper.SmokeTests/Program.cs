@@ -11458,23 +11458,21 @@ internal static class Program
                     Assert(block.TextWrapping == TextWrapping.Wrap,
                         $"{label} is not set to wrap; this case is about whether wrapping can fire");
 
-                    // 1. Nothing runs off the right-hand edge of the page.
-                    var leftInPage = block.TransformToAncestor(page).Transform(new Point(0, 0)).X;
-                    Assert(leftInPage + block.ActualWidth <= PageWidth + 0.5,
-                        $"{label} ends at {leftInPage + block.ActualWidth:F0}px inside a {PageWidth:F0}px page, "
-                        + "so its tail is clipped and cannot be scrolled to.");
-
-                    // 2. It was handed the whole remaining width of its row. This is what a
-                    //    horizontal StackPanel never does, and it is what makes the string
-                    //    safe in the 39 localised builds, not just in English.
+                    // 1. The text column ends exactly where its row ends. Over is the
+                    //    English Storage bug: the row is layout-clipped to the 560px column,
+                    //    so whatever hangs past it is invisible and unscrollable. Under is
+                    //    the Backup notice: it took its own single-line width and happens to
+                    //    fit today, which is not a property any of the 39 locales inherit.
                     var row = (FrameworkElement)System.Windows.Media.VisualTreeHelper.GetParent(block);
                     var leftInRow = block.TransformToAncestor(row).Transform(new Point(0, 0)).X;
-                    Assert(leftInRow + block.ActualWidth >= row.ActualWidth - 0.5,
-                        $"{label} was laid out {block.ActualWidth:F0}px wide at x={leftInRow:F0} inside a "
-                        + $"{row.ActualWidth:F0}px row, so it took its own single-line width rather than the "
-                        + "column's. A longer translation would overflow instead of wrapping.");
+                    var right = leftInRow + block.ActualWidth;
+                    Assert(Math.Abs(right - row.ActualWidth) <= 0.5,
+                        $"{label} was laid out {block.ActualWidth:F0}px wide at x={leftInRow:F0}, ending at "
+                        + $"{right:F0}px inside a {row.ActualWidth:F0}px row. It should end exactly at the row's "
+                        + "edge: a horizontal StackPanel measures with infinite width, so the block takes its "
+                        + "own single-line width and TextWrapping=\"Wrap\" never fires.");
 
-                    // 3. And a string that is too long for the column really is on more
+                    // 2. And a string that is too long for the column really is on more
                     //    than one line, rather than cut at the column edge.
                     if (UnconstrainedWidthOf(block) > block.ActualWidth + 0.5)
                     {
