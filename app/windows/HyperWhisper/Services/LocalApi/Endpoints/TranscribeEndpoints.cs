@@ -210,6 +210,16 @@ internal static class TranscribeEndpoints
     /// Extracted from the handler lambda so that assertion can reach it, in the
     /// same `internal static` style as <see cref="ApplyEngineModel"/> and
     /// <see cref="BuildTransientMode"/>.
+    ///
+    /// KNOWN EDGE, DELIBERATE: a transcript that is ONLY a break command ("New
+    /// paragraph.") or only fillers ("Um, uh") reduces to an empty string, so
+    /// this route can now answer <c>ok: true</c> with an empty <c>text</c> where
+    /// it previously echoed the provider's string. That is not special-cased
+    /// here, because the GUI dictation path inserts exactly the same empty
+    /// result for the same audio and Mode — raising a business failure only on
+    /// the API would recreate the divergence this change removes. The orchestrator's
+    /// no-speech guard still covers the real failure: a provider that returns
+    /// nothing at all.
     /// </remarks>
     internal static TranscribeResponse BuildResponse(
         TranscriptionResult result,

@@ -6278,6 +6278,74 @@ internal static class Program
                 }
             });
 
+            Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                vocabulary.TryAdd("eta", "estimated time of arrival", out _);
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+
+                try
+                {
+                    // "auto" is the language of every shipped Mode and of every
+                    // transient Mode the Local API builds, so this — not "en" —
+                    // is the shape of the common /transcribe request.
+                    var mode = new Mode
+                    {
+                        Name = "Local API auto language",
+                        ProviderType = "local",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. That is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    // Language-independent: both still run.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary must not depend on the language, got '{result.FinalText}'");
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"break commands must not depend on the language, got '{result.FinalText}'");
+
+                    // Language-gated: "er"/"um" are real words elsewhere, so the
+                    // shared core no-ops for "auto" (issue #278). This is the
+                    // documented behaviour, not a gap in the #498 fix.
+                    Assert(result.FinalText.Contains("Um,", StringComparison.Ordinal),
+                        $"an auto-language transcript must keep its fillers, got '{result.FinalText}'");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
             Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
             {
                 var mode = new Mode

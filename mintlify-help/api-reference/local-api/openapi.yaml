@@ -501,12 +501,13 @@ components:
         text:
           type: string
           description: >-
-            The transcript. No route runs AI post-processing — /post-process is
-            the endpoint for that. On Windows the deterministic text passes DO
-            run: filler-word removal when Remove filler words is on, dictated
-            "new line" / "new paragraph" break commands, and vocabulary
-            replacements. macOS applies vocabulary only, and only for the local
-            engines that apply it inside the provider.
+            The transcript. /transcribe never runs AI post-processing —
+            /post-process is the endpoint for that. On Windows the deterministic
+            text passes DO run: vocabulary replacements, dictated "new line" /
+            "new paragraph" break commands, and filler-word removal when Remove
+            filler words is on AND the Mode language is English (the default
+            "auto" does not remove fillers). macOS applies none of the three on
+            this route. Linux is a separate implementation.
         engine: { type: string }
         model: { type: string }
         language: { type: string, nullable: true }

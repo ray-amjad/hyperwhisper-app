@@ -31,18 +31,25 @@ Assert-Match `
 
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "applyPostProcessing: false" `
-    -Label "Windows /transcribe skips the GUI post-processing pipeline"
+    -Pattern "applyAiPostProcessing: false" `
+    -Label "Windows /transcribe declines the AI rewrite (/post-process is the formatting endpoint)"
 
+# Issues #495 and #498. These three assertions used to read
+# `applyPostProcessing: false`, `Text = result.RawText` and
+# `else if (applyPostProcessing)`, which described the defect rather than the
+# contract: the flag gated the deterministic text passes as well as the LLM
+# rewrite, and the response then read the pre-STEP-3 field anyway. The route
+# declines the AI rewrite ONLY; filler-word removal, dictated break commands
+# and vocabulary replacements are the user's own settings and always run.
 Assert-Match `
     -Content $EndpointSource `
-    -Pattern "Text = result\.RawText" `
-    -Label "Windows /transcribe returns raw transcription text"
+    -Pattern "Text = result\.FinalText" `
+    -Label "Windows /transcribe returns the text after the deterministic passes, not the provider's raw string"
 
 Assert-Match `
     -Content $OrchestratorSource `
-    -Pattern "bool applyPostProcessing = true.*?if \(applyPostProcessing && mode\.PostProcessingMode != 0\).*?else if \(applyPostProcessing\)" `
-    -Label "orchestrator preserves GUI post-processing by default but allows API callers to skip it"
+    -Pattern "bool applyAiPostProcessing = true.*?if \(applyAiPostProcessing && mode\.PostProcessingMode != 0\).*?else\s*\{.*?RemoveFillerWords.*?ProcessVoiceCommands.*?ApplyReplacements" `
+    -Label "orchestrator gates only the AI rewrite; the deterministic passes run on every path"
 
 Assert-Match `
     -Content $EndpointSource `
