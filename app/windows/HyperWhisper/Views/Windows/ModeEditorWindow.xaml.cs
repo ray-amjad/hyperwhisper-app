@@ -2485,6 +2485,27 @@ public partial class ModeEditorWindow : Window
         }
     }
 
+    private void ReplaceLanguageItems(IEnumerable<LanguageInfo> languages)
+    {
+        var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+
+        LanguageCombo.Items.Clear();
+        foreach (var lang in languages)
+        {
+            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
+        }
+
+        bool found = false;
+        if (!string.IsNullOrEmpty(currentLang))
+        {
+            foreach (ComboBoxItem item in LanguageCombo.Items)
+            {
+                if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
+            }
+        }
+        if (!found) SelectLanguage("auto");
+    }
+
     /// <summary>
     /// Filters the language dropdown based on the selected model.
     /// Parakeet v3 shows only its supported languages + Automatic.
@@ -2506,28 +2527,10 @@ public partial class ModeEditorWindow : Window
                 if (model != null && !model.IsEnglishOnly)
                 {
                     // Multilingual Parakeet: filter to supported languages
-                    var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
                     var supportedCodes = model.SupportedLanguages;
-
-                    LanguageCombo.Items.Clear();
-                    foreach (var lang in LanguageInfo.AllLanguages)
-                    {
-                        if (lang.Code == "auto" || supportedCodes.Contains(lang.Code, StringComparer.OrdinalIgnoreCase))
-                        {
-                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                        }
-                    }
-
-                    // Preserve current selection if still valid, otherwise fall back to "auto"
-                    bool found = false;
-                    if (!string.IsNullOrEmpty(currentLang))
-                    {
-                        foreach (ComboBoxItem item in LanguageCombo.Items)
-                        {
-                            if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                        }
-                    }
-                    if (!found) SelectLanguage("auto");
+                    var filteredLanguages = LanguageInfo.AllLanguages.Where(lang =>
+                        lang.Code == "auto" || supportedCodes.Contains(lang.Code, StringComparer.OrdinalIgnoreCase));
+                    ReplaceLanguageItems(filteredLanguages);
                     return;
                 }
                 // English-only Parakeet: language picker is disabled by AutoSelectEnglishForModel,
@@ -2552,27 +2555,9 @@ public partial class ModeEditorWindow : Window
 
             if (cloudProvider == CloudTranscriptionProvider.Soniox)
             {
-                var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
                 var supportedCodes = new HashSet<string>(LanguageInfo.SonioxAsyncLanguageCodes, StringComparer.OrdinalIgnoreCase);
-
-                LanguageCombo.Items.Clear();
-                foreach (var lang in LanguageInfo.AllLanguages)
-                {
-                    if (supportedCodes.Contains(lang.Code))
-                    {
-                        LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                    }
-                }
-
-                bool found = false;
-                if (!string.IsNullOrEmpty(currentLang))
-                {
-                    foreach (ComboBoxItem item in LanguageCombo.Items)
-                    {
-                        if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                    }
-                }
-                if (!found) SelectLanguage("auto");
+                var filteredLanguages = LanguageInfo.AllLanguages.Where(lang => supportedCodes.Contains(lang.Code));
+                ReplaceLanguageItems(filteredLanguages);
                 return;
             }
 
@@ -2608,53 +2593,18 @@ public partial class ModeEditorWindow : Window
                 }
                 if (filteredCodes != null)
                 {
-                    var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
                     var supportedCodes = new HashSet<string>(filteredCodes, StringComparer.OrdinalIgnoreCase);
-
-                    LanguageCombo.Items.Clear();
-                    foreach (var lang in LanguageInfo.AllLanguages)
-                    {
-                        if (supportedCodes.Contains(lang.Code))
-                        {
-                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                        }
-                    }
-
-                    bool found = false;
-                    if (!string.IsNullOrEmpty(currentLang))
-                    {
-                        foreach (ComboBoxItem item in LanguageCombo.Items)
-                        {
-                            if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                        }
-                    }
-                    if (!found) SelectLanguage("auto");
+                    var filteredLanguages = LanguageInfo.AllLanguages.Where(lang => supportedCodes.Contains(lang.Code));
+                    ReplaceLanguageItems(filteredLanguages);
                     return;
                 }
             }
 
             if (cloudProvider == CloudTranscriptionProvider.Grok)
             {
-                var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-                LanguageCombo.Items.Clear();
-                foreach (var lang in LanguageInfo.AllLanguages)
-                {
-                    if (lang.Code == "auto" || GrokSttService.TryGetSupportedFormattingLanguageCode(lang.Code, out _))
-                    {
-                        LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                    }
-                }
-
-                bool found = false;
-                if (!string.IsNullOrEmpty(currentLang))
-                {
-                    foreach (ComboBoxItem item in LanguageCombo.Items)
-                    {
-                        if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                    }
-                }
-                if (!found) SelectLanguage("auto");
+                var filteredLanguages = LanguageInfo.AllLanguages.Where(lang =>
+                    lang.Code == "auto" || GrokSttService.TryGetSupportedFormattingLanguageCode(lang.Code, out _));
+                ReplaceLanguageItems(filteredLanguages);
                 return;
             }
 
@@ -2670,26 +2620,8 @@ public partial class ModeEditorWindow : Window
                 && effectiveModelId.EndsWith("-medical", StringComparison.Ordinal))
             {
                 var allowedMedical = new HashSet<string>(new[] { "auto", "en" }, StringComparer.OrdinalIgnoreCase);
-                var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-                LanguageCombo.Items.Clear();
-                foreach (var lang in LanguageInfo.AllLanguages)
-                {
-                    if (allowedMedical.Contains(lang.Code))
-                    {
-                        LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                    }
-                }
-
-                bool found = false;
-                if (!string.IsNullOrEmpty(currentLang))
-                {
-                    foreach (ComboBoxItem item in LanguageCombo.Items)
-                    {
-                        if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                    }
-                }
-                if (!found) SelectLanguage("auto");
+                var filteredLanguages = LanguageInfo.AllLanguages.Where(lang => allowedMedical.Contains(lang.Code));
+                ReplaceLanguageItems(filteredLanguages);
                 return;
             }
 
@@ -2737,23 +2669,7 @@ public partial class ModeEditorWindow : Window
                     // picker, fall through to the full list instead.
                     if (filteredAzure.Count > 2)
                     {
-                        var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-                        LanguageCombo.Items.Clear();
-                        foreach (var lang in filteredAzure)
-                        {
-                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                        }
-
-                        bool found = false;
-                        if (!string.IsNullOrEmpty(currentLang))
-                        {
-                            foreach (ComboBoxItem item in LanguageCombo.Items)
-                            {
-                                if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                            }
-                        }
-                        if (!found) SelectLanguage("auto");
+                        ReplaceLanguageItems(filteredAzure);
                         return;
                     }
                 }
@@ -2785,23 +2701,7 @@ public partial class ModeEditorWindow : Window
                     // macOS "miss → full list" semantics — rather than regress.
                     if (filtered.Count > 2)
                     {
-                        var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-                        LanguageCombo.Items.Clear();
-                        foreach (var lang in filtered)
-                        {
-                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                        }
-
-                        bool found = false;
-                        if (!string.IsNullOrEmpty(currentLang))
-                        {
-                            foreach (ComboBoxItem item in LanguageCombo.Items)
-                            {
-                                if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                            }
-                        }
-                        if (!found) SelectLanguage("auto");
+                        ReplaceLanguageItems(filtered);
                         return;
                     }
                 }
