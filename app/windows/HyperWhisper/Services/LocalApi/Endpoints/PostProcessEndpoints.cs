@@ -152,7 +152,12 @@ internal static class PostProcessEndpoints
                         Provider = "none",
                         Model = workingMode.LanguageModel ?? "",
                         Preset = workingMode.Preset ?? "hyper",
-                        LatencyMs = latencyMs
+                        LatencyMs = latencyMs,
+                        // Nothing ran; `result.Text` is the caller's own input
+                        // echoed back. `provider: "none"` is this head's extra
+                        // signal for the same thing, but it is Windows-only —
+                        // `post_processed` is the cross-platform one.
+                        PostProcessed = false
                     });
                 }
 
@@ -162,7 +167,10 @@ internal static class PostProcessEndpoints
                     Provider = workingMode.PostProcessingProvider ?? "hyperwhisper",
                     Model = workingMode.LanguageModel ?? "",
                     Preset = workingMode.Preset ?? "hyper",
-                    LatencyMs = latencyMs
+                    LatencyMs = latencyMs,
+                    // Reached only past the `!result.WasApplied` guard above, so
+                    // an LLM ran and this text is its output.
+                    PostProcessed = true
                 });
             }
             finally

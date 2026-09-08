@@ -6225,6 +6225,52 @@ internal static class Program
                 Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
             });
 
+            Run("/post-process emits the documented post_processed flag", () =>
+            {
+                // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
+                // `Bool` (`LocalAPITypes.swift:347`) and `openapi.yaml:558`
+                // documents it as the field that separates a real rewrite from
+                // a graceful degradation. Windows omitted the key entirely, so
+                // a client sharing the macOS `Codable` model threw
+                // `keyNotFound` on every Windows reply.
+                //
+                // Serialised through the responder's own `JsonOptions`, because
+                // that is what decides whether a field reaches the wire —
+                // `DefaultIgnoreCondition = WhenWritingNull` is why a nullable
+                // spelling of this field would have silently vanished when
+                // false.
+                static JsonNode Wire(bool postProcessed) =>
+                    JsonSerializer.SerializeToNode(
+                        new PostProcessResponse
+                        {
+                            Text = "text",
+                            Provider = postProcessed ? "hyperwhispercloud" : "none",
+                            Model = "model",
+                            Preset = "note",
+                            LatencyMs = 7,
+                            PostProcessed = postProcessed
+                        },
+                        LocalApiResponder.JsonOptions)!;
+
+                string[] expected = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
+                foreach (var flag in new[] { true, false })
+                {
+                    var node = Wire(flag);
+                    var keys = node.AsObject().Select(pair => pair.Key).Order().ToArray();
+                    Assert(keys.SequenceEqual(expected.Order()),
+                        $"the /post-process body drifted from the documented shape (post_processed={flag}): got {string.Join(",", keys)}");
+                    Assert(node["post_processed"]!.GetValue<bool>() == flag,
+                        "post_processed must carry the value it was given");
+                }
+
+                // The degraded branch is the one that matters: `ok` stays true
+                // and the caller gets its own text back, so `post_processed` is
+                // the ONLY field in the body that says no LLM ran. It must
+                // survive serialisation as an explicit `false`, not be dropped.
+                Assert(Wire(false).ToJsonString().Contains("\"post_processed\":false", StringComparison.Ordinal),
+                    "a false post_processed must still be written to the wire");
+            });
+
             Run("the bearer check accepts only the real token", () =>
             {
                 var token = HyperwhisperCoreMethods.LocalApiGenerateToken(new byte[32]);

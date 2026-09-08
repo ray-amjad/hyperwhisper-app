@@ -548,6 +548,7 @@ components:
 
     PostProcessResponse:
       type: object
+      required: [ok, text, provider, model, preset, latency_ms, post_processed]
       properties:
         ok: { type: boolean }
         text: { type: string }
@@ -555,7 +556,7 @@ components:
         model: { type: string }
         preset: { type: string }
         latency_ms: { type: integer }
-        post_processed: { type: boolean, description: "true when an LLM actually ran and produced post-processed text; false when a failure path (bad key, model/network error, offline) returned the raw input unchanged. ok stays true for graceful degradation, so read this to know post-processing happened." }
+        post_processed: { type: boolean, description: "true when an LLM actually ran and produced post-processed text; false when a failure path (bad key, model/network error, offline) returned the raw input unchanged. ok stays true for graceful degradation, so read this to know post-processing happened. Every platform sends this key on every 200; macOS decodes it as a non-optional Bool." }
 
     RecordingDTO:
       type: object

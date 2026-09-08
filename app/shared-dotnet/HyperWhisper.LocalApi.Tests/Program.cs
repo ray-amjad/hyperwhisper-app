@@ -522,8 +522,13 @@ static async Task PostProcessContextContract()
     using var response = await fixture.Client.PostAsync("/post-process", new StringContent(body, Encoding.UTF8, "application/json"));
     Assert(response.StatusCode == HttpStatusCode.OK, "Windows post-process request failed");
     using var json = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
-    string[] exact = ["ok", "text", "provider", "model", "preset", "latency_ms"];
+    // `post_processed` is part of the shape (issue #499). macOS declares it a
+    // non-optional `Bool`, so a client sharing that decoder throws `keyNotFound`
+    // on a body without it — which is what this head and Windows both sent.
+    string[] exact = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
     Assert(json.RootElement.EnumerateObject().Select(item => item.Name).Order().SequenceEqual(exact.Order()), "post-process response drifted from Windows shape");
+    Assert(json.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.True,
+        "post_processed must be a real boolean and must be true when an LLM ran");
     Assert(fixture.Backend.PostProcess?.ApplicationContext?.ToSnapshot().AppType == "terminal", "post-process applicationContext was lost");
 
     using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
@@ -1043,7 +1048,7 @@ sealed class FakeBackend : ILocalApiBackend
             : new("hello", "fake", "fake", "en", 1, 1, 2);
     }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
-    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1)); }
+    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, true)); }
     public ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken ct)
     { RecordingQuery = query; return ValueTask.FromResult<IReadOnlyList<RecordingEntry>>([]); }
     public ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken ct) => ValueTask.FromResult<RecordingEntry?>(null);

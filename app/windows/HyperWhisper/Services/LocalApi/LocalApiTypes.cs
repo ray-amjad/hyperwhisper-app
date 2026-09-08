@@ -380,6 +380,27 @@ internal sealed class PostProcessResponse
     [JsonPropertyName("model")] public string Model { get; init; } = "";
     [JsonPropertyName("preset")] public string Preset { get; init; } = "";
     [JsonPropertyName("latency_ms")] public int LatencyMs { get; init; }
+
+    /// <summary>
+    /// Whether an LLM actually ran and produced the returned text.
+    /// </summary>
+    /// <remarks>
+    /// NOT OPTIONAL, AND NOT INFERABLE FROM `ok` (issue #499). `/post-process`
+    /// degrades gracefully: a bad key, a model or network error, or an offline
+    /// provider all answer `ok: true` with the caller's raw input echoed back.
+    /// `post_processed` is the only field that separates a real rewrite from
+    /// that no-op, which is why `openapi.yaml` documents it and macOS declares
+    /// it a non-optional `Bool` on its `Codable` model
+    /// (`LocalAPITypes.swift:347`). Windows omitted the key entirely, so a
+    /// client sharing the macOS decoder failed with `keyNotFound` on every
+    /// Windows reply.
+    ///
+    /// Set from <c>PostProcessingResult.WasApplied</c> — `false` on the
+    /// `provider: "none"` no-op branch, `true` on the branch that ran. Do not
+    /// give this a default: both call sites must state it, so a third one
+    /// cannot silently inherit `false`.
+    /// </remarks>
+    [JsonPropertyName("post_processed")] public required bool PostProcessed { get; init; }
 }
 
 // MARK: - /recordings ------------------------------------------------------
