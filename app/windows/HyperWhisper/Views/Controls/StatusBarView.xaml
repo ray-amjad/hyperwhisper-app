@@ -1,0 +1,55 @@
+<UserControl x:Class="HyperWhisper.Views.Controls.StatusBarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:HyperWhisper.Localization">
+    <!-- THE MAIN WINDOW'S STATUS BAR
+         Lifted out of MainWindow.xaml unchanged, and only so it can be measured:
+         MainWindow's constructor builds the whole MainViewModel and the tray
+         NotifyIcon, so the console smoke suite cannot stand one up, which left
+         this row - the row issue #492 was about - with no test at all. It takes
+         its DataContext from the window, exactly as it did inline.
+
+         EVERY ITEM IN THIS ROW IS BOUNDED. The window is a fixed 1000 wide and
+         cannot be resized, so the row has a hard budget: three Auto columns and
+         one star. A single unbounded Auto item spends the whole budget and the
+         others simply leave the window. The mode name is user text of any
+         length and was the one that did it (#492); the star column now trims
+         too, so a squeeze shows as an ellipsis instead of a cut glyph. -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock x:Name="StatusText" Grid.Column="0" Text="{Binding StatusText}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <StackPanel x:Name="PostProcessingStatusPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+            <Ellipse Width="6" Height="6"
+                     Fill="{DynamicResource WarningForegroundBrush}"
+                     VerticalAlignment="Center"
+                     Margin="0,0,6,0"/>
+            <TextBlock Text="{loc:Loc statusbar.postProcessing}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"/>
+            <TextBlock x:Name="PostProcessingStatusText" Text="{Binding LocalPostProcessingStatus}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
+            <StackPanel.Visibility>
+                <Binding Path="HasLocalPostProcessingStatus" Converter="{StaticResource BoolToVisibilityConverter}"/>
+            </StackPanel.Visibility>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+            <TextBlock Text="{loc:Loc statusbar.mode}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"/>
+            <TextBlock x:Name="ModeNameText" Text="{Binding CurrentMode.Name, FallbackValue='None'}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Medium" TextTrimming="CharacterEllipsis" MaxWidth="150">
+                <!-- An explicit ToolTip, not ToolTip="{Binding}": the stock string
+                     tooltip does not wrap, so a 300-character name would render as
+                     one line far wider than the screen and stay unreadable. -->
+                <TextBlock.ToolTip>
+                    <ToolTip>
+                        <TextBlock Text="{Binding CurrentMode.Name}" TextWrapping="Wrap" MaxWidth="360"/>
+                    </ToolTip>
+                </TextBlock.ToolTip>
+            </TextBlock>
+        </StackPanel>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+            <TextBlock Text="{loc:Loc statusbar.model}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"/>
+            <TextBlock x:Name="ModelStatusText" Text="{Binding ModelStatus}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="260"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

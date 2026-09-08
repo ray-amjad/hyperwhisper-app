@@ -142,8 +142,17 @@
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis"
-                                               ToolTip="{Binding Name}"/>
+                                               TextTrimming="CharacterEllipsis">
+                                        <!-- An explicit ToolTip, not ToolTip="{Binding Name}":
+                                             the stock string tooltip does not wrap, so a very
+                                             long name would render as one line far wider than
+                                             the screen and stay unreadable. -->
+                                        <TextBlock.ToolTip>
+                                            <ToolTip>
+                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360"/>
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
 
                                     <!-- Offline Badge (inline with name) -->
                                     <Border x:Name="OfflineBadge"

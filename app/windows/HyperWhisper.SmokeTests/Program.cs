@@ -5229,8 +5229,7 @@ internal static class Program
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
 
-                var application = new System.Windows.Application();
-                LoadApplicationResources(application);
+                EnsureWpfApplication();
 
                 // Constructing the page exercises the exact construction-order NRE this
                 // regression test covers. Export selection handlers must not run until
@@ -10122,6 +10121,12 @@ internal static class Program
                 // hard-clips mid-glyph right under the gear button, which reads as a
                 // rendering fault rather than as a long name.
                 //
+                // The offline badge between them is collapsed here and, today, always:
+                // its DataTrigger binds IsOfflineCapable, which exists on the macOS Mode
+                // and on no C# type, so WPF no-ops it. That is its own defect and is
+                // filed separately; the geometry below deliberately does not depend on
+                // the badge's width either way.
+                //
                 // MEASURED, not grepped: the attribute can be added to the wrong
                 // TextBlock, and a future container change could reintroduce the clip
                 // with the attribute still present.
@@ -10167,11 +10172,7 @@ internal static class Program
                 // Prove the case actually exercises the overflow. If the card were ever
                 // wide enough to fit 300 characters, every assertion above would pass
                 // while proving nothing at all.
-                var typeface = new System.Windows.Media.Typeface(
-                    nameBlock.FontFamily, nameBlock.FontStyle, nameBlock.FontWeight, nameBlock.FontStretch);
-                var unconstrained = new System.Windows.Media.FormattedText(
-                    longName, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
-                    nameBlock.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+                var unconstrained = UnconstrainedWidthOf(nameBlock);
                 Assert(nameBlock.ActualWidth > 0,
                     "ModeNameText measured 0 - it never took part in the layout pass");
                 Assert(unconstrained > nameBlock.ActualWidth,
@@ -10194,6 +10195,81 @@ internal static class Program
                 Assert(nameLeft + nameBlock.ActualWidth <= gearLeft + 0.5,
                     $"the name ends at {nameLeft + nameBlock.ActualWidth:F1} and the gear starts at " +
                     $"{gearLeft:F1} - the name is rendering underneath the gear button");
+            });
+
+            Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>
+            {
+                // #492, and this is the half the issue actually complained about: with a
+                // 300-character name the status bar showed the name and nothing else -
+                // "Ready - Press Ctrl+Alt to record" and "Model: HyperWhisper Cloud
+                // (Ready)" were both gone, because the mode name sits in an Auto column
+                // and an Auto column grows to whatever it is given.
+                //
+                // The window is a fixed 1000 wide and CanMinimize, so this row's budget
+                // is fixed too and can be measured exactly: 1000 less the 232 sidebar
+                // (Generic.xaml ContentSidebarWidth) less the StatusBarStyle's 12,5
+                // padding on each side.
+                EnsureWpfApplication();
+
+                const double budget = 1000 - 232 - 24;
+                var longName = "LongName" + new string('X', 292);
+
+                // Both cases, because the post-processing column is what makes the
+                // budget tight: it is Collapsed on a cloud mode and visible on a local
+                // post-processing one, and only the second case was ever near the edge.
+                foreach (var withPostProcessing in new[] { false, true })
+                {
+                    var bar = new StatusBarView
+                    {
+                        // Bindings are duck-typed, so the row can be measured against a
+                        // probe instead of the real MainViewModel - which builds the
+                        // audio stack and the tray icon in its constructor.
+                        DataContext = new StatusBarProbe
+                        {
+                            StatusText = HyperWhisper.Localization.Loc.S("status.ready.withHotkey", "Ctrl+Alt"),
+                            CurrentMode = new Mode { Name = longName },
+                            // The longest shape ModelStatus takes: "Local: {0} ({1} Ready)".
+                            ModelStatus = HyperWhisper.Localization.Loc.S(
+                                "status.model.localReady", "Parakeet TDT 0.6B v3", "GPU"),
+                            HasLocalPostProcessingStatus = withPostProcessing,
+                            LocalPostProcessingStatus = "Llama 3.2 3B Instruct Q4_K_M"
+                        }
+                    };
+
+                    bar.Measure(new Size(budget, 26));
+                    bar.Arrange(new Rect(0, 0, budget, 26));
+                    bar.UpdateLayout();
+
+                    var label = withPostProcessing ? "with post-processing" : "cloud mode";
+
+                    // The two items the issue said vanished must be there AND WHOLE. A
+                    // trimmed hint would satisfy "visible" while still hiding the hotkey,
+                    // so each is measured against the width its own text actually wants.
+                    foreach (var (name, block) in new[]
+                             {
+                                 ("StatusText", bar.StatusText),
+                                 ("ModelStatusText", bar.ModelStatusText)
+                             })
+                    {
+                        Assert(block.ActualWidth > 0,
+                            $"{label}: {name} measured 0 - the mode name has taken the whole bar");
+                        Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
+                            $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
+                            $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
+                    }
+
+                    // And the name is the one that gives way, with an ellipsis.
+                    Assert(bar.ModeNameText.TextTrimming == TextTrimming.CharacterEllipsis,
+                        $"{label}: the mode name trims with {bar.ModeNameText.TextTrimming}");
+                    Assert(bar.ModeNameText.ActualWidth < UnconstrainedWidthOf(bar.ModeNameText),
+                        $"{label}: the {longName.Length}-character name was not truncated at all, " +
+                        "so this case proves nothing");
+
+                    // Nothing overflows the row it was given.
+                    Assert(bar.DesiredSize.Width <= budget + 0.5,
+                        $"{label}: the status bar wants {bar.DesiredSize.Width:F1}px of a " +
+                        $"{budget:F0}px row, so its right-hand item leaves the window");
+                }
             });
 
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
@@ -11198,6 +11274,35 @@ internal static class Program
         return pages;
     }
 
+    /// <summary>
+    /// The width this TextBlock's own text wants with nothing constraining it.
+    /// Comparing that against ActualWidth is how a layout case tells "fits" from
+    /// "was cut", without hard-coding a pixel number that a font change invalidates.
+    /// </summary>
+    private static double UnconstrainedWidthOf(System.Windows.Controls.TextBlock block)
+    {
+        var typeface = new System.Windows.Media.Typeface(
+            block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+
+        return new System.Windows.Media.FormattedText(
+            block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+            block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+    }
+
+    /// <summary>
+    /// Everything MainWindow's status bar binds, and nothing else. WPF bindings
+    /// are duck-typed, so the row can be laid out against this instead of the real
+    /// MainViewModel, whose constructor builds the audio stack and the tray icon.
+    /// </summary>
+    private sealed class StatusBarProbe
+    {
+        public string StatusText { get; init; } = "";
+        public Mode? CurrentMode { get; init; }
+        public string ModelStatus { get; init; } = "";
+        public string LocalPostProcessingStatus { get; init; } = "";
+        public bool HasLocalPostProcessingStatus { get; init; }
+    }
+
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
     {
         if (root is T match)
@@ -11257,46 +11362,27 @@ internal static class Program
     }
 
     /// <summary>
-    /// The one WPF Application this process gets, carrying the same resources
-    /// App.xaml gives the real one. A page that resolves a {StaticResource} at
-    /// parse time throws outright when the key is missing, so anything a case
-    /// wants to construct has to find every key here.
+    /// The one WPF Application this process gets, and it is the app's OWN
+    /// <see cref="App"/> with App.xaml's resources loaded.
+    ///
+    /// That matters, and a hand-written copy of those resources would not: page
+    /// XAML resolves {StaticResource} at PARSE time, so a page whose converter or
+    /// brush is missing cannot be constructed at all, and the failure lands as a
+    /// XamlParseException in whichever case first touches the new key. Loading
+    /// App.xaml means the harness cannot drift from the app.
+    ///
+    /// Only InitializeComponent runs. OnStartup, StartupUri and therefore
+    /// SingleInstanceGuard and MainWindow are all Run()'s doing, and this process
+    /// never calls Run().
     /// </summary>
     private static System.Windows.Application EnsureWpfApplication()
     {
         // One Application per AppDomain, and an earlier case may already own it.
-        var application = System.Windows.Application.Current;
-        if (application is null)
-        {
-            application = new System.Windows.Application();
-            LoadApplicationResources(application);
-        }
+        if (System.Windows.Application.Current is { } existing)
+            return existing;
 
+        var application = new App();
+        application.InitializeComponent();
         return application;
-    }
-
-    private static void LoadApplicationResources(System.Windows.Application application)
-    {
-        AddResourceDictionary(application, "Themes/LightColors.xaml");
-        AddResourceDictionary(application, "Themes/Brushes.xaml");
-        AddResourceDictionary(application, "Themes/Generic.xaml");
-
-        // App.xaml declares these next to the three theme dictionaries. They are
-        // resolved by {StaticResource} in page XAML, i.e. at parse time, so a page
-        // that uses one cannot even be constructed without them.
-        application.Resources["EnumToBoolConverter"] = new EnumToBoolConverter();
-        application.Resources["BoolToVisibilityConverter"] = new BoolToVisibilityConverter();
-        application.Resources["ModeToSubtitleConverter"] = new ModeToSubtitleConverter();
-        application.Resources["LanguageCodeToDisplayNameConverter"] = new LanguageCodeToDisplayNameConverter();
-        application.Resources["PostProcessingVisibilityConverter"] = new PostProcessingVisibilityConverter();
-        application.Resources["PostProcessingDisplayConverter"] = new PostProcessingDisplayConverter();
-    }
-
-    private static void AddResourceDictionary(System.Windows.Application application, string resourcePath)
-    {
-        application.Resources.MergedDictionaries.Add(new ResourceDictionary
-        {
-            Source = new Uri($"pack://application:,,,/HyperWhisper;component/{resourcePath}", UriKind.Absolute)
-        });
     }
 }
