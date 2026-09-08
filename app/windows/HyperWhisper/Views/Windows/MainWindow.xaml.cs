@@ -623,11 +623,13 @@ public partial class MainWindow : Window
             _fileTranscriptionMenu = new System.Windows.Forms.ToolStripMenuItem(Loc.S("menu.transcribe.file"));
             menu.Items.Add(_fileTranscriptionMenu);
 
-            // Both submenus list MODE NAMES, which are free user text of any
-            // length, so both bound the label with MenuItemText.Bound and hand
-            // the whole name to a tooltip (issue #525). ShowItemToolTips is set
-            // explicitly rather than relied on: it is the ToolStrip default, but
+            // Every submenu here lists text nothing caps — two of them MODE NAMES,
+            // which are free user text of any length, and one of them driver-supplied
+            // device names — so each bounds its labels with MenuItemText.Bound and
+            // hands the whole string to a tooltip (issue #525). ShowItemToolTips is
+            // set explicitly rather than relied on: it is the ToolStrip default, but
             // it is the entire reason the full name is still reachable.
+            _microphoneMenu.DropDown.ShowItemToolTips = true;
             _modeMenu.DropDown.ShowItemToolTips = true;
             _fileTranscriptionMenu.DropDown.ShowItemToolTips = true;
 
@@ -857,8 +859,12 @@ public partial class MainWindow : Window
         {
             bool isSelected = selectedDevice != null && selectedDevice.DeviceNumber == device.DeviceNumber;
 
-            var deviceItem = new System.Windows.Forms.ToolStripMenuItem(device.Name)
+            // A device name comes from its driver, not from us, and nothing caps
+            // it either — same submenu, same Win32 constraint, so it is bounded
+            // the same way (issue #525).
+            var deviceItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(device.Name))
             {
+                ToolTipText = MenuItemText.NeedsFullTextTooltip(device.Name) ? device.Name : null,
                 Checked = isSelected,
                 // The onboarding Microphone step captures the device it replaces
                 // ONCE and restores it on "Set Up Later", so a pick made here

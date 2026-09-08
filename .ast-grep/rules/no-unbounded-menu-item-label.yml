@@ -1,0 +1,41 @@
+id: no-unbounded-menu-item-label
+language: csharp
+severity: error
+message: "A ToolStripMenuItem label must be a localized string or MenuItemText.Bound(...)."
+note: |
+  A `ToolStripDropDownMenu` sizes itself to its widest item and never
+  ellipsises. There is no `TextTrimming` and no `MaxWidth` for a Win32 menu, so
+  the ONLY place a menu label can be bounded is the string handed to the item.
+  Issue #525: a 300-character mode name made the tray's Select Mode submenu
+  wider than the monitor and put its other entries out of reach.
+
+  Two kinds of label are safe and this rule allows both:
+
+    - `Loc.S("...")` — a translator writes it, and a resx string is reviewed.
+    - `MenuItemText.Bound(x)` — capped, collapsed to one line, with the full
+      string left for `ToolTipText`.
+
+  Anything else is a string the app does not control: a mode name typed by the
+  user or posted to the Local API, an audio device name from a driver. The smoke
+  suite can pin `MenuItemText.Bound` itself but cannot reach these call sites —
+  building a `MainWindow` means building the whole `MainViewModel` and the tray
+  icon — so this rule is what keeps a call site from quietly going back to the
+  raw string.
+
+  If a label really is bounded by something else, add
+  `// ast-grep-ignore: no-unbounded-menu-item-label -- <why>` above it.
+files:
+  - "app/windows/**/*.cs"
+ignores:
+  - "**/obj/**"
+  - "**/bin/**"
+  # The smoke suite builds menu items on purpose, bounded and unbounded, to
+  # measure the difference the cap makes.
+  - "**/HyperWhisper.SmokeTests/**"
+rule:
+  all:
+    - pattern: new System.Windows.Forms.ToolStripMenuItem($ARG)
+    - not:
+        any:
+          - pattern: new System.Windows.Forms.ToolStripMenuItem(Loc.S($$$))
+          - pattern: new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound($$$))
