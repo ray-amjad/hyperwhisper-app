@@ -36,7 +36,7 @@
         </StackPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
             <TextBlock Text="{loc:Loc statusbar.mode}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"/>
-            <TextBlock x:Name="ModeNameText" Text="{Binding CurrentMode.Name, FallbackValue='None'}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Medium" TextTrimming="CharacterEllipsis" MaxWidth="150">
+            <TextBlock x:Name="ModeNameText" Text="{Binding CurrentMode.Name, FallbackValue='None'}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Medium" TextTrimming="CharacterEllipsis" MaxWidth="120">
                 <!-- An explicit ToolTip, not ToolTip="{Binding}": the stock string
                      tooltip does not wrap, so a 300-character name would render as
                      one line far wider than the screen and stay unreadable. -->
@@ -49,7 +49,7 @@
         </StackPanel>
         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
             <TextBlock Text="{loc:Loc statusbar.model}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"/>
-            <TextBlock x:Name="ModelStatusText" Text="{Binding ModelStatus}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="260"/>
+            <TextBlock x:Name="ModelStatusText" Text="{Binding ModelStatus}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
         </StackPanel>
     </Grid>
 </UserControl>

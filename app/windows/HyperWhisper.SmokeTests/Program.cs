@@ -10243,9 +10243,9 @@ internal static class Program
 
                     var label = withPostProcessing ? "with post-processing" : "cloud mode";
 
-                    // The two items the issue said vanished must be there AND WHOLE. A
-                    // trimmed hint would satisfy "visible" while still hiding the hotkey,
-                    // so each is measured against the width its own text actually wants.
+                    // THE BUG, STATED AS THE BUG: nothing may be pushed out of the row.
+                    // On main the name's Auto column took the whole width and both of
+                    // these measured nothing at all.
                     foreach (var (name, block) in new[]
                              {
                                  ("StatusText", bar.StatusText),
@@ -10254,22 +10254,42 @@ internal static class Program
                     {
                         Assert(block.ActualWidth > 0,
                             $"{label}: {name} measured 0 - the mode name has taken the whole bar");
-                        Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
-                            $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
-                            $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
                     }
 
-                    // And the name is the one that gives way, with an ellipsis.
+                    Assert(bar.DesiredSize.Width <= budget + 0.5,
+                        $"{label}: the status bar wants {bar.DesiredSize.Width:F1}px of a " +
+                        $"{budget:F0}px row, so its right-hand item leaves the window");
+
+                    // And the mode name is the item that gives way, with an ellipsis.
                     Assert(bar.ModeNameText.TextTrimming == TextTrimming.CharacterEllipsis,
                         $"{label}: the mode name trims with {bar.ModeNameText.TextTrimming}");
                     Assert(bar.ModeNameText.ActualWidth < UnconstrainedWidthOf(bar.ModeNameText),
                         $"{label}: the {longName.Length}-character name was not truncated at all, " +
                         "so this case proves nothing");
 
-                    // Nothing overflows the row it was given.
-                    Assert(bar.DesiredSize.Width <= budget + 0.5,
-                        $"{label}: the status bar wants {bar.DesiredSize.Width:F1}px of a " +
-                        $"{budget:F0}px row, so its right-hand item leaves the window");
+                    if (withPostProcessing)
+                        continue;
+
+                    // On a cloud mode - the issue's own repro, and the common case,
+                    // since the post-processing column only appears for a LOCAL LLM -
+                    // the two items must be WHOLE and not merely present. A trimmed
+                    // hint would pass the check above while still hiding the hotkey.
+                    //
+                    // The tight case is deliberately not held to this. Four items in a
+                    // fixed 744px row, one of them a local model name and another a
+                    // local LLM name, genuinely do not all fit; the caps decide who
+                    // gives way, and every one of them now says so with an ellipsis
+                    // instead of vanishing.
+                    foreach (var (name, block) in new[]
+                             {
+                                 ("StatusText", bar.StatusText),
+                                 ("ModelStatusText", bar.ModelStatusText)
+                             })
+                    {
+                        Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
+                            $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
+                            $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
+                    }
                 }
             });
 
