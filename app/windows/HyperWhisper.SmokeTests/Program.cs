@@ -10587,7 +10587,7 @@ internal static class Program
                 var inner = new System.Windows.Controls.ScrollViewer
                 {
                     Height = 200,
-                    Content = new TextBlock { Text = "one short line" }
+                    Content = new System.Windows.Controls.TextBlock { Text = "one short line" }
                 };
                 stage.Children.Add(inner);
                 OnboardingStage.SetBubblesMouseWheel(inner, true);
