@@ -11439,12 +11439,8 @@ internal static class Program
     }
 
     /// <summary>
-    /// Lay out one onboarding step page against a flow the caller has already driven,
-    /// then assert the cloud balance readout on it is not silently cut.
-    ///
-    /// The page is built here rather than through BuildOnboardingStepPages because the
-    /// readout only exists once the flow is in a state that shows it, and that helper
-    /// always uses a virgin harness.
+    /// Assert the cloud balance readout on a step is not silently cut, at every window
+    /// size the product can render that step at.
     /// </summary>
     private static void AssertBalanceReadoutFits(
         OnboardingStep step,
@@ -11551,9 +11547,7 @@ internal static class Program
         double width,
         double height)
     {
-        // One Application per AppDomain, and an earlier case may already own it.
-        if (System.Windows.Application.Current is null)
-            LoadApplicationResources(new System.Windows.Application());
+        EnsureSmokeApplication();
 
         System.Windows.Controls.Page page = step switch
         {
