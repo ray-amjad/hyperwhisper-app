@@ -127,16 +127,160 @@ public partial class ShortcutRecorderBox : WpfUserControl
 
     // =========================================================================
     // CAPTURE
-    // Lifted from ShortcutsSettingsPage.xaml.cs; the rules are unchanged.
+    // The rules about WHICH chords are legal came off ShortcutsSettingsPage.xaml.cs
+    // and are unchanged. WHEN a chord is committed is not: see below.
+    //
+    // A chord is typed one key at a time, so a key-down is not a finished gesture.
+    // Committing on every key-down made "Ctrl+Shift+Space" three separate captures -
+    // Ctrl (rejected), Ctrl+Shift (ACCEPTED AND STORED), Ctrl+Shift+Space (rejected
+    // as a duplicate). The user saw the last verdict and kept the middle one, so a
+    // refused chord silently rebound the role to a bare two-modifier chord that then
+    // fired on any Ctrl+Shift anywhere in Windows, and survived a restart. The
+    // modifier-only migration does not undo it either: IsSingleBareModifier is false
+    // for two modifiers.
+    //
+    // So the gesture, not the key-down, is what commits, and it can end two ways:
+    //
+    //   - a NON-modifier key arrives. That key completes the chord and nothing can
+    //     be added to it, so this key-down IS the end. Commit here.
+    //   - every key is released with no non-modifier ever arriving. Only then is a
+    //     modifier-only chord finished. This app supports those on purpose - the
+    //     default Toggle is Ctrl+Alt, and push-to-talk takes them - so "commit on
+    //     key-up of a non-modifier" would make them unrecordable.
+    //
+    // Waiting for the LAST key up, rather than the first, is what keeps a fumbled
+    // reach for the final key from committing the prefix: releasing Shift while
+    // still holding Ctrl is mid-gesture, not the end of one.
     // =========================================================================
+
+    /// <summary>
+    /// Keys held since this gesture began. The gesture ends when it empties, which
+    /// is the only point at which a modifier-only chord is known to be finished.
+    /// </summary>
+    private readonly HashSet<Key> _heldKeys = new();
+
+    /// <summary>
+    /// The modifiers seen so far in this gesture, accumulated across key-downs so
+    /// the release ORDER cannot shrink the chord: lifting Ctrl before Alt must still
+    /// capture Ctrl+Alt. Null once the gesture has had its verdict.
+    /// </summary>
+    private KeyboardShortcut? _pending;
+
+    /// <summary>
+    /// This gesture already got a verdict (a non-modifier key completed it), so the
+    /// key-ups that follow are the user letting go, not a second chord.
+    /// </summary>
+    private bool _gestureClosed;
 
     private void Field_PreviewKeyDown(object sender, WpfKeyEventArgs e)
     {
         e.Handled = true;
 
-        var shortcut = BuildShortcutFromKeyEvent(e);
-        if (shortcut == null) return;
+        // A held key repeating adds nothing to the chord, and re-committing on every
+        // repeat would rewrite the setting and re-log for as long as a key is down.
+        if (e.IsRepeat) return;
 
+        var key = ResolveKey(e);
+        if (key == Key.None) return;
+
+        // Which modifiers are physically down RIGHT NOW, plus this key if it is one
+        // itself: the key-down arrives before Keyboard's own state is updated.
+        HandleKeyDown(
+            key,
+            control: Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) || key is Key.LeftCtrl or Key.RightCtrl,
+            alt: Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt) || key is Key.LeftAlt or Key.RightAlt,
+            shift: Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift) || key is Key.LeftShift or Key.RightShift,
+            win: Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin) || key is Key.LWin or Key.RWin);
+    }
+
+    private void Field_PreviewKeyUp(object sender, WpfKeyEventArgs e)
+    {
+        // Keep the capture field from leaking Win-key releases to WPF text input.
+        // The global hook still controls runtime shortcut suppression.
+        e.Handled = true;
+
+        HandleKeyUp(ResolveKey(e));
+    }
+
+    /// <summary>
+    /// The key-down half of the gesture, with the WPF plumbing already off it.
+    /// </summary>
+    /// <remarks>
+    /// internal, not private, so the smoke suite can drive a whole gesture. A real
+    /// KeyDown needs a PresentationSource the control only has once it is inside a
+    /// shown window, which is why the same suite already pokes
+    /// <see cref="ShowError"/> directly. WHEN the recorder commits is the thing that
+    /// broke, so WHEN is what has to be assertable.
+    /// </remarks>
+    internal void HandleKeyDown(Key key, bool control, bool alt, bool shift, bool win)
+    {
+        if (key == Key.None) return;
+
+        _heldKeys.Add(key);
+
+        // Built from the modifiers held RIGHT NOW, not from the accumulated set: a
+        // modifier the user let go of before pressing the final key is not part of
+        // what they typed.
+        var shortcut = new KeyboardShortcut { Control = control, Alt = alt, Shift = shift, Win = win };
+        if (!IsModifierKey(key))
+            shortcut.Key = key;
+
+        if (!shortcut.IsModifierOnly)
+        {
+            // The chord is complete: nothing can be added to a chord that already has
+            // its key, so this key-down is the end of the gesture.
+            _pending = null;
+            _gestureClosed = true;
+            Commit(shortcut);
+            return;
+        }
+
+        // Modifiers alone: the user may still be reaching for the key that finishes
+        // the chord. Show what is building, decide nothing, store nothing.
+        if (_gestureClosed)
+        {
+            _gestureClosed = false;
+            _pending = null;
+        }
+
+        _pending = Merge(_pending, shortcut);
+        ClearError();
+        Field.Text = _pending.ToDisplayString();
+    }
+
+    /// <summary>The key-up half of the gesture. See <see cref="HandleKeyDown"/>.</summary>
+    internal void HandleKeyUp(Key key)
+    {
+        if (key != Key.None)
+            _heldKeys.Remove(key);
+
+        // Still holding something: the gesture is not over.
+        if (_heldKeys.Count > 0) return;
+
+        if (_gestureClosed)
+        {
+            // A non-modifier key already ended this gesture and got its verdict.
+            // These key-ups are the user letting go of a chord that was, in the case
+            // this whole change exists for, REFUSED - so they must not now commit the
+            // modifier prefix behind it.
+            _gestureClosed = false;
+            _pending = null;
+            return;
+        }
+
+        if (_pending == null) return;
+
+        var captured = _pending;
+        _pending = null;
+        Commit(captured);
+    }
+
+    /// <summary>
+    /// The one place a captured chord is validated, rendered and reported. Reached
+    /// once per gesture, never once per key.
+    /// </summary>
+    private void Commit(KeyboardShortcut shortcut)
+    {
         // VALIDATE: reject unsafe single bare modifiers, but allow intentional
         // multi-modifier chords such as Ctrl+Win.
         if (shortcut.IsSingleBareModifier)
@@ -145,6 +289,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
                 "Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. "
                 + "Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.";
             ShowError(message);
+            RestoreFieldText();
             LoggingService.Debug($"ShortcutRecorderBox: rejected single-modifier shortcut for {Role}: {shortcut}");
             return;
         }
@@ -165,6 +310,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
         if (validationError != null)
         {
             ShowError(validationError);
+            RestoreFieldText();
             LoggingService.Warn($"ShortcutRecorderBox: shortcut validation failed for {Role}: {validationError}");
             return;
         }
@@ -184,41 +330,50 @@ public partial class ShortcutRecorderBox : WpfUserControl
         if (BindingOperations.GetBindingExpression(this, DisplayTextProperty) is null)
             DisplayText = shortcut.ToDisplayString();
 
+        // Unconditionally, because DisplayText may not have CHANGED - re-recording
+        // the chord that is already stored is a no-op assignment, OnDisplayTextChanged
+        // never fires, and the field would keep showing the half-typed preview.
+        RestoreFieldText();
+
         ShortcutCaptured?.Invoke(this, new ShortcutCapturedEventArgs(Role, shortcut));
     }
 
     /// <summary>
-    /// Focusing the field starts a new attempt, so the last one's verdict goes. The
-    /// other clearing hook is <see cref="OnDisplayTextChanged"/>, for a host that
-    /// re-seeds or resets the box without the user touching it.
+    /// Puts the field back to the value that is actually configured, discarding the
+    /// preview drawn while the chord was being typed. A refused chord must leave no
+    /// trace of itself, in the field any more than in the setting.
     /// </summary>
-    private void Field_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) => ClearError();
+    private void RestoreFieldText() => Field.Text = DisplayText ?? string.Empty;
 
-    private void Field_PreviewKeyUp(object sender, WpfKeyEventArgs e)
+    /// <summary>
+    /// Focusing the field starts a new attempt, so the last one's verdict goes, and
+    /// so does any gesture left half-finished by the mouse taking focus away
+    /// mid-chord. The other clearing hook is <see cref="OnDisplayTextChanged"/>, for
+    /// a host that re-seeds or resets the box without the user touching it.
+    /// </summary>
+    private void Field_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        // Keep the capture field from leaking Win-key releases to WPF text input.
-        // The global hook still controls runtime shortcut suppression.
-        e.Handled = true;
+        ResetGesture();
+        ClearError();
     }
 
-    private static KeyboardShortcut? BuildShortcutFromKeyEvent(WpfKeyEventArgs e)
+    private void ResetGesture()
     {
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (key == Key.None) return null;
-
-        var shortcut = new KeyboardShortcut
-        {
-            Control = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) || key is Key.LeftCtrl or Key.RightCtrl,
-            Alt = Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt) || key is Key.LeftAlt or Key.RightAlt,
-            Shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift) || key is Key.LeftShift or Key.RightShift,
-            Win = Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin) || key is Key.LWin or Key.RWin
-        };
-
-        if (!IsModifierKey(key))
-            shortcut.Key = key;
-
-        return shortcut;
+        _heldKeys.Clear();
+        _pending = null;
+        _gestureClosed = false;
     }
+
+    private static KeyboardShortcut Merge(KeyboardShortcut? accumulated, KeyboardShortcut next) => new()
+    {
+        Control = (accumulated?.Control ?? false) || next.Control,
+        Alt = (accumulated?.Alt ?? false) || next.Alt,
+        Shift = (accumulated?.Shift ?? false) || next.Shift,
+        Win = (accumulated?.Win ?? false) || next.Win
+    };
+
+    /// <summary>Alt chords arrive as <see cref="Key.System"/> with the real key on SystemKey.</summary>
+    private static Key ResolveKey(WpfKeyEventArgs e) => e.Key == Key.System ? e.SystemKey : e.Key;
 
     private static bool IsModifierKey(Key key) =>
         key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
