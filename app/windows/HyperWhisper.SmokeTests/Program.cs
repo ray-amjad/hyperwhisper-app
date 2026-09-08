@@ -10433,13 +10433,29 @@ internal static class Program
                     "editor's full set, so it is looking at the wrong tree");
 
                 // A dropdown needs at least two items for a wheel turn to have anywhere
-                // to go; one that is still empty proves nothing. Counted BEFORE the loop
-                // rather than skipped inside it, so that a future editor whose combos all
-                // populate lazily fails here instead of passing on an empty loop.
+                // to go. Only four of the twelve fill at construction - the rest populate
+                // in response to a selection, which needs a loaded control this console
+                // process cannot give them - so the set is NAMED rather than counted.
+                //
+                // Skipping the empty ones silently inside the loop was how this started,
+                // and it hid that two thirds of the loop was doing nothing; naming them
+                // means an editor that stops populating CloudProviderCombo - the control
+                // #493 was actually reported over - fails here instead of passing on a
+                // shorter list. The other eight are covered by the type-level rule, which
+                // the next case proves on a ComboBox belonging to no page at all.
                 var loaded = combos.Where(c => c.Items.Count >= 2).ToList();
-                Assert(loaded.Count >= 6,
-                    $"only {loaded.Count} of the editor's {combos.Count} dropdowns have items " +
-                    "here, which is too few for this case to be proving anything");
+                var loadedNames = loaded.Select(NameOrType).OrderBy(n => n, StringComparer.Ordinal).ToList();
+                Assert(
+                    loadedNames.SequenceEqual(new[]
+                    {
+                        "CloudProviderCombo",
+                        "EnglishSpellingCombo",
+                        "PostProcessingProviderCombo",
+                        "PresetCombo"
+                    }),
+                    $"the editor's populated dropdowns are now [{string.Join(", ", loadedNames)}] - " +
+                    "if one was renamed or now fills lazily, update this list; if one stopped " +
+                    "populating, the wheel over it is no longer being tested at all");
 
                 foreach (var combo in loaded)
                 {
