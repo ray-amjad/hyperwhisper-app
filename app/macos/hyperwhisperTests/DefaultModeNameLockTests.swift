@@ -23,11 +23,12 @@
 import CoreData
 import Testing
 
-@testable import hyperwhisper
+@testable import HyperWhisper
 
 @Suite("Default mode name lock")
 struct DefaultModeNameLockTests {
 
+    @MainActor
     private func makeMode(name: String, isDefault: Bool) -> Mode {
         let persistence = PersistenceController(inMemory: true)
         let mode = Mode(context: persistence.container.viewContext)
@@ -37,18 +38,21 @@ struct DefaultModeNameLockTests {
         return mode
     }
 
+    @MainActor
     @Test func locksTheDefaultWhateverItIsCalled() {
         // The restored-backup shape: flagged, but not named "Default".
         let restored = makeMode(name: "Work", isDefault: true)
         #expect(ModeEditorView.isNameLocked(restored))
     }
 
+    @MainActor
     @Test func doesNotLockAnOrdinaryModeNamedDefault() {
         // The trap the old string compare fell into.
         let impostor = makeMode(name: "Default", isDefault: false)
         #expect(!ModeEditorView.isNameLocked(impostor))
     }
 
+    @MainActor
     @Test func locksTheSeededDefault() {
         // The ordinary case both predicates agreed on, kept so a change that
         // breaks it cannot hide behind the two above.
@@ -56,6 +60,7 @@ struct DefaultModeNameLockTests {
         #expect(ModeEditorView.isNameLocked(seeded))
     }
 
+    @MainActor
     @Test func locksNothingWhenThereIsNoMode() {
         // The create dialog carries no mode, and a new mode is never the default.
         #expect(!ModeEditorView.isNameLocked(nil))
