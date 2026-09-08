@@ -897,10 +897,18 @@ internal static class TranscribeEndpoints
             if (!string.IsNullOrEmpty(providerNormalization.AccuracyTier))
             {
                 mode.CloudAccuracyTier = providerNormalization.AccuracyTier;
-                mode.CloudTranscriptionModel = !string.IsNullOrEmpty(model)
-                    ? model
-                    : HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
-                        .DefaultModelIdForId(providerNormalization.AccuracyTier) ?? "";
+                if (!string.IsNullOrEmpty(model))
+                {
+                    mode.CloudTranscriptionModel = model;
+                }
+                // Otherwise leave the field alone. This used to overwrite it with
+                // the tier default unconditionally, which silently dropped a
+                // sub-model the caller had pinned inside the SAME tier — the
+                // Azure MAI entry has two models at different rates, so that
+                // changed what ran and what it cost. `ResolveDictationModelId`
+                // (below, and on the send path) validates the surviving id
+                // against the NEW tier and falls back to that tier's default
+                // when it does not belong, so nothing stale can leak through.
                 return;
             }
             if (!string.IsNullOrEmpty(model))
@@ -909,46 +917,43 @@ internal static class TranscribeEndpoints
                 return;
             }
 
-            // NO EXPLICIT MODEL AND NO INFERRED TIER (issue #500). This arm used
-            // to assign nothing except for Meta, so `CloudTranscriptionModel`
-            // stayed null and `/transcribe` answered `model: ""` for a run that
-            // really did use a model. Report what will actually run instead.
+            // NO EXPLICIT MODEL AND NO INFERRED TIER (issue #500). This arm
+            // assigned nothing except for Meta, so `CloudTranscriptionModel`
+            // stayed null and `/transcribe` answered `model: ""`.
             //
-            // Keep an inherited id only when it legitimately belongs to THIS
-            // provider — either the mode was already on it (the caller is just
-            // re-asserting the engine, so their saved sub-model stands) or the id
-            // is in this provider's list. Otherwise it is foreign: the mixed
-            // `mode_id` + `engine` form would otherwise report the baseline's
-            // model, from a different vendor, for the engine that ran. macOS
-            // guards the same two cases with the same test.
+            // HyperWhisper Cloud needs nothing here: it dispatches on the
+            // accuracy tier, and both the send path and `ModelLabel` run the id
+            // through `ResolveDictationModelId`, which heals a blank, foreign,
+            // live-only or out-of-tier value on its own. Writing a guess here
+            // would only add a second opinion that can disagree with the run.
+            if (cloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
+            {
+                return;
+            }
+
+            // A BYOK provider is different: it sends `CloudTranscriptionModel`
+            // verbatim, so an id inherited from ANOTHER vendor changes the model
+            // that actually runs, not just the label. Keep an inherited id only
+            // when it belongs to THIS provider — the mode was already on it (the
+            // caller is re-asserting the engine, so their saved sub-model
+            // stands), or the id resolves within this provider's catalog.
+            // `GetById` rather than a raw list scan, because it applies
+            // `ResolveModelAlias`: a legacy-but-serviceable id such as
+            // AssemblyAI `universal` is not in the curated list and would
+            // otherwise be judged foreign and silently upgraded to a
+            // different-priced model.
             var belongsToProvider =
                 !string.IsNullOrEmpty(priorModel)
                 && (string.Equals(priorProvider, mode.CloudProvider, StringComparison.OrdinalIgnoreCase)
-                    || CloudTranscriptionModels.GetModelsForProvider(cloudProvider)
-                        .Any(m => string.Equals(m.Id, priorModel, StringComparison.OrdinalIgnoreCase)));
+                    || CloudTranscriptionModels.GetById(priorModel, cloudProvider) != null);
             if (belongsToProvider)
             {
                 return;
             }
 
-            if (cloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
-            {
-                // HyperWhisper Cloud dispatches on the ACCURACY TIER, not on
-                // `CloudTranscriptionModel` — so the tier is what names the model
-                // that runs, and `GetDefault` here would answer the `"default"`
-                // sentinel (`CloudTranscriptionModel.cs`), which is a routing
-                // placeholder and not a model id any caller can use. Resolving
-                // the tier is also what makes `engine: "cloud"` agree with the
-                // `mode_id` form, which is the comparison the issue makes.
-                mode.CloudTranscriptionModel = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
-                    .DefaultModelIdForId(mode.CloudAccuracyTier) ?? "";
-                return;
-            }
-
-            // Every other cloud provider dispatches on the model id, so its own
-            // default is the one that will run. Meta used to be special-cased
-            // here; it is not special, it was just the only arm anybody had
-            // filled in.
+            // Otherwise the provider's own default is what will run. Meta used
+            // to be special-cased here; it is not special, it was just the only
+            // arm anybody had filled in.
             mode.CloudTranscriptionModel = CloudTranscriptionModels.GetDefault(cloudProvider)?.Id ?? "";
             return;
         }
@@ -1010,11 +1015,49 @@ internal static class TranscribeEndpoints
         return "whisperLocal";
     }
 
-    private static string ModelLabel(Mode mode)
+    /// <summary>
+    /// The <c>model</c> a response carries: the model that ACTUALLY RAN, not the
+    /// one the request named (issue #500).
+    /// </summary>
+    /// <remarks>
+    /// The cloud arm used to be a bare <c>mode.CloudTranscriptionModel ?? ""</c>,
+    /// which reported an empty string whenever that field was unset — the
+    /// ordinary state for a mode driven by an accuracy tier, and for a transient
+    /// mode built from an <c>engine</c> with no <c>model</c>.
+    ///
+    /// Resolution happens HERE, at the projection, and not only where the
+    /// transient Mode is built, because <c>ApplyEngineModel</c> runs only when
+    /// the request carries an <c>engine</c>. A plain <c>mode_id</c> request never
+    /// reaches it, so a fix planted there would leave the two request forms
+    /// disagreeing about the same Mode — the opposite of the point.
+    ///
+    /// HyperWhisper Cloud goes through <see cref="HyperWhisperCloudService.ResolveDictationModelId"/>
+    /// — the SAME function the send path uses to choose the `X-STT-Model` header,
+    /// reached through the same tier normalisation. The label is therefore the
+    /// dispatched model by construction: a blank, foreign, live-only, legacy-alias
+    /// or out-of-tier id heals to the tier's default in both places at once, and
+    /// the two cannot drift.
+    ///
+    /// <c>internal</c> for the same reason as <see cref="ApplyEngineModel"/>: the
+    /// smoke suite asserts the wire label this produces.
+    /// </remarks>
+    internal static string ModelLabel(Mode mode)
     {
         if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
         {
-            return mode.CloudTranscriptionModel ?? "";
+            var provider = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
+            if (provider == CloudTranscriptionProvider.HyperWhisperCloud)
+            {
+                return HyperWhisperCloudService.ResolveDictationModelId(
+                    CloudAccuracyTierExtensions.FromString(mode.CloudAccuracyTier).ToStorageValue(),
+                    mode.CloudTranscriptionModel);
+            }
+            // A BYOK provider sends this field verbatim, so it is already the
+            // model that ran — except when it is unset, where the provider
+            // applies its own default.
+            return !string.IsNullOrEmpty(mode.CloudTranscriptionModel)
+                ? mode.CloudTranscriptionModel
+                : CloudTranscriptionModels.GetDefault(provider)?.Id ?? "";
         }
         if (IsParakeetMode(mode))
         {

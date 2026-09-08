@@ -504,13 +504,16 @@ components:
         model:
           type: string
           description: >-
-            The model that actually ran, not the one the request named. When
-            the request sends `engine` and no `model`, this is the engine's
-            resolved default, so a caller driving the API by `engine` rather
-            than by `mode_id` can still record which model produced the text.
-            For HyperWhisper Cloud that is the model behind the mode's accuracy
-            tier (for example `scribe_v2`), because that tier is what the
-            service dispatches on.
+            The resolved model id. When the request names an explicit `model`,
+            that value is echoed. When the request sends `engine` (or only
+            `mode_id`) and no `model`, Windows resolves the engine's default
+            rather than returning an empty string, so a caller driving the API
+            by `engine` can still record which model produced the text; for
+            HyperWhisper Cloud that is the model behind the mode's accuracy
+            tier (for example `scribe_v2`), because the tier is what the
+            service dispatches on. macOS and Linux still return an empty string
+            in that case — treat a non-empty value as authoritative and an
+            empty one as "unreported", not as "no model".
         language: { type: string, nullable: true }
         timings:
           type: object
