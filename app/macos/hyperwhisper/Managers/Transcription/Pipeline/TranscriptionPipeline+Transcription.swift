@@ -38,6 +38,8 @@ extension TranscriptionPipeline {
         applicationContext: ApplicationContext? = nil,
         audioDurationSeconds: TimeInterval? = nil
     ) async throws -> TranscriptionResult {
+        lastFailedAttemptDiagnostics = nil
+
         // If a transcription is already running, cancel it so the latest request wins.
         // This guards against rapid hotkey presses and intentional re-records.
         if !state_isReadyForTranscription() {
@@ -207,6 +209,8 @@ extension TranscriptionPipeline {
             // synchronous call — no hop that could be reordered after the next
             // health probe.
             let text: String
+            let providerClock = ContinuousClock()
+            let providerStart = providerClock.now
             do {
                 text = try await provider.transcribe(
                     audioURL: audioURL,
@@ -214,6 +218,7 @@ extension TranscriptionPipeline {
                     mode: mode,
                     vocabulary: vocabulary
                 )
+                _ = providerStart.duration(to: providerClock.now)
                 if let cloudProviderType {
                     if let credentialGeneration {
                         healthManager?.recordTranscriptionOutcome(
@@ -224,6 +229,23 @@ extension TranscriptionPipeline {
                     }
                 }
             } catch {
+                let providerAttemptMs = Self.elapsedMilliseconds(
+                    providerStart.duration(to: providerClock.now)
+                )
+                if let transcriptionError = error as? TranscriptionError,
+                   case .noSpeechDetected = transcriptionError {
+                    let diagnostics = TranscriptionAttemptDiagnostics.failureSnapshot(
+                        providerDiagnostics: provider.lastAttemptDiagnostics,
+                        providerDisplayName: provider.name,
+                        providerAttemptMs: providerAttemptMs
+                    )
+                    lastFailedAttemptDiagnostics = diagnostics
+                    let httpStatus = diagnostics.httpStatusCode.map(String.init) ?? "unknown"
+                    let responseLatencyMs = diagnostics.responseLatencyMs.map(String.init) ?? "unknown"
+                    AppLogger.transcription.warning(
+                        "Provider no-speech failure · source=\(diagnostics.attemptSource, privacy: .public) · provider=\(diagnostics.providerDisplayName, privacy: .public) · backendProvider=\(diagnostics.backendSTTProvider ?? "unknown", privacy: .public) · backendModel=\(diagnostics.backendSTTModel ?? "unknown", privacy: .public) · status=\(httpStatus, privacy: .public) · responseLatencyMs=\(responseLatencyMs, privacy: .public) · providerAttemptMs=\(providerAttemptMs, privacy: .public) · requestId=\(diagnostics.backendRequestId ?? "unknown", privacy: .public)"
+                    )
+                }
                 if let cloudProviderType {
                     if let credentialGeneration {
                         healthManager?.recordTranscriptionOutcome(
@@ -550,5 +572,10 @@ extension TranscriptionPipeline {
         default:
             return false
         }
+    }
+
+    private static func elapsedMilliseconds(_ duration: Duration) -> Int {
+        let components = duration.components
+        return Int(components.seconds) * 1_000 + Int(components.attoseconds / 1_000_000_000_000_000)
     }
 }
