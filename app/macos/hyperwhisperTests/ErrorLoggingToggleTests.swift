@@ -7,10 +7,10 @@
 //  not at the next launch, and turning it back ON has to start it again without
 //  a launch either.
 //
-//  Two suites. The first never starts the SDK and runs in CI: it drives the real
-//  Settings property and asserts on the queue Sentry keeps on disk, which is
-//  enough to fail if the `didSet` disable arm is removed again. The second one
-//  runs the SDK for real and is opt-in — see its own comment for why.
+//  Two suites. The first runs in CI and touches neither the SDK nor SwiftUI: it
+//  asserts on the gate and on the queue Sentry keeps on disk. The second drives
+//  the real Settings property and the real SDK, and is opt-in — see its own
+//  comment for why it cannot live in the CI gate.
 //
 //  Note for anyone running these on their own Mac: the test host shares the
 //  installed app's bundle identifier, so the purge clears
@@ -69,18 +69,22 @@ enum ErrorLoggingToggleFixture {
         return envelope
     }
 
-    /// Poll for the cache directory to appear or disappear. The SDK writes it
-    /// from a background queue, so both directions need a small window rather
-    /// than one instant read.
-    @MainActor
+    /// Whether Sentry has anything on disk right now. `shutdown()` deletes it
+    /// synchronously, so the always-on suite reads this directly.
+    static var cacheDirectoryExists: Bool {
+        guard let path = SentryService.cacheDirectory?.path else { return false }
+        return FileManager.default.fileExists(atPath: path)
+    }
+
+    /// Poll, for the opt-in suite only: the running SDK writes its cache from a
+    /// background queue, so its appearance needs a small window.
     static func waitForCacheDirectory(toExist shouldExist: Bool, timeout: TimeInterval = 3) -> Bool {
-        guard let path = SentryService.cacheDirectory?.path else { return !shouldExist }
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            if FileManager.default.fileExists(atPath: path) == shouldExist { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+            if cacheDirectoryExists == shouldExist { return true }
+            Thread.sleep(forTimeInterval: 0.05)
         } while Date() < deadline
-        return FileManager.default.fileExists(atPath: path) == shouldExist
+        return cacheDirectoryExists == shouldExist
     }
 }
 
@@ -92,37 +96,20 @@ enum ErrorLoggingToggleFixture {
 @Suite("Error logging toggle", .serialized)
 struct ErrorLoggingToggleTests {
 
-    /// The regression test proper. It drives the real Settings property rather
-    /// than `SentryService`, so removing the `didSet` disable arm — the whole of
-    /// issue #551 — fails here.
-    ///
-    /// The queue on disk is the observable: before the fix, unticking the box
-    /// wrote a preference and did nothing else.
-    @Test func theSettingsToggleItselfStopsReportingAndClearsTheQueue() throws {
+    /// What the disable arm has to do: drop everything Sentry has queued on
+    /// disk. A crash report, or an envelope that failed to upload while the
+    /// machine was offline, is sent the next time the SDK starts — the same leak
+    /// one launch later. It runs even when the SDK was never started, so a queue
+    /// an earlier session left cannot outlive the opt-out either.
+    @Test func shutdownPurgesEverythingQueuedOnDisk() throws {
         try ErrorLoggingToggleFixture.withCleanSentry {
-            let settings = GeneralSettingsManager()
-            #expect(settings.enableErrorLogging)
             let envelope = try ErrorLoggingToggleFixture.plantAQueuedReport()
             #expect(FileManager.default.fileExists(atPath: envelope.path))
-
-            settings.enableErrorLogging = false
-
-            #expect(SentryService.isReportingEnabled == false)
-            #expect(ErrorLoggingToggleFixture.waitForCacheDirectory(toExist: false))
-        }
-    }
-
-    /// The purge runs even when the SDK was never started, so a queue left by an
-    /// earlier session cannot outlive the opt-out. A crash report that flushes
-    /// on the next launch is the same leak one launch later.
-    @Test func shutdownPurgesAQueueLeftBehindByAnEarlierSession() throws {
-        try ErrorLoggingToggleFixture.withCleanSentry {
-            try ErrorLoggingToggleFixture.plantAQueuedReport()
-
             #expect(SentryService.isSDKRunning == false)
+
             SentryService.shutdown()
 
-            #expect(ErrorLoggingToggleFixture.waitForCacheDirectory(toExist: false))
+            #expect(ErrorLoggingToggleFixture.cacheDirectoryExists == false)
         }
     }
 
@@ -177,20 +164,24 @@ struct ErrorLoggingToggleTests {
 
 // MARK: - Opt-in: the real SDK
 
-/// The same claim, asserted against `SentrySDK.isEnabled` — the SDK's own client
-/// state — instead of against the queue on disk. This is the strongest form of
-/// the proof, and it is opt-in rather than part of the CI gate:
+/// The same claim, asserted against the two things the CI suite above cannot
+/// touch: `SentrySDK.isEnabled` — the SDK's own client state — and the real
+/// `@AppStorage` Settings property. Both destabilise the *test host*, which
+/// XCTest reports as a 0.000s failure whose name moves between runs and takes
+/// every other suite in flight down with it:
 ///
-/// `SentrySDK.close()` runs `SentryDependencyContainer.reset()`, and
-/// `sentrycrashbic_startCache` registers dyld add/remove-image callbacks that it
-/// never unregisters. Starting and closing the SDK repeatedly inside one process
-/// therefore destabilises the *test host*, which XCTest reports as a 0.000s
-/// failure whose name moves between runs — and `macos-ci.yml`'s crash-report
-/// step looks for `hyperwhisper*.ips`, which does not match `HyperWhisper`, so
-/// the report never even reaches the log. The app closes the SDK once, when the
-/// user opts out, and never in a loop.
+/// - `SentrySDK.close()` runs `SentryDependencyContainer.reset()`, and
+///   `sentrycrashbic_startCache` registers dyld add/remove-image callbacks it
+///   never unregisters, so starting and closing the SDK inside one process is
+///   not something the SDK supports being done repeatedly. The app does it once,
+///   when the user opts out.
+/// - Assigning to a `@MainActor` `@AppStorage` property outside a SwiftUI view
+///   ends the test host outright, with no crash report at all. That is a
+///   property of the test host, not of the fix.
 ///
-/// Run it deliberately:
+/// `macos-ci.yml`'s crash-report step looks for `hyperwhisper*.ips`, which does
+/// not match `HyperWhisper`, so neither report ever reaches the log — which is
+/// what makes these expensive to debug in CI and cheap to run deliberately:
 ///
 ///     HW_SENTRY_LIFECYCLE_TESTS=1 xcodebuild test … \
 ///       -only-testing:hyperwhisperTests/ErrorLoggingSDKLifecycleTests
@@ -201,6 +192,26 @@ struct ErrorLoggingToggleTests {
     .enabled(if: ProcessInfo.processInfo.environment["HW_SENTRY_LIFECYCLE_TESTS"] == "1")
 )
 struct ErrorLoggingSDKLifecycleTests {
+
+    /// Issue #551 itself: the Settings property, not `SentryService`. Removing
+    /// the `didSet` disable arm fails this.
+    @Test func theSettingsPropertyItselfStopsTheSDK() {
+        ErrorLoggingToggleFixture.withCleanSentry {
+            let settings = GeneralSettingsManager()
+            #expect(settings.enableErrorLogging)
+            SentryService.initialize(
+                dsn: ErrorLoggingToggleFixture.localDSN,
+                environment: "test"
+            )
+            #expect(SentryService.isSDKRunning)
+
+            settings.enableErrorLogging = false
+
+            #expect(SentryService.isSDKRunning == false)
+            #expect(SentryService.isReportingEnabled == false)
+            #expect(ErrorLoggingToggleFixture.waitForCacheDirectory(toExist: false))
+        }
+    }
 
     /// One test, one lifecycle: off must stop the SDK in the same session, and
     /// on must start it again in the same session.
