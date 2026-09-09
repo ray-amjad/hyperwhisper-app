@@ -176,9 +176,7 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         CloudTranscriptionProvider provider)
     {
         var language = NormalizeLanguage(request.Language ?? mode.Language);
-        var model = string.IsNullOrWhiteSpace(mode.CloudTranscriptionModel)
-            ? DefaultModel(provider)
-            : mode.CloudTranscriptionModel.Trim();
+        var model = BodyModel(provider, mode.CloudTranscriptionModel);
         // The shared core owns sanitize -> drop-empty -> case-insensitive dedupe.
         // The 1000-term cap is this route's own budget and stays here.
         var vocabulary = SharedCoreBridge.NormalizeVocabularyTerms(
@@ -198,15 +196,7 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
                 RoutedModel: RoutedModelFor(provider, mode.CloudTranscriptionModel));
 
         var tier = SharedCoreBridge.CanonicalCloudSttTier(mode.CloudAccuracyTier);
-        // Dictation is the PRE-RECORDED route, so a live-only model id falls back
-        // to the tier default instead of being forwarded. There is no picker
-        // filtering it out on Linux — the model box is a bare text field — so a
-        // mode carrying `gemini-3.5-transcribe-live` would otherwise POST it and
-        // take an HTTP 400 on every dictation.
-        var routedModel = !string.IsNullOrWhiteSpace(mode.CloudTranscriptionModel)
-            && SharedCoreBridge.CloudSttContainsDictationModel(tier, mode.CloudTranscriptionModel)
-                ? mode.CloudTranscriptionModel
-                : SharedCoreBridge.CloudSttDefaultModel(tier);
+        var routedModel = RoutedHyperWhisperCloudModel(mode.CloudAccuracyTier, mode.CloudTranscriptionModel);
         return new(
             provider,
             audioPath,
@@ -301,6 +291,74 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
             && SharedCoreBridge.CloudSttContainsDictationModel(tier, trimmed)
                 ? trimmed
                 : SharedCoreBridge.CloudSttDefaultModel(tier);
+    }
+
+    /// <summary>
+    /// The <c>X-STT-Model</c> value HyperWhisper Cloud dispatches a PRE-RECORDED
+    /// request on, for a mode's stored accuracy tier and model.
+    /// </summary>
+    /// <remarks>
+    /// Dictation is the pre-recorded route, so a live-only model id falls back to
+    /// the tier default instead of being forwarded. There is no picker filtering
+    /// it out on Linux — the model box is a bare text field — so a mode carrying
+    /// <c>gemini-3.5-transcribe-live</c> would otherwise POST it and take an HTTP
+    /// 400 on every dictation. The same fallback heals a blank field, an id left
+    /// behind by a BYOK provider, and an id that belongs to a DIFFERENT tier.
+    ///
+    /// Empty (or null, when the catalog has no default) means "omit the header"
+    /// and let the backend apply the provider default — which is a real answer
+    /// for a single-model tier, not a failure to resolve.
+    /// </remarks>
+    private static string? RoutedHyperWhisperCloudModel(string? accuracyTier, string? storedModel)
+    {
+        var tier = SharedCoreBridge.CanonicalCloudSttTier(accuracyTier);
+        return !string.IsNullOrWhiteSpace(storedModel)
+            && SharedCoreBridge.CloudSttContainsDictationModel(tier, storedModel)
+                ? storedModel
+                : SharedCoreBridge.CloudSttDefaultModel(tier);
+    }
+
+    /// <summary>
+    /// The model a BYOK adapter puts in its OWN request body: the stored id
+    /// verbatim, or the provider's catalog default when the field is blank.
+    /// </summary>
+    private static string BodyModel(CloudTranscriptionProvider provider, string? storedModel) =>
+        string.IsNullOrWhiteSpace(storedModel) ? DefaultModel(provider) : storedModel.Trim();
+
+    /// <summary>
+    /// The model id that will ACTUALLY transcribe a request routed to
+    /// <paramref name="provider"/> with these stored mode fields — the same
+    /// value <see cref="BuildCloudRequest"/> puts on the wire, by construction.
+    /// </summary>
+    /// <remarks>
+    /// This exists so the Local API's <c>model</c> response field can be the
+    /// dispatched model rather than a second opinion about it (issue #533).
+    /// <c>/transcribe</c> used to project <c>mode.CloudTranscriptionModel</c>
+    /// raw, which is the ordinary UNSET state for a HyperWhisper Cloud mode —
+    /// that provider chooses by accuracy tier — so the endpoint answered
+    /// <c>model: ""</c> for a run that really did dispatch, say, Scribe v2.
+    ///
+    /// Resolving HERE rather than where a transient mode is built is deliberate,
+    /// for the reason Windows records in <c>TranscribeEndpoints.ModelLabel</c>:
+    /// the engine-applying step runs only when the request carries an
+    /// <c>engine</c>, so a fix planted there leaves a bare <c>mode_id</c>
+    /// request still reporting an empty string, and the two request forms go on
+    /// disagreeing about the same Mode.
+    ///
+    /// The three arms mirror <see cref="BuildCloudRequest"/> exactly:
+    /// HyperWhisper Cloud dispatches on <c>routed_model</c>, Azure MAI is the
+    /// one BYOK-named provider that also terminates at our proxy and so carries
+    /// a routed model, and everything else sends <see cref="BodyModel"/> in its
+    /// own request body.
+    /// </remarks>
+    public static string DispatchedCloudModelId(
+        CloudTranscriptionProvider provider,
+        string? accuracyTier,
+        string? storedModel)
+    {
+        if (provider == CloudTranscriptionProvider.HyperWhisperCloud)
+            return RoutedHyperWhisperCloudModel(accuracyTier, storedModel) ?? string.Empty;
+        return RoutedModelFor(provider, storedModel) ?? BodyModel(provider, storedModel);
     }
 
     private static string DefaultModel(CloudTranscriptionProvider provider) => provider switch

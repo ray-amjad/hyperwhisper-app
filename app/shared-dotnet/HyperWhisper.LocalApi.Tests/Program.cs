@@ -7,6 +7,7 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.TranscriptionRouting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("application backend resolves modes and vocabulary", ApplicationBackendModeRouting)
     ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
     ,("/transcribe runs the deterministic text passes", ApplicationBackendTextPasses)
+    ,("/transcribe reports the cloud model that will run", ApplicationBackendCloudModelLabel)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
 };
 foreach (var test in tests)
@@ -955,6 +957,118 @@ static async Task ApplicationBackendTextPasses()
             && off.Text.Contains('\n'),
             "turning filler removal off also disabled the other deterministic passes");
     }
+}
+
+/// <summary>
+/// The `model` field of a `/transcribe` response is the model that will ACTUALLY
+/// run, not the raw `cloudTranscriptionModel` column (issue #533).
+/// </summary>
+/// <remarks>
+/// Every case asserts the label against the value
+/// <see cref="ModeAwareTranscriptionRouter.BuildCloudRequest"/> would put on the
+/// wire for the SAME resolved Mode, rather than against a hand-copied constant.
+/// That is the whole point of the fix: the label is the dispatched model by
+/// construction, so a catalog change that moves a tier default moves both at
+/// once and this test cannot rot into asserting a stale string.
+///
+/// The bare `mode_id` cases matter as much as the `engine` ones. Overrides are
+/// applied only when the request carries an `engine`, so a fix planted there
+/// would leave a plain `mode_id` request still answering `""`.
+/// </remarks>
+static async Task ApplicationBackendCloudModelLabel()
+{
+    // What BuildCloudRequest really sends: the routed model for anything that
+    // terminates at the HyperWhisper Cloud proxy, the body model otherwise.
+    static string Dispatched(TranscriptionWorkflowRequest request, HyperWhisper.Data.Entities.Mode mode)
+    {
+        Assert(ModeAwareTranscriptionRouter.TryMapProvider(mode.CloudProvider, out var provider),
+            $"the test mode carries an unroutable cloudProvider '{mode.CloudProvider}'");
+        var wire = ModeAwareTranscriptionRouter.BuildCloudRequest("/tmp/none.wav", request, mode, provider);
+        return (wire.RoutedModel ?? wire.Model) ?? string.Empty;
+    }
+
+    static async Task<(string Label, string Dispatched)> Transcribe(
+        string? modeId, string? engine, string? model,
+        Action<HyperWhisper.Data.Entities.Mode>? seedStoredMode = null)
+    {
+        using var paths = new TempPaths();
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+
+        var stored = new HyperWhisper.Data.Entities.Mode
+        {
+            Name = "Stored", IsDefault = true, SortOrder = 1, Language = "en",
+            ProviderType = "cloud", Model = "cloud", CloudProvider = "hyperwhisper",
+        };
+        seedStoredMode?.Invoke(stored);
+        await modes.UpsertAsync(stored);
+
+        var transcriber = new FixedTextTranscriber("ok");
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(
+            modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+        var result = await backend.TranscribeAsync(
+            new AudioUpload("a.wav", "audio/wav", new byte[] { 1 },
+                modeId == "stored" ? stored.Id.ToString() : modeId, engine, model, null),
+            CancellationToken.None);
+        var request = transcriber.Request!;
+        return (result.Model, Dispatched(request, request.SelectedMode!));
+    }
+
+    // 1. `engine: "cloud"` with no model — the case in the issue. The transient
+    //    mode carries the seeded `elevenLabsScribeV2` tier and no model at all,
+    //    which used to project as "".
+    var (label, dispatched) = await Transcribe(null, "cloud", null);
+    Assert(label.Length > 0, "/transcribe still reports an empty model for HyperWhisper Cloud (issue #533)");
+    Assert(label == dispatched, $"the reported model '{label}' is not the dispatched model '{dispatched}'");
+
+    // 2. The `hyperwhisper` spelling of the same engine resolves identically.
+    var (aliasLabel, aliasDispatched) = await Transcribe(null, "hyperwhisper", null);
+    Assert(aliasLabel == label && aliasLabel == aliasDispatched,
+        "the 'cloud' and 'hyperwhisper' engine spellings disagreed about the model");
+
+    // 3. A bare `mode_id` with the model column unset — no override runs at all,
+    //    so this is the form a fix in ApplyTranscriptionOverrides would miss.
+    var (bare, bareDispatched) = await Transcribe("stored", null, null);
+    Assert(bare == label && bare == bareDispatched,
+        "the bare mode_id form disagreed with the engine form about the same Mode");
+
+    // 4. An id the tier cannot serve heals to the tier default, exactly as the
+    //    send path heals it — a live-only id is an HTTP 400 if forwarded, and a
+    //    BYOK leftover belongs to another vendor entirely.
+    foreach (var stale in new[] { "gemini-3.5-transcribe-live", "whisper-1", "" })
+    {
+        var (healed, healedDispatched) = await Transcribe(
+            "stored", null, null, mode => mode.CloudTranscriptionModel = stale);
+        Assert(healed == label && healed == healedDispatched,
+            $"a stored model of '{stale}' did not heal to the tier's dispatched model");
+    }
+
+    // 5. A model that really is in the tier survives.
+    var (pinned, pinnedDispatched) = await Transcribe(
+        "stored", null, null, mode => mode.CloudTranscriptionModel = label);
+    Assert(pinned == label && pinned == pinnedDispatched, "a valid in-tier model was not preserved");
+
+    // 6. A legacy accuracy-tier spelling still resolves. `deepgramNova3`'s
+    //    migrateFrom aliases reach it through CanonicalCloudSttTier, where an
+    //    exact-id lookup would answer "".
+    var (legacy, legacyDispatched) = await Transcribe(
+        "stored", null, null, mode => mode.CloudAccuracyTier = "medium");
+    Assert(legacy.Length > 0 && legacy == legacyDispatched,
+        "a legacy accuracy-tier spelling produced no model id");
+
+    // 7. A BYOK provider with no stored model reports its own default rather
+    //    than "". Its model travels in the adapter's own request body, so the
+    //    label has to be that body's value.
+    var (byok, byokDispatched) = await Transcribe(null, "openai", null);
+    Assert(byok.Length > 0 && byok == byokDispatched,
+        "a BYOK engine with no model still reported an empty string");
+
+    // 8. An explicit model is echoed verbatim on both heads' contract.
+    var (explicitModel, _) = await Transcribe(null, "openai", "gpt-4o-transcribe");
+    Assert(explicitModel == "gpt-4o-transcribe", "an explicit model was not echoed back");
 }
 
 static async Task ApplicationBackendModeValidation()
