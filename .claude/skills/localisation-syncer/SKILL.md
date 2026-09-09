@@ -244,7 +244,38 @@ Read the base `Strings.resx` file and find the `<data>` elements for missing key
 
 **IMPORTANT: You MUST add translations to ALL locale files that are missing keys, not just a subset. The compare script will show issues for every locale file — fix them all.**
 
-Use the Edit tool to add missing `<data>` elements to the locale `.resx` files. Place them in the same order as the base file. The XML format is straightforward and safe to edit directly (no CRLF sensitivity like macOS `.strings`).
+Use the Edit tool to add missing `<data>` elements to the locale `.resx` files. Place them in the same order as the base file.
+
+**These files are CRLF.** Every line ends `\r\n`. The Edit tool preserves that; a
+`sed -i`, or a `node`/Python rewrite that opens the file in text mode, silently
+converts the whole file to LF and turns a two-line change into a 900-line diff.
+If you must write one programmatically, open it with `newline=''` and emit
+`\r\n` explicitly.
+
+#### 3b. Check the values are actually translated, not just present
+
+Having a key is not the same as being translated (issue #552). A catalogue can
+carry all 864 keys, load cleanly, and still hold the raw English string for half
+of them:
+
+```bash
+python3 .claude/skills/localisation-syncer/scripts/windows/untranslated_resx.py
+python3 .claude/skills/localisation-syncer/scripts/windows/untranslated_resx.py --list de
+```
+
+`app/windows/HyperWhisper/Resources/translation-status.json` records which keys
+are supposed to stay English (product and vendor names) and a per-locale ceiling
+on the ones that are not.
+`HyperWhisper.Localization.CatalogValidator` fails the build if a locale goes
+over its ceiling, so **a new key added to `Strings.resx` and copied through as
+English into the 39 locale files will not compile.** Translate it, or if it
+genuinely is a product name, add it to `identicalByDesign` with a reason.
+
+After translating, lower the ceilings you earned:
+
+```bash
+python3 .claude/skills/localisation-syncer/scripts/windows/untranslated_resx.py --seed
+```
 
 To be efficient with many locale files, batch similar edits together and process all files in parallel where possible.
 
