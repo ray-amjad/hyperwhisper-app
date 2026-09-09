@@ -296,6 +296,21 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         .Select(item => new PortableVocabularyReplacement(item.Word, item.Replacement!))
         .ToArray();
 
+    /// <summary>
+    /// The output-processing settings one transcription runs under: the user's
+    /// global text-output switches plus the Mode's own flags.
+    /// </summary>
+    /// <remarks>
+    /// Public because the Local API backend needs the SAME projection this
+    /// shell's dictation path uses. It used to pass none, so the workflow fell
+    /// back to <c>TranscriptionWorkflow.BuildDefaultOutputOptions</c>, which
+    /// hard-codes <c>RemoveFillerWords: true</c> — /transcribe stripped filler
+    /// words for a user who had turned that setting off (issue #530). Handing
+    /// over this method rather than re-reading the settings keys keeps one
+    /// answer per user rather than two that can drift.
+    /// </remarks>
+    public SpeechOutputProcessingOptions CreateOutputOptions(Mode? mode) => BuildOutputOptions(mode);
+
     private SpeechOutputProcessingOptions BuildOutputOptions(Mode? mode) => new(
         RemoveFillerWords: Settings.RemoveFillerWords,
         RemoveTrailingPeriod: mode?.RemoveTrailingPeriod == true,

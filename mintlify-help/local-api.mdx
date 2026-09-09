@@ -235,18 +235,18 @@ The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full re
 
 `/transcribe` does not run AI post-processing. `/post-process` is the endpoint for that. This is true even when the Mode you name has AI post-processing on.
 
-The deterministic text steps are different. They are your own settings, and they contain no AI. On Windows, the `text` field gives you the transcript after these three steps:
+The deterministic text steps are different. They are your own settings, and they contain no AI. On all three platforms, the `text` field gives you the transcript after these three steps:
 
 - **[Vocabulary](/vocabulary) replacements.**
 - **Dictated break commands.** "New line" and "new paragraph" become a line break in the text.
-- **Remove filler words**, when that setting is on. This step needs an English transcript AND an English Mode language. The default Mode language is `auto`, which does not remove filler words. Send `"language": "en"` to make this step apply.
+- **Remove filler words**, when that setting is on. This step applies to English only. "Er" and "um" are real words in other languages, so the step leaves every other language alone.
 
 <Note>
   The `text` is not always identical to the text that dictation puts in your target application. Dictation of a Mode with AI post-processing on runs the AI rewrite, and this route never does. Dictation also applies insert-time steps that no API response can carry, such as Autocapitalize Insert and the trailing space.
 </Note>
 
 <Warning>
-  The three steps above are the Windows behavior. macOS applies **none** of them on this route: it returns the text of the engine. The Linux build uses a different Local API implementation again, and this page does not describe it. Do not assume that one script gives you the same `text` on all three platforms.
+  Each platform decides "is this English?" the way its own dictation does, so one case differs. Windows and Linux read the language of the request or the Mode. The default is `auto`, which is not English, so they do not remove filler words — send `"language": "en"` to make the step apply. macOS prefers the language the engine reported for the transcript, and falls back to the request's language when the engine reported none. So a `"language": "auto"` request against an engine that reports English does remove filler words on macOS and not on the other two. The other two steps behave the same everywhere.
 </Warning>
 
 ### Mode write rules
