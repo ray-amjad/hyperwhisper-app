@@ -173,6 +173,43 @@ struct CloudSttTierParityTests {
         #expect(mode.cloudTranscriptionModel == "muse-voice-transcribe-1.0")
     }
 
+    /// Issue #356 item 3, review round 1. `localApiResolveEngineAlias` trims,
+    /// but only the five LOCAL ids go through it — `cloud` and `meta` are
+    /// literal comparisons in `applyEngineModel`, so an untrimmed value skipped
+    /// the cloud half entirely and fell to the `nil` arm, which silently patches
+    /// only `model`. `openapi.yaml` says the value is trimmed and
+    /// case-insensitively matched on every platform, with no carve-out, and
+    /// Windows and the portable head both route the padded body to Cloud.
+    ///
+    /// `/transcribe` trims `req.engine` before it reaches here
+    /// (`TranscribeEndpoint.resolve`), so this is the contract of the function
+    /// itself rather than a reachable endpoint bug — the two comments in it that
+    /// promise trim-then-lowercase are now true of both halves.
+    @MainActor
+    @Test("Local API cloud shorthands are trimmed as well as lowercased")
+    func localApiCloudShorthandsAreTrimmed() {
+        let persistence = PersistenceController(inMemory: true)
+
+        let padded = Mode(context: persistence.container.viewContext)
+        TranscribeEndpoint.applyEngineModel(to: padded, engine: "  meta\n", model: nil)
+        #expect(padded.model == "cloud")
+        #expect(padded.cloudProvider == CloudProvider.meta.rawValue)
+        #expect(padded.cloudAccuracyTier == nil)
+
+        let cloud = Mode(context: persistence.container.viewContext)
+        cloud.cloudAccuracyTier = "elevenLabsScribeV2"
+        TranscribeEndpoint.applyEngineModel(to: cloud, engine: " cloud ", model: nil)
+        #expect(cloud.model == "cloud")
+        #expect(cloud.cloudProvider == CloudProvider.hyperwhisper.rawValue)
+
+        // The local half was already trimmed by the shared resolver; this pins
+        // that routing the padded string through the same variable did not
+        // change it.
+        let local = Mode(context: persistence.container.viewContext)
+        TranscribeEndpoint.applyEngineModel(to: local, engine: " parakeet ", model: nil)
+        #expect(local.model != "cloud")
+    }
+
     @Test("Upload duration limits apply only to the active HyperWhisper Cloud tier")
     func uploadDurationLimitUsesActiveProvider() {
         let activeMuse = CloudSTTCatalog.shared.uploadDurationConstraint(
