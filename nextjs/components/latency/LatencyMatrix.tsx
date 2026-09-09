@@ -14,6 +14,7 @@ import {
   type LatencyVendorRow,
 } from "@/lib/latency/types";
 import { regionCity } from "@/lib/latency/fly-regions";
+import { isRecord } from "@/src/lib/type-guards";
 
 const METRICS = [
   { key: "p50", label: "Median", unit: "ms" },
@@ -113,11 +114,19 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           `/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`,
           { signal: controller.signal },
         );
-        const result = response.ok ? await response.json() : null;
+        const result: unknown = response.ok ? await response.json() : null;
         // The answer can land after a hand-pick; the visitor still wins.
-        if (regionPickedByUser.current || !result?.region) return;
+        if (
+          regionPickedByUser.current ||
+          !isRecord(result) ||
+          typeof result.region !== "string"
+        ) return;
         setHomeRegion(result.region);
-        setHomeCity(result.city ?? regionCity(result.region));
+        setHomeCity(
+          typeof result.city === "string"
+            ? result.city
+            : regionCity(result.region),
+        );
       } catch {
         // A missing highlight is not worth an error message.
       }
