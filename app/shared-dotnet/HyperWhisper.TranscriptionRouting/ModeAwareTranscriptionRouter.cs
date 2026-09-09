@@ -361,6 +361,94 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         return RoutedModelFor(provider, storedModel) ?? BodyModel(provider, storedModel);
     }
 
+    /// <summary>
+    /// The model a request routed to <paramref name="provider"/> falls back to
+    /// when the mode carries nothing usable — the same value
+    /// <see cref="BuildCloudRequest"/> would send.
+    /// </summary>
+    /// <remarks>
+    /// Public so the Local API's engine-override step can drop a model that
+    /// belongs to ANOTHER vendor and land on this provider's own default rather
+    /// than inventing a second opinion about it (issue #566).
+    /// </remarks>
+    public static string DefaultCloudModelId(CloudTranscriptionProvider provider) =>
+        DefaultModel(provider);
+
+    /// <summary>
+    /// The persisted <c>cloudProvider</c> identifier for a routed provider: the
+    /// spelling a <c>Mode</c> carries in that column, and the scope key the
+    /// shared alias table reads.
+    /// </summary>
+    /// <remarks>
+    /// This head had no such map, which is the reason issue #566 could not be
+    /// fixed inside #565: <c>CloudProviderDescriptor</c>'s second field is the
+    /// catalog TIER id (<c>deepgramNova3</c>), and <see cref="CatalogTier"/> is
+    /// the same namespace again — neither is the provider key
+    /// <c>cloud_stt_resolve_model_alias</c> wants. <see cref="TryMapProvider"/>
+    /// is the inverse of this map and accepts strictly more spellings, including
+    /// the two catalog <c>sttProvider</c> keys (<c>azure-mai</c>,
+    /// <c>gemini-transcribe</c>) that no head persists.
+    ///
+    /// Mirrors Windows <c>CloudTranscriptionProviderExtensions.GetIdentifier</c>
+    /// verbatim, camelCase included, so one model id resolves to one alias on
+    /// both heads. The core lowercases the identifier before matching, so the
+    /// casing costs nothing there and keeps the two tables textually comparable.
+    /// </remarks>
+    public static string ProviderIdentifier(CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.OpenAi => "openai",
+        CloudTranscriptionProvider.Groq => "groq",
+        CloudTranscriptionProvider.Deepgram => "deepgram",
+        CloudTranscriptionProvider.AssemblyAi => "assemblyai",
+        CloudTranscriptionProvider.ElevenLabs => "elevenlabs",
+        CloudTranscriptionProvider.Mistral => "mistral",
+        CloudTranscriptionProvider.Soniox => "soniox",
+        CloudTranscriptionProvider.HyperWhisperCloud => "hyperwhisper",
+        CloudTranscriptionProvider.Gemini => "gemini",
+        CloudTranscriptionProvider.Grok => "grok",
+        CloudTranscriptionProvider.AzureMai => "microsoftAzureSpeech",
+        CloudTranscriptionProvider.GoogleChirp => "googleSpeech",
+        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        CloudTranscriptionProvider.Meta => "meta",
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// Whether <paramref name="modelId"/> is really one of
+    /// <paramref name="provider"/>'s own models, resolving legacy aliases first.
+    /// </summary>
+    /// <remarks>
+    /// The membership half of the Local API's foreign-model guard (issue #566),
+    /// and the portable equivalent of Windows
+    /// <c>CloudTranscriptionModels.GetById(id, provider) != null</c> and macOS
+    /// <c>CloudTranscriptionModels.model(withId:provider:) != nil</c>. Both of
+    /// those apply the alias table before the lookup, and so does this: a raw
+    /// catalog scan judges AssemblyAI <c>universal</c> foreign and replaces it
+    /// with a different-priced model, which for a BYOK provider changes what
+    /// RUNS.
+    ///
+    /// A live-only id is deliberately still a member. This answers "whose model
+    /// is it", not "can this route serve it" — the pre-recorded question is
+    /// <see cref="SharedCoreBridge.CloudSttContainsDictationModel"/>, which the
+    /// send path already applies to every routed provider afterwards.
+    ///
+    /// GoogleChirp is answered from its pinned default rather than the catalog:
+    /// v8 retired the <c>googleChirp3</c> entry, and <see cref="CatalogTier"/>'s
+    /// fallback arm is <c>deepgramNova3</c>, so a catalog lookup would report
+    /// Deepgram's models as Google's.
+    /// </remarks>
+    public static bool CloudModelBelongsToProvider(
+        CloudTranscriptionProvider provider,
+        string? modelId)
+    {
+        var trimmed = modelId?.Trim();
+        if (string.IsNullOrEmpty(trimmed)) return false;
+        if (provider == CloudTranscriptionProvider.GoogleChirp)
+            return string.Equals(trimmed, DefaultModel(provider), StringComparison.OrdinalIgnoreCase);
+        return SharedCoreBridge.CloudSttContainsModelResolvingAlias(
+            CatalogTier(provider), trimmed, ProviderIdentifier(provider));
+    }
+
     private static string DefaultModel(CloudTranscriptionProvider provider) => provider switch
     {
         // Chirp 3 lost its catalog entry in v8 (geminiTranscribe took Google's

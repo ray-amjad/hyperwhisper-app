@@ -538,7 +538,20 @@ components:
         mode_id:
           type: string
           format: uuid
-          description: Saved Mode used as the baseline. May be combined with engine/model/language to override per-call.
+          description: >-
+            Saved Mode used as the baseline. May be combined with
+            engine/model/language to override per-call. When `mode_id` and
+            `engine` name DIFFERENT cloud providers, the Mode's saved model is
+            not carried across to the new provider: the request runs the new
+            engine's default model, on all three platforms. An inherited model
+            is kept only when it really belongs to the engine you named —
+            including under its legacy spelling, so an AssemblyAI Mode on
+            `universal` re-run with `engine: "assemblyai"` still runs
+            `universal` and is not upgraded to a different-priced model. Send an
+            explicit `model` to pin one; that always wins. HyperWhisper Cloud is
+            the exception, because it selects by the Mode's accuracy tier rather
+            than by a model id: `engine: "cloud"` runs the tier's model whatever
+            the Mode's model field holds.
         engine:
           type: string
           description: >-
@@ -554,6 +567,11 @@ components:
             back into the next request, on any platform.
         model:
           type: string
+          description: >-
+            The model to run. Optional. It is echoed back unvalidated, and it
+            wins over everything the Mode holds. Omit it to let the `engine`
+            choose, and read `mode_id` above for what happens when the Mode and
+            the `engine` disagree about the model.
         language:
           type: string
         timestamp_granularities:

@@ -124,4 +124,56 @@ public static partial class SharedCoreBridge
     /// </summary>
     public static bool CloudSttContainsDictationModel(string tierId, string modelId) =>
         !IsLiveOnlyCloudSttModel(modelId) && CloudSttContainsModel(tierId, modelId);
+
+    /// <summary>
+    /// A legacy cloud-STT model id resolved to the id the catalog still carries,
+    /// scoped by the persisted <c>cloudProvider</c> identifier.
+    /// </summary>
+    /// <remarks>
+    /// The one alias table lives in <c>hw-catalog</c>
+    /// (<c>model_alias.rs</c>) and is what Windows
+    /// <c>CloudTranscriptionModels.ResolveModelAlias</c> and macOS
+    /// <c>CloudTranscriptionModels.resolveModelAlias</c> both call. This head had
+    /// no wrapper for it at all, which is why its Local API could only compare
+    /// model ids as raw strings (issue #566).
+    ///
+    /// <paramref name="providerIdentifier"/> is the storage spelling
+    /// (<c>deepgram</c>, <c>microsoftAzureSpeech</c>) — NOT the cloud-STT entry
+    /// id (<c>deepgramNova3</c>) and not the <c>sttProvider</c> dispatch key
+    /// (<c>azure-mai</c>). Null or an unrecognised identifier means "provider
+    /// unknown", and the core then chains every table, exactly as a C# null
+    /// provider does on Windows.
+    /// </remarks>
+    public static string ResolveCloudSttModelAlias(string? modelId, string? providerIdentifier) =>
+        string.IsNullOrEmpty(modelId)
+            ? modelId ?? string.Empty
+            : HyperwhisperCoreMethods.CloudSttResolveModelAlias(modelId, providerIdentifier);
+
+    /// <summary>
+    /// Tier membership that resolves legacy aliases first — the alias-resolving
+    /// half of a foreign-model guard.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CloudSttContainsModel"/> is an exact, case-sensitive scan, so a
+    /// legacy-but-serviceable id such as AssemblyAI <c>universal</c> or Gemini
+    /// <c>gemini-2.0-flash</c> reads as "not one of this provider's models" and a
+    /// guard built on it would silently upgrade the request to a different-priced
+    /// model. That is the failure #528's second correction exists to prevent, and
+    /// it is why this method exists rather than the raw scan (issue #566).
+    ///
+    /// The comparison is case-insensitive to match Windows
+    /// <c>CloudTranscriptionModels.GetById</c>, whose final compare is
+    /// <c>OrdinalIgnoreCase</c>.
+    /// </remarks>
+    public static bool CloudSttContainsModelResolvingAlias(
+        string tierId,
+        string? modelId,
+        string? providerIdentifier)
+    {
+        var trimmed = modelId?.Trim();
+        if (string.IsNullOrEmpty(trimmed)) return false;
+        var canonical = ResolveCloudSttModelAlias(trimmed, providerIdentifier);
+        return HyperwhisperCoreMethods.CloudSttModels(tierId)
+            .Any(model => string.Equals(model.id, canonical, StringComparison.OrdinalIgnoreCase));
+    }
 }

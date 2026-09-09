@@ -249,6 +249,20 @@ The deterministic text steps are different. They are your own settings, and they
   Each platform decides "is this English?" the way its own dictation does, so one case differs. Windows and Linux read the language of the request or the Mode. The default is `auto`, which is not English, so they do not remove filler words — send `"language": "en"` to make the step apply. macOS prefers the language the engine reported for the transcript, and falls back to the request's language when the engine reported none. So a `"language": "auto"` request against an engine that reports English does remove filler words on macOS and not on the other two. The other two steps behave the same everywhere.
 </Warning>
 
+### When `mode_id` and `engine` disagree
+
+You can send `mode_id` and `engine` in the same `/transcribe` request. The Mode is the baseline, and the `engine` replaces the provider for this one call. The two can name different cloud vendors, and then the question is which model runs.
+
+The Mode's saved model does **not** move to the other vendor. All three platforms drop it and run the new engine's own default model. A model id is not portable between vendors: `nova-3-general` is a Deepgram model, and an OpenAI request that carries it is rejected — or, worse, is accepted because the same text is also a model of that vendor, and you are billed for a model you did not ask for.
+
+Three rules follow:
+
+- **An explicit `model` always wins.** Send `"model"` to pin one. The value is used as you sent it, and no other rule applies.
+- **A model that really belongs to the engine you named is kept.** This includes an old name for a current model. An AssemblyAI Mode saved with `universal`, re-run with `"engine": "assemblyai"`, still runs `universal`. It is not silently changed to a different model at a different rate.
+- **HyperWhisper Cloud is the exception.** It selects the model from the Mode's accuracy tier, not from a model id. So `"engine": "cloud"` runs the tier's model whatever the Mode's model field holds.
+
+The `model` field of the response always names the model that really ran, so you can read it back to see which of these rules applied.
+
 ### Mode write rules
 
 `POST /modes` and `PATCH /modes/{id}` reject an empty mode name and a case-insensitive duplicate. Windows trims whitespace at the start and end of the name. macOS also normalizes Unicode and trims invisible-only characters from the boundaries. A macOS name must contain at least one visible base character.
