@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Styling;
@@ -2318,6 +2320,13 @@ public partial class MainWindow : Window
         {
             var captured = mode;
             var item = new MenuItem { Header = RetryModeMenuLabel(captured.Name) };
+            // A MenuItem's automation peer takes its name from the header ONLY when that header
+            // is a string; with a Control header it has nothing to read and reports an empty
+            // name, so a screen reader would announce every entry here identically. The visible
+            // label is now ellipsised anyway, so the accessible name is set explicitly and to
+            // the WHOLE name — display is bounded, the name a reader speaks is not. The smoke
+            // case below asserts this through the real peer, so the regression cannot come back.
+            AutomationProperties.SetName(item, captured.Name);
             item.Click += (_, _) =>
             {
                 history.SelectedRetryMode = captured;
@@ -2364,9 +2373,9 @@ public partial class MainWindow : Window
             Text = name,
             TextWrapping = TextWrapping.Wrap,
             MaxWidth = 360,
-            // A wrapping tip with no height bound is not bounded either: a 10,000-character
-            // name posted through the Local API is a block taller than the screen. #557's
-            // review put the same MaxHeight on every WPF mode-name tip.
+            // A wrapping tip with no height bound is not bounded either: a name of a few
+            // thousand characters is a block taller than the screen. #557's review put the
+            // same MaxHeight on every WPF mode-name tip.
             MaxHeight = 126,
             TextTrimming = TextTrimming.CharacterEllipsis,
         });
@@ -3595,13 +3604,19 @@ public partial class MainWindow : Window
             // different columns — so the probe has to be both a mode and a recording made
             // under it, or only one of the two surfaces would be exercised.
             var mode = new Mode { Name = longName, Language = "en" };
+            // Failed, with an audio path, because CanRetry is
+            // `{ Status: Failed, AudioFilePath: not null }` (HistoryViewModel.cs). A Completed
+            // row disables the Retry With… item, and the case would then be measuring a popup
+            // in a state no user can open — passing today, but on a template that gates the
+            // popup on IsEffectivelyEnabled it would go red on a healthy build.
             var transcript = new Transcript
             {
                 Text = "The badge above this transcript is the surface under test.",
                 Mode = longName,
                 Date = DateTime.UtcNow,
                 Duration = 3,
-                Status = TranscriptStatus.Completed,
+                Status = TranscriptStatus.Failed,
+                AudioFilePath = "/nonexistent/smoke-probe.wav",
             };
             context.Modes.Add(mode);
             context.Transcripts.Add(transcript);
@@ -3759,6 +3774,19 @@ public partial class MainWindow : Window
                 + "the name is cut mid-glyph at the flyout's own maximum instead of ellipsising.");
             return true;
         }
+        // The accessible name, read off the REAL automation peer rather than off the property we
+        // set. Moving the header from a string to a Control is what makes this necessary: the
+        // peer reads a string header directly, and has nothing to read in a Control one. A
+        // screen-reader user would then hear the same thing for every mode in the list. Asserted
+        // through the peer because that is the thing AT-SPI actually asks.
+        if (retryItems.FirstOrDefault(item => ReferenceEquals(item.Header, label)) is not { } labelled
+            || ControlAutomationPeer.CreatePeerForElement(labelled).GetName() != longName)
+        {
+            Console.Error.WriteLine("Smoke: the Retry With… item reports the accessible name "
+                + $"[{ControlAutomationPeer.CreatePeerForElement(retryItems[0]).GetName()}] instead "
+                + "of the mode name, so a screen reader cannot tell the entries apart.");
+            return true;
+        }
         if (FindNamed<ListBox>("HistoryList") is not { } list)
         {
             Console.Error.WriteLine("Smoke: HistoryList is gone, so the context menu cannot be opened.");
@@ -3768,13 +3796,19 @@ public partial class MainWindow : Window
         // the wrong TextBlock, and a template change can spend the budget elsewhere. The menu is
         // opened on the list, the submenu opened with it, and the arranged widths read back off
         // the real containers.
-        var wanted = UnconstrainedTextWidth(label);
         var boundedWidth = await SubmenuWidthAsync(historyMenu, retryWith, list, retryItems);
         if (boundedWidth <= 0)
         {
             Console.Error.WriteLine("Smoke: the Retry With… popup never laid out, so it is unmeasured.");
             return true;
         }
+        // Measured AFTER the popup has opened once, never before. A TextBlock that is not yet in
+        // the tree has not inherited the menu's font, so it probes in the framework default and
+        // returns a width for the wrong typeface — which is not a fixed bias, and for a name of
+        // 16-19 characters it reads WIDER than the attached one and silently suppresses the
+        // assertion below. The badge above never had this problem: FindNamed returns a control
+        // that is already parented.
+        var wanted = UnconstrainedTextWidth(label);
         if (label.Bounds.Width <= 0 || label.Bounds.Width + 0.5 >= wanted
             || label.Bounds.Width > RetryModeLabelMaxWidth + 0.5)
         {

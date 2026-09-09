@@ -439,8 +439,15 @@
                     <Path Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwBadgeGrayForegroundBrush}" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center"/>
                     <!-- Bounded exactly like the Windows badge (HistoryPage.xaml, #525/#557) and
                          the status-bar name above (#526). Transcript.Mode is a COPY of the mode
-                         name taken at record time, so it is free user text of any length, and
-                         this badge sits in a horizontal StackPanel inside a detail pane that a
+                         name taken at record time, so it is free user text of any length. The
+                         Local API is NOT the path that produces a long one — hw-localapi caps a
+                         name at 100 characters on create and on patch (mode.rs, MODE_NAME_MAX_
+                         CHARS). The two open paths are the mode editor, whose name box has no
+                         MaxLength, and a restored backup, which is validated only for blank and
+                         duplicate names (ApplicationBackupExport.ValidateModes). Bounding the
+                         input as well is a separate change, and it would have to land on all
+                         three heads at once, so this one bounds the DISPLAY.
+                         This badge sits in a horizontal StackPanel inside a detail pane that a
                          fixed 1000-wide CanResize="False" window cannot widen. MaxWidth is what
                          actually bounds it: TextTrimming alone does nothing inside a StackPanel,
                          which measures its children with infinite width. The row-2 badges beside
@@ -451,8 +458,8 @@
                            string tip does not wrap, so a 300-character name would render as one
                            line far wider than the screen and stay unreadable. MaxHeight matters
                            as much as MaxWidth: a wrapping tip with no height bound is not
-                           bounded, and a 10,000-character name posted through the Local API is a
-                           block taller than the screen. #557's review found that on Windows and
+                           bounded, and a name of a few thousand characters is a block taller
+                           than the screen. #557's review found that on Windows and
                            put MaxHeight="126" on all five WPF mode-name tips; the two tips #558
                            added here were written before that and gain it in the same pass. -->
                       <ToolTip.Tip>
