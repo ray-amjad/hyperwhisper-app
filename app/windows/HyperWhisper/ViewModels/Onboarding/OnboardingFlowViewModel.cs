@@ -1459,7 +1459,8 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// Both cloud steps draw this in their big-number slot, so it carries the same
     /// ellipsis placeholder CreditsFormatted always had: an unknown balance has to read
     /// as unknown, never as a blank 30 pt line above a caption. The Done summary cannot
-    /// see the placeholder because SourceSummary is gated on HasCredits.
+    /// see the placeholder because SourceSummary is gated on HasCredits, which
+    /// ApplyCredits deliberately assigns last.
     /// </summary>
     public string CreditsCountFormatted
     {
@@ -1522,11 +1523,17 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     private void ApplyCredits()
     {
         var credits = _credits.Credits;
-        HasCredits = credits is not null;
+
+        // The figures BEFORE the flag that gates them. SetProperty fans out to the
+        // derived properties synchronously, and HasCredits is what SourceSummary reads
+        // to decide whether to interpolate the count - so setting the flag first would
+        // let the Done summary be recomputed as "HyperWhisper Cloud · … credits"
+        // between the two lines.
         CreditsFormatted = credits?.FormattedBalance ?? CreditsUnknown;
         CreditsCountFormatted = credits is null
             ? CreditsUnknown
             : credits.CreditsRemaining.ToString("N0", CultureInfo.CurrentCulture);
+        HasCredits = credits is not null;
         IsFetchingCredits = _credits.IsFetching;
     }
 
