@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { stripe } from "@/lib/clients/stripe";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
+import { isRecord } from "@/src/lib/type-guards";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -35,12 +36,8 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { licenseKey, amount, email } = body as {
-      licenseKey?: unknown;
-      amount?: unknown;
-      email?: unknown;
-    };
+    const body: unknown = await req.json();
+    const { licenseKey, amount, email } = isRecord(body) ? body : {};
 
     // Validate amount: whole dollars within [MIN, MAX].
     const amountError = validateCreditPurchaseAmount(amount);
