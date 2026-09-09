@@ -2,7 +2,7 @@
 name = "hw-releasenotes"
 version = "0.1.0"
 edition = "2021"
-description = "Cross-platform release-notes HTML core: inline tokenizer, entity decoder and href scheme allowlist for the appcast feeds. Plain Rust, zero dependencies; hw-core mirrors its types for UniFFI."
+description = "Cross-platform appcast release-notes core: the item-selection rules (version, dedupe, ordering, RFC 2822 dates) plus the release-notes HTML inline tokenizer, entity decoder and href scheme allowlist. Plain Rust, zero dependencies; hw-core mirrors its types for UniFFI."
 publish = false
 
 [lib]
