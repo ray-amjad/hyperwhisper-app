@@ -42,7 +42,7 @@ try
     // one such value looks wrong on its own, but the AGREEMENT does: twenty
     // independent translators do not produce the same string by accident, so a
     // value shared by more locales than the threshold is leftover English.
-    var localesSharingValue = new Dictionary<(string Key, string Value), List<string>>();
+    var localesSharingValue = new Dictionary<(string Key, string Value), int>();
 
     // Also issue #574, and the cheapest check of the lot. These are the Windows
     // catalogs. Two keys named the WRONG operating system's furniture in 34 and
@@ -91,15 +91,11 @@ try
                     continue;
                 }
 
-                if (!localesSharingValue.TryGetValue((key, localized), out var sharers))
-                {
-                    sharers = [];
-                    localesSharingValue[(key, localized)] = sharers;
-                }
+                localesSharingValue[(key, localized)] =
+                    localesSharingValue.GetValueOrDefault((key, localized)) + 1;
 
-                sharers.Add(locale);
-
-                if (NamesForeignPlatform(localized) && !NamesForeignPlatform(english))
+                if (NamesForeignPlatform(localized, status.ForeignPlatformTerms)
+                    && !NamesForeignPlatform(english, status.ForeignPlatformTerms))
                 {
                     foreignPlatform.Add($"{locale} '{key}' = \"{localized}\"");
                 }
@@ -162,7 +158,10 @@ static bool IsUntranslated(string key, string english, string localized, IReadOn
     && HasLetters(english)
     && string.Equals(localized, english, StringComparison.Ordinal);
 
-static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int> Ceilings, int SharedValueCeiling)
+static (IReadOnlySet<string> IdenticalByDesign,
+        IReadOnlyDictionary<string, int> Ceilings,
+        int SharedValueCeiling,
+        IReadOnlyList<string> ForeignPlatformTerms)
     ReadTranslationStatus(
     string path,
     Dictionary<string, string> baseCatalog)
@@ -239,7 +238,26 @@ static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int>
             $"{Path.GetFileName(path)} needs a positive integer 'sharedValueCeiling' (issue #574).");
     }
 
-    return (byDesign, ceilings, sharedValueCeiling);
+    if (!root.TryGetProperty("foreignPlatformTerms", out var termsElement)
+        || termsElement.ValueKind != JsonValueKind.Array)
+    {
+        throw new InvalidDataException(
+            $"{Path.GetFileName(path)} needs a 'foreignPlatformTerms' array (issue #574).");
+    }
+
+    var terms = termsElement.EnumerateArray()
+        .Select(term => term.GetString())
+        .Where(term => !string.IsNullOrWhiteSpace(term))
+        .Select(term => term!)
+        .ToArray();
+    if (terms.Length == 0)
+    {
+        throw new InvalidDataException(
+            $"{Path.GetFileName(path)} 'foreignPlatformTerms' must not be empty. Removing the last term " +
+            "turns the gate off silently; delete the check instead, on purpose (issue #574).");
+    }
+
+    return (byDesign, ceilings, sharedValueCeiling, terms);
 }
 
 // Issue #574. See the note at the call site: agreement between many locales on a
@@ -247,16 +265,16 @@ static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int>
 // translation. The threshold has real headroom — the largest honest coincidence
 // in the catalogs is "Mikrofon", which 13 languages share.
 static void CheckSharedValues(
-    IReadOnlyDictionary<(string Key, string Value), List<string>> localesSharingValue,
+    IReadOnlyDictionary<(string Key, string Value), int> localesSharingValue,
     int ceiling,
     IReadOnlyDictionary<string, string> baseCatalog)
 {
     var over = localesSharingValue
-        .Where(pair => pair.Value.Count > ceiling)
-        .OrderByDescending(pair => pair.Value.Count)
+        .Where(pair => pair.Value > ceiling)
+        .OrderByDescending(pair => pair.Value)
         .ThenBy(pair => pair.Key.Key, StringComparer.Ordinal)
         .Select(pair =>
-            $"'{pair.Key.Key}' is \"{pair.Key.Value}\" in {pair.Value.Count} locales " +
+            $"'{pair.Key.Key}' is \"{pair.Key.Value}\" in {pair.Value} locales " +
             $"while Strings.resx says \"{baseCatalog[pair.Key.Key]}\"")
         .ToArray();
     if (over.Length != 0)
@@ -314,11 +332,15 @@ static void CheckCeilings(
     }
 }
 
-// Declined forms included: Czech had "na tvém Macu".
-static bool NamesForeignPlatform(string value) => Regex.IsMatch(
-    value,
-    @"\b(Finder|macOS|Mac(?:u|a|em|om|ovi|ovom|kem)?|Dock|Spotlight)\b",
-    RegexOptions.CultureInvariant);
+// The terms live in translation-status.json, not here, so a false positive is a
+// data edit and not a change to a validator three heads build. Matching ignores
+// case because a translator writing "im finder anzeigen" has made the same
+// mistake, and the declined forms are spelled out because Czech had "na tvém Macu".
+static bool NamesForeignPlatform(string value, IReadOnlyList<string> terms) => terms.Any(
+    term => Regex.IsMatch(
+        value,
+        $@"\b{Regex.Escape(term)}\b",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase));
 
 static void CheckForeignPlatform(IReadOnlyList<string> offenders)
 {

@@ -47,6 +47,11 @@ public sealed class PortableLocalizer
 
     public static int BaseKeyCount => BaseKeys.Count;
 
+    /// <summary>Every key in the invariant catalog. Callers that need to sweep the
+    /// whole catalog had to rebuild this from a ResourceManager of their own,
+    /// which duplicated the resource base name (issue #574).</summary>
+    public static IReadOnlyCollection<string> BaseKeyNames => BaseKeys;
+
     public CultureInfo Culture { get; }
 
     public bool IsRightToLeft => Culture.TextInfo.IsRightToLeft;

@@ -156,7 +156,12 @@ def audit(resource_dir: Path) -> None:
         median = ratios[len(ratios) // 2]
         if median > 1.9 or median < 0.55:
             found += 1
-            print(f"  x{median:.2f}  {key}\n            English: {english!r}\n            de:      {catalogs['de'][key]!r}")
+            sample = next(
+                (f"{locale}: {catalog[key]!r}"
+                 for locale, catalog in catalogs.items()
+                 if locale not in logographic and catalog.get(key) and catalog[key] != english),
+                "no sample")
+            print(f"  x{median:.2f}  {key}\n            English: {english!r}\n            {sample}")
     if not found:
         print("  none")
 
@@ -167,11 +172,17 @@ def main() -> int:
     parser.add_argument("--list", metavar="LOCALE", help="print the outstanding keys for one locale")
     parser.add_argument("--json", action="store_true", help="with --list, emit JSON")
     parser.add_argument("--markdown", action="store_true", help="emit the report as a Markdown table")
-    parser.add_argument("--audit", action="store_true", help="report values that look wrong (issue #574)")
-    parser.add_argument("--seed", action="store_true", help="rewrite the ceilings to today's counts")
+    # --audit, --list and --seed each answer a different question and each end the
+    # run, so asking for two of them is a mistake worth refusing rather than
+    # silently honouring one: `--audit --seed` looked like it had reseeded.
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--audit", action="store_true", help="report values that look wrong (issue #574)")
+    mode.add_argument("--seed", action="store_true", help="rewrite the ceilings to today's counts")
     args = parser.parse_args()
 
     if args.audit:
+        if args.list:
+            parser.error("--audit and --list cannot be combined.")
         audit(Path(args.resources))
         return 0
 

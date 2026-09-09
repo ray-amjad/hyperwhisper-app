@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Reflection;
-using System.Resources;
 using HyperWhisper.Localization;
 
 var tests = new (string Name, Action Run)[]
@@ -239,12 +238,18 @@ static void ProductNamesStayEnglish()
 // that failed to embed.
 static void NoStaleEnglishIsSharedAcrossCatalogs()
 {
-    const int ceiling = 20;  // must match sharedValueCeiling in translation-status.json
+    // Deliberately NOT sharedValueCeiling from translation-status.json. Restating
+    // that number here would let the two drift silently, and a test that claims to
+    // mirror a gate but does not is worse than no test. This is the independent,
+    // strictly weaker bound that needs no number: more than half the languages
+    // agreeing on one non-English string cannot be translation. CatalogValidator
+    // holds the tight bound, off the JSON, at build time.
+    var ceiling = PortableLocalizer.SupportedCultures.Count / 2;
 
     var english = new PortableLocalizer(CultureInfo.GetCultureInfo("en"));
     var sharers = new Dictionary<(string Key, string Value), int>();
 
-    foreach (var name in BaseKeyNames())
+    foreach (var name in PortableLocalizer.BaseKeyNames)
     {
         var key = english.Key(name);
         var baseValue = english.Get(key);
@@ -266,15 +271,6 @@ static void NoStaleEnglishIsSharedAcrossCatalogs()
         $"'{worst.Key.Key}' is \"{worst.Key.Value}\" in {worst.Value} of " +
         $"{PortableLocalizer.SupportedCultures.Count} locales while the base catalog says " +
         $"\"{english.Get(english.Key(worst.Key.Key))}\" — that is stale English, not a translation");
-}
-
-static IEnumerable<string> BaseKeyNames()
-{
-    var resources = new ResourceManager(
-        "HyperWhisper.Localization.Resources.Strings", typeof(PortableLocalizer).Assembly);
-    var set = resources.GetResourceSet(CultureInfo.InvariantCulture, true, false)
-        ?? throw new InvalidOperationException("The base catalog is missing.");
-    return set.Cast<System.Collections.DictionaryEntry>().Select(entry => (string)entry.Key).ToArray();
 }
 
 static void Equal<T>(T expected, T actual, string message)
