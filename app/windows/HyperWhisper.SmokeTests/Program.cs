@@ -13242,6 +13242,14 @@ internal static class Program
                             new StreamingSettingsPage(), ContentWidth, PageHeight, problems);
                     }
 
+                    // Reported BEFORE the guards below, so that a run against the old
+                    // markup prints every label it found cut rather than stopping at the
+                    // first self-check.
+                    Assert(problems.Count == 0,
+                        "a control sized in pixels for the English string cuts every longer language, and the "
+                        + "fix belongs in the layout, never in the translation. "
+                        + string.Join("; ", problems));
+
                     // PROVE THE CASE STILL EXERCISES THE DEFECT. Everything above passes
                     // trivially if the strings shrink or the catalogues stop loading, so
                     // the two originals are re-measured by name and must (a) still be too
@@ -13282,11 +13290,6 @@ internal static class Program
                 {
                     System.Threading.Thread.CurrentThread.CurrentUICulture = originalCulture;
                 }
-
-                Assert(problems.Count == 0,
-                    "a control sized in pixels for the English string cuts every longer language, and the fix "
-                    + "belongs in the layout, never in the translation. "
-                    + string.Join("; ", problems));
             });
 
             Run("storage: a cleanup that deleted nothing is still recorded, and survives a restart — issue #514", () =>
