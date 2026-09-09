@@ -6,6 +6,7 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.SharedCore;
 using HyperWhisper.SpeechOutput;
+using HyperWhisper.TranscriptionRouting;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.LocalApi;
@@ -577,11 +578,37 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         return HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.WhisperLocal);
     }
 
+    /// <summary>
+    /// The <c>model</c> a <c>/transcribe</c> response carries: the model that
+    /// ACTUALLY RAN, not the one the request named (issue #533).
+    /// </summary>
+    /// <remarks>
+    /// The cloud arm used to be a bare <c>mode.CloudTranscriptionModel ?? ""</c>.
+    /// That field is legitimately UNSET for a HyperWhisper Cloud mode — the
+    /// provider chooses by accuracy tier, and <c>ApplyTranscriptionOverrides</c>
+    /// writes nothing for <c>engine: "cloud"</c> with no <c>model</c> — so the
+    /// endpoint answered <c>model: ""</c> for a run that really did dispatch a
+    /// model. Windows fixed the same thing in #528; this is the portable half.
+    ///
+    /// It resolves through <see cref="ModeAwareTranscriptionRouter.DispatchedCloudModelId"/>,
+    /// which is the send path's own resolution, so the label is the dispatched
+    /// model by construction and the two cannot drift. An id that is blank,
+    /// live-only, out-of-tier, or a legacy tier spelling heals in both places at
+    /// once.
+    ///
+    /// An unmappable <c>cloudProvider</c> (any string can reach the field
+    /// through a Local API mode write or a backup restore) has no send path to
+    /// consult, so it keeps the raw stored value rather than being forced onto
+    /// some other provider's default.
+    /// </remarks>
     private static string ModelLabel(Mode? mode)
     {
         if (mode is null) return string.Empty;
         if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
-            return mode.CloudTranscriptionModel ?? string.Empty;
+            return ModeAwareTranscriptionRouter.TryMapProvider(mode.CloudProvider, out var provider)
+                ? ModeAwareTranscriptionRouter.DispatchedCloudModelId(
+                    provider, mode.CloudAccuracyTier, mode.CloudTranscriptionModel)
+                : mode.CloudTranscriptionModel ?? string.Empty;
         return string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
             ? mode.LocalParakeetModel ?? mode.Model ?? string.Empty
             : mode.ModelType ?? mode.Model ?? string.Empty;

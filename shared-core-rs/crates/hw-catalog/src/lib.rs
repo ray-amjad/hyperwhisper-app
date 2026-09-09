@@ -26,6 +26,19 @@ mod model_alias;
     clippy::expect_used
 )]
 mod language;
+// The one canonical first-run mode seed, shared by all three heads (#285).
+//
+// Same three panic-free lints, for a sharper version of the same reason: this
+// module runs on the app's FIRST-LAUNCH path under `panic = "abort"`, so an
+// unwrap here is the app failing to start on a brand-new install — the one
+// moment with no prior state to recover from. The module's own docs explain the
+// fallback-plus-pinning-test pattern that replaces unwrapping.
+#[deny(
+    clippy::indexing_slicing,
+    clippy::unwrap_used,
+    clippy::expect_used
+)]
+mod mode_seed;
 
 pub use models::{CatalogError, Entry, Kind, LanguageSupport, ModelsCatalog};
 
@@ -43,6 +56,12 @@ pub use model_alias::{
 
 pub use app_type::{
     is_webmail, AppClassification, AppType, AppTypeClassifier, AppTypeError, ClassifyRequest,
+};
+
+pub use mode_seed::{
+    mode_seed_default, ModeSeed, CLOUD_ACCURACY_TIER, CLOUD_POST_PROCESSING_ENGINE,
+    FALLBACK_CLOUD_POST_PROCESSING_MODEL, FALLBACK_CLOUD_TRANSCRIPTION_MODEL, HYPER_MODE_ID,
+    HYPER_MODE_NAME, HYPER_MODE_PRESET, POST_PROCESSING_PROVIDER,
 };
 
 pub use language::{

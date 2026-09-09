@@ -39,8 +39,11 @@ try
     await freshDatabase.InitializeAsync();
     await freshDatabase.InitializeAsync();
     var freshModes = await new ModeRepository(freshDatabase).ListAsync();
-    Assert(freshModes.Count == 6 && freshModes.Single(item => item.IsDefault).Id == PortableModeDefaults.HyperModeId,
-        "fresh database initialization did not idempotently seed the six portable defaults");
+    // One mode, not six (#285). The count is the point: InitializeAsync runs
+    // twice above, so a seeder that appended rather than guarded would show up
+    // here as two.
+    Assert(freshModes.Count == 1 && freshModes.Single(item => item.IsDefault).Id == PortableModeDefaults.HyperModeId,
+        "fresh database initialization did not idempotently seed the one portable default");
 
     var existingDatabase = new ApplicationDb(new TestPaths(Path.Combine(root, "existing-defaults")));
     await existingDatabase.MigrateAsync();

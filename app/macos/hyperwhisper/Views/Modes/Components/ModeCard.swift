@@ -192,8 +192,11 @@ struct ModeCard: View {
                                     // Get the proper display name based on provider type
                                     let providerString = mode.postProcessingProvider ?? "hyperwhisper"
                                     let displayName: String = {
-                                        // HyperWhisper Cloud has built-in post-processing
-                                        if providerString == "hyperwhisper" {
+                                        // HyperWhisper Cloud has built-in post-processing.
+                                        // Compare through the enum, not the raw string: a
+                                        // mode seeded or restored from another head stores
+                                        // "hyperwhispercloud", which is the same provider.
+                                        if PostProcessingProvider(rawValue: providerString) == .hyperwhisper {
                                             return "HyperWhisper"
                                         }
 
