@@ -372,12 +372,50 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private var stage = "idle"
     private var didReportProviderSuccess = false
 
-    /// Transport and parser measurements collected after a stop frame is sent.
+    /// Session-scoped receive activity. A cancelled loop from an old session
+    /// can resume after `startSession()` resets the diagnostics, so every
+    /// mutation checks the generation that created the loop.
+    struct ReceiveActivityCounters {
+        private(set) var generation = 0
+        private(set) var active = 0
+        private(set) var pending = 0
+
+        mutating func reset(generation: Int) {
+            self.generation = generation
+            active = 0
+            pending = 0
+        }
+
+        mutating func startLoop(generation: Int) {
+            guard generation == self.generation else { return }
+            active += 1
+        }
+
+        mutating func finishLoop(generation: Int) {
+            guard generation == self.generation else { return }
+            active = max(0, active - 1)
+        }
+
+        mutating func startReceive(generation: Int) {
+            guard generation == self.generation else { return }
+            pending += 1
+        }
+
+        mutating func finishReceive(generation: Int) {
+            guard generation == self.generation else { return }
+            pending = max(0, pending - 1)
+        }
+    }
+
+    /// Transport and parser measurements collected after a stop frame send
+    /// starts. The separate success timestamp keeps a failed send distinguishable
+    /// while the earlier boundary includes a provider response that arrives
+    /// before `send` resumes.
+    private var stopFrameSendStartedAt: Date?
     /// These fields contain only counts, byte sizes, booleans, durations and
     /// fixed event slugs. They never retain a WebSocket frame or parsed payload.
     private var stopFrameSentAt: Date?
-    private var receiveLoopActiveCount = 0
-    private var receivePendingCount = 0
+    private var receiveActivity = ReceiveActivityCounters()
     private var receiveLoopWasActiveAtStop = false
     private var receiveWasPendingAtStop = false
     private var postStopReceiveAttempts = 0
@@ -461,9 +499,8 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         partialsDelivered = 0
         audioSendFailureCount = 0
         didReportAudioSendFailure = false
+        stopFrameSendStartedAt = nil
         stopFrameSentAt = nil
-        receiveLoopActiveCount = 0
-        receivePendingCount = 0
         receiveLoopWasActiveAtStop = false
         receiveWasPendingAtStop = false
         postStopReceiveAttempts = 0
@@ -476,6 +513,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         postStopUTF8DecodeFailures = 0
         postStopParsedEventCounts.removeAll(keepingCapacity: true)
         sessionGeneration += 1
+        receiveActivity.reset(generation: sessionGeneration)
         noteStage("starting")
 
         // MARK STARTUP AS PENDING BEFORE ANYTHING CAN PRODUCE AN EVENT.
@@ -763,6 +801,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 case .sendText(let text):
                     do {
                         let hadSocket = webSocketTask != nil
+                        if hadSocket {
+                            noteStopFrameSendStarted()
+                        }
                         try await webSocketTask?.send(.string(text))
                         if hadSocket {
                             noteStopFrameSent()
@@ -878,15 +919,19 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             "streaming_close_code": webSocketTask?.closeCode.rawValue ?? 0,
             "streaming_session_complete_received": didReceiveSessionComplete,
             "streaming_did_initiate_close": didInitiateClose,
+            "streaming_stop_frame_send_started": stopFrameSendStartedAt != nil,
+            "streaming_stop_frame_send_started_elapsed_ms": stopFrameSendStartedAt.map {
+                Self.elapsedMs(since: sessionStartedAt, to: $0)
+            } ?? 0,
             "streaming_stop_frame_sent": stopFrameSentAt != nil,
             "streaming_stop_frame_sent_elapsed_ms": stopFrameSentAt.map {
                 Self.elapsedMs(since: sessionStartedAt, to: $0)
             } ?? 0,
-            "streaming_post_stop_elapsed_ms": stopFrameSentAt.map {
+            "streaming_post_stop_elapsed_ms": stopFrameSendStartedAt.map {
                 Self.elapsedMs(since: $0, to: now)
             } ?? 0,
-            "streaming_receive_loop_active": receiveLoopActiveCount > 0,
-            "streaming_receive_pending": receivePendingCount > 0,
+            "streaming_receive_loop_active": receiveActivity.active > 0,
+            "streaming_receive_pending": receiveActivity.pending > 0,
             "streaming_receive_loop_active_at_stop": receiveLoopWasActiveAtStop,
             "streaming_receive_pending_at_stop": receiveWasPendingAtStop,
             "streaming_post_stop_receive_attempts": postStopReceiveAttempts,
@@ -909,20 +954,27 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         ]
     }
 
-    /// Mark the first successful stop-frame send as the diagnostic boundary.
+    /// Mark the first stop-frame send before it yields to the transport.
+    private func noteStopFrameSendStarted() {
+        guard stopFrameSendStartedAt == nil else { return }
+        stopFrameSendStartedAt = Date()
+        receiveLoopWasActiveAtStop = receiveActivity.active > 0
+        receiveWasPendingAtStop = receiveActivity.pending > 0
+        logger.debug(
+            "Stop frame send started: receive_loop_active=\(self.receiveLoopWasActiveAtStop, privacy: .public) receive_pending=\(self.receiveWasPendingAtStop, privacy: .public)"
+        )
+    }
+
+    /// Mark the first successful stop-frame send without moving the boundary.
     private func noteStopFrameSent() {
         guard stopFrameSentAt == nil else { return }
         stopFrameSentAt = Date()
-        receiveLoopWasActiveAtStop = receiveLoopActiveCount > 0
-        receiveWasPendingAtStop = receivePendingCount > 0
-        logger.debug(
-            "Stop frame sent: receive_loop_active=\(self.receiveLoopWasActiveAtStop, privacy: .public) receive_pending=\(self.receiveWasPendingAtStop, privacy: .public)"
-        )
+        logger.debug("Stop frame sent")
     }
 
     /// Record a post-stop wire frame without retaining its contents.
     private func notePostStopWireFrame(kind: String, byteCount: Int) {
-        guard stopFrameSentAt != nil else { return }
+        guard stopFrameSendStartedAt != nil else { return }
 
         switch kind {
         case "string":
@@ -958,7 +1010,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
     /// Record a fixed parser-result slug after the stop boundary.
     private func notePostStopParsedEventSlug(_ slug: String) {
-        guard stopFrameSentAt != nil else { return }
+        guard stopFrameSendStartedAt != nil else { return }
         postStopParsedEventCounts[slug, default: 0] += 1
         let sequence = postStopParsedEventCounts.values.reduce(0, +)
         logger.debug(
@@ -974,7 +1026,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
     /// Record a binary UTF-8 failure after the stop boundary.
     private func notePostStopUTF8DecodeFailure() {
-        guard stopFrameSentAt != nil else { return }
+        guard stopFrameSendStartedAt != nil else { return }
         postStopUTF8DecodeFailures += 1
         logger.debug(
             "Post-stop binary frame UTF-8 decode failed: failures=\(self.postStopUTF8DecodeFailures, privacy: .public)"
@@ -989,6 +1041,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         normalizedEventSlug: String? = nil,
         utf8DecodeFailed: Bool = false
     ) {
+        if stopFrameSendStartedAt == nil {
+            noteStopFrameSendStarted()
+        }
         if stopFrameSentAt == nil {
             noteStopFrameSent()
         }
@@ -1141,8 +1196,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
     /// Start receiving WebSocket messages in a background task.
     private func startReceivingMessages() {
+        let generation = sessionGeneration
         receiveTask = Task { [weak self] in
-            await self?.receiveLoop()
+            await self?.receiveLoop(generation: generation)
         }
     }
 
@@ -1159,34 +1215,37 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     ///
     /// Runs until the task is cancelled or an error occurs.
     /// On unexpected disconnect (not user-initiated), triggers auto-reconnect.
-    private func receiveLoop() async {
+    private func receiveLoop(generation: Int) async {
         guard let task = webSocketTask else { return }
 
-        receiveLoopActiveCount += 1
+        receiveActivity.startLoop(generation: generation)
         defer {
-            receiveLoopActiveCount = max(0, receiveLoopActiveCount - 1)
-            if stopFrameSentAt != nil {
+            receiveActivity.finishLoop(generation: generation)
+            if generation == sessionGeneration, stopFrameSendStartedAt != nil {
                 logger.debug(
-                    "Post-stop receive loop exited: active_count=\(self.receiveLoopActiveCount, privacy: .public) pending_count=\(self.receivePendingCount, privacy: .public)"
+                    "Post-stop receive loop exited: active_count=\(self.receiveActivity.active, privacy: .public) pending_count=\(self.receiveActivity.pending, privacy: .public)"
                 )
             }
         }
 
         while !Task.isCancelled {
-            if stopFrameSentAt != nil {
+            guard generation == sessionGeneration else { break }
+            if stopFrameSendStartedAt != nil {
                 postStopReceiveAttempts += 1
             }
-            receivePendingCount += 1
+            receiveActivity.startReceive(generation: generation)
             do {
                 let message = try await task.receive()
-                receivePendingCount = max(0, receivePendingCount - 1)
-                if stopFrameSentAt != nil {
+                receiveActivity.finishReceive(generation: generation)
+                guard generation == sessionGeneration else { break }
+                if stopFrameSendStartedAt != nil {
                     postStopReceiveCompletions += 1
                 }
                 await handleMessage(message)
             } catch {
-                receivePendingCount = max(0, receivePendingCount - 1)
-                if stopFrameSentAt != nil {
+                receiveActivity.finishReceive(generation: generation)
+                guard generation == sessionGeneration else { break }
+                if stopFrameSendStartedAt != nil {
                     postStopReceiveCompletions += 1
                     postStopReceiveFailures += 1
                 }

@@ -207,6 +207,33 @@ struct StreamingTurnBoundaryTests {
         )
     }
 
+    @Test("An old receive loop cannot change a new session snapshot")
+    func receiveActivityCountersIgnoreOldGenerations() {
+        var counters = StreamingTranscriptionClient.ReceiveActivityCounters()
+
+        counters.reset(generation: 1)
+        counters.startLoop(generation: 1)
+        counters.startReceive(generation: 1)
+        #expect(counters.active == 1)
+        #expect(counters.pending == 1)
+
+        // A new session resets the snapshot before cancellation from the old
+        // receive task resumes. Its deferred decrements must not touch the new
+        // session's counters.
+        counters.reset(generation: 2)
+        counters.finishReceive(generation: 1)
+        counters.finishLoop(generation: 1)
+        #expect(counters.active == 0)
+        #expect(counters.pending == 0)
+
+        counters.startLoop(generation: 2)
+        counters.startReceive(generation: 2)
+        counters.finishReceive(generation: 1)
+        counters.finishLoop(generation: 1)
+        #expect(counters.active == 1)
+        #expect(counters.pending == 1)
+    }
+
     /// Inherited from `GeminiStreamingStrategyTests`' two-utterance walk-through.
     /// The combined-frame half of that case is
     /// `combinedFinalAndCompleteBeforeStopCommitsTextOnly`, below.
