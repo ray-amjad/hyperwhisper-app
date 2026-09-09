@@ -91,7 +91,7 @@
                     </Border>
 
                     <!-- Date Filter ComboBox -->
-                    <ComboBox Grid.Column="1" Margin="12,0,0,0" Width="90"
+                    <ComboBox Grid.Column="1" Margin="12,0,0,0" MinWidth="90"
                               SelectedIndex="0" SelectionChanged="DateFilter_SelectionChanged"
                               VerticalContentAlignment="Center">
                         <ComboBoxItem Content="{loc:Loc history.filter.all}" Tag="All"/>

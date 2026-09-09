@@ -59,6 +59,10 @@ public partial class MainWindow : Window
         _viewModel = (MainViewModel)DataContext;
         _viewModel.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(MainViewModel.CurrentPage)) NavigateToPage(_viewModel.CurrentPage); };
 
+        // The nav rail is its own control now (issue #570); it reports the credits
+        // call to action rather than navigating, because navigation lives here.
+        Sidebar.CloudCreditsRequested += CloudCreditsSidebar_Click;
+
         // RECORDING OVERLAY EVENTS
         // Show/hide overlay based on ViewModel state and ShowRecordingWindow setting
         _viewModel.ShowOverlayRequested += (s, e) => Dispatcher.Invoke(() =>
@@ -342,21 +346,21 @@ public partial class MainWindow : Window
     private void UpdateSidebarLicenseState()
     {
         var isLicensed = LicenseManager.Instance.LicenseStatus == LicenseStatus.Active;
-        LicensedSidebarCard.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
-        CloudSidebarActions.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
+        Sidebar.LicensedSidebarCard.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
+        Sidebar.CloudSidebarActions.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void CloudCreditsSidebar_Click(object sender, RoutedEventArgs e)
+    private void CloudCreditsSidebar_Click(object? sender, EventArgs e)
     {
         // Open the combined Cloud account / credits + license activation panel.
-        SettingsNavButton.IsChecked = true;
+        Sidebar.SettingsNavButton.IsChecked = true;
         _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
         NavigateToPage(MainViewModel.NavigationPage.Settings, "License");
     }
 
     public void NavigateToSettingsSection(string sectionTag)
     {
-        SettingsNavButton.IsChecked = true;
+        Sidebar.SettingsNavButton.IsChecked = true;
         _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
         NavigateToPage(MainViewModel.NavigationPage.Settings, sectionTag);
     }
@@ -426,7 +430,7 @@ public partial class MainWindow : Window
             if (args.OpenApiKeysManager)
             {
                 _viewModel.ShouldOpenModelLibraryApiKeys = true;
-                ModelLibraryNavButton.IsChecked = true;
+                Sidebar.ModelLibraryNavButton.IsChecked = true;
                 _viewModel.CurrentPage = MainViewModel.NavigationPage.ModelLibrary;
                 NavigateToPage(MainViewModel.NavigationPage.ModelLibrary);
                 return;
@@ -434,14 +438,14 @@ public partial class MainWindow : Window
 
             if (args.SettingsSection == "Models")
             {
-                ModelLibraryNavButton.IsChecked = true;
+                Sidebar.ModelLibraryNavButton.IsChecked = true;
                 _viewModel.CurrentPage = MainViewModel.NavigationPage.ModelLibrary;
                 NavigateToPage(MainViewModel.NavigationPage.ModelLibrary);
                 return;
             }
 
             // Show main window and navigate to settings
-            SettingsNavButton.IsChecked = true;
+            Sidebar.SettingsNavButton.IsChecked = true;
             _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
             NavigateToPage(MainViewModel.NavigationPage.Settings, args.SettingsSection ?? "General");
         };

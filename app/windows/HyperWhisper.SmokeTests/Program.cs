@@ -13179,6 +13179,116 @@ internal static class Program
                     + "column edge. Use a two-column Grid. " + string.Join("; ", problems));
             });
 
+            Run("l10n: no translated label is cut off on Home, the nav rail or the settings pages — issue #570", () =>
+            {
+                // #570. Two controls were sized in PIXELS for the English string: each
+                // Home statistics tile was a hard-coded Width="132", and the nav rail is
+                // the 232px SidebarWidth. Both fitted English and nothing else - German
+                // "Durchschnittliche Geschwindigkeit" wanted 166px of a 132px tile, and
+                // French "Bibliothèque de modèles" 158px of the rail's 137px label
+                // column. Before #552 these controls held raw English in 36 of the 39
+                // catalogues, which is the only reason the numbers ever looked adequate.
+                //
+                // MEASURED, not grepped, and measured under EVERY catalogue the app
+                // ships. A case pinned to one language would be worthless here: the
+                // defect only appears once some particular translation is long enough,
+                // so German passing says nothing about Hungarian. The rule this asserts
+                // is the one the issue asks for - the LAYOUT gives way, never the
+                // translation.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                // The real budgets, not round numbers. MainWindow is a fixed,
+                // non-resizable 1000x680 (MinWidth == MaxWidth == 1000).
+                const double ContentWidth = 1000 - 232;            // less SidebarWidth
+                const double FormWidth = ContentWidth - 200;       // less the settings nav column
+                const double CardWidth = ContentWidth - 48 - 42;   // less PagePadding, card padding + border
+                const double PageHeight = 680 - 44;                // less the title row
+
+                var cultures = ShippedUiCultures();
+                Assert(cultures.Count >= 39,
+                    $"only {cultures.Count} catalogues were found next to the test binary, so this case is "
+                    + "not covering the locales it claims to");
+
+                var originalCulture = System.Threading.Thread.CurrentThread.CurrentUICulture;
+                var problems = new List<string>();
+
+                try
+                {
+                    foreach (var culture in cultures)
+                    {
+                        System.Threading.Thread.CurrentThread.CurrentUICulture =
+                            culture == BaseCatalogue ? CultureInfo.InvariantCulture : new CultureInfo(culture);
+
+                        // The two controls the issue names...
+                        CheckLabelsFit(culture, "HomeStatsBar",
+                            new HomeStatsBar { DataContext = new HomeStatsProbe() }, CardWidth, 140, problems);
+                        CheckLabelsFit(culture, "SidebarNav", new SidebarNav(), 232, PageHeight, problems);
+
+                        // ...and every other screen the sweep for #570 found a cut label
+                        // on. HistoryPage is here for its Width="90" date filter, and
+                        // ApiKeys because its intro sentence is cut in ENGLISH by 20px.
+                        CheckLabelsFit(culture, "HomePage",
+                            new HyperWhisper.Views.Pages.HomePage(), ContentWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "SettingsPage",
+                            new HyperWhisper.Views.Pages.SettingsPage(), ContentWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "HistoryPage",
+                            new HyperWhisper.Views.Pages.HistoryPage(), ContentWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "ShortcutsSettingsPage",
+                            new ShortcutsSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "ApiKeysSettingsPage",
+                            new ApiKeysSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "StreamingSettingsPage",
+                            new StreamingSettingsPage(), ContentWidth, PageHeight, problems);
+                    }
+
+                    // PROVE THE CASE STILL EXERCISES THE DEFECT. Everything above passes
+                    // trivially if the strings shrink or the catalogues stop loading, so
+                    // the two originals are re-measured by name and must (a) still be too
+                    // long for the box they used to be given and (b) actually be on two
+                    // lines now. Without this the whole case could go green while the
+                    // fixed widths came back.
+                    System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo("de");
+                    var germanBar = new HomeStatsBar { DataContext = new HomeStatsProbe() };
+                    germanBar.Measure(new Size(CardWidth, 140));
+                    germanBar.Arrange(new Rect(0, 0, CardWidth, 140));
+                    germanBar.UpdateLayout();
+
+                    var germanCaption = DescendantsOf<System.Windows.Controls.TextBlock>(germanBar)
+                        .Single(block => block.Text == HyperWhisper.Localization.Loc.S("home.stats.averageSpeed"));
+                    Assert(UnconstrainedWidthOf(germanCaption) > 132,
+                        $"the German Home caption now wants {UnconstrainedWidthOf(germanCaption):F0}px, which the "
+                        + "old Width=\"132\" tile fitted, so this case no longer exercises #570");
+                    Assert(germanCaption.ActualHeight > LineHeightOf(germanCaption) * 1.5,
+                        $"the German Home caption is still one {germanCaption.ActualHeight:F0}px line, so it is "
+                        + "being cut rather than wrapped");
+
+                    System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo("fr");
+                    var frenchRail = new SidebarNav();
+                    frenchRail.Measure(new Size(232, PageHeight));
+                    frenchRail.Arrange(new Rect(0, 0, 232, PageHeight));
+                    frenchRail.UpdateLayout();
+
+                    var frenchItem = DescendantsOf<System.Windows.Controls.TextBlock>(frenchRail)
+                        .Single(block => block.Text == HyperWhisper.Localization.Loc.S("settings.nav.models"));
+                    Assert(UnconstrainedWidthOf(frenchItem) > frenchItem.ActualWidth + 0.5,
+                        $"the French Model Library label wants {UnconstrainedWidthOf(frenchItem):F0}px and was given "
+                        + $"{frenchItem.ActualWidth:F0}px, so it fits on one line and this case proves nothing");
+                    Assert(frenchItem.ActualHeight > LineHeightOf(frenchItem) * 1.5,
+                        $"the French Model Library label is still one {frenchItem.ActualHeight:F0}px line in a "
+                        + $"{frenchItem.ActualWidth:F0}px column, so it is being cut rather than wrapped");
+                }
+                finally
+                {
+                    System.Threading.Thread.CurrentThread.CurrentUICulture = originalCulture;
+                }
+
+                Assert(problems.Count == 0,
+                    "a control sized in pixels for the English string cuts every longer language, and the fix "
+                    + "belongs in the layout, never in the translation. "
+                    + string.Join("; ", problems));
+            });
+
             Run("storage: a cleanup that deleted nothing is still recorded, and survives a restart — issue #514", () =>
             {
                 // Two separate reasons the Storage page said "No cleanup has run yet"
@@ -15254,6 +15364,139 @@ internal static class Program
             => eventType is TraceEventType.Error or TraceEventType.Warning or TraceEventType.Critical;
     }
 
+    /// <summary>The name this suite uses for the base, untranslated catalogue.</summary>
+    private const string BaseCatalogue = "en";
+
+    /// <summary>
+    /// Every UI culture the app really ships a catalogue for, discovered from the
+    /// satellite assemblies next to the test binary rather than from a hand-kept
+    /// list - a list would go stale the first time #552 adds a locale, and the
+    /// case would silently stop covering it.
+    /// </summary>
+    private static List<string> ShippedUiCultures()
+    {
+        var cultures = new List<string> { BaseCatalogue };
+
+        cultures.AddRange(Directory.EnumerateDirectories(AppContext.BaseDirectory)
+            .Where(directory => File.Exists(Path.Combine(directory, "HyperWhisper.resources.dll")))
+            .Select(directory => Path.GetFileName(directory))
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .OrderBy(name => name, StringComparer.Ordinal));
+
+        return cultures;
+    }
+
+    /// <summary>
+    /// Lays a screen out at the width the shipped window really gives it and records
+    /// every localized label that the layout cuts.
+    /// </summary>
+    /// <remarks>
+    /// Two different cuts, because a fixed width produces both:
+    ///   * TRIMMED - the block was given less width than its text needs and is still
+    ///     one line, so the tail is replaced by an ellipsis or simply lost. The 3px
+    ///     tolerance is measurement slack between FormattedText and the block's own
+    ///     formatter, not a design allowance.
+    ///   * CUT - the block hangs out of an ancestor's arranged box. This is what a
+    ///     hard width does when the child refuses to shrink: a vertical StackPanel
+    ///     arranges a child at max(its own width, the child's desired width), so the
+    ///     child keeps its full size and WPF's layout clip takes the overhang off.
+    ///     That is why the French nav label measured its full 158px and was still
+    ///     only 137px of it on screen.
+    /// Text with no letters in it - "0%", a play triangle, a minus sign - is skipped
+    /// for the same reason the catalogue validator exempts it: it is not a translation.
+    /// </remarks>
+    private static void CheckLabelsFit(
+        string culture,
+        string screen,
+        FrameworkElement root,
+        double width,
+        double height,
+        List<string> problems)
+    {
+        root.Measure(new Size(width, height));
+        root.Arrange(new Rect(0, 0, width, height));
+        root.UpdateLayout();
+
+        foreach (var block in DescendantsOf<System.Windows.Controls.TextBlock>(root))
+        {
+            if (block.ActualWidth <= 0 || block.ActualHeight <= 0)
+                continue;
+            if (string.IsNullOrWhiteSpace(block.Text) || !block.Text.Any(char.IsLetter))
+                continue;
+            if (block.FontFamily?.Source?.Contains("MDL2") == true)
+                continue;
+            if (!IsLaidOut(block))
+                continue;
+
+            var wanted = UnconstrainedWidthOf(block);
+            var oneLine = block.ActualHeight <= LineHeightOf(block) * 1.5;
+
+            if (wanted > block.ActualWidth + 3.0 && oneLine)
+            {
+                problems.Add(
+                    $"[{culture}] {screen}: \"{Shorten(block.Text)}\" was given {block.ActualWidth:F0}px for text "
+                    + $"that needs {wanted:F0}px and is still one line");
+            }
+
+            var cutBy = AncestorThatCuts(block, root);
+            if (cutBy != null)
+                problems.Add($"[{culture}] {screen}: \"{Shorten(block.Text)}\" hangs out of its {cutBy}");
+        }
+    }
+
+    /// <summary>
+    /// The nearest ancestor, up to and including <paramref name="root"/>, whose
+    /// arranged box the block hangs out of - or null when nothing cuts it.
+    /// </summary>
+    private static string? AncestorThatCuts(FrameworkElement block, FrameworkElement root)
+    {
+        for (DependencyObject? node = System.Windows.Media.VisualTreeHelper.GetParent(block);
+             node != null;
+             node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is FrameworkElement box && box.ActualWidth > 0)
+            {
+                double left;
+                try
+                {
+                    left = block.TransformToAncestor(box).Transform(new Point(0, 0)).X;
+                }
+                catch (InvalidOperationException)
+                {
+                    return null;
+                }
+
+                var over = left + block.ActualWidth - box.ActualWidth;
+                if (over > 0.5)
+                    return $"{box.GetType().Name} ({box.ActualWidth:F0}px) by {over:F0}px";
+            }
+
+            if (ReferenceEquals(node, root))
+                break;
+        }
+
+        return null;
+    }
+
+    /// <summary>True when nothing between this element and the root is collapsed.</summary>
+    private static bool IsLaidOut(DependencyObject element)
+    {
+        for (DependencyObject? node = element; node != null;
+             node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is UIElement visual && visual.Visibility != Visibility.Visible)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>A label short enough to read in a failure message.</summary>
+    private static string Shorten(string text)
+        => text.Length <= 48 ? text.Replace("\r", " ").Replace("\n", " ")
+                             : text[..45].Replace("\r", " ").Replace("\n", " ") + "...";
+
     /// <summary>
     /// The width this TextBlock's own text wants with nothing constraining it.
     /// Comparing that against ActualWidth is how a layout case tells "fits" from
@@ -15312,6 +15555,20 @@ internal static class Program
     /// are duck-typed, so the row can be laid out against this instead of the real
     /// MainViewModel, whose constructor builds the audio stack and the tray icon.
     /// </summary>
+    /// <summary>
+    /// Just the four binding paths HomeStatsBar reads. The real
+    /// HomeStatsBarViewModel is only ever built from HomePage.Loaded, which the
+    /// harness never raises, and the CAPTIONS - the half #570 is about - do not
+    /// depend on the numbers at all.
+    /// </summary>
+    private sealed class HomeStatsProbe
+    {
+        public int AverageWpm { get; init; } = 142;
+        public int WordsThisWeek { get; init; } = 12345;
+        public int WordsThisMonth { get; init; } = 54321;
+        public string SavedThisWeekDisplay { get; init; } = "1h 23m";
+    }
+
     private sealed class StatusBarProbe
     {
         public string StatusText { get; init; } = "";

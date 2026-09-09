@@ -35,8 +35,15 @@
          SIDEBAR ITEM STYLE
          Uses DynamicResource for live theme switching
          ========================================================================= -->
+    <!-- SidebarWidth is 232 and MainWindow is a fixed, non-resizable 1000px, so the
+         rail cannot be widened without taking the pixels off every content page.
+         The label is given a second LINE instead: the row's height is a MINIMUM now,
+         not a fixed 42, and the ContentPresenter below renders the string in a
+         TextBlock that wraps to two lines and only then ellipsises. Before this,
+         French "Bibliotheque de modeles" (158px) and Spanish "Transcripcion en
+         directo" (152px) were laid out inside a 137px column and cut. Issue #570. -->
     <Style x:Key="SidebarItemStyle" TargetType="RadioButton">
-        <Setter Property="Height" Value="42"/>
+        <Setter Property="MinHeight" Value="42"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
@@ -69,7 +76,20 @@
                                                   HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"/>
                             </Border>
-                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,1"/>
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,1">
+                                <ContentPresenter.ContentTemplate>
+                                    <DataTemplate>
+                                        <!-- Every item's Content is a localized string. Two lines (MaxHeight 36 at a 14px font) is
+                                             274px of label in a 137px column, which covers all 39
+                                             catalogues; the ellipsis is the backstop for a single
+                                             word that is longer than the rail on its own. -->
+                                        <TextBlock Text="{Binding}"
+                                                   TextWrapping="Wrap"
+                                                   MaxHeight="36"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </DataTemplate>
+                                </ContentPresenter.ContentTemplate>
+                            </ContentPresenter>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
