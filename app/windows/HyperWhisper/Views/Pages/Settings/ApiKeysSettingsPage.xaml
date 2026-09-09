@@ -11,14 +11,23 @@
 
             <!-- Info Blurb - Security notice and help link -->
             <StackPanel Margin="0,0,0,16">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <!-- A two-column Grid, not a horizontal StackPanel: a horizontal
+                     StackPanel measures its children with INFINITE width, so the
+                     TextWrapping below never fired and the sentence was cut at the
+                     column edge - in English by 20px and in Hungarian by 244px.
+                     Same remedy as issue #521. Issue #570. -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
                     <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                                Foreground="{DynamicResource TextSecondaryBrush}"
-                               VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBlock Text="{loc:Loc settings.api.info}"
+                               VerticalAlignment="Top" Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1" Text="{loc:Loc settings.api.info}"
                                FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
                                TextWrapping="Wrap"/>
-                </StackPanel>
+                </Grid>
                 <TextBlock FontSize="12">
                     <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
                                NavigateUri="https://hyperwhisper.com/docs/api-keys"><Run Text="{loc:Loc settings.api.help.link}"/></Hyperlink>
@@ -34,7 +43,7 @@
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <TextBlock Text="{loc:Loc settings.api.transcription.subtitle}"
                                FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
-                               Margin="0,4,0,16"/>
+                               Margin="0,4,0,16" TextWrapping="Wrap"/>
 
                     <!-- OpenAI API Key (Transcription) -->
                     <StackPanel Margin="0,0,0,16">
@@ -57,7 +66,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.openai.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -102,7 +111,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.groq.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -147,7 +156,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.deepgram.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -192,7 +201,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.assemblyai.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -237,7 +246,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.elevenlabs.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -282,7 +291,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.mistral.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -327,7 +336,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.soniox.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -372,7 +381,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.meta.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -417,7 +426,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.geminiTranscribe.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -462,7 +471,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.gemini.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -507,7 +516,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.grok.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -542,7 +551,7 @@
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <TextBlock Text="{loc:Loc settings.api.postProcessing.subtitle}"
                                FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
-                               Margin="0,4,0,16"/>
+                               Margin="0,4,0,16" TextWrapping="Wrap"/>
 
                     <!-- Local LLM (No API Key) -->
                     <StackPanel Margin="0,0,0,16">
@@ -556,7 +565,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBlock Text="{loc:Loc settings.api.provider.localLlm.description}"
                                            FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                           Margin="0,2,0,4"/>
+                                           Margin="0,2,0,4" TextWrapping="Wrap"/>
                                 <TextBlock Text="{loc:Loc settings.api.provider.localLlm.status}"
                                            FontSize="11" Foreground="{DynamicResource SuccessBrush}"/>
                             </StackPanel>
@@ -588,7 +597,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.openai.post.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -633,7 +642,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.anthropic.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -678,7 +687,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.gemini.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -723,7 +732,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.groq.post.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -768,7 +777,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.grok.post.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -813,7 +822,7 @@
                         </Grid>
                         <TextBlock Text="{loc:Loc settings.api.provider.cerebras.description}"
                                    FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
-                                   Margin="0,2,0,8"/>
+                                   Margin="0,2,0,8" TextWrapping="Wrap"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>

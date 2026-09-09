@@ -35,7 +35,7 @@
 
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="{loc:Loc settings.shortcuts.toggle.label}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
@@ -57,7 +57,7 @@
 
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="{loc:Loc settings.shortcuts.cancel.label}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
@@ -79,7 +79,7 @@
 
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="{loc:Loc settings.shortcuts.changeMode.label}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
@@ -101,7 +101,7 @@
 
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="{loc:Loc settings.shortcuts.streaming.label}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
@@ -149,7 +149,7 @@
 
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.modifier.label}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                         </StackPanel>
 
                         <ComboBox x:Name="PushToTalkModifierBox" Grid.Column="1"
@@ -169,7 +169,7 @@
 
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.custom.label}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.custom.tooltip}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
