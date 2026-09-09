@@ -2002,7 +2002,14 @@ class PersistenceController: ObservableObject {
             let count = try context.count(for: request)
             if count > 0 {
                 // Modes already exist, no need to initialize
-                // This preserves existing users' modes unchanged
+                // This preserves existing users' modes unchanged.
+                //
+                // Seeding is not the same question as the invariant, though: a
+                // store can arrive with two default modes or none — a backup
+                // restored from another machine is the realistic route — and
+                // this early return is exactly why nothing used to repair it
+                // (issue #536).
+                enforceDefaultModeInvariant()
                 return
             }
         } catch {
@@ -2287,6 +2294,7 @@ class PersistenceController: ObservableObject {
         cloudTranscriptionDomain: String? = nil,
         foreignPlatformExtensions: String? = nil,
         persist: Bool = true,
+        restoringFromBackup: Bool = false,
         in suppliedContext: NSManagedObjectContext? = nil
     ) -> Mode {
         let context = suppliedContext ?? container.viewContext
@@ -2313,8 +2321,31 @@ class PersistenceController: ObservableObject {
             mode?.sortOrder = maxSortOrder == .max ? .max : maxSortOrder + 1
         }
         
-        // Update mode properties
-        mode?.name = ModeNamePolicy.storageName(name, replacing: mode?.name)
+        // Update mode properties.
+        //
+        // The default mode's name is fixed (issue #536). The editor disables the
+        // field and says so; here the stored name is kept rather than an error
+        // raised, because this is also the path a backup restore and an
+        // onboarding rollback take, and neither should be abandoned over a field
+        // its caller did not mean to change. `ModesEndpoint` checks first so the
+        // API can say no out loud.
+        //
+        // A restore is exempt. It is not a rename: it replays a whole store, and
+        // which row carries the flag afterwards is decided by the backup, not by
+        // whichever row happens to hold it right now. Holding the lock here
+        // would keep the LOCAL name on a row the backup renamed — and Windows
+        // and Linux (`ApplicationBackupSelection.ApplyModes`, which does a plain
+        // `SetValues`) restore the backup's name — so the same file would land
+        // with different mode names per platform, which is the divergence this
+        // issue exists to remove. `importModes` settles the flag straight after,
+        // and `enforceDefaultModeInvariant()` backstops the whole set.
+        if let existing = mode, !restoringFromBackup, !DefaultModePolicy.canRename(existing, to: name) {
+            AppLogger.coreData.warning(
+                "createOrUpdateMode: refused to rename the default mode · its name is fixed"
+            )
+        } else {
+            mode?.name = ModeNamePolicy.storageName(name, replacing: mode?.name)
+        }
         mode?.preset = preset
         mode?.language = LanguageData.canonicalLanguageCode(language)
         mode?.model = model
@@ -2420,8 +2451,32 @@ class PersistenceController: ObservableObject {
     /// - Note: The caller is responsible for ensuring at least one mode remains
     func deleteMode(_ mode: Mode) {
         let context = container.viewContext
+        let wasDefault = mode.isDefault
         context.delete(mode)
+        // Deleting the default used to leave none, and the app then merely
+        // BEHAVED as if the lowest-sortOrder mode were one — with an editable
+        // name and no hint (issue #536). Move the flag for real.
+        if wasDefault {
+            DefaultModePolicy.apply(to: fetchAllModes())
+        }
         save()
+    }
+
+    /// Make exactly one mode the default again, if something left the store with
+    /// two or with none.
+    ///
+    /// Every write above keeps the invariant, so this is for the rows nothing
+    /// here wrote: a backup restored from another machine, and a store that was
+    /// already broken before this shipped. Idempotent, and it saves nothing when
+    /// there is nothing to repair.
+    @discardableResult
+    func enforceDefaultModeInvariant() -> Bool {
+        guard DefaultModePolicy.apply(to: fetchAllModes()) else { return false }
+        save()
+        AppLogger.coreData.info(
+            "Repaired the default-mode flag · exactly one mode is the default again"
+        )
+        return true
     }
     
     // MARK: - RecordingSession Operations
@@ -2785,7 +2840,8 @@ class PersistenceController: ObservableObject {
                 geminiCustomPrompt: backupMode.geminiCustomPrompt,
                 cloudPostProcessingModel: backupMode.cloudPostProcessingModel,
                 cloudTranscriptionDomain: backupMode.cloudTranscriptionDomain,
-                foreignPlatformExtensions: backupMode.foreignPlatformExtensions
+                foreignPlatformExtensions: backupMode.foreignPlatformExtensions,
+                restoringFromBackup: true
             )
 
             // Update isDefault flag if this mode should be default
@@ -2797,22 +2853,21 @@ class PersistenceController: ObservableObject {
                 // can hold invalidated objects (reading/writing them is a Core Data
                 // use-after-delete). The fresh fetch never returns deleted objects;
                 // `!mode.isDeleted` guards any in-flight, unsaved delete.
-                let defaultsRequest: NSFetchRequest<Mode> = Mode.fetchRequest()
-                defaultsRequest.predicate = NSPredicate(format: "isDefault == YES")
-                if let currentDefaults = try? container.viewContext.fetch(defaultsRequest) {
-                    for mode in currentDefaults where !mode.isDeleted {
-                        mode.isDefault = false
-                    }
-                }
-                // Set new default
-                if let newMode = fetchMode(withId: finalId.uuidString) {
-                    newMode.isDefault = true
-                }
+                // One decision, three heads (issue #536): the flag moves onto the
+                // imported mode and off every other row in the same pass.
+                DefaultModePolicy.apply(to: fetchAllModes(), preferred: finalId)
                 save()
             }
 
             imported += 1
         }
+
+        // A backup whose modes carry no `isDefault` at all — one written before
+        // the field existed, or one whose default row was skipped as a conflict
+        // — used to restore a store with NO default mode (issue #536). Nothing
+        // repaired it: `initializeDefaultModes()` returns early whenever any
+        // mode exists.
+        enforceDefaultModeInvariant()
 
         AppLogger.coreData.info("Mode import complete: \(imported) imported, \(skipped) skipped")
         return (imported, skipped, idRemap)

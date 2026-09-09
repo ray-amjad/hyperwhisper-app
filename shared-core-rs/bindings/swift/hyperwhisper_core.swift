@@ -2716,6 +2716,103 @@ public func FfiConverterTypeHwBlock_lower(_ value: HwBlock) -> RustBuffer {
 
 
 /**
+ * What the head must write. Mirrors `hw_modes::DefaultModePlan`.
+ */
+public struct HwDefaultModePlan {
+    /**
+     * The row that must carry the flag when the write completes, or `None`
+     * when there are no modes at all.
+     */
+    public var defaultId: String?
+    /**
+     * Every row whose flag must be cleared.
+     */
+    public var clearIds: [String]
+    /**
+     * Whether applying the plan changes anything.
+     */
+    public var changed: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The row that must carry the flag when the write completes, or `None`
+         * when there are no modes at all.
+         */defaultId: String?, 
+        /**
+         * Every row whose flag must be cleared.
+         */clearIds: [String], 
+        /**
+         * Whether applying the plan changes anything.
+         */changed: Bool) {
+        self.defaultId = defaultId
+        self.clearIds = clearIds
+        self.changed = changed
+    }
+}
+
+
+
+extension HwDefaultModePlan: Equatable, Hashable {
+    public static func ==(lhs: HwDefaultModePlan, rhs: HwDefaultModePlan) -> Bool {
+        if lhs.defaultId != rhs.defaultId {
+            return false
+        }
+        if lhs.clearIds != rhs.clearIds {
+            return false
+        }
+        if lhs.changed != rhs.changed {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(defaultId)
+        hasher.combine(clearIds)
+        hasher.combine(changed)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwDefaultModePlan: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwDefaultModePlan {
+        return
+            try HwDefaultModePlan(
+                defaultId: FfiConverterOptionString.read(from: &buf), 
+                clearIds: FfiConverterSequenceString.read(from: &buf), 
+                changed: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwDefaultModePlan, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.defaultId, into: &buf)
+        FfiConverterSequenceString.write(value.clearIds, into: &buf)
+        FfiConverterBool.write(value.changed, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwDefaultModePlan_lift(_ buf: RustBuffer) throws -> HwDefaultModePlan {
+    return try FfiConverterTypeHwDefaultModePlan.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwDefaultModePlan_lower(_ value: HwDefaultModePlan) -> RustBuffer {
+    return FfiConverterTypeHwDefaultModePlan.lower(value)
+}
+
+
+/**
  * The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
  *
  * `url` is the single check a runtime caller needs: **empty means do not call
@@ -3854,6 +3951,110 @@ public func FfiConverterTypeHwLocalApiOriginHeaders_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeHwLocalApiOriginHeaders_lower(_ value: HwLocalApiOriginHeaders) -> RustBuffer {
     return FfiConverterTypeHwLocalApiOriginHeaders.lower(value)
+}
+
+
+/**
+ * One mode, projected down to the three columns the invariant reads. Mirrors
+ * `hw_modes::ModeFlags`.
+ */
+public struct HwModeFlags {
+    /**
+     * The mode's id as the head spells it — uppercase from Swift's
+     * `UUID.uuidString`, lowercase from .NET's `Guid.ToString("D")`. The
+     * comparison is case-insensitive, so either is fine, and the ids in the
+     * answer come back spelled exactly as they were passed.
+     */
+    public var id: String
+    /**
+     * Whether the row carries the default flag now.
+     */
+    public var isDefault: Bool
+    /**
+     * The head's ordering column. `i32` because Windows stores `int` and macOS
+     * `Int16`; every value either head can hold fits.
+     */
+    public var sortOrder: Int32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The mode's id as the head spells it — uppercase from Swift's
+         * `UUID.uuidString`, lowercase from .NET's `Guid.ToString("D")`. The
+         * comparison is case-insensitive, so either is fine, and the ids in the
+         * answer come back spelled exactly as they were passed.
+         */id: String, 
+        /**
+         * Whether the row carries the default flag now.
+         */isDefault: Bool, 
+        /**
+         * The head's ordering column. `i32` because Windows stores `int` and macOS
+         * `Int16`; every value either head can hold fits.
+         */sortOrder: Int32) {
+        self.id = id
+        self.isDefault = isDefault
+        self.sortOrder = sortOrder
+    }
+}
+
+
+
+extension HwModeFlags: Equatable, Hashable {
+    public static func ==(lhs: HwModeFlags, rhs: HwModeFlags) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.isDefault != rhs.isDefault {
+            return false
+        }
+        if lhs.sortOrder != rhs.sortOrder {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(isDefault)
+        hasher.combine(sortOrder)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwModeFlags: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwModeFlags {
+        return
+            try HwModeFlags(
+                id: FfiConverterString.read(from: &buf), 
+                isDefault: FfiConverterBool.read(from: &buf), 
+                sortOrder: FfiConverterInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwModeFlags, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterBool.write(value.isDefault, into: &buf)
+        FfiConverterInt32.write(value.sortOrder, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwModeFlags_lift(_ buf: RustBuffer) throws -> HwModeFlags {
+    return try FfiConverterTypeHwModeFlags.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwModeFlags_lower(_ value: HwModeFlags) -> RustBuffer {
+    return FfiConverterTypeHwModeFlags.lower(value)
 }
 
 
@@ -9221,6 +9422,77 @@ extension HwBlockKind: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * Whether the default flag may be cleared. Mirrors
+ * `hw_modes::DefaultFlagChange`.
+ */
+
+public enum HwDefaultFlagChange {
+    
+    case allowed
+    /**
+     * Clearing it would leave no default at all.
+     */
+    case rejectedLastDefault
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwDefaultFlagChange: FfiConverterRustBuffer {
+    typealias SwiftType = HwDefaultFlagChange
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwDefaultFlagChange {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .allowed
+        
+        case 2: return .rejectedLastDefault
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwDefaultFlagChange, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .allowed:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .rejectedLastDefault:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwDefaultFlagChange_lift(_ buf: RustBuffer) throws -> HwDefaultFlagChange {
+    return try FfiConverterTypeHwDefaultFlagChange.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwDefaultFlagChange_lower(_ value: HwDefaultFlagChange) -> RustBuffer {
+    return FfiConverterTypeHwDefaultFlagChange.lower(value)
+}
+
+
+
+extension HwDefaultFlagChange: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * The rule that failed. Mirrors `l::EndpointIssue`.
  */
 
@@ -11001,6 +11273,76 @@ extension HwLocalApiTokenError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Whether a name may be written. Mirrors `hw_modes::ModeNameChange`.
+ */
+
+public enum HwModeNameChange {
+    
+    case allowed
+    /**
+     * The mode carries the default flag, and the default mode's name is fixed.
+     */
+    case rejectedDefaultIsFixed
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwModeNameChange: FfiConverterRustBuffer {
+    typealias SwiftType = HwModeNameChange
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwModeNameChange {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .allowed
+        
+        case 2: return .rejectedDefaultIsFixed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwModeNameChange, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .allowed:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .rejectedDefaultIsFixed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwModeNameChange_lift(_ buf: RustBuffer) throws -> HwModeNameChange {
+    return try FfiConverterTypeHwModeNameChange.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwModeNameChange_lower(_ value: HwModeNameChange) -> RustBuffer {
+    return FfiConverterTypeHwModeNameChange.lower(value)
+}
+
+
+
+extension HwModeNameChange: Equatable, Hashable {}
+
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -13443,6 +13785,31 @@ fileprivate struct FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwModeFlags: FfiConverterRustBuffer {
+    typealias SwiftType = [HwModeFlags]
+
+    public static func write(_ value: [HwModeFlags], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwModeFlags.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwModeFlags] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwModeFlags]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwModeFlags.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwPhoneticMatch: FfiConverterRustBuffer {
     typealias SwiftType = [HwPhoneticMatch]
 
@@ -15799,6 +16166,48 @@ public func mistralParseTranscribeResponse(resp: HttpResponse)throws  -> HwTrans
 })
 }
 /**
+ * Whether `id` may have its default flag written to `requested_is_default`.
+ * `rows` is the set as it stands **before** the write.
+ */
+public func modeCheckDefaultFlag(rows: [HwModeFlags], id: String, requestedIsDefault: Bool) -> HwDefaultFlagChange {
+    return try!  FfiConverterTypeHwDefaultFlagChange.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_mode_check_default_flag(
+        FfiConverterSequenceTypeHwModeFlags.lower(rows),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(requestedIsDefault),$0
+    )
+})
+}
+/**
+ * Whether a mode's name may be changed to `new_name`. The default mode's name
+ * is fixed; every other mode renames freely.
+ */
+public func modeCheckNameChange(isDefault: Bool, storedName: String, newName: String) -> HwModeNameChange {
+    return try!  FfiConverterTypeHwModeNameChange.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_mode_check_name_change(
+        FfiConverterBool.lower(isDefault),
+        FfiConverterString.lower(storedName),
+        FfiConverterString.lower(newName),$0
+    )
+})
+}
+/**
+ * Decide which mode carries the default flag once the write completes.
+ *
+ * `rows` is every mode that will exist **after** the write, in the head's
+ * display order; `preferred` is the mode the caller is trying to make the
+ * default, or `None` when it is only repairing. See `hw_modes::plan_default`
+ * for the choice and the tie-break.
+ */
+public func modePlanDefault(rows: [HwModeFlags], preferred: String?) -> HwDefaultModePlan {
+    return try!  FfiConverterTypeHwDefaultModePlan.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_mode_plan_default(
+        FfiConverterSequenceTypeHwModeFlags.lower(rows),
+        FfiConverterOptionString.lower(preferred),$0
+    )
+})
+}
+/**
  * Every catalogued model row, ordered by `(provider, kind, id)`. Replaces the
  * per-platform catalog decoders that scanned the file for parity checks and for
  * the unified capability list.
@@ -17067,6 +17476,15 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response() != 51263) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_mode_check_default_flag() != 22196) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_mode_check_name_change() != 51227) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_mode_plan_default() != 45822) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_models_all_entries() != 48414) {

@@ -40,6 +40,9 @@ mod ffi_live;
 // The Local API wire contract — origin guard, bearer token, failure envelope
 // (#289). Shared by all three heads.
 mod ffi_localapi;
+// The default-mode invariant — exactly one default, and its name is fixed
+// (#536). Shared by all three heads.
+mod ffi_modes;
 mod ffi_net;
 // The Beider-Morse encoder and the vocabulary matcher above it (#283). Public
 // for the same reason as `ffi_catalog`: `tests/golden_phonetic.rs` and

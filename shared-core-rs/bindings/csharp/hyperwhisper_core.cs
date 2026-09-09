@@ -1292,6 +1292,12 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2154,6 +2160,18 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_mistral_parse_transcribe_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_mode_check_default_flag(RustBuffer @rows,RustBuffer @id,sbyte @requestedIsDefault,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_mode_check_name_change(sbyte @isDefault,RustBuffer @storedName,RustBuffer @newName,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_mode_plan_default(RustBuffer @rows,RustBuffer @preferred,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3350,6 +3368,18 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_mode_check_default_flag(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_mode_check_name_change(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_mode_plan_default(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4784,6 +4814,24 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response();
             if (checksum != 51263) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response` checksum `51263`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_mode_check_default_flag();
+            if (checksum != 22196) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_mode_check_default_flag` checksum `22196`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_mode_check_name_change();
+            if (checksum != 51227) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_mode_check_name_change` checksum `51227`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_mode_plan_default();
+            if (checksum != 45822) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_mode_plan_default` checksum `45822`, library returned `{checksum}`");
             }
         }
         {
@@ -7206,6 +7254,63 @@ class FfiConverterTypeHwBlock: FfiConverterRustBuffer<HwBlock> {
 
 
 /// <summary>
+/// What the head must write. Mirrors `hw_modes::DefaultModePlan`.
+/// </summary>
+/// <param name="default_id">
+/// The row that must carry the flag when the write completes, or `None`
+/// when there are no modes at all.
+/// </param>
+/// <param name="clear_ids">
+/// Every row whose flag must be cleared.
+/// </param>
+/// <param name="changed">
+/// Whether applying the plan changes anything.
+/// </param>
+internal record HwDefaultModePlan (
+    /// <summary>
+    /// The row that must carry the flag when the write completes, or `None`
+    /// when there are no modes at all.
+    /// </summary>
+    string? @defaultId, 
+    /// <summary>
+    /// Every row whose flag must be cleared.
+    /// </summary>
+    List<string> @clearIds, 
+    /// <summary>
+    /// Whether applying the plan changes anything.
+    /// </summary>
+    bool @changed
+) {
+}
+
+class FfiConverterTypeHwDefaultModePlan: FfiConverterRustBuffer<HwDefaultModePlan> {
+    public static FfiConverterTypeHwDefaultModePlan INSTANCE = new FfiConverterTypeHwDefaultModePlan();
+
+    public override HwDefaultModePlan Read(BigEndianStream stream) {
+        return new HwDefaultModePlan(
+            @defaultId: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @clearIds: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @changed: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwDefaultModePlan value) {
+        return 0
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@defaultId)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@clearIds)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@changed);
+    }
+
+    public override void Write(HwDefaultModePlan value, BigEndianStream stream) {
+            FfiConverterOptionalString.INSTANCE.Write(value.@defaultId, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@clearIds, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@changed, stream);
+    }
+}
+
+
+
+/// <summary>
 /// The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
 ///
 /// `url` is the single check a runtime caller needs: **empty means do not call
@@ -7830,6 +7935,70 @@ class FfiConverterTypeHwLocalApiOriginHeaders: FfiConverterRustBuffer<HwLocalApi
             FfiConverterOptionalString.INSTANCE.Write(value.@host, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@origin, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@secFetchSite, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One mode, projected down to the three columns the invariant reads. Mirrors
+/// `hw_modes::ModeFlags`.
+/// </summary>
+/// <param name="id">
+/// The mode's id as the head spells it — uppercase from Swift's
+/// `UUID.uuidString`, lowercase from .NET's `Guid.ToString("D")`. The
+/// comparison is case-insensitive, so either is fine, and the ids in the
+/// answer come back spelled exactly as they were passed.
+/// </param>
+/// <param name="is_default">
+/// Whether the row carries the default flag now.
+/// </param>
+/// <param name="sort_order">
+/// The head's ordering column. `i32` because Windows stores `int` and macOS
+/// `Int16`; every value either head can hold fits.
+/// </param>
+internal record HwModeFlags (
+    /// <summary>
+    /// The mode's id as the head spells it — uppercase from Swift's
+    /// `UUID.uuidString`, lowercase from .NET's `Guid.ToString("D")`. The
+    /// comparison is case-insensitive, so either is fine, and the ids in the
+    /// answer come back spelled exactly as they were passed.
+    /// </summary>
+    string @id, 
+    /// <summary>
+    /// Whether the row carries the default flag now.
+    /// </summary>
+    bool @isDefault, 
+    /// <summary>
+    /// The head's ordering column. `i32` because Windows stores `int` and macOS
+    /// `Int16`; every value either head can hold fits.
+    /// </summary>
+    int @sortOrder
+) {
+}
+
+class FfiConverterTypeHwModeFlags: FfiConverterRustBuffer<HwModeFlags> {
+    public static FfiConverterTypeHwModeFlags INSTANCE = new FfiConverterTypeHwModeFlags();
+
+    public override HwModeFlags Read(BigEndianStream stream) {
+        return new HwModeFlags(
+            @id: FfiConverterString.INSTANCE.Read(stream),
+            @isDefault: FfiConverterBoolean.INSTANCE.Read(stream),
+            @sortOrder: FfiConverterInt32.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwModeFlags value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@id)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@isDefault)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@sortOrder);
+    }
+
+    public override void Write(HwModeFlags value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@id, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@isDefault, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@sortOrder, stream);
     }
 }
 
@@ -10886,6 +11055,46 @@ class FfiConverterTypeHwBlockKind: FfiConverterRustBuffer<HwBlockKind> {
 
 
 /// <summary>
+/// Whether the default flag may be cleared. Mirrors
+/// `hw_modes::DefaultFlagChange`.
+/// </summary>
+internal enum HwDefaultFlagChange: int {
+    
+    Allowed,
+    /// <summary>
+    /// Clearing it would leave no default at all.
+    /// </summary>
+    RejectedLastDefault
+}
+
+class FfiConverterTypeHwDefaultFlagChange: FfiConverterRustBuffer<HwDefaultFlagChange> {
+    public static FfiConverterTypeHwDefaultFlagChange INSTANCE = new FfiConverterTypeHwDefaultFlagChange();
+
+    public override HwDefaultFlagChange Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwDefaultFlagChange), value)) {
+            return (HwDefaultFlagChange)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwDefaultFlagChange.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwDefaultFlagChange value) {
+        return 4;
+    }
+
+    public override void Write(HwDefaultFlagChange value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// The rule that failed. Mirrors `l::EndpointIssue`.
 /// </summary>
 internal enum HwEndpointIssue: int {
@@ -12084,6 +12293,45 @@ class FfiConverterTypeHwLocalApiTokenError : FfiConverterRustBuffer<HwLocalApiTo
         }
     }
 }
+
+
+
+
+
+/// <summary>
+/// Whether a name may be written. Mirrors `hw_modes::ModeNameChange`.
+/// </summary>
+internal enum HwModeNameChange: int {
+    
+    Allowed,
+    /// <summary>
+    /// The mode carries the default flag, and the default mode's name is fixed.
+    /// </summary>
+    RejectedDefaultIsFixed
+}
+
+class FfiConverterTypeHwModeNameChange: FfiConverterRustBuffer<HwModeNameChange> {
+    public static FfiConverterTypeHwModeNameChange INSTANCE = new FfiConverterTypeHwModeNameChange();
+
+    public override HwModeNameChange Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwModeNameChange), value)) {
+            return (HwModeNameChange)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwModeNameChange.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwModeNameChange value) {
+        return 4;
+    }
+
+    public override void Write(HwModeNameChange value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
 
 
 
@@ -14269,6 +14517,48 @@ class FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer<List<HwLiveFra
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwLiveFrame.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwModeFlags: FfiConverterRustBuffer<List<HwModeFlags>> {
+    public static FfiConverterSequenceTypeHwModeFlags INSTANCE = new FfiConverterSequenceTypeHwModeFlags();
+
+    public override List<HwModeFlags> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwModeFlags>(length);
+        var readFn = FfiConverterTypeHwModeFlags.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwModeFlags> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwModeFlags.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwModeFlags> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwModeFlags.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -17112,6 +17402,46 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwTranscript.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_mistral_parse_transcribe_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether `id` may have its default flag written to `requested_is_default`.
+    /// `rows` is the set as it stands **before** the write.
+    /// </summary>
+    public static HwDefaultFlagChange ModeCheckDefaultFlag(List<HwModeFlags> @rows, string @id, bool @requestedIsDefault) {
+        return FfiConverterTypeHwDefaultFlagChange.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_mode_check_default_flag(FfiConverterSequenceTypeHwModeFlags.INSTANCE.Lower(@rows), FfiConverterString.INSTANCE.Lower(@id), FfiConverterBoolean.INSTANCE.Lower(@requestedIsDefault), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a mode's name may be changed to `new_name`. The default mode's name
+    /// is fixed; every other mode renames freely.
+    /// </summary>
+    public static HwModeNameChange ModeCheckNameChange(bool @isDefault, string @storedName, string @newName) {
+        return FfiConverterTypeHwModeNameChange.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_mode_check_name_change(FfiConverterBoolean.INSTANCE.Lower(@isDefault), FfiConverterString.INSTANCE.Lower(@storedName), FfiConverterString.INSTANCE.Lower(@newName), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Decide which mode carries the default flag once the write completes.
+    ///
+    /// `rows` is every mode that will exist **after** the write, in the head's
+    /// display order; `preferred` is the mode the caller is trying to make the
+    /// default, or `None` when it is only repairing. See `hw_modes::plan_default`
+    /// for the choice and the tie-break.
+    /// </summary>
+    public static HwDefaultModePlan ModePlanDefault(List<HwModeFlags> @rows, string? @preferred) {
+        return FfiConverterTypeHwDefaultModePlan.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_mode_plan_default(FfiConverterSequenceTypeHwModeFlags.INSTANCE.Lower(@rows), FfiConverterOptionalString.INSTANCE.Lower(@preferred), ref _status)
 ));
     }
 

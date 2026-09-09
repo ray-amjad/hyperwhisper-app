@@ -32,6 +32,16 @@ public sealed class ApplicationDb(Func<HyperWhisperDbContext> createContext)
             context.Modes.AddRange(PortableModeDefaults.CreateForCurrentRegion());
             await context.SaveChangesAsync(cancellationToken);
         }
+        else
+        {
+            // Seeding is not the same question as the invariant. A store that
+            // already has modes can still have two defaults or none — a backup
+            // restored from another machine is the realistic route — and this
+            // branch is exactly why nothing used to repair it (issue #536).
+            var modes = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
+            if (DefaultModePolicy.Apply(modes))
+                await context.SaveChangesAsync(cancellationToken);
+        }
         await transaction.CommitAsync(cancellationToken);
     }
 }
