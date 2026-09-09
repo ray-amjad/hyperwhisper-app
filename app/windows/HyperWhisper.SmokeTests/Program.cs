@@ -5440,20 +5440,28 @@ internal static class Program
             // list this head shipped before the change.
             // =================================================================
 
-            Run("AppcastService replays the live appcast-windows.xml to the same 15 releases as before #353", () =>
+            Run("AppcastService replays the live appcast-windows.xml to the same releases as before #353", () =>
             {
                 var doc = System.Xml.Linq.XDocument.Load(LiveWindowsAppcastPath());
-                Assert(doc.Descendants("item").Count() == 30,
-                    $"expected the live feed to carry 30 items (15 versions x 2 architectures), got "
-                        + $"{doc.Descendants("item").Count()}");
+                var itemCount = doc.Descendants("item").Count();
+
+                // No absolute count is pinned here. Every release adds an
+                // arch-paired pair of <item>s to the live feed, so a pinned
+                // number fails the next time the app ships — which is what
+                // happened when 1.12.0 landed. The oracle is the differential
+                // below: whatever the feed holds, the two pipelines must agree.
+                // A floor keeps the differential from passing on an empty file.
+                Assert(itemCount >= 10, $"the live feed carries only {itemCount} items — too few to be the real feed");
 
                 var actual = AppcastService.SelectReleases(doc);
                 var baseline = SelectReleasesTheWayMainDid(doc);
 
-                // 30 arch-paired items collapse to 15 releases. If this number
-                // moves, either the feed grew a version or a selection rule
-                // changed — both want a human to look.
-                Assert(baseline.Count == 15, $"the pre-#353 pipeline no longer yields 15 releases, got {baseline.Count}");
+                Assert(baseline.Count >= 5, $"the pre-#353 pipeline yields only {baseline.Count} releases");
+                // The arch pairs collapse: fewer releases come out than items
+                // went in. That is the dedupe rule doing its work, stated
+                // without naming a number the next release would move.
+                Assert(baseline.Count < itemCount,
+                    $"{itemCount} items produced {baseline.Count} releases — the arch pairs did not collapse");
                 Assert(actual.Count == baseline.Count,
                     $"expected {baseline.Count} releases, got {actual.Count}");
 
@@ -5484,8 +5492,11 @@ internal static class Program
                 }
 
                 // The newest release is index 0, which is the only thing
-                // IsLatest means — and the reason the flag stays native.
-                Assert(actual[0].Version == "1.11.0", $"expected 1.11.0 at the top, got '{actual[0].Version}'");
+                // IsLatest means — and the reason the flag stays native. Stated
+                // as "index 0 holds the largest date", not as a version literal,
+                // so the next release does not fail this.
+                Assert(actual[0].PubDate == actual.Max(r => r.PubDate),
+                    $"the top release is '{actual[0].Version}'@{actual[0].PubDate:o}, which is not the newest");
                 Assert(actual.Select(r => r.PubDate).SequenceEqual(actual.Select(r => r.PubDate).OrderByDescending(d => d)),
                     "the returned list is not newest-first");
             });
@@ -5674,15 +5685,25 @@ internal static class Program
                 // culture, and the live feed comes out the same list. Asserted
                 // regardless of what main happens to do — main's columns above
                 // are recorded, not relied on.
+                // The live-feed columns are compared to the FIRST culture, not to
+                // a pinned count and version. That is the stronger claim — every
+                // culture agrees — and it survives the feed gaining a release,
+                // which a pinned "15 releases, top 1.11.0" did not.
+                var reference = measurements[0];
+                Assert(reference.SharedCount >= 5,
+                    $"the live feed produced only {reference.SharedCount} releases — too few to be the real feed");
+
                 foreach (var m in measurements)
                 {
                     Assert(m.Shared == sampleEpoch,
                         $"AppcastParsePubDate returned {m.Shared} under {m.Culture}, expected {sampleEpoch}"
                             + " — the shared parse must not depend on CurrentCulture");
-                    Assert(m.SharedCount == 15,
-                        $"the live feed produced {m.SharedCount} releases under {m.Culture}, expected 15");
-                    Assert(m.SharedTopVersion == "1.11.0" && Day(m.SharedTopTicks).StartsWith("2026-", StringComparison.Ordinal),
-                        $"under {m.Culture} the newest release came out as {m.SharedTopVersion}@{Day(m.SharedTopTicks)}");
+                    Assert(m.SharedCount == reference.SharedCount,
+                        $"the live feed produced {m.SharedCount} releases under {m.Culture}, but"
+                            + $" {reference.SharedCount} under {reference.Culture}");
+                    Assert(m.SharedTopVersion == reference.SharedTopVersion && m.SharedTopTicks == reference.SharedTopTicks,
+                        $"under {m.Culture} the newest release came out as {m.SharedTopVersion}@{Day(m.SharedTopTicks)},"
+                            + $" but as {reference.SharedTopVersion}@{Day(reference.SharedTopTicks)} under {reference.Culture}");
 
                     // And the card renders. Under ar-SA this is what main could
                     // not do, because a failed parse leaves DateTime.MinValue

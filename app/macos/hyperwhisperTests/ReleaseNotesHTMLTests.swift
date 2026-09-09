@@ -844,7 +844,7 @@ struct AppcastSelectionTests {
                     <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
                     <description><![CDATA[<ul><li>middle</li></ul>]]></description>
                 </item>
-        """))
+        """)
 
         let capped = try AppcastParser.selectReleases(from: fixture, limit: 2)
         let uncapped = try AppcastParser.selectReleases(from: fixture)
