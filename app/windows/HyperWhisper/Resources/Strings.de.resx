@@ -101,7 +101,7 @@
 
   <!-- Sidebar Navigation -->
   <data name="sidebar.home" xml:space="preserve">
-    <value>Heim</value>
+    <value>Start</value>
   </data>
   <data name="sidebar.modes" xml:space="preserve">
     <value>Modi</value>
@@ -110,7 +110,7 @@
     <value>Vokabular</value>
   </data>
   <data name="sidebar.history" xml:space="preserve">
-    <value>Geschichte</value>
+    <value>Verlauf</value>
   </data>
   <data name="sidebar.settings" xml:space="preserve">
     <value>Einstellungen</value>
