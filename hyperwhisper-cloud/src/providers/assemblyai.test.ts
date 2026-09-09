@@ -258,9 +258,78 @@ describe('transcribeWithAssemblyAI — sync fast path behavior', () => {
     await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US')).rejects.toThrow(ProviderUnavailableError);
     expect(calls.map((c) => c.url)).toEqual([SYNC_URL, UPLOAD_URL]);
   });
+
+  test('a sync timeout at the 15s budget logs timeout diagnostics and falls back to async upload', async () => {
+    const calls: Call[] = [];
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push({ url, method: 'POST' });
+      if (url === SYNC_URL) {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+      if (url === UPLOAD_URL) return new Response('boom', { status: 500 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    try {
+      await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US'))
+        .rejects.toThrow(ProviderUnavailableError);
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(calls.map((c) => c.url)).toEqual([SYNC_URL, UPLOAD_URL]);
+    const timeoutEvent = logged.find((args) =>
+      args[0] === 'provider.transport_error'
+      && (args[1] as Record<string, unknown>).kind === 'timeout'
+    );
+    expect(timeoutEvent?.[1]).toMatchObject({
+      provider: 'assemblyai',
+      kind: 'timeout',
+      timeoutMs: 15_000,
+    });
+    const fallbackEvent = logged.find((args) => args[0] === 'provider.sync_fallback');
+    expect(fallbackEvent?.[1]).toMatchObject({
+      reason: 'transport',
+      message: 'assemblyai unavailable: timeout after 15000ms',
+    });
+    expect(logged.some((args) => args[0] === 'provider.sync_fallback_to_async')).toBe(true);
+  });
 });
 
 describe('transcribeWithAssemblyAI — async request shape', () => {
+  test('the upload timeout scales with the audio payload instead of using the 15s provider default', async () => {
+    const audio = new ArrayBuffer(3_100_000); // 31 × 100 KB -> 31,000ms
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(UPLOAD_URL);
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }) as unknown as typeof fetch;
+
+    let thrown: unknown;
+    try {
+      await transcribeWithAssemblyAI(audio, 'audio/mpeg', 'auto');
+    } catch (error) {
+      thrown = error;
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
+    expect((thrown as ProviderUnavailableError).kind).toBe('timeout');
+    expect((thrown as Error).message).toContain('timeout after 31000ms');
+    const uploadStart = logged.find((args) =>
+      args[0] === 'provider.request_start'
+      && (args[1] as Record<string, unknown>).timeoutMs === 31_000
+    );
+    expect(uploadStart?.[1]).toMatchObject({ provider: 'assemblyai', timeoutMs: 31_000 });
+  });
+
   // Each case only needs the create-phase request body, captured before an
   // immediate create-phase error short-circuits the flow ahead of the poll
   // loop's real sleep.
@@ -323,6 +392,45 @@ describe('transcribeWithAssemblyAI — async request shape', () => {
 });
 
 describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () => {
+  test('a poll timeout stays classified at the 15s budget and still deletes the transcript', async () => {
+    const calls: Call[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method || 'GET';
+      calls.push({ url, method });
+      if (url === UPLOAD_URL) {
+        return jsonResponse({ upload_url: 'https://cdn.assemblyai.com/upload/abc' });
+      }
+      if (url === CREATE_URL && method === 'POST') {
+        return jsonResponse({ id: 'transcript-timeout' });
+      }
+      if (url === `${CREATE_URL}/transcript-timeout` && method === 'GET') {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+      if (url === `${CREATE_URL}/transcript-timeout` && method === 'DELETE') {
+        return new Response(null, { status: 200 });
+      }
+      throw new Error(`Unexpected fetch: ${method} ${url}`);
+    }) as unknown as typeof fetch;
+
+    let thrown: unknown;
+    try {
+      await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'auto');
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
+    expect((thrown as ProviderUnavailableError).kind).toBe('timeout');
+    expect((thrown as Error).message).toContain('timeout after 15000ms');
+    expect(calls).toEqual([
+      { url: UPLOAD_URL, method: 'POST' },
+      { url: CREATE_URL, method: 'POST' },
+      { url: `${CREATE_URL}/transcript-timeout`, method: 'GET' },
+      { url: `${CREATE_URL}/transcript-timeout`, method: 'DELETE' },
+    ]);
+  }, 10_000);
+
   test('bills the model that actually ran, computes cost off it, and cleans up the transcript on success', async () => {
     const calls = mockAsyncFlow({
       pollBodies: [{ status: 200, body: { status: 'completed', text: 'hola', audio_duration: 120, speech_model_used: 'universal-2', language_code: 'es' } }],
