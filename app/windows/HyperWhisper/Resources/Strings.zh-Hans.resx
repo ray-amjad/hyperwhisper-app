@@ -363,7 +363,7 @@
     <value>存储</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>模型</value>
+    <value>模型库</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API 密钥</value>
@@ -657,13 +657,13 @@
     <value>Deepgram Nova 系列模型，支持领域特定调优</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI 语音转文字平台，支持 Universal 和 SLAM 模型</value>
+    <value>AssemblyAI 的 Universal-2 和 Universal-3 Pro 语音转文字模型</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe 转写，支持丰富的时间戳和说话人分离</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral 的 Voxtral 语音转文字，具有顶尖准确度</value>
+    <value>Mistral 的 Voxtral 转写和用于文本增强的 Mistral 模型</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -673,7 +673,7 @@
     <value>Anthropic 的 Claude 模型，用于高级文本处理</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google 的 Gemini 模型，用于高效文本增强</value>
+    <value>Google 的 Gemini 模型，用于转写和文本增强</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq 超快速 LLM 推理，用于文本增强</value>
@@ -999,7 +999,7 @@
     <value>会议</value>
   </data>
   <data name="mode.editor.preset.code" xml:space="preserve">
-    <value>Code</value>
+    <value>代码</value>
   </data>
   <data name="mode.editor.preset.custom" xml:space="preserve">
     <value>自定义</value>
@@ -1044,7 +1044,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - 精度最高，速度较慢</value>
+    <value>SpaceXAI Grok STT - 高准确度，自定义词汇作为关键词</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>此提供商不支持自定义词汇。</value>
@@ -1101,10 +1101,10 @@
     <value>过滤脏话</value>
   </data>
   <data name="mode.editor.postProcessing.screenText" xml:space="preserve">
-    <value>Screen Text</value>
+    <value>屏幕文本</value>
   </data>
   <data name="mode.editor.postProcessing.screenText.hint" xml:space="preserve">
-    <value>Capture visible screen text to improve accuracy of names and terms</value>
+    <value>读取屏幕上可见的文本，提高人名和术语的准确度</value>
   </data>  <data name="mode.editor.postProcessing.removeTrailingPeriod" xml:space="preserve">
     <value>删除末尾句号</value>
   </data>
@@ -1650,7 +1650,7 @@
     <value>按住按键录音，完成后松开</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.title" xml:space="preserve">
-    <value>Push to Talk</value>
+    <value>按住说话</value>
   </data>
   <data name="settings.shortcuts.pushToTalk.unassigned" xml:space="preserve">
     <value>未分配</value>
@@ -1726,34 +1726,34 @@
 
   <!-- Synced fallback strings -->
   <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
-    <value>{0} (Popular)</value>
+    <value>{0}（热门）</value>
   </data>
   <data name="mode.editor.cloudModel.showAll" xml:space="preserve">
-    <value>Show all models</value>
+    <value>显示全部模型</value>
   </data>
   <data name="recording.state.streaming" xml:space="preserve">
-    <value>Live</value>
+    <value>实时</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>SpaceXAI Grok models for text enhancement</value>
+    <value>用于文本润色的 SpaceXAI Grok 模型</value>
   </data>
   <data name="settings.nav.streaming" xml:space="preserve">
     <value>流式转写</value>
   </data>
   <data name="settings.output.hideClipboardHistory.subtitle" xml:space="preserve">
-    <value>Prevent transcriptions from appearing in Windows clipboard history</value>
+    <value>防止转写文本出现在 Windows 剪贴板历史记录中</value>
   </data>
   <data name="settings.output.hideClipboardHistory.title" xml:space="preserve">
-    <value>Hide from clipboard history</value>
+    <value>不写入剪贴板历史</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
     <value>流式转写</value>
   </data>
   <data name="settings.storage.storeAsM4A.subtitle" xml:space="preserve">
-    <value>Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files.</value>
+    <value>转写完成后把 WAV 录音转换为更小的文件。关闭则保留原始 WAV 文件。</value>
   </data>
   <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
-    <value>Compress recordings to M4A</value>
+    <value>将录音压缩为 M4A</value>
   </data>
   <data name="settings.streaming.deepgram.model.general" xml:space="preserve">
     <value>Nova 3 General</value>
@@ -1819,16 +1819,16 @@
     <value>SpaceXAI 流式转写需要在模型的 API 密钥管理器中配置 Grok API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
-    <value>Gemini API key is configured.</value>
+    <value>已配置 Gemini API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
-    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+    <value>Gemini 3.5 Transcribe 流式转写需要在模型库的 API 密钥管理中配置 Google Gemini API 密钥。</value>
   </data>
   <data name="settings.streaming.cloudTier.title" xml:space="preserve">
-    <value>Live engine</value>
+    <value>实时引擎</value>
   </data>
   <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
-    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
+    <value>HyperWhisper Cloud 用于实时转写的语音引擎。</value>
   </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
     <value>流式转写快捷键</value>
@@ -1858,84 +1858,84 @@
   </data>
   <!-- Synced fallback strings -->
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
-    <value>Keep microphone warm</value>
+    <value>保持麦克风就绪</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
-    <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+    <value>在两次录音之间保持一路静默的输入流，以减少启动延迟，对蓝牙麦克风尤其有效。</value>
   </data>
 
   <!-- Synced fallback strings -->
   <data name="window.caption.minimize" xml:space="preserve">
-    <value>Minimize</value>
+    <value>最小化</value>
   </data>
   <data name="window.caption.maximize" xml:space="preserve">
-    <value>Maximize</value>
+    <value>最大化</value>
   </data>
   <data name="window.caption.close" xml:space="preserve">
-    <value>Close</value>
+    <value>关闭</value>
   </data>
   <data name="common.clear" xml:space="preserve">
-    <value>Clear</value>
+    <value>清除</value>
   </data>
   <data name="common.off" xml:space="preserve">
-    <value>Off</value>
+    <value>关闭</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
-    <value>Autocapitalize Insert</value>
+    <value>自动大写插入</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.subtitle" xml:space="preserve">
-    <value>Match cursor context when inserting text</value>
+    <value>插入文本时匹配光标处的上下文</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.permissionMessage" xml:space="preserve">
-    <value>Some applications (like web browsers and Electron apps) may not expose the focused text field. Autocapitalize Insert will pass through unchanged in those cases — the feature still works in most native editors and Office applications.</value>
+    <value>某些应用（例如网页浏览器和 Electron 应用）可能不会暴露当前聚焦的文本框。在这些情况下，自动大写插入会原样传递文本——该功能在多数原生编辑器和 Office 应用中仍然有效。</value>
   </data>
   <data name="settings.about.checkUpdates.description" xml:space="preserve">
-    <value>Look for the latest release.</value>
+    <value>查找最新版本。</value>
   </data>
   <data name="settings.about.openLogFolder.description" xml:space="preserve">
-    <value>View local diagnostic files.</value>
+    <value>查看本地诊断文件。</value>
   </data>
   <data name="settings.about.openLogFolder.failed.title" xml:space="preserve">
-    <value>Could Not Open Log Folder</value>
+    <value>无法打开日志文件夹</value>
   </data>
   <data name="settings.about.openLogFolder.failed.message" xml:space="preserve">
-    <value>HyperWhisper could not open the log folder. Please try again or export diagnostics instead. Details: {0}</value>
+    <value>HyperWhisper 无法打开日志文件夹。请重试，或改为导出诊断信息。详情：{0}</value>
   </data>
   <data name="settings.about.exportDiagnostics.description" xml:space="preserve">
-    <value>Create a support bundle.</value>
+    <value>生成一份支持诊断包。</value>
   </data>
   <data name="settings.models.clearFilters" xml:space="preserve">
-    <value>Clear filters</value>
+    <value>清除筛选</value>
   </data>
   <data name="settings.models.empty.noMatches" xml:space="preserve">
-    <value>No models match your filters.</value>
+    <value>没有模型符合你的筛选条件。</value>
   </data>
   <data name="settings.models.empty.filtered" xml:space="preserve">
-    <value>No models match: {0}.</value>
+    <value>没有模型匹配：{0}。</value>
   </data>
   <data name="settings.models.empty.noneAvailable" xml:space="preserve">
-    <value>No models are available.</value>
+    <value>没有可用的模型。</value>
   </data>
   <data name="settings.models.empty.filter.search" xml:space="preserve">
-    <value>search &quot;{0}&quot;</value>
+    <value>搜索“{0}”</value>
   </data>
   <data name="settings.models.feature.vocabulary" xml:space="preserve">
-    <value>custom vocabulary</value>
+    <value>自定义词汇</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
     <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - 最多 60 种语言，支持短语偏置</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe - dedicated speech model, 85+ languages, custom vocabulary</value>
+    <value>Google Gemini 3.5 Transcribe - 专用语音模型，85 种以上语言，支持自定义词汇</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
-    <value>~{0} credits/min</value>
+    <value>约 {0} 点数/分钟</value>
   </data>
   <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
     <value>Soniox</value>
@@ -1983,19 +1983,19 @@
     <value>医学词汇（医学模式附加组件）</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
-    <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
+    <value>AI 后处理可以根据当前应用调整格式，例如邮件、聊天、文档、代码或终端窗口。调用本地 API 时可以显式传入 applicationContext；API 请求不会自动获取它。</value>
   </data>
   <data name="settings.streaming.provider.openAI" xml:space="preserve">
     <value>OpenAI</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.configured" xml:space="preserve">
-    <value>OpenAI API key is configured.</value>
+    <value>已配置 OpenAI API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.missingKey" xml:space="preserve">
-    <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
+    <value>OpenAI 流式转写需要在模型库的 API 密钥管理中配置 OpenAI API 密钥。</value>
   </data>
   <data name="provider.none" xml:space="preserve">
-    <value>None</value>
+    <value>无</value>
   </data>
   <data name="provider.microsoftAzureSpeech" xml:space="preserve">
     <value>Microsoft Azure Speech</value>
@@ -2004,112 +2004,112 @@
     <value>Google Cloud Speech</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
-    <value>Average speed</value>
+    <value>平均速度</value>
   </data>
   <data name="home.stats.wordsThisWeek" xml:space="preserve">
-    <value>Words this week</value>
+    <value>本周字数</value>
   </data>
   <data name="home.stats.wordsThisMonth" xml:space="preserve">
-    <value>Words this month</value>
+    <value>本月字数</value>
   </data>
   <data name="home.stats.savedThisWeek" xml:space="preserve">
-    <value>Saved this week</value>
+    <value>本周节省</value>
   </data>
   <data name="home.stats.minutesValue" xml:space="preserve">
-    <value>{0} minutes</value>
+    <value>{0} 分钟</value>
   </data>
   <data name="home.stats.typingSpeedHelp" xml:space="preserve">
-    <value>Adjust your assumed typing speed</value>
+    <value>调整假定的打字速度</value>
   </data>
   <data name="providerApiKey.title" xml:space="preserve">
-    <value>Connect {0}</value>
+    <value>连接 {0}</value>
   </data>
   <data name="providerApiKey.subtitle" xml:space="preserve">
-    <value>Add your {0} API key to unlock this provider in Model Library.</value>
+    <value>添加你的 {0} API 密钥，即可在模型库中启用该提供商。</value>
   </data>
   <data name="providerApiKey.currentStatus.none" xml:space="preserve">
-    <value>No API key configured</value>
+    <value>尚未配置 API 密钥</value>
   </data>
   <data name="providerApiKey.currentStatus.configured" xml:space="preserve">
-    <value>Configured as {0}</value>
+    <value>已配置为 {0}</value>
   </data>
   <data name="providerApiKey.getKey" xml:space="preserve">
-    <value>Get key</value>
+    <value>获取密钥</value>
   </data>
   <data name="providerApiKey.apiKeyLabel" xml:space="preserve">
-    <value>API key</value>
+    <value>API 密钥</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>已安全保存在 Windows 凭据管理器中。</value>
   </data>
   <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
+    <value>API 密钥无效</value>
   </data>
   <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
+    <value>这看起来不像有效的 {0} API 密钥。</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
-    <value>Local API</value>
+    <value>本地 API</value>
   </data>
   <data name="settings.localApi.title" xml:space="preserve">
-    <value>Local API</value>
+    <value>本地 API</value>
   </data>
   <data name="settings.localApi.blurb" xml:space="preserve">
-    <value>Localhost-only HTTP API for MCP clients, benchmark scripts, and shell automation. Off by default. When on, HyperWhisper listens on 127.0.0.1 and writes the port + bearer token to %LOCALAPPDATA%\HyperWhisper\local-api.json with restricted file permissions.</value>
+    <value>仅限本机的 HTTP API，供 MCP 客户端、基准测试脚本和命令行自动化使用。默认关闭。开启后，HyperWhisper 会监听 127.0.0.1，并把端口和 bearer 令牌写入 %LOCALAPPDATA%\HyperWhisper\local-api.json，文件权限受限。</value>
   </data>
   <data name="settings.localApi.toggle.enabled" xml:space="preserve">
-    <value>Server enabled</value>
+    <value>服务器已开启</value>
   </data>
   <data name="settings.localApi.toggle.disabled" xml:space="preserve">
-    <value>Server disabled</value>
+    <value>服务器已关闭</value>
   </data>
   <data name="settings.localApi.docs" xml:space="preserve">
-    <value>Docs</value>
+    <value>文档</value>
   </data>
   <data name="settings.localApi.tab.connection" xml:space="preserve">
-    <value>Connection</value>
+    <value>连接</value>
   </data>
   <data name="settings.localApi.tab.mcp" xml:space="preserve">
-    <value>MCP setup</value>
+    <value>MCP 配置</value>
   </data>
   <data name="settings.localApi.tab.curl" xml:space="preserve">
     <value>cURL</value>
   </data>
   <data name="settings.localApi.row.port" xml:space="preserve">
-    <value>Port</value>
+    <value>端口</value>
   </data>
   <data name="settings.localApi.row.token" xml:space="preserve">
-    <value>Bearer token</value>
+    <value>Bearer 令牌</value>
   </data>
   <data name="settings.localApi.row.portFile" xml:space="preserve">
-    <value>Port file</value>
+    <value>端口文件</value>
   </data>
   <data name="settings.localApi.copy" xml:space="preserve">
-    <value>Copy</value>
+    <value>复制</value>
   </data>
   <data name="settings.localApi.reveal" xml:space="preserve">
-    <value>Reveal</value>
+    <value>显示</value>
   </data>
   <data name="settings.localApi.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>隐藏</value>
   </data>
   <data name="settings.localApi.regenerate" xml:space="preserve">
-    <value>Regenerate</value>
+    <value>重新生成</value>
   </data>
   <data name="settings.localApi.show" xml:space="preserve">
-    <value>Show</value>
+    <value>显示</value>
   </data>
   <data name="settings.localApi.helperAuth" xml:space="preserve">
-    <value>Sent as Authorization: Bearer &lt;token&gt;. Required on every endpoint except /health.</value>
+    <value>以 Authorization: Bearer &lt;token&gt; 的形式发送。除 /health 外的所有接口都必须提供。</value>
   </data>
   <data name="settings.localApi.mcp.caption" xml:space="preserve">
-    <value>Drop into Cursor, Claude Code, or Claude Desktop's mcpServers block. The wrapper auto-reads the port and token from the discovery file at startup — no secrets in client config.</value>
+    <value>粘贴到 Cursor、Claude Code 或 Claude Desktop 的 mcpServers 配置块中。包装器会在启动时自动从发现文件读取端口和令牌——客户端配置中不含任何机密。</value>
   </data>
   <data name="settings.localApi.mcp.guide" xml:space="preserve">
-    <value>MCP setup guide</value>
+    <value>MCP 配置指南</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
-    <value>Pre-filled with your port and token.</value>
+    <value>已自动填入你的端口和令牌。</value>
   </data>
   <data name="settings.localApi.action.copied" xml:space="preserve">
     <value>已复制到剪贴板。</value>
@@ -2139,13 +2139,13 @@
     <value>令牌已重新生成。</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
-    <value>No network sockets bound.</value>
+    <value>未绑定任何网络套接字。</value>
   </data>
   <data name="settings.localApi.status.starting" xml:space="preserve">
-    <value>Starting…</value>
+    <value>正在启动…</value>
   </data>
   <data name="settings.localApi.status.running" xml:space="preserve">
-    <value>127.0.0.1:{0} · token ••••{1}</value>
+    <value>127.0.0.1:{0} · 令牌 ••••{1}</value>
   </data>
   <data name="history.audio.loadFailed" xml:space="preserve">
     <value>无法加载音频文件</value>
@@ -2232,13 +2232,13 @@
     <value>Meta</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
-    <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
+    <value>Meta Muse Voice Transcribe 1.0 - 使用你自己的 Meta Model API 密钥进行批量转写</value>
   </data>
   <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
+    <value>Meta API 密钥格式无效。请输入来自 Meta for Developers 的完整密钥。</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
-    <value>Use your own Meta Model API key for Muse batch transcription</value>
+    <value>使用你自己的 Meta Model API 密钥，通过 Muse 进行批量转写</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
     <value>设置 HyperWhisper</value>
@@ -2283,7 +2283,7 @@
     <value>麦克风</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>以便我们听到您的语音。</value>
+    <value>必需。仅在录音进行时采集音频。</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>授权</value>
@@ -2331,7 +2331,7 @@
     <value>在这台电脑上</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>完全在您的 Mac 上运行。免费、私密、可离线使用——任何内容都不会离开您的设备。</value>
+    <value>私密且免费。模型只需下载一次，之后无需联网即可使用。</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>您的 API 密钥</value>
@@ -2415,7 +2415,7 @@
     <value>仅支持英语。在这台电脑上最快。</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>多语言 · 25 种语言</value>
+    <value>多语言。速度相同，下载更大。</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>多语言 · 体积小</value>
@@ -2583,7 +2583,7 @@
     <value>打开隐私设置</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>一切就绪，开始你的首次录音</value>
+    <value>进行一次录音。</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>按下快捷键，说出这句话，再按一次。</value>
@@ -2646,7 +2646,7 @@
     <value>此版本缺少示例音频。</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>完成！</value>
+    <value>你可以开始语音输入了。</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>在任意应用中按下快捷键并开始说话。</value>
@@ -2775,7 +2775,7 @@
     <value>API 密钥已保存。该服务商无法在不转录的情况下检查密钥，因此会在您第一次语音输入时验证。</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
-    <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
+    <value>HyperWhisper 未能送出转写结果：既没有粘贴，也没有复制到剪贴板。内容已保存在历史记录中。</value>
   </data>
   <data name="app.unknown.error" xml:space="preserve">
     <value>发生未知错误</value>

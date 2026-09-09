@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>मॉडल लाइब्रेरी</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>AssemblyAI के Universal-2 और Universal-3 Pro वाक्-से-पाठ मॉडल</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Mistral का Voxtral प्रतिलेखन और पाठ सुधार के लिए Mistral मॉडल</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>प्रतिलेखन और पाठ सुधार के लिए Google के Gemini मॉडल</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>रिकॉर्डिंग फ़ोल्डर</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Finder में दिखाएं</value>
+    <value>फ़ाइल एक्सप्लोरर में दिखाएं</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>चुनें...</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - उच्च सटीकता, कस्टम शब्दावली मुख्य शब्दों के रूप में</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>अंतिम बिंदु हटाएं</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>स्थायी निर्देश</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>ऐसे निर्देश जोड़ें जो चयनित प्रीसेट के ऊपर हमेशा लागू होते हैं।</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>माइक्रोफ़ोन</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>ताकि हम आपकी आवाज़ सुन सकें।</value>
+    <value>आवश्यक। ऑडियो केवल रिकॉर्डिंग सक्रिय होने पर ही कैप्चर किया जाता है।</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>अनुमति दें</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>इस PC पर</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>पूरी तरह से आपके Mac पर चलता है। मुफ़्त, निजी, ऑफ़लाइन भी काम करता है — कुछ भी आपके डिवाइस से बाहर नहीं जाता।</value>
+    <value>निजी और निःशुल्क। मॉडल एक बार डाउनलोड होता है, फिर बिना नेटवर्क के काम करता है।</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>आपकी API कुंजी</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>केवल अंग्रेज़ी। इस PC पर सबसे तेज़।</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>बहुभाषी · 25 भाषाएं</value>
+    <value>बहुभाषी। समान गति, बड़ा डाउनलोड।</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>बहुभाषी · बहुत छोटा आकार</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>गोपनीयता सेटिंग्स खोलें</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>सब कुछ तैयार है, आइए अपनी पहली रिकॉर्डिंग शुरू करें</value>
+    <value>एक रिकॉर्डिंग करें।</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>शॉर्टकट दबाएं, लाइन बोलें, फिर से दबाएं।</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>इस बिल्ड में नमूना क्लिप मौजूद नहीं है।</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>आप पूर्ण हैं!</value>
+    <value>अब आप बोलकर लिख सकते हैं।</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>किसी भी ऐप में शॉर्टकट दबाएं और बोलना शुरू करें।</value>

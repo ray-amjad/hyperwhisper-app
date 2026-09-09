@@ -600,13 +600,13 @@
     <value>Modèles de la famille Deepgram Nova avec réglage par domaine</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Les modèles de reconnaissance vocale Universal-2 et Universal-3 Pro d'AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>Transcription ElevenLabs Scribe avec horodatages détaillés et identification des locuteurs</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>La transcription Voxtral de Mistral et les modèles Mistral pour l'amélioration du texte</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Les modèles Claude d'Anthropic pour un traitement de texte avancé</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Les modèles Gemini de Google pour la transcription et l'amélioration du texte</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>L'inférence LLM ultra-rapide de Groq pour l'amélioration du texte</value>
@@ -667,7 +667,7 @@
     <value>Dossier des enregistrements</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Afficher dans le Finder</value>
+    <value>Afficher dans l'Explorateur</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Choisir...</value>
@@ -956,7 +956,7 @@ Cette action est irréversible.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - haute précision, vocabulaire personnalisé comme termes clés</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Le vocabulaire personnalisé n'est pas pris en charge par ce fournisseur.</value>
@@ -1021,10 +1021,10 @@ Cette action est irréversible.</value>
     <value>Supprimer le point final</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Instructions permanentes</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Ajoutez des instructions qui s'appliquent toujours en plus du préréglage sélectionné.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>Clé API requise</value>
@@ -2279,7 +2279,7 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
     <value>Microphone</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Pour que nous puissions entendre votre voix.</value>
+    <value>Requis. L'audio n'est capté que pendant un enregistrement.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Autoriser</value>
@@ -2327,7 +2327,7 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
     <value>Sur ce PC</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Fonctionne entièrement sur votre Mac. Gratuit, privé, fonctionne hors ligne — rien ne quitte jamais votre appareil.</value>
+    <value>Privé et gratuit. Télécharge un modèle une fois, puis fonctionne sans réseau.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Votre clé API</value>
@@ -2411,7 +2411,7 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
     <value>Anglais uniquement. Le plus rapide sur ce PC.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingue · 25 langues</value>
+    <value>Multilingue. Même vitesse, téléchargement plus volumineux.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Multilingue · empreinte minimale</value>
@@ -2579,7 +2579,7 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
     <value>Ouvrir les paramètres de confidentialité</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Parfait, lançons votre premier enregistrement</value>
+    <value>Faites un enregistrement.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Appuyez sur le raccourci, dites la phrase, appuyez à nouveau.</value>
@@ -2642,7 +2642,7 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
     <value>L'extrait d'exemple est absent de cette version.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>C’est terminé !</value>
+    <value>Vous pouvez maintenant dicter.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Appuyez sur le raccourci dans n'importe quelle app et parlez.</value>

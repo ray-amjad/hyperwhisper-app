@@ -600,13 +600,13 @@
     <value>Modelle der Deepgram-Nova-Familie mit fachspezifischer Abstimmung</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Die Sprache-zu-Text-Modelle Universal-2 und Universal-3 Pro von AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs-Scribe-Transkription mit genauen Zeitstempeln und Sprechertrennung</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Voxtral-Transkription von Mistral und Mistral-Modelle für Textverbesserung</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Claude-Modelle von Anthropic für fortgeschrittene Textverarbeitung</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Die Gemini-Modelle von Google für Transkription und Textverbesserung</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Ultraschnelle LLM-Verarbeitung von Groq zur Textverbesserung</value>
@@ -667,7 +667,7 @@
     <value>Aufnahmeordner</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Im Finder anzeigen</value>
+    <value>Im Explorer anzeigen</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Wählen...</value>
@@ -1021,10 +1021,10 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
     <value>Abschließenden Punkt entfernen</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Dauerhafte Anweisungen</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Fügen Sie Anweisungen hinzu, die immer zusätzlich zur gewählten Voreinstellung gelten.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API-Schlüssel erforderlich</value>
@@ -2279,7 +2279,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Damit wir deine Stimme hören können.</value>
+    <value>Erforderlich. Audio wird nur aufgenommen, solange eine Aufnahme läuft.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Erlauben</value>
@@ -2327,7 +2327,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Auf diesem PC</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Läuft komplett auf deinem Mac. Kostenlos, privat, funktioniert offline – nichts verlässt jemals dein Gerät.</value>
+    <value>Privat und kostenlos. Lädt ein Modell einmal herunter und arbeitet danach ohne Netzwerk.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Dein API-Schlüssel</value>
@@ -2411,7 +2411,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Nur Englisch. Am schnellsten auf diesem PC.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Mehrsprachig · 25 Sprachen</value>
+    <value>Mehrsprachig. Gleiches Tempo, größerer Download.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Mehrsprachig · minimaler Speicherbedarf</value>
@@ -2579,7 +2579,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Datenschutzeinstellungen öffnen</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Fertig, beginnen wir mit der ersten Aufnahme</value>
+    <value>Mach eine Aufnahme.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Drück die Tastenkombination, sag den Satz, drück sie noch einmal.</value>
@@ -2642,7 +2642,7 @@ Sie können es später erneut herunterladen.</value>
     <value>Der Beispielclip fehlt in diesem Build.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Du bist fertig!</value>
+    <value>Du kannst jetzt diktieren.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Drück die Tastenkombination in einer beliebigen App und leg los.</value>

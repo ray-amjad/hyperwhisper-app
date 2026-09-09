@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Pustaka Model</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Model ucapan-ke-teks Universal-2 dan Universal-3 Pro dari AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Transkripsi Voxtral dari Mistral dan model Mistral untuk penyempurnaan teks</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Model Gemini dari Google untuk transkripsi dan penyempurnaan teks</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Folder Rekaman</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Tampilkan di Finder</value>
+    <value>Tampilkan di Explorer</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Pilih...</value>
@@ -956,7 +956,7 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - akurasi tinggi, kosakata khusus sebagai istilah kunci</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Tindakan ini tidak dapat dibatalkan.</value>
     <value>Hapus titik di akhir</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Instruksi permanen</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Tambahkan instruksi yang selalu berlaku di atas prasetel yang dipilih.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Agar kami bisa mendengar suara Anda.</value>
+    <value>Wajib. Audio hanya direkam saat perekaman aktif.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Izinkan</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Di PC ini</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Berjalan sepenuhnya di Mac Anda. Gratis, privat, tetap berfungsi tanpa internet — tidak ada yang pernah meninggalkan perangkat Anda.</value>
+    <value>Privat dan gratis. Mengunduh model sekali, lalu bekerja tanpa jaringan.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Kunci API Anda</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Hanya bahasa Inggris. Tercepat di PC ini.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multibahasa · 25 bahasa</value>
+    <value>Multibahasa. Kecepatan sama, unduhan lebih besar.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Multibahasa · ukuran sangat kecil</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Buka pengaturan privasi</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Semuanya siap, mari mulai perekaman pertama Anda</value>
+    <value>Buat satu rekaman.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Tekan pintasan, ucapkan kalimatnya, tekan lagi.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Klip contoh tidak ada di build ini.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Anda selesai!</value>
+    <value>Anda siap mendikte.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Tekan pintasan di aplikasi mana pun dan mulai berbicara.</value>

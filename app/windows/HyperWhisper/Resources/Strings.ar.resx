@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>مكتبة النماذج</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>نماذج تحويل الكلام إلى نص Universal-2 وUniversal-3 Pro من AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>النسخ عبر Voxtral من Mistral ونماذج Mistral لتحسين النص</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>نماذج Gemini من Google للنسخ وتحسين النص</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>مجلد التسجيلات</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>عرض في Finder</value>
+    <value>إظهار في مستكشف الملفات</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>اختر...</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - دقة عالية، مفردات مخصصة كمصطلحات رئيسية</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>إزالة النقطة الزائدة</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>تعليمات دائمة</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>أضف تعليمات تُطبَّق دائمًا فوق الإعداد المسبق المحدد.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>الميكروفون</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>حتى نتمكن من سماع صوتك.</value>
+    <value>مطلوب. لا يُلتقط الصوت إلا أثناء التسجيل.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>منح الإذن</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>على هذا الكمبيوتر</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>يعمل بالكامل على جهاز Mac الخاص بك. مجاني وخاص ويعمل بلا اتصال بالإنترنت — لا يغادر أي شيء جهازك أبدًا.</value>
+    <value>خاص ومجاني. يتم تنزيل النموذج مرة واحدة، ثم يعمل بدون اتصال بالإنترنت.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>مفتاح API الخاص بك</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>الإنجليزية فقط. الأسرع على هذا الكمبيوتر.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>متعدد اللغات · 25 لغة</value>
+    <value>متعدد اللغات. السرعة نفسها، وحجم تنزيل أكبر.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>متعدد اللغات · حجم صغير جدًا</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>فتح إعدادات الخصوصية</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>كل شيء جاهز، دعنا نبدأ تسجيلك الأول</value>
+    <value>سجّل تسجيلاً واحداً.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>اضغط الاختصار، قل الجملة، ثم اضغطه مرة أخرى.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>المقطع التجريبي مفقود من هذه النسخة.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>انتهيت!</value>
+    <value>أصبحت جاهزاً للإملاء.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>اضغط الاختصار في أي تطبيق وابدأ الحديث.</value>

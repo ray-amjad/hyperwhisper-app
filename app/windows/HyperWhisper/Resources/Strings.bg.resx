@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Библиотека с модели</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Моделите за реч към текст Universal-2 и Universal-3 Pro на AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Транскрипция с Voxtral на Mistral и модели Mistral за подобряване на текста</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Моделите Gemini на Google за транскрипция и подобряване на текста</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Папка за записи</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Покажи във Finder</value>
+    <value>Покажи в Explorer</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Избери...</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - висока точност, персонализиран речник като ключови термини</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>Премахване на крайната точка</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Постоянни инструкции</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Добавете инструкции, които винаги се прилагат върху избраната предварителна настройка.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Микрофон</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>За да можем да чуваме гласа ти.</value>
+    <value>Задължително. Звукът се записва само докато тече запис.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Разреши</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>На този компютър</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Работи изцяло на твоя Mac. Безплатно, поверително, работи офлайн – нищо не напуска устройството ти.</value>
+    <value>Поверително и безплатно. Изтегля модел веднъж, след което работи без мрежа.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Твоят API ключ</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Само английски. Най-бърз на този компютър.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Многоезичен · 25 езика</value>
+    <value>Многоезичен. Същата скорост, по-голямо изтегляне.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Многоезичен · минимален размер</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Отвори настройките за поверителност</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Всичко е готово, нека започнем вашия първи запис</value>
+    <value>Направете един запис.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Натисни клавишната комбинация, кажи реда, натисни отново.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Примерният запис липсва в тази версия.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Готови сте!</value>
+    <value>Готови сте да диктувате.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Натисни клавишната комбинация във всяко приложение и започни да говориш.</value>

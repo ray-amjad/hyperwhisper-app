@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Knižnica modelov</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Modely prevodu reči na text Universal-2 a Universal-3 Pro od AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Prepis pomocou Voxtralu od Mistralu a modely Mistral na vylepšenie textu</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Modely Gemini od Googlu na prepis a vylepšenie textu</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Zložka nahrávok</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Zobraziť v Finderi</value>
+    <value>Zobraziť v Prieskumníkovi</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Zvoľte...</value>
@@ -956,7 +956,7 @@ Túto akciu sa nedá vrátiť.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - vysoká presnosť, vlastný slovník ako kľúčové termíny</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Túto akciu sa nedá vrátiť.</value>
     <value>Odstrániť záverečnú bodku</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Trvalé pokyny</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Pridajte pokyny, ktoré sa vždy použijú navyše k vybranej predvoľbe.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Mikrofón</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Aby sme mohli počuť váš hlas.</value>
+    <value>Povinné. Zvuk sa zaznamenáva iba počas nahrávania.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Udeliť</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Na tomto počítači</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Beží úplne na vašom Macu. Zadarmo, súkromne, funguje offline — nič nikdy neopustí vaše zariadenie.</value>
+    <value>Súkromné a zadarmo. Model sa stiahne raz a potom funguje bez siete.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Váš API kľúč</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Iba angličtina. Najrýchlejší na tomto počítači.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multijazyčný · 25 jazykov</value>
+    <value>Viacjazyčný. Rovnaká rýchlosť, väčšie sťahovanie.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Multijazyčný · minimálna veľkosť</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Otvoriť nastavenia ochrany osobných údajov</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Všetko je nastavené, začneme vašim prvým nahrávaním</value>
+    <value>Vytvorte jednu nahrávku.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Stlačte skratku, povedzte vetu, stlačte ju znova.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Ukážková nahrávka v tomto zostavení chýba.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Ste hotový!</value>
+    <value>Môžete začať diktovať.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Stlačte skratku v ktorejkoľvek aplikácii a začnite hovoriť.</value>

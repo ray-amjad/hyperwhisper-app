@@ -156,7 +156,7 @@
     <value>ล้มเหลว</value>
   </data>
   <data name="history.context.retry" xml:space="preserve">
-    <value>ลองสัญลักษณ์ใหม่</value>
+    <value>ลองถอดเสียงอีกครั้ง</value>
   </data>
   <data name="history.toggle.showProcessed" xml:space="preserve">
     <value>แสดงที่ประมวลผลแล้ว</value>
@@ -285,7 +285,7 @@
     <value>ยังไม่มีศัพท์เฉพาะ</value>
   </data>
   <data name="vocabulary.empty.subtitle" xml:space="preserve">
-    <value>เพิ่มคำศัพท์ที่กำหนดเองเพื่อปรับปรุงความแม่นยำของการสัญลักษณ์</value>
+    <value>เพิ่มคำศัพท์ที่กำหนดเองเพื่อปรับปรุงความแม่นยำของการถอดเสียง</value>
   </data>
   <data name="vocabulary.limit.title" xml:space="preserve">
     <value>เกินขีดจำกัดคำหลัก</value>
@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>คลังโมเดล</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -539,10 +539,10 @@
     <value>วิธีใช้กับคีย์ API</value>
   </data>
   <data name="settings.api.transcription.title" xml:space="preserve">
-    <value>การสัญลักษณ์</value>
+    <value>การถอดเสียง</value>
   </data>
   <data name="settings.api.transcription.subtitle" xml:space="preserve">
-    <value>คีย์ API สำหรับบริการการสัญลักษณ์เสียงเป็นข้อความบนคลาวด์</value>
+    <value>คีย์ API สำหรับบริการถอดเสียงเป็นข้อความบนคลาวด์</value>
   </data>
   <data name="settings.api.postProcessing.title" xml:space="preserve">
     <value>หลังการประมวลผล</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>โมเดลแปลงเสียงเป็นข้อความ Universal-2 และ Universal-3 Pro ของ AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>การถอดเสียงด้วย Voxtral ของ Mistral และโมเดล Mistral สำหรับการปรับปรุงข้อความ</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>โมเดล Gemini ของ Google สำหรับการถอดเสียงและการปรับปรุงข้อความ</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -639,7 +639,7 @@
     <value>วางผลลัพธ์โดยอัตโนมัติ</value>
   </data>
   <data name="settings.output.paste.subtitle" xml:space="preserve">
-    <value>วางข้อความที่สัญลักษณ์โดยอัตโนมัติลงในแอปพลิเคชันที่ใช้งานอยู่</value>
+    <value>วางข้อความที่ถอดเสียงได้ลงในแอปพลิเคชันที่ใช้งานอยู่โดยอัตโนมัติ</value>
   </data>
   <data name="settings.output.restoreClipboard.title" xml:space="preserve">
     <value>คืนค่าคลิปบอร์ดหลังการวาง</value>
@@ -667,7 +667,7 @@
     <value>โฟลเดอร์การบันทึก</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>แสดงใน Finder</value>
+    <value>แสดงใน File Explorer</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>เลือก...</value>
@@ -704,7 +704,7 @@
     <value>กำลังประมวลผลเสียง...</value>
   </data>
   <data name="recording.state.transcribing" xml:space="preserve">
-    <value>กำลังสัญลักษณ์...</value>
+    <value>กำลังถอดเสียง...</value>
   </data>
   <data name="recording.success.pasted" xml:space="preserve">
     <value>วางแล้ว!</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - ความแม่นยำสูง คำศัพท์เฉพาะเป็นคำสำคัญ</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>ลบจุดท้ายประโยค</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>คำสั่งถาวร</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>เพิ่มคำสั่งที่จะใช้เสมอเพิ่มเติมจากพรีเซ็ตที่เลือก</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>ไมโครโฟน</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>เพื่อให้เราได้ยินเสียงของคุณ</value>
+    <value>จำเป็น ระบบจะบันทึกเสียงเฉพาะขณะที่กำลังบันทึกเท่านั้น</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>อนุญาต</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>บนพีซีเครื่องนี้</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>ทำงานทั้งหมดบน Mac ของคุณ ฟรี เป็นส่วนตัว ใช้งานได้แบบออฟไลน์ — ไม่มีข้อมูลใดออกจากอุปกรณ์ของคุณ</value>
+    <value>เป็นส่วนตัวและฟรี ดาวน์โหลดโมเดลครั้งเดียว จากนั้นทำงานได้โดยไม่ต้องใช้เครือข่าย</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>API Key ของคุณ</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>ภาษาอังกฤษเท่านั้น เร็วที่สุดบนพีซีเครื่องนี้</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>พหุภาษา · 25 ภาษา</value>
+    <value>หลายภาษา ความเร็วเท่าเดิม ดาวน์โหลดใหญ่ขึ้น</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>พหุภาษา · ขนาดเล็กมาก</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>เปิดการตั้งค่าความเป็นส่วนตัว</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>ทุกอย่างพร้อม มาเริ่มการบันทึกครั้งแรกของคุณ</value>
+    <value>บันทึกเสียงหนึ่งครั้ง</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>กดปุ่มลัด พูดประโยค แล้วกดอีกครั้ง</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>บิลด์นี้ไม่มีคลิปตัวอย่าง</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>เสร็จเรียบร้อย!</value>
+    <value>คุณพร้อมพิมพ์ด้วยเสียงแล้ว</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>กดปุ่มลัดในแอปใดก็ได้แล้วเริ่มพูด</value>
