@@ -105,11 +105,58 @@ public class PostProcessingService : IDisposable
         // partial failure (some segments applied, at least one did not) isn't
         // silently reported as a full success.
         var anyFailed = false;
+        // Resolved provider/model (#314) are aggregated FIRST-NON-NULL rather than
+        // last-write-wins: every segment shares one `mode`, so they can only
+        // disagree if a provider fell back differently mid-request. A disagreement
+        // is logged, never asserted — Debug.Assert is compiled out of Release, and
+        // failing a working transcription over a label would be worse than the
+        // mislabel.
+        //
+        // A MIXED-MODEL RESPONSE NAMES NO MODEL. When two segments really did run
+        // on different models, the first one is not the honest answer for the
+        // combined text — it is an affirmative claim about text a different model
+        // produced, which is issue #314 inside one response. The whole call is
+        // reported as `ResolvedModel = ""`: "an LLM ran and no single model names
+        // this text", the same meaning `""` carries everywhere else in this fix.
+        // Rejecting the result instead would throw away perfectly good
+        // post-processed text over a label, and `AnyPartialFailure` already covers
+        // a genuinely broken mix. (`resolvedProvider` keeps first-non-null: `""`
+        // there would read as "nothing ran" to `PostProcessEndpoints.ResponseLabels`,
+        // and segments that differ by provider differ by model too, so the model
+        // field already carries the warning.)
+        string? resolvedProvider = null;
+        string? resolvedModel = null;
+        var modelsDisagreed = false;
         foreach (var segment in segments)
         {
             var result = await ProcessAsync(segment, mode, applicationContext, cancellationToken);
             anyApplied |= result.WasApplied;
             anyFailed |= !result.WasApplied;
+            if (result.ResolvedProvider != null)
+            {
+                if (resolvedProvider == null)
+                {
+                    resolvedProvider = result.ResolvedProvider;
+                }
+                else if (!string.Equals(resolvedProvider, result.ResolvedProvider, StringComparison.Ordinal))
+                {
+                    LoggingService.Warn(
+                        $"PostProcessingService: segments disagree on the provider that ran — reporting the first ('{resolvedProvider}'), saw '{result.ResolvedProvider}'");
+                }
+            }
+            if (result.ResolvedModel != null)
+            {
+                if (resolvedModel == null)
+                {
+                    resolvedModel = result.ResolvedModel;
+                }
+                else if (!string.Equals(resolvedModel, result.ResolvedModel, StringComparison.Ordinal))
+                {
+                    modelsDisagreed = true;
+                    LoggingService.Warn(
+                        $"PostProcessingService: segments disagree on the model that ran — naming none ('{resolvedModel}'), saw '{result.ResolvedModel}'");
+                }
+            }
             var trimmed = result.Text.Trim();
             if (trimmed.Length > 0)
             {
@@ -117,7 +164,13 @@ public class PostProcessingService : IDisposable
             }
         }
 
-        return new PostProcessingResult(string.Join("\n\n", processed), anyApplied, AnyPartialFailure: anyApplied && anyFailed);
+        return new PostProcessingResult(
+            string.Join("\n\n", processed),
+            anyApplied,
+            AnyPartialFailure: anyApplied && anyFailed,
+            ResolvedProvider: resolvedProvider,
+            // Non-null (a run happened) but unnamed, when the segments disagreed.
+            ResolvedModel: modelsDisagreed ? string.Empty : resolvedModel);
     }
 
     /// <summary>
@@ -200,7 +253,31 @@ public class PostProcessingService : IDisposable
                     return PostProcessingResult.Skipped(text);
                 }
                 LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {response.Length} chars)");
-                return PostProcessingResult.Applied(response);
+                // Record what RAN, not what the Mode stored (#314). This branch
+                // never reads `mode.LanguageModel` — the engine comes from
+                // `mode.CloudPostProcessingModel` — so echoing `LanguageModel`
+                // reported an unrelated field, not just a stale one. The model is
+                // the `X-LLM-Model` value sent above, falling back to the catalog
+                // model id when the catalog does not override it.
+                //
+                // DELIBERATELY NOT the `X-LLM-Provider` RESPONSE header. The
+                // hosted route runs its own server-side fallback (a 5xx on the
+                // primary provider, or a prompt-leakage reroute) and names the
+                // pair that answered in that header — but the value is
+                // `servedLLMName(provider, model)`, a provider-prefixed DISPLAY
+                // label ("groq-gpt-oss-120b" for the model id
+                // "openai/gpt-oss-120b"), and it is set on EVERY 200, not only
+                // after a reroute. Reporting it here would make `model` speak two
+                // vocabularies — a catalog model id for BYOK/local/custom runs, a
+                // backend display label for hosted ones — and a client that feeds
+                // `model` back into a mode (`ModesEndpoints` takes it unvalidated)
+                // would write an id `LanguageModelInfo.GetById` cannot resolve.
+                // Until the backend exposes the served MODEL ID separately, a
+                // backend-side reroute stays invisible here; `openapi.yaml` says so.
+                return PostProcessingResult.Applied(
+                    response,
+                    PostProcessingProvider.HyperWhisperCloud.ToStringValue(),
+                    cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId);
             }
             catch (OperationCanceledException)
             {
@@ -282,13 +359,20 @@ public class PostProcessingService : IDisposable
         // the two cannot drift.
         var userMessage = LlmPostProcessing.WrapTranscript(systemInfo, text);
 
+        // The custom-endpoint model name is only known inside
+        // CallCustomEndpointAsync — it comes from the lenient validator, which can
+        // repair the endpoint's stored ModelName — so it is handed back here for
+        // the resolved label (#314) rather than looked up a second time.
+        string? customEndpointModel = null;
+
         try
         {
             CompletionEvaluation evaluation;
 
             if (isCustomEndpoint)
             {
-                var responseJson = await CallCustomEndpointAsync(mode, systemPrompt, systemInfo, text, cancellationToken);
+                var (responseJson, endpointModel) = await CallCustomEndpointAsync(mode, systemPrompt, systemInfo, text, cancellationToken);
+                customEndpointModel = endpointModel;
                 evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, responseJson, text);
             }
             else
@@ -324,7 +408,16 @@ public class PostProcessingService : IDisposable
             }
             LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {evaluation.text.Length} chars)");
 
-            return PostProcessingResult.Applied(evaluation.text);
+            // Record what RAN (#314). For a custom endpoint the caller's own
+            // `custom:<guid>` string IS the resolved provider — it is already the
+            // wire vocabulary — and the model is the validator's repaired name.
+            // Otherwise `resolvedModelId` is the post-fallback id that went into
+            // the request body: the migrated id, or the provider default that
+            // replaced a model the Mode named for another provider.
+            return PostProcessingResult.Applied(
+                evaluation.text,
+                isCustomEndpoint ? mode.PostProcessingProvider : provider.ToStringValue(),
+                isCustomEndpoint ? customEndpointModel : resolvedModelId);
         }
         catch (OperationCanceledException)
         {
@@ -455,7 +548,14 @@ public class PostProcessingService : IDisposable
     /// forever is the failure this change exists to stop — so an endpoint that is
     /// still safe to call keeps working, with a warning naming the repair.
     /// </remarks>
-    private async Task<string> CallCustomEndpointAsync(
+    /// <returns>
+    /// The raw response JSON, plus the model name actually called — the
+    /// validator's <c>Model</c>, which can differ from the endpoint's stored
+    /// <c>ModelName</c>. The caller needs the second value for the resolved
+    /// label on <see cref="PostProcessingResult"/> (#314); it is returned here
+    /// rather than re-derived so the endpoint lookup is not duplicated.
+    /// </returns>
+    private async Task<(string ResponseJson, string Model)> CallCustomEndpointAsync(
         Mode mode,
         string systemPrompt,
         string systemInfo,
@@ -499,7 +599,7 @@ public class PostProcessingService : IDisposable
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadAsStringAsync(cancellationToken);
+        return (await response.Content.ReadAsStringAsync(cancellationToken), verdict.Model);
     }
 
     // =========================================================================
@@ -535,9 +635,30 @@ public class PostProcessingService : IDisposable
 /// is `true` but the result is a mix of processed and raw/unprocessed segment
 /// text. Callers that only check <see cref="WasApplied"/> would otherwise
 /// treat this as a full success.</param>
-public readonly record struct PostProcessingResult(string Text, bool WasApplied, bool AnyPartialFailure = false)
+/// <param name="ResolvedProvider">The provider that ACTUALLY produced
+/// <paramref name="Text"/> — not the one stored on the Mode (issue #314). Speaks
+/// the same vocabulary as <c>Mode.PostProcessingProvider</c>: a
+/// <see cref="PostProcessingProviderExtensions.ToStringValue"/> result
+/// (<c>"anthropic"</c>, <c>"local_llm"</c>, …) or a <c>custom:&lt;guid&gt;</c>
+/// string, so a caller can put it on the wire unchanged. Written ONLY by
+/// <see cref="PostProcessingResult.Applied"/>, so a non-null value means "an LLM
+/// ran, and this is what it was" — a run that resolves a model and then fails
+/// leaves no stale label behind, and a reader needs no
+/// <paramref name="WasApplied"/> cross-check. Null when nothing ran; readers
+/// then fall back to the Mode's stored labels.</param>
+/// <param name="ResolvedModel">See <paramref name="ResolvedProvider"/>. The
+/// post-fallback model id: the replacement that stood in for an unknown or
+/// retired id, the <c>X-LLM-Model</c> value the cloud route really sent, or the
+/// model name the custom-endpoint validator repaired to.</param>
+public readonly record struct PostProcessingResult(
+    string Text,
+    bool WasApplied,
+    bool AnyPartialFailure = false,
+    string? ResolvedProvider = null,
+    string? ResolvedModel = null)
 {
-    public static PostProcessingResult Applied(string text) => new(text, true);
+    public static PostProcessingResult Applied(string text, string? provider = null, string? model = null) =>
+        new(text, true, ResolvedProvider: provider, ResolvedModel: model);
     public static PostProcessingResult Skipped(string text) => new(text, false);
 }
 
