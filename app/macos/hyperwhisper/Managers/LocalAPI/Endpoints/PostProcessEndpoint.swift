@@ -308,7 +308,16 @@ enum PostProcessEndpoint {
         mode.cloudProvider = baseline?.cloudProvider
         mode.cloudTranscriptionModel = baseline?.cloudTranscriptionModel
         mode.postProcessingMode = baseline?.postProcessingMode ?? 1
-        mode.postProcessingProvider = baseline?.postProcessingProvider ?? PostProcessingProvider.hyperwhisper.rawValue
+        // No baseline mode and no `provider` override, so macOS DERIVES this —
+        // and a derived provider is written in the canonical cross-platform
+        // spelling. It was `.rawValue`, which made one endpoint answer two
+        // tokens: `POST /postprocess` with no `mode_id` said "hyperwhisper"
+        // while the same request against the seeded default mode said
+        // "hyperwhispercloud", and Windows answers "hyperwhispercloud" for the
+        // no-mode case (`PostProcessEndpoints.cs:347`). A baseline's own value
+        // is still copied verbatim, and an explicit `provider` override below
+        // still overwrites this verbatim.
+        mode.postProcessingProvider = baseline?.postProcessingProvider ?? PostProcessingProvider.hyperwhisper.storageValue
         mode.englishSpelling = baseline?.englishSpelling ?? "american"
         mode.useStreamingTranscription = false
         mode.cloudAccuracyTier = baseline?.cloudAccuracyTier

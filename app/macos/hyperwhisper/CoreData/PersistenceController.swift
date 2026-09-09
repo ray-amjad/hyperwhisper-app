@@ -1989,9 +1989,19 @@ class PersistenceController: ObservableObject {
     
     // MARK: - Mode Operations
     
-    /// Initializes default modes in Core Data if none exist
-    /// Called on app startup to ensure default modes are available
-    private func initializeDefaultModes() {
+    /// Initializes the default mode in Core Data if none exist
+    /// Called on app startup to ensure a default mode is available
+    ///
+    /// WHAT the mode is lives in the shared Rust core (`hw-catalog::mode_seed`,
+    /// reached through `SeededModeValues`), so macOS, Windows and the
+    /// Linux/portable head all create the same single mode on a fresh install
+    /// and there is no longer a definition to keep in sync. This method only
+    /// owns WHEN to write it.
+    ///
+    /// Internal rather than private so `DefaultModeSeedTests` can drive it
+    /// against an in-memory store — `init` (the only caller) skips it when
+    /// `inMemory` is true, so a test has to call it explicitly.
+    func initializeDefaultModes() {
         let context = container.viewContext
         
         // Check if any modes exist
@@ -2018,59 +2028,29 @@ class PersistenceController: ObservableObject {
             return
         }
         
-        // NEW INSTALLS ONLY: Create default mode with HyperWhisperCloud
-        // Using well-known UUID for stable identification
-        let defaultModes = [
-            (
-                name: "Default",
-                preset: "hyper",
-                id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
-                model: "cloud",
-                isDefault: true,
-                sortOrder: 0,
-                postProcessingMode: Int16(1),  // Cloud post-processing
-                cloudProvider: "hyperwhisper",  // Use HyperWhisperCloud by default
-                postProcessingProvider: "hyperwhisper"  // HyperWhisperCloud handles post-processing
-            )
-        ]
-        
-        for modeData in defaultModes {
-            let mode = Mode(context: context)
-            mode.id = modeData.id
-            mode.name = modeData.name
-            mode.preset = modeData.preset
-            mode.language = "en"
-            mode.model = modeData.model
-            mode.punctuation = true
-            mode.capitalization = true
-            mode.profanityFilter = false
-            mode.isDefault = modeData.isDefault
-            mode.isSystemProvided = true
-            mode.createdDate = Date()
-            mode.modifiedDate = Date()
-            mode.sortOrder = Int16(modeData.sortOrder)
-            mode.customInstructions = ""
-            mode.postProcessingMode = modeData.postProcessingMode
-            mode.postProcessingProvider = modeData.postProcessingProvider
-            mode.cloudProvider = modeData.cloudProvider
-            mode.cloudAccuracyTier = CloudAccuracyTier.elevenLabsScribeV2.rawValue
-            // Seed the tier's own default model (Scribe v2) explicitly. Without this the
-            // attribute inherits the Core Data default `whisper-1`, a stale BYOK id that
-            // isn't valid for the ElevenLabs tier — the provider would silently fall back,
-            // but the stored value would be misleading.
-            mode.cloudTranscriptionModel = CloudAccuracyTier.elevenLabsScribeV2.defaultModelId
-            mode.cloudPostProcessingModel = CloudPostProcessingModel.claudeHaiku.rawValue
-            // Seed the spelling variant from the system region so a first install
-            // in e.g. the UK opens on "British" instead of making the user change
-            // every mode by hand. An unknown region keeps the historical American.
-            mode.englishSpelling = EnglishSpelling.defaultForCurrentRegion.rawValue
-        }
-        
-        // Save the default modes
+        // NEW INSTALLS ONLY: exactly ONE mode, defined by the shared core.
+        //
+        // The well-known UUID, the name, the language, the HyperWhisper Cloud
+        // post-processing provider and the two catalog-resolved model ids all
+        // come from `hw-catalog::mode_seed` — not from literals here — so the
+        // three heads cannot drift again. The spelling variant inside it is
+        // derived from the system region, so a first install in e.g. the UK
+        // opens on "British" instead of making the user change every mode by
+        // hand; an unknown region keeps the historical American.
+        //
+        // WHAT to write lives in `seedDefaultMode()`; this method owns only
+        // WHEN. The save below is kept here rather than in the helper because
+        // its diagnostics and the `didSeedDefaultModesOnLaunch` flag are about
+        // first launch specifically, and onboarding's use of the helper is not
+        // a first launch.
+        let mode = seedDefaultMode(persist: false)
+        let seededName = mode.name ?? ""
+
+        // Save the default mode
         do {
             try context.save()
             didSeedDefaultModesOnLaunch = true
-            AppLogger.coreData.info("Initialized \(defaultModes.count, privacy: .public) default modes for new install")
+            AppLogger.coreData.info("Initialized the default mode for new install: \(seededName, privacy: .public)")
         } catch {
             AppLogger.logCoreData(
                 .save(site: "initialize_default_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
@@ -2079,7 +2059,39 @@ class PersistenceController: ObservableObject {
             )
         }
     }
-    
+
+    /// Inserts the one mode a fresh install creates, unconditionally.
+    ///
+    /// `initializeDefaultModes()` owns WHEN the store may be seeded — its
+    /// `count > 0 → return` guard is the "existing users are never re-seeded"
+    /// contract and does not move. This owns WHAT gets written, and it is
+    /// separate because onboarding needs the same row on a path that guard
+    /// deliberately refuses to act on: the flagged default mode has been deleted
+    /// while other modes remain, so the store is not empty but the default is
+    /// missing.
+    ///
+    /// The alternative — letting `createOrUpdateMode` create it — is NOT
+    /// equivalent and was the bug this fixes. Its CREATE branch hardcodes
+    /// `isSystemProvided = false` and `sortOrder = maxSortOrder + 1`, against
+    /// the seed's `true` and `0`, and the row is permanent because
+    /// `initializeDefaultModes()` returns early once any mode exists.
+    ///
+    /// ⚠️ `Mode`'s Core Data attribute defaults are hostile — an unwritten field
+    /// inherits a stale legacy value (`whisper-1`, `claudeHaiku`, `openai`,
+    /// `en`, `base`) rather than a null. `applySeededValues` is where every
+    /// column is written explicitly and where that list is documented; do not
+    /// thin it out, and do not hand-roll a second copy of it here.
+    ///
+    /// - Parameter persist: `false` when the caller owns the save — the
+    ///   first-launch path saves with its own diagnostics.
+    @discardableResult
+    func seedDefaultMode(persist: Bool = true) -> Mode {
+        let mode = Mode(context: container.viewContext)
+        mode.applySeededValues(SeededModeValues.forCurrentRegion)
+        if persist { save() }
+        return mode
+    }
+
     /// Fetches all modes sorted by sortOrder
     /// - Returns: Array of modes
     func fetchAllModes() -> [Mode] {
@@ -2380,12 +2392,21 @@ class PersistenceController: ObservableObject {
         // default (e.g. scribe_v2) instead of persisting a stale "whisper-1".
         mode?.postProcessingMode = postProcessingMode
 
+        // A provider this app DERIVES is written in its canonical cross-platform
+        // spelling — HyperWhisper Cloud is "hyperwhispercloud", the token Windows
+        // and the Linux/portable head already store. A provider the CALLER
+        // supplied is stored verbatim: the Local API contract on both heads is
+        // "tolerant on read, verbatim on write" (`ModesEndpoints.cs:106,397`
+        // normalise neither create nor patch), and a restore must round-trip a
+        // foreign head's string unchanged. Every reader folds the spellings back
+        // together through `PostProcessingProvider(rawValue:)`.
         if modeEnum == .local {
-            mode?.postProcessingProvider = PostProcessingProvider.localLLM.rawValue
+            mode?.postProcessingProvider = PostProcessingProvider.localLLM.storageValue
         } else if let provider = postProcessingProvider {
             mode?.postProcessingProvider = provider
         } else {
-            mode?.postProcessingProvider = modeEnum.defaultProvider?.rawValue ?? "hyperwhisper"
+            mode?.postProcessingProvider = modeEnum.defaultProvider?.storageValue
+                ?? PostProcessingProvider.hyperwhisper.storageValue
         }
         // An omitted spelling lands on the system region's variant, the same value
         // the GUI seeds into a new mode. Callers that forward an existing mode's

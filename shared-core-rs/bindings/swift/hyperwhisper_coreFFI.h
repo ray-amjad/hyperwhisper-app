@@ -1413,6 +1413,11 @@ RustBuffer uniffi_hyperwhisper_core_fn_func_mode_check_name_change(int8_t is_def
 RustBuffer uniffi_hyperwhisper_core_fn_func_mode_plan_default(RustBuffer rows, RustBuffer preferred, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_MODE_SEED_DEFAULT
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_MODE_SEED_DEFAULT
+RustBuffer uniffi_hyperwhisper_core_fn_func_mode_seed_default(RustBuffer region, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_MODELS_ALL_ENTRIES
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_MODELS_ALL_ENTRIES
 RustBuffer uniffi_hyperwhisper_core_fn_func_models_all_entries(RustCallStatus *_Nonnull out_status
@@ -3130,6 +3135,12 @@ uint16_t uniffi_hyperwhisper_core_checksum_func_mode_check_name_change(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_MODE_PLAN_DEFAULT
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_MODE_PLAN_DEFAULT
 uint16_t uniffi_hyperwhisper_core_checksum_func_mode_plan_default(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_MODE_SEED_DEFAULT
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_MODE_SEED_DEFAULT
+uint16_t uniffi_hyperwhisper_core_checksum_func_mode_seed_default(void
     
 );
 #endif

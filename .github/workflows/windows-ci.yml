@@ -224,3 +224,20 @@ jobs:
       # Taiwan)", so it is distinguishable from the zh-Hant row beside it.
       - name: Run language catalog conformance vectors
         run: dotnet run --project app/shared-dotnet/HyperWhisper.LanguageConformance.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 12. First-run mode seed
+      # ----------------------------------------------------------------
+      # shared-conformance/mode-seed-vectors.json, the same three-platform
+      # shape. Issue #285's final item left exactly one .NET seeder: Windows'
+      # ModeDefaults now delegates to PortableModeDefaults, so this harness IS
+      # the Windows head's seed coverage, and it asserts through the same Mode
+      # entity both heads compile. Windows is the head that changes most — a
+      # fresh install drops from six seeded modes to one, and the catalog
+      # lookups that used to be hardcoded here now come from hw-catalog.
+      #
+      # Windows CI names each project explicitly, unlike Linux CI's
+      # shared-dotnet sweep, so this line is what makes the vectors run here at
+      # all.
+      - name: Run first-run mode seed conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.ModeDefaults.Tests -c Release

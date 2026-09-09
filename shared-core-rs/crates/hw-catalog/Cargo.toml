@@ -9,6 +9,14 @@ publish = false
 crate-type = ["lib"]
 
 [dependencies]
+# NEW EDGE (#285). The first-run mode seed resolves its `englishSpelling` from
+# the host region, and that region table already lives in hw-text
+# (`EnglishSpelling::for_region`, item 1 of the same issue). Duplicating it here
+# is exactly the divergence this change exists to remove.
+#
+# Safe: hw-text has no in-workspace dependencies of its own, so this adds a leaf
+# edge and cannot cycle. hw-net already depends on both crates.
+hw-text = { path = "../hw-text" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

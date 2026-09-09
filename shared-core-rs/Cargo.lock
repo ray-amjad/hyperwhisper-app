@@ -300,6 +300,7 @@ dependencies = [
 name = "hw-catalog"
 version = "0.1.0"
 dependencies = [
+ "hw-text",
  "serde",
  "serde_json",
  "thiserror",
