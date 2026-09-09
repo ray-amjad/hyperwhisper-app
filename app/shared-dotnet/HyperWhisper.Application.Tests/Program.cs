@@ -60,6 +60,8 @@ try
         Assert(await context.Database.CanConnectAsync(), "SQLite database is not connectable");
     }
 
+    await RunDefaultModeInvariantTestsAsync(Path.Combine(root, "default-mode-invariant"));
+
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
 
     var history = new HistoryRepository(database);
@@ -823,6 +825,86 @@ finally
 /// <c>HyperWhisper.Application.csproj</c>'s source glob, which is also why this
 /// assertion lives in the portable suite rather than a Windows-only one.
 /// </summary>
+// Issue #536: exactly one mode carries IsDefault, and that mode's name is fixed.
+// The decision is the shared core's (hw-modes); these are the portable head's
+// write paths applying it — the repository the Linux GUI saves through, the
+// startup repair, and the backup import that is the realistic way a broken set
+// arrives on a machine at all.
+static async Task RunDefaultModeInvariantTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+
+    // 1. A store that already has two defaults is repaired the next time the app
+    //    starts. InitializeAsync used to return early whenever ANY mode existed,
+    //    which is precisely why a restored backup's broken flags survived.
+    var twoDefaults = new ApplicationDb(new TestPaths(Path.Combine(root, "two-defaults")));
+    await twoDefaults.MigrateAsync();
+    var repository = new ModeRepository(twoDefaults);
+    var local = new Mode { Name = "Local", IsDefault = true, SortOrder = 0 };
+    var imported = new Mode { Name = "Imported", IsDefault = true, SortOrder = 1 };
+    await repository.UpsertAsync(local);
+    await repository.UpsertAsync(imported);
+    await twoDefaults.InitializeAsync();
+    var repaired = await repository.ListAsync();
+    Assert(repaired.Count(item => item.IsDefault) == 1 && repaired.Single(item => item.IsDefault).Id == local.Id,
+        "startup left two modes claiming to be the default, so neither could be renamed");
+
+    // 2. And a store with NO default, which is what a backup written before the
+    //    field existed restores to. Windows and Linux both merely ACTED as if the
+    //    lowest-SortOrder mode were the default; nothing said so on disk.
+    var noDefault = new ApplicationDb(new TestPaths(Path.Combine(root, "no-default")));
+    await noDefault.MigrateAsync();
+    var orphanRepository = new ModeRepository(noDefault);
+    await orphanRepository.UpsertAsync(new Mode { Name = "Late", IsDefault = false, SortOrder = 7 });
+    await orphanRepository.UpsertAsync(new Mode { Name = "Early", IsDefault = false, SortOrder = 2 });
+    await noDefault.InitializeAsync();
+    var promoted = await orphanRepository.ListAsync();
+    Assert(promoted.Count(item => item.IsDefault) == 1 && promoted.Single(item => item.IsDefault).Name == "Early",
+        "a store with no default was left with none, or promoted a mode other than the first one shown");
+
+    // 3. The repository refuses to rename the default. The Linux editor disables
+    //    the field (PR #535); this is what makes that true for every other caller.
+    var theDefault = promoted.Single(item => item.IsDefault);
+    theDefault.Name = "Zebra";
+    var renameRefused = false;
+    try { await orphanRepository.UpsertSafelyAsync(theDefault); }
+    catch (InvalidOperationException) { renameRefused = true; }
+    Assert(renameRefused, "the default mode was renamed, which makes the editor's own caption a lie");
+    Assert((await orphanRepository.ListAsync()).Any(item => item.Name == "Early"),
+        "the refused rename was written anyway");
+
+    // 4. Every other mode still renames. A lock that caught them all would be as
+    //    wrong as no lock.
+    var ordinary = (await orphanRepository.ListAsync()).Single(item => !item.IsDefault);
+    ordinary.Name = "Renamed";
+    await orphanRepository.UpsertSafelyAsync(ordinary);
+    Assert((await orphanRepository.ListAsync()).Any(item => item.Name == "Renamed"),
+        "an ordinary mode could not be renamed");
+
+    // 5. Making another mode the default moves the flag rather than adding one.
+    ordinary = (await orphanRepository.ListAsync()).Single(item => item.Name == "Renamed");
+    ordinary.IsDefault = true;
+    await orphanRepository.UpsertSafelyAsync(ordinary);
+    var moved = await orphanRepository.ListAsync();
+    Assert(moved.Count(item => item.IsDefault) == 1 && moved.Single(item => item.IsDefault).Id == ordinary.Id,
+        "setting the flag on a second mode did not clear it on the first");
+
+    // 6. Clearing the only default is refused — the caller sets the flag on the
+    //    mode it wants instead, and that clears this one.
+    ordinary.IsDefault = false;
+    var clearRefused = false;
+    try { await orphanRepository.UpsertSafelyAsync(ordinary); }
+    catch (InvalidOperationException) { clearRefused = true; }
+    Assert(clearRefused, "the last default flag was cleared, leaving the app with no default mode");
+
+    // 7. Deleting the default reassigns it instead of leaving none.
+    ordinary.IsDefault = true;
+    Assert(await orphanRepository.DeleteSafelyAsync(ordinary.Id), "the default mode could not be deleted");
+    var afterDelete = await orphanRepository.ListAsync();
+    Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
+        "deleting the default mode left the remaining mode without the flag");
+}
+
 static async Task RunChirp3TierMigrationTestsAsync(string root)
 {
     // The migration immediately before the one under test. Migrating to it

@@ -519,12 +519,17 @@ components:
           type: string
           description: >-
             The transcript. /transcribe never runs AI post-processing —
-            /post-process is the endpoint for that. On Windows the deterministic
-            text passes DO run: vocabulary replacements, dictated "new line" /
-            "new paragraph" break commands, and filler-word removal when Remove
-            filler words is on AND the Mode language is English (the default
-            "auto" does not remove fillers). macOS applies none of the three on
-            this route. Linux is a separate implementation.
+            /post-process is the endpoint for that. The deterministic text
+            passes DO run, on all three platforms: vocabulary replacements,
+            dictated "new line" / "new paragraph" break commands, and
+            filler-word removal when Remove filler words is on. Filler-word
+            removal is English-only everywhere, but each platform decides
+            "English" the way its own dictation does: Windows and Linux read
+            the request's / Mode's language, so the default "auto" does not
+            remove fillers and you should send "language": "en"; macOS prefers
+            the language the engine reported and falls back to the request's,
+            so "auto" against an engine that reports English does remove them
+            there.
         engine: { type: string }
         model:
           type: string

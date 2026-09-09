@@ -95,6 +95,10 @@ enum ModesEndpoint {
             in: context
         )
 
+        // The first mode in an empty store is the default (issue #536). Any
+        // other new mode is not, and this is a no-op.
+        DefaultModePolicy.apply(to: Self.fetchAllModes(in: context))
+
         do {
             try context.save()
         } catch {
@@ -185,6 +189,37 @@ enum ModesEndpoint {
             return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
         }
 
+        // The default mode's name is fixed (issue #536). The editor disables the
+        // field and says so (PR #535); accepting the rename here made that
+        // caption a lie, on a field the user cannot then use to put the name
+        // back.
+        if let newName = normalizedName, !DefaultModePolicy.canRename(mode, to: newName) {
+            return LocalAPIResponder.failure(
+                code: .invalidRequest,
+                message: "The default mode's name cannot be changed",
+                hint: "Rename a different mode, or make a different mode the default first."
+            )
+        }
+
+        // Exactly one mode is the default. Setting the flag is always allowed —
+        // it moves, clearing whichever mode held it — but clearing the only one
+        // is refused, because it left the app with no default and merely ACTING
+        // as if the first mode were one.
+        // Read the flags out of the context this handler saves. The view
+        // context can still hold the pre-save copies of a sibling API write, so
+        // a guard answered from there can refuse a safe clear — or allow one
+        // that empties the store.
+        let allModes = Self.fetchAllModes(in: context)
+        if let requested = patch.isDefault,
+           let modeId = mode.id,
+           !DefaultModePolicy.canWriteDefaultFlag(allModes, id: modeId, requested: requested) {
+            return LocalAPIResponder.failure(
+                code: .invalidRequest,
+                message: "At least one mode must be the default",
+                hint: "Set 'isDefault' on another mode instead — that clears this one."
+            )
+        }
+
         // Name uniqueness check — only when the caller is actually renaming.
         if let newName = normalizedName,
            newName != mode.name,
@@ -204,6 +239,25 @@ enum ModesEndpoint {
             to: mode
         )
         mode.modifiedDate = Date()
+
+        // Making this mode the default clears the flag on every other one
+        // (issue #536). Applied in THIS context — the one this handler saves —
+        // because a repair made against the view context's copies would not be
+        // part of this save.
+        //
+        // `preferred` is the mode the caller ASKED for, so it is only this mode
+        // when the request set the flag. Passing it unconditionally made
+        // `{"isDefault": false}` on an ordinary mode promote that mode instead
+        // of leaving it alone — `plan_default` honours `preferred` first, so it
+        // put the flag straight back and cleared the real default. Windows and
+        // the portable head both spell this `mode.IsDefault ? mode.Id : null`;
+        // after `applyPatch`, `mode.isDefault` is the requested value.
+        if patch.isDefault != nil {
+            DefaultModePolicy.apply(
+                to: Self.fetchAllModes(in: context),
+                preferred: mode.isDefault ? mode.id : nil
+            )
+        }
 
         do {
             try context.save()
@@ -279,6 +333,15 @@ enum ModesEndpoint {
         request.fetchLimit = 1
         request.includesPropertyValues = false
         return (try? context.count(for: request)) == 1
+    }
+
+    /// Every mode, in display order, out of the context this handler mutates —
+    /// not out of the view context, whose copies this handler never saves.
+    @MainActor
+    private static func fetchAllModes(in context: NSManagedObjectContext) -> [Mode] {
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Mode.sortOrder, ascending: true)]
+        return (try? context.fetch(request)) ?? []
     }
 
     @MainActor

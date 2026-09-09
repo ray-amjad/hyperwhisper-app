@@ -291,6 +291,15 @@ public class BackupService
                 }
             }
 
+            // A backup carries whatever `isDefault` its own machine held, so a
+            // restore is the realistic way a database ends up with two default
+            // modes or none (issue #536). Both branches above write straight
+            // into the DbSet, so this is where the invariant is re-established.
+            if (modesImported > 0)
+            {
+                ModeService.Instance.EnforceDefaultModeInvariant();
+            }
+
             // 5. Apply API keys
             if (backup.ApiKeys != null)
             {
@@ -394,6 +403,11 @@ public class BackupService
             {
                 var modes = backup.Modes.Select(UniversalBackupMapper.MapToMode).ToList();
                 summary.ModesImported = ImportEntities(modes, ctx => ctx.Modes);
+                // A backup carries whatever `isDefault` its own machine held, and
+                // a merge can therefore land a second default beside the local
+                // one, or none at all (issue #536). The imports above go straight
+                // into the DbSet, so nothing else on this path would notice.
+                ModeService.Instance.EnforceDefaultModeInvariant();
             }
 
             // 3. Vocabulary — merge by Word (case-insensitive, trimmed).

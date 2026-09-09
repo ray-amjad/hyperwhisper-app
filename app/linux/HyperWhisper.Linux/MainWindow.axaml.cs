@@ -1328,7 +1328,11 @@ public partial class MainWindow : Window
                 _platformServices.Paths,
                 AppVersion,
                 new LinuxLocalApiPostProcessor(_postProcessingRouter, modes),
-                vocabulary: new VocabularyRepository(_database));
+                vocabulary: new VocabularyRepository(_database),
+                // The same projection dictation runs under, so /transcribe
+                // honours "Remove filler words" instead of the workflow's
+                // hard-coded default (issue #530).
+                outputOptions: _viewModel.CreateOutputOptions);
             _localApiHost = new PortableLocalApiHost(
                 _platformServices.PrivateFiles, _platformServices.Paths, backend, AppVersion,
                 _viewModel.Settings.LocalApiPort);
