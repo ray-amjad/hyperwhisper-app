@@ -164,6 +164,8 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   const content = json.serverContent;
   if (!isRecord(content)) return [];
 
+  const complete = content.generationComplete === true || content.turnComplete === true;
+
   // FINAL FIRST. A frame that carries both fields is the turn closing, and the
   // committed text is the one the client must not lose: emitting the preview
   // instead leaves the turn permanently uncommitted, because the interim
@@ -171,17 +173,38 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   // The three native heads (`GeminiLiveProtocol.cs`, the macOS strategy and the
   // Rust core's `gemini_transcribe.rs`) all read final-first for this reason —
   // an order this backend has to match, not choose.
+  //
+  // AND THE COMPLETION RIDES ALONG. Google answers the stop's
+  // `audio_stream_end` with ONE frame carrying the last committed segment and
+  // `generationComplete` together, so an early return on the final swallowed
+  // the only completion this session would ever get and the socket was closed
+  // by `armStopGrace`'s backstop instead — `session_complete` and its credit
+  // report reached the client ~5 s late on every cloud-Gemini dictation. Both
+  // halves go out, final first: `handleUpstreamEvent`'s `complete` arm is
+  // already gated on `stopRequested`, so a mid-dictation turn boundary is a
+  // no-op there and only the post-stop frame ends the session. This matches
+  // `gemini_transcribe.rs`' `LiveServerMessage::FinalTranscriptAndComplete`
+  // and the `finalTranscriptAndComplete` conformance vector.
   const final = readText(content, 'inputTranscription');
   if (final !== undefined) {
-    return [{ kind: 'transcript', text: final, isFinal: true, speechFinal: true }];
+    const events: UpstreamEvent[] = [
+      { kind: 'transcript', text: final, isFinal: true, speechFinal: true },
+    ];
+    if (complete) events.push({ kind: 'complete' });
+    return events;
   }
 
+  // An interim carries no committed text, so there is no half worth pairing a
+  // completion with. The preview goes out alone and a completion riding on it
+  // is dropped — deliberately the same answer `gemini_transcribe.rs` gives,
+  // because the two decoders disagreeing about one frame shape is the fault
+  // this block exists to remove.
   const interim = readText(content, 'interimInputTranscription');
   if (interim !== undefined) {
     return [{ kind: 'transcript', text: interim, isFinal: false, speechFinal: false }];
   }
 
-  if (content.generationComplete === true || content.turnComplete === true) {
+  if (complete) {
     return [{ kind: 'complete' }];
   }
 

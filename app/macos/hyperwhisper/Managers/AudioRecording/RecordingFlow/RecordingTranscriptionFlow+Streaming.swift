@@ -94,11 +94,18 @@ extension RecordingTranscriptionFlow {
     /// 6. Start the streaming session (connects WebSocket and starts audio capture)
     ///
     /// **Provider Routing:**
-    /// The provider parameter determines which strategy to use:
-    /// - "hyperwhisperCloud" → HyperWhisperCloudStrategy (default, uses license/device auth)
-    /// - "deepgram" → DeepgramStreamingStrategy (requires Deepgram API key)
-    /// - "elevenLabs" → ElevenLabsStreamingStrategy (requires ElevenLabs API key)
-    /// - "xai" → XAIStreamingStrategy (requires Grok/xAI API key)
+    /// Every REMOTE provider speaks through one strategy —
+    /// `RustLiveStreamingStrategy`, over `hw_net::live` (issue #326). The six
+    /// hand-rolled `*StreamingStrategy` files this replaced were a per-provider
+    /// re-implementation of protocols the shared core already owned, and the
+    /// divergences that came out of that are what the issue lists. The provider
+    /// parameter now selects a credential and a `HwLiveProvider`, not a class:
+    /// - "hyperwhisperCloud" (default) → license/device auth, plus the live tier
+    /// - "deepgram" / "elevenLabs" / "openAI" / "xai" / "gemini" → the user's own API key
+    ///
+    /// The two on-device providers are NOT websocket protocols and keep their
+    /// own clients: "parakeetLocal" → `LocalParakeetStreamingClient`,
+    /// "nemotronLocal" → `LocalNemotronStreamingClient`.
     ///
     /// **Real-time Typing:**
     /// When `is_final` transcript updates arrive, they are typed directly into
@@ -201,8 +208,16 @@ extension RecordingTranscriptionFlow {
 
         // PROVIDER ROUTING:
         // Create the appropriate client based on the selected provider.
-        // Remote paths wrap a strategy inside StreamingTranscriptionClient.
-        // The local Parakeet path has its own dedicated client.
+        //
+        // Every REMOTE arm now builds the SAME strategy —
+        // `RustLiveStreamingStrategy`, over `hw_net::live` — inside
+        // `StreamingTranscriptionClient`. The arms still differ, and that is the
+        // point: each one fetches and validates its OWN credential from the
+        // Keychain before a socket exists, with its own refusal message. The
+        // wire protocol is what collapsed, not the credential checks.
+        //
+        // The two on-device arms have no websocket protocol at all and keep
+        // their own dedicated clients.
         let service: any StreamingClientProtocol
         var apiKey: String?
 
@@ -217,7 +232,7 @@ extension RecordingTranscriptionFlow {
             }
             apiKey = deepgramKey
             service = StreamingTranscriptionClient(
-                strategy: DeepgramStreamingStrategy(),
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
                 streamingProvider: selectedStreamingProvider
             )
 
@@ -231,7 +246,7 @@ extension RecordingTranscriptionFlow {
             }
             apiKey = elevenLabsKey
             service = StreamingTranscriptionClient(
-                strategy: ElevenLabsStreamingStrategy(),
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
                 streamingProvider: selectedStreamingProvider
             )
 
@@ -245,7 +260,7 @@ extension RecordingTranscriptionFlow {
             }
             apiKey = openAIKey
             service = StreamingTranscriptionClient(
-                strategy: OpenAIStreamingStrategy(),
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
                 streamingProvider: selectedStreamingProvider
             )
 
@@ -259,7 +274,7 @@ extension RecordingTranscriptionFlow {
             }
             apiKey = xaiKey
             service = StreamingTranscriptionClient(
-                strategy: XAIStreamingStrategy(),
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
                 streamingProvider: selectedStreamingProvider
             )
 
@@ -274,7 +289,7 @@ extension RecordingTranscriptionFlow {
             }
             apiKey = geminiKey
             service = StreamingTranscriptionClient(
-                strategy: GeminiStreamingStrategy(),
+                strategy: RustLiveStreamingStrategy(provider: selectedStreamingProvider),
                 streamingProvider: selectedStreamingProvider
             )
 
@@ -369,16 +384,33 @@ extension RecordingTranscriptionFlow {
             // NOTE this arm is a `default:`, not `case .hyperwhisperCloud:`, so a
             // provider added to the enum and forgotten here does NOT fail the
             // build - it silently starts a billed Cloud session. Adding a case
-            // above is the whole checklist; the compiler will not remind you.
+            // above is the whole checklist; THIS switch will not remind you.
+            //
+            // Since issue #326 there are two backstops, and neither is here:
+            // `RustLiveStreamingStrategy.coreProvider` switches exhaustively, so
+            // a new remote provider fails to compile THERE — failing in the
+            // mapping is what stops a BYOK key being carried into a Cloud
+            // socket. And a provider with no `HwLiveProvider` at all (the two
+            // on-device engines) maps to nil there, so reaching this arm with
+            // one opens no socket rather than a billed Cloud one. Both live in
+            // a different file, and neither turns this `default:` into a
+            // checklist.
             //
             // The cloud tier is a path selector passed into the ONE cloud
             // strategy, deliberately not its own StreamingTranscriptionProvider
             // case: the credit and entitlement gate below keys off
             // `provider == "hyperwhisperCloud"` and must keep matching.
+            //
+            // BASE URL IS NOT OPTIONAL HERE. `NetworkConfig.hyperwhisperCloudURL`
+            // points at staging under `#if DEBUG`; leaving it nil takes the
+            // core's production default and bills a developer's key against
+            // production. The core does the https→wss / http→ws substitution.
             service = StreamingTranscriptionClient(
-                strategy: HyperWhisperCloudStrategy(
+                strategy: RustLiveStreamingStrategy(
+                    provider: selectedStreamingProvider,
+                    baseURL: NetworkConfig.hyperwhisperCloudURL,
                     cloudTier: settingsManager?.streamingCloudTier
-                        ?? HyperWhisperCloudStrategy.defaultCloudTier),
+                        ?? StreamingCloudTier.defaultCloudTier),
                 streamingProvider: selectedStreamingProvider
             )
         }

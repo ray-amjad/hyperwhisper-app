@@ -803,10 +803,13 @@ class TranscriptionProviderRouter {
         throw TranscriptionError.providerNotAvailable(provider: "Local", reason: "Unknown local model: \(modelId)")
     }
 
-    /// Extract language from mode (converts "auto" to nil)
+    /// Extract language from mode (converts "auto" to nil).
+    ///
+    /// Delegates to `ModeSnapshot.effectiveLanguage(_:)` rather than restating
+    /// the rule: `ASRPreparationKey` is a cache key over exactly this value, and
+    /// two copies of the rule can drift apart (#318).
     private func extractLanguage(from mode: Mode?) -> String? {
-        guard let raw = mode?.language?.lowercased() else { return nil }
-        return raw == "auto" ? nil : raw
+        ModeSnapshot.effectiveLanguage(mode?.language)
     }
 
     /// Translate a provider health status into the specific TranscriptionError

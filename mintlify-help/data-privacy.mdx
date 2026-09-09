@@ -93,7 +93,7 @@ Two other things are never measured, whatever you send:
 
 ## Error reports
 
-Error reports go to the crash reporter (Sentry). They are off unless you turn on **Error logging** (macOS), **Send error reports** (Windows), or **Send privacy-filtered crash and performance diagnostics** (Linux) in **Settings → General**. Read [General Settings](/general-settings) for that setting.
+Error reports go to the crash reporter (Sentry). They are **on** by default on all three platforms. They hold no audio and no text. To stop them, turn off **Error logging** (macOS), **Send error reports** (Windows), or **Send privacy-filtered crash and performance diagnostics** (Linux) in **Settings → General**. Read [General Settings](/general-settings) for that setting.
 
 <Note>
   On Linux, the setting sends no transcript, no audio, no prompt, and no credential content. A build that you compile yourself has no release crash-reporter address, so it stays fully offline even when the setting is on.
@@ -172,7 +172,7 @@ For **Deepgram**, HyperWhisper does this work for you on macOS and Windows. Ever
 | SpaceXAI Grok | No. SpaceXAI does not use API inputs and outputs for training by default | Nothing to do for default use. If your use is sensitive, make sure in the SpaceXAI data controls |
 | Google Gemini | **Free tier (AI Studio): yes.** Paid API: no | Use a paid API key, or change the settings in [aistudio.google.com](https://aistudio.google.com) |
 | ElevenLabs | ElevenLabs stores data by default. Zero Retention Mode is enterprise-only | If your use requires it, contact ElevenLabs sales |
-| AssemblyAI | **Yes.** AssemblyAI uses paid async transcripts for model improvement, with PII redacted, until you opt out | To opt out, send email to `data-opt-out@assemblyai.com` (paid accounts, applies to future requests). [Source](https://www.assemblyai.com/docs/deployment/account-management/data-retention) |
+| AssemblyAI | **Yes.** AssemblyAI uses paid async transcripts for model improvement, with PII redacted, until you opt out | To opt out, send email to `data-opt-out@assemblyai.com` (paid accounts, applies to future requests). [Source](https://www.assemblyai.com/docs/data-retention-and-model-training) |
 | Mistral | No. Mistral does not use paid API content for training by default (it stores the content for ~30 days for abuse monitoring) | Nothing to do for default use |
 | Soniox | No. Soniox never uses audio and transcripts to improve its models. The real-time API stores nothing by default | Nothing to do for default use. [Source](https://soniox.com/docs/security-and-privacy) |
 

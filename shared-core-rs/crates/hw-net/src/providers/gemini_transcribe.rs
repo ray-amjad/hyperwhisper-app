@@ -573,6 +573,18 @@ pub enum LiveServerMessage {
     PartialTranscript { text: String },
     /// A committed segment (`serverContent.inputTranscription`).
     FinalTranscript { text: String },
+    /// ONE frame carrying a committed segment AND the turn's completion —
+    /// `serverContent.inputTranscription` together with `generationComplete` /
+    /// `turnComplete`.
+    ///
+    /// Reported separately from [`Self::FinalTranscript`] because dropping the
+    /// completion half is not free: after the client has sent
+    /// `audio_stream_end` this frame IS the answer its stop wait is blocked on,
+    /// and a decoder that reports only the text leaves that wait to burn its
+    /// whole budget and then report a stop failure. It is still a TURN
+    /// completion and not a session completion — which of the two it is remains
+    /// the client's call, exactly as for [`Self::Complete`].
+    FinalTranscriptAndComplete { text: String },
     /// `serverContent.generationComplete` / `turnComplete`.
     Complete,
     /// A `goAway` / error payload from the server.
@@ -606,29 +618,61 @@ pub fn parse_live_server_message(frame: &str) -> Result<LiveServerMessage, Trans
         .get("serverContent")
         .or_else(|| json.get("server_content"));
     if let Some(content) = content {
+        // An OR over all four spellings, NOT first-present-wins. The `.or_else`
+        // chain this replaces stopped at the first key that was PRESENT, so a
+        // frame carrying `"generationComplete": false` alongside a true
+        // `turnComplete` read as "not complete" and the completion was dropped
+        // — the same stall as the combined-frame bug below, with a different
+        // trigger. The cloud relay's decoder
+        // (`hyperwhisper-cloud/src/routes/ws-streaming-gemini-transcribe.ts`)
+        // has always been a genuine OR; this is the edit that stops the two
+        // decoders disagreeing about that shape. Pinned by the
+        // `a-false-generation-complete-does-not-mask-a-true-turn-complete`
+        // conformance vector.
+        let complete = [
+            "generationComplete",
+            "generation_complete",
+            "turnComplete",
+            "turn_complete",
+        ]
+        .iter()
+        .any(|key| {
+            content
+                .get(*key)
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        });
+
         // FINAL FIRST, deliberately. One `serverContent` frame may carry BOTH
         // `inputTranscription` and `interimInputTranscription`; checking the
         // interim first would emit only the preview and drop the committed
         // segment on the floor, so the user's text would end at the last
         // hypothesis. Windows' and macOS' streaming strategies and the shared
         // .NET client all check final first — this must match them.
+        //
+        // And when the completion rides along on that same frame, BOTH halves
+        // are reported. Google answers the stop's `audio_stream_end` with one
+        // frame carrying the last committed segment and `generationComplete`
+        // together; returning the text alone loses the only completion the
+        // stop's `WaitForSessionComplete` will ever be sent.
         if let Some(text) = transcription_text(content, "inputTranscription")
             .or_else(|| transcription_text(content, "input_transcription"))
         {
-            return Ok(LiveServerMessage::FinalTranscript { text });
+            return Ok(if complete {
+                LiveServerMessage::FinalTranscriptAndComplete { text }
+            } else {
+                LiveServerMessage::FinalTranscript { text }
+            });
         }
+        // An interim carries no committed text, so there is no half worth
+        // pairing a completion with, and the event vocabulary has no
+        // "partial + complete" shape to report it in. The preview is reported
+        // on its own, as it always has been.
         if let Some(text) = transcription_text(content, "interimInputTranscription")
             .or_else(|| transcription_text(content, "interim_input_transcription"))
         {
             return Ok(LiveServerMessage::PartialTranscript { text });
         }
-        let complete = content
-            .get("generationComplete")
-            .or_else(|| content.get("generation_complete"))
-            .or_else(|| content.get("turnComplete"))
-            .or_else(|| content.get("turn_complete"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
         if complete {
             return Ok(LiveServerMessage::Complete);
         }
@@ -1229,6 +1273,94 @@ mod tests {
             LiveServerMessage::FinalTranscript {
                 text: "hello world".to_string()
             }
+        );
+    }
+
+    /// The frame Google answers `audio_stream_end` with: the last committed
+    /// segment and the turn's completion on ONE `serverContent`. Both halves
+    /// are reported, because the completion is what a client's stop wait is
+    /// blocked on and dropping it costs that wait its whole budget.
+    #[test]
+    fn a_frame_with_a_final_and_a_completion_reports_both() {
+        for frame in [
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":true}}"#,
+            r#"{"serverContent":{"generationComplete":true,"inputTranscription":{"text":"hello world"}}}"#,
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"turnComplete":true}}"#,
+            r#"{"server_content":{"input_transcription":{"text":"hello world"},"generation_complete":true}}"#,
+        ] {
+            assert_eq!(
+                parse_live_server_message(frame).unwrap(),
+                LiveServerMessage::FinalTranscriptAndComplete {
+                    text: "hello world".to_string()
+                },
+                "{frame}"
+            );
+        }
+
+        // A completion flag that is present and false is not a boundary.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":false}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::FinalTranscript {
+                text: "hello world".to_string()
+            }
+        );
+
+        // An interim has no committed text to pair a completion with.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"interimInputTranscription":{"text":"hello wor"},"generationComplete":true}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::PartialTranscript {
+                text: "hello wor".to_string()
+            }
+        );
+    }
+
+    /// The four completion spellings are an OR, not first-present-wins.
+    ///
+    /// The `.or_else` chain that used to read this flag stopped at the first
+    /// key that was PRESENT, so `"generationComplete": false` next to a true
+    /// `turnComplete` decoded as "no boundary" and the stop handshake waited
+    /// out its whole budget. The cloud relay's decoder has always been a
+    /// genuine `||`, so this was also a disagreement between two decoders of
+    /// the same frame. Pinned cross-platform by the
+    /// `a-false-generation-complete-does-not-mask-a-true-turn-complete` vector.
+    #[test]
+    fn a_false_completion_flag_does_not_mask_a_true_one() {
+        for frame in [
+            r#"{"serverContent":{"generationComplete":false,"turnComplete":true}}"#,
+            r#"{"serverContent":{"generationComplete":false,"turn_complete":true}}"#,
+            r#"{"server_content":{"generation_complete":false,"turnComplete":true}}"#,
+        ] {
+            assert_eq!(
+                parse_live_server_message(frame).unwrap(),
+                LiveServerMessage::Complete,
+                "{frame}"
+            );
+        }
+
+        // And the same rule on the combined frame.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":false,"turnComplete":true}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::FinalTranscriptAndComplete {
+                text: "hello world".to_string()
+            }
+        );
+
+        // Every flag present and false is still not a boundary.
+        assert_eq!(
+            parse_live_server_message(
+                r#"{"serverContent":{"generationComplete":false,"turnComplete":false}}"#
+            )
+            .unwrap(),
+            LiveServerMessage::Unhandled
         );
     }
 

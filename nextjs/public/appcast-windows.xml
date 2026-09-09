@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.12.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.12.0 - ARM64 -->
+<item>
+<title>1.12.0 (ARM64)</title>
+<pubDate>Thu, 03 Sep 2026 12:16:58 +0000</pubDate>
+<sparkle:version>1.12.0</sparkle:version>
+<sparkle:shortVersionString>1.12.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.12.0-arm64-Setup.exe"
+length="145063640"
+type="application/octet-stream"
+sparkle:edSignature="bXmRdLeb59Bv5GDiR00P4QR0/MWEGhVXEt01uap1uKCdVuwCL+zizId/zjim51Um6xQZLbW70ubVENrpldwmDg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.12.0</h2>
+<ul>
+<li>New guided first-run setup that walks you through choosing and downloading a model</li><li>Added Meta Muse Voice Transcribe as a transcription option</li><li>Added Gemini 3.5 Transcribe and Gemini Live as bring-your-own-key transcription options</li><li>Local AI post-processing now runs faster on AMD and Intel graphics cards</li><li>Added Gemma 4 12B to the local AI model list</li><li>Fixed dictated text sometimes missing the first words when recording stopped quickly</li><li>Fixed smart spacing, filler-word removal, and auto-capitalize not always applying correctly</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.12.0 - x64 -->
+<item>
+<title>1.12.0 (x64)</title>
+<pubDate>Thu, 03 Sep 2026 12:16:58 +0000</pubDate>
+<sparkle:version>1.12.0</sparkle:version>
+<sparkle:shortVersionString>1.12.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.12.0-x64-Setup.exe"
+length="188058856"
+type="application/octet-stream"
+sparkle:edSignature="0jbZJBGrhbHTZQ2lnxUIlhvSePHpmHpZ5Uwb6GmUrkpRyrbF8Pe8/Znw2aayNu+TI8uosCjS3AQI/4HR5NkjCg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.12.0</h2>
+<ul>
+<li>New guided first-run setup that walks you through choosing and downloading a model</li><li>Added Meta Muse Voice Transcribe as a transcription option</li><li>Added Gemini 3.5 Transcribe and Gemini Live as bring-your-own-key transcription options</li><li>Local AI post-processing now runs faster on AMD and Intel graphics cards</li><li>Added Gemma 4 12B to the local AI model list</li><li>Fixed dictated text sometimes missing the first words when recording stopped quickly</li><li>Fixed smart spacing, filler-word removal, and auto-capitalize not always applying correctly</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.11.0 -->
 <!-- ================================================================== -->
 

@@ -141,7 +141,9 @@ public partial class StreamingSettingsPage : Page
         if (validationError != null)
         {
             ShowStreamingShortcutError(validationError);
-            LoggingService.Warn($"StreamingSettingsPage: Shortcut validation failed - {validationError}");
+            // The chord, not the sentence: that sentence is now a catalogue value
+            // and would put the user's display language into the support log.
+            LoggingService.Warn($"StreamingSettingsPage: Shortcut validation failed - {shortcut}");
             return;
         }
 

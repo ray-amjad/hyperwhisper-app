@@ -51,6 +51,23 @@ final class RecordingWindowManager {
         transcriptionPipeline: TranscriptionPipeline,
         settingsManager: SettingsManager
     ) {
+        MainActorHangTrace.shared.withActive(flow: .recordingWindow, step: .open) {
+            openUntraced(
+                appState: appState,
+                audioManager: audioManager,
+                transcriptionPipeline: transcriptionPipeline,
+                settingsManager: settingsManager
+            )
+        }
+    }
+
+    @MainActor
+    private func openUntraced(
+        appState: AppState,
+        audioManager: AudioRecordingManager,
+        transcriptionPipeline: TranscriptionPipeline,
+        settingsManager: SettingsManager
+    ) {
         // Respect user setting to hide recording window
         if !settingsManager.showRecordingWindow { return }
 
@@ -202,6 +219,13 @@ final class RecordingWindowManager {
 
     @MainActor
     func close() {
+        MainActorHangTrace.shared.withActive(flow: .recordingWindow, step: .close) {
+            closeUntraced()
+        }
+    }
+
+    @MainActor
+    private func closeUntraced() {
         if let panel = self.panel {
             panel.close()
             self.panel = nil
@@ -282,6 +306,13 @@ final class RecordingWindowManager {
     /// restore focus after interaction.
     @MainActor
     func focusForInteraction() {
+        MainActorHangTrace.shared.withActive(flow: .recordingWindow, step: .focusForInteraction) {
+            focusForInteractionUntraced()
+        }
+    }
+
+    @MainActor
+    private func focusForInteractionUntraced() {
         // Capture the previously frontmost app if it's not us
         if previousActiveApp == nil,
            let front = NSWorkspace.shared.frontmostApplication,
@@ -327,6 +358,13 @@ final class RecordingWindowManager {
     /// (e.g., after dismissing the confirmation overlay).
     @MainActor
     func restorePreviousFocus() {
+        MainActorHangTrace.shared.withActive(flow: .recordingWindow, step: .restorePreviousFocus) {
+            restorePreviousFocusUntraced()
+        }
+    }
+
+    @MainActor
+    private func restorePreviousFocusUntraced() {
         defer { previousActiveApp = nil }
         // Restore original panel configuration
         if let p = panel {

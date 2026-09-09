@@ -16,7 +16,7 @@
                     BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1"
                     Visibility="Collapsed">
                 <StackPanel>
-                    <TextBlock Text="Shortcut Conflict" FontWeight="SemiBold" FontSize="13"
+                    <TextBlock Text="{loc:Loc settings.shortcuts.conflict.title}" FontWeight="SemiBold" FontSize="13"
                                Foreground="{DynamicResource WarningForegroundBrush}" Margin="0,0,0,4"/>
                     <TextBlock x:Name="ShortcutConflictText"
                                Foreground="{DynamicResource WarningForegroundBrush}" FontSize="12"

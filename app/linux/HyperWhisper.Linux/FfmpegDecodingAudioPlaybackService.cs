@@ -49,6 +49,21 @@ internal sealed class FfmpegDecodingAudioPlaybackService : IAudioPlaybackService
             input = _decodedPath = decoded.Value!;
         }
         var loaded = _inner.Load(input);
+        // A ".wav" extension does not make a file the canonical 44-byte PCM layout the inner reader
+        // accepts. An imported WAV routinely carries a LIST chunk, or a wider `fmt ` chunk, before
+        // its `data` chunk, so the reader rejected it and History showed "Audio file could not be
+        // loaded" for a file that plays anywhere else. The decode below rewrites it to the
+        // canonical layout, which is what a non-WAV import already goes through, so the extension
+        // no longer decides whether the file gets a chance.
+        if (loaded.IsFailure && ReferenceEquals(input, audioPath))
+        {
+            var decoded = Decode(audioPath);
+            if (decoded.IsSuccess)
+            {
+                _decodedPath = decoded.Value!;
+                loaded = _inner.Load(_decodedPath);
+            }
+        }
         if (loaded.IsFailure) { CleanupDecoded(); return loaded; }
         LoadedFilePath = audioPath;
         return PlatformResult.Success();
@@ -78,10 +93,19 @@ internal sealed class FfmpegDecodingAudioPlaybackService : IAudioPlaybackService
                     CreateNoWindow = true,
                 },
             };
+            // Warning: keep the two bitexact flags and -map_metadata -1.
+            //
+            // By default ffmpeg writes a LIST/INFO chunk between `fmt ` and `data`. The player
+            // reads the CANONICAL 44-byte layout (PcmWaveHeader.TryRead checks for "data" at a
+            // fixed offset 36), so a default-flags decode produced a file the player then refused,
+            // and every imported non-WAV recording showed "Audio file could not be loaded" with a
+            // perfectly good decode sitting on disk. These flags drop the metadata chunk and leave
+            // exactly `fmt ` then `data`.
             foreach (var argument in new[]
             {
                 "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", input,
-                "-vn", "-acodec", "pcm_s16le", "-f", "wav", output,
+                "-vn", "-acodec", "pcm_s16le", "-map_metadata", "-1",
+                "-fflags", "+bitexact", "-flags:a", "+bitexact", "-f", "wav", output,
             }) process.StartInfo.ArgumentList.Add(argument);
             if (!process.Start()) return Failure();
             _ = process.StandardError.ReadToEnd();

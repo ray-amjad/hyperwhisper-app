@@ -132,14 +132,35 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Mode Name (accent color when selected) -->
+                                    <!-- TextTrimming, not just the star column: the star column
+                                         already bounds the name, but an untrimmed TextBlock hard-
+                                         clips mid-glyph under the gear button with nothing to say
+                                         the name continues. The tooltip carries the full name. -->
                                     <TextBlock x:Name="ModeNameText"
                                                Text="{Binding Name}"
                                                FontSize="16"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                               VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis">
+                                        <!-- An explicit ToolTip, not ToolTip="{Binding Name}":
+                                             the stock string tooltip does not wrap, so a very
+                                             long name would render as one line far wider than
+                                             the screen and stay unreadable. -->
+                                        <TextBlock.ToolTip>
+                                            <ToolTip>
+                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
 
-                                    <!-- Offline Badge (inline with name) -->
+                                    <!-- Offline Badge (inline with name)
+                                         The visibility is a converter over the whole Mode row,
+                                         like the post-processing panel below. It used to be a
+                                         DataTrigger on IsOfflineCapable - a macOS-only property
+                                         that no C# type has - so WPF resolved the path to
+                                         UnsetValue, logged it to a trace source nobody listens
+                                         to, and the badge never once rendered (issue #527). -->
                                     <Border x:Name="OfflineBadge"
                                             Grid.Column="1"
                                             Background="{DynamicResource SuccessBackgroundBrush}"
@@ -147,7 +168,7 @@
                                             Padding="5,2"
                                             Margin="8,0,0,0"
                                             VerticalAlignment="Center"
-                                            Visibility="Collapsed">
+                                            Visibility="{Binding Path=., Converter={StaticResource ModeOfflineVisibilityConverter}}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE8A7;"
                                                        FontFamily="Segoe MDL2 Assets"
@@ -252,10 +273,6 @@
                             </Grid>
                         </Border>
                         <DataTemplate.Triggers>
-                            <!-- Show "Offline" badge when mode is offline-capable -->
-                            <DataTrigger Binding="{Binding IsOfflineCapable}" Value="True">
-                                <Setter TargetName="OfflineBadge" Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
                             <!-- Cloud provider visibility -->
                             <DataTrigger Binding="{Binding ProviderType}" Value="cloud">
                                 <Setter TargetName="CloudProviderPanel" Property="Visibility" Value="Visible"/>

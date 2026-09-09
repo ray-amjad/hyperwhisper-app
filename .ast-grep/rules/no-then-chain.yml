@@ -1,0 +1,23 @@
+id: no-then-chain
+language: typescript
+severity: error
+message: "Use await, not a .then() chain."
+note: |
+  The .then() migration finished on 2026-08-27 with 0 sites left in nextjs and
+  hyperwhisper-cloud. It reopened three days later, because new feature work put
+  a fresh chain back into nextjs/app/[locale]/download/page.tsx. This rule is
+  what keeps the count at zero instead of rediscovering it every week.
+  A .then() chain buries the failure path: a rejection with no matching .catch()
+  becomes an unhandled rejection rather than an error the caller can see.
+  Test files are exempt: a promise-ordering assertion sometimes needs .then().
+files:
+  - "nextjs/**/*.ts"
+  - "nextjs/**/*.tsx"
+  - "hyperwhisper-cloud/src/**/*.ts"
+ignores:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/node_modules/**"
+  - "**/.next/**"
+rule:
+  pattern: $A.then($$$)

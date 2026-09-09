@@ -37,6 +37,16 @@ public partial class App : WpfApplication
     /// </summary>
     public static bool IsSessionEnding { get; private set; }
 
+    public App()
+    {
+        // A WPF class handler, not per-window state, so it belongs here and not in
+        // OnStartup: it has to be in place before ANY window is built, and it must
+        // hold for every host of this assembly - including the smoke suite, which
+        // constructs the real App to get App.xaml's resources but never calls Run(),
+        // so OnStartup would never run for it.
+        Utilities.ComboBoxWheelGuard.Install();
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -139,6 +149,10 @@ public partial class App : WpfApplication
             LoggingService.Info("Sentry error logging disabled by user preference");
         }
 
+        // Observe blocked loads before any application-context classifier code runs.
+        // The handler records fixed assembly metadata only and does not change control flow.
+        ApplicationControlDiagnostics.Register();
+
         // FIRST-LAUNCH DEFAULTS
         // On fresh install, automatically register the app to start with Windows.
         // Users can disable this later in Settings > General.
@@ -195,6 +209,7 @@ public partial class App : WpfApplication
         // Load stored license from cache (validates against server if cache expired)
         // Fire-and-forget to avoid blocking UI thread - license will validate in background
         // Using Task.Run to avoid deadlock from .Wait() on UI thread
+        // ast-grep-ignore: no-discarded-task-run -- the caller is on the UI thread, so a blocking wait here deadlocks (see the comment above)
         _ = Task.Run(async () =>
         {
             try

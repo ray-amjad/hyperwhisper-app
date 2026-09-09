@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextOptions.TextRenderingMode="Antialias"
+        x:Class="HyperWhisper.Linux.Overlay.LinuxFileTranscriptionProgressWindow"
+        FontFamily="{StaticResource HwUiFont}"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
+        Title="{ReflectionBinding [linux.ui.transcribe.file], Source={StaticResource Localization}}"
+        Width="300" Height="110"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        CanResize="False">
+  <!-- Windows' FileTranscriptionProgressWindow, ported. File transcription showed its progress in
+       an inline ProgressBar inside Home's Linux-only "Record and Transcribe" card, so the moment
+       the user left Home - or hid the window, which is the normal state during a long import -
+       there was nothing to watch and nothing to cancel. Windows floats this instead: 300x110,
+       corner radius 12, #D9000000 over a #1AFFFFFF hairline, 20,16 padding, a 6px track with a
+       3px radius, a monospace percentage, and one pill Cancel.
+
+       WS_EX_NOACTIVATE on Windows; ShowActivated=False plus the shared overlay window policy is
+       the same promise here - the progress window never becomes the keyboard target. -->
+  <Border CornerRadius="12"
+          Background="#D9000000"
+          BorderBrush="#1AFFFFFF"
+          BorderThickness="1"
+          BoxShadow="0 0 20 0 #4D000000">
+    <Grid Margin="20,16" RowDefinitions="Auto,Auto,Auto">
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+        <TextBlock Text="&#x1F4C4;" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <TextBlock x:Name="ProgressFileName" Foreground="#E6FFFFFF" FontSize="12" FontWeight="Medium"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+        <Border x:Name="ProgressTrack" Height="6" CornerRadius="3" Background="#26FFFFFF" Margin="0,0,8,0">
+          <Border x:Name="ProgressFill" HorizontalAlignment="Left" CornerRadius="3" Width="0"
+                  Background="{DynamicResource HwAccentBrush}"/>
+        </Border>
+        <TextBlock Grid.Column="1" x:Name="ProgressPercent" Foreground="#99FFFFFF" FontSize="10"
+                   FontWeight="Medium" FontFamily="DejaVu Sans Mono, Liberation Mono, monospace"
+                   Width="32" TextAlignment="Right" VerticalAlignment="Center"/>
+      </Grid>
+
+      <Button Grid.Row="2" x:Name="ProgressCancelButton" Classes="toastAction" Cursor="Hand"
+              HorizontalAlignment="Center" Click="OnCancelClicked"
+              Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}"/>
+    </Grid>
+  </Border>
+</Window>

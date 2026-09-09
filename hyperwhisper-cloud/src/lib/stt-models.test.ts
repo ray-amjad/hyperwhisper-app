@@ -176,9 +176,35 @@ describe('estimatedUsdPerMinute', () => {
     expect(deepgram).toBe(deepgramPlain);
   });
 
-  test('unknown model falls back to the provider first-model rate (no throw)', () => {
+  test('unknown model falls back to the provider dearest rate (no throw)', () => {
     expect(() => estimatedUsdPerMinute('openai', 'nonexistent-model')).not.toThrow();
     expect(estimatedUsdPerMinute('openai', 'nonexistent-model')).toBeGreaterThan(0);
+  });
+
+  test('an unknown model reserves at the dearest model, whatever the array order', () => {
+    // Fail-closed for an id we cannot resolve: hold enough for the worst case.
+    // This used to read `models[0]`, which quietly made array ORDER a billing
+    // invariant — reordering a provider's rows could under-reserve, and an
+    // under-reservation lets a request deduct more than was held for it.
+    for (const provider of ALL_STT_PROVIDER_IDS) {
+      const dearest = Math.max(
+        ...getProviderDef(provider).models.map((model) => model.estimatedUsdPerMinute),
+      );
+      expect(estimatedUsdPerMinute(provider, 'no-such-model-id')).toBe(dearest);
+    }
+  });
+
+  test('each Azure MAI model reserves at the rate it bills', () => {
+    // The preflight REFUSES when the balance is under the estimate, so a rate
+    // padded "for safety" turns affordable requests away. v2 reserved at 1.5's
+    // 0.006 while billing $0.10/hr, which refused a 4-minute request from a
+    // 15-credit balance that would have billed ~6.7.
+    expect(estimatedUsdPerMinute('azure-mai', 'mai-transcribe-2')).toBeCloseTo(0.10 / 60, 8);
+    expect(estimatedUsdPerMinute('azure-mai', 'mai-transcribe-1.5')).toBeCloseTo(0.006, 8);
+
+    // And the default a model-less request resolves to is v2's own rate, not
+    // the provider's dearest — that path is `resolveModel`, not the fallback.
+    expect(estimatedUsdPerMinute('azure-mai')).toBeCloseTo(0.10 / 60, 8);
   });
 });
 

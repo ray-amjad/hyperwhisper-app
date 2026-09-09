@@ -25,9 +25,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { license_key } = (body ?? {}) as { license_key?: string };
+  const license_key =
+    typeof body === "object" && body !== null && "license_key" in body
+      ? body.license_key
+      : undefined;
 
-  if (!license_key) {
+  if (typeof license_key !== "string" || !license_key) {
     return NextResponse.json(
       { success: false, error: "License key is required" },
       { status: 400 }

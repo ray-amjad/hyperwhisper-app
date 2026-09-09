@@ -49,7 +49,7 @@ import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionC
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, sleep, splitVocabularyTerms } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -496,15 +496,12 @@ export async function transcribeWithAssemblyAI(
     throwForStatus(uploadResp.status, bodyPreview);
   }
 
-  let uploadUrl: string;
-  try {
-    uploadUrl = ((await uploadResp.json()) as { upload_url?: string }).upload_url || '';
-  } catch {
-    throw new ProviderUnavailableError('AssemblyAI', 'malformed upload response');
-  }
-  if (!uploadUrl) {
-    throw new ProviderUnavailableError('AssemblyAI', 'upload returned no upload_url');
-  }
+  const uploadUrl = await readRequiredJsonString(uploadResp, {
+    provider: 'AssemblyAI',
+    field: 'upload_url',
+    malformedMessage: 'malformed upload response',
+    missingMessage: 'upload returned no upload_url',
+  });
 
   // ── 2. Create the transcript job ──
   // `speech_models` is a priority/fallback list: AssemblyAI tries each model in
@@ -560,15 +557,12 @@ export async function transcribeWithAssemblyAI(
     throwForStatus(createResp.status, bodyPreview);
   }
 
-  let transcriptId: string;
-  try {
-    transcriptId = ((await createResp.json()) as { id?: string }).id || '';
-  } catch {
-    throw new ProviderUnavailableError('AssemblyAI', 'malformed create response');
-  }
-  if (!transcriptId) {
-    throw new ProviderUnavailableError('AssemblyAI', 'create returned no transcript id');
-  }
+  const transcriptId = await readRequiredJsonString(createResp, {
+    provider: 'AssemblyAI',
+    field: 'id',
+    malformedMessage: 'malformed create response',
+    missingMessage: 'create returned no transcript id',
+  });
 
   logProviderEvent(provider, 'job_created', { model, medical, transcriptId, keytermCount: keyterms.length }, context);
 

@@ -57,7 +57,7 @@ const IS_BUILD_PRERENDER = process.env.NEXT_PHASE === "phase-production-build";
  * textual copy of this CASE is a different set of parameter placeholders and
  * Postgres rejects the query outright.
  */
-const VENDOR_EXPR = sql.join(
+const VENDOR_EXPR = sql<string>`${sql.join(
   [
     sql`case`,
     ...STT_CATALOG.map(
@@ -67,7 +67,7 @@ const VENDOR_EXPR = sql.join(
     sql`else ${sttLatencySamples.provider} end`,
   ],
   sql` `,
-);
+)}`;
 
 /** The shape a bucket with no rows has. Also what a build-time failure renders. */
 function emptyMatrix(): LatencyMatrixData {
@@ -211,7 +211,7 @@ async function queryLatencyMatrix(bucket: DurationBucket): Promise<LatencyMatrix
       )`,
     );
 
-  return buildMatrix(rows as AggregateRow[]);
+  return buildMatrix(rows);
 }
 
 /**

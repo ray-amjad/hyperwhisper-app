@@ -322,7 +322,7 @@ extension RecordingTranscriptionFlow {
     ///   groups on, snapshotted off the Core Data `Mode` by the caller (which is
     ///   where the resolved mode is in scope). Value-typed and `Sendable` so it
     ///   can cross onto the detached capture task.
-    func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, mode: String, modeIdentity: NoSpeechModeIdentity?, duration: TimeInterval, audioURL: URL) {
+    func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, modeIdentity: NoSpeechModeIdentity?, attemptDiagnostics: TranscriptionAttemptDiagnostics?, duration: TimeInterval, audioURL: URL) {
         // HYPERWHISPER-EX: `TranscriptionPipeline` deliberately excludes
         // `.noSpeechDetected` from Sentry capture as "user-recoverable", which
         // also hid every case where the audio DID contain speech and a provider
@@ -343,8 +343,8 @@ extension RecordingTranscriptionFlow {
                 await TranscriptionDiagnosticsService.captureNoSpeechDiagnostic(
                     audioURL: audioURL,
                     fallbackDurationSeconds: duration,
-                    mode: mode,
                     modeIdentity: modeIdentity,
+                    attemptDiagnostics: attemptDiagnostics,
                     diagnosticStage: "live_recording",
                     diagnosticSource: "provider_no_speech",
                     error: te,

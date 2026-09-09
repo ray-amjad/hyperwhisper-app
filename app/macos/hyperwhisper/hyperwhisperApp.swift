@@ -989,8 +989,43 @@ struct MenuBarIconView: View {
             appState.selectedModeName = mode.name ?? "Default"
             appState.selectedModeSnapshot = ModeSnapshot(mode)
 
-            // Explicitly prepare the model — the Combine $selectedModeId sink may not
-            // fire (due to .removeDuplicates or pipeline being nil during init)
+            // Explicitly prepare the model. LOAD-BEARING, not belt-and-braces —
+            // do not delete this as redundant with AppState's preparation sinks.
+            //
+            // Those sinks are keyed on the selected Mode's content (#318), and
+            // their first value at launch comes from AppState's asynchronous
+            // snapshot back-fill. If the back-fill lands BEFORE
+            // `bootstrapAppServices()` wires `appState.transcriptionPipeline`,
+            // the sinks fire into a nil pipeline and their `removeDuplicates()`
+            // memoizes that key — the assignments just above then publish an
+            // equal key and are swallowed, leaving this `Task` as the only thing
+            // that prepares a model at launch.
+            //
+            // If the back-fill lands after, this runs and so do the sinks — and
+            // they are NOT necessarily preparing the same Mode. The back-fill
+            // resolves whatever `selectedModeId` holds at that moment, which
+            // until the three assignments just above is still the SEEDED default
+            // id, so its staleness guard passes and the sinks prepare the
+            // DEFAULT Mode while this `Task` prepares the user's saved one. The
+            // window is real: `bootstrapAppServices()` wires
+            // `appState.transcriptionPipeline` and only then schedules
+            // `initializeSelectedModeLightweight()`, a good deal of main-actor
+            // work later.
+            //
+            // Nothing orders the two. `preparationGeneration` gates only the
+            // Parakeet readiness-recovery path; every terminal
+            // `modelReadyState = .ready(name:)` write in
+            // `TranscriptionModelManager` is unguarded, so the later-FINISHING
+            // pass wins rather than the later-STARTING one. A slow Parakeet
+            // default landing after a fast `.ready(name: "Cloud")` leaves the
+            // status bar advertising Parakeet for a cloud Mode — #318's own
+            // symptom, reached by a different route.
+            //
+            // So this duplicate is a hazard, not merely wasted work. It predates
+            // the #318 change and is deliberately NOT fixed here: the repair is a
+            // generation check on those terminal writes, which belongs to the
+            // manager that owns them. Read this as a description of a known
+            // hazard, not as a blessing of it.
             Task { @MainActor in
                 await transcriptionPipeline.prepareModel(for: mode)
                 await transcriptionPipeline.prepareLocalRuntime(for: mode)

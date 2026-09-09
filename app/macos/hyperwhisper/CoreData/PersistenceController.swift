@@ -67,6 +67,14 @@ struct ModeSnapshot: Sendable {
     let id: UUID
     let name: String
     let model: String
+    /// The Mode's transcription language, exactly as stored — including the
+    /// literal `"auto"`. Kept raw so the snapshot stays a faithful copy;
+    /// `ModeSnapshot.effectiveLanguage(_:)` below is what maps `"auto"` onto
+    /// `nil` for the providers.
+    /// Added for #318: the language is a model-preparation input (it selects the
+    /// English-optimized whisper weights), so anything keyed on this snapshot
+    /// has to be able to see it change.
+    let language: String?
     let cloudProvider: String
     let rawCloudProvider: String?
     let postProcessingMode: Int16
@@ -80,6 +88,7 @@ struct ModeSnapshot: Sendable {
         self.id = mode.id ?? UUID()
         self.name = mode.name ?? "Default"
         self.model = mode.model ?? "base"
+        self.language = mode.language
         self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
         self.rawCloudProvider = mode.cloudProvider
         self.postProcessingMode = mode.postProcessingMode
@@ -88,6 +97,30 @@ struct ModeSnapshot: Sendable {
         self.languageModel = mode.languageModel
         self.enableScreenOCR = mode.enableScreenOCR
         self.sortOrder = mode.sortOrder
+    }
+
+    /// The language value that actually reaches a transcription provider:
+    /// lowercased, with the sentinel `"auto"` collapsed onto `nil` so the
+    /// provider auto-detects.
+    ///
+    /// The ONE copy of this rule (#318). It used to be written out four times —
+    /// `TranscriptionModelManager.extractLanguage(from:)`,
+    /// `TranscriptionProviderRouter.extractLanguage(from:)`, the `languageArg`
+    /// closure in `TranscriptionPipeline.transcribeWithDetails`, and
+    /// `ASRPreparationKey.init` — and the last of those is a cache KEY over the
+    /// first: if one copy were ever hardened (trim whitespace, treat `""` as
+    /// unset) and the key's were not, a Mode whose language is `" auto"` would
+    /// get a changed effective language while the key compared equal,
+    /// `removeDuplicates()` would swallow the emission and the model would never
+    /// re-prepare. That is #318 again, on the language axis. Harden it here, and
+    /// the key moves with the providers by construction.
+    ///
+    /// Lives on `ModeSnapshot` because the key reads a snapshot while the other
+    /// three read a `Mode`; a `String?` in and a `String?` out is the only shape
+    /// all four can share.
+    static func effectiveLanguage(_ raw: String?) -> String? {
+        guard let lowered = raw?.lowercased() else { return nil }
+        return lowered == "auto" ? nil : lowered
     }
 }
 
@@ -99,6 +132,16 @@ struct ModeSnapshot: Sendable {
 struct VocabularyEntrySnapshot: Sendable {
     let word: String
     let replacement: String?
+}
+
+// MARK: - Auto-Delete Transaction Snapshot
+
+/// Plain values produced by the serial writer after an auto-delete transaction
+/// commits. No managed object or context crosses the writer queue boundary.
+struct AutoDeleteTransactionSnapshot: Sendable {
+    let audioPaths: [String]
+    let transcriptsDeleted: Int
+    let hasMore: Bool
 }
 
 // MARK: - Persistence Controller
@@ -1183,6 +1226,10 @@ class PersistenceController: ObservableObject {
 
     /// Save-site slug for the serial background writer.
     private static let writerSaveSite = "background_writer"
+
+    /// Maximum rows deleted by one auto-delete writer transaction. The fetch
+    /// reads one extra row only to decide whether the service must continue.
+    private static let autoDeleteBatchLimit = 100
     
     // MARK: - Background Writer (serial)
 
@@ -1236,41 +1283,135 @@ class PersistenceController: ObservableObject {
     /// meaningful if the row was saved — on save failure the writer rolls back, so
     /// handing the ID out anyway would point at a row that doesn't exist.
     func performWriteRequiringSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T?) async -> T? {
-        let outcome = await performWriteReportingSave(block)
-        return outcome.saved ? outcome.value : nil
+        await performWriteRequiringSave(deleteWinsConflicts: false, block)
+    }
+
+    private func performWriteRequiringSave<T: Sendable>(
+        deleteWinsConflicts: Bool,
+        _ block: @escaping (NSManagedObjectContext) -> T?
+    ) async -> T? {
+        let result = await performWriterTransaction(deleteWinsConflicts: deleteWinsConflicts) { context in
+            let value = block(context)
+            return (value: value, shouldCommit: value != nil)
+        }
+        return result.saved ? result.value : nil
     }
 
     private func performWriteReportingSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> (value: T, saved: Bool) {
+        await performWriterTransaction { context in
+            (value: block(context), shouldCommit: true)
+        }
+    }
+
+    /// Shared serial-writer transaction envelope. `shouldCommit` lets the
+    /// requiring-save API preserve its intentional nil-abort behavior without
+    /// changing `performWrite` callers whose value can itself be optional.
+    private func performWriterTransaction<T: Sendable>(
+        deleteWinsConflicts: Bool = false,
+        _ block: @escaping (NSManagedObjectContext) -> (value: T, shouldCommit: Bool)
+    ) async -> (value: T, saved: Bool) {
         let context = writerContext
-        let result: (value: T, saved: Bool) = await context.perform {
-            let value = block(context)
-            var saved = true
-            if context.hasChanges {
-                do {
-                    try context.save()
-                    CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.writerContextKey)
-                } catch {
-                    saved = false
-                    let nsError = error as NSError
-                    // Read before `rollback()` below, which empties these sets.
-                    // A throwing save keeps its pending changes, so this is the
-                    // write that failed — and it costs nothing when saves work.
-                    let shape = CoreDataSaveDiagnostics.contextShape(context)
-                    AppLogger.logCoreData(
-                        .save(site: PersistenceController.writerSaveSite, contextKey: CoreDataSaveDiagnostics.writerContextKey),
-                        error: nsError,
-                        metadata: shape
-                    )
-                    // Never leave the long-lived writer context poisoned.
+        let result: (value: T, saved: Bool, changed: Bool) = await context.perform {
+            let previousMergePolicy = context.mergePolicy
+            if deleteWinsConflicts {
+                context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+            }
+            defer { context.mergePolicy = previousMergePolicy }
+
+            let operation = block(context)
+            let changed = context.hasChanges
+            guard operation.shouldCommit else {
+                if changed {
                     context.rollback()
+                    context.refreshAllObjects()
                 }
-                // Re-fault so the long-lived writer doesn't accumulate objects.
+                return (operation.value, false, changed)
+            }
+
+            let saved = !changed || self.savePendingWriterChanges(context)
+            if changed {
                 context.refreshAllObjects()
             }
-            return (value, saved)
+            return (operation.value, saved, changed)
         }
-        await MainActor.run { self.scheduleViewContextMaintenance() }
-        return result
+        if result.changed {
+            await MainActor.run { self.scheduleViewContextMaintenance() }
+        }
+        return (result.value, result.saved)
+    }
+
+    private func savePendingWriterChanges(_ context: NSManagedObjectContext) -> Bool {
+        do {
+            try saveWriterContext(context)
+            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.writerContextKey)
+            return true
+        } catch {
+            let nsError = error as NSError
+            // Read before `rollback()` below, which empties these sets.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            AppLogger.logCoreData(
+                .save(site: PersistenceController.writerSaveSite, contextKey: CoreDataSaveDiagnostics.writerContextKey),
+                error: nsError,
+                metadata: shape
+            )
+            context.rollback()
+            return false
+        }
+    }
+
+    /// One overrideable persistence boundary lets tests prove production callers'
+    /// save-failure behavior without copying their fetch and mutation bodies.
+    func saveWriterContext(_ context: NSManagedObjectContext) throws {
+        try context.save()
+    }
+
+    /// Delete expired transcripts as one uninterrupted serial-writer transaction.
+    ///
+    /// The cutoff fetch, ordered path snapshot, row deletes, and save all run on
+    /// `writerContext`. The returned snapshot contains values only and is handed
+    /// out only after the save commits. A fetch or save failure returns `nil`, so
+    /// callers must not unlink any files or record successful cleanup state.
+    func deleteTranscriptsOlderThanInBackground(_ cutoffDate: Date) async -> AutoDeleteTransactionSnapshot? {
+        return await performWriteRequiringSave(deleteWinsConflicts: true) { context -> AutoDeleteTransactionSnapshot? in
+            let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+            request.predicate = NSPredicate(format: "date < %@", cutoffDate as NSDate)
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: true)]
+            // Keep stop-to-paste writes and the termination barrier responsive,
+            // even when an old installation has a large cleanup backlog.
+            request.fetchLimit = Self.autoDeleteBatchLimit + 1
+
+            let transcripts: [Transcript]
+            do {
+                transcripts = try context.fetch(request)
+            } catch {
+                AppLogger.coreData.error("Failed to fetch transcripts for auto-delete: \(error, privacy: .public)")
+                SentryService.capture(
+                    error: error,
+                    message: "Failed to fetch transcripts for auto-delete",
+                    tags: ["component": "AutoDeleteCleanupService"],
+                    includeRecentLogs: false
+                )
+                return nil
+            }
+
+            let batch = Array(transcripts.prefix(Self.autoDeleteBatchLimit))
+            var paths: [String] = []
+            for transcript in batch {
+                if let audioPath = transcript.audioFilePath {
+                    paths.append(audioPath)
+                }
+                if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String {
+                    paths.append(trimmedPath)
+                }
+                context.delete(transcript)
+            }
+
+            return AutoDeleteTransactionSnapshot(
+                audioPaths: paths,
+                transcriptsDeleted: batch.count,
+                hasMore: transcripts.count > batch.count
+            )
+        }
     }
 
     /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
@@ -1728,17 +1869,39 @@ class PersistenceController: ObservableObject {
         container.viewContext.refreshAllObjects()
     }
 
-    /// Sets the trimmed audio file path for a transcript
-    /// Called after VAD (Voice Activity Detection) processing creates a trimmed version
+    /// Sets the trimmed audio file path for a transcript on the serial writer.
+    ///
+    /// Auto-delete uses the same writer. If cleanup runs first, the row no
+    /// longer exists and this method removes the new, unowned file. If this
+    /// write runs first, cleanup snapshots the committed path before deleting
+    /// the row. Both queue orders therefore leave no orphaned trimmed file.
     ///
     /// - Parameters:
     ///   - transcript: The transcript to update
     ///   - trimmedPath: The file path to the VAD-trimmed audio file
     @MainActor
-    func setTrimmedAudioPath(_ transcript: Transcript, trimmedPath: String) {
-        transcript.setValue(trimmedPath, forKey: "trimmedAudioFilePath")
-        save()
+    @discardableResult
+    func setTrimmedAudioPath(_ transcript: Transcript, trimmedPath: String) async -> Bool {
+        let transcriptID = transcript.objectID
+        let saved = await performWriteRequiringSave { context -> Bool? in
+            guard let writerTranscript = try? context.existingObject(with: transcriptID) as? Transcript,
+                  !writerTranscript.isDeleted else {
+                return nil
+            }
+            writerTranscript.setValue(trimmedPath, forKey: "trimmedAudioFilePath")
+            return true
+        } == true
+
+        guard saved else {
+            // The VAD output has no Core Data owner if the row was deleted or
+            // the path save failed. Remove it instead of leaking it on disk.
+            _ = await FileDeletion.deleteFiles(at: [trimmedPath])
+            AppLogger.coreData.warning("Could not attach trimmed audio path; removed the unowned file")
+            return false
+        }
+
         AppLogger.coreData.debug("Set trimmed audio path for transcript: \(trimmedPath, privacy: .public)")
+        return true
     }
 
     /// Deletes a transcript

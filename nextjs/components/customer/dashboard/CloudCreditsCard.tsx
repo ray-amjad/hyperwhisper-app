@@ -9,6 +9,7 @@ import {
   CREDITS_PER_DOLLAR,
   validateCreditPurchaseAmount,
 } from "@/app/api/checkout/credits/validation";
+import { isRecord } from "@/src/lib/type-guards";
 
 interface CloudCreditsCardProps {
   totalCredits: number;
@@ -62,8 +63,8 @@ export default function CloudCreditsCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: activeLicenseKey, amount }),
       });
-      const data = await response.json();
-      if (data.checkoutUrl) {
+      const data: unknown = await response.json();
+      if (isRecord(data) && typeof data.checkoutUrl === "string") {
         window.location.href = data.checkoutUrl;
       }
     } catch (err) {

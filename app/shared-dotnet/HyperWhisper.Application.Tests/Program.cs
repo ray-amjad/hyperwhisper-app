@@ -248,6 +248,19 @@ try
     Assert(modeSelection.Selected?.Id == mode.Id,
         "missing selected mode did not prefer the default over sort order");
     modeSelection.Selected = modeSelection.Items.Single(item => item.Id == alternateMode.Id);
+
+    // #494. Linux binds both the Name field's IsEnabled and the sentence beside it to
+    // this one property, so a wrong answer here either locks a renameable mode or
+    // offers to rename the default. Keyed on the FLAG: `alternateMode` is an ordinary
+    // mode and `mode` is the default, and neither is called "Default".
+    Assert(!modeSelection.IsDefaultModeSelected,
+        "an ordinary mode reports as the default, so Linux would lock a renameable mode");
+    modeSelection.Selected = modeSelection.Items.Single(item => item.Id == mode.Id);
+    Assert(modeSelection.IsDefaultModeSelected,
+        "the default mode does not report as default, so Linux would offer to rename it");
+    // Restored: the assertion below reads the selection this persisted.
+    modeSelection.Selected = modeSelection.Items.Single(item => item.Id == alternateMode.Id);
+
     var reloadedModeSelection = new ModesViewModel(modes, reloadedSettings);
     await reloadedModeSelection.RefreshAsync();
     Assert(reloadedModeSelection.Selected?.Id == alternateMode.Id,
@@ -411,6 +424,33 @@ try
             && cloudMode.CloudTranscriptionDomain == "medical" && cloudMode.CloudTranscriptionModel == "mai-1.5"
             && cloudMode.CustomVocabulary?.Count == 2 && cloudMode.EnableScreenOCR,
             "new cloud mode did not persist routing and context fields");
+
+        // A cloud mode created straight from the HyperWhisper Cloud segment: the type never
+        // changes, so the ProviderType setter's local-id guard never runs and TranscriptionModel
+        // is still at its on-device default. That default used to be saved as the mode's cloud
+        // model, putting a local Whisper id on a cloud mode.
+        shell.Modes.Selected = null;
+        shell.Modes.Name = "Cloud default model";
+        shell.Modes.IsHwCloudSource = true;
+        shell.Modes.TranscriptionModel = "base";
+        await shell.Modes.SaveAsync();
+        var defaultCloudMode = (await new ModeRepository(database).ListAsync())
+            .Single(item => item.Name == "Cloud default model");
+        Assert(defaultCloudMode.CloudTranscriptionModel is null,
+            $"a cloud mode was saved with the local model id '{defaultCloudMode.CloudTranscriptionModel}'");
+
+        // The model combo went blank on an engine switch because this rebuilt a new list on every
+        // read and Avalonia clears SelectedItem whenever ItemsSource is a different instance.
+        shell.Modes.Selected = null;
+        shell.Modes.IsOnDeviceSource = true;
+        shell.Modes.LocalEngine = "whisper";
+        var whisperModels = shell.Modes.LocalModels;
+        Assert(ReferenceEquals(whisperModels, shell.Modes.LocalModels),
+            "LocalModels handed back a new list instance for an unchanged engine");
+        shell.Modes.LocalEngine = "parakeet";
+        Assert(!ReferenceEquals(whisperModels, shell.Modes.LocalModels),
+            "LocalModels did not rebuild when the engine changed");
+
         cloudMode.ModelType = "linux-model-type";
         cloudMode.IsSystemProvided = true;
         cloudMode.CreatedDate = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
@@ -521,6 +561,12 @@ try
         Assert(accountHttp.ValidateDeviceName is { Length: 128 }
             && !accountHttp.ValidateDeviceName.Any(char.IsControl),
             "account activation did not bound and sanitize the device name");
+        // Activation returns the licence but no balance, and nothing else fetched one, so the
+        // balance card stayed empty and "Cost per Minute" read ~0.0 until the user found Refresh.
+        Assert(account.Credits == "42.5" && account.MinutesRemaining == "7",
+            "activation did not fetch the credit balance");
+        Assert(account.Status.Message.Contains("Account activated", StringComparison.Ordinal),
+            "the credit fetch replaced the activation confirmation");
         await account.RefreshCreditsAsync();
         Assert(account.Credits == "42.5" && account.MinutesRemaining == "7",
             "account credit refresh did not update display state");
@@ -615,10 +661,16 @@ try
     {
         var modelViewModel = new HyperWhisper.PortableApplication.ViewModels.ModelLibraryViewModel(
             new HyperWhisper.ModelManagement.PortableModelManager(paths, modelHttp));
+        // Not Items[0], and not simply "the next row": the recommended order ties cloud rows
+        // ahead of local ones, the way Windows falls back to its own cloud-first input order,
+        // so both ends of this test have to ask for a row that actually has a model to
+        // download. Taking whatever sorted first left the download waiting forever.
+        modelViewModel.Selected ??= modelViewModel.Items.First(item => item.CanDownload);
         var downloadTarget = modelViewModel.Selected!;
         var downloadTask = modelViewModel.DownloadAsync();
         await delayedModels.Started.Task;
-        var otherModel = modelViewModel.Items.First(item => item.Id != downloadTarget.Id);
+        var otherModel = modelViewModel.Items.First(
+            item => item.Id != downloadTarget.Id && item.Model is not null);
         modelViewModel.Selected = otherModel;
         modelViewModel.Dispose();
         await downloadTask;

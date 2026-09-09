@@ -167,6 +167,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Delete Selected</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>{0}개 녹음 선택됨</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
@@ -221,6 +224,9 @@
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
+  </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>기본 모드이므로 이름을 변경할 수 없습니다. 다른 모드는 이름을 변경할 수 있습니다.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
@@ -805,6 +811,9 @@
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>파일 전사가 취소되었습니다</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1064,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>녹음 전환</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>녹음 취소</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>모드 변경</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>클릭한 다음 사용할 키를 누르세요</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Ctrl, Alt, Shift, Win과 같은 단일 수정 키 단축키는 지원되지 않습니다. 수정 키와 함께 사용하는 키 또는 Ctrl+Win과 같은 다중 수정 키 단축키를 사용하세요.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>이 단축키는 이미 {0}에 사용 중입니다({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>단축키 {0}은(는) 수정 키 하나만 사용합니다. 수정 키와 함께 사용하는 키 또는 Ctrl+Win과 같은 다중 수정 키 단축키를 사용하세요.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>단축키 {0}은(는) 이미 다른 애플리케이션에서 사용 중입니다. 다른 조합을 선택하세요.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>단축키 {0}은(는) Windows에서 예약되어 사용할 수 없습니다.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>단축키 {0}을(를) 등록하지 못했습니다(Windows 오류 {1}). 다른 조합을 시도하세요.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>단축키 충돌</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>스트리밍 단축키 충돌</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>단축키 설정 열기</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>단축키 변경</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1661,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>버전 {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1682,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>버전 {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1796,10 +1835,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -1859,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>스트리밍</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>
@@ -2388,6 +2427,12 @@ You can re-download it later.</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>키가 확인되고 크레딧도 확인됐어요. 녹음은 HyperWhisper Cloud로 전송됩니다.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>이 PC를 활성화해 HyperWhisper Cloud 연결을 완료하세요.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>이 PC는 활성화되었습니다. 녹음은 HyperWhisper Cloud로 전송됩니다.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloud 활성화</value>

@@ -821,6 +821,25 @@ struct ModeEditorView: View {
 
     // MARK: - Basic Settings
 
+    /// Whether this editor is open on the one mode whose name is fixed.
+    ///
+    /// The FLAG, not the name. This used to read `mode?.name == "Default"`, which is
+    /// the mode's label rather than its identity, and got both directions wrong: a
+    /// mode the user named "Default" themselves was locked, and the real default
+    /// stopped being locked as soon as a restored backup carried another name
+    /// (`PersistenceController` sets `isDefault` on a restored mode without
+    /// constraining what it is called). Windows has always keyed the same rule on
+    /// `IsDefault`; issue #494 was the two platforms disagreeing about it.
+    private var isDefaultMode: Bool {
+        Self.isNameLocked(configuration.mode)
+    }
+
+    /// Static so hyperwhisperTests can assert the rule without standing up the view;
+    /// the regression it guards is precisely a return to the string compare.
+    static func isNameLocked(_ mode: Mode?) -> Bool {
+        mode?.isDefault == true
+    }
+
     private var editorBasicSettings: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 16) {
@@ -828,15 +847,30 @@ struct ModeEditorView: View {
                     .font(.headline)
                     .foregroundColor(.secondary)
 
-                HStack {
-                    Text(localized: "modes.field.name")
-                        .frame(width: 80, alignment: .leading)
-                    TextField(
-                        LocalizedStringKey(configuration.isEditMode ? "modes.field.name.editPlaceholder" : "modes.field.name.placeholder"),
-                        text: $name
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(configuration.mode?.name == "Default")
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(localized: "modes.field.name")
+                            .frame(width: 80, alignment: .leading)
+                        TextField(
+                            LocalizedStringKey(configuration.isEditMode ? "modes.field.name.editPlaceholder" : "modes.field.name.placeholder"),
+                            text: $name
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(isDefaultMode)
+                        // The reason travels with the field, not only as the label
+                        // below it: VoiceOver reaches a disabled control but has no
+                        // way to associate a loose sibling Text with it.
+                        .accessibilityHint(isDefaultMode ? Text(localized: "modes.field.name.defaultLocked") : Text(""))
+                    }
+
+                    // A disabled field with nothing beside it reads as a broken
+                    // control rather than a deliberate rule (issue #494).
+                    if isDefaultMode {
+                        Text(localized: "modes.field.name.defaultLocked")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 88)
+                    }
                 }
             }
             .padding(12)

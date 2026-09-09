@@ -250,32 +250,68 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                     return SelectedModel is not null;
 
                 case OnboardingSourceKind.HyperWhisperCloud:
-                    // A working key, not merely a typed one. Either the licence is
-                    // already active on this PC, the inline test passed, or the field
-                    // still holds the exact key that passed earlier this session
-                    // (Back navigation clears KeyValidated, not the fact that the key
-                    // was verified).
-                    //
-                    // KeyValidated is now SCOPED (see ValidationScope): it can only
-                    // read true for a pass recorded against this source and this
-                    // licence text, so a probe that lands after the user switched
-                    // source cannot open this branch's half of the gate.
-                    var key = LicenseKeyInput.Trim();
-                    return _license.IsActive
-                        || KeyValidated
-                        || (key.Length > 0 && key == _lastValidatedLicenseKey);
+                    return CloudKeyIsVerified;
 
                 case OnboardingSourceKind.YourProvider:
-                    // KeyValidated is cleared every time this step appears, so the
-                    // per-session record keeps the gate open across Back navigation.
-                    // A key that merely sits in the credential store but was never
-                    // probed this session does not count, and neither does a key
-                    // that passed and has since been edited.
-                    return KeyValidated || SelectedProviderKeyIsValidated;
+                    return ProviderKeyIsVerified;
 
                 default:
                     return false;
             }
+        }
+    }
+
+    /// <summary>
+    /// Has this Cloud access key been shown to work — a working key, not merely a
+    /// typed one. Either the licence is already active on this PC, the inline test
+    /// passed, or the field still holds the exact key that passed earlier this
+    /// session.
+    ///
+    /// <see cref="KeyValidated"/> is SCOPED (see ValidationScope) and is cleared on
+    /// every entry to the Configure step by <see cref="ResetConfigureTestResults"/>,
+    /// so on its own it says "an inline test is passing RIGHT NOW", not "this key has
+    /// verified". The per-session <see cref="_lastValidatedLicenseKey"/> is what
+    /// survives Back navigation, and an active licence is proof on its own: the server
+    /// accepted this key on this device.
+    ///
+    /// The Configure gate has always read exactly this. The "Access key verified" row
+    /// on the Setup step read the bare <see cref="KeyValidated"/> instead, so a single
+    /// Back-and-forward unticked it while the two rows below — activation and credits —
+    /// stayed ticked, and the card claimed the key was unverified on a device whose
+    /// account that same key had already activated.
+    /// </summary>
+    public bool CloudKeyIsVerified
+    {
+        get
+        {
+            if (SelectedSource != OnboardingSourceKind.HyperWhisperCloud)
+                return false;
+
+            var key = LicenseKeyInput.Trim();
+            return _license.IsActive
+                || KeyValidated
+                || (key.Length > 0 && key == _lastValidatedLicenseKey);
+        }
+    }
+
+    /// <summary>
+    /// The BYOK half of the same question. <see cref="KeyValidated"/> is cleared on
+    /// every entry to the Configure step, so the per-session record is what carries a
+    /// pass across Back navigation. A key that merely sits in the credential store but
+    /// was never probed this session does not count, and neither does a key that
+    /// passed and has since been edited.
+    ///
+    /// The BYOK "API key verified" row on the Setup step had the same defect as the
+    /// Cloud one for the same reason, so it reads this rather than a second rule.
+    /// </summary>
+    public bool ProviderKeyIsVerified
+    {
+        get
+        {
+            if (SelectedSource != OnboardingSourceKind.YourProvider)
+                return false;
+
+            return KeyValidated || SelectedProviderKeyIsValidated;
         }
     }
 
@@ -1034,6 +1070,15 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         IsTestingKey = false;
         RefreshSetupError();
         _taskBox.Clear(OnboardingTaskKeys.LicenseTest);
+
+        // StepDidChange fetches the balance on ENTRY to this step, which on a first-run machine
+        // happens while the app is still unlicensed, so that fetch asks about the device id and
+        // comes back "Invalid license key". Nothing re-fetched after the probe, so the big number
+        // above "credits available" stayed on its "…" placeholder for good on a perfectly valid
+        // key. The probe does not STORE the key -- only activation does -- so the key is passed
+        // explicitly; without it this fetch would ask about the device id again and fail again.
+        if (outcome.IsValid)
+            RefreshCredits(force: true, licenseKeyOverride: key);
     }
 
     /// <summary>
@@ -1425,21 +1470,23 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     }
 
     /// <summary>Kick a balance refresh. Failures are swallowed into "unknown".</summary>
-    public void RefreshCredits(bool force)
+    public void RefreshCredits(bool force) => RefreshCredits(force, licenseKeyOverride: null);
+
+    private void RefreshCredits(bool force, string? licenseKeyOverride)
     {
         if (!_isLive)
             return;
 
-        RunTracked(OnboardingTaskKeys.CreditsRefresh, ct => RefreshCreditsCoreAsync(force, ct));
+        RunTracked(OnboardingTaskKeys.CreditsRefresh, ct => RefreshCreditsCoreAsync(force, licenseKeyOverride, ct));
     }
 
-    private async Task RefreshCreditsCoreAsync(bool force, CancellationToken cancellationToken)
+    private async Task RefreshCreditsCoreAsync(bool force, string? licenseKeyOverride, CancellationToken cancellationToken)
     {
         ApplyCredits();
 
         try
         {
-            await _credits.RefreshAsync(force, cancellationToken);
+            await _credits.RefreshAsync(force, cancellationToken, licenseKeyOverride);
         }
         catch (OperationCanceledException)
         {
@@ -2329,6 +2376,11 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         // input that can move either - both key fields, the provider, the source -
         // has to re-raise it. All of them already come through here.
         OnPropertyChanged(nameof(KeyValidated));
+
+        // Both derive from KeyValidated plus a per-session record, so they move on
+        // strictly fewer occasions than KeyValidated - but never on more.
+        OnPropertyChanged(nameof(CloudKeyIsVerified));
+        OnPropertyChanged(nameof(ProviderKeyIsVerified));
     }
 
     /// <summary>

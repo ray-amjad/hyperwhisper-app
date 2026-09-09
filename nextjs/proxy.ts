@@ -78,7 +78,7 @@ export default async function proxy(request: NextRequest) {
     }
 
     // User has session cookie - run intl middleware
-    const response = intlMiddleware(request) as NextResponse;
+    const response = intlMiddleware(request);
     response.headers.set("x-pathname", pathname);
     return response;
   }
@@ -102,7 +102,7 @@ export default async function proxy(request: NextRequest) {
   // here.
 
   // For all other routes, just run intl middleware
-  const response = intlMiddleware(request) as NextResponse;
+  const response = intlMiddleware(request);
   response.headers.set("x-pathname", pathname);
 
   return response;

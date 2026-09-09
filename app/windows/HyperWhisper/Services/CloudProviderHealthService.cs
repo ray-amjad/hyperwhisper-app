@@ -161,16 +161,16 @@ public class CloudProviderHealthService : IDisposable
     }
 
     /// <summary>
-    /// Test seam (issue #379): builds a NON-singleton instance with a clock the
-    /// caller drives by hand, so the 60 s cache TTL and the 60 s failure-override
-    /// window can be crossed without a wall-clock wait. Visible to
+    /// Test seams: builds a NON-singleton instance with a clock the caller drives
+    /// by hand and an optional HTTP client. Tests can cross the 60 s cache windows
+    /// without waiting and script provider replies without real network I/O. Visible to
     /// HyperWhisper.SmokeTests via InternalsVisibleTo (see HyperWhisper.csproj).
     /// Production always goes through <see cref="Instance"/>.
     /// </summary>
-    internal CloudProviderHealthService(Func<DateTime> now)
+    internal CloudProviderHealthService(Func<DateTime> now, HttpClient? httpClient = null)
     {
         _now = now;
-        _httpClient = new HttpClient
+        _httpClient = httpClient ?? new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds)
         };

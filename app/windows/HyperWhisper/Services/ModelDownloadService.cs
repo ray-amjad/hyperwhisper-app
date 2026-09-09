@@ -81,6 +81,7 @@ public sealed class ModelDownloadService
         }
 
         RaiseChanged(model.Id, 0, isCompleted: false, isSuccess: false, error: null, model.DisplayName);
+        // ast-grep-ignore: no-discarded-task-run -- StartDownload returns bool to its caller, so the download must outlive the call
         _ = Task.Run(() => RunDownloadAsync(download));
         return true;
     }

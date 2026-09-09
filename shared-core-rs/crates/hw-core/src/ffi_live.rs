@@ -644,7 +644,33 @@ impl HwLiveSession {
     /// text that is not JSON — is [`HwLiveEvent::Ignore`]: a provider adding a
     /// frame shape must never end a recording in progress.
     pub fn parse(&self, text: String) -> HwLiveEvent {
-        self.locked().parse(&text).into()
+        // THE JSON IS DECODED OUTSIDE THE LOCK, deliberately. (A `//` comment
+        // and not a `///` one: UniFFI copies docstrings into the generated
+        // bindings, and this is an implementation note, not part of the
+        // contract a platform reads.)
+        //
+        // This mutex is also taken by `note_audio` and `control_frames`, which
+        // the platform calls from its real-time audio tap thread — every
+        // ~21 ms, against a deadline it cannot miss. The decode is the one
+        // unbounded piece of work reachable from here (a Deepgram `Results`
+        // frame carries a word array) and it needs none of the session's
+        // state, so holding the lock across it made the audio thread's worst
+        // case a function of how large a frame the provider chose to send.
+        // What is left inside the critical section is the per-provider state
+        // read that genuinely needs it.
+        //
+        // This NARROWS the window; it does not remove the coupling. The audio
+        // thread still waits on a `std::sync::Mutex` that does not donate
+        // priority, so a socket-loop thread descheduled anywhere inside
+        // `parse_value` still blocks it. Removing that entirely means either
+        // getting the platform's per-chunk calls off the real-time thread or
+        // splitting this session's state in two — and the state is genuinely
+        // shared (OpenAI's commit gate is written by `note_audio` and read by
+        // `parse`), so the split is not free.
+        let Some(root) = lv::LiveSession::decode(&text) else {
+            return HwLiveEvent::Ignore;
+        };
+        self.locked().parse_value(&root, &text).into()
     }
 
     /// The ordered stop path, given the caller's clock. Run the steps in order;

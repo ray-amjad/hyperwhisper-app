@@ -7,6 +7,7 @@ import {
   findAccountByKey,
   getCreditBalance,
 } from "@/src/lib/db-layer";
+import { isRecord } from "@/src/lib/type-guards";
 
 /**
  * License Credits API
@@ -79,8 +80,8 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { license_key, amount, metadata } = body;
+    const body: unknown = await req.json();
+    const { license_key, amount, metadata } = isRecord(body) ? body : {};
 
     if (!license_key || typeof license_key !== "string") {
       return NextResponse.json(
@@ -93,6 +94,15 @@ export async function POST(req: NextRequest) {
 
     if (amountError) {
       return NextResponse.json({ error: amountError }, { status: 400 });
+    }
+
+    // The validator proves this branch. Keep the local check so TypeScript also
+    // narrows the untrusted JSON value.
+    if (typeof amount !== "number") {
+      return NextResponse.json(
+        { error: "amount must be a finite positive number" },
+        { status: 400 }
+      );
     }
 
     const license = await findAccountByKey(license_key.trim());

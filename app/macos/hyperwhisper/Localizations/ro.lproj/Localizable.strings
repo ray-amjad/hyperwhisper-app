@@ -778,8 +778,8 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Ridicată (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingv, cu suport pentru vocabular personalizat.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Ridicată (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 prin Azure Speech. 43 de limbi, cu adaptare contextuală.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Ridicată (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe prin Azure Speech. Până la 60 de limbi, cu adaptare contextuală.";
 
 "modes.create.title" = "Creați mod nou";
 "modes.create.subtitle" = "Configurați un profil de transcriere personalizat";
@@ -794,6 +794,7 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.field.name" = "Nume";
 "modes.field.name.placeholder" = "de ex., Note de întâlnire";
 "modes.field.name.editPlaceholder" = "Nume mod";
+"modes.field.name.defaultLocked" = "Acesta este modul implicit, așa că numele său nu poate fi modificat. Puteți redenumi orice alt mod.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Furnizor";
 "modes.provider.local" = "Local";

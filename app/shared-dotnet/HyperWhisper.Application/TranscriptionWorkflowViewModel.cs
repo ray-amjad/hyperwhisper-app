@@ -62,9 +62,21 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     }
     public string FilePath { get => _filePath; set => Set(ref _filePath, value); }
     public string State { get => _state; private set => Set(ref _state, value); }
-    public string Message { get => _message; private set => Set(ref _message, value); }
-    public string? ErrorCode { get => _errorCode; private set { if (Set(ref _errorCode, value)) Notify(nameof(HasError)); } }
+    public string Message { get => _message; private set { if (Set(ref _message, value)) Notify(nameof(ShowErrorCode)); } }
+    public string? ErrorCode
+    {
+        get => _errorCode;
+        private set { if (Set(ref _errorCode, value)) { Notify(nameof(HasError)); Notify(nameof(ShowErrorCode)); } }
+    }
     public bool HasError => ErrorCode != null;
+
+    /// <summary>
+    /// An error CODE is an internal identifier: `workflow.no_audio_device` beside "No audio input
+    /// device is available." adds nothing for the user and reads as a crash. Show it only when
+    /// there is no human message to show instead, so a failure is never silent. It is always in
+    /// the diagnostic log either way.
+    /// </summary>
+    public bool ShowErrorCode => HasError && string.IsNullOrWhiteSpace(Message);
     public bool CanStartRecording { get => _canStartRecording; private set => Set(ref _canStartRecording, value); }
     public bool CanStop { get => _canStop; private set => Set(ref _canStop, value); }
     public bool CanCancel { get => _canCancel; private set => Set(ref _canCancel, value); }

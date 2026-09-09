@@ -174,6 +174,15 @@ public class TranscriptionOrchestrator : IDisposable
     /// <param name="localTranscriptionProvider">Local transcription provider for local modes (must be available).</param>
     /// <param name="applicationContext">Optional application context for prompt enrichment.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="applyAiPostProcessing">
+    /// Whether to run the LLM rewrite (STEP 3's first branch). This gates the AI
+    /// rewrite ONLY. The deterministic passes below it — filler-word removal,
+    /// dictated break commands and vocabulary replacements — always run, because
+    /// they are the user's own settings and contain no LLM. The Local API's
+    /// /transcribe route passes false here: /post-process is the formatting
+    /// endpoint, but the deterministic passes belong to every transcript
+    /// (issues #495, #498).
+    /// </param>
     /// <param name="knownDurationSeconds">
     /// Audio duration the caller already computed (e.g. the file-import flow's
     /// NAudio probe), if any. Passed through to cloud providers that can reuse
@@ -191,7 +200,7 @@ public class TranscriptionOrchestrator : IDisposable
         ApplicationContext? applicationContext = null,
         CancellationToken cancellationToken = default,
         TranscriptionCallSite callSite = TranscriptionCallSite.Gui,
-        bool applyPostProcessing = true,
+        bool applyAiPostProcessing = true,
         double? knownDurationSeconds = null)
     {
         // Guard clauses
@@ -252,12 +261,24 @@ public class TranscriptionOrchestrator : IDisposable
                 providerDiagnostics: diagnostics);
         }
 
-        // STEP 3: Post-processing (if enabled)
+        // STEP 3: Post-processing.
+        //
+        // Two halves, and only the FIRST is optional. The AI rewrite is the
+        // LLM call, and a caller can decline it. The deterministic passes in the
+        // `else` arm are the user's own settings — Remove filler words, dictated
+        // break commands, and vocabulary replacements — so they run on every
+        // transcript this orchestrator returns.
+        //
+        // The `else` used to read `else if (applyPostProcessing)`, which tied the
+        // three deterministic passes to the LLM gate. The Local API is the only
+        // caller that declines the rewrite, so /transcribe returned text with no
+        // vocabulary replacement (issue #495) and no break commands or filler
+        // removal (issue #498) — contradicting the comments inside that very arm.
         string finalText = rawText;
         string? postProcessedText = null;
         string? postProcessingProvider = null;
 
-        if (applyPostProcessing && mode.PostProcessingMode != 0)
+        if (applyAiPostProcessing && mode.PostProcessingMode != 0)
         {
             LoggingService.Info("TranscriptionOrchestrator: Starting post-processing");
             var postProcessingResult = await _postProcessingService.ProcessPreservingBreaksAsync(rawText, mode, applicationContext, cancellationToken);
@@ -277,7 +298,7 @@ public class TranscriptionOrchestrator : IDisposable
                 LoggingService.Info($"TranscriptionOrchestrator: Post-processing skipped or failed; applied vocabulary to original transcription ({rawText.Length} -> {finalText.Length} chars)");
             }
         }
-        else if (applyPostProcessing)
+        else
         {
             // No AI post-processing — optionally apply lightweight filler word removal.
             // The mode's language is required: the shared core strips fillers for
@@ -318,9 +339,9 @@ public class TranscriptionOrchestrator : IDisposable
         ApplicationContext? applicationContext = null,
         CancellationToken cancellationToken = default,
         TranscriptionCallSite callSite = TranscriptionCallSite.Gui,
-        bool applyPostProcessing = true)
+        bool applyAiPostProcessing = true)
     {
-        return TranscribeAsync(audioPath, mode, vocabulary: null, localTranscriptionProvider, applicationContext, cancellationToken, callSite, applyPostProcessing);
+        return TranscribeAsync(audioPath, mode, vocabulary: null, localTranscriptionProvider, applicationContext, cancellationToken, callSite, applyAiPostProcessing);
     }
 
     // =========================================================================

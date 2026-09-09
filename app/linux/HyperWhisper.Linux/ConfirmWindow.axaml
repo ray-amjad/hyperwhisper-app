@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextOptions.TextRenderingMode="Antialias"
+        x:Class="HyperWhisper.Linux.ConfirmWindow"
+        FontFamily="{StaticResource HwUiFont}"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
+        Width="420" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnWindowKeyDown"
+        Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}">
+  <!-- Windows raises these as native MessageBoxes (YesNo + Warning, or OK + Information). A
+       Linux desktop has no equivalent the app can call, so this is the same two-part shape: the
+       MessageBox caption becomes the window Title, the body text wraps under it, and the buttons
+       are right-aligned with the affirmative one last. Every caller passes the Windows string
+       catalog key, so the wording is identical by construction rather than by transcription. -->
+  <StackPanel Margin="20">
+    <TextBlock x:Name="ConfirmMessage" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,20"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="ConfirmNoButton" Click="OnNo" MinWidth="88"
+              Content="{ReflectionBinding [common.no], Source={StaticResource Localization}}"/>
+      <Button x:Name="ConfirmYesButton" Classes="accent" Click="OnYes" MinWidth="88"
+              Content="{ReflectionBinding [common.yes], Source={StaticResource Localization}}"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

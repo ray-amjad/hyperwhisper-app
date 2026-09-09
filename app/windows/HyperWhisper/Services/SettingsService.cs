@@ -138,6 +138,15 @@ public partial class SettingsService
         public bool? AutoDeleteEnabled { get; set; }
         public int? AutoDeleteDaysOld { get; set; }
 
+        // Auto-delete RESULT, not a preference: when the last cleanup sweep finished
+        // and how many transcripts it removed. Persisted because the Storage page's
+        // "last cleanup" line is a fact about the profile, not about this process.
+        // Null means no sweep has ever run here. Deliberately NOT carried in the
+        // universal backup: a restored backup must not claim a sweep ran on this
+        // machine. Always stored in UTC; the page converts for display.
+        public DateTime? AutoDeleteLastCleanupUtc { get; set; }
+        public int? AutoDeleteLastCleanupDeleted { get; set; }
+
         // Sound settings
         public bool? EnableSoundEffects { get; set; }
         public bool? AutoIncreaseMicVolume { get; set; }

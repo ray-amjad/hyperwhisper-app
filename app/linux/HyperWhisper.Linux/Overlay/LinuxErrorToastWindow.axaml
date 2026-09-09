@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextOptions.TextRenderingMode="Antialias"
+        x:Class="HyperWhisper.Linux.Overlay.LinuxErrorToastWindow"
+        FontFamily="{StaticResource HwUiFont}"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
+        Title="{ReflectionBinding [common.error], Source={StaticResource Localization}}"
+        Width="360" MinHeight="40"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        CanResize="False">
+  <!-- Windows' ErrorToastWindow, ported. It is the only place ~25 failure sites become visible:
+       Linux used to write them into the 11px status bar, which nobody is looking at while they
+       dictate into another application.
+
+       Sizes, colours and timings are the Windows ones: 360 wide, corner radius 20, #D9000000 over
+       a #1AFFFFFF hairline, 12,8 padding, an 18x18 warning triangle, an 11px message trimmed at
+       200px, a monospace countdown pill, and an optional "Open Settings" jump. 8 seconds, or at
+       least 12 when guidance text is present.
+
+       ShowActivated is False where Windows leaves it True: on Linux the overlay policy is that a
+       feedback surface must never become the keyboard target and displace the application that is
+       receiving dictated text. Clicks still land, the way the recording overlay's do. -->
+  <Border x:Name="ToastBorder"
+          CornerRadius="20"
+          Background="#D9000000"
+          BorderBrush="#1AFFFFFF"
+          BorderThickness="1"
+          BoxShadow="0 0 20 0 #4D000000"
+          Opacity="0">
+    <StackPanel Margin="12,8">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <Grid Width="18" Height="18" Margin="0,0,8,0" VerticalAlignment="Center">
+          <Path Data="M9,2 L17,16 L1,16 Z" Fill="{DynamicResource HwWarningBrush}" Stretch="Uniform"/>
+          <TextBlock Text="!" Foreground="#000000" FontSize="10" FontWeight="Bold"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,2,0,0"/>
+        </Grid>
+
+        <TextBlock x:Name="ToastMessage" Grid.Column="1"
+                   Foreground="#E6FFFFFF" FontSize="11" FontWeight="Medium"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+
+        <Border Grid.Column="2" Background="#33FFFFFF" CornerRadius="8" Padding="6,2" Margin="8,0"
+                VerticalAlignment="Center">
+          <TextBlock x:Name="ToastCountdown" Foreground="#99FFFFFF" FontSize="10"
+                     FontWeight="SemiBold" FontFamily="monospace"/>
+        </Border>
+
+        <Button x:Name="ToastSettingsButton" Grid.Column="3" Classes="toastAction"
+                Click="OnSettingsClicked" Cursor="Hand" VerticalAlignment="Center" IsVisible="False"
+                Content="{ReflectionBinding [common.open.settings], Source={StaticResource Localization}}"/>
+      </Grid>
+
+      <TextBlock x:Name="ToastGuidance" Foreground="#99FFFFFF" FontSize="11"
+                 TextWrapping="Wrap" Margin="26,6,0,0" IsVisible="False"/>
+    </StackPanel>
+  </Border>
+</Window>

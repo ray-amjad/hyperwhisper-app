@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.47.0</title>
+            <pubDate>Mon, 07 Sep 2026 03:48:23 +0000</pubDate>
+            <sparkle:version>117</sparkle:version>
+            <sparkle:shortVersionString>2.47.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.47.0.dmg" length="35187540" type="application/octet-stream" sparkle:edSignature="j1iZCvrErFeEJhC65eWs/DQ/AjtTCRfYV8j/oLIiJJXgWQcXOVBB/J2KAU2vXNSMiOcV7RufcnbIvhrQSAvQBQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Added support for the Nemotron 3.5 transcription engine</li><li>Fixed the Parakeet model download getting stuck at 1% for several minutes</li><li>Renamed xAI to SpaceXAI throughout the app</li><li>Fixed the History list not refreshing when a new recording arrived</li><li>Fixed a rare issue where first-run setup could save the wrong audio source</li><li>The Local API now enforces the same upload size limit for both file paths and request bodies</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.46.0</title>
             <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
             <sparkle:version>116</sparkle:version>

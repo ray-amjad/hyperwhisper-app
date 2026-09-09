@@ -1,0 +1,109 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        TextOptions.TextRenderingMode="Antialias"
+        x:Class="HyperWhisper.Linux.CustomEndpointWindow"
+        FontFamily="{StaticResource HwUiFont}"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}"
+        Title="{ReflectionBinding [linux.models.endpoints.add], Source={StaticResource Localization}}"
+        Width="500" Height="560" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnWindowKeyDown"
+        Background="{DynamicResource HwContentBackgroundBrush}" Foreground="{DynamicResource HwTextPrimaryBrush}">
+  <!-- A port of app/windows/HyperWhisper/Views/Windows/CustomEndpointWindow.xaml: 500x560,
+       NoResize, CenterOwner, opened ShowDialog from the Model Library's "+ Add Endpoint".
+       Linux used to send the user to the Modes page and open the MODE EDITOR instead, where the
+       endpoint was four bare text boxes with no tabs and no way to test it.
+
+       Windows writes every string in this window as a hardcoded XAML literal — there are no
+       catalog keys to reuse, so the Linux keys carry the same wording verbatim.
+
+       Rows: title, the three tab radios, the scrolling form, then Cancel | Add Endpoint. -->
+  <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto">
+    <TextBlock x:Name="EndpointTitle" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,20"
+               Foreground="{DynamicResource HwTextPrimaryBrush}"
+               Text="{ReflectionBinding [linux.models.endpoints.add], Source={StaticResource Localization}}"/>
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20" Spacing="4">
+      <RadioButton x:Name="EndpointTabLmStudio" Classes="segment" GroupName="EndpointTab" Padding="12,6"
+                   IsCheckedChanged="OnTabChanged"
+                   Content="{ReflectionBinding [linux.endpoint.tab.lmstudio], Source={StaticResource Localization}}"/>
+      <RadioButton x:Name="EndpointTabOllama" Classes="segment" GroupName="EndpointTab" Padding="12,6"
+                   IsCheckedChanged="OnTabChanged"
+                   Content="{ReflectionBinding [linux.endpoint.tab.ollama], Source={StaticResource Localization}}"/>
+      <RadioButton x:Name="EndpointTabCustom" Classes="segment" GroupName="EndpointTab" Padding="12,6"
+                   IsChecked="True" IsCheckedChanged="OnTabChanged"
+                   Content="{ReflectionBinding [linux.endpoint.tab.custom], Source={StaticResource Localization}}"/>
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <StackPanel Margin="0,0,0,16">
+          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"
+                     Foreground="{DynamicResource HwTextPrimaryBrush}"
+                     Text="{ReflectionBinding [linux.endpoint.field.name], Source={StaticResource Localization}}"/>
+          <TextBox x:Name="EndpointNameInput"/>
+        </StackPanel>
+
+        <StackPanel Margin="0,0,0,16">
+          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"
+                     Foreground="{DynamicResource HwTextPrimaryBrush}"
+                     Text="{ReflectionBinding [linux.endpoint.field.baseUrl], Source={StaticResource Localization}}"/>
+          <TextBox x:Name="EndpointUrlInput"/>
+          <TextBlock x:Name="EndpointUrlHint" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                     Foreground="{DynamicResource HwTextSecondaryBrush}"
+                     Text="{ReflectionBinding [linux.endpoint.field.baseUrl.hint], Source={StaticResource Localization}}"/>
+        </StackPanel>
+
+        <StackPanel Margin="0,0,0,16">
+          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"
+                     Foreground="{DynamicResource HwTextPrimaryBrush}"
+                     Text="{ReflectionBinding [linux.endpoint.field.model], Source={StaticResource Localization}}"/>
+          <TextBox x:Name="EndpointModelInput"/>
+          <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                     Foreground="{DynamicResource HwTextSecondaryBrush}"
+                     Text="{ReflectionBinding [linux.endpoint.field.model.hint], Source={StaticResource Localization}}"/>
+        </StackPanel>
+
+        <StackPanel Margin="0,0,0,16">
+          <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"
+                     Foreground="{DynamicResource HwTextPrimaryBrush}"
+                     Text="{ReflectionBinding [linux.endpoint.field.apiKey], Source={StaticResource Localization}}"/>
+          <TextBox x:Name="EndpointApiKeyInput" PasswordChar="●"/>
+          <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                     Foreground="{DynamicResource HwTextSecondaryBrush}"
+                     Text="{ReflectionBinding [linux.ui.endpoint.credentials.are.kept.in.secret.service.or.owner.onl.dfdbd389], Source={StaticResource Localization}}"/>
+        </StackPanel>
+
+        <!-- Test Connection, above a 1px rule as on Windows (:112-149). -->
+        <Border BorderBrush="{DynamicResource HwBorderBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Button x:Name="EndpointTestButton" Click="OnTestConnection"
+                      Content="{ReflectionBinding [linux.endpoint.test], Source={StaticResource Localization}}"/>
+              <TextBlock x:Name="EndpointTestSuccess" VerticalAlignment="Center" FontSize="12" IsVisible="False"
+                         Foreground="{DynamicResource HwSuccessForegroundBrush}"
+                         Text="{ReflectionBinding [linux.endpoint.test.connected], Source={StaticResource Localization}}"/>
+              <TextBlock x:Name="EndpointTestFail" VerticalAlignment="Center" FontSize="12" IsVisible="False"
+                         Foreground="{DynamicResource HwErrorForegroundBrush}"
+                         Text="{ReflectionBinding [linux.endpoint.test.failed], Source={StaticResource Localization}}"/>
+              <TextBlock x:Name="EndpointTesting" VerticalAlignment="Center" FontSize="12" IsVisible="False"
+                         Foreground="{DynamicResource HwTextSecondaryBrush}"
+                         Text="{ReflectionBinding [linux.endpoint.test.testing], Source={StaticResource Localization}}"/>
+            </StackPanel>
+            <Border x:Name="EndpointTestResultPanel" CornerRadius="6" Padding="8" Margin="0,8,0,0" IsVisible="False"
+                    Background="{DynamicResource HwInputBackgroundBrush}">
+              <TextBlock x:Name="EndpointTestResultText" FontSize="11" TextWrapping="Wrap"
+                         Foreground="{DynamicResource HwTextPrimaryBrush}"/>
+            </Border>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="0,20,0,0">
+      <Button x:Name="EndpointCancelButton" Click="OnCancel"
+              Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}"/>
+      <Button x:Name="EndpointSaveButton" Grid.Column="2" Classes="accent" Click="OnSave"
+              Content="{ReflectionBinding [linux.models.endpoints.add], Source={StaticResource Localization}}"/>
+    </Grid>
+  </Grid>
+</Window>

@@ -23,6 +23,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("private overwrite restores exact 0600", PrivateOverwriteMode),
     ("atomic failure preserves prior contents", AtomicFailurePreservesTarget),
     ("private reads reject permissive files", RejectPermissiveRead),
+    ("private delete is idempotent when the file was never written", PrivateDeleteIsIdempotent),
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
     ("evdev session binding replacement preserves held actions", EvdevSessionBindingReplacement),
@@ -286,6 +287,17 @@ static Task RejectPermissiveRead() => WithTemporaryDirectory(directory =>
     var result = new LinuxPrivateFileService().ReadAllText(path);
     Assert.True(result.IsFailure);
     Assert.Equal("private_file_insecure", result.Error!.Code);
+});
+
+// A fresh install has never written the autostart file, so its parent directory is absent
+// too. Deleting must still report success: the caller asked for the file to be gone.
+static Task PrivateDeleteIsIdempotent() => WithTemporaryDirectory(directory =>
+{
+    var service = new LinuxPrivateFileService();
+    Assert.Success(service.Delete(Path.Combine(directory, "token")));
+    Assert.Success(service.Delete(Path.Combine(directory, "autostart", "hyperwhisper.desktop")));
+    var autostart = new LinuxAutostartService(new FakeAppPaths(directory), "/bin/true", service);
+    Assert.Success(autostart.Disable());
 });
 
 static async Task DropsUnrelatedKeys()
@@ -930,8 +942,11 @@ static async Task ClipboardPrivacyMimePolicy()
         backend.GetCapabilities().ClipboardHistoryPrivacy);
     Assert.Success(await backend.SetTextAsync("private transcript", ClipboardHistoryPrivacyPolicy.BestEffort,
         CancellationToken.None));
-    Assert.Equal(2, owner.Owned!.Formats.Count);
-    Assert.SequenceEqual("private transcript"u8.ToArray(), owner.Owned.Formats["text/plain;charset=utf-8"]);
+    // Five plain-text targets plus the privacy hint. Publishing text/plain;charset=utf-8 alone
+    // meant an app that asks for UTF8_STRING or STRING -- which is most of them -- pasted nothing.
+    Assert.Equal(6, owner.Owned!.Formats.Count);
+    foreach (var format in new[] { "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING", "TEXT" })
+        Assert.SequenceEqual("private transcript"u8.ToArray(), owner.Owned.Formats[format]);
     Assert.SequenceEqual("secret"u8.ToArray(), owner.Owned.Formats["x-kde-passwordManagerHint"]);
 
     owner.Clear();
