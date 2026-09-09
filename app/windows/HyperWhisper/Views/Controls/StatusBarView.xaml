@@ -42,7 +42,7 @@
                      one line far wider than the screen and stay unreadable. -->
                 <TextBlock.ToolTip>
                     <ToolTip>
-                        <TextBlock Text="{Binding CurrentMode.Name}" TextWrapping="Wrap" MaxWidth="360"/>
+                        <TextBlock Text="{Binding CurrentMode.Name}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
                     </ToolTip>
                 </TextBlock.ToolTip>
             </TextBlock>
