@@ -1252,7 +1252,19 @@ enum TranscribeEndpoint {
                 storedModelId: mode.cloudTranscriptionModel
             )
         }
-        // A BYOK provider sends this field verbatim, so it is already the model
+        // Azure MAI is BYOK-NAMED but routed: `TranscriptionProviderRouter`
+        // sends `.microsoftAzureSpeech` to `AzureMAIProvider`, which terminates
+        // at our own proxy and validates the stored id against its tier before
+        // putting it in `X-STT-Model`. Reading the same function it uses keeps
+        // the label honest for the one case where a BYOK-looking provider does
+        // NOT forward the field verbatim — a stale `whisper-1` in the shared
+        // column runs as `mai-transcribe-2` and used to be reported as
+        // `whisper-1`. `nil` means "no header, backend default", which is the
+        // same "no client-side model id" the empty string reports elsewhere.
+        if provider == .microsoftAzureSpeech {
+            return AzureMAIProvider.routedModelId(storedModelId: mode.cloudTranscriptionModel) ?? ""
+        }
+        // Every other BYOK provider sends this field verbatim, so it is already the model
         // that runs — except when it is unset, where the provider applies its
         // own default. An unrecognised `cloudProvider` string (any value can
         // reach the field through a Local API mode write or a backup restore)

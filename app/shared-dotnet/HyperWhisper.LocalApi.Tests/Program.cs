@@ -1069,6 +1069,21 @@ static async Task ApplicationBackendCloudModelLabel()
     // 8. An explicit model is echoed verbatim on both heads' contract.
     var (explicitModel, _) = await Transcribe(null, "openai", "gpt-4o-transcribe");
     Assert(explicitModel == "gpt-4o-transcribe", "an explicit model was not echoed back");
+
+    // 9. Azure MAI is the exception among the BYOK-NAMED providers: it routes
+    //    through our own proxy and validates the id against its tier before
+    //    putting it in X-STT-Model, so a stale value in the shared column RUNS
+    //    as the tier default and must be reported that way, not echoed.
+    var (azureStale, azureStaleDispatched) = await Transcribe(
+        "stored", "microsoftazurespeech", null,
+        mode => mode.CloudTranscriptionModel = "whisper-1");
+    Assert(azureStale != "whisper-1" && azureStale == azureStaleDispatched,
+        "Azure MAI reported a stale model the proxy would not have run");
+    var (azurePinned, azurePinnedDispatched) = await Transcribe(
+        "stored", "microsoftazurespeech", null,
+        mode => mode.CloudTranscriptionModel = "mai-transcribe-1.5");
+    Assert(azurePinned == "mai-transcribe-1.5" && azurePinned == azurePinnedDispatched,
+        "Azure MAI dropped a sub-model that is really in its tier");
 }
 
 static async Task ApplicationBackendModeValidation()

@@ -402,6 +402,17 @@ struct LocalAPIContractTests {
         // vendor's default.
         #expect(label(provider: "not-a-provider", storedModel: "some-model") == "some-model")
         #expect(label(provider: "not-a-provider", storedModel: nil).isEmpty)
+
+        // Azure MAI is the exception among the BYOK-NAMED providers: it routes
+        // through our proxy and validates the id against its tier first, so a
+        // stale value in the shared column RUNS as `mai-transcribe-2` and must
+        // be reported that way rather than echoed back.
+        let azure = CloudProvider.microsoftAzureSpeech.rawValue
+        #expect(label(provider: azure, storedModel: "whisper-1")
+                == AzureMAIProvider.routedModelId(storedModelId: "whisper-1"))
+        #expect(label(provider: azure, storedModel: "whisper-1") != "whisper-1")
+        #expect(label(provider: azure, storedModel: "mai-transcribe-1.5") == "mai-transcribe-1.5")
+        #expect(!label(provider: azure, storedModel: nil).isEmpty)
     }
 
     /// `applyEngineModel`'s inferred-tier arm used to overwrite
