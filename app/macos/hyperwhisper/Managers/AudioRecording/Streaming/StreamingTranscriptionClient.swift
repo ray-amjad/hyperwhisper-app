@@ -372,6 +372,24 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private var stage = "idle"
     private var didReportProviderSuccess = false
 
+    /// Transport and parser measurements collected after a stop frame is sent.
+    /// These fields contain only counts, byte sizes, booleans, durations and
+    /// fixed event slugs. They never retain a WebSocket frame or parsed payload.
+    private var stopFrameSentAt: Date?
+    private var receiveLoopActiveCount = 0
+    private var receivePendingCount = 0
+    private var receiveLoopWasActiveAtStop = false
+    private var receiveWasPendingAtStop = false
+    private var postStopReceiveAttempts = 0
+    private var postStopReceiveCompletions = 0
+    private var postStopReceiveFailures = 0
+    private var postStopStringFrameCount = 0
+    private var postStopStringByteCount = 0
+    private var postStopBinaryFrameCount = 0
+    private var postStopBinaryByteCount = 0
+    private var postStopUTF8DecodeFailures = 0
+    private var postStopParsedEventCounts: [String: Int] = [:]
+
     // MARK: - Initialization
 
     /// Create a streaming transcription client with a specific provider strategy.
@@ -443,6 +461,20 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         partialsDelivered = 0
         audioSendFailureCount = 0
         didReportAudioSendFailure = false
+        stopFrameSentAt = nil
+        receiveLoopActiveCount = 0
+        receivePendingCount = 0
+        receiveLoopWasActiveAtStop = false
+        receiveWasPendingAtStop = false
+        postStopReceiveAttempts = 0
+        postStopReceiveCompletions = 0
+        postStopReceiveFailures = 0
+        postStopStringFrameCount = 0
+        postStopStringByteCount = 0
+        postStopBinaryFrameCount = 0
+        postStopBinaryByteCount = 0
+        postStopUTF8DecodeFailures = 0
+        postStopParsedEventCounts.removeAll(keepingCapacity: true)
         sessionGeneration += 1
         noteStage("starting")
 
@@ -666,8 +698,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             category: "audio.streaming",
             data: [
                 "provider": strategy.transcriptionProviderLabel,
-                "model": config.model ?? "default",
-                "sessionId": sessionId ?? "unknown"
+                "model": config.model ?? "default"
             ]
         )
     }
@@ -731,10 +762,14 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 switch step {
                 case .sendText(let text):
                     do {
+                        let hadSocket = webSocketTask != nil
                         try await webSocketTask?.send(.string(text))
+                        if hadSocket {
+                            noteStopFrameSent()
+                        }
                         logger.debug("Sent stop sequence message")
                     } catch {
-                        logger.warning("Failed to send stop message: \(error.localizedDescription, privacy: .public)")
+                        logger.warning("Failed to send stop message")
                         // The provider never got the instruction to flush, so
                         // whatever it is still holding is lost. Same outcome as
                         // before — this only stops it happening in silence.
@@ -746,7 +781,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     do {
                         try await waitForSessionComplete(timeout: seconds)
                     } catch {
-                        logger.warning("Timed out waiting for session completion: \(error.localizedDescription, privacy: .public)")
+                        logger.warning("Timed out waiting for session completion")
                         // The provider was asked to flush and never confirmed
                         // it. `streaming_finals_delivered` is what then says
                         // whether the user lost the tail of a transcript or the
@@ -821,8 +856,8 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     ///
     /// PRIVACY: provider label, model name and stage are constants of the code
     /// or of the model catalog; every other value is a count, a duration in ms,
-    /// a boolean, a close code, or the provider's own request id. Nothing here
-    /// is derived from what the user said, typed or pasted.
+    /// a boolean or a close code. Nothing here is derived from what the user
+    /// said, typed or pasted.
     private func sessionDiagnostics() -> [String: Any] {
         let now = Date()
         return [
@@ -843,8 +878,93 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             "streaming_close_code": webSocketTask?.closeCode.rawValue ?? 0,
             "streaming_session_complete_received": didReceiveSessionComplete,
             "streaming_did_initiate_close": didInitiateClose,
-            "streaming_session_id": sessionId ?? "none"
+            "streaming_stop_frame_sent": stopFrameSentAt != nil,
+            "streaming_stop_frame_sent_elapsed_ms": stopFrameSentAt.map {
+                Self.elapsedMs(since: sessionStartedAt, to: $0)
+            } ?? 0,
+            "streaming_post_stop_elapsed_ms": stopFrameSentAt.map {
+                Self.elapsedMs(since: $0, to: now)
+            } ?? 0,
+            "streaming_receive_loop_active": receiveLoopActiveCount > 0,
+            "streaming_receive_pending": receivePendingCount > 0,
+            "streaming_receive_loop_active_at_stop": receiveLoopWasActiveAtStop,
+            "streaming_receive_pending_at_stop": receiveWasPendingAtStop,
+            "streaming_post_stop_receive_attempts": postStopReceiveAttempts,
+            "streaming_post_stop_receive_completions": postStopReceiveCompletions,
+            "streaming_post_stop_receive_failures": postStopReceiveFailures,
+            "streaming_post_stop_string_frames": postStopStringFrameCount,
+            "streaming_post_stop_string_bytes": postStopStringByteCount,
+            "streaming_post_stop_binary_frames": postStopBinaryFrameCount,
+            "streaming_post_stop_binary_bytes": postStopBinaryByteCount,
+            "streaming_post_stop_utf8_decode_failures": postStopUTF8DecodeFailures,
+            "streaming_post_stop_event_session_started": postStopParsedEventCounts["session_started"] ?? 0,
+            "streaming_post_stop_event_partial": postStopParsedEventCounts["partial"] ?? 0,
+            "streaming_post_stop_event_final": postStopParsedEventCounts["final"] ?? 0,
+            "streaming_post_stop_event_final_and_complete": postStopParsedEventCounts["final_and_complete"] ?? 0,
+            "streaming_post_stop_event_session_complete": postStopParsedEventCounts["session_complete"] ?? 0,
+            "streaming_post_stop_event_error": postStopParsedEventCounts["error"] ?? 0,
+            "streaming_post_stop_event_warning": postStopParsedEventCounts["warning"] ?? 0,
+            "streaming_post_stop_event_metadata": postStopParsedEventCounts["metadata"] ?? 0,
+            "streaming_post_stop_event_ignored": postStopParsedEventCounts["ignored"] ?? 0
         ]
+    }
+
+    /// Mark the first successful stop-frame send as the diagnostic boundary.
+    private func noteStopFrameSent() {
+        guard stopFrameSentAt == nil else { return }
+        stopFrameSentAt = Date()
+        receiveLoopWasActiveAtStop = receiveLoopActiveCount > 0
+        receiveWasPendingAtStop = receivePendingCount > 0
+        logger.debug(
+            "Stop frame sent: receive_loop_active=\(self.receiveLoopWasActiveAtStop, privacy: .public) receive_pending=\(self.receiveWasPendingAtStop, privacy: .public)"
+        )
+    }
+
+    /// Record a post-stop wire frame without retaining its contents.
+    private func notePostStopWireFrame(kind: String, byteCount: Int) {
+        guard stopFrameSentAt != nil else { return }
+
+        switch kind {
+        case "string":
+            postStopStringFrameCount += 1
+            postStopStringByteCount += byteCount
+        case "binary":
+            postStopBinaryFrameCount += 1
+            postStopBinaryByteCount += byteCount
+        default:
+            break
+        }
+
+        let sequence = postStopStringFrameCount + postStopBinaryFrameCount
+        logger.debug(
+            "Post-stop frame received: kind=\(kind, privacy: .public) sequence=\(sequence, privacy: .public) bytes=\(byteCount, privacy: .public)"
+        )
+    }
+
+    /// Map one parser result to a content-free event shape.
+    nonisolated static func normalizedEventSlug(for event: StreamingProviderEvent?) -> String {
+        guard let event else { return "ignored" }
+        switch event {
+        case .sessionStarted: return "session_started"
+        case .partialTranscript: return "partial"
+        case .finalTranscript: return "final"
+        case .finalTranscriptAndSessionComplete: return "final_and_complete"
+        case .sessionComplete: return "session_complete"
+        case .error: return "error"
+        case .warning: return "warning"
+        case .metadata: return "metadata"
+        }
+    }
+
+    /// Record a post-stop parser result as a fixed event slug only.
+    private func notePostStopParsedEvent(_ event: StreamingProviderEvent?) {
+        guard stopFrameSentAt != nil else { return }
+        let slug = Self.normalizedEventSlug(for: event)
+        postStopParsedEventCounts[slug, default: 0] += 1
+        let sequence = postStopParsedEventCounts.values.reduce(0, +)
+        logger.debug(
+            "Post-stop parser result: event=\(slug, privacy: .public) sequence=\(sequence, privacy: .public)"
+        )
     }
 
     /// Record the stage the session has reached and republish the diagnostics to
@@ -990,11 +1110,34 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private func receiveLoop() async {
         guard let task = webSocketTask else { return }
 
+        receiveLoopActiveCount += 1
+        defer {
+            receiveLoopActiveCount = max(0, receiveLoopActiveCount - 1)
+            if stopFrameSentAt != nil {
+                logger.debug(
+                    "Post-stop receive loop exited: active_count=\(self.receiveLoopActiveCount, privacy: .public) pending_count=\(self.receivePendingCount, privacy: .public)"
+                )
+            }
+        }
+
         while !Task.isCancelled {
+            if stopFrameSentAt != nil {
+                postStopReceiveAttempts += 1
+            }
+            receivePendingCount += 1
             do {
                 let message = try await task.receive()
+                receivePendingCount = max(0, receivePendingCount - 1)
+                if stopFrameSentAt != nil {
+                    postStopReceiveCompletions += 1
+                }
                 await handleMessage(message)
             } catch {
+                receivePendingCount = max(0, receivePendingCount - 1)
+                if stopFrameSentAt != nil {
+                    postStopReceiveCompletions += 1
+                    postStopReceiveFailures += 1
+                }
                 // REFUSED UPGRADE (HTTP 402 no credits / 401 / 403):
                 // The socket never opened, so nothing here is a disconnect and
                 // nothing a reconnect can reach — every retry re-asks the same
@@ -1114,7 +1257,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     let errorCode = nsError.code
                     await MainActor.run {
                         self.logger.error(
-                            "WebSocket receive error: \(error.localizedDescription, privacy: .public) domain=\(errorDomain, privacy: .public) code=\(errorCode, privacy: .public) closeCode=\(rawCloseCode, privacy: .public)"
+                            "WebSocket receive error: domain=\(errorDomain, privacy: .public) code=\(errorCode, privacy: .public) closeCode=\(rawCloseCode, privacy: .public)"
                         )
                     }
                     noteStage("disconnected")
@@ -1303,7 +1446,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         lastError = error
 
         let description = error.localizedDescription
-        logger.error("Terminal streaming condition (\(detail, privacy: .public)): \(description, privacy: .public)")
+        logger.error("Terminal streaming condition: detail=\(detail, privacy: .public)")
         noteStage("terminal")
         if AppLogger.isErrorLoggingEnabled {
             var extras = sessionDiagnostics()
@@ -1341,10 +1484,17 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private func handleMessage(_ message: URLSessionWebSocketTask.Message) async {
         switch message {
         case .string(let text):
+            notePostStopWireFrame(kind: "string", byteCount: text.utf8.count)
             await processServerMessage(text)
         case .data(let data):
+            notePostStopWireFrame(kind: "binary", byteCount: data.count)
             if let text = String(data: data, encoding: .utf8) {
                 await processServerMessage(text)
+            } else if stopFrameSentAt != nil {
+                postStopUTF8DecodeFailures += 1
+                logger.debug(
+                    "Post-stop binary frame UTF-8 decode failed: failures=\(self.postStopUTF8DecodeFailures, privacy: .public)"
+                )
             }
         @unknown default:
             logger.warning("Unknown WebSocket message type")
@@ -1373,7 +1523,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// this client makes about a provider frame, and there is no other seam that
     /// reaches it without a live socket.
     func processServerMessage(_ jsonString: String) async {
-        guard let event = strategy.parseMessage(jsonString) else {
+        let parsedEvent = strategy.parseMessage(jsonString)
+        notePostStopParsedEvent(parsedEvent)
+        guard let event = parsedEvent else {
             logger.debug("Unhandled message from provider")
             return
         }
@@ -1386,7 +1538,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         case .sessionStarted(let id):
             await MainActor.run {
                 self.sessionId = id ?? "direct"
-                self.logger.info("Session started: \(self.sessionId ?? "unknown", privacy: .public)")
+                self.logger.info("Session started")
             }
 
         case .finalTranscript(let text):
@@ -1496,15 +1648,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 let repeatError = StreamingError.serverError(message)
                 lastError = repeatError
                 logger.error(
-                    "Repeat provider error after a terminal one: \(message, privacy: .public) terminal=\(terminalTag, privacy: .public)"
+                    "Repeat provider error after a terminal one: terminal=\(terminalTag, privacy: .public)"
                 )
                 if AppLogger.isErrorLoggingEnabled {
-                    var extras = sessionDiagnostics()
-                    extras["serverMessage"] = message
                     SentryService.capture(
                         error: repeatError,
                         message: "WebSocket provider error (repeat after terminal)",
-                        extras: extras,
+                        extras: sessionDiagnostics(),
                         tags: [
                             "component": "StreamingTranscriptionClient",
                             "provider": strategy.transcriptionProviderLabel,
@@ -1539,7 +1689,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     self.didHandleTerminalProviderError = true
                 }
 
-                self.logger.error("Provider error: \(message, privacy: .public) terminal=\(terminalTag, privacy: .public)")
+                self.logger.error("Provider error: terminal=\(terminalTag, privacy: .public)")
                 self.lastError = error
 
                 // THE FAULT THIS WHOLE CHANGE SERVES.
@@ -1554,12 +1704,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 // whether the audio was ever accepted.
                 self.noteStage("provider_error")
                 if AppLogger.isErrorLoggingEnabled {
-                    var extras = self.sessionDiagnostics()
-                    extras["serverMessage"] = message
                     SentryService.capture(
                         error: error,
                         message: "WebSocket provider error",
-                        extras: extras,
+                        extras: self.sessionDiagnostics(),
                         tags: [
                             "component": "StreamingTranscriptionClient",
                             "provider": self.strategy.transcriptionProviderLabel,
@@ -1620,12 +1768,12 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         case .warning(let message):
             await MainActor.run {
-                self.logger.warning("Server warning: \(message, privacy: .public)")
+                self.logger.warning("Server warning received")
                 self.onWarning?(message)
             }
 
-        case .metadata(let raw):
-            logger.debug("Provider metadata: \(raw, privacy: .public)")
+        case .metadata:
+            logger.debug("Provider metadata received")
         }
     }
 
@@ -2080,7 +2228,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             // Unconditional: whatever we report upwards, the transition stays
             // traceable in the local log.
             logger.error(
-                "Reconnect failed (\(outcomeLabel, privacy: .public)): \(error.localizedDescription, privacy: .public)"
+                "Reconnect failed: outcome=\(outcomeLabel, privacy: .public)"
             )
 
             guard !isDeliberateTeardown else { return }
@@ -2227,8 +2375,7 @@ extension StreamingTranscriptionClient: URLSessionWebSocketDelegate {
         reason: Data?
     ) {
         Task { @MainActor in
-            let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? "none"
-            logger.info("WebSocket closed: code=\(closeCode.rawValue, privacy: .public), reason=\(reasonString, privacy: .public)")
+            logger.info("WebSocket closed: code=\(closeCode.rawValue, privacy: .public)")
 
             // Server-initiated close for credits exhausted (4001) or max duration (4002):
             // Suppress auto-reconnect since reconnecting would just fail again immediately.
