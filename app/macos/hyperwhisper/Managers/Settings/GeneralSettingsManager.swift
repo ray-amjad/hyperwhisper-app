@@ -83,12 +83,23 @@ class GeneralSettingsManager: ObservableObject {
     /// When enabled, errors are sent to Sentry for diagnostics
     @AppStorage("enableErrorLogging") var enableErrorLogging: Bool = true {
         didSet {
-            // Initialize Sentry on enable so errors start flowing without app restart
+            guard enableErrorLogging != oldValue else { return }
             if enableErrorLogging {
+                // Initialize Sentry on enable so errors start flowing without app restart
                 SentryService.initialize()
                 let env = Bundle.main.object(forInfoDictionaryKey: "SentryEnvironment") as? String
                 SentryService.setTag("environment", env ?? (NetworkConfig.isDevelopment ? "development" : "production"))
+            } else {
+                // ...and stop it on disable, in the same breath (issue #551). This is
+                // the opt-out the data-privacy page sends people to, so it has to take
+                // effect now, not at the next launch: SentryService.shutdown() closes
+                // the SDK — which is what stops the crash handler, app-hang detection
+                // and failed-request reporting, none of which route through
+                // SentryService.capture — and deletes anything still queued on disk so
+                // it cannot be sent later either. Windows and Linux already did this.
+                SentryService.shutdown()
             }
+            logger.info("✅ Error logging: \(self.enableErrorLogging, privacy: .public)")
         }
     }
 
