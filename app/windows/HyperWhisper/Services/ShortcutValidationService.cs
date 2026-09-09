@@ -10,6 +10,7 @@
 // - 1409: ERROR_HOTKEY_ALREADY_REGISTERED (in use by another app)
 // - 1413: ERROR_HOTKEY_NOT_REGISTERED (reserved by Windows)
 
+using HyperWhisper.Localization;
 using HyperWhisper.Models;
 
 namespace HyperWhisper.Services;
@@ -27,11 +28,33 @@ public static class ShortcutValidationService
 
         if (shortcut.IsSingleBareModifier)
         {
-            return "Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.";
+            return Loc.S("settings.shortcuts.error.singleModifier");
         }
 
         return null; // Valid
     }
+
+    /// <summary>
+    /// The four action roles, each with the resource key for the label the
+    /// Shortcuts page already prints above its row. The duplicate message names
+    /// a row, so it has to name it the way the user sees it.
+    ///
+    /// The role strings themselves ("Toggle", "Cancel", "ChangeMode",
+    /// "Streaming") are call-site identifiers and settings keys, NOT display
+    /// text: they are never translated. Only the label is.
+    ///
+    /// A table rather than four branches: once the four sentences became one
+    /// template, the four checks differed only by these two fields, and a
+    /// copy-paste slip between them would silently name the wrong row in every
+    /// language while still compiling and still reading correctly.
+    /// </summary>
+    private static readonly (string Role, string LabelKey)[] ActionRoles =
+    {
+        ("Toggle", "settings.shortcuts.toggle.label"),
+        ("Cancel", "settings.shortcuts.cancel.label"),
+        ("ChangeMode", "settings.shortcuts.changeMode.label"),
+        ("Streaming", "settings.shortcuts.streaming.label"),
+    };
 
     /// <summary>
     /// Validates shortcut against HyperWhisper action shortcuts.
@@ -51,27 +74,20 @@ public static class ShortcutValidationService
         var actionError = ValidateActionShortcut(shortcut);
         if (actionError != null) return actionError;
 
-        // Check against Toggle (unless we're setting Toggle)
-        if (currentRole != "Toggle" && shortcut.Equals(toggleShortcut))
+        // Check against each of the four action shortcuts, skipping the one the
+        // caller is setting. Order is the page's order, which is the order this
+        // used to test them in.
+        var assigned = new[] { toggleShortcut, cancelShortcut, changeModeShortcut, streamingShortcut };
+        for (var i = 0; i < ActionRoles.Length; i++)
         {
-            return $"This shortcut is already used for Toggle Recording ({toggleShortcut.ToDisplayString()})";
-        }
+            var (role, labelKey) = ActionRoles[i];
+            if (currentRole == role || !shortcut.Equals(assigned[i]))
+            {
+                continue;
+            }
 
-        // Check against Cancel (unless we're setting Cancel)
-        if (currentRole != "Cancel" && shortcut.Equals(cancelShortcut))
-        {
-            return $"This shortcut is already used for Cancel Recording ({cancelShortcut.ToDisplayString()})";
-        }
-
-        // Check against ChangeMode (unless we're setting ChangeMode)
-        if (currentRole != "ChangeMode" && shortcut.Equals(changeModeShortcut))
-        {
-            return $"This shortcut is already used for Change Mode ({changeModeShortcut.ToDisplayString()})";
-        }
-
-        if (currentRole != "Streaming" && shortcut.Equals(streamingShortcut))
-        {
-            return $"This shortcut is already used for Streaming ({streamingShortcut.ToDisplayString()})";
+            return Loc.S("settings.shortcuts.error.duplicate",
+                Loc.S(labelKey), assigned[i].ToDisplayString());
         }
 
         return null; // No duplicates
@@ -100,16 +116,18 @@ public static class ShortcutValidationService
     /// </summary>
     public static string GetRegistrationErrorMessage(int win32ErrorCode, KeyboardShortcut shortcut)
     {
+        var display = shortcut.ToDisplayString();
+
         if (shortcut.IsSingleBareModifier)
         {
-            return $"The shortcut {shortcut.ToDisplayString()} uses a single bare modifier. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.";
+            return Loc.S("settings.shortcuts.error.bareModifier", display);
         }
 
         return win32ErrorCode switch
         {
-            1409 => $"The shortcut {shortcut.ToDisplayString()} is already in use by another application. Please choose a different combination.",
-            1413 => $"The shortcut {shortcut.ToDisplayString()} is reserved by Windows and cannot be used.",
-            _ => $"Failed to register shortcut {shortcut.ToDisplayString()} (Windows error {win32ErrorCode}). Please try a different combination."
+            1409 => Loc.S("settings.shortcuts.error.inUse", display),
+            1413 => Loc.S("settings.shortcuts.error.reserved", display),
+            _ => Loc.S("settings.shortcuts.error.registerFailed", display, win32ErrorCode)
         };
     }
 }

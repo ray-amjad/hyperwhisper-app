@@ -206,7 +206,8 @@ class SettingsManager: ObservableObject {
     /// The default is the tier whose derived route (`/ws/streaming-deepgram`) is
     /// byte-identical to the endpoint every already-installed client uses, so an
     /// upgrade changes nothing until the user picks otherwise. An unrecognised
-    /// value resolves back to it in `HyperWhisperCloudStrategy`.
+    /// value resolves back to it in `StreamingCloudTier` (and, on the wire, in
+    /// the shared core's `hw_net::live::hw_cloud`).
     @AppStorage("streamingCloudTier") var streamingCloudTier: String = "deepgramNova3"
 
     /// Deepgram model for streaming transcription

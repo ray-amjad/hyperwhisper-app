@@ -401,10 +401,20 @@
          SETUP READOUTS
          ===================================================================== -->
 
+    <!--
+        Both Cloud steps put this readout in the `*` column of a two-column row
+        whose `Auto` column holds a pill or a button, and the balance string
+        ("$66.30 remaining (~10523 minutes)") is wider than that column at 30 pt.
+        With no trimming the text ran under the neighbour and was cut mid-word at
+        the card edge, with nothing to say it had been cut. The caption directly
+        below it has always trimmed; this is the same setter, so the two lines of
+        the readout now behave the same way.
+    -->
     <Style x:Key="OnboardingBigNumberStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="30"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     </Style>
 
     <Style x:Key="OnboardingBigNumberCompactStyle" TargetType="TextBlock"

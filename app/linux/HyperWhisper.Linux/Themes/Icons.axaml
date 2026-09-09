@@ -1,0 +1,189 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Navigation glyphs, drawn on a 24x24 box so one Path style fits every sidebar row.
+       The Windows app uses the same shapes on the same coloured tiles. -->
+
+  <!-- The seven sidebar rows are byte-for-byte the geometry Windows draws in
+       Views/Windows/MainWindow.xaml. Earlier rounds hand-drew approximations here and four of
+       them ended up as a different picture from Windows: Modes drew sliders where Windows draws
+       a gear, Vocabulary a solid book against an outline book, Model Library four loose squares
+       against a grid inside a box, and History a clock that had lost its arrow. Copying the
+       Windows path data is the only way to keep them from drifting again. -->
+  <StreamGeometry x:Key="HwIconHome">M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconModes">M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconVocabulary">M19,2L14,6.5V17.5L19,13V2M6.5,5C4.55,5 2.45,5.4 1,6.5V21.16C1,21.41 1.25,21.66 1.5,21.66C1.6,21.66 1.65,21.59 1.75,21.59C3.1,20.94 5.05,20.5 6.5,20.5C8.45,20.5 10.55,20.9 12,22C13.35,21.15 15.8,20.5 17.5,20.5C19.15,20.5 20.85,20.81 22.25,21.56C22.35,21.61 22.4,21.59 22.5,21.59C22.75,21.59 23,21.34 23,21.09V6.5C22.4,6.05 21.75,5.75 21,5.5V19C19.9,18.65 18.7,18.5 17.5,18.5C15.8,18.5 13.35,19.15 12,20V6.5C10.55,5.4 8.45,5 6.5,5Z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconModels">M4,5A2,2 0 0,1 6,3H18A2,2 0 0,1 20,5V19A2,2 0 0,1 18,21H6A2,2 0 0,1 4,19V5M7,7V11H11V7H7M13,7V11H17V7H13M7,13V17H11V13H7M13,13V17H17V13H13Z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconStreaming">M12,14A3,3 0,0 0,15 11V5A3,3 0,0 0,12 2A3,3 0,0 0,9 5V11A3,3 0,0 0,12 14M17.3,11A5.3,5.3 0,0 1,12 16.3A5.3,5.3 0,0 1,6.7 11H5A7,7 0,0 0,11 17.9V21H13V17.9A7,7 0,0 0,19 11H17.3Z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconHistory">M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3</StreamGeometry>
+  <StreamGeometry x:Key="HwIconSettings">M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8zm8.4 3.4c0-.4 0-.8-.1-1.2l1.9-1.4-1.9-3.3-2.2.9a7 7 0 0 0-2-1.2l-.3-2.3h-3.8l-.3 2.3a7 7 0 0 0-2 1.2l-2.2-.9-1.9 3.3 1.9 1.4a7.4 7.4 0 0 0 0 2.4l-1.9 1.4 1.9 3.3 2.2-.9a7 7 0 0 0 2 1.2l.3 2.3h3.8l.3-2.3a7 7 0 0 0 2-1.2l2.2.9 1.9-3.3-1.9-1.4c.1-.4.1-.8.1-1.2z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconCheck">M9.6 16.2 5.4 12l-1.4 1.4 5.6 5.6L20 8.6l-1.4-1.4z</StreamGeometry>
+
+  <StreamGeometry x:Key="HwIconChevron">M9.3 5.7 15.6 12l-6.3 6.3-1.4-1.4L12.8 12 7.9 7.1z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconKeyboard">M3 6.5h18v11H3zm2.4 2.2v2h2v-2zm3.4 0v2h2v-2zm3.4 0v2h2v-2zm3.4 0v2h2v-2zM5.4 12v2h2v-2zm3.4 0v2h6v-2zm7.4 0v2h2v-2z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconSearch">M10.5 3a7.5 7.5 0 1 0 4.55 13.46l4.24 4.25 1.42-1.42-4.25-4.24A7.5 7.5 0 0 0 10.5 3zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconEmptyList">M6 3h8l4 4v14H6zm7.4 1.6V8H17zM8.4 11h7.2v1.6H8.4zm0 3.4h7.2V16H8.4zm0 3.4h4.6v1.6H8.4z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconInfo">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.8a8.2 8.2 0 1 1 0 16.4 8.2 8.2 0 0 1 0-16.4zM11 10.6h2v6.4h-2zm0-4h2v2h-2z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconFolder">M3 5.5h6l2 2.2h10V19H3zm1.8 1.8v9.9h14.4V9.5h-8.4L8.6 7.3z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconExport">M12 3l4.5 4.5-1.3 1.3L13 6.6V15h-2V6.6L8.8 8.8 7.5 7.5zM4.5 16h2v3.2h11V16h2v5H4.5z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconRefresh">M12 4a8 8 0 0 1 7.5 5.2l-1.9.7A6 6 0 0 0 6.4 11H9l-3.5 4L2 11h2.4A8 8 0 0 1 12 4zm7.6 7L22 15h-2.4A8 8 0 0 1 4.5 14.8l1.9-.7A6 6 0 0 0 17.6 13H15z</StreamGeometry>
+
+  <!-- Glyphs the Model Library, Vocabulary, Modes and Streaming pages draw. Windows reaches
+       these through Segoe MDL2 Assets, which no Linux desktop ships, so each one is a path on
+       the same 24x24 box as the navigation glyphs above. -->
+  <StreamGeometry x:Key="HwIconLock">M12 2a5 5 0 0 0-5 5v3H5.5v11h13V10H17V7a5 5 0 0 0-5-5zm0 2a3 3 0 0 1 3 3v3H9V7a3 3 0 0 1 3-3zm0 10a1.8 1.8 0 0 1 1 3.3V19h-2v-1.7A1.8 1.8 0 0 1 12 14z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconWarning">M12 2.5 22.5 21H1.5zm0 4L5 19h14zM11 10h2v5h-2zm0 6.2h2v2h-2z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconDownload">M11 3h2v8.2l3-3 1.4 1.4L12 15 6.6 9.6 8 8.2l3 3zM4.5 17h2v2.2h11V17h2v4.2h-15z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconFilter">M3 5h18l-7 8.2V21l-4-2.2v-5.6z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconGlobe">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.9c1.3 0 2.7 2 3.2 5.1H8.8C9.3 5.9 10.7 3.9 12 3.9zM6.9 9H4.5A8.2 8.2 0 0 1 9 4.6 12 12 0 0 0 6.9 9zm-2.7 1.9h2.4a17 17 0 0 0 0 2.2H4.2a8.2 8.2 0 0 1 0-2.2zm4.3 0h7a16 16 0 0 1 0 2.2h-7a16 16 0 0 1 0-2.2zm8.9 0h2.4a8.2 8.2 0 0 1 0 2.2h-2.4a17 17 0 0 0 0-2.2zM19.5 9h-2.4a12 12 0 0 0-2.1-4.4A8.2 8.2 0 0 1 19.5 9zM4.5 15h2.4a12 12 0 0 0 2.1 4.4A8.2 8.2 0 0 1 4.5 15zm4.3 0h6.4c-.5 3.1-1.9 5.1-3.2 5.1S9.3 18.1 8.8 15zm8.3 0h2.4a8.2 8.2 0 0 1-4.5 4.4 12 12 0 0 0 2.1-4.4z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconKey">M14.5 3a6.5 6.5 0 0 0-6.2 8.5L3 16.8V21h4.2v-2.1h2.1v-2.1h2.1l1.6-1.6A6.5 6.5 0 1 0 14.5 3zm2.1 3a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6z</StreamGeometry>
+  <!-- The reveal and copy buttons on the Cloud Account Key row, matching the two Segoe MDL2
+       glyphs the Windows page uses there (RedEye and Copy). -->
+  <StreamGeometry x:Key="HwIconEye">M12 5C6.5 5 2.7 9.4 1.5 12c1.2 2.6 5 7 10.5 7s9.3-4.4 10.5-7c-1.2-2.6-5-7-10.5-7zm0 2c3.9 0 6.9 2.9 8.3 5-1.4 2.1-4.4 5-8.3 5s-6.9-2.9-8.3-5C5.1 9.9 8.1 7 12 7zm0 1.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconCopy">M9 2h9a2 2 0 0 1 2 2v11h-2V4H9zM6 6h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 2v12h9V8z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconPlus">M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconClose">M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconTrash">M9 3h6l1 1.5h4v2H4v-2h4zM6 8h12l-1 13H7z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconEdit">M4 16.2 15.6 4.6l3.8 3.8L7.8 20H4zM17 3.2l1.6-1.6 3.8 3.8L20.8 7z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconChevronDown">M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4L12 17.4 5.3 10.7z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconChip">M9 2h2v2.5H9zm4 0h2v2.5h-2zM4.5 6.5h15v11h-15zm2 2v7h11v-7zM2 9.5h2.5v2H2zm0 4h2.5v2H2zm17.5-4H22v2h-2.5zm0 4H22v2h-2.5zM9 19.5h2V22H9zm4 0h2V22h-2z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconSparkle">M12 2.5 13.8 8 19.5 9.8 13.8 11.6 12 17.1 10.2 11.6 4.5 9.8 10.2 8zM18 15l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z</StreamGeometry>
+
+  <!-- One glyph per settings sub-nav row. The Linux pane used to point all ten rows at whichever
+       main-sidebar geometry was nearest to hand, so seven of them drew the wrong picture: Sound a
+       microphone, Cloud a tick, Backup a clock, About a house. Windows sets each row from its own
+       Segoe MDL2 code point in Views/Pages/SettingsPage.xaml; these are the same pictures drawn as
+       paths, because no Linux desktop ships that font. Keys are named for the picture, not for the
+       row, so a later row change cannot silently reuse the wrong one. -->
+
+  <!-- E995 Volume3: a speaker cone with three arcs. Settings ▸ Sound. -->
+  <StreamGeometry x:Key="HwIconVolume">M3 9.5h3.2L10.5 6v12L6.2 14.5H3zm9.6-.1a3.6 3.6 0 0 1 0 5.2l1.15 1.15a5.2 5.2 0 0 0 0-7.5zm2.5-2.5a7.2 7.2 0 0 1 0 10.2l1.15 1.15a8.8 8.8 0 0 0 0-12.5zm2.5-2.5a10.8 10.8 0 0 1 0 15.2l1.15 1.15a12.4 12.4 0 0 0 0-17.5z</StreamGeometry>
+
+  <!-- EB95 Certificate: a page with a folded corner and a rosette seal at the lower left.
+       Settings ▸ HyperWhisper Cloud. -->
+  <StreamGeometry x:Key="HwIconCertificate">M9 3h5.9L19 7.1V21H9zm1.7 1.7v14.6h6.6V8.2h-3.1V4.7zM5.6 10.4a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 1 0 0-6.4zm0 1.6a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 1 1 0-3.2zM4 16.8 3.2 21.4l1.8-1 1.4 1.2.7-3.8z</StreamGeometry>
+
+  <!-- A portrait page outline with a tab at the lower right. Windows draws the same picture on
+       Settings ▸ Storage and on the About page's "Open Log Folder" card. -->
+  <StreamGeometry x:Key="HwIconDocument">M5.8 3.4h12.4v17.2H5.8zm1.7 1.7v13.8h9V5.1zm6.9 10.3h2.1v2.9h-2.1z</StreamGeometry>
+
+  <!-- E943 Code: a pair of curly braces. Settings ▸ Text Output. -->
+  <StreamGeometry x:Key="HwIconBraces">M10.4 3.2v1.8c-1.5 0-2 .5-2 1.9v2.4c0 1.3-.5 2.2-1.6 2.7 1.1.5 1.6 1.4 1.6 2.7v2.4c0 1.4.5 1.9 2 1.9v1.8c-2.6 0-3.8-1-3.8-3.3v-2.6c0-1.2-.5-1.7-1.6-1.7v-2.4c1.1 0 1.6-.5 1.6-1.7V6.5c0-2.3 1.2-3.3 3.8-3.3zm3.2 0v1.8c1.5 0 2 .5 2 1.9v2.4c0 1.3.5 2.2 1.6 2.7-1.1.5-1.6 1.4-1.6 2.7v2.4c0 1.4-.5 1.9-2 1.9v1.8c2.6 0 3.8-1 3.8-3.3v-2.6c0-1.2.5-1.7 1.6-1.7v-2.4c-1.1 0-1.6-.5-1.6-1.7V6.5c0-2.3-1.2-3.3-3.8-3.3z</StreamGeometry>
+
+  <!-- EC7A: a wrench and a screwdriver stood on end. Settings ▸ Local API. -->
+  <StreamGeometry x:Key="HwIconDevTools">M5.4 2.8h1.4v2.4h1.2V2.8h1.4v4.3L8.3 8.4V20.8H6.1V8.4L5.4 7.1zm7.7 0h3v4.4h-3zm.6 4.9h1.8v9.4l-.9 3.7-.9-3.7z</StreamGeometry>
+
+  <!-- E771: a display on a stand with a pencil laid across it. Settings ▸ Appearance. The pencil
+       crosses the frame on purpose; the even-odd fill leaves the gap Windows draws there. -->
+  <StreamGeometry x:Key="HwIconPersonalize">M2.4 5h13.4v9.6H2.4zm1.7 1.7v6.2h10V6.7zm4 8.6h2.6v2.4h2.9v1.7H4.6v-1.7h2.9zM5.6 12.3l.5-1.8 5.2-5.2 1.3 1.3-5.2 5.2z</StreamGeometry>
+
+  <!-- E8F1 Library: three book spines, two upright and one leaning. Windows draws this on the
+       Vocabulary empty state and on the About page's "Export Diagnostics" card. -->
+  <StreamGeometry x:Key="HwIconLibrary">M2.2 4.2h3.8v15.6H2.2zm1.3 1.4v12.8h1.2V5.6zM7.2 4.2H11v15.6H7.2zm1.3 1.4v12.8h1.2V5.6zM12.2 4.2H16v15.6h-3.8zm1.3 1.4v12.8h1.2V5.6zM19.6 3.9 23.2 4.87 19.6 20.11 16 19.14zm.83 1.71 1.3.35-2.8 11.87-1.3-.35z</StreamGeometry>
+
+  <!-- E945 LightningBolt: the post-processing chip on every Modes card. Linux drew a four-point
+       sparkle here, which repeats ten times on that page.
+
+       The bolt is drawn on a 16.4 x 20 box, not the 11 x 20 it had. Stretch="Uniform" fits the
+       longer side, so an 11 x 20 geometry in an 11 x 11 slot scaled to 0.55 and rendered a 6px
+       sliver against Windows' 9px. 16.4/20 is Windows' own 9/11 aspect, so the same slot now
+       renders 9 x 11 and the bolt reads as chunky rather than as a thin stroke. -->
+  <StreamGeometry x:Key="HwIconBolt">M13.2 2 4 13.6h6.2L8.4 22l12-12.4h-6.8L16.6 2z</StreamGeometry>
+
+  <!-- E8A7 OpenInNewWindow: the Docs button on Settings ▸ Local API. Linux drew a circled i. -->
+  <StreamGeometry x:Key="HwIconOpenExternal">M5 5h6v2H7v10h10v-4h2v6H5zm8-2h6v6h-2V6.4l-6.3 6.3-1.4-1.4L15.6 5H13z</StreamGeometry>
+
+  <!-- The four Home "Getting Started" glyphs. Windows binds these rows to emoji characters
+       (U+1F3A4, U+2328, U+1F3AF, U+1F4DA) in a plain TextBlock and WPF draws Segoe UI Emoji's
+       MONOCHROME outlines, so the shapes to match are the emoji's, not a generic icon set's.
+       Measured against the reference shot: every glyph's core box starts at x=12 in the 44px
+       circle and is 20px wide, and all four share a baseline at y=33 — hence the per-row
+       downward nudges on the Path elements in MainWindow.axaml rather than a plain centre.
+
+       These four keys are Home-only on purpose. HwIconStreaming (the condenser mic) and
+       HwIconKeyboard (the compact one) are still used by the sidebar tile, the Shortcuts page
+       and the model-library row glyph, where a 14px render needs the simpler shape, so the
+       detailed Home variants are separate keys instead of edits in place. -->
+
+  <!-- U+1F3A4 MICROPHONE: a handheld stage mic on the 45 degree diagonal, head at the top
+       right. Solid head, a grille band across it, and a HOLLOW tapering handle: the emoji
+       outlines the handle rather than filling it, and a solid silhouette read far heavier than
+       Windows. Even-odd: subpath 1 is the outline, 2 cuts the handle, 3 cuts the band. -->
+  <StreamGeometry x:Key="HwIconMicHandheld">M 12.96,4.96 A 4.3,4.3 0 1 1 19.04,11.04 L 6.45,20.37 A 2.0,2.0 0 0 1 3.63,17.55 Z M 14.41,13.76 L 6.91,18.71 A 1.15,1.15 0 0 1 5.29,17.09 L 10.24,9.59 Z M 18.83,10.4 L 13.6,5.17 L 14.8,4.39 L 19.61,9.2 Z</StreamGeometry>
+
+  <!-- U+2328 KEYBOARD: a flat bezel with FOUR rows of individual keys. The emoji's box is
+       20x14, aspect 1.43, so the bezel is deliberately wider than tall; a square-ish body
+       scaled to the same 20x20 Path box and read as the wrong glyph. Ten keys per row plus a
+       spacebar row; the six-key block this replaced was the loudest shape error on the page.
+       Even-odd: bezel, then the inner panel cut out, then each key filled back in. -->
+  <StreamGeometry x:Key="HwIconKeyboardDetailed">M 2,6.8 A 1.8,1.8 0 0 1 3.8,5 L 20.2,5 A 1.8,1.8 0 0 1 22,6.8 L 22,17.2 A 1.8,1.8 0 0 1 20.2,19 L 3.8,19 A 1.8,1.8 0 0 1 2,17.2 Z M 3.3,6.3 L 20.7,6.3 L 20.7,17.7 L 3.3,17.7 Z M 3.75,7.65 L 5,7.65 L 5,9.15 L 3.75,9.15 Z M 5.47,7.65 L 6.72,7.65 L 6.72,9.15 L 5.47,9.15 Z M 7.19,7.65 L 8.44,7.65 L 8.44,9.15 L 7.19,9.15 Z M 8.91,7.65 L 10.16,7.65 L 10.16,9.15 L 8.91,9.15 Z M 10.63,7.65 L 11.88,7.65 L 11.88,9.15 L 10.63,9.15 Z M 12.35,7.65 L 13.6,7.65 L 13.6,9.15 L 12.35,9.15 Z M 14.07,7.65 L 15.32,7.65 L 15.32,9.15 L 14.07,9.15 Z M 15.79,7.65 L 17.04,7.65 L 17.04,9.15 L 15.79,9.15 Z M 17.51,7.65 L 18.76,7.65 L 18.76,9.15 L 17.51,9.15 Z M 19.23,7.65 L 20.48,7.65 L 20.48,9.15 L 19.23,9.15 Z M 4.05,10.05 L 5.3,10.05 L 5.3,11.55 L 4.05,11.55 Z M 5.77,10.05 L 7.02,10.05 L 7.02,11.55 L 5.77,11.55 Z M 7.49,10.05 L 8.74,10.05 L 8.74,11.55 L 7.49,11.55 Z M 9.21,10.05 L 10.46,10.05 L 10.46,11.55 L 9.21,11.55 Z M 10.93,10.05 L 12.18,10.05 L 12.18,11.55 L 10.93,11.55 Z M 12.65,10.05 L 13.9,10.05 L 13.9,11.55 L 12.65,11.55 Z M 14.37,10.05 L 15.62,10.05 L 15.62,11.55 L 14.37,11.55 Z M 16.09,10.05 L 17.34,10.05 L 17.34,11.55 L 16.09,11.55 Z M 17.81,10.05 L 19.06,10.05 L 19.06,11.55 L 17.81,11.55 Z M 19.53,10.05 L 20.78,10.05 L 20.78,11.55 L 19.53,11.55 Z M 3.75,12.45 L 5,12.45 L 5,13.95 L 3.75,13.95 Z M 5.47,12.45 L 6.72,12.45 L 6.72,13.95 L 5.47,13.95 Z M 7.19,12.45 L 8.44,12.45 L 8.44,13.95 L 7.19,13.95 Z M 8.91,12.45 L 10.16,12.45 L 10.16,13.95 L 8.91,13.95 Z M 10.63,12.45 L 11.88,12.45 L 11.88,13.95 L 10.63,13.95 Z M 12.35,12.45 L 13.6,12.45 L 13.6,13.95 L 12.35,13.95 Z M 14.07,12.45 L 15.32,12.45 L 15.32,13.95 L 14.07,13.95 Z M 15.79,12.45 L 17.04,12.45 L 17.04,13.95 L 15.79,13.95 Z M 17.51,12.45 L 18.76,12.45 L 18.76,13.95 L 17.51,13.95 Z M 19.23,12.45 L 20.48,12.45 L 20.48,13.95 L 19.23,13.95 Z M 3.75,14.85 L 5.25,14.85 L 5.25,16.35 L 3.75,16.35 Z M 5.75,14.85 L 18,14.85 L 18,16.35 L 5.75,16.35 Z M 18.5,14.85 L 20,14.85 L 20,16.35 L 18.5,16.35 Z</StreamGeometry>
+
+  <!-- U+1F3AF DIRECT HIT: a dartboard WITH A DART IN IT. Five even-odd rings centred on
+       9.5,14.5 (down and left, to clear the dart's flight in the top right corner), then the
+       shaft on the 45 degree diagonal into the bullseye and a chunky four-point flight at its
+       outer end. The previous thin arrow read as an arrow, not as a dart. -->
+  <StreamGeometry x:Key="HwIconTarget">M 2,14.5 a 7.5,7.5 0 1 0 15,0 a 7.5,7.5 0 1 0 -15,0 Z M 3.5,14.5 a 6,6 0 1 0 12,0 a 6,6 0 1 0 -12,0 Z M 5,14.5 a 4.5,4.5 0 1 0 9,0 a 4.5,4.5 0 1 0 -9,0 Z M 6.5,14.5 a 3,3 0 1 0 6,0 a 3,3 0 1 0 -6,0 Z M 7.9,14.5 a 1.6,1.6 0 1 0 3.2,0 a 1.6,1.6 0 1 0 -3.2,0 Z M 8.86,13.86 L 16.86,5.86 L 18.14,7.14 L 10.14,15.14 Z M 21.2,2.8 L 20,8.9 L 17.4,6.6 L 15.1,4 Z</StreamGeometry>
+
+  <!-- Home's "Add Vocabulary" disc, U+1F4DA BOOKS: three covers stepped down and to the right.
+       The version this replaces drew three see-through outlines, so the rear covers showed
+       straight through the front one and the stack read as a wireframe rather than as cards.
+
+       The covers OCCLUDE, and the front one is the TOP LEFT, not the bottom right. Each rear
+       cover is therefore written as the L-shaped sliver of itself that the cover in front does
+       not hide (subpaths 3 and 4), rather than as a whole rectangle. Subpaths 1 and 2 are the
+       front cover's outer edge and its hollow middle: only the front cover keeps an interior,
+       which is what stops the glyph rendering as one solid block. Even-odd, like the rest of
+       the file; the four subpaths are disjoint apart from that one deliberate nesting. -->
+  <StreamGeometry x:Key="HwIconStackedPages">M 3,2.6 L 11,2.6 L 11,14.2 L 3,14.2 Z M 4.3,3.9 L 9.7,3.9 L 9.7,12.9 L 4.3,12.9 Z M 12.1,5.4 L 15.2,5.4 L 15.2,17 L 7.2,17 L 7.2,15.3 L 12.1,15.3 Z M 16.3,8.2 L 19.4,8.2 L 19.4,19.8 L 11.4,19.8 L 11.4,18.1 L 16.3,18.1 Z</StreamGeometry>
+
+  <!-- The two History empty states. Windows draws a memo (a ruled page with a pencil across the
+       lower right) on the list side and a ruled page on the detail side; Linux drew the same
+       three-bar page on both. Both are stroked, not filled, on this page. -->
+  <StreamGeometry x:Key="HwIconMemo">M6 3h8l4 4v14H6zm7.4 1.6V8H17zM8 12.6h6.4V14H8zm0 2.6h6.4v1.4H8zm0 2.6h4.4v1.4H8zm5.6 2.8.5-2.1 5.1-5.1 1.6 1.6-5.1 5.1z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconPage">M6 3h8l4 4v14H6zm7.4 1.6V8H17zM8.4 9.8h7.2v1.2H8.4zm0 2.4h7.2v1.2H8.4zm0 2.4h7.2v1.2H8.4zm0 2.4h7.2v1.2H8.4zm0 2.4h4.6v1.2H8.4z</StreamGeometry>
+
+  <!-- Tile fills, copied from the Windows sidebar so the two apps read as one product.
+       Windows paints each tile with a diagonal LinearGradientBrush from 0,0 to 1,1; a flat
+       colour here read as a different, duller product beside the same rows on Windows. -->
+  <LinearGradientBrush x:Key="HwTileHomeBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#FF9A4D" Offset="0"/><GradientStop Color="#F05A28" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="HwTileModesBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#49A5FF" Offset="0"/><GradientStop Color="#236DFF" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="HwTileVocabularyBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#49A5FF" Offset="0"/><GradientStop Color="#236DFF" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="HwTileModelsBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#8A7CFF" Offset="0"/><GradientStop Color="#5B4BDB" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="HwTileStreamingBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#8A7CFF" Offset="0"/><GradientStop Color="#5B4BDB" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="HwTileHistoryBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#7C74FF" Offset="0"/><GradientStop Color="#4A42D8" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="HwTileSettingsBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#73777F" Offset="0"/><GradientStop Color="#3F444C" Offset="1"/>
+  </LinearGradientBrush>
+
+  <!-- Caption glyphs for the client-area title bar. Windows strokes these rather than filling
+       them, so they are declared as geometry and drawn with a Stroke in the window markup. -->
+  <StreamGeometry x:Key="HwIconCaptionMinimize">M0,0 H10</StreamGeometry>
+  <StreamGeometry x:Key="HwIconCaptionClose">M1,1 L9,9 M9,1 L1,9</StreamGeometry>
+  <StreamGeometry x:Key="HwIconCloud">M6.5 19a4.5 4.5 0 0 1-.53-8.97A6 6 0 0 1 17.7 9.2 4.4 4.4 0 0 1 17.5 19z</StreamGeometry>
+  <!-- The transport glyphs on the History playback band. Windows reaches these through the
+       Segoe MDL2 play and pause code points, which no Linux desktop ships. -->
+  <StreamGeometry x:Key="HwIconPlay">M8 5.2 19 12 8 18.8z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconPause">M7 5h3.4v14H7zm6.6 0H17v14h-3.4z</StreamGeometry>
+  <StreamGeometry x:Key="HwIconGear">M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z</StreamGeometry>
+
+  <!-- Getting Started rows. Windows fills the circle dim and colours only the glyph, one hue
+       per row, so the list reads as four steps and not four buttons. -->
+  <SolidColorBrush x:Key="HwStepRecordFill" Color="#1A2635"/>
+  <SolidColorBrush x:Key="HwStepRecordGlyph" Color="#007AFF"/>
+  <SolidColorBrush x:Key="HwStepShortcutFill" Color="#2C2232"/>
+  <SolidColorBrush x:Key="HwStepShortcutGlyph" Color="#AF52DE"/>
+  <SolidColorBrush x:Key="HwStepModeFill" Color="#1F2E25"/>
+  <SolidColorBrush x:Key="HwStepModeGlyph" Color="#34C759"/>
+  <SolidColorBrush x:Key="HwStepVocabularyFill" Color="#34291C"/>
+  <SolidColorBrush x:Key="HwStepVocabularyGlyph" Color="#FF9500"/>
+</ResourceDictionary>

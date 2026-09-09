@@ -29,6 +29,21 @@ public sealed class VocabularyViewModel : ViewModelBase
         set { if (Set(ref _selected, value) && value is not null) { Word = value.Word; Replacement = value.Replacement ?? string.Empty; } }
     }
     public string TransferPath { get => _transferPath; set => Set(ref _transferPath, value); }
+
+    /// <summary>
+    /// Only the first hundred terms reach a provider's keyword boost, so the page shows the same
+    /// banner Windows shows once the list is longer than that. The constant is the Windows
+    /// VocabularyPage.MaxKeywords.
+    /// </summary>
+    public const int MaxKeywords = 100;
+    public bool HasKeywordLimitWarning => Items.Count > MaxKeywords;
+    public string KeywordLimitMessage =>
+        $"You have {Items.Count} vocabulary items. Only the first {MaxKeywords} will be sent for boosting.";
+
+    /// <summary>The inline error line under the input pill; blank while nothing has failed.</summary>
+    public string InputError => Status.HasError ? Status.Message : string.Empty;
+    public bool HasInputError => Status.HasError;
+
     public UiStatus Status { get; } = new();
     public ICommand AddCommand { get; }
     public ICommand DeleteCommand { get; }
@@ -39,21 +54,32 @@ public sealed class VocabularyViewModel : ViewModelBase
     {
         try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success($"{Items.Count} term(s)"); }
         catch (Exception) { Status.Failure("vocabulary.load_failed", "Could not load vocabulary."); }
+        NotifyDerived();
+    }
+
+    private void NotifyDerived()
+    {
+        Notify(nameof(HasKeywordLimitWarning));
+        Notify(nameof(KeywordLimitMessage));
+        Notify(nameof(InputError));
+        Notify(nameof(HasInputError));
     }
     public Task AddAsync(CancellationToken cancellationToken = default) => SaveAsync(cancellationToken);
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(Word)) { Status.Failure("vocabulary.word_required", "Enter a word or phrase."); return; }
+        if (string.IsNullOrWhiteSpace(Word)) { Status.Failure("vocabulary.word_required", "Enter a word or phrase."); NotifyDerived(); return; }
         var item = Selected ?? new VocabularyItem { SortOrder = Items.Count };
         item.Word = Word.Trim(); item.Replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim();
         try { _ = await _repository.UpsertAsync(item, cancellationToken); await RefreshAsync(cancellationToken); Selected = null; Word = string.Empty; Replacement = string.Empty; Status.Success("Vocabulary saved"); }
         catch (Exception) { Status.Failure("vocabulary.add_failed", "Could not add the vocabulary item."); }
+        NotifyDerived();
     }
     public async Task DeleteAsync(VocabularyItem? item, CancellationToken cancellationToken = default)
     {
         if (item == null) { Status.Failure("vocabulary.no_selection", "Select a vocabulary item to delete."); return; }
         try { if (await _repository.DeleteAsync(item.Id, cancellationToken)) { Items.Remove(item); Status.Success("Vocabulary deleted"); } else Status.Failure("vocabulary.not_found", "The vocabulary item no longer exists."); }
         catch (Exception) { Status.Failure("vocabulary.delete_failed", "Could not delete the vocabulary item."); }
+        NotifyDerived();
     }
 
     public async Task ImportAsync(CancellationToken cancellationToken = default)

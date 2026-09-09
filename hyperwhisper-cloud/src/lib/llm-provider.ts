@@ -33,7 +33,11 @@ export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
 // LLM_PROVIDER_MODELS allowlists.
 const LLM_SERVED_NAMES: Partial<Record<LLMProvider, Record<string, string>>> = {
   openai: { 'gpt-5-mini': 'openai-gpt-5-mini', 'gpt-5-nano': 'openai-gpt-5-nano' },
-  gemini: { 'gemini-2.5-flash': 'gemini-2.5-flash', 'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite' },
+  gemini: {
+    'gemini-2.5-flash': 'gemini-2.5-flash',
+    'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
+    'gemini-3.8-flash': 'gemini-3.8-flash',
+  },
   mistral: { 'mistral-small-latest': 'mistral-small-latest' },
 };
 
@@ -59,6 +63,18 @@ const LLM_PROVIDER_FALLBACKS: Record<LLMProvider, LLMProvider> = {
   mistral: 'groq',
 };
 
+// Per-provider retry count. Fast/cheap providers retry more; pricier or slower
+// ones retry less to bound latency and spend before falling back.
+const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
+  anthropic: 2,
+  cerebras: 0,
+  grok: 1,
+  openai: 1,
+  gemini: 2,
+  mistral: 2,
+  groq: 3,
+};
+
 // Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
 // resolved model is threaded through callWithRetry to the openai/gemini/mistral
 // clients (the 4 single-model providers ignore it). MUST match the model ids in
@@ -69,7 +85,10 @@ const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: reado
   anthropic: { default: 'claude-haiku-4-5', allowed: ['claude-haiku-4-5'] },
   grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
   openai: { default: 'gpt-5-mini', allowed: ['gpt-5-mini', 'gpt-5-nano'] },
-  gemini: { default: 'gemini-2.5-flash', allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'] },
+  gemini: {
+    default: 'gemini-2.5-flash',
+    allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash'],
+  },
   mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
 };
 
@@ -125,7 +144,6 @@ export async function callWithRetry(
   provider: LLMProvider,
   payload: CorrectionRequestPayload,
   requestId: string,
-  maxRetries: number,
   model: string
 ): Promise<Awaited<ReturnType<typeof requestCerebrasChat>>> {
   return retryWithBackoff(
@@ -140,7 +158,7 @@ export async function callWithRetry(
         : requestGroqChat(payload, requestId);
     },
     {
-      maxRetries,
+      maxRetries: LLM_PROVIDER_RETRIES[provider],
       initialDelayMs: 1000,
       backoffMultiplier: 2,
       onRetry: (attempt, error, delayMs) => {
@@ -182,3 +200,9 @@ export function shouldFallback(error: unknown): boolean {
   const status = getErrorStatus(error);
   return typeof status === 'number' && status >= 500 && status <= 599;
 }
+
+/** Exported for the parity test only. */
+export const __tables = {
+  LLM_PROVIDER_MODELS,
+  LLM_PROVIDER_RETRIES,
+};

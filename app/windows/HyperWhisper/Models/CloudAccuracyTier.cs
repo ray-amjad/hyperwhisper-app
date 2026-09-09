@@ -18,7 +18,7 @@ public enum CloudAccuracyTier
     /// <summary>xAI Grok STT — High tier (vocabulary sent as repeated `keyterm` fields)</summary>
     GrokStt,
 
-    /// <summary>Microsoft MAI-Transcribe 1.5 — High tier (HW Cloud only)</summary>
+    /// <summary>Microsoft MAI-Transcribe — High tier (HW Cloud only; models mai-transcribe-2 and mai-transcribe-1.5)</summary>
     AzureMaiTranscribe,
 
     /// <summary>

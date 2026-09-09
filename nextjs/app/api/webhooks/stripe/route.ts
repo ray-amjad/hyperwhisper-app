@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     event.type === "checkout.session.completed" ||
     event.type === "checkout.session.async_payment_succeeded"
   ) {
-    const session = event.data.object as Stripe.Checkout.Session;
+    const session = event.data.object;
     const purchaseType = session.metadata?.purchase_type;
 
     if (session.payment_status !== "paid") {
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === "checkout.session.async_payment_failed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+    const session = event.data.object;
     const purchaseType = session.metadata?.purchase_type;
 
     if (purchaseType === "credits") {
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
 
   // Handle charge.refunded for license revocation / credit reversal
   if (event.type === "charge.refunded") {
-    const charge = event.data.object as Stripe.Charge;
+    const charge = event.data.object;
     try {
       await handleChargeRefunded(charge);
     } catch (error) {

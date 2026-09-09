@@ -208,6 +208,12 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
+                        <!-- The box is drawn 64 tall, so the TextBox has to BE 64 tall.
+                             With VerticalAlignment="Top" it auto-sized to one line and the
+                             remaining ~44 was bare Grid: clicking there moved focus off the
+                             field and every following keystroke was discarded (#496).
+                             Stretch on both keeps the same look — the content host still
+                             renders from the top — while making the whole box focusable. -->
                         <Grid Grid.Row="0" MinHeight="64">
                             <TextBox x:Name="ReplacementBox"
                                      Background="Transparent"
@@ -216,8 +222,8 @@
                                      FontSize="14"
                                      AcceptsReturn="False"
                                      TextWrapping="Wrap"
-                                     VerticalAlignment="Top"
-                                     VerticalContentAlignment="Top"
+                                     VerticalAlignment="Stretch"
+                                     VerticalContentAlignment="Stretch"
                                      PreviewKeyDown="ReplacementBox_PreviewKeyDown"
                                      TextChanged="ReplacementBox_TextChanged"/>
                             <TextBlock x:Name="ReplacementPlaceholder"

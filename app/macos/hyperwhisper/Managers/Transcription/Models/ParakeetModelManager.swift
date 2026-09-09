@@ -173,7 +173,7 @@ final class ParakeetModelManager: ObservableObject {
         // STEP 1: Check V2 model status
         let v2Directory = cacheDirectory(for: .v2)
         let v2Exists = AsrModels.modelsExist(at: v2Directory)
-        logger.debug("Parakeet V2 exists: \(v2Exists) at \(v2Directory.path)")
+        logger.debug("Parakeet V2 exists: \(v2Exists)")
 
         models.append(ParakeetModel(
             id: Constants.v2ModelId,
@@ -189,7 +189,7 @@ final class ParakeetModelManager: ObservableObject {
         // STEP 2: Check V3 model status
         let v3Directory = cacheDirectory(for: .v3)
         let v3Exists = AsrModels.modelsExist(at: v3Directory)
-        logger.debug("Parakeet V3 exists: \(v3Exists) at \(v3Directory.path)")
+        logger.debug("Parakeet V3 exists: \(v3Exists)")
 
         models.append(ParakeetModel(
             id: Constants.v3ModelId,
@@ -292,7 +292,8 @@ final class ParakeetModelManager: ObservableObject {
         } catch let urlError as URLError where urlError.code == .cancelled {
             logger.info("Parakeet \(String(describing: modelVersion)) download cancelled")
         } catch {
-            logger.error("Failed to download Parakeet \(String(describing: modelVersion)): \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to download Parakeet \(String(describing: modelVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             errorMessage = error.localizedDescription
         }
 
@@ -321,10 +322,11 @@ final class ParakeetModelManager: ObservableObject {
         do {
             if FileManager.default.fileExists(atPath: directory.path) {
                 try FileManager.default.removeItem(at: directory)
-                logger.info("Removed Parakeet \(String(describing: modelVersion)) at \(directory.path, privacy: .public)")
+                logger.info("Removed Parakeet \(String(describing: modelVersion))")
             }
         } catch {
-            logger.error("Failed to delete Parakeet \(String(describing: modelVersion)): \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to delete Parakeet \(String(describing: modelVersion)); errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             errorMessage = error.localizedDescription
         }
         refreshState()

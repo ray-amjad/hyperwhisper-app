@@ -270,7 +270,7 @@ struct CloudSttTierParityTests {
         // The guard that stops someone flipping a `models[].streaming` flag on a
         // vendor HyperWhisper Cloud serves no WebSocket route for and shipping a
         // 404 at dictation time. The STT catalog has no `enabled` gate to hide a
-        // half-finished vendor behind, and the client derives its route as
+        // half-finished vendor behind, and the live session derives its route as
         // `/ws/streaming-{sttProvider}` with no allow-list of its own — so this
         // list IS the allow-list. Widen it only alongside the backend route.
         #expect(
@@ -286,30 +286,40 @@ struct CloudSttTierParityTests {
         // Route derivation, including the fallback. deepgramNova3 must reproduce
         // the literal the strategy hard-coded before the picker existed, because
         // every already-installed client persists no tier at all.
-        #expect(HyperWhisperCloudStrategy.resolveSttProvider("deepgramNova3") == "deepgram")
-        #expect(HyperWhisperCloudStrategy.resolveSttProvider("geminiTranscribe") == "gemini-transcribe")
+        //
+        // The socket itself is built by `hw_net::live::hw_cloud` since issue
+        // #326, and its `stt_provider_for_tier` is `pub(super)` — so these are
+        // macOS's reading of the SAME catalog file the core `include_str!`s,
+        // asserted here because there is no exported function to ask. A catalog
+        // edit that renames an `sttProvider` out from under the backend's route
+        // table fails here first.
+        #expect(StreamingCloudTier.resolveSttProvider("deepgramNova3") == "deepgram")
+        #expect(StreamingCloudTier.resolveSttProvider("geminiTranscribe") == "gemini-transcribe")
         for bogus in [nil, "", "   ", "notATier", "groqWhisper"] as [String?] {
-            #expect(HyperWhisperCloudStrategy.resolveSttProvider(bogus) == "deepgram")
+            #expect(StreamingCloudTier.resolveSttProvider(bogus) == "deepgram")
         }
 
         // The same clamp the settings Picker binds through. A value it cannot
         // render as a tag shows a BLANK row, and a backup restore or a Local API
         // write can both put one there, so the clamp has to hold on the id too
         // and not only on the derived route.
-        #expect(HyperWhisperCloudStrategy.normalizedCloudTier(" geminiTranscribe ") == "geminiTranscribe")
-        #expect(HyperWhisperCloudStrategy.normalizedCloudTier("GEMINITRANSCRIBE") == "geminiTranscribe")
+        #expect(StreamingCloudTier.normalizedCloudTier(" geminiTranscribe ") == "geminiTranscribe")
+        #expect(StreamingCloudTier.normalizedCloudTier("GEMINITRANSCRIBE") == "geminiTranscribe")
         for bogus in [nil, "", "   ", "notATier", "groqWhisper"] as [String?] {
-            #expect(HyperWhisperCloudStrategy.normalizedCloudTier(bogus) == "deepgramNova3")
+            #expect(StreamingCloudTier.normalizedCloudTier(bogus) == "deepgramNova3")
         }
         #expect(
             CloudAccuracyTier.streamingEligibleTiers.map(\.rawValue)
-                .contains(HyperWhisperCloudStrategy.defaultCloudTier),
+                .contains(StreamingCloudTier.defaultCloudTier),
             "the fallback must itself be offered, or the picker renders blank by default"
         )
 
-        // The auto-detect vocabulary gate is Deepgram's constraint alone.
-        #expect(HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary("deepgramNova3"))
-        #expect(!HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary("geminiTranscribe"))
+        // The auto-detect vocabulary gate is Deepgram's constraint alone. This
+        // one DOES cross the FFI — it is the core's own capability table, the
+        // same one `hw_cloud::connect` consults before it puts `vocabulary=` on
+        // the URL — so the settings warning cannot drift from the wire.
+        #expect(StreamingCloudTier.tierRequiresLanguageForVocabulary("deepgramNova3"))
+        #expect(!StreamingCloudTier.tierRequiresLanguageForVocabulary("geminiTranscribe"))
     }
 
     @Test("Retired cloud models are not selectable")

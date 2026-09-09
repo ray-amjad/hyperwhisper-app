@@ -25,12 +25,20 @@ struct CatalogLanguageParityTests {
     /// providers whose language sets are mirrored from STTCapabilities.
     ///
     /// Intentionally excluded (asserted only for "has some data", not parity):
-    /// - gemini / microsoftAzureSpeech / googleSpeech: absent from STTCapabilities;
-    ///   their catalog values come from cloud-stt-catalog.json (Azure/Google) or
-    ///   are `supportsAllLanguages` (Gemini auto-detects).
+    /// - gemini / googleSpeech: absent from STTCapabilities; their catalog
+    ///   values come from cloud-stt-catalog.json (Google) or are
+    ///   `supportsAllLanguages` (Gemini auto-detects).
     /// - grok: present in STTCapabilities but its 25 codes are a formatting-only
     ///   allowlist; the catalog intentionally marks it `supportsAllLanguages`
     ///   (xAI transcription is not language-limited). It is also Windows-only.
+    ///
+    /// `microsoftAzureSpeech` USED to be on that excluded list, on the grounds
+    /// that it was absent from STTCapabilities. That stopped being true when the
+    /// `azure-mai` provider spec landed, and the two Azure models are exactly
+    /// where the catalog's per-model split has to be cross-checked: the
+    /// provider-level `cloud-stt-catalog.json` list is their 60-code union, so a
+    /// wrong per-model set in `models-catalog.json` would not show up anywhere
+    /// else.
     private static let providerIdMap: [String: String] = [
         "openai": "openai",
         "groq": "groq",
@@ -39,6 +47,7 @@ struct CatalogLanguageParityTests {
         "elevenLabs": "elevenlabs",
         "mistral": "mistral",
         "soniox": "soniox",
+        "microsoftAzureSpeech": "azure-mai",
     ]
 
     /// Reduce a list of raw provider locale codes to the same base-code +
@@ -91,8 +100,9 @@ struct CatalogLanguageParityTests {
             checked += 1
         }
         // The 2026-08 retirement cleanup removed the two Universal-3 Pro rows;
-        // keep this floor aligned with the 16 current STTCapabilities-backed rows.
-        #expect(checked >= 16, "expected to verify the STTCapabilities-backed cloud models, only checked \(checked)")
+        // adding `microsoftAzureSpeech` to the map above brought its two models
+        // in, so the floor is 18.
+        #expect(checked >= 18, "expected to verify the STTCapabilities-backed cloud models, only checked \(checked)")
     }
 
     @Test("English-only cloud models filter to English only")

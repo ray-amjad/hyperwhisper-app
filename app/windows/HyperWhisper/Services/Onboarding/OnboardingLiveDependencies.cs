@@ -604,11 +604,11 @@ public sealed class LiveOnboardingCreditsGateway : IOnboardingCreditsGateway, ID
     /// both cloud steps is safe. A failure never propagates: the panels render an
     /// ellipsis and the flow moves on.
     /// </summary>
-    public async Task RefreshAsync(bool force, CancellationToken cancellationToken)
+    public async Task RefreshAsync(bool force, CancellationToken cancellationToken, string? licenseKeyOverride = null)
     {
         try
         {
-            await _manager.FetchCreditsAsync(force, cancellationToken);
+            await _manager.FetchCreditsAsync(force, cancellationToken, licenseKeyOverride);
         }
         catch (OperationCanceledException)
         {

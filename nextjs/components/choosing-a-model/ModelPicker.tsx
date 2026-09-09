@@ -31,6 +31,7 @@ import {
   type Weights,
 } from "@/lib/choosing-a-model/scoring";
 import { regionCity } from "@/lib/latency/fly-regions";
+import { isRecord } from "@/src/lib/type-guards";
 
 type MeasuredLatencyByRegion = Record<string, Record<string, number>>;
 
@@ -189,11 +190,19 @@ export default function ModelPicker({ measured, regions }: Props) {
           `/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`,
           { signal: controller.signal },
         );
-        const result = response.ok ? await response.json() : null;
+        const result: unknown = response.ok ? await response.json() : null;
         // A hand-picked region always wins, even if the answer lands later.
-        if (regionPickedByUser.current || !result?.region) return;
+        if (
+          regionPickedByUser.current ||
+          !isRecord(result) ||
+          typeof result.region !== "string"
+        ) return;
         setRegion(result.region);
-        setDetectedCity(result.city ?? regionCity(result.region));
+        setDetectedCity(
+          typeof result.city === "string"
+            ? result.city
+            : regionCity(result.region),
+        );
       } catch {
         // A missing default is not worth an error message.
       }

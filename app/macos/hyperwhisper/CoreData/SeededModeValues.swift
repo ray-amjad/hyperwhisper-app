@@ -143,12 +143,13 @@ extension Mode {
     /// to one the user made.
     ///
     /// The identity test to use anywhere the built-in mode needs different
-    /// treatment from a user's own. Comparing the mode's NAME is not that test,
-    /// and `ModeEditorView`'s `== "Default"` name-field lock is what it costs:
+    /// treatment from a user's own. Comparing the mode's NAME is not that test:
     /// the seed's name is a product decision that moved to `"Hyper"` in #285, so
-    /// on a fresh install the lock silently stopped applying to the mode it was
-    /// written for, while a user who happened to call their own mode "Default"
-    /// had its name frozen forever.
+    /// a name compare silently stops applying to the mode it was written for,
+    /// while a user who happens to call their own mode "Default" is caught by it
+    /// forever. `ModeEditorView`'s name-field lock was the last such compare in
+    /// the app; it now keys on `isDefault` instead (issue #494,
+    /// `ModeEditorView.isNameLocked`).
     ///
     /// Two conditions, because neither alone covers every install:
     ///

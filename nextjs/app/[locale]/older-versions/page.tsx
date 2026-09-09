@@ -144,7 +144,7 @@ export default function DownloadsPage() {
       }
     }
 
-    fetchVersions();
+    void fetchVersions();
 
     return () => {
       ignore = true;

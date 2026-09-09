@@ -275,11 +275,13 @@ struct DefaultModeSeedTests {
 
     // MARK: - Which row is the built-in one
 
-    /// `Mode.isSeededDefault` replaces `ModeEditorView`'s `name == "Default"`,
-    /// the last identity-by-display-name test in the app. #285 renamed the
-    /// seeded mode to `"Hyper"`, which turned that comparison into a lock on
-    /// nothing for a fresh install and a permanent lock on a *user's* mode that
-    /// happened to be called "Default".
+    /// `Mode.isSeededDefault` is the identity test to use for the built-in row,
+    /// in place of a compare against its display name. #285 renamed the seeded
+    /// mode to `"Hyper"`, which turns any such comparison into a match on
+    /// nothing for a fresh install, and a permanent match on a *user's* mode
+    /// that happened to be called "Default". (`ModeEditorView`'s name-field
+    /// lock, the last one of those, keys on `isDefault` since issue #494 —
+    /// see `DefaultModeNameLockTests`.)
     @Test("the seeded row is the built-in mode")
     func theSeededRowIsRecognisedAsBuiltIn() throws {
         let persistence = PersistenceController(inMemory: true)

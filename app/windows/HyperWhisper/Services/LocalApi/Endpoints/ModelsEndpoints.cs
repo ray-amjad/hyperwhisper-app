@@ -42,7 +42,11 @@ internal static class ModelsEndpoints
             Kind = row.Kind == LibraryModelKind.Voice ? "voice" : "text",
             Provider = ProviderId(row),
             DisplayName = row.DisplayName,
-            Installed = row.StatusKind == LibraryModelStatusKind.Enabled,
+            // `installed` means "configured and selectable", not "proven to
+            // work". A custom endpoint that has never been tested is Untested
+            // rather than Enabled since #509; it is still a usable row, so it
+            // keeps reporting installed and the wire contract does not move.
+            Installed = row.StatusKind is LibraryModelStatusKind.Enabled or LibraryModelStatusKind.Untested,
             SizeMb = ExtractSizeMb(row.SizeDescription)
         };
     }

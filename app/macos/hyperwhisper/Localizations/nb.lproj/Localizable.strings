@@ -778,8 +778,8 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Høy (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flerspråklig, med støtte for tilpasset ordforråd.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høy (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 språk med kontekstuell tilpasning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høy (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Opptil 60 språk med kontekstuell tilpasning.";
 
 "modes.create.title" = "Opprett ny modus";
 "modes.create.subtitle" = "Konfigurer en tilpasset transkirpsjonsprofil";
@@ -794,6 +794,7 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.field.name" = "Navn";
 "modes.field.name.placeholder" = "f.eks. møtenotater";
 "modes.field.name.editPlaceholder" = "Modusnavn";
+"modes.field.name.defaultLocked" = "Dette er standardmodusen, så navnet kan ikke endres. Du kan gi alle andre moduser nytt navn.";
 "modes.field.model" = "Modell";
 "modes.field.provider" = "Leverandør";
 "modes.provider.local" = "Lokal";

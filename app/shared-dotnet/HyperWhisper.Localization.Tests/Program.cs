@@ -76,7 +76,45 @@ static void AllCatalogsLoad()
     // strings, plus app.unknown.error and errors.textNotDelivered. 671 -> 849.
     // This job is path-filtered, so it did not run on that merge and main only
     // went red days later, on an unrelated PR that touched localization.
-    Equal(849, PortableLocalizer.BaseKeyCount, "base key count");
+    //
+    // Two for the Cloud setup step's subtitle, which had ONE string for three
+    // states and printed the finished one on arrival. 849 -> 851:
+    //   onboarding.setup.cloud.subtitle.pending
+    //   onboarding.setup.cloud.subtitle.balancePending
+    // Plus one for the default mode's locked-name explanation (issue #494).
+    // Plus one so cancelling a FILE transcription stops claiming a recording was
+    // cancelled (issue #506). 852 -> 853:
+    //   status.fileTranscriptionCancelled
+    // Plus one for the History multi-selection heading, which was a bare English
+    // literal in HistoryPage.xaml with no key at all (issue #505). 853 -> 854:
+    //   history.selection.count
+    // Plus ten for the Shortcuts, Streaming and About pages, whose error text,
+    // conflict banners and version line were all hard-coded English (issue
+    // #516). Ten keys replace SIXTEEN literals, counted site by site:
+    //   singleModifier   x2  the validation service AND the recorder's own copy
+    //   duplicate        x4  four interpolations of one sentence
+    //   bareModifier     x1
+    //   inUse            x1
+    //   reserved         x1
+    //   registerFailed   x1
+    //   conflict.title   x2  HomePage AND ShortcutsSettingsPage
+    //   openSettings     x2  HomePage AND StreamingSettingsPage
+    //   changeShortcut   x1
+    //   streaming title  x1
+    // 854 -> 864:
+    //   settings.shortcuts.error.singleModifier
+    //   settings.shortcuts.error.duplicate
+    //   settings.shortcuts.error.bareModifier
+    //   settings.shortcuts.error.inUse
+    //   settings.shortcuts.error.reserved
+    //   settings.shortcuts.error.registerFailed
+    //   settings.shortcuts.conflict.title
+    //   settings.shortcuts.conflict.openSettings
+    //   settings.shortcuts.conflict.changeShortcut
+    //   settings.streaming.conflict.title
+    // About's version line takes NO new key: menu.version.label is the same
+    // one-argument string, shared with the macOS catalog.
+    Equal(864, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

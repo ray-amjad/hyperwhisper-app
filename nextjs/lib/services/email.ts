@@ -40,6 +40,27 @@ function providerMessageIdOf(data: unknown): string | null {
   return typeof data.id === "string" ? data.id : null;
 }
 
+function resendErrorDetailsOf(error: unknown): {
+  message?: string;
+  name?: string;
+  statusCode?: number | null;
+} {
+  if (typeof error !== "object" || error === null) return {};
+
+  return {
+    ...("message" in error && typeof error.message === "string"
+      ? { message: error.message }
+      : {}),
+    ...("name" in error && typeof error.name === "string"
+      ? { name: error.name }
+      : {}),
+    ...("statusCode" in error &&
+    (typeof error.statusCode === "number" || error.statusCode === null)
+      ? { statusCode: error.statusCode }
+      : {}),
+  };
+}
+
 /**
  * Error thrown when the Resend API resolves with an error object instead of
  * throwing. Carries the Resend error name/statusCode so we can decide whether
@@ -194,11 +215,7 @@ export class EmailService {
         // The Resend SDK resolves to { data, error } and does NOT throw on
         // API-level failures, so an error object must be inspected explicitly.
         if (result.error) {
-          const err = result.error as {
-            message?: string;
-            name?: string;
-            statusCode?: number | null;
-          };
+          const err = resendErrorDetailsOf(result.error);
           throw new ResendSendError(
             err.message || `Resend returned an error sending ${kind} email`,
             err.name ?? "",

@@ -286,21 +286,4 @@ internal static class RustCoreMapping
         }
     }
 
-    /// <summary>
-    /// Read the server-detected language from a HW-Cloud success body. Empty -> null.
-    /// </summary>
-    internal static string? DetectedLanguage(HttpResponse response)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(response.@body);
-            if (doc.RootElement.TryGetProperty("language", out var langEl))
-            {
-                var lang = langEl.GetString()?.Trim();
-                return string.IsNullOrEmpty(lang) ? null : lang;
-            }
-        }
-        catch { }
-        return null;
-    }
 }

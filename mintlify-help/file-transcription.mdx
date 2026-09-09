@@ -47,7 +47,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
 
     ### Automatic WAV conversion for MAI-Transcribe
 
-    The **Microsoft MAI-Transcribe 1.5** engine on HyperWhisper Cloud accepts WAV, MP3, and FLAC only. macOS keeps your recordings as M4A, and it converts an imported video to M4A. The server thus refuses the upload.
+    The **Microsoft MAI-Transcribe** engine on HyperWhisper Cloud accepts WAV, MP3, and FLAC only. This applies to both of its models, **MAI-Transcribe 2** and **MAI-Transcribe 1.5**. macOS keeps your recordings as M4A, and it converts an imported video to M4A. The server thus refuses the upload.
 
     macOS repairs this for you. On the refusal, it converts the audio to a 16 kHz mono WAV and sends the audio one more time. It makes this second attempt one time only, and it deletes the temporary WAV file after the attempt. The conversion applies to dictation and to file transcription.
 
@@ -84,7 +84,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
       | OpenAI Whisper | 25 MB |
       | Google Gemini | 14 MB |
       | Google Gemini 3.5 Transcribe | 14 MB |
-      | Microsoft MAI-Transcribe 1.5 | 300 MB |
+      | Microsoft MAI-Transcribe (both models) | 300 MB |
       | Meta Muse Voice Transcribe | 32 MB and 10 minutes |
 
       A file that is larger than the server limit gets a "file too large" error from the server. The macOS app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
@@ -161,7 +161,7 @@ macOS sends the first file through the normal HyperWhisper Cloud path. If Meta r
       | OpenAI Whisper | 25 MB |
       | Google Gemini | 14 MB |
       | Google Gemini 3.5 Transcribe | 14 MB |
-      | Microsoft MAI-Transcribe 1.5 | 300 MB |
+      | Microsoft MAI-Transcribe (both models) | 300 MB |
       | Meta Muse Voice Transcribe | 32 MB and 10 minutes, after conversion |
 
       Windows checks the selected Cloud engine before the upload. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.

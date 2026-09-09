@@ -76,7 +76,7 @@ export async function getCountryFromIP(ip: string): Promise<string | null> {
     );
     if (!res.ok) return null;
 
-    const data = await res.json();
+    const data: unknown = await res.json();
 
     return countryNameOf(lookupEntry(data, ip));
   } catch {

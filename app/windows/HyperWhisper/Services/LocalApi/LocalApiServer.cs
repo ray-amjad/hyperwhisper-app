@@ -224,6 +224,7 @@ public sealed class LocalApiServer : INotifyPropertyChanged
             if (_app == null) return;
             var app = _app;
             _app = null;
+            // ast-grep-ignore: no-discarded-task-run -- this runs inside lock (_lifecycleLock); awaiting shutdown while holding the lock would block every other lifecycle call
             _ = Task.Run(async () =>
             {
                 try { await app.StopAsync(TimeSpan.FromSeconds(2)); } catch { /* shutting down */ }

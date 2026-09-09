@@ -167,6 +167,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Delete Selected</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>Выбрано записей: {0}</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
@@ -221,6 +224,9 @@
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
+  </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Это режим по умолчанию, поэтому его имя нельзя изменить. Любой другой режим можно переименовать.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
@@ -805,6 +811,9 @@
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>Транскрибация файла отменена</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1064,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Включить/выключить запись</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Отменить запись</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Сменить режим</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Нажмите здесь, а затем нужные клавиши</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Сочетания из одной клавиши-модификатора, таких как Ctrl, Alt, Shift или Win, не поддерживаются. Используйте клавишу с модификаторами или сочетание из нескольких модификаторов, например Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Это сочетание уже используется для действия «{0}» ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>Сочетание {0} состоит из одной клавиши-модификатора. Используйте клавишу с модификаторами или сочетание из нескольких модификаторов, например Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Сочетание {0} уже используется другим приложением. Выберите другую комбинацию.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>Сочетание {0} зарезервировано Windows и не может быть использовано.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Не удалось зарегистрировать сочетание {0} (ошибка Windows {1}). Попробуйте другую комбинацию.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Конфликт сочетаний клавиш</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Конфликт сочетания клавиш для потоковой передачи</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Открыть настройки сочетаний клавиш</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Изменить сочетание</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1661,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>Версия {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1682,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>Версия {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1796,10 +1835,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -1859,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>Потоковая передача</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>
@@ -2388,6 +2427,12 @@ You can re-download it later.</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Ключ проверен, кредиты подтверждены. Записи будут отправляться в HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Активируйте этот компьютер, чтобы завершить подключение к HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Этот компьютер активирован. Записи будут отправляться в HyperWhisper Cloud.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Активировать Cloud</value>

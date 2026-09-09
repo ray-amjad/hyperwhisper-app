@@ -167,6 +167,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Delete Selected</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>Επιλέχθηκαν {0} ηχογραφήσεις</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
@@ -221,6 +224,9 @@
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
+  </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Αυτή είναι η προεπιλεγμένη λειτουργία, επομένως το όνομά της δεν μπορεί να αλλάξει. Μπορείτε να μετονομάσετε οποιαδήποτε άλλη λειτουργία.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
@@ -805,6 +811,9 @@
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>Η μεταγραφή του αρχείου ακυρώθηκε</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1064,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Εναλλαγή εγγραφής</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Ακύρωση εγγραφής</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Αλλαγή λειτουργίας</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Κάντε κλικ και πατήστε τα πλήκτρα που θέλετε να χρησιμοποιήσετε</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Οι συντομεύσεις με ένα μόνο πλήκτρο τροποποίησης, όπως Ctrl, Alt, Shift ή Win, δεν υποστηρίζονται. Χρησιμοποιήστε ένα πλήκτρο με τροποποιητές ή μια συντόμευση με πολλούς τροποποιητές, όπως Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Αυτή η συντόμευση χρησιμοποιείται ήδη για {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>Η συντόμευση {0} χρησιμοποιεί ένα μόνο πλήκτρο τροποποίησης. Χρησιμοποιήστε ένα πλήκτρο με τροποποιητές ή μια συντόμευση με πολλούς τροποποιητές, όπως Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Η συντόμευση {0} χρησιμοποιείται ήδη από άλλη εφαρμογή. Επιλέξτε διαφορετικό συνδυασμό.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>Η συντόμευση {0} είναι δεσμευμένη από τα Windows και δεν μπορεί να χρησιμοποιηθεί.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Η καταχώριση της συντόμευσης {0} απέτυχε (σφάλμα Windows {1}). Δοκιμάστε διαφορετικό συνδυασμό.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Διένεξη συντομεύσεων</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Διένεξη συντόμευσης ροής</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Άνοιγμα ρυθμίσεων συντομεύσεων</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Αλλαγή συντόμευσης</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1661,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>Έκδοση {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1682,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>Έκδοση {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1796,10 +1835,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -1859,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>Ροή σε πραγματικό χρόνο</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>
@@ -2388,6 +2427,12 @@ You can re-download it later.</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Το κλειδί επαληθεύτηκε, οι πιστώσεις επιβεβαιώθηκαν. Οι εγγραφές θα πηγαίνουν στο HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Ενεργοποιήστε αυτόν τον υπολογιστή για να ολοκληρώσετε τη σύνδεση με το HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Αυτός ο υπολογιστής είναι ενεργοποιημένος. Οι εγγραφές θα πηγαίνουν στο HyperWhisper Cloud.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Ενεργοποίηση Cloud</value>

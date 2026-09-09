@@ -4,6 +4,7 @@ import {
   getAccountKeysByEmail,
   provisionAccountKeyForEmail,
 } from "@/src/lib/db-layer";
+import { isRecord } from "@/src/lib/type-guards";
 
 export async function POST(request: NextRequest) {
   // Validate internal secret
@@ -14,8 +15,8 @@ export async function POST(request: NextRequest) {
 
   let email: string;
   try {
-    const body = await request.json();
-    email = body?.email;
+    const body: unknown = await request.json();
+    email = isRecord(body) && typeof body.email === "string" ? body.email : "";
     if (!email || typeof email !== "string") {
       return NextResponse.json({ error: "email is required" }, { status: 400 });
     }

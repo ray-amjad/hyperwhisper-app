@@ -778,8 +778,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
 "modes.cloudAccuracy.geminiTranscribe.label" = "สูง (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe รองรับหลายภาษา พร้อมคำศัพท์ที่กำหนดเอง";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "สูง (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 ผ่าน Azure Speech รองรับ 43 ภาษา พร้อมการปรับตามบริบท";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "สูง (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe ผ่าน Azure Speech รองรับสูงสุด 60 ภาษา พร้อมการปรับตามบริบท";
 
 "modes.create.title" = "สร้างโหมดใหม่";
 "modes.create.subtitle" = "กำหนดค่าโปรไฟล์การสัญลักษณ์ที่กำหนดเอง";
@@ -794,6 +794,7 @@
 "modes.field.name" = "ชื่อ";
 "modes.field.name.placeholder" = "เช่น บันทึกการประชุม";
 "modes.field.name.editPlaceholder" = "ชื่อโหมด";
+"modes.field.name.defaultLocked" = "นี่คือโหมดเริ่มต้น จึงไม่สามารถเปลี่ยนชื่อได้ คุณสามารถเปลี่ยนชื่อโหมดอื่นได้";
 "modes.field.model" = "โมเดล";
 "modes.field.provider" = "ผู้ให้บริการ";
 "modes.provider.local" = "ท้องถิ่น";

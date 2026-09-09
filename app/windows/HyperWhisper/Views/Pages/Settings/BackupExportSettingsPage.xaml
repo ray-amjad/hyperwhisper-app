@@ -159,11 +159,18 @@
                 </StackPanel>
             </Border>
 
-            <!-- Info Notice -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <!-- Info Notice. Grid, not a horizontal StackPanel, for the reason given on
+                 StorageSettingsPage: Wrap never fires inside a horizontal StackPanel. This
+                 string fits on one line in English today and clips in a longer locale.
+                 Issue #503. -->
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                 <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Top" Margin="0,1,8,0"/>
-                <TextBlock Text="{loc:Loc settings.backup.notice}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-            </StackPanel>
+                <TextBlock x:Name="BackupNoticeText" Grid.Column="1" Text="{loc:Loc settings.backup.notice}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </Page>

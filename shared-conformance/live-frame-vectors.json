@@ -110,8 +110,25 @@
       "expect": { "kind": "finalTranscript", "text": "hello world" }
     },
     {
+      "name": "one-frame-carrying-a-final-and-the-completion-decodes-as-both",
+      "note": "THE STOP FRAME. Google answers `realtime_input.audio_stream_end` with ONE serverContent frame carrying the turn's committed text AND `generationComplete`, so a decoder that returns on the final never reaches its completion check and the stop handshake is left waiting for a message that will never come again. Costs the macOS/Windows/Linux heads a full `WaitForSessionComplete` timeout plus a Sentry report, and the cloud relay a 5 s stop-grace backstop before `session_complete` and its credit report reach the client. BOTH halves must be reported, final first. A decoder whose event vocabulary has no combined shape must emit two events in that order, never one.",
+      "frame": {
+        "serverContent": {
+          "inputTranscription": { "text": "hello world" },
+          "generationComplete": true
+        }
+      },
+      "expect": { "kind": "finalTranscriptAndComplete", "text": "hello world" }
+    },
+    {
       "name": "generation-complete-ends-the-session",
       "frame": { "serverContent": { "generationComplete": true } },
+      "expect": { "kind": "complete" }
+    },
+    {
+      "name": "a-false-generation-complete-does-not-mask-a-true-turn-complete",
+      "note": "The four completion spellings (`generationComplete` / `generation_complete` / `turnComplete` / `turn_complete`) are an OR, not first-present-wins. A decoder that picks the first key PRESENT reads `false` here and drops the completion, which is the stall above with a different trigger.",
+      "frame": { "serverContent": { "generationComplete": false, "turnComplete": true } },
       "expect": { "kind": "complete" }
     },
     {

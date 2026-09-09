@@ -1,0 +1,110 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- HyperWhisper palette, ported from app/windows/HyperWhisper/Themes/{Light,Dark}Colors.xaml.
+       The Windows values carry an alpha channel because WPF composites them over the window
+       chrome. Avalonia paints these brushes directly onto opaque page surfaces, so every
+       surface colour here is fully opaque. A translucent card reads as a rendering fault. -->
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+      <Color x:Key="SystemAccentColor">#0A84FF</Color>
+      <Color x:Key="HwAccent">#007AFF</Color>
+      <Color x:Key="HwAccentHover">#0A84FF</Color>
+      <Color x:Key="HwAccentPressed">#0066D6</Color>
+      <Color x:Key="HwOnAccent">#FFFFFF</Color>
+
+      <Color x:Key="HwSidebarBackground">#EDEEF1</Color>
+      <!-- The empty-state glyph is drawn DARKER than the panel it sits on, the way Windows
+           draws it (#111112 over the dark list panel), not lighter. -->
+      <Color x:Key="HwEmptyGlyph">#DCDDE1</Color>
+      <Color x:Key="HwContentBackground">#F5F5F7</Color>
+      <Color x:Key="HwCardBackground">#FCFCFD</Color>
+      <Color x:Key="HwInputBackground">#FDFDFE</Color>
+      <Color x:Key="HwHoverBackground">#E4E6EA</Color>
+      <Color x:Key="HwSelectedBackground">#D9E9FF</Color>
+      <Color x:Key="HwBorder">#D8DAE0</Color>
+      <Color x:Key="HwDivider">#252529</Color>
+      <Color x:Key="HwSubtleBorder">#E6E8EC</Color>
+
+      <Color x:Key="HwTextPrimary">#1D1D1F</Color>
+      <Color x:Key="HwTextSecondary">#6E6E73</Color>
+      <Color x:Key="HwTextTertiary">#A1A1A6</Color>
+
+      <Color x:Key="HwSuccess">#34C759</Color>
+      <Color x:Key="HwWarning">#FF9500</Color>
+      <Color x:Key="HwError">#FF3B30</Color>
+      <Color x:Key="HwWarningBackground">#FFF3CD</Color>
+      <Color x:Key="HwWarningForeground">#856404</Color>
+      <Color x:Key="HwWarningBorder">#FFEEBA</Color>
+      <Color x:Key="HwErrorBackground">#F8D7DA</Color>
+      <Color x:Key="HwErrorForeground">#721C24</Color>
+      <Color x:Key="HwSuccessBackground">#D4EDDA</Color>
+      <Color x:Key="HwSuccessForeground">#155724</Color>
+      <Color x:Key="HwScrim">#66000000</Color>
+      <!-- The grey pill behind a model tag and a filter chip, from LightColors.xaml. -->
+      <Color x:Key="HwBadgeGrayBackground">#F5F5F5</Color>
+      <Color x:Key="HwBadgeGrayForeground">#616161</Color>
+      <!-- The inline post-processing segment on a mode card. -->
+      <Color x:Key="HwPostProcessing">#AF52DE</Color>
+      <!-- History status pills, the info badge behind a post-processing provider, the 1px rule
+           on an error surface and the tint a Delete button takes on hover. All four are copied
+           from app/windows/HyperWhisper/Themes/LightColors.xaml. -->
+      <Color x:Key="HwProcessing">#5856D6</Color>
+      <Color x:Key="HwInfoBackground">#E8F4FD</Color>
+      <Color x:Key="HwInfoForeground">#0D6EFD</Color>
+      <Color x:Key="HwInfoBorder">#B8DAFF</Color>
+      <Color x:Key="HwErrorBorder">#F5C6CB</Color>
+      <Color x:Key="HwDeleteHoverBackground">#FFEBEE</Color>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <Color x:Key="SystemAccentColor">#0A84FF</Color>
+      <Color x:Key="HwAccent">#0A84FF</Color>
+      <Color x:Key="HwAccentHover">#2997FF</Color>
+      <Color x:Key="HwAccentPressed">#006EDB</Color>
+      <Color x:Key="HwOnAccent">#FFFFFF</Color>
+
+      <!-- Windows' SidebarBackground is #E6222326, so the RGB to match is 222326. -->
+      <Color x:Key="HwSidebarBackground">#222326</Color>
+      <Color x:Key="HwEmptyGlyph">#111112</Color>
+      <Color x:Key="HwContentBackground">#151517</Color>
+      <Color x:Key="HwCardBackground">#1D1D1F</Color>
+      <Color x:Key="HwInputBackground">#242428</Color>
+      <Color x:Key="HwHoverBackground">#303035</Color>
+      <Color x:Key="HwSelectedBackground">#183D66</Color>
+      <!-- Windows' BorderColor is #B034343A: an ARGB with alpha B0 that WPF composites over
+           whatever is beneath it, so a card outline lands on #2B2B2F over the page and slightly
+           lighter over a card. The opaque #34343A used here before read too light on every box
+           edge. Keep the alpha so the composite matches Windows on both surfaces. -->
+      <Color x:Key="HwBorder">#B034343A</Color>
+      <!-- The remote's separate divider tone, for the flat 1px rules between rows. -->
+      <Color x:Key="HwDivider">#252529</Color>
+      <Color x:Key="HwSubtleBorder">#26262B</Color>
+
+      <Color x:Key="HwTextPrimary">#F5F5F7</Color>
+      <Color x:Key="HwTextSecondary">#A1A1A6</Color>
+      <Color x:Key="HwTextTertiary">#6E6E73</Color>
+
+      <Color x:Key="HwSuccess">#30D158</Color>
+      <Color x:Key="HwWarning">#FF9F0A</Color>
+      <Color x:Key="HwError">#FF453A</Color>
+      <Color x:Key="HwWarningBackground">#4D3800</Color>
+      <Color x:Key="HwWarningForeground">#FFD666</Color>
+      <Color x:Key="HwWarningBorder">#665200</Color>
+      <Color x:Key="HwErrorBackground">#4D1F24</Color>
+      <Color x:Key="HwErrorForeground">#FF8A8A</Color>
+      <Color x:Key="HwSuccessBackground">#1A3D24</Color>
+      <Color x:Key="HwSuccessForeground">#7DD694</Color>
+      <Color x:Key="HwScrim">#99000000</Color>
+      <Color x:Key="HwBadgeGrayBackground">#3A3A3C</Color>
+      <Color x:Key="HwBadgeGrayForeground">#AEAEB2</Color>
+      <Color x:Key="HwPostProcessing">#AF52DE</Color>
+      <Color x:Key="HwProcessing">#5E5CE6</Color>
+      <Color x:Key="HwInfoBackground">#0D3A5C</Color>
+      <Color x:Key="HwInfoForeground">#6DB3F2</Color>
+      <Color x:Key="HwInfoBorder">#1A5A8A</Color>
+      <Color x:Key="HwErrorBorder">#662A30</Color>
+      <Color x:Key="HwDeleteHoverBackground">#4D1F24</Color>
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

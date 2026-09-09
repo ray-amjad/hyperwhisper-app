@@ -434,6 +434,60 @@ final class OnboardingFlowModel: ObservableObject {
     private var previousOpenDeviceID: String?
     /// The guarded commit boundary (bug 3). Flipped false the moment the flow is
     /// finished, so a late async completion can never write onboarding state.
+    ///
+    /// #321 widened that from late RESULTS to late ENTRIES, because both exits run
+    /// before the sheet is dismissed — `setUpLater()` and the Done button each call
+    /// into this model and only then set `isPresented = false` — so every control
+    /// stays hit-testable through the dismissal animation and a second click still
+    /// lands on a live button.
+    ///
+    /// The invariant, stated so it can be checked: once `isLive` is false, no entry
+    /// point on this model may move the step machine, reach a dependency that
+    /// writes state outside this model, or start new work. It is enforced by a
+    /// `guard isLive` at the top of each such method, each carrying the reason that
+    /// applies to it and nothing more.
+    ///
+    /// The list of those methods is deliberately NOT restated here. It exists once,
+    /// as executable code, in `Harness.callEveryGuardedEntryPoint` in
+    /// `OnboardingFlowModelTests.swift`, which `OnboardingPostFinishInvariantTests`
+    /// sweeps through both exits against every fake. Adding a `guard isLive` to a
+    /// method here without adding it to that list fails
+    /// `everyEntryGuardInTheModelIsSweptHere`, which counts the guards in this file.
+    /// So: add the guard, add the line, and let the sweep prove it.
+    ///
+    /// The invariant is about METHODS. `licenseKeyInput`, `apiKeyInput` and
+    /// `permissionErrorMessage` are publicly settable and have `didSet` side
+    /// effects, and they are not guarded: a keystroke landing during the dismissal
+    /// animation still runs `invalidateProviderValidation()`. That is allowed
+    /// because those writes never leave this model, but it is a gap in the wording
+    /// "no entry point", not something the sweep covers.
+    ///
+    /// Three deliberate exclusions, each with a reason of its own:
+    ///
+    /// - Release hooks — `endMicrophoneStep()`, `endTryItStep()`. `.onDisappear`
+    ///   fires AFTER `finish()`, and these are the microphone's backstop. Guarding
+    ///   them would strand an open device or a running test recording, which is the
+    ///   exact failure the guards exist to prevent. Hence the rule: `begin*` is
+    ///   guarded, `end*` never is.
+    /// - Staged selection — `select(source:)`, `select(model:)`, `select(provider:)`,
+    ///   `resetConfigureTestResults()`. These write in-memory flow state only.
+    ///   Nothing turns staging into a production write except `advance()` (via
+    ///   `stepDidChange()`) and `complete()`, and both are guarded, so a stale
+    ///   selection made after the exit can never reach the user's configuration.
+    /// - Mirrors of system state — `refreshPermissions()`, `refreshDeviceOptions()`.
+    ///   They copy the OS's permission and device state into published properties.
+    ///   `refreshPermissions()` also runs from `init`, before `isLive` could be
+    ///   anything but true, and neither leaves behind anything a rollback would
+    ///   have to undo.
+    ///
+    /// Note what `finish()` does NOT do: it flips this flag, cancels the tracked
+    /// tasks, stops audio, marks completion and returns home. It does not clear
+    /// `restorePoint`, `providerKeyRestorePoints` or `didCaptureDevice`. Those are
+    /// cleared by `complete()` (the writes are now permanent) and consumed by
+    /// `rollback()` (the writes are being undone), in both cases BEFORE `finish()`
+    /// is called. A third exit must therefore go through `complete()` or
+    /// `deferSetup()` and must never call `finish()` directly: doing so would leave
+    /// production state written, `isLive` false, and no path left to restore it.
     private var isLive = true
 
     private enum TaskKey {
@@ -517,6 +571,10 @@ final class OnboardingFlowModel: ObservableObject {
     /// The microphone row's action. The OS refuses to re-prompt after a denial,
     /// so anything other than "undetermined" deep links System Settings.
     func handleMicrophoneAction() {
+        // #321: the footer and the rows stay hit-testable through the sheet's
+        // dismissal animation, so a late click must not put a system prompt or
+        // System Settings on screen for a flow that has already gone home.
+        guard isLive else { return }
         switch permissions.microphoneAuthorization {
         case .undetermined:
             requestMicrophonePermission()
@@ -526,6 +584,19 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func requestMicrophonePermission() {
+        // #321: guarded on its own as well as through `handleMicrophoneAction()`,
+        // because it is a public entry point in its own right. Without it, a call
+        // landing after the exit puts a system permission prompt on screen for a
+        // flow that has already gone home, and the answer arrives for a sheet the
+        // user closed.
+        //
+        // What it is NOT about: there is no taskBox key to leak either way.
+        // `finish()` calls `taskBox.cancelAll()`, which empties the dictionary
+        // BEFORE cancelling, so a continuation that returns at the inner check
+        // below — before `taskBox.clear` — has nothing left to clear. Do not add
+        // cleanup for that, and do not move the `clear` above the `isLive` check:
+        // that would reopen the late-write path this guard exists to close.
+        guard isLive else { return }
         let task = Task { [weak self] in
             guard let self else { return }
             let granted = await self.permissions.requestMicrophonePermission()
@@ -541,6 +612,17 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func handleAccessibilityAction() {
+        // #321: `waitForAccessibilityPermission` appends to a completion list and
+        // unconditionally restarts a deadline that AccessibilityHelper shares with
+        // its other consumers, so a poll STARTED after the exit would outlive the
+        // sheet and hold that shared timer open.
+        //
+        // Scope, stated so nobody over-reads it: that is all this guard does. A
+        // poll started while the flow was live is never `track()`ed into
+        // `taskBox`, so `finish()`'s `cancelAll()` does not reach it and it still
+        // runs to its own deadline after the sheet is gone. That gap is older than
+        // #321 and is not closed here.
+        guard isLive else { return }
         permissions.openAccessibilitySettings()
         isPollingForAccessibility = true
         permissions.waitForAccessibilityPermission { [weak self] granted in
@@ -618,6 +700,10 @@ final class OnboardingFlowModel: ObservableObject {
 
     /// Read only license check. Account state is untouched until activation.
     func testAccessKey() {
+        // #321: refuse a probe STARTED after the exit. The inner check below only
+        // drops the result; the key would still have gone out over the wire for a
+        // flow the user closed.
+        guard isLive else { return }
         let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         isTestingKey = true
@@ -652,6 +738,10 @@ final class OnboardingFlowModel: ObservableObject {
     /// Probe the candidate key, then accept it only once the Keychain confirms
     /// the write. A passing network round trip on its own is not a pass.
     func testProviderKey() {
+        // #321: same reason as `testAccessKey()`. The inner check does stop the
+        // Keychain write, but only after the candidate key has already been sent
+        // to the provider on behalf of a flow that no longer exists.
+        guard isLive else { return }
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         let provider = selectedProvider
@@ -706,6 +796,10 @@ final class OnboardingFlowModel: ObservableObject {
     func isInstalled(_ model: OnboardingModelSelection) -> Bool { catalog.isInstalled(model) }
 
     func startSelectedModelDownload() {
+        // #321: `finish()` has already called `returnToHome()`, so a transfer
+        // started here runs with no surface left showing its progress or offering
+        // to cancel it.
+        guard isLive else { return }
         guard let model = selectedModel else { return }
         catalog.startDownload(model)
         refreshSetupError()
@@ -739,6 +833,10 @@ final class OnboardingFlowModel: ObservableObject {
     /// the user's single explicit action, so entitlement stays server enforced;
     /// nothing here shortcuts or fakes it.
     func activateCloudLicense() {
+        // #321: refuse a NEW activation started after the sheet exited. The inner
+        // check below covers an in-flight result landing late; this one covers the
+        // call that would reach `license.activate` in the first place.
+        guard isLive else { return }
         let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty, !isActivatingLicense else { return }
         isActivatingLicense = true
@@ -757,6 +855,10 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func saveProviderKey() {
+        // #321: a Keychain write after the flow closed is permanent. The capture
+        // below would still record a restore point, but both exits have already
+        // emptied `providerKeyRestorePoints`, so nothing would ever consume it.
+        guard isLive else { return }
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         captureProviderKeyRestorePoint(for: selectedProvider)
@@ -799,6 +901,17 @@ final class OnboardingFlowModel: ObservableObject {
     // MARK: - Microphone step
 
     func beginMicrophoneStep() {
+        // #321: this re-OPENS the input device. `finish()` has just called
+        // `stopInputLevelPreview()`; `startInputLevelPreview()` below starts it
+        // again, so a re-entry after the exit leaves the microphone live behind a
+        // sheet the user already closed.
+        //
+        // Precisely NOT the reason: it does not undo `deferSetup()`'s device
+        // restore. Nothing here calls `selectDevice`, so the preview reopens on
+        // whatever `rollback()` restored, not on the onboarding pick. The `end`
+        // counterpart below is deliberately NOT guarded — it is the release, and
+        // it is what closes the device again on `.onDisappear`.
+        guard isLive else { return }
         audio.refreshDevices()
         audio.refreshMicrophonePermission()
         refreshDeviceOptions()
@@ -821,6 +934,10 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func selectDevice(id: String) {
+        // #321: the input device reaches SettingsManager immediately, and the
+        // capture flag below is cleared by `complete()`, so a late pick would be
+        // permanent.
+        guard isLive else { return }
         // A device can vanish between the menu being built and the pick landing.
         // Rejecting it here keeps a disconnected microphone out of the UI
         // selection and, more importantly, stops it from flipping the pending
@@ -850,6 +967,9 @@ final class OnboardingFlowModel: ObservableObject {
     // MARK: - Try it step
 
     func beginTryItStep() {
+        // #321: step-ENTRY hooks are guarded, step-EXIT hooks never are. See
+        // `endTryItStep()` immediately below.
+        guard isLive else { return }
         audio.clearTranscript()
     }
 
@@ -859,6 +979,9 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func toggleTestRecording() {
+        // #321: `finish()` already called `stopRecordingForExit()`, so a toggle
+        // after it would START a recording with no sheet left to stop it.
+        guard isLive else { return }
         audio.toggleTestRecording()
     }
 
@@ -953,6 +1076,12 @@ final class OnboardingFlowModel: ObservableObject {
 
     @discardableResult
     func advance() -> Bool {
+        // #321: kept separate from the gate below, because the reason differs.
+        // Stepping into `.tryIt` after completion runs `applyStagedSourceReversibly()`
+        // against a `restorePoint` that `complete()` already cleared, capturing a
+        // fresh one nobody will ever restore. `false` reads the same as always
+        // here: the user did not move forward.
+        guard isLive else { return false }
         guard canContinue,
               let next = OnboardingStep(rawValue: step.rawValue + 1) else { return false }
         // #315: the setup gate is positional, so a source that died after the
@@ -970,6 +1099,14 @@ final class OnboardingFlowModel: ObservableObject {
 
     @discardableResult
     func back() -> Bool {
+        // #321: `setUpLater()` runs the exit and only THEN clears `isPresented`, so
+        // the footer stays hit-testable through the dismissal animation, and Back
+        // carries no liveness gate of its own (`showsBack: flow.step != .welcome`).
+        // The stage is keyed on `.id(flow.step)`, so moving the step machine here
+        // remounts a step view and fires its `.onAppear` against a dead flow —
+        // which for `.microphone` runs `beginMicrophoneStep()` and re-opens the
+        // input device `finish()` just closed.
+        guard isLive else { return false }
         guard let previous = OnboardingStep(rawValue: step.rawValue - 1) else { return false }
         step = previous
         return true

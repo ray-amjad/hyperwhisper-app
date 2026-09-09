@@ -103,8 +103,13 @@ extension AccessibilityHelper {
             // Resolve the captured target PID (if any) to a running app exactly once,
             // then validate it against the bundle ID captured at record-start to guard
             // against PID reuse (see this method's doc comment).
-            let capturedApp = self.resolveCapturedTarget(pid: previousAppPID,
-                                                         expectedBundleID: previousAppBundleID)
+            let capturedApp = MainActorHangTrace.shared.withActive(
+                flow: .autoPaste,
+                step: .resolveTarget
+            ) {
+                self.resolveCapturedTarget(pid: previousAppPID,
+                                           expectedBundleID: previousAppBundleID)
+            }
             // True when we captured a distinct target PID but it is no longer running
             // (the app quit mid-recording) OR the resolved app failed bundle-ID
             // validation (PID reuse). In that case we never know which app is
@@ -115,8 +120,10 @@ extension AccessibilityHelper {
             if let app = capturedApp {
                 targetBundleID = app.bundleIdentifier
                 attempt.targetBundleID = targetBundleID ?? previousAppBundleID
-                logger.info("🔄 Reactivating previous app: \(targetBundleID ?? "unknown", privacy: .public)")
-                app.activate(options: [.activateIgnoringOtherApps])
+                logger.info("🔄 Reactivating captured paste target")
+                MainActorHangTrace.shared.withActive(flow: .autoPaste, step: .activateTarget) {
+                    app.activate(options: [.activateIgnoringOtherApps])
+                }
                 targetHandled = true
 
                 // Non-blocking delay using Task.sleep
@@ -138,12 +145,18 @@ extension AccessibilityHelper {
                     return .failed(CancellationError())
                 }
             } else if previousAppPID == nil,
-                      let front = NSWorkspace.shared.frontmostApplication,
+                      let front = MainActorHangTrace.shared.withActive(
+                          flow: .autoPaste,
+                          step: .inspectFrontmostApp,
+                          { NSWorkspace.shared.frontmostApplication }
+                      ),
                       front.bundleIdentifier == Bundle.main.bundleIdentifier {
                 // We never captured a distinct target (e.g. HyperWhisper itself was
                 // frontmost when recording started). Hiding our own app brings the
                 // app behind it forward as the intended paste target.
-                NSApp.hide(nil)
+                MainActorHangTrace.shared.withActive(flow: .autoPaste, step: .activateTarget) {
+                    NSApp.hide(nil)
+                }
                 targetHandled = true
 
                 if Task.isCancelled {
@@ -154,7 +167,11 @@ extension AccessibilityHelper {
                 // Hiding our own app brought the app behind it forward. Name it
                 // now that the 120ms settle is over, so this branch's reports
                 // are not filed under an "unknown" target.
-                attempt.targetBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+                attempt.targetBundleID = MainActorHangTrace.shared.withActive(
+                    flow: .autoPaste,
+                    step: .inspectFrontmostApp,
+                    { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+                )
                 if Task.isCancelled {
                     self.reportPasteOutcome(.cancelled, attempt: attempt)
                     return .failed(CancellationError())
@@ -174,9 +191,16 @@ extension AccessibilityHelper {
             //    unknown third-party app is frontmost.
             // In either case, pasting would leak the transcript into the wrong app, so
             // refuse and leave the text on the clipboard.
-            if capturedTargetLost ||
-               (!targetHandled &&
-                NSWorkspace.shared.frontmostApplication?.bundleIdentifier != Bundle.main.bundleIdentifier) {
+            var unknownFrontmostTarget = false
+            if !capturedTargetLost && !targetHandled {
+                let frontmostBundleID = MainActorHangTrace.shared.withActive(
+                    flow: .autoPaste,
+                    step: .inspectFrontmostApp,
+                    { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+                )
+                unknownFrontmostTarget = frontmostBundleID != Bundle.main.bundleIdentifier
+            }
+            if capturedTargetLost || unknownFrontmostTarget {
                 logger.warning("⚠️ Captured paste target is gone or a different app is frontmost — refusing auto-paste. Text left on clipboard.")
                 copyToClipboard(text)
                 scheduleClipboardRestoration(settings: settings)
@@ -197,7 +221,11 @@ extension AccessibilityHelper {
             copyToClipboard(text, skipConcealedType: isRemoteDesktop)
 
             // Check for secure field
-            if isSecureFieldFocused() {
+            if MainActorHangTrace.shared.withActive(
+                flow: .autoPaste,
+                step: .inspectFocusedElement,
+                { self.isSecureFieldFocused() }
+            ) {
                 logger.info("🔒 Secure field focused. Skipping auto-paste for safety.")
                 scheduleClipboardRestoration(settings: settings)
                 self.reportPasteOutcome(.secureField, attempt: attempt)
@@ -205,7 +233,11 @@ extension AccessibilityHelper {
             }
 
             // Check if we can paste, with a short retry for Electron/Slack
-            if !canPasteIntoFocusedElement() {
+            if !MainActorHangTrace.shared.withActive(
+                flow: .autoPaste,
+                step: .inspectFocusedElement,
+                { self.canPasteIntoFocusedElement() }
+            ) {
                 if let bid = targetBundleID, (isElectronCodeEditor(bid) || bid == "com.tinyspeck.slackmacgap") {
                     attempt.usedFocusRetry = true
                     if Task.isCancelled {
@@ -218,7 +250,11 @@ extension AccessibilityHelper {
                         return .failed(CancellationError())
                     }
 
-                    if canPasteIntoFocusedElement() {
+                    if MainActorHangTrace.shared.withActive(
+                        flow: .autoPaste,
+                        step: .inspectFocusedElement,
+                        { self.canPasteIntoFocusedElement() }
+                    ) {
                         attempt.focusRetrySucceeded = true
                         logger.info("✅ Focus became ready after short retry")
                     } else {
@@ -227,7 +263,11 @@ extension AccessibilityHelper {
                 }
             }
 
-            if !canPasteIntoFocusedElement() {
+            if !MainActorHangTrace.shared.withActive(
+                flow: .autoPaste,
+                step: .inspectFocusedElement,
+                { self.canPasteIntoFocusedElement() }
+            ) {
                 logger.info("ℹ️ No paste target focused. Text on clipboard, scheduling restoration if enabled.")
                 scheduleClipboardRestoration(settings: settings)
                 self.reportPasteOutcome(.noFocusedField, attempt: attempt)
@@ -247,7 +287,11 @@ extension AccessibilityHelper {
             }
 
             // Try to paste
-            let pasteSucceeded = sendPasteCommand()
+            let pasteSucceeded = MainActorHangTrace.shared.withActive(
+                flow: .autoPaste,
+                step: .sendPasteCommand,
+                { self.sendPasteCommand() }
+            )
             if !pasteSucceeded {
                 // Always schedule restoration even on failure
                 scheduleClipboardRestoration(settings: settings)
@@ -263,7 +307,11 @@ extension AccessibilityHelper {
                     failureOutcome = .suppressed
                 } else if !AXIsProcessTrusted() {
                     failureOutcome = .noAccessibilityPermission
-                } else if !canPasteIntoFocusedElement() {
+                } else if !MainActorHangTrace.shared.withActive(
+                    flow: .autoPaste,
+                    step: .inspectFocusedElement,
+                    { self.canPasteIntoFocusedElement() }
+                ) {
                     failureOutcome = .noFocusedField
                 } else {
                     failureOutcome = .commandFailed
@@ -319,8 +367,7 @@ extension AccessibilityHelper {
         // behaviour, so we never break paste for callers that captured no expectation.
         if let expected = expectedBundleID,
            resolved.bundleIdentifier != expected {
-            let actual = resolved.bundleIdentifier ?? "<nil>"
-            logger.warning("⚠️ Captured paste target PID resolved to \(actual, privacy: .public) but expected \(expected, privacy: .public) — likely PID reuse. Treating target as lost.")
+            logger.warning("⚠️ Captured paste target identity did not match — likely PID reuse. Treating target as lost.")
             return nil
         }
         return resolved

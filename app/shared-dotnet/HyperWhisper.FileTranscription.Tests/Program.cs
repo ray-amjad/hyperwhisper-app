@@ -10,6 +10,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("invalid duration is rejected before downstream work", InvalidDurationGate),
     ("cloud credentials and models fail before metadata", CloudReadinessPrecedesMetadata),
     ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
+    ("Azure MAI file transcription accepts both models", AzureMaiAcceptsBothModels),
     ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
     ("Meta Muse converts portable non-WAV and incompatible WAV inputs", MetaMuseNormalization),
     ("Meta Muse enforces limits on the normalized WAV", MetaMuseNormalizedLimits),
@@ -43,7 +44,11 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.Soniox, "stt-async-v5", 1L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Gemini, "gemini-2.5-flash", 2L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Grok, "", 500L * ByteSizes.MiB, false),
-        new ProviderLimit(CloudTranscriptionProvider.AzureMai, "mai-transcribe-1.5", 300L * ByteSizes.MiB, true),
+        // The default model only — the loop below sends an EMPTY model id and
+        // asserts it resolves to `item.Model`, so a second row here would claim
+        // 1.5 is also the default. 1.5 is still accepted; that is asserted
+        // separately in AzureMaiAcceptsBothModels.
+        new ProviderLimit(CloudTranscriptionProvider.AzureMai, "mai-transcribe-2", 300L * ByteSizes.MiB, true),
         new ProviderLimit(CloudTranscriptionProvider.GoogleChirp, "chirp_3", 9_500_000L, true),
         new ProviderLimit(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", 14L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 2L * ByteSizes.GiB, true, "deepgramNova3"),
@@ -88,6 +93,28 @@ static async Task CloudByteLimits()
             "recording.wav", new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider, CloudCatalogTier: item.Tier));
         AssertCode(result, "file_preflight.file_too_large");
     }
+}
+
+// The allow-list is the whole gate on every .NET head: before MAI-Transcribe-2
+// was added to it, selecting v2 in the Mode editor made file transcription fail
+// with `file_preflight.model_unsupported` while dictation on the same mode
+// worked. Both ids must be accepted, and an id neither model uses must not be.
+static async Task AzureMaiAcceptsBothModels()
+{
+    var metadata = new FakeMetadata { Value = new(1024, TimeSpan.FromSeconds(1)) };
+    foreach (var model in new[] { "mai-transcribe-2", "mai-transcribe-1.5" })
+    {
+        var result = await Service(metadata, account: true).ValidateAsync(
+            "recording.wav",
+            new(FileTranscriptionRoute.Cloud, model, CloudProvider: CloudTranscriptionProvider.AzureMai));
+        Assert(result.IsSuccess && result.ResolvedModel == model,
+            $"Azure MAI file transcription rejected '{model}'");
+    }
+
+    AssertCode(await Service(new FakeMetadata { Value = metadata.Value }, account: true).ValidateAsync(
+        "recording.wav",
+        new(FileTranscriptionRoute.Cloud, "mai-transcribe-3", CloudProvider: CloudTranscriptionProvider.AzureMai)),
+        "file_preflight.model_unsupported");
 }
 
 static async Task HyperWhisperGuestReadiness()

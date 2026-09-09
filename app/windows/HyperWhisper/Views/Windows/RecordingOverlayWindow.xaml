@@ -74,12 +74,20 @@
                                  Fill="{DynamicResource SuccessBrush}"
                                  Visibility="Collapsed"
                                  Margin="0,0,4,0"/>
+                        <!-- Bounded like the identically 200-wide ModeChangeToastWindow's
+                             badge. SetModeName takes the mode name verbatim, this window
+                             cannot resize, and the waveform is the star column next door:
+                             an untrimmed name eats the whole 200 and WaveformCanvas
+                             measures 0, at which point the render loop bails and the
+                             waveform is gone for the entire recording. -->
                         <TextBlock x:Name="ModeBadge"
                                    Text="Hyper"
                                    Foreground="#E6FFFFFF"
                                    FontSize="9"
                                    FontWeight="Medium"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="64"/>
                     </StackPanel>
                 </Border>
 

@@ -223,9 +223,17 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
     /// <param name="forceRefresh">If true, bypasses cache and fetches fresh data.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Credit balance, or null on error.</returns>
+    /// <param name="licenseKeyOverride">
+    /// A key that has been verified this session but is NOT yet stored. Onboarding probes a key
+    /// before it activates it, and until activation <see cref="LicenseManager.GetTranscriptionIdentifier"/>
+    /// answers with the device id, so the balance for the key the user just typed could not be
+    /// read at all and the panel stayed on its placeholder. Server-side entitlement is unchanged:
+    /// this only chooses which identifier the usage endpoint is asked about.
+    /// </param>
     public async Task<HyperWhisperCloudCredits?> FetchCreditsAsync(
         bool forceRefresh = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? licenseKeyOverride = null)
     {
         // STEP 1: Check cache (unless force refresh requested)
         if (!forceRefresh && IsCacheValid())
@@ -249,7 +257,9 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
             LoggingService.Info("HyperWhisperCloudManager: Fetching credits...");
 
             // STEP 3: Build request URL with identifier
-            var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
+            var (identifier, isLicensed) = string.IsNullOrWhiteSpace(licenseKeyOverride)
+                ? LicenseManager.Instance.GetTranscriptionIdentifier()
+                : (licenseKeyOverride.Trim(), true);
             var url = $"{NetworkConfig.UsageEndpoint}?identifier={Uri.EscapeDataString(identifier)}";
 
             // Add force_refresh parameter if requested (bypasses server-side cache)

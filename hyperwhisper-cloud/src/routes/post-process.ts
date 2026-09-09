@@ -10,7 +10,7 @@ import { buildCorrectionRequest } from '../providers/groq-llm';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
-import { validateAuth } from '../middleware/auth';
+import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { logEvent } from '../lib/logging';
 import { evaluateCompletionResponse } from '../lib/llm-completion';
@@ -25,24 +25,6 @@ interface PostProcessBody {
   // installed native apps still send. Either is accepted.
   account_key?: string;
   license_key?: string;
-}
-
-// Per-provider primary retry count. Fast/cheap providers retry more; pricier or
-// slower ones retry less to bound latency and spend before falling back.
-function retriesFor(provider: LLMProvider): number {
-  switch (provider) {
-    case 'anthropic': return 2;
-    case 'cerebras': return 0;
-    case 'grok': return 1;
-    case 'openai': return 1;
-    case 'gemini': return 2;
-    case 'mistral': return 2;
-    case 'groq': return 3;
-  }
-  // Exhaustiveness guard: if a new LLMProvider is added to the union without a
-  // case above, TypeScript flags this assignment.
-  const _exhaustive: never = provider;
-  throw new Error(`Unhandled LLM provider: ${String(_exhaustive)}`);
 }
 
 function rawResponseLength(raw: unknown): number | undefined {
@@ -114,10 +96,13 @@ export async function postProcessRoute(c: Context) {
     licenseKey: body.account_key || body.license_key,
   });
   if (!authResult.ok) {
-    logEvent(requestId, startTime, 'post_process.request_rejected', { reason: 'auth_failed' });
+    logEvent(requestId, startTime, 'post_process.request_rejected', {
+      reason: 'auth_failed',
+      ...authDiagnosticsForLog(authResult.diagnostics),
+    });
     return authResult.response;
   }
-  logEvent(requestId, startTime, 'post_process.auth_done');
+  logEvent(requestId, startTime, 'post_process.auth_done', authDiagnosticsForLog(authResult.diagnostics));
 
   const creditCheck = await validateCredits(authResult.value, ESTIMATED_POST_PROCESS_CREDITS, clientIP);
   if (!creditCheck.ok) {
@@ -140,8 +125,7 @@ export async function postProcessRoute(c: Context) {
   logEvent(requestId, startTime, 'post_process.llm_attempt_start', { provider, attempt: 1 });
 
   try {
-    const primaryRetries = retriesFor(provider);
-    llmResponse = await callWithRetry(provider, payload, requestId, primaryRetries, model);
+    llmResponse = await callWithRetry(provider, payload, requestId, model);
   } catch (error) {
     logEvent(requestId, startTime, 'post_process.llm_attempt_fail', {
       provider,
@@ -152,12 +136,11 @@ export async function postProcessRoute(c: Context) {
     if (shouldFallback(error)) {
       providerUsed = fallbackProviderFor(provider);
       modelUsed = defaultModelFor(providerUsed);
-      const fallbackRetries = retriesFor(providerUsed);
 
       logEvent(requestId, startTime, 'post_process.llm_fallback_start', { requestedProvider: provider, provider: providerUsed });
 
       try {
-        llmResponse = await callWithRetry(providerUsed, payload, requestId, fallbackRetries, modelUsed);
+        llmResponse = await callWithRetry(providerUsed, payload, requestId, modelUsed);
       } catch (fallbackError) {
         logEvent(requestId, startTime, 'post_process.request_fail', {
           reason: 'llm_fallback_failed',
@@ -201,13 +184,12 @@ export async function postProcessRoute(c: Context) {
       });
 
       const alternateProvider: LLMProvider = fallbackProviderFor(providerUsed);
-      const alternateRetries = retriesFor(alternateProvider);
 
       logEvent(requestId, startTime, 'post_process.llm_leakage_retry_start', { requestedProvider: providerUsed, provider: alternateProvider });
 
       try {
         const alternateModel = defaultModelFor(alternateProvider);
-        const retryResponse = await callWithRetry(alternateProvider, payload, requestId, alternateRetries, alternateModel);
+        const retryResponse = await callWithRetry(alternateProvider, payload, requestId, alternateModel);
 
         // Bill the retry the moment it succeeds, before any evaluation step
         // below can throw — otherwise a successful (and billed-by-the-provider)

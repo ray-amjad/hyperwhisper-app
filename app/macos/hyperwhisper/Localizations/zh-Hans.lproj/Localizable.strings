@@ -784,8 +784,8 @@
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高准确度但更慢，适合重要转写。";
 "modes.cloudAccuracy.geminiTranscribe.label" = "高（Google Gemini 3.5 Transcribe）";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。支持多语言和自定义词汇。";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe 1.5）";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "通过 Azure Speech 使用 Microsoft MAI-Transcribe 1.5。支持 43 种语言，并具备上下文偏置。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe）";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "通过 Azure Speech 使用 Microsoft MAI-Transcribe。最多支持 60 种语言，并具备上下文偏置。";
 
 "modes.create.title" = "创建新模式";
 "modes.create.subtitle" = "配置自定义转写档案";
@@ -795,6 +795,7 @@
 "modes.field.name" = "名称";
 "modes.field.name.placeholder" = "例如：会议记录";
 "modes.field.name.editPlaceholder" = "模式名称";
+"modes.field.name.defaultLocked" = "这是默认模式，因此无法更改其名称。你可以重命名其他任何模式。";
 "modes.field.model" = "模型";
 "modes.field.provider" = "提供商";
 "modes.provider.local" = "本地";

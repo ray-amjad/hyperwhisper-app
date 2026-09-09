@@ -778,8 +778,8 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Massima accuratezza con elaborazione più lenta. Migliore per trascrizioni importanti.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingue, con supporto per il vocabolario personalizzato.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 tramite Azure Speech. 43 lingue con adattamento contestuale.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe tramite Azure Speech. Fino a 60 lingue con adattamento contestuale.";
 
 "modes.create.title" = "Crea Nuova Modalità";
 "modes.create.subtitle" = "Configura un profilo di trascrizione personalizzato";
@@ -794,6 +794,7 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 "modes.field.name" = "Nome";
 "modes.field.name.placeholder" = "es., Note Riunione";
 "modes.field.name.editPlaceholder" = "Nome modalità";
+"modes.field.name.defaultLocked" = "Questa è la modalità predefinita, quindi il suo nome non può essere modificato. Puoi rinominare qualsiasi altra modalità.";
 "modes.field.model" = "Modello";
 "modes.field.provider" = "Provider";
 "modes.provider.local" = "Locale";

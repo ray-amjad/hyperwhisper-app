@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { stripe } from "@/lib/clients/stripe";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
+import { isRecord } from "@/src/lib/type-guards";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -35,12 +36,8 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { licenseKey, amount, email } = body as {
-      licenseKey?: unknown;
-      amount?: unknown;
-      email?: unknown;
-    };
+    const body: unknown = await req.json();
+    const { licenseKey, amount, email } = isRecord(body) ? body : {};
 
     // Validate amount: whole dollars within [MIN, MAX].
     const amountError = validateCreditPurchaseAmount(amount);
@@ -48,8 +45,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: amountError }, { status: 400 });
     }
 
+    // validateCreditPurchaseAmount already proves this branch. Keep the local
+    // check so TypeScript also narrows the untrusted JSON value.
+    if (typeof amount !== "number") {
+      return NextResponse.json(
+        { error: "amount must be a finite number" },
+        { status: 400 }
+      );
+    }
+
     const { creditAmount, creditCents, feeCents } = computeCreditPurchase(
-      amount as number
+      amount
     );
 
     const siteUrl =

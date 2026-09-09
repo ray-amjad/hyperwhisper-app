@@ -124,6 +124,30 @@ async function recordTimeouts<T>(run: (delays: number[]) => Promise<T>): Promise
   }
 }
 
+async function runWithFastPollClock<T>(run: () => Promise<T>): Promise<T> {
+  let nowMs = 0;
+  const originalNow = performance.now;
+  const originalSetTimeout = globalThis.setTimeout;
+
+  performance.now = () => nowMs;
+  globalThis.setTimeout = ((handler: (...args: unknown[]) => void, delay?: number, ...args: unknown[]) => {
+    const timeoutMs = delay ?? 0;
+    if (timeoutMs === 500 || timeoutMs === 750) {
+      nowMs += timeoutMs;
+      handler(...args);
+      return 0;
+    }
+    return originalSetTimeout(handler, timeoutMs, ...args);
+  }) as typeof setTimeout;
+
+  try {
+    return await run();
+  } finally {
+    performance.now = originalNow;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
 /**
  * Swaps `console.log` for the duration of `run` and returns the details object of
  * the `provider.no_speech` event it logged. Same swap-the-global idiom as
@@ -372,6 +396,38 @@ describe('transcribeWithGoogleChirp — sync recognize error mapping', () => {
   });
 });
 
+describe('transcribeWithGoogleChirp — successful response decoding boundaries', () => {
+  test('rejects an empty sync response with the phase and response encodings', async () => {
+    fetchHandler = () => new Response('', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Encoding': 'gzip',
+      },
+    });
+
+    await expect(transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'))
+      .rejects.toThrow(
+        'Google Speech returned empty 200 body during sync_recognize (content-type=application/json, content-encoding=gzip)',
+      );
+    expect((globalThis.fetch as any).mock.calls.length).toBe(1);
+  });
+
+  test('rejects a non-JSON sync response with a bounded diagnostic preview', async () => {
+    const upstreamBody = '<html>temporary proxy response</html>';
+    fetchHandler = () => new Response(upstreamBody, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    });
+
+    await expect(transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'))
+      .rejects.toThrow(
+        `Google Speech returned non-JSON 200 body during sync_recognize (content-type=text/html, len=${upstreamBody.length}): ${upstreamBody}`,
+      );
+    expect((globalThis.fetch as any).mock.calls.length).toBe(1);
+  });
+});
+
 describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
   beforeEach(() => {
     gcsConfigured = true;
@@ -548,6 +604,65 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav')).rejects.toThrow(ProviderUnavailableError);
     expect(deleteCalls.length).toBe(0);
   });
+
+  test('a successful batch submit without an operation name deletes the scratch object without cancelling', async () => {
+    fetchHandler = () => Response.json({});
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow('Google Speech batchRecognize did not return an operation name');
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith(':cancel'),
+    )).toBe(false);
+  });
+
+  test('an empty successful batch submit reports its phase and still deletes the scratch object', async () => {
+    fetchHandler = () => new Response('', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow(
+        'Google Speech returned empty 200 body during batch_submit (content-type=application/json, content-encoding=none)',
+      );
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+  });
+
+  test('a malformed successful poll cancels the known operation and deletes the scratch object', async () => {
+    fetchHandler = (url) => {
+      if (url.includes(':batchRecognize')) return Response.json({ name: 'operations/malformed-poll' });
+      if (url.endsWith(':cancel')) return new Response(null, { status: 200 });
+      return new Response('not-json', {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    };
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow(
+        'Google Speech returned non-JSON 200 body during batch_poll (content-type=text/plain, len=8): not-json',
+      );
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/malformed-poll:cancel'),
+    )).toBe(true);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+  });
+
+  test('a failed cancellation does not mask the batch operation error or prevent scratch cleanup', async () => {
+    fetchHandler = (url) => {
+      if (url.includes(':batchRecognize')) return Response.json({ name: 'operations/cancel-fails' });
+      if (url.endsWith(':cancel')) throw new Error('cancel network failure');
+      return Response.json({ done: true, error: { code: 3, message: 'invalid audio' } });
+    };
+
+    await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+      .rejects.toThrow('Google Speech batchRecognize failed (3): invalid audio');
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/cancel-fails:cancel'),
+    )).toBe(true);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+  });
 });
 
 describe('transcribeWithGoogleChirp — explicit network timeout budgets', () => {
@@ -678,5 +793,70 @@ describe('transcribeWithGoogleChirp — explicit network timeout budgets', () =>
       submit: [45_000, 45_000],
       poll: [8_000],
     });
+  });
+
+  test('transient 429 and 5xx poll responses stay inside the operation and keep the 8s per-poll budget', async () => {
+    process.env.STT_PROVIDER_TIMEOUT_MS = '7';
+    gcsConfigured = true;
+    const pollTimeouts: number[] = [];
+    let pollAttempt = 0;
+
+    await recordTimeouts(async (delays) => {
+      fetchHandler = (url) => {
+        if (url.includes(':batchRecognize')) {
+          return Response.json({ name: 'operations/transient-polls' });
+        }
+        pollTimeouts.push(delays.at(-1)!);
+        pollAttempt += 1;
+        if (pollAttempt === 1) return new Response('rate limited', { status: 429 });
+        if (pollAttempt === 2) return new Response('unavailable', { status: 503 });
+        return completedBatchResponse('recovered transcript');
+      };
+
+      const result = await transcribeWithGoogleChirp(bigAudio(), 'audio/wav');
+      expect(result.text).toBe('recovered transcript');
+    });
+
+    expect(pollTimeouts).toEqual([8_000, 8_000, 8_000]);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+    expect((globalThis.fetch as any).mock.calls.some(
+      ([input]: [RequestInfo | URL]) => String(input).endsWith(':cancel'),
+    )).toBe(false);
+  });
+
+  test('a pending operation stops at the 300s deadline, cancels the operation, and deletes its scratch audio', async () => {
+    gcsConfigured = true;
+    let pollAttempts = 0;
+    let cancelCalls = 0;
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+
+    try {
+      await runWithFastPollClock(async () => {
+        fetchHandler = (url) => {
+          if (url.includes(':batchRecognize')) {
+            return Response.json({ name: 'operations/never-finishes' });
+          }
+          if (url.endsWith(':cancel')) {
+            cancelCalls += 1;
+            return new Response(null, { status: 200 });
+          }
+          pollAttempts += 1;
+          return Response.json({ done: false });
+        };
+
+        await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
+          .rejects.toThrow('batchRecognize did not complete within 300000ms');
+      });
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(pollAttempts).toBe(400);
+    expect(cancelCalls).toBe(1);
+    expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
+    const timeoutEvent = logged.find(([name]) => name === 'provider.batch_timeout');
+    expect(timeoutEvent?.[1]).toMatchObject({ attempts: 400, deadlineMs: 300_000 });
   });
 });

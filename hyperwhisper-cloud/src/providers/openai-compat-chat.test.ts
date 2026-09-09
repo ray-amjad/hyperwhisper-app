@@ -234,8 +234,8 @@ describe('request body construction', () => {
     expect(lastBody().temperature).toBe(0);
   });
 
-  test('gemini disables thinking on the 2.5-flash family only', async () => {
-    // 2.5-flash defaults to a dynamic thinking budget and bills thinking
+  test('gemini disables thinking on the 2.5-flash and 3.8-flash families only', async () => {
+    // Both families default to a dynamic thinking budget and bill thinking
     // tokens as output — pure cost on a text-cleanup call.
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
     expect(lastBody().reasoning_effort).toBe('none');
@@ -243,7 +243,21 @@ describe('request body construction', () => {
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash-lite');
     expect(lastBody().reasoning_effort).toBe('none');
 
+    // Cloud-routed since 2026-09; at $3.75/1M output, thinking tokens are the
+    // single most expensive thing this model can do on a cleanup call.
+    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.8-flash');
+    expect(lastBody().reasoning_effort).toBe('none');
+
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.0-pro');
+    expect(lastBody()).not.toHaveProperty('reasoning_effort');
+  });
+
+  test('widening the gate to 3.8 did not widen it to every gemini-3.x flash id', async () => {
+    // The gate lists families explicitly rather than matching a generic
+    // "gemini-<n>-flash" pattern: an id nobody has checked keeps its own
+    // default. 3.7 is BYOK-only and never reaches this client, but it pins the
+    // predicate's shape.
+    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-3.7-flash');
     expect(lastBody()).not.toHaveProperty('reasoning_effort');
   });
 

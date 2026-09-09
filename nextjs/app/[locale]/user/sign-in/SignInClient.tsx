@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, useParams } from "next/navigation";
 
 import { authClient } from "@/src/lib/auth-client";
 import { sanitizeReturnTo } from "@/src/lib/license-key-redirect";
+import { isRecord } from "@/src/lib/type-guards";
 
 type Tab = "license-key" | "email";
 
@@ -26,7 +27,7 @@ export default function SignInClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
-  const locale = (params.locale as string) || "en";
+  const locale = typeof params.locale === "string" ? params.locale : "en";
 
   const [activeTab, setActiveTab] = useState<Tab>("license-key");
   const [autoSigningIn, setAutoSigningIn] = useState(false);
@@ -53,7 +54,7 @@ export default function SignInClient() {
     if (!licenseKeyParam) return;
     setLicenseKey(licenseKeyParam);
     setAutoSigningIn(true);
-    handleLicenseKeySignInWithKey(licenseKeyParam);
+    void handleLicenseKeySignInWithKey(licenseKeyParam);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleLicenseKeySignInWithKey(key: string) {
@@ -66,7 +67,13 @@ export default function SignInClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: key.trim(), callbackURL }),
       });
-      const data = await res.json();
+      const data: unknown = await res.json();
+      const error =
+        isRecord(data) && typeof data.error === "string" ? data.error : null;
+      const redirect =
+        isRecord(data) && typeof data.redirect === "string"
+          ? data.redirect
+          : null;
 
       // Branch on the body, not just on `res.ok`. The endpoint rejects a bad
       // or revoked key with `ctx.json({ error }, { status: 400 })`, but Better
@@ -74,11 +81,11 @@ export default function SignInClient() {
       // true and this fell through to `router.push(undefined)` — a thrown
       // TypeError, no message, and a form that just sits there. Verified in
       // Chromium against the real endpoint before and after.
-      if (!res.ok || data?.error || !data?.redirect) {
-        setLicenseError(data?.error ?? "Sign-in failed. Please try again.");
+      if (!res.ok || error || !redirect) {
+        setLicenseError(error ?? "Sign-in failed. Please try again.");
         setAutoSigningIn(false);
       } else {
-        router.push(data.redirect);
+        router.push(redirect);
       }
     } catch {
       setLicenseError("An unexpected error occurred. Please try again.");
