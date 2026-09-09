@@ -437,7 +437,28 @@
                 <Border Classes="hBadge" Margin="8,0,0,0" IsVisible="{Binding Selected.Mode, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
                   <StackPanel Orientation="Horizontal">
                     <Path Data="{StaticResource HwIconSettings}" Fill="{DynamicResource HwBadgeGrayForegroundBrush}" Stretch="Uniform" Width="12" Height="12" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding Selected.Mode}" FontSize="12" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                    <!-- Bounded exactly like the Windows badge (HistoryPage.xaml, #525/#557) and
+                         the status-bar name above (#526). Transcript.Mode is a COPY of the mode
+                         name taken at record time, so it is free user text of any length, and
+                         this badge sits in a horizontal StackPanel inside a detail pane that a
+                         fixed 1000-wide CanResize="False" window cannot widen. MaxWidth is what
+                         actually bounds it: TextTrimming alone does nothing inside a StackPanel,
+                         which measures its children with infinite width. The row-2 badges beside
+                         it got a WrapPanel for the same overflow; row 1 never did (#560). -->
+                    <TextBlock x:Name="HistoryDetailModeText" Text="{Binding Selected.Mode}" FontSize="12" Margin="4,0,0,0" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" MaxWidth="260">
+                      <!-- An explicit wrapping tip, not ToolTip.Tip="{Binding ...}": a plain
+                           string tip does not wrap, so a 300-character name would render as one
+                           line far wider than the screen and stay unreadable. MaxHeight matters
+                           as much as MaxWidth: a wrapping tip with no height bound is not
+                           bounded, and a 10,000-character name posted through the Local API is a
+                           block taller than the screen. #557's review found that on Windows and
+                           put MaxHeight="126" on all five WPF mode-name tips; the two tips #558
+                           added here were written before that and gain it in the same pass. -->
+                      <ToolTip.Tip>
+                        <TextBlock Text="{Binding Selected.Mode}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
+                      </ToolTip.Tip>
+                    </TextBlock>
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -742,7 +763,7 @@
                          the Windows fix is ModesPage.xaml via #521). The tip carries it whole. -->
                     <TextBlock x:Name="ModeNameText" Text="{Binding Name}" Classes="modeName">
                       <ToolTip.Tip>
-                        <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360"/>
+                        <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
                       </ToolTip.Tip>
                     </TextBlock>
                     <Button Grid.Column="1" Classes="cardGear" Tag="{Binding}" Click="OnEditMode"
@@ -2511,7 +2532,7 @@
                  does not wrap, so a 300-character name would render as one line far wider
                  than the screen and stay unreadable. -->
             <ToolTip.Tip>
-              <TextBlock Text="{Binding Modes.Selected.Name}" TextWrapping="Wrap" MaxWidth="360"/>
+              <TextBlock Text="{Binding Modes.Selected.Name}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
             </ToolTip.Tip>
           </TextBlock>
         </StackPanel>

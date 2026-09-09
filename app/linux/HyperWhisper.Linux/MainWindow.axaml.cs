@@ -2317,7 +2317,7 @@ public partial class MainWindow : Window
         foreach (var mode in history.AvailableRetryModes)
         {
             var captured = mode;
-            var item = new MenuItem { Header = captured.Name };
+            var item = new MenuItem { Header = RetryModeMenuLabel(captured.Name) };
             item.Click += (_, _) =>
             {
                 history.SelectedRetryMode = captured;
@@ -2328,6 +2328,53 @@ public partial class MainWindow : Window
         retryWith.ItemsSource = items;
         retryWith.IsEnabled = items.Count > 0 && history.CanRetry;
     }
+
+    /// <summary>
+    /// The bounded label for one "Retry With…" item (#560). A mode name is free user text with
+    /// no cap anywhere, and a menu popup sizes itself to its widest item, so a plain
+    /// <c>Header = name</c> spends the whole submenu on one entry.
+    ///
+    /// Measured, because the issue's guess about what that looks like is wrong on this head: a
+    /// Fluent flyout presenter carries a theme maximum of its own, so the popup stops at 454px
+    /// rather than running off the desktop the way the Win32 tray menu does. It hangs off the
+    /// right of the window, every other entry is stretched out to meet it, and the name is
+    /// HARD-CLIPPED mid-word with no ellipsis — the #526 mode-card defect, not the #525 one.
+    ///
+    /// The header is a real <see cref="TextBlock"/> rather than the string, because a string
+    /// header is drawn by the MenuItem template's own ContentPresenter and there is nothing
+    /// there to trim or to cap. Same treatment and the same numbers as the Windows twin of this
+    /// exact menu (the Retry With ItemTemplate in <c>HistoryPage.xaml</c>, #557): Avalonia is a
+    /// XAML layout system like WPF, so the intent ports directly and the string itself is never
+    /// truncated. That is the difference from the Win32 tray menu, where #557 had to cut the
+    /// STRING because a <c>ToolStripDropDownMenu</c> cannot ellipsise at all.
+    ///
+    /// The tip is an explicit wrapping TextBlock, not the raw string: a plain string tip is a
+    /// single line, so a 300-character name would only move the same overflow onto the tooltip.
+    /// </summary>
+    private static TextBlock RetryModeMenuLabel(string name)
+    {
+        var label = new TextBlock
+        {
+            Text = name,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxWidth = RetryModeLabelMaxWidth,
+        };
+        ToolTip.SetTip(label, new TextBlock
+        {
+            Text = name,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 360,
+            // A wrapping tip with no height bound is not bounded either: a 10,000-character
+            // name posted through the Local API is a block taller than the screen. #557's
+            // review put the same MaxHeight on every WPF mode-name tip.
+            MaxHeight = 126,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        return label;
+    }
+
+    /// <summary>The cap on a Retry With… label, matching the Windows ItemTemplate's MaxWidth.</summary>
+    private const double RetryModeLabelMaxWidth = 260;
 
     /// <summary>Windows swaps one outlined button's label rather than showing a check box.</summary>
     private void OnHistoryToggleRawTranscript(object? sender, RoutedEventArgs e)
@@ -3116,6 +3163,9 @@ public partial class MainWindow : Window
                 Console.Error.WriteLine("Smoke: HistoryRetryMode is missing from the history context menu.");
                 return 11;
             }
+            // Transcript.Mode is a COPY of the mode name, so History draws that free user text
+            // twice more. Both surfaces are MEASURED, not grepped, in the real window.
+            if (await HistoryModeNameLayoutFailureAsync(historyMenu)) return 24;
             // The Delete flyout and its opt-in audio checkbox are gone: Windows raises a YesNo
             // MessageBox whose text already promises the audio file goes too, so both the single
             // and the multi-row Delete now run OnHistoryConfirmDelete. What has to exist is the
@@ -3512,6 +3562,250 @@ public partial class MainWindow : Window
         };
         probe.Measure(Size.Infinity);
         return probe.DesiredSize.Width;
+    }
+
+    /// <summary>
+    /// Issue #560, the Linux half of the pair #557 fixed on Windows. <c>Transcript.Mode</c> is a
+    /// COPY of the mode name taken when the recording was made, so History draws that free user
+    /// text twice more than the Modes page does: on the detail header's grey badge, and once per
+    /// mode in the "Retry With…" submenu. Neither had a cap.
+    ///
+    /// MEASURED in the real window, not grepped, for the same two reasons #526's check gives:
+    /// the attribute can be put on the wrong TextBlock, and a later container change can
+    /// reintroduce the clip with the attribute still present. Every comparison is against the
+    /// width the string itself wants, so no pixel number is hard-coded.
+    ///
+    /// Returns true when the check FAILED, so the caller can bail with a smoke exit code.
+    ///
+    /// The probe mode and the probe transcript are inserted and then REMOVED again, and both
+    /// selections are captured BEFORE the insert and put back after: <c>run-ui-smoke.sh</c> runs
+    /// against the developer's own profile as well as a throwaway CI one, CI runs it twice, and
+    /// selecting a mode persists its id to settings.json.
+    /// </summary>
+    private async Task<bool> HistoryModeNameLayoutFailureAsync(ContextMenu historyMenu)
+    {
+        var longName = "LongName" + new string('X', 292);
+        var restoreMode = _viewModel.Modes.Selected;
+        var restoreTranscript = _viewModel.History.Selected;
+        Guid modeProbeId;
+        Guid transcriptProbeId;
+        await using (var context = _database.CreateContext())
+        {
+            // The badge reads Transcript.Mode, the submenu reads Mode.Name, and they are two
+            // different columns — so the probe has to be both a mode and a recording made
+            // under it, or only one of the two surfaces would be exercised.
+            var mode = new Mode { Name = longName, Language = "en" };
+            var transcript = new Transcript
+            {
+                Text = "The badge above this transcript is the surface under test.",
+                Mode = longName,
+                Date = DateTime.UtcNow,
+                Duration = 3,
+                Status = TranscriptStatus.Completed,
+            };
+            context.Modes.Add(mode);
+            context.Transcripts.Add(transcript);
+            await context.SaveChangesAsync();
+            modeProbeId = mode.Id;
+            transcriptProbeId = transcript.Id;
+        }
+        try
+        {
+            return await HistoryModeNameLayoutFailureCoreAsync(
+                historyMenu, longName, transcriptProbeId);
+        }
+        finally
+        {
+            historyMenu.Close();
+            _viewModel.History.Selected = restoreTranscript;
+            if (restoreMode is not null) _viewModel.Modes.Selected = restoreMode;
+            await using (var context = _database.CreateContext())
+            {
+                if (await context.Modes.FindAsync(modeProbeId) is { } probeMode)
+                    context.Modes.Remove(probeMode);
+                if (await context.Transcripts.FindAsync(transcriptProbeId) is { } probeTranscript)
+                    context.Transcripts.Remove(probeTranscript);
+                await context.SaveChangesAsync();
+            }
+            await _viewModel.Modes.RefreshAsync();
+            await _viewModel.History.RefreshAsync();
+            // SetRetryModes is only called once, at startup, so the submenu keeps whatever list
+            // it was given. Put the real one back after the probe has gone.
+            _viewModel.History.SetRetryModes(_viewModel.Modes.Items);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
+    private async Task<bool> HistoryModeNameLayoutFailureCoreAsync(
+        ContextMenu historyMenu, string longName, Guid transcriptProbeId)
+    {
+        await _viewModel.Modes.RefreshAsync();
+        await _viewModel.History.RefreshAsync();
+        _viewModel.History.SetRetryModes(_viewModel.Modes.Items);
+        _viewModel.History.Selected = _viewModel.History.Items
+            .FirstOrDefault(item => item.Id == transcriptProbeId);
+        _viewModel.Navigate("history");
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        if (_viewModel.History.Selected is null)
+        {
+            Console.Error.WriteLine("Smoke: the probe transcript did not come back from the history query.");
+            return true;
+        }
+
+        // THE BADGE. It sits in a horizontal StackPanel, and a StackPanel measures its children
+        // with infinite width, so TextTrimming on its own changes nothing here — MaxWidth is
+        // what bounds it. The pane cannot be widened: the window is a fixed 1000, CanResize
+        // "False", and this page is a 300,1,* Grid.
+        if (FindNamed<TextBlock>("HistoryDetailModeText") is not { } badge
+            || FindNamed<Grid>("HistoryScreen") is not { } page)
+        {
+            Console.Error.WriteLine("Smoke: the history detail has no HistoryDetailModeText badge.");
+            return true;
+        }
+        // Display only: the row still carries the whole name, so the tip and any copy of it
+        // are right. A name truncated in DATA is not the fix.
+        if (badge.Text != longName)
+        {
+            Console.Error.WriteLine($"Smoke: the history badge bound {badge.Text?.Length} characters "
+                + $"of a {longName.Length}-character mode name — it is being truncated in data.");
+            return true;
+        }
+        if (badge.TextTrimming != TextTrimming.CharacterEllipsis)
+        {
+            Console.Error.WriteLine($"Smoke: the history badge trims with {badge.TextTrimming}, so a "
+                + "long mode name is hard-clipped at the pane edge with nothing to say it continues.");
+            return true;
+        }
+        // Prove the case exercises the overflow at all: the name has to want more than the page
+        // can ever give it, or everything below would pass while proving nothing. Compared
+        // against the PAGE and not against the badge's own arranged width, because an unbounded
+        // badge is given everything it asks for — that is the bug, not the absence of one.
+        var wantedBadge = UnconstrainedTextWidth(badge);
+        if (badge.Bounds.Width <= 0 || wantedBadge <= page.Bounds.Width)
+        {
+            Console.Error.WriteLine($"Smoke: the {longName.Length}-character mode name wanted "
+                + $"{wantedBadge:F0}px on a {page.Bounds.Width:F0}px page, so it never overflowed "
+                + "and this check proves nothing.");
+            return true;
+        }
+        // THE BUG, STATED AS THE BUG: the badge must end inside the page. Before the fix its
+        // right edge sat far outside it and the pill was cut off by the header border.
+        if (badge.Parent is not StackPanel { Parent: Border pill }
+            || pill.TranslatePoint(new Point(pill.Bounds.Width, 0), page) is not { } pillEnd)
+        {
+            Console.Error.WriteLine("Smoke: the history mode badge is no longer an hBadge Border.");
+            return true;
+        }
+        if (pillEnd.X > page.Bounds.Width + 0.5)
+        {
+            Console.Error.WriteLine($"Smoke: the history mode badge ends at {pillEnd.X:F1} on a "
+                + $"{page.Bounds.Width:F1} wide page — it runs off the detail pane.");
+            return true;
+        }
+        // And the mode name is what gave way, with an ellipsis rather than a hard clip.
+        if (badge.Bounds.Width + 0.5 >= wantedBadge)
+        {
+            Console.Error.WriteLine($"Smoke: the history badge rendered {badge.Bounds.Width:F1}px of "
+                + $"{wantedBadge:F1}px — it was not bounded at all.");
+            return true;
+        }
+
+        // THE RETRY WITH… SUBMENU. Its items are built in code behind, one per mode, and the
+        // header was the mode name verbatim. What happens to an over-long one is NOT what the
+        // Windows tray does — this popup does not run off the desktop, because the Fluent
+        // flyout presenter carries a theme maximum of its own. It is what the mode card did in
+        // #526: the name is HARD-CLIPPED mid-glyph at that maximum, with no ellipsis and no way
+        // to read the rest, and every other entry in the list is stretched out to meet it. The
+        // numbers for both are measured below, in the same window, in the same popup.
+        OnHistoryContextMenuOpening(historyMenu, new CancelEventArgs());
+        if (historyMenu.Items.OfType<MenuItem>().FirstOrDefault(item => item.Name == "HistoryRetryMode")
+                is not { } retryWith
+            || retryWith.ItemsSource?.OfType<MenuItem>().ToList() is not { Count: > 0 } retryItems)
+        {
+            Console.Error.WriteLine("Smoke: Retry With… built no items for the probe mode.");
+            return true;
+        }
+        // A string header is drawn by the MenuItem template's own ContentPresenter, and there is
+        // nothing in there to trim or to cap. That is the pre-fix state, stated as itself.
+        if (retryItems.Select(item => item.Header).OfType<TextBlock>()
+                .FirstOrDefault(block => block.Text == longName) is not { } label)
+        {
+            Console.Error.WriteLine("Smoke: the Retry With… item for the long mode has no bounded "
+                + "TextBlock header — its header is "
+                + $"{retryItems.FirstOrDefault()?.Header?.GetType().Name ?? "null"}, which cannot trim.");
+            return true;
+        }
+        // Display only, again: the item still carries the whole name for its tip and its command.
+        if (label.Text != longName)
+        {
+            Console.Error.WriteLine($"Smoke: the Retry With… label carries {label.Text?.Length} "
+                + $"characters of a {longName.Length}-character name — it is truncated in data.");
+            return true;
+        }
+        if (label.TextTrimming != TextTrimming.CharacterEllipsis)
+        {
+            Console.Error.WriteLine($"Smoke: the Retry With… label trims with {label.TextTrimming}, so "
+                + "the name is cut mid-glyph at the flyout's own maximum instead of ellipsising.");
+            return true;
+        }
+        if (FindNamed<ListBox>("HistoryList") is not { } list)
+        {
+            Console.Error.WriteLine("Smoke: HistoryList is gone, so the context menu cannot be opened.");
+            return true;
+        }
+        // LAID OUT FOR REAL. An attribute assertion proves nothing on its own: it can be put on
+        // the wrong TextBlock, and a template change can spend the budget elsewhere. The menu is
+        // opened on the list, the submenu opened with it, and the arranged widths read back off
+        // the real containers.
+        var wanted = UnconstrainedTextWidth(label);
+        var boundedWidth = await SubmenuWidthAsync(historyMenu, retryWith, list, retryItems);
+        if (boundedWidth <= 0)
+        {
+            Console.Error.WriteLine("Smoke: the Retry With… popup never laid out, so it is unmeasured.");
+            return true;
+        }
+        if (label.Bounds.Width <= 0 || label.Bounds.Width + 0.5 >= wanted
+            || label.Bounds.Width > RetryModeLabelMaxWidth + 0.5)
+        {
+            Console.Error.WriteLine($"Smoke: the Retry With… label laid out at {label.Bounds.Width:F1}px "
+                + $"of the {wanted:F0}px it wants, against a {RetryModeLabelMaxWidth:F0}px cap — it was "
+                + "not bounded at all.");
+            return true;
+        }
+        // Then the SAME popup with the pre-fix header — the raw string, which is the one line
+        // this fix changed — so the case measures the defect and the fix side by side rather
+        // than against a hard-coded pixel number that a font or a theme change would invalidate.
+        // Without this the two assertions above could pass in a layout where nothing overflowed.
+        var unboundedWidth = await SubmenuWidthAsync(
+            historyMenu, retryWith, list, [new MenuItem { Header = longName }]);
+        retryWith.ItemsSource = retryItems;
+        if (unboundedWidth <= boundedWidth)
+        {
+            Console.Error.WriteLine($"Smoke: an unbounded {longName.Length}-character name laid the "
+                + $"submenu out at {unboundedWidth:F1}px against {boundedWidth:F1}px bounded, so it "
+                + "never overflowed and this check proves nothing.");
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Opens the history context menu and its Retry With… submenu on the real list, lets the
+    /// layout run, and returns the arranged width of the widest item — which is the popup's
+    /// width, because a menu sizes itself to its widest entry. Closes the menu again.
+    /// </summary>
+    private static async Task<double> SubmenuWidthAsync(
+        ContextMenu menu, MenuItem retryWith, Control target, IReadOnlyList<MenuItem> items)
+    {
+        retryWith.ItemsSource = items;
+        menu.Open(target);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        retryWith.Open();
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        var width = items.Max(item => item.Bounds.Width);
+        menu.Close();
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        return width;
     }
 
     /// <summary>
