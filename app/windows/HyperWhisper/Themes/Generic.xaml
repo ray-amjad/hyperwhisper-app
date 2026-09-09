@@ -79,13 +79,14 @@
                             <ContentPresenter Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,1">
                                 <ContentPresenter.ContentTemplate>
                                     <DataTemplate>
-                                        <!-- Every item's Content is a localized string. Two lines (MaxHeight 36 at a 14px font) is
-                                             274px of label in a 137px column, which covers all 39
-                                             catalogues; the ellipsis is the backstop for a single
-                                             word that is longer than the rail on its own. -->
+                                        <!-- Every item's Content is a localized string. Deliberately
+                                             no height cap: a cap in pixels is the same mistake as a
+                                             width in pixels, and 36px is two lines of Segoe UI but
+                                             only one of Segoe UI Variable Display. The row grows,
+                                             and the ellipsis is the backstop for a single word
+                                             longer than the rail on its own. -->
                                         <TextBlock Text="{Binding}"
                                                    TextWrapping="Wrap"
-                                                   MaxHeight="36"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </DataTemplate>
                                 </ContentPresenter.ContentTemplate>

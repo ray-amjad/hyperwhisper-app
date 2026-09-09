@@ -13205,6 +13205,15 @@ internal static class Program
                 const double CardWidth = ContentWidth - 48 - 42;   // less PagePadding, card padding + border
                 const double PageHeight = 680 - 44;                // less the title row
 
+                // The API keys page is the one screen here that is NOT in the settings
+                // frame: ModelsSettingsPage.OpenApiKeyManager opens it in a Window of
+                // its own, 760 wide. Measuring it at the settings width would invent a
+                // clipping that no user can see, so the chrome and the scroll bar come
+                // off the system metrics rather than off a guess.
+                var apiKeysWidth = 760
+                    - (SystemParameters.ResizeFrameVerticalBorderWidth * 2)
+                    - SystemParameters.VerticalScrollBarWidth;
+
                 var cultures = ShippedUiCultures();
                 Assert(cultures.Count >= 39,
                     $"only {cultures.Count} catalogues were found next to the test binary, so this case is "
@@ -13223,7 +13232,18 @@ internal static class Program
                         // The two controls the issue names...
                         CheckLabelsFit(culture, "HomeStatsBar",
                             new HomeStatsBar { DataContext = new HomeStatsProbe() }, CardWidth, 140, problems);
-                        CheckLabelsFit(culture, "SidebarNav", new SidebarNav(), 232, PageHeight, problems);
+                        var rail = new SidebarNav();
+                        CheckLabelsFit(culture, "SidebarNav", rail, 232, PageHeight, problems);
+
+                        // The rail's answer to a long label is a second LINE, so the
+                        // other direction has to be checked too: nothing may be pushed
+                        // off the bottom of a window that cannot be resized.
+                        if (rail.DesiredSize.Height > PageHeight + 0.5)
+                        {
+                            problems.Add(
+                                $"[{culture}] SidebarNav wants {rail.DesiredSize.Height:F0}px of a "
+                                + $"{PageHeight:F0}px window, so its lowest item is off the screen");
+                        }
 
                         // ...and every other screen the sweep for #570 found a cut label
                         // on. HistoryPage is here for its Width="90" date filter, and
@@ -13237,7 +13257,7 @@ internal static class Program
                         CheckLabelsFit(culture, "ShortcutsSettingsPage",
                             new ShortcutsSettingsPage(), FormWidth, PageHeight, problems);
                         CheckLabelsFit(culture, "ApiKeysSettingsPage",
-                            new ApiKeysSettingsPage(), FormWidth, PageHeight, problems);
+                            new ApiKeysSettingsPage(), apiKeysWidth, 760, problems);
                         CheckLabelsFit(culture, "StreamingSettingsPage",
                             new StreamingSettingsPage(), ContentWidth, PageHeight, problems);
                     }
@@ -15367,6 +15387,19 @@ internal static class Program
             => eventType is TraceEventType.Error or TraceEventType.Warning or TraceEventType.Critical;
     }
 
+    /// <summary>
+    /// The font the shipped windows render in, read off App.xaml's implicit Window
+    /// style rather than repeated here - a copy would drift, and the drift would be
+    /// invisible because the case would still pass.
+    /// </summary>
+    private static System.Windows.Media.FontFamily AppUiFontFamily()
+        => ((Style)EnsureSmokeApplication().FindResource(typeof(Window)))
+            .Setters
+            .OfType<Setter>()
+            .Where(setter => setter.Property == System.Windows.Controls.Control.FontFamilyProperty)
+            .Select(setter => (System.Windows.Media.FontFamily)setter.Value!)
+            .Single();
+
     /// <summary>The name this suite uses for the base, untranslated catalogue.</summary>
     private const string BaseCatalogue = "en";
 
@@ -15417,6 +15450,13 @@ internal static class Program
         double height,
         List<string> problems)
     {
+        // The app's own UI font, not the harness's default. Every number below is a
+        // text width, so laying out in Segoe UI while the shipped window uses
+        // "Inter, Segoe UI Variable Display, Segoe UI" would measure a different app.
+        // This is not hypothetical: the first cut of this case passed on a rail label
+        // that was still cut on screen, because the two fonts wrap at different widths.
+        System.Windows.Documents.TextElement.SetFontFamily(root, AppUiFontFamily());
+
         root.Measure(new Size(width, height));
         root.Arrange(new Rect(0, 0, width, height));
         root.UpdateLayout();
