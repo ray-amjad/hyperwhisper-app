@@ -34,8 +34,21 @@ enum ErrorLoggingToggleFixture {
     static let localDSN = "http://0123456789abcdef0123456789abcdef@127.0.0.1:9/1"
 
     /// Leave no SDK running and no queue on disk for the next test, whichever
-    /// way the one that just ran exited.
+    /// way the one that just ran exited. Deliberately does NOT touch the
+    /// `enableErrorLogging` preference — see `withErrorLoggingOn`.
     static func withCleanSentry(_ body: () throws -> Void) rethrows {
+        SentryService.shutdown()
+        defer { SentryService.shutdown() }
+        try body()
+    }
+
+    /// The same, plus the preference pinned on and restored afterwards.
+    ///
+    /// Writing a NEW value to `enableErrorLogging` is what confines this to the
+    /// opt-in suite: the running test host is the app, its live
+    /// `GeneralSettingsManager` holds an `@AppStorage` on that key, and driving
+    /// SwiftUI's update machinery from outside a view ends the host.
+    static func withErrorLoggingOn(_ body: () throws -> Void) rethrows {
         let original = UserDefaults.standard.object(forKey: settingKey)
         UserDefaults.standard.set(true, forKey: settingKey)
         SentryService.shutdown()
@@ -113,17 +126,18 @@ struct ErrorLoggingToggleTests {
         }
     }
 
-    /// The second door: the user's setting closes every send path on its own,
-    /// whatever the SDK is doing. Most call sites already check
-    /// `AppLogger.isErrorLoggingEnabled` by hand; this covers the one that
-    /// forgets.
-    @Test func theSettingAloneClosesEverySendPath() {
+    /// With the SDK down, every send path is closed and inert. `capture` and
+    /// friends are called from error handlers, so "inert" has to mean returning
+    /// quietly rather than trapping.
+    ///
+    /// The other half of the gate — the preference closing these paths while the
+    /// SDK is still up — is asserted in the opt-in suite below, because writing a
+    /// new value to that preference ends the test host.
+    @Test func everySendPathIsClosedWhileTheSDKIsDown() {
         ErrorLoggingToggleFixture.withCleanSentry {
-            UserDefaults.standard.set(false, forKey: ErrorLoggingToggleFixture.settingKey)
-
+            #expect(SentryService.isSDKRunning == false)
             #expect(SentryService.isReportingEnabled == false)
             #expect(SentryService.startTransaction(name: "must not start", operation: "test") == nil)
-            // Inert rather than throwing: these are called from error paths.
             SentryService.capture(
                 error: NSError(domain: "hyperwhisper.test.551", code: 1),
                 message: "must not be captured",
@@ -175,9 +189,12 @@ struct ErrorLoggingToggleTests {
 ///   never unregisters, so starting and closing the SDK inside one process is
 ///   not something the SDK supports being done repeatedly. The app does it once,
 ///   when the user opts out.
-/// - Assigning to a `@MainActor` `@AppStorage` property outside a SwiftUI view
-///   ends the test host outright, with no crash report at all. That is a
-///   property of the test host, not of the fix.
+/// - Writing a new value to the `enableErrorLogging` preference ends the test
+///   host outright, with no crash report at all. The host IS the app: its live
+///   `GeneralSettingsManager` holds an `@AppStorage` on that key, so the write
+///   drives SwiftUI's update machinery from outside a view. That is a property
+///   of the test host, not of the fix — the same write from the real toggle,
+///   inside a real view, is what the app does every day.
 ///
 /// `macos-ci.yml`'s crash-report step looks for `hyperwhisper*.ips`, which does
 /// not match `HyperWhisper`, so neither report ever reaches the log — which is
@@ -196,7 +213,7 @@ struct ErrorLoggingSDKLifecycleTests {
     /// Issue #551 itself: the Settings property, not `SentryService`. Removing
     /// the `didSet` disable arm fails this.
     @Test func theSettingsPropertyItselfStopsTheSDK() {
-        ErrorLoggingToggleFixture.withCleanSentry {
+        ErrorLoggingToggleFixture.withErrorLoggingOn {
             let settings = GeneralSettingsManager()
             #expect(settings.enableErrorLogging)
             SentryService.initialize(
@@ -216,7 +233,7 @@ struct ErrorLoggingSDKLifecycleTests {
     /// One test, one lifecycle: off must stop the SDK in the same session, and
     /// on must start it again in the same session.
     @Test func theSDKStopsAndStartsAgainWithoutAnAppRestart() {
-        ErrorLoggingToggleFixture.withCleanSentry {
+        ErrorLoggingToggleFixture.withErrorLoggingOn {
             SentryService.initialize(
                 dsn: ErrorLoggingToggleFixture.localDSN,
                 environment: "test"
