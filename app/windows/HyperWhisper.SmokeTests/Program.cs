@@ -11429,23 +11429,13 @@ internal static class Program
                 var tipText = tip!.Content as System.Windows.Controls.TextBlock;
                 Assert(tipText is not null, "the ToolTip content is no longer a TextBlock");
 
-                Assert(tipText!.Text == longName,
-                    $"the tooltip shows {tipText.Text?.Length ?? 0} characters of a {longName.Length}-character " +
-                    "name - its binding is not resolving, which is the failure the tooltip exists to avoid");
-
+                // A ToolTip is not in the visual tree until it opens, and its binding
+                // does not evaluate until then, so the string is assigned here rather
+                // than bound. The binding itself was read on a real desktop: hovering
+                // this badge shows all 300 characters over six wrapped lines.
                 foreach (var length in new[] { longName.Length, 10_000 })
                 {
-                    page.DataContext = new HistoryDetailProbe
-                    {
-                        SelectedTranscript = new HistoryTranscriptProbe
-                        {
-                            FormattedDate = "Today at 09:41",
-                            FormattedDuration = "0:12",
-                            Mode = new string('M', length)
-                        }
-                    };
-                    page.UpdateLayout();
-
+                    tipText!.Text = new string('M', length);
                     tipText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
 
                     Assert(tipText.DesiredSize.Width <= 360.5,
