@@ -86,6 +86,18 @@ enum TranscribeEndpoint {
 
         let started = Date()
         let text: String
+        // The language the engine reported for THIS run. Captured on the very
+        // next line after the awaited `transcribe`, before the health calls and
+        // before any other read of the provider, because `detectedLanguage` is
+        // per-provider mutable state and this is the ordering its own contract
+        // asks for. That contract rests on "transcriptions are serialized per
+        // session", which the GUI honours and two overlapping Local API
+        // requests against the same provider instance do not — the same
+        // pre-existing hazard `lastTimestamps` below is already read under.
+        // Closing it properly means returning per-call metadata from
+        // `TranscriptionProvider.transcribe`, across all eighteen conformers;
+        // that is a protocol change and is not made here.
+        let detectedLanguage: String?
         do {
             text = try await resolution.provider.transcribe(
                 audioURL: fileURL,
@@ -93,6 +105,7 @@ enum TranscribeEndpoint {
                 mode: resolution.mode,
                 vocabulary: resolution.vocabulary
             )
+            detectedLanguage = resolution.provider.detectedLanguage
             if let cloudProviderType {
                 if let credentialGeneration {
                     healthManager?.recordTranscriptionOutcome(
@@ -120,13 +133,12 @@ enum TranscribeEndpoint {
 
         // The deterministic passes, in the order and on the terms
         // `TranscriptionPipeline`'s no-post-processing branch applies them.
-        // Read `detectedLanguage` here, straight after the awaited transcribe
-        // and before anything else touches the provider — the same ordering the
-        // pipeline relies on — so filler removal is gated on the language that
-        // actually came back rather than on a requested "auto" (issue #278).
+        // Filler removal is gated on the language that actually came back
+        // rather than on a requested "auto" — "er" and "um" are real words in
+        // other languages (issue #278).
         let finalText = Self.applyDeterministicTextPasses(
             to: text,
-            language: resolution.provider.detectedLanguage ?? language,
+            language: detectedLanguage ?? language,
             mode: resolution.mode,
             pipeline: pipeline
         )
