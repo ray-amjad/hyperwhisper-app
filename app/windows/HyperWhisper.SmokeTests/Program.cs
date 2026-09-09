@@ -11405,15 +11405,20 @@ internal static class Program
 
             RunAsync("onboarding: the cloud credit balance is never cut without an ellipsis", async () =>
             {
-                // Both cloud steps draw CreditsFormatted with OnboardingBigNumberStyle
+                // Both cloud steps draw the credits readout with OnboardingBigNumberStyle
                 // (30 pt) in the `*` column of a two-column row whose `Auto` column
                 // holds a pill (Setup) or the "Get credits" button (Configure). The
-                // formatted balance is wider than what is left of that row, and the
-                // style set no TextTrimming and no TextWrapping, so the text ran under
-                // the neighbour and was cut mid-word at the card edge: the Configure
-                // step rendered "$66.30 remainir" and the Setup step
-                // "$66.30 remaining (~10523 min", with nothing to say either had been
-                // cut. The caption directly below has always trimmed.
+                // readout was bound to CreditsFormatted, whose sentence is wider than
+                // what is left of that row, and the style set no TextTrimming and no
+                // TextWrapping, so the text ran under the neighbour and was cut mid-word
+                // at the card edge: the Configure step rendered "$66.30 remainir" and the
+                // Setup step "$66.30 remaining (~10523 min", with nothing to say either
+                // had been cut. The caption directly below has always trimmed.
+                //
+                // #529 moved the readout to the COUNT, which fits, so this case now
+                // measures the count. It is still worth measuring: the count grows with
+                // the balance, and the trimming setter is what stops a big enough one
+                // from repeating the defect.
                 //
                 // The gateway's own numbers: FormattedBalance divides the credit count
                 // by 1000 to get the dollars (HyperWhisperCloudCredits.cs:112-119), so
@@ -11432,13 +11437,86 @@ internal static class Program
                 Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
                 Assert(h.Flow.CreditsFormatted == balance, "precondition: the balance landed");
 
-                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, balance);
+                var readout = h.Flow.CreditsCountFormatted;
+                Assert(readout == 66300d.ToString("N0", CultureInfo.CurrentCulture),
+                    $"precondition: the count is what the readout draws, got '{readout}'");
+
+                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, readout);
 
                 h.Flow.ActivateCloudLicense();
                 await h.LastTask;
                 Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
 
-                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, readout);
+
+                // A balance long enough to overflow the column even as a count: the
+                // trimming setter, not the column width, is what keeps it inside.
+                h.Credits.Publish(new OnboardingCloudCredits(
+                    999_999_999_999d, 1, "$999,999,999.99 remaining (~1 minutes)"));
+
+                AssertBalanceReadoutFits(
+                    OnboardingStep.Setup, h.Flow, h.Flow.CreditsCountFormatted);
+            });
+
+            RunAsync("onboarding: the cloud big number is the credit COUNT, not the balance sentence", async () =>
+            {
+                // #529. Both cloud steps print a caption that names a COUNT - "credits
+                // available" and "credits, spent per minute of audio" - under a 30 pt
+                // readout that was bound to the balance SENTENCE, so the panel read
+                // "$66.30 remaining (~10523 minutes)" / "credits available". macOS puts
+                // the count in the same slot from the same catalog keys
+                // (OnboardingSourceViews.swift:307-310 and 579-582), and Windows already
+                // had the count property and already used it at Done.
+                var balance = "$66.30 remaining (~10523 minutes)";
+                var count = 66300d.ToString("N0", CultureInfo.CurrentCulture);
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, balance);
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+
+                AssertBigNumberAboveCaption(
+                    OnboardingStep.Configure, h.Flow,
+                    "onboarding.configure.cloud.creditsCaption", count, balance);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+
+                AssertBigNumberAboveCaption(
+                    OnboardingStep.Setup, h.Flow,
+                    "onboarding.setup.cloud.credits.caption", count, balance);
+            });
+
+            RunAsync("onboarding: an unknown credit count reads as unknown, never as a blank slot", async () =>
+            {
+                // The catch #529 names. CreditsCountFormatted used to fall back to an
+                // empty string because only the Done summary read it, and that summary
+                // is gated on HasCredits. Once the readout binds to it, an empty
+                // fallback turns a failed or pending fetch into a blank 30 pt line above
+                // "credits available" - worse than the ellipsis the sentence had, and
+                // invisible in QA because a blank line looks like nothing at all.
+                var h = new OnboardingHarness();
+                h.Credits.ThrowOnRefresh = true;
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+                Assert(!h.Flow.HasCredits, "precondition: the fetch failed, so nothing landed");
+
+                AssertBigNumberAboveCaption(
+                    OnboardingStep.Configure, h.Flow,
+                    "onboarding.configure.cloud.creditsCaption", "…", expectedAbsent: null);
             });
 
             RunAsync("onboarding: the cloud setup step RENDERS the state it reports", async () =>
@@ -14601,13 +14679,14 @@ internal static class Program
         string.IsNullOrEmpty(element.Name) ? $"an unnamed {element.GetType().Name}" : element.Name;
 
     /// <summary>
-    /// Assert the cloud balance readout on a step is not silently cut, at every window
-    /// size the product can render that step at.
+    /// Assert the cloud credits readout on a step is not silently cut, at every window
+    /// size the product can render that step at. <paramref name="readoutText"/> is what
+    /// the slot actually draws - since #529 the credit count, not the balance sentence.
     /// </summary>
     private static void AssertBalanceReadoutFits(
         OnboardingStep step,
         OnboardingFlowViewModel flow,
-        string balance)
+        string readoutText)
     {
         // Both window sizes the product can actually render the step at. The window
         // is NoResize and FitToWorkArea clamps it between a floor and the design
@@ -14624,14 +14703,14 @@ internal static class Program
         foreach (var window in new[] { design, clamped })
         {
             AssertBalanceReadoutFitsAt(
-                step, flow, balance, window.Width, Math.Max(1, window.Height - chrome));
+                step, flow, readoutText, window.Width, Math.Max(1, window.Height - chrome));
         }
     }
 
     private static void AssertBalanceReadoutFitsAt(
         OnboardingStep step,
         OnboardingFlowViewModel flow,
-        string balance,
+        string readoutText,
         double width,
         double height)
     {
@@ -14639,10 +14718,10 @@ internal static class Program
         var where = $"{step} at {width:F0} DIP";
 
         var readout = DescendantsOf<System.Windows.Controls.TextBlock>(page)
-            .FirstOrDefault(t => string.Equals(t.Text, balance, StringComparison.Ordinal));
+            .FirstOrDefault(t => string.Equals(t.Text, readoutText, StringComparison.Ordinal));
 
-        Assert(readout is not null, $"{where}: the balance readout is not on the page at all");
-        Assert(readout!.ActualWidth > 0, $"{where}: the balance readout was never laid out");
+        Assert(readout is not null, $"{where}: the credits readout is not on the page at all");
+        Assert(readout!.ActualWidth > 0, $"{where}: the credits readout was never laid out");
 
         // The readout's own parent chain, not a search for any two-column Grid: the
         // stock ScrollViewer template inside OnboardingStage is itself a `*`/Auto Grid
@@ -14653,7 +14732,7 @@ internal static class Program
 
         Assert(
             row is System.Windows.Controls.Grid { ColumnDefinitions.Count: 2 },
-            $"{where}: the balance readout is no longer one level inside a two-column row - " +
+            $"{where}: the credits readout is no longer one level inside a two-column row - " +
             "this case measures the wrong thing until it is pointed at the new shape");
 
         var grid = (System.Windows.Controls.Grid)row!;
@@ -14676,7 +14755,7 @@ internal static class Program
         // column holds. That is the defect, and it is what this measures.
         Assert(
             readoutRight <= neighbourLeft + 0.5,
-            $"{where}: '{balance}' is arranged out to {readoutRight:F0} DIP while the " +
+            $"{where}: '{readoutText}' is arranged out to {readoutRight:F0} DIP while the " +
             $"{neighbour.GetType().Name} beside it starts at {neighbourLeft:F0}. The readout " +
             "runs under its neighbour and is cut with nothing to say it was cut.");
 
@@ -14692,8 +14771,71 @@ internal static class Program
         Assert(
             readout.TextTrimming != TextTrimming.None
             || readout.TextWrapping != TextWrapping.NoWrap,
-            $"{where}: '{balance}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
+            $"{where}: '{readoutText}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
             "column and neither trims nor wraps, so it is cut with no ellipsis");
+    }
+
+    /// <summary>
+    /// Assert the big-number slot directly above a caption holds what it should.
+    ///
+    /// The slot and its caption are the two children of one StackPanel, so this reads
+    /// the caption by its catalog key and then the sibling immediately above it - which
+    /// is the binding under test, and cannot be confused with any other 30 pt line on
+    /// the page. <paramref name="expectedAbsent"/>, when given, must appear nowhere on
+    /// the page at all.
+    /// </summary>
+    private static void AssertBigNumberAboveCaption(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string captionKey,
+        string expected,
+        string? expectedAbsent)
+    {
+        var page = LayOutOnboardingStepPage(step, flow, 760, 521);
+        var caption = HyperWhisper.Localization.Loc.S(captionKey);
+        var where = $"{step} ('{caption}')";
+
+        var captionBlock = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+            .FirstOrDefault(t => string.Equals(t.Text, caption, StringComparison.Ordinal));
+
+        Assert(captionBlock is not null, $"{where}: the caption is not on the page at all");
+
+        var panel = System.Windows.Media.VisualTreeHelper.GetParent(captionBlock!)
+            as System.Windows.Controls.StackPanel;
+
+        Assert(panel is not null, $"{where}: the caption is no longer inside a StackPanel");
+
+        var siblings = panel!.Children.OfType<System.Windows.Controls.TextBlock>().ToList();
+        var index = siblings.IndexOf(captionBlock!);
+
+        Assert(index > 0, $"{where}: nothing is drawn above the caption");
+
+        var readout = siblings[index - 1];
+
+        Assert(
+            string.Equals(readout.Text, expected, StringComparison.Ordinal),
+            $"{where}: the readout above the caption reads '{readout.Text}', not '{expected}'. " +
+            "The caption names a count, so the slot must hold the count.");
+
+        // 30 pt is what makes it the big-number slot rather than another body line.
+        Assert(
+            Math.Abs(readout.FontSize - 30) < 0.5,
+            $"{where}: the readout above the caption is {readout.FontSize:F0} pt, not the 30 pt " +
+            "big-number slot, so this case is measuring the wrong TextBlock");
+
+        if (expectedAbsent is null)
+            return;
+
+        Assert(
+            !DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                .Any(t => string.Equals(t.Text, expectedAbsent, StringComparison.Ordinal)),
+            $"{where}: '{expectedAbsent}' is still drawn on the step. The balance sentence " +
+            "belongs in the readout's tooltip, not on the card.");
+
+        // Dropped from the card, but not lost: the sentence is the readout's tooltip.
+        Assert(
+            readout.ToolTip is string tip && string.Equals(tip, expectedAbsent, StringComparison.Ordinal),
+            $"{where}: the readout's tooltip is '{readout.ToolTip}', not the balance sentence");
     }
 
     /// <summary>

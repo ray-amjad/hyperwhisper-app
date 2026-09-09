@@ -1423,11 +1423,20 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     // CREDITS (Windows-only seam; macOS reads the singleton from its views)
     // =========================================================================
 
-    private string _creditsFormatted = "…";
+    /// <summary>What every credits readout shows while the figure is unknown.</summary>
+    private const string CreditsUnknown = "…";
+
+    private string _creditsFormatted = CreditsUnknown;
 
     /// <summary>
-    /// The balance, or an ellipsis while it is unknown. Display only: it never gates
-    /// Continue, and a failed fetch is not a setup error.
+    /// The balance SENTENCE - "$66.95 remaining (~10627 minutes)" - or an ellipsis
+    /// while it is unknown. Display only: it never gates Continue, and a failed fetch
+    /// is not a setup error.
+    ///
+    /// It is a sentence, so it belongs in a tooltip and not in a 30 pt readout under a
+    /// caption that names a count; both cloud steps show it that way and macOS shows it
+    /// nowhere in the flow. Use CreditsCountFormatted for anything that reads as a
+    /// number.
     /// </summary>
     public string CreditsFormatted
     {
@@ -1435,7 +1444,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         private set => SetProperty(ref _creditsFormatted, value);
     }
 
-    private string _creditsCountFormatted = string.Empty;
+    private string _creditsCountFormatted = CreditsUnknown;
 
     /// <summary>
     /// The credit COUNT, grouped and without decimals - "66,950", not
@@ -1446,6 +1455,11 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// it CreditsFormatted instead rendered "HyperWhisper Cloud · $66.95 remaining
     /// (~10627 minutes) credits". Nothing caught it because the Cloud branch never had
     /// a balance at Done until the activation refresh above started filling one in.
+    ///
+    /// Both cloud steps draw this in their big-number slot, so it carries the same
+    /// ellipsis placeholder CreditsFormatted always had: an unknown balance has to read
+    /// as unknown, never as a blank 30 pt line above a caption. The Done summary cannot
+    /// see the placeholder because SourceSummary is gated on HasCredits.
     /// </summary>
     public string CreditsCountFormatted
     {
@@ -1509,9 +1523,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     {
         var credits = _credits.Credits;
         HasCredits = credits is not null;
-        CreditsFormatted = credits?.FormattedBalance ?? "…";
+        CreditsFormatted = credits?.FormattedBalance ?? CreditsUnknown;
         CreditsCountFormatted = credits is null
-            ? string.Empty
+            ? CreditsUnknown
             : credits.CreditsRemaining.ToString("N0", CultureInfo.CurrentCulture);
         IsFetchingCredits = _credits.IsFetching;
     }
