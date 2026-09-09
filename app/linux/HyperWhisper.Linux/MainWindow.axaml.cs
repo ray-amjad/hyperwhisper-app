@@ -3617,8 +3617,6 @@ public partial class MainWindow : Window
         finally
         {
             historyMenu.Close();
-            _viewModel.History.Selected = restoreTranscript;
-            if (restoreMode is not null) _viewModel.Modes.Selected = restoreMode;
             await using (var context = _database.CreateContext())
             {
                 if (await context.Modes.FindAsync(modeProbeId) is { } probeMode)
@@ -3629,6 +3627,19 @@ public partial class MainWindow : Window
             }
             await _viewModel.Modes.RefreshAsync();
             await _viewModel.History.RefreshAsync();
+            // Restored AFTER the refresh and matched by id, never by holding the old instance:
+            // both RefreshAsync calls clear their collection and refill it with entities from a
+            // new context, and History's re-picks the first row unconditionally. Putting the
+            // captured object back before that would be overwritten, and putting it back after
+            // would leave a detached entity selected.
+            if (restoreTranscript is not null
+                && _viewModel.History.Items.FirstOrDefault(item => item.Id == restoreTranscript.Id)
+                    is { } sameTranscript)
+                _viewModel.History.Selected = sameTranscript;
+            if (restoreMode is not null
+                && _viewModel.Modes.Items.FirstOrDefault(item => item.Id == restoreMode.Id)
+                    is { } sameMode)
+                _viewModel.Modes.Selected = sameMode;
             // SetRetryModes is only called once, at startup, so the submenu keeps whatever list
             // it was given. Put the real one back after the probe has gone.
             _viewModel.History.SetRetryModes(_viewModel.Modes.Items);
