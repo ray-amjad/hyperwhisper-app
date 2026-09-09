@@ -250,6 +250,27 @@
     </Compile>
   </ItemGroup>
 
+  <!--
+    Validate the 40 catalogs in Resources\ on every build of the Windows head.
+
+    HyperWhisper.Localization runs this same validator BeforeBuild, but nothing
+    in the Windows build graph references that project - it is reached only from
+    the Linux head and from HyperWhisper.Localization.Tests. And linux-ci.yml's
+    path filter does not include app/windows/**. So before this target, a
+    translation-only PR - a change to nothing but these .resx files, which is
+    exactly what the validator exists to police - triggered windows-ci (which
+    did not run the validator) and not linux-ci (which does), and landed with
+    the key parity, placeholder and untranslated-ceiling checks all unrun.
+
+    This app OWNS these files, so it is the right place to check them. See
+    Resources\translation-status.json and issue #552.
+  -->
+  <Target Name="ValidateWindowsLocalizationCatalogs"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(SkipLocalizationCatalogValidation)' != 'true'">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)/../../shared-dotnet/HyperWhisper.Localization.CatalogValidator/HyperWhisper.Localization.CatalogValidator.csproj&quot; --configuration $(Configuration) -p:SkipLocalizationCatalogValidation=true -- &quot;$(MSBuildProjectDirectory)/Resources&quot;" />
+  </Target>
+
   <!-- Shared catalogs (linked from repo root). The shared-prompts/ templates are
        NOT embedded here: the Rust shared core embeds them itself and does the
        prompt assembly. -->

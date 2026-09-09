@@ -7626,6 +7626,218 @@ internal static class Program
                 };
             });
 
+            RunAsync("the mode wire contract comes from the shared core", async () =>
+            {
+                // WHY A KEY READER EXISTS HERE AT ALL (issue #356). This head
+                // cannot infer which keys a caller sent from `ModeDto`:
+                // `Punctuation`, `Capitalization` and `ProfanityFilter` are
+                // non-nullable `bool`, so an absent key and an explicit `false`
+                // deserialise to the same value. That is the whole reason
+                // `ReadJsonBodyWithKeysAsync` had to be added beside the
+                // existing reader instead of reusing it.
+                static Microsoft.AspNetCore.Http.HttpContext BodyContext(string json)
+                {
+                    var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+                    var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+                    ctx.Request.Body = new MemoryStream(bytes);
+                    ctx.Request.ContentLength = bytes.Length;
+                    ctx.Request.ContentType = "application/json";
+                    return ctx;
+                }
+
+                var (full, fullKeys, fullFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"Seven","preset":"hyper","language":"en","model":"base","punctuation":false,"capitalization":false,"profanityFilter":false}"""));
+                Assert(fullFailure == null && full != null, "a well-formed create body was refused");
+                Assert(fullKeys.Count == 7 && fullKeys.Contains("profanityFilter"),
+                    $"the key reader lost keys: [{string.Join(", ", fullKeys)}]");
+                Assert(!full!.Punctuation,
+                    "an explicit false did not survive the second parse; the reader must deserialise from the same document");
+
+                var (partial, partialKeys, partialFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"Only"}"""));
+                Assert(partialFailure == null && partial != null && partialKeys.Count == 1,
+                    "a one-key body did not read back as one key");
+                // An explicit `false` and an absent key are the SAME `ModeDto`
+                // here — which is exactly why the key list, not the DTO, is what
+                // the required check reads.
+                Assert(!partial!.Punctuation && !full.Punctuation,
+                    "the DTO stopped conflating an absent boolean with an explicit false; the key reader may no longer be needed");
+
+                var (_, brokenKeys, brokenFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name": """));
+                Assert(brokenFailure != null && brokenKeys.Count == 0,
+                    "malformed JSON did not answer the same 400 the existing reader answers");
+
+                // A NULL VOCABULARY TERM NEVER REACHES THE FFI (issue #356,
+                // review round 1). System.Text.Json puts a null element into
+                // `List<string>` unless `RespectNullableAnnotations` is set, and
+                // `FfiConverterSequenceString.AllocationSize` calls
+                // `Encoding.UTF8.GetByteCount(null)` — an `ArgumentNullException`
+                // no middleware here wraps, so Kestrel answered a bare HTTP 500
+                // with no body on a route whose contract is the 200 envelope.
+                // `NonNullStringListConverter` refuses it at the parse instead,
+                // with the same 400 every other wrong-typed value gets.
+                var (_, _, nullTermFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"N","customVocabulary":["ok",null]}"""));
+                Assert(nullTermFailure != null,
+                    "a null customVocabulary term deserialised; it would throw inside FfiConverterSequenceString");
+                var (_, _, nullPatchFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModePatchDto>(
+                    BodyContext("""{"customVocabulary":[null]}"""));
+                Assert(nullPatchFailure != null,
+                    "a null customVocabulary term deserialised on the patch DTO");
+                var (cleanVocabulary, _, cleanFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"N","customVocabulary":["ok","fine"]}"""));
+                Assert(cleanFailure == null && cleanVocabulary!.CustomVocabulary is { Count: 2 } terms
+                        && terms[0] == "ok" && terms[1] == "fine",
+                    "the converter broke a valid customVocabulary");
+                var (nullVocabulary, _, nullVocabularyFailure) = await LocalApiLimits.ReadJsonBodyWithKeysAsync<ModeDto>(
+                    BodyContext("""{"name":"N","customVocabulary":null}"""));
+                Assert(nullVocabularyFailure == null && nullVocabulary!.CustomVocabulary == null,
+                    "an explicit null customVocabulary stopped meaning 'absent'");
+
+                // DECISION B — the required seven, create only. `{"name":"Only"}`
+                // created a mode on this head before #356; `openapi.yaml` has
+                // required all seven since it was written, and macOS has
+                // enforced them by construction since it shipped.
+                var required = HyperwhisperCoreMethods.LocalApiRequiredModeKeys();
+                Assert(required.Count == 7 && required[0] == "name",
+                    "the shared required-key list changed shape");
+                var missing = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                    HwLocalApiModeOperation.Create, partialKeys.ToList(), "Only", null, null, null, null, null, null, null));
+                // HTTP 200 + INVALID_REQUEST, not 400 (issue #356, review round
+                // 1): `openapi.yaml`'s `info.description` reserves 4xx for
+                // malformed JSON, a bad bearer token and a rejected origin, and
+                // a well-formed body that is merely incomplete is none of those.
+                // This is a status change on this head: `{"name":"Only"}`
+                // answered 200 before #356 because it CREATED the mode.
+                Assert(missing != null
+                        && missing.httpStatus == 200
+                        && HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(missing.code) == LocalApiErrorCode.InvalidRequest,
+                    "a create body missing six required keys was accepted, or refused outside the published envelope rule");
+                var patchOk = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                    HwLocalApiModeOperation.Patch, partialKeys.ToList(), "Only", null, null, null, null, null, null, null));
+                Assert(patchOk == null,
+                    "the required-key rule leaked onto PATCH, where openapi.yaml has no required list");
+
+                // DECISION C — `sortOrder` is bounded to the Int16 range its
+                // storage column has always had. This head had no bound at all.
+                var overflow = HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                    HwLocalApiModeOperation.Patch, [], null, null, null, null, 99999L, null, null, null));
+                Assert(overflow != null
+                        && overflow.httpStatus == 200
+                        && HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(overflow.code) == LocalApiErrorCode.InvalidRequest,
+                    "an out-of-Int16 sortOrder was accepted, or refused outside the closed fourteen");
+                Assert(HyperwhisperCoreMethods.LocalApiValidateMode(new HwLocalApiModeValidationInput(
+                        HwLocalApiModeOperation.Patch, [], null, null, null, null, 32767L, null, null, null)) == null,
+                    "sortOrder 32767 was refused; the bound is inclusive on every head");
+
+                // DECISION D — one comparison key. `OrdinalIgnoreCase` was one
+                // of three different answers to "the same name".
+                Assert(HyperwhisperCoreMethods.LocalApiModeNameConflict("  WORK  ", ["Personal", "work"]),
+                    "the shared collision rule stopped matching the name this head would have matched");
+                var taken = HyperwhisperCoreMethods.LocalApiModeNameTakenFailure("Work", HwLocalApiModeOperation.Create);
+                Assert(HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(taken.code) == LocalApiErrorCode.ModeNameTaken
+                        && taken.message == "A mode named 'Work' already exists"
+                        && taken.hint != null,
+                    "the shared collision failure drifted from this head's wording");
+                Assert(HyperwhisperCoreMethods.LocalApiModeNameTakenFailure("Work", HwLocalApiModeOperation.Patch).hint == null,
+                    "the patch collision grew a hint this head has never sent");
+
+                // ...AND THE COLLISION CHECK RUNS ONLY ON A REAL RENAME (issue
+                // #356, review round 1). `HyperWhisperDbContext` declares a
+                // NON-unique index on `Name` and nothing outside these endpoints
+                // checks, so two modes named "Work" are producible from the GUI
+                // or a backup restore. A read-modify-write client PATCHing the
+                // whole object back must not be told its own unchanged name is
+                // taken — that mode would be patchable only by omitting `name`.
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Work", "Work", ["Work", "Personal"]),
+                    "an unchanged name was reported as a collision with its own duplicate");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("  WORK ", "Work", ["Work"]),
+                    "a name that is unchanged under the shared comparison key was treated as a rename");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Personal", "Work", ["personal"]),
+                    "a real rename onto a taken name stopped being refused");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.ModesEndpoints.PatchNameCollides("Personal", "Work", ["Archive"]),
+                    "a real rename onto a free name was refused");
+
+                // ITEM 3 — one alias table. `qwen3_asr` is this head's own
+                // response label; the trim is new here and could only ever
+                // accept a spelling this head refused.
+                foreach (var spelling in new[] { "qwen3_asr", " QWEN3-ASR ", "qwen", "Qwen3" })
+                {
+                    var transient = new Mode();
+                    HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                        transient, spelling, model: null);
+                    Assert(transient is { ProviderType: "local", LocalEngine: "parakeet", LocalParakeetModel: "qwen3-asr-0.6b" },
+                        $"engine spelling '{spelling}' did not resolve through the shared alias table");
+                }
+
+                // ...AND THE ROUND TRIP IS CLOSED ON THE RESPONSE SIDE TOO
+                // (issue #356 item 3, review round 1). `EngineLabel` emitted
+                // `qwen3_asr`, a spelling `openapi.yaml` does not list for that
+                // field — it publishes `qwen3Asr` and nothing else, and macOS
+                // has always emitted it. The label now comes from
+                // `EngineId::wire_label`, which is what that export exists for.
+                Assert(HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.Qwen3Asr) == "qwen3Asr"
+                        && HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.Parakeet) == "parakeet"
+                        && HyperwhisperCoreMethods.LocalApiEngineWireLabel(HwLocalApiEngineId.WhisperLocal) == "whisperLocal",
+                    "the shared wire labels drifted from the ones openapi.yaml publishes");
+
+                // A REAL ENGINE ID WINDOWS DOES NOT SHIP is ENGINE_UNAVAILABLE,
+                // not `Unknown engine` — the resolver answers identity, and the
+                // capability verdict is this head's.
+                foreach (var absent in new[] { "nemotron", "nemotron-local", "applespeech", "speech-analyzer" })
+                {
+                    var caught = false;
+                    try
+                    {
+                        HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                            new Mode(), absent, model: null);
+                    }
+                    catch (HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApiInputException ex)
+                    {
+                        caught = ex.Code == LocalApiErrorCode.EngineUnavailable
+                            && !ex.Message.StartsWith("Unknown engine", StringComparison.Ordinal);
+                    }
+                    Assert(caught, $"engine '{absent}' was not refused as a known-but-unavailable engine");
+                }
+            });
+
+            Run("the transcription detail slot carries ex.Message, not the toast sentence", () =>
+            {
+                // ISSUE #356 ITEM 4, REVIEW ROUND 1. `MapTranscriptionException`
+                // passed `ex.GetUserMessage()` into the crate's `detail` slot —
+                // a finished sentence written for a WPF toast — and several rows
+                // interpolate `detail` MID-sentence, so the wire doubled. The
+                // crate's own doc (`transcription.rs`) specifies this head's
+                // `ex.Message`, and macOS and the portable head both pass a raw
+                // associated value.
+                var network = LocalApiResponder.MapTranscriptionException(
+                    new TranscriptionException(TranscriptionErrorCode.NetworkError, "connection reset by peer"));
+                Assert(network.message == "Network error: connection reset by peer",
+                    $"the NetworkError message is \"{network.message}\"");
+                Assert(!network.message.Contains("Check your internet connection", StringComparison.Ordinal),
+                    "the NetworkError message still carries the toast sentence GetUserMessage() builds");
+                Assert(network.hint == "Check connectivity and retry.",
+                    "the NetworkError hint is no longer the shared row's");
+
+                var unavailable = LocalApiResponder.MapTranscriptionException(
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "503 from the edge", "AssemblyAI"));
+                Assert(unavailable.message == "AssemblyAI is unavailable: 503 from the edge",
+                    $"the ProviderUnavailable message is \"{unavailable.message}\"");
+                Assert(!unavailable.message.Contains("temporarily unavailable", StringComparison.Ordinal)
+                        && !unavailable.message.Contains("use local transcription", StringComparison.Ordinal),
+                    "the ProviderUnavailable message still stutters the provider name and duplicates the row's hint");
+
+                // The generic row loses nothing: every code with an arm in
+                // `GetUserMessage()` has a reason of its own, so the only codes
+                // that reach `TRANSCRIPTION_FAILED` are the ones whose
+                // `GetUserMessage()` is the `_ => Message` arm.
+                var generic = LocalApiResponder.MapTranscriptionException(
+                    new TranscriptionException(TranscriptionErrorCode.Unknown, "something specific went wrong"));
+                Assert(generic.message.Contains("something specific went wrong", StringComparison.Ordinal),
+                    $"the generic row lost this head's own detail text: \"{generic.message}\"");
+            });
+
             SynchronizationContext.SetSynchronizationContext(limitsPreviousContext);
 
             Run("the audio_base64 guards refuse an oversized clip before decoding it", () =>
@@ -11405,15 +11617,20 @@ internal static class Program
 
             RunAsync("onboarding: the cloud credit balance is never cut without an ellipsis", async () =>
             {
-                // Both cloud steps draw CreditsFormatted with OnboardingBigNumberStyle
+                // Both cloud steps draw the credits readout with OnboardingBigNumberStyle
                 // (30 pt) in the `*` column of a two-column row whose `Auto` column
                 // holds a pill (Setup) or the "Get credits" button (Configure). The
-                // formatted balance is wider than what is left of that row, and the
-                // style set no TextTrimming and no TextWrapping, so the text ran under
-                // the neighbour and was cut mid-word at the card edge: the Configure
-                // step rendered "$66.30 remainir" and the Setup step
-                // "$66.30 remaining (~10523 min", with nothing to say either had been
-                // cut. The caption directly below has always trimmed.
+                // readout was bound to CreditsFormatted, whose sentence is wider than
+                // what is left of that row, and the style set no TextTrimming and no
+                // TextWrapping, so the text ran under the neighbour and was cut mid-word
+                // at the card edge: the Configure step rendered "$66.30 remainir" and the
+                // Setup step "$66.30 remaining (~10523 min", with nothing to say either
+                // had been cut. The caption directly below has always trimmed.
+                //
+                // #529 moved the readout to the COUNT, which fits, so this case now
+                // measures the count. It is still worth measuring: the count grows with
+                // the balance, and the trimming setter is what stops a big enough one
+                // from repeating the defect.
                 //
                 // The gateway's own numbers: FormattedBalance divides the credit count
                 // by 1000 to get the dollars (HyperWhisperCloudCredits.cs:112-119), so
@@ -11432,13 +11649,118 @@ internal static class Program
                 Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
                 Assert(h.Flow.CreditsFormatted == balance, "precondition: the balance landed");
 
-                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, balance);
+                var readout = h.Flow.CreditsCountFormatted;
+                Assert(readout == 66300d.ToString("N0", CultureInfo.CurrentCulture),
+                    $"precondition: the count is what the readout draws, got '{readout}'");
+
+                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, readout);
+
+                // An ordinary count fits, so the assertion above no longer reaches the
+                // trimming half and would stay green with #524's setter deleted. This
+                // count does not fit: it is asserted to overflow, on the Configure step,
+                // whose column is the narrower of the two (~212 DIP behind the "Get
+                // credits" button, against ~412 on Setup). The setter is the only thing
+                // that keeps it inside.
+                h.Credits.Publish(new OnboardingCloudCredits(
+                    999_999_999_999_999d, 1, "$999,999,999,999.99 remaining (~1 minutes)"));
+
+                AssertBalanceReadoutFits(
+                    OnboardingStep.Configure, h.Flow, h.Flow.CreditsCountFormatted,
+                    mustOverflow: true);
+
+                h.Credits.Publish(new OnboardingCloudCredits(66300, 10523, balance));
+                Assert(h.Flow.CreditsCountFormatted == readout, "precondition: back to the real count");
 
                 h.Flow.ActivateCloudLicense();
                 await h.LastTask;
                 Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
 
-                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, readout);
+            });
+
+            RunAsync("onboarding: the cloud big number is the credit COUNT, not the balance sentence", async () =>
+            {
+                // #529. Both cloud steps print a caption that names a COUNT - "credits
+                // available" and "credits, spent per minute of audio" - under a 30 pt
+                // readout that was bound to the balance SENTENCE, so the panel read
+                // "$66.30 remaining (~10523 minutes)" / "credits available". macOS puts
+                // the count in the same slot from the same catalog keys
+                // (OnboardingSourceViews.swift:307-310 and 579-582), and Windows already
+                // had the count property and already used it at Done.
+                var balance = "$66.30 remaining (~10523 minutes)";
+                var count = 66300d.ToString("N0", CultureInfo.CurrentCulture);
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, balance);
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+
+                var configure = AssertBigNumberAboveCaption(
+                    OnboardingStep.Configure, h.Flow,
+                    "onboarding.configure.cloud.creditsCaption", count, balance);
+
+                // Dropped from the card, but not lost.
+                AssertBalanceIsTheTooltip(configure, balance);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+
+                var setup = AssertBigNumberAboveCaption(
+                    OnboardingStep.Setup, h.Flow,
+                    "onboarding.setup.cloud.credits.caption", count, balance);
+
+                AssertBalanceIsTheTooltip(setup, balance);
+            });
+
+            RunAsync("onboarding: an unknown credit count reads as unknown, never as a blank slot", async () =>
+            {
+                // The catch #529 names. CreditsCountFormatted used to fall back to an
+                // empty string because only the Done summary read it, and that summary
+                // is gated on HasCredits. Once the readout binds to it, an empty
+                // fallback turns a failed or pending fetch into a blank 30 pt line above
+                // "credits available" - worse than the ellipsis the sentence had, and
+                // invisible in QA because a blank line looks like nothing at all.
+                //
+                // Both steps, because neither row is gated on HasCredits: Configure is
+                // gated on the probe and Setup on the activation, and an activation whose
+                // credits refresh fails leaves Setup rendering with no balance. That is
+                // the state onboarding.setup.cloud.subtitle.balancePending exists for.
+                var h = new OnboardingHarness();
+                h.Credits.ThrowOnRefresh = true;
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+                Assert(!h.Flow.HasCredits, "precondition: the fetch failed, so nothing landed");
+
+                var configure = AssertBigNumberAboveCaption(
+                    OnboardingStep.Configure, h.Flow,
+                    "onboarding.configure.cloud.creditsCaption", "…", expectedAbsent: null);
+
+                // Hovering an ellipsis must not pop an ellipsis.
+                AssertBalanceIsTheTooltip(configure, null);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+                Assert(!h.Flow.HasCredits, "precondition: the balance still never arrived");
+
+                var setup = AssertBigNumberAboveCaption(
+                    OnboardingStep.Setup, h.Flow,
+                    "onboarding.setup.cloud.credits.caption", "…", expectedAbsent: null);
+
+                AssertBalanceIsTheTooltip(setup, null);
             });
 
             RunAsync("onboarding: the cloud setup step RENDERS the state it reports", async () =>
@@ -14601,13 +14923,15 @@ internal static class Program
         string.IsNullOrEmpty(element.Name) ? $"an unnamed {element.GetType().Name}" : element.Name;
 
     /// <summary>
-    /// Assert the cloud balance readout on a step is not silently cut, at every window
-    /// size the product can render that step at.
+    /// Assert the cloud credits readout on a step is not silently cut, at every window
+    /// size the product can render that step at. <paramref name="readoutText"/> is what
+    /// the slot actually draws - since #529 the credit count, not the balance sentence.
     /// </summary>
     private static void AssertBalanceReadoutFits(
         OnboardingStep step,
         OnboardingFlowViewModel flow,
-        string balance)
+        string readoutText,
+        bool mustOverflow = false)
     {
         // Both window sizes the product can actually render the step at. The window
         // is NoResize and FitToWorkArea clamps it between a floor and the design
@@ -14624,25 +14948,27 @@ internal static class Program
         foreach (var window in new[] { design, clamped })
         {
             AssertBalanceReadoutFitsAt(
-                step, flow, balance, window.Width, Math.Max(1, window.Height - chrome));
+                step, flow, readoutText, window.Width, Math.Max(1, window.Height - chrome),
+                mustOverflow);
         }
     }
 
     private static void AssertBalanceReadoutFitsAt(
         OnboardingStep step,
         OnboardingFlowViewModel flow,
-        string balance,
+        string readoutText,
         double width,
-        double height)
+        double height,
+        bool mustOverflow)
     {
         var page = LayOutOnboardingStepPage(step, flow, width, height);
         var where = $"{step} at {width:F0} DIP";
 
         var readout = DescendantsOf<System.Windows.Controls.TextBlock>(page)
-            .FirstOrDefault(t => string.Equals(t.Text, balance, StringComparison.Ordinal));
+            .FirstOrDefault(t => string.Equals(t.Text, readoutText, StringComparison.Ordinal));
 
-        Assert(readout is not null, $"{where}: the balance readout is not on the page at all");
-        Assert(readout!.ActualWidth > 0, $"{where}: the balance readout was never laid out");
+        Assert(readout is not null, $"{where}: the credits readout is not on the page at all");
+        Assert(readout!.ActualWidth > 0, $"{where}: the credits readout was never laid out");
 
         // The readout's own parent chain, not a search for any two-column Grid: the
         // stock ScrollViewer template inside OnboardingStage is itself a `*`/Auto Grid
@@ -14653,7 +14979,7 @@ internal static class Program
 
         Assert(
             row is System.Windows.Controls.Grid { ColumnDefinitions.Count: 2 },
-            $"{where}: the balance readout is no longer one level inside a two-column row - " +
+            $"{where}: the credits readout is no longer one level inside a two-column row - " +
             "this case measures the wrong thing until it is pointed at the new shape");
 
         var grid = (System.Windows.Controls.Grid)row!;
@@ -14676,7 +15002,7 @@ internal static class Program
         // column holds. That is the defect, and it is what this measures.
         Assert(
             readoutRight <= neighbourLeft + 0.5,
-            $"{where}: '{balance}' is arranged out to {readoutRight:F0} DIP while the " +
+            $"{where}: '{readoutText}' is arranged out to {readoutRight:F0} DIP while the " +
             $"{neighbour.GetType().Name} beside it starts at {neighbourLeft:F0}. The readout " +
             "runs under its neighbour and is cut with nothing to say it was cut.");
 
@@ -14686,15 +15012,143 @@ internal static class Program
         // measurement above and reproduce the defect.
         var natural = UnconstrainedWidthOf(readout);
 
+        // The caller reached for a value it believes cannot fit, so a value that DOES
+        // fit means the case has stopped exercising the trimming half below and is
+        // quietly passing on the early return.
+        Assert(
+            !mustOverflow || natural > readout.ActualWidth + 0.5,
+            $"{where}: '{readoutText}' wants only {natural:F0} DIP in a " +
+            $"{readout.ActualWidth:F0} DIP column, so this case no longer reaches the " +
+            "trimming assertion - it needs a longer value or a narrower step");
+
         if (natural <= readout.ActualWidth + 0.5)
             return;
 
         Assert(
             readout.TextTrimming != TextTrimming.None
             || readout.TextWrapping != TextWrapping.NoWrap,
-            $"{where}: '{balance}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
+            $"{where}: '{readoutText}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
             "column and neither trims nor wraps, so it is cut with no ellipsis");
     }
+
+    /// <summary>
+    /// Assert the big-number slot directly above a caption holds what it should.
+    ///
+    /// The slot and its caption are the two children of one StackPanel, so this reads
+    /// the caption by its catalog key and then the sibling immediately above it - which
+    /// is the binding under test, and cannot be confused with any other 30 pt line on
+    /// the page. <paramref name="expectedAbsent"/>, when given, must appear nowhere on
+    /// the page at all. Returns the readout so the caller can go on to assert what is
+    /// NOT drawn on it.
+    /// </summary>
+    private static System.Windows.Controls.TextBlock AssertBigNumberAboveCaption(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string captionKey,
+        string expected,
+        string? expectedAbsent)
+    {
+        var page = LayOutOnboardingStepPage(step, flow, 760, 521);
+        var caption = HyperWhisper.Localization.Loc.S(captionKey);
+        var where = $"{step} ('{caption}')";
+
+        var captionBlock = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+            .FirstOrDefault(t => string.Equals(t.Text, caption, StringComparison.Ordinal));
+
+        Assert(captionBlock is not null, $"{where}: the caption is not on the page at all");
+
+        var panel = System.Windows.Media.VisualTreeHelper.GetParent(captionBlock!)
+            as System.Windows.Controls.StackPanel;
+
+        Assert(panel is not null, $"{where}: the caption is no longer inside a StackPanel");
+
+        var siblings = panel!.Children.OfType<System.Windows.Controls.TextBlock>().ToList();
+        var index = siblings.IndexOf(captionBlock!);
+
+        Assert(index > 0, $"{where}: nothing is drawn above the caption");
+
+        var readout = siblings[index - 1];
+
+        Assert(
+            string.Equals(readout.Text, expected, StringComparison.Ordinal),
+            $"{where}: the readout above the caption reads '{readout.Text}', not '{expected}'. " +
+            "The caption names a count, so the slot must hold the count.");
+
+        // 30 pt is what makes it the big-number slot rather than another body line.
+        Assert(
+            Math.Abs(readout.FontSize - 30) < 0.5,
+            $"{where}: the readout above the caption is {readout.FontSize:F0} pt, not the 30 pt " +
+            "big-number slot, so this case is measuring the wrong TextBlock");
+
+        // A Collapsed TextBlock is still in the visual tree and still carries its text
+        // and its style, so every assertion above passes on a card the user cannot see.
+        // A collapsed ancestor is never arranged, so its children keep a zero width.
+        Assert(
+            readout.Visibility == Visibility.Visible && readout.ActualWidth > 0,
+            $"{where}: the readout above the caption was never laid out - the row it is in " +
+            "is collapsed in a state that is supposed to render it");
+
+        if (expectedAbsent is not null)
+        {
+            Assert(
+                !DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .Any(t => string.Equals(t.Text, expectedAbsent, StringComparison.Ordinal)),
+                $"{where}: '{expectedAbsent}' is still drawn on the step. The balance sentence " +
+                "belongs in the readout's tooltip, not on the card.");
+        }
+
+        return readout;
+    }
+
+    /// <summary>
+    /// Assert what became of the balance sentence once it left the card:
+    /// <paramref name="sentence"/> is the tooltip the readout must carry, or null when
+    /// the figure is unknown and the readout must carry no tooltip at all - hovering an
+    /// ellipsis to be shown an ellipsis is worse than no tooltip.
+    /// </summary>
+    private static void AssertBalanceIsTheTooltip(
+        System.Windows.Controls.TextBlock readout,
+        string? sentence)
+    {
+        var enabled = System.Windows.Controls.ToolTipService.GetIsEnabled(readout);
+
+        if (sentence is null)
+        {
+            Assert(
+                !enabled,
+                $"the readout's tooltip is still switched on with '{ToolTipTextOf(readout)}' in it, " +
+                "and the figure is unknown");
+            return;
+        }
+
+        Assert(enabled, "the readout's tooltip is switched off with a balance to show");
+        Assert(
+            string.Equals(ToolTipTextOf(readout), sentence, StringComparison.Ordinal),
+            $"the readout's tooltip is '{ToolTipTextOf(readout)}', not the balance sentence");
+
+        // The same sentence for anything that cannot hover. A TextBlock takes no focus,
+        // so the tooltip alone would put the figure out of reach of a screen reader.
+        Assert(
+            string.Equals(
+                System.Windows.Automation.AutomationProperties.GetHelpText(readout),
+                sentence,
+                StringComparison.Ordinal),
+            "the readout's automation help text is not the balance sentence, so the figure " +
+            "is reachable by mouse hover and by nothing else");
+    }
+
+    /// <summary>
+    /// The text of a tooltip, whichever of the two shapes this repo uses it has: the
+    /// stock string, or the explicit ToolTip with a wrapping TextBlock in it.
+    /// </summary>
+    private static string? ToolTipTextOf(FrameworkElement element) => element.ToolTip switch
+    {
+        string text => text,
+        System.Windows.Controls.ToolTip { Content: string text } => text,
+        System.Windows.Controls.ToolTip { Content: System.Windows.Controls.TextBlock block } => block.Text,
+        System.Windows.Controls.TextBlock block => block.Text,
+        _ => null
+    };
 
     /// <summary>
     /// Lay out one onboarding step page against a flow the caller has already driven.

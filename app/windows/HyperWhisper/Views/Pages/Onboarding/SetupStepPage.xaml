@@ -88,7 +88,20 @@
                         </Border>
                         <Border Style="{StaticResource OnboardingDividerStyle}"/>
 
-                        <!-- Activated: the balance, display only. -->
+                        <!-- Activated: the balance, display only.
+
+                             The big number is the credit COUNT, because the caption
+                             under it names a count ("credits, spent per minute of
+                             audio"). OnboardingSourceViews.swift:579-582 puts the
+                             same count in the same slot, over the same caption, and
+                             falls back to the same ellipsis.
+
+                             The dollars-and-minutes sentence is a sentence, not a
+                             number, and it is wider than this column, so it is the
+                             readout's tooltip and its automation help text. The
+                             tooltip is switched off while the figure is unknown -
+                             this row is gated on the activation, not on the balance,
+                             so it renders before one has landed. -->
                         <Border Style="{StaticResource OnboardingCardRowStyle}"
                                 Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}}">
                             <Grid>
@@ -98,7 +111,10 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Style="{StaticResource OnboardingBigNumberStyle}"
-                                               Text="{Binding CreditsFormatted}"/>
+                                               Text="{Binding CreditsCountFormatted}"
+                                               ToolTip="{Binding CreditsFormatted}"
+                                               ToolTipService.IsEnabled="{Binding HasCredits}"
+                                               AutomationProperties.HelpText="{Binding CreditsFormatted}"/>
                                     <TextBlock Style="{StaticResource OnboardingBigNumberCaptionStyle}"
                                                Text="{loc:Loc onboarding.setup.cloud.credits.caption}"/>
                                 </StackPanel>

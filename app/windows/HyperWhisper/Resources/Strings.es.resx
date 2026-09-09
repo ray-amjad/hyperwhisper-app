@@ -363,7 +363,7 @@
     <value>Almacenamiento</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Modelos</value>
+    <value>Biblioteca de modelos</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>Claves de API</value>
@@ -949,7 +949,7 @@
 
   <!-- Modes -->
   <data name="modes.subtitle.local" xml:space="preserve">
-    <value>Local - {0}</value>
+    <value>Local: {0}</value>
   </data>
 
   <!-- Language -->
@@ -965,7 +965,7 @@
     <value>Modelo: </value>
   </data>
   <data name="statusbar.postProcessing" xml:space="preserve">
-    <value>Post: </value>
+    <value>Pospr.: </value>
   </data>
 
   <!-- Recording Overlay - Extended -->
@@ -981,7 +981,7 @@
     <value>La transcripción local no está disponible en Windows ARM64. Use un proveedor en la nube.</value>
   </data>
   <data name="mode.editor.field.preset" xml:space="preserve">
-    <value>Preset</value>
+    <value>Preajuste</value>
   </data>
   <data name="mode.editor.preset.hyper" xml:space="preserve">
     <value>Hyper (Recomendado)</value>
@@ -1101,10 +1101,10 @@
     <value>Filtrar palabrotas</value>
   </data>
   <data name="mode.editor.postProcessing.screenText" xml:space="preserve">
-    <value>Screen Text</value>
+    <value>Texto en pantalla</value>
   </data>
   <data name="mode.editor.postProcessing.screenText.hint" xml:space="preserve">
-    <value>Capture visible screen text to improve accuracy of names and terms</value>
+    <value>Capturar el texto visible en pantalla para reconocer mejor nombres y términos</value>
   </data>  <data name="mode.editor.postProcessing.removeTrailingPeriod" xml:space="preserve">
     <value>Eliminar punto final</value>
   </data>
@@ -1726,34 +1726,34 @@ Puede volver a descargarlo más tarde.</value>
 
   <!-- Synced fallback strings -->
   <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
-    <value>{0} (Popular)</value>
+    <value>{0} (popular)</value>
   </data>
   <data name="mode.editor.cloudModel.showAll" xml:space="preserve">
-    <value>Show all models</value>
+    <value>Mostrar todos los modelos</value>
   </data>
   <data name="recording.state.streaming" xml:space="preserve">
-    <value>Live</value>
+    <value>En directo</value>
   </data>
   <data name="settings.api.provider.grok.post.description" xml:space="preserve">
-    <value>SpaceXAI Grok models for text enhancement</value>
+    <value>Modelos Grok de SpaceXAI para mejorar el texto</value>
   </data>
   <data name="settings.nav.streaming" xml:space="preserve">
     <value>Transcripción en directo</value>
   </data>
   <data name="settings.output.hideClipboardHistory.subtitle" xml:space="preserve">
-    <value>Prevent transcriptions from appearing in Windows clipboard history</value>
+    <value>Evitar que las transcripciones aparezcan en el historial del portapapeles de Windows</value>
   </data>
   <data name="settings.output.hideClipboardHistory.title" xml:space="preserve">
-    <value>Hide from clipboard history</value>
+    <value>Ocultar del historial del portapapeles</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
     <value>Transcripción en directo</value>
   </data>
   <data name="settings.storage.storeAsM4A.subtitle" xml:space="preserve">
-    <value>Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files.</value>
+    <value>Convierte las grabaciones WAV en archivos más pequeños tras la transcripción. Desactívalo para conservar los archivos WAV originales.</value>
   </data>
   <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
-    <value>Compress recordings to M4A</value>
+    <value>Comprimir las grabaciones a M4A</value>
   </data>
   <data name="settings.streaming.deepgram.model.general" xml:space="preserve">
     <value>Nova 3 General</value>
@@ -1819,16 +1819,16 @@ Puede volver a descargarlo más tarde.</value>
     <value>La transmisión de SpaceXAI requiere una clave de API de Grok en el administrador de claves de API de Modelos.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
-    <value>Gemini API key is configured.</value>
+    <value>La clave de API de Gemini está configurada.</value>
   </data>
   <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
-    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+    <value>El streaming de Gemini 3.5 Transcribe requiere una clave de API de Google Gemini en el gestor de claves de API de la biblioteca de modelos.</value>
   </data>
   <data name="settings.streaming.cloudTier.title" xml:space="preserve">
-    <value>Live engine</value>
+    <value>Motor en directo</value>
   </data>
   <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
-    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
+    <value>Qué motor de voz usa HyperWhisper Cloud para la transcripción en directo.</value>
   </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
     <value>Atajo de transcripción en directo</value>
@@ -1858,84 +1858,84 @@ Puede volver a descargarlo más tarde.</value>
   </data>
   <!-- Synced fallback strings -->
   <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
-    <value>Keep microphone warm</value>
+    <value>Mantener el micrófono activo</value>
   </data>
   <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
-    <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+    <value>Mantener abierto un flujo de entrada silencioso entre grabaciones para reducir el retardo inicial, sobre todo con micrófonos Bluetooth.</value>
   </data>
 
   <!-- Synced fallback strings -->
   <data name="window.caption.minimize" xml:space="preserve">
-    <value>Minimize</value>
+    <value>Minimizar</value>
   </data>
   <data name="window.caption.maximize" xml:space="preserve">
-    <value>Maximize</value>
+    <value>Maximizar</value>
   </data>
   <data name="window.caption.close" xml:space="preserve">
-    <value>Close</value>
+    <value>Cerrar</value>
   </data>
   <data name="common.clear" xml:space="preserve">
-    <value>Clear</value>
+    <value>Borrar</value>
   </data>
   <data name="common.off" xml:space="preserve">
-    <value>Off</value>
+    <value>Desactivado</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
-    <value>Autocapitalize Insert</value>
+    <value>Mayúscula automática al insertar</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.subtitle" xml:space="preserve">
-    <value>Match cursor context when inserting text</value>
+    <value>Adaptarse al contexto del cursor al insertar texto</value>
   </data>
   <data name="settings.output.autocapitalizeInsert.permissionMessage" xml:space="preserve">
-    <value>Some applications (like web browsers and Electron apps) may not expose the focused text field. Autocapitalize Insert will pass through unchanged in those cases — the feature still works in most native editors and Office applications.</value>
+    <value>Algunas aplicaciones (como los navegadores web y las apps de Electron) no exponen el campo de texto enfocado. En esos casos, «Mayúscula automática al insertar» deja el texto sin cambios; la función sigue funcionando en la mayoría de editores nativos y aplicaciones de Office.</value>
   </data>
   <data name="settings.about.checkUpdates.description" xml:space="preserve">
-    <value>Look for the latest release.</value>
+    <value>Buscar la versión más reciente.</value>
   </data>
   <data name="settings.about.openLogFolder.description" xml:space="preserve">
-    <value>View local diagnostic files.</value>
+    <value>Ver los archivos de diagnóstico locales.</value>
   </data>
   <data name="settings.about.openLogFolder.failed.title" xml:space="preserve">
-    <value>Could Not Open Log Folder</value>
+    <value>No se pudo abrir la carpeta de registros</value>
   </data>
   <data name="settings.about.openLogFolder.failed.message" xml:space="preserve">
-    <value>HyperWhisper could not open the log folder. Please try again or export diagnostics instead. Details: {0}</value>
+    <value>HyperWhisper no pudo abrir la carpeta de registros. Inténtalo de nuevo o exporta los diagnósticos en su lugar. Detalles: {0}</value>
   </data>
   <data name="settings.about.exportDiagnostics.description" xml:space="preserve">
-    <value>Create a support bundle.</value>
+    <value>Crear un paquete de soporte.</value>
   </data>
   <data name="settings.models.clearFilters" xml:space="preserve">
-    <value>Clear filters</value>
+    <value>Borrar filtros</value>
   </data>
   <data name="settings.models.empty.noMatches" xml:space="preserve">
-    <value>No models match your filters.</value>
+    <value>Ningún modelo coincide con tus filtros.</value>
   </data>
   <data name="settings.models.empty.filtered" xml:space="preserve">
-    <value>No models match: {0}.</value>
+    <value>Ningún modelo coincide con: {0}.</value>
   </data>
   <data name="settings.models.empty.noneAvailable" xml:space="preserve">
-    <value>No models are available.</value>
+    <value>No hay modelos disponibles.</value>
   </data>
   <data name="settings.models.empty.filter.search" xml:space="preserve">
-    <value>search &quot;{0}&quot;</value>
+    <value>búsqueda «{0}»</value>
   </data>
   <data name="settings.models.feature.vocabulary" xml:space="preserve">
-    <value>custom vocabulary</value>
+    <value>vocabulario personalizado</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
     <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe: hasta 60 idiomas con ponderación de frases</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe - dedicated speech model, 85+ languages, custom vocabulary</value>
+    <value>Google Gemini 3.5 Transcribe: modelo de voz específico, más de 85 idiomas, vocabulario personalizado</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
-    <value>~{0} credits/min</value>
+    <value>~{0} créditos/min</value>
   </data>
   <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
     <value>Soniox</value>
@@ -1983,19 +1983,19 @@ Puede volver a descargarlo más tarde.</value>
     <value>Vocabulario médico (complemento Modo Médico)</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
-    <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
+    <value>El posprocesamiento con IA puede adaptar el formato a la aplicación activa: correo, chat, documentos, código o ventanas de terminal. Quienes llamen a la API local pueden pasar applicationContext de forma explícita; no se captura automáticamente en las peticiones de la API.</value>
   </data>
   <data name="settings.streaming.provider.openAI" xml:space="preserve">
     <value>OpenAI</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.configured" xml:space="preserve">
-    <value>OpenAI API key is configured.</value>
+    <value>La clave de API de OpenAI está configurada.</value>
   </data>
   <data name="settings.streaming.providerStatus.openAI.missingKey" xml:space="preserve">
     <value>La transmisión de OpenAI requiere una clave de API de OpenAI en el administrador de claves de API de Modelos.</value>
   </data>
   <data name="provider.none" xml:space="preserve">
-    <value>None</value>
+    <value>Ninguno</value>
   </data>
   <data name="provider.microsoftAzureSpeech" xml:space="preserve">
     <value>Microsoft Azure Speech</value>
@@ -2004,73 +2004,73 @@ Puede volver a descargarlo más tarde.</value>
     <value>Google Cloud Speech</value>
   </data>
   <data name="home.stats.averageSpeed" xml:space="preserve">
-    <value>Average speed</value>
+    <value>Velocidad media</value>
   </data>
   <data name="home.stats.wordsThisWeek" xml:space="preserve">
-    <value>Words this week</value>
+    <value>Palabras esta semana</value>
   </data>
   <data name="home.stats.wordsThisMonth" xml:space="preserve">
-    <value>Words this month</value>
+    <value>Palabras este mes</value>
   </data>
   <data name="home.stats.savedThisWeek" xml:space="preserve">
-    <value>Saved this week</value>
+    <value>Ahorrado esta semana</value>
   </data>
   <data name="home.stats.minutesValue" xml:space="preserve">
-    <value>{0} minutes</value>
+    <value>{0} minutos</value>
   </data>
   <data name="home.stats.typingSpeedHelp" xml:space="preserve">
-    <value>Adjust your assumed typing speed</value>
+    <value>Ajusta tu velocidad de escritura estimada</value>
   </data>
   <data name="providerApiKey.title" xml:space="preserve">
-    <value>Connect {0}</value>
+    <value>Conectar {0}</value>
   </data>
   <data name="providerApiKey.subtitle" xml:space="preserve">
-    <value>Add your {0} API key to unlock this provider in Model Library.</value>
+    <value>Añade tu clave de API de {0} para desbloquear este proveedor en la biblioteca de modelos.</value>
   </data>
   <data name="providerApiKey.currentStatus.none" xml:space="preserve">
-    <value>No API key configured</value>
+    <value>No hay ninguna clave de API configurada</value>
   </data>
   <data name="providerApiKey.currentStatus.configured" xml:space="preserve">
-    <value>Configured as {0}</value>
+    <value>Configurada como {0}</value>
   </data>
   <data name="providerApiKey.getKey" xml:space="preserve">
-    <value>Get key</value>
+    <value>Obtener clave</value>
   </data>
   <data name="providerApiKey.apiKeyLabel" xml:space="preserve">
-    <value>API key</value>
+    <value>Clave de API</value>
   </data>
   <data name="providerApiKey.secureStorage" xml:space="preserve">
-    <value>Stored securely in Windows Credential Manager.</value>
+    <value>Se guarda de forma segura en el Administrador de credenciales de Windows.</value>
   </data>
   <data name="providerApiKey.invalid.title" xml:space="preserve">
-    <value>Invalid API Key</value>
+    <value>Clave de API no válida</value>
   </data>
   <data name="providerApiKey.invalid.message" xml:space="preserve">
-    <value>That does not look like a valid {0} API key.</value>
+    <value>Esto no parece una clave de API de {0} válida.</value>
   </data>
   <data name="settings.nav.localApi" xml:space="preserve">
-    <value>Local API</value>
+    <value>API local</value>
   </data>
   <data name="settings.localApi.title" xml:space="preserve">
-    <value>Local API</value>
+    <value>API local</value>
   </data>
   <data name="settings.localApi.blurb" xml:space="preserve">
-    <value>Localhost-only HTTP API for MCP clients, benchmark scripts, and shell automation. Off by default. When on, HyperWhisper listens on 127.0.0.1 and writes the port + bearer token to %LOCALAPPDATA%\HyperWhisper\local-api.json with restricted file permissions.</value>
+    <value>API HTTP accesible solo desde localhost, para clientes MCP, scripts de benchmark y automatización con shell. Desactivada de forma predeterminada. Cuando está activada, HyperWhisper escucha en 127.0.0.1 y escribe el puerto y el token Bearer en %LOCALAPPDATA%\HyperWhisper\local-api.json con permisos de archivo restringidos.</value>
   </data>
   <data name="settings.localApi.toggle.enabled" xml:space="preserve">
-    <value>Server enabled</value>
+    <value>Servidor activado</value>
   </data>
   <data name="settings.localApi.toggle.disabled" xml:space="preserve">
-    <value>Server disabled</value>
+    <value>Servidor desactivado</value>
   </data>
   <data name="settings.localApi.docs" xml:space="preserve">
-    <value>Docs</value>
+    <value>Documentación</value>
   </data>
   <data name="settings.localApi.tab.connection" xml:space="preserve">
-    <value>Connection</value>
+    <value>Conexión</value>
   </data>
   <data name="settings.localApi.tab.mcp" xml:space="preserve">
-    <value>MCP setup</value>
+    <value>Configuración de MCP</value>
   </data>
   <data name="settings.localApi.tab.curl" xml:space="preserve">
     <value>cURL</value>
@@ -2079,37 +2079,37 @@ Puede volver a descargarlo más tarde.</value>
     <value>Port</value>
   </data>
   <data name="settings.localApi.row.token" xml:space="preserve">
-    <value>Bearer token</value>
+    <value>Token Bearer</value>
   </data>
   <data name="settings.localApi.row.portFile" xml:space="preserve">
-    <value>Port file</value>
+    <value>Archivo de puerto</value>
   </data>
   <data name="settings.localApi.copy" xml:space="preserve">
-    <value>Copy</value>
+    <value>Copiar</value>
   </data>
   <data name="settings.localApi.reveal" xml:space="preserve">
-    <value>Reveal</value>
+    <value>Mostrar</value>
   </data>
   <data name="settings.localApi.hide" xml:space="preserve">
-    <value>Hide</value>
+    <value>Ocultar</value>
   </data>
   <data name="settings.localApi.regenerate" xml:space="preserve">
-    <value>Regenerate</value>
+    <value>Regenerar</value>
   </data>
   <data name="settings.localApi.show" xml:space="preserve">
-    <value>Show</value>
+    <value>Mostrar</value>
   </data>
   <data name="settings.localApi.helperAuth" xml:space="preserve">
-    <value>Sent as Authorization: Bearer &lt;token&gt;. Required on every endpoint except /health.</value>
+    <value>Se envía como Authorization: Bearer &lt;token&gt;. Obligatorio en todos los endpoints excepto /health.</value>
   </data>
   <data name="settings.localApi.mcp.caption" xml:space="preserve">
-    <value>Drop into Cursor, Claude Code, or Claude Desktop's mcpServers block. The wrapper auto-reads the port and token from the discovery file at startup — no secrets in client config.</value>
+    <value>Añádelo al bloque mcpServers de Cursor, Claude Code o Claude Desktop. El wrapper lee automáticamente el puerto y el token del archivo de descubrimiento al arrancar; no hay secretos en la configuración del cliente.</value>
   </data>
   <data name="settings.localApi.mcp.guide" xml:space="preserve">
-    <value>MCP setup guide</value>
+    <value>Guía de configuración de MCP</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
-    <value>Pre-filled with your port and token.</value>
+    <value>Ya incluye tu puerto y tu token.</value>
   </data>
   <data name="settings.localApi.action.copied" xml:space="preserve">
     <value>Copiado en el portapapeles.</value>
@@ -2139,10 +2139,10 @@ Puede volver a descargarlo más tarde.</value>
     <value>Token regenerado.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
-    <value>No network sockets bound.</value>
+    <value>No hay sockets de red enlazados.</value>
   </data>
   <data name="settings.localApi.status.starting" xml:space="preserve">
-    <value>Starting…</value>
+    <value>Iniciando…</value>
   </data>
   <data name="settings.localApi.status.running" xml:space="preserve">
     <value>127.0.0.1:{0} · token ••••{1}</value>
@@ -2232,13 +2232,13 @@ Puede volver a descargarlo más tarde.</value>
     <value>Meta</value>
   </data>
   <data name="settings.api.provider.meta.description" xml:space="preserve">
-    <value>Meta Muse Voice Transcribe 1.0 - batch transcription with your own Meta Model API key</value>
+    <value>Meta Muse Voice Transcribe 1.0: transcripción por lotes con tu propia clave de API de Meta Model</value>
   </data>
   <data name="settings.api.invalidKey.meta" xml:space="preserve">
-    <value>Invalid Meta API key format. Enter the complete key from Meta for Developers.</value>
+    <value>El formato de la clave de API de Meta no es válido. Introduce la clave completa de Meta for Developers.</value>
   </data>
   <data name="mode.editor.provider.meta.tooltip" xml:space="preserve">
-    <value>Use your own Meta Model API key for Muse batch transcription</value>
+    <value>Usa tu propia clave de API de Meta Model para la transcripción por lotes de Muse</value>
   </data>
   <data name="onboarding.window.title" xml:space="preserve">
     <value>Configurar HyperWhisper</value>
@@ -2775,7 +2775,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>Clave de API guardada. Este proveedor no puede comprobar una clave sin transcribir, así que se verificará la primera vez que dictes.</value>
   </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
-    <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
+    <value>HyperWhisper no pudo entregar la transcripción: no se pegó ni se copió al portapapeles. Está guardada en el historial.</value>
   </data>
   <data name="app.unknown.error" xml:space="preserve">
     <value>Ocurrió un error desconocido</value>
