@@ -17,6 +17,7 @@ members = [
     "crates/hw-catalog",
     "crates/hw-releasenotes",
     "crates/hw-localapi",
+    "crates/hw-modes",
     "crates/hw-stats",
 ]
 # The cargo-fuzz crate is a separate, nightly-only package: `libfuzzer-sys` and

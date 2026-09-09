@@ -1,0 +1,30 @@
+[package]
+name = "hw-modes"
+version = "0.1.0"
+edition = "2021"
+description = "The default-mode invariant: exactly one mode carries the default flag, and that mode's name is fixed. Plain Rust, zero dependencies; hw-core mirrors its types for UniFFI."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+# No dependencies, by design. This crate decides a rule the three heads apply
+# inside a database transaction, and the workspace release profile sets
+# `panic = "abort"`, so every added dependency is another crate that can abort
+# the app while a mode is half-written.
+[dependencies]
+
+# ---------------------------------------------------------------------------
+# Panic-free-by-construction lints. See hw-releasenotes/Cargo.toml for the full
+# explanation: these are `clippy::restriction` lints, so `-D warnings` alone
+# does NOT enable them and this table is the only thing that turns them on.
+#
+# They matter here for the same reason they matter to a parser: the row list
+# this crate is handed comes out of a database that a backup written on another
+# machine may have filled, so "there is always a first row" is an assumption
+# about untrusted data, not about the code.
+# ---------------------------------------------------------------------------
+[lints.clippy]
+indexing_slicing = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
