@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Biblioteka modeli</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Modele zamiany mowy na tekst Universal-2 i Universal-3 Pro od AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Transkrypcja Voxtral od Mistral i modele Mistral do ulepszania tekstu</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Modele Gemini od Google do transkrypcji i ulepszania tekstu</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Folder nagrań</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Pokaż w Finderze</value>
+    <value>Pokaż w Eksploratorze</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Wybierz...</value>
@@ -956,7 +956,7 @@ Tej czynności nie można cofnąć.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - wysoka dokładność, własny słownik jako terminy kluczowe</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Tej czynności nie można cofnąć.</value>
     <value>Usuń kropkę na końcu</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Stałe instrukcje</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Dodaj instrukcje, które zawsze obowiązują ponad wybranym ustawieniem wstępnym.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Abyśmy mogli słyszeć Twój głos.</value>
+    <value>Wymagane. Dźwięk jest przechwytywany tylko podczas nagrywania.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Przyznaj</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Na tym komputerze</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Działa całkowicie na Twoim Macu. Bezpłatne, prywatne, działa offline — nic nigdy nie opuszcza Twojego urządzenia.</value>
+    <value>Prywatnie i za darmo. Model pobiera się raz, potem działa bez sieci.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Twój klucz API</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Tylko angielski. Najszybszy na tym komputerze.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Wielojęzyczny · 25 języków</value>
+    <value>Wielojęzyczny. Ta sama szybkość, większe pobieranie.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Wielojęzyczny · niewielki rozmiar</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Otwórz ustawienia prywatności</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Gotowe, zacznij swoje pierwsze nagranie</value>
+    <value>Wykonaj jedno nagranie.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Naciśnij skrót, powiedz zdanie, naciśnij ponownie.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>W tej kompilacji brakuje przykładowego nagrania.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Gotowe!</value>
+    <value>Możesz już dyktować.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Naciśnij skrót w dowolnej aplikacji i zacznij mówić.</value>

@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Modelbibliotheek</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>De spraak-naar-tekstmodellen Universal-2 en Universal-3 Pro van AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Voxtral-transcriptie van Mistral en Mistral-modellen voor tekstverbetering</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>De Gemini-modellen van Google voor transcriptie en tekstverbetering</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Map voor opnamen</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Toon in Finder</value>
+    <value>Toon in Verkenner</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Kies...</value>
@@ -956,7 +956,7 @@ Dit kan niet ongedaan worden gemaakt.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - hoge nauwkeurigheid, eigen woordenlijst als kernbegrippen</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Dit kan niet ongedaan worden gemaakt.</value>
     <value>Verwijder afsluitende punt</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Blijvende instructies</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Voeg instructies toe die altijd gelden boven op de geselecteerde voorinstelling.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Microfoon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Zodat we je stem kunnen horen.</value>
+    <value>Vereist. Audio wordt alleen opgenomen zolang een opname actief is.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Verlenen</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Op deze pc</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Draait volledig op je Mac. Gratis, privé, werkt offline — er verlaat nooit iets je apparaat.</value>
+    <value>Privé en gratis. Downloadt eenmalig een model en werkt daarna zonder netwerk.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Jouw API-sleutel</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Alleen Engels. Het snelst op deze pc.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Meertalig · 25 talen</value>
+    <value>Meertalig. Zelfde snelheid, grotere download.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Meertalig · kleine footprint</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Privacyinstellingen openen</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Alles is ingesteld, laten we je eerste opname starten</value>
+    <value>Maak één opname.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Druk op de sneltoets, zeg de zin, druk er nogmaals op.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Het voorbeeldfragment ontbreekt in deze build.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Klaar!</value>
+    <value>Je kunt nu dicteren.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Druk op de sneltoets in elke app en begin te praten.</value>

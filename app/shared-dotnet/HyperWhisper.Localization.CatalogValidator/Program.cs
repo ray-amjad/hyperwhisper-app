@@ -35,6 +35,22 @@ try
     var status = ReadTranslationStatus(Path.Combine(directory, "translation-status.json"), baseCatalog);
     var untranslatedCounts = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
+    // Issue #574. The ceiling above only sees a value that IS the English one.
+    // The neighbouring defect is a value that is present, not English, and wrong
+    // — and the way it happens in bulk is that a base value is rewritten and the
+    // 39 catalogs keep a translation of the superseded English. Nothing about
+    // one such value looks wrong on its own, but the AGREEMENT does: twenty
+    // independent translators do not produce the same string by accident, so a
+    // value shared by more locales than the threshold is leftover English.
+    var localesSharingValue = new Dictionary<(string Key, string Value), int>();
+
+    // Also issue #574, and the cheapest check of the lot. These are the Windows
+    // catalogs. Two keys named the WRONG operating system's furniture in 34 and
+    // 35 locales: "Show in Explorer" was translated as "Im Finder anzeigen", and
+    // the on-device blurb told every non-English user the app "runs entirely on
+    // your Mac". Both read fine in isolation; only the word gives them away.
+    var foreignPlatform = new List<string>();
+
     foreach (var path in paths)
     {
         var catalog = ReadCatalog(path);
@@ -61,12 +77,35 @@ try
 
         if (!string.Equals(path, basePath, StringComparison.Ordinal))
         {
-            untranslatedCounts[LocaleOf(path)] = baseCatalog.Count(
+            var locale = LocaleOf(path);
+            untranslatedCounts[locale] = baseCatalog.Count(
                 pair => IsUntranslated(pair.Key, pair.Value, catalog[pair.Key], status.IdenticalByDesign));
+
+            foreach (var (key, english) in baseCatalog)
+            {
+                var localized = catalog[key];
+                // A value that IS the English one is the ceiling gate's business,
+                // and a value with no letters is the same string everywhere.
+                if (!HasLetters(localized) || string.Equals(localized, english, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                localesSharingValue[(key, localized)] =
+                    localesSharingValue.GetValueOrDefault((key, localized)) + 1;
+
+                if (NamesForeignPlatform(localized, status.ForeignPlatformTerms)
+                    && !NamesForeignPlatform(english, status.ForeignPlatformTerms))
+                {
+                    foreignPlatform.Add($"{locale} '{key}' = \"{localized}\"");
+                }
+            }
         }
     }
 
     CheckCeilings(untranslatedCounts, status.Ceilings);
+    CheckSharedValues(localesSharingValue, status.SharedValueCeiling, baseCatalog);
+    CheckForeignPlatform(foreignPlatform);
 
     var translatable = baseCatalog.Count(
         pair => !status.IdenticalByDesign.Contains(pair.Key) && HasLetters(pair.Value));
@@ -119,7 +158,11 @@ static bool IsUntranslated(string key, string english, string localized, IReadOn
     && HasLetters(english)
     && string.Equals(localized, english, StringComparison.Ordinal);
 
-static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int> Ceilings) ReadTranslationStatus(
+static (IReadOnlySet<string> IdenticalByDesign,
+        IReadOnlyDictionary<string, int> Ceilings,
+        int SharedValueCeiling,
+        IReadOnlyList<string> ForeignPlatformTerms)
+    ReadTranslationStatus(
     string path,
     Dictionary<string, string> baseCatalog)
 {
@@ -186,7 +229,61 @@ static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int>
         ceilings[property.Name] = ceiling;
     }
 
-    return (byDesign, ceilings);
+    if (!root.TryGetProperty("sharedValueCeiling", out var sharedElement)
+        || sharedElement.ValueKind != JsonValueKind.Number
+        || !sharedElement.TryGetInt32(out var sharedValueCeiling)
+        || sharedValueCeiling < 1)
+    {
+        throw new InvalidDataException(
+            $"{Path.GetFileName(path)} needs a positive integer 'sharedValueCeiling' (issue #574).");
+    }
+
+    if (!root.TryGetProperty("foreignPlatformTerms", out var termsElement)
+        || termsElement.ValueKind != JsonValueKind.Array)
+    {
+        throw new InvalidDataException(
+            $"{Path.GetFileName(path)} needs a 'foreignPlatformTerms' array (issue #574).");
+    }
+
+    var terms = termsElement.EnumerateArray()
+        .Select(term => term.GetString())
+        .Where(term => !string.IsNullOrWhiteSpace(term))
+        .Select(term => term!)
+        .ToArray();
+    if (terms.Length == 0)
+    {
+        throw new InvalidDataException(
+            $"{Path.GetFileName(path)} 'foreignPlatformTerms' must not be empty. Removing the last term " +
+            "turns the gate off silently; delete the check instead, on purpose (issue #574).");
+    }
+
+    return (byDesign, ceilings, sharedValueCeiling, terms);
+}
+
+// Issue #574. See the note at the call site: agreement between many locales on a
+// value that is not the English one is the signature of stale English, not of
+// translation. The threshold has real headroom — the largest honest coincidence
+// in the catalogs is "Mikrofon", which 13 languages share.
+static void CheckSharedValues(
+    IReadOnlyDictionary<(string Key, string Value), int> localesSharingValue,
+    int ceiling,
+    IReadOnlyDictionary<string, string> baseCatalog)
+{
+    var over = localesSharingValue
+        .Where(pair => pair.Value > ceiling)
+        .OrderByDescending(pair => pair.Value)
+        .ThenBy(pair => pair.Key.Key, StringComparer.Ordinal)
+        .Select(pair =>
+            $"'{pair.Key.Key}' is \"{pair.Key.Value}\" in {pair.Value} locales " +
+            $"while Strings.resx says \"{baseCatalog[pair.Key.Key]}\"")
+        .ToArray();
+    if (over.Length != 0)
+    {
+        throw new InvalidDataException(
+            $"{over.Length} value(s) are shared by more than {ceiling} locales: {string.Join("; ", over)}. " +
+            "That is what a rewritten base value looks like: the English changed and the catalogs kept a " +
+            "translation of the old text. Retranslate them, do not raise the ceiling (issue #574).");
+    }
 }
 
 static void CheckCeilings(
@@ -232,6 +329,26 @@ static void CheckCeilings(
             $"{slack.Length} locale(s) are now below their recorded ceiling by " +
             $"{slack.Sum(pair => ceilings[pair.Key] - pair.Value)} values in total. " +
             "Run untranslated_resx.py --seed to lower the ceilings.");
+    }
+}
+
+// The terms live in translation-status.json, not here, so a false positive is a
+// data edit and not a change to a validator three heads build. Matching ignores
+// case because a translator writing "im finder anzeigen" has made the same
+// mistake, and the declined forms are spelled out because Czech had "na tvém Macu".
+static bool NamesForeignPlatform(string value, IReadOnlyList<string> terms) => terms.Any(
+    term => Regex.IsMatch(
+        value,
+        $@"\b{Regex.Escape(term)}\b",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase));
+
+static void CheckForeignPlatform(IReadOnlyList<string> offenders)
+{
+    if (offenders.Count != 0)
+    {
+        throw new InvalidDataException(
+            $"{offenders.Count} localized value(s) name macOS furniture that the English does not: " +
+            $"{string.Join("; ", offenders)}. These are the Windows catalogs (issue #574).");
     }
 }
 

@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>모델 라이브러리</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>AssemblyAI의 Universal-2 및 Universal-3 Pro 음성 인식 모델</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Mistral의 Voxtral 전사 및 텍스트 향상을 위한 Mistral 모델</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>전사 및 텍스트 향상을 위한 Google의 Gemini 모델</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>녹음 폴더</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Finder에서 표시</value>
+    <value>탐색기에서 표시</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>선택...</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - 높은 정확도, 사용자 지정 어휘를 핵심 용어로 사용</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>끝 마침표 제거</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>고정 지침</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>선택한 프리셋 위에 항상 적용되는 지침을 추가합니다.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>마이크</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>음성을 들을 수 있도록 합니다.</value>
+    <value>필수. 녹음 중에만 오디오가 캡처됩니다.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>허용</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>이 PC에서</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Mac에서 완전히 실행됩니다. 무료이며 비공개, 오프라인에서도 작동 — 어떤 데이터도 기기 밖으로 나가지 않습니다.</value>
+    <value>비공개이며 무료입니다. 모델을 한 번 다운로드하면 네트워크 없이 작동합니다.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>내 API 키</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>영어 전용. 이 PC에서 가장 빠릅니다.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>다국어 · 25개 언어</value>
+    <value>다국어 지원. 동일한 속도, 더 큰 다운로드.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>다국어 · 경량</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>개인 정보 설정 열기</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>준비 완료, 첫 번째 녹음을 시작하겠습니다</value>
+    <value>녹음을 한 번 해 보세요.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>단축키를 누르고, 문장을 말하고, 다시 누르세요.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>이 빌드에는 샘플 클립이 없습니다.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>완료했습니다!</value>
+    <value>이제 받아쓰기를 시작할 수 있습니다.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>어떤 앱에서든 단축키를 누르고 말하기 시작하세요.</value>

@@ -657,13 +657,13 @@
     <value>Modelos Nova de Deepgram con ajuste específico por dominio</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>Plataforma de voz a texto de AssemblyAI con modelos Universal y SLAM</value>
+    <value>Modelos de voz a texto Universal-2 y Universal-3 Pro de AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>Transcripción Scribe de ElevenLabs con marcas de tiempo detalladas y diarización</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Voxtral de Mistral para voz a texto con precisión de última generación</value>
+    <value>Transcripción Voxtral de Mistral y modelos Mistral para mejora de texto</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -673,7 +673,7 @@
     <value>Modelos Claude de Anthropic para procesamiento avanzado de texto</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Modelos Gemini de Google para mejora eficiente de texto</value>
+    <value>Modelos Gemini de Google para transcripción y mejora de texto</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Inferencia LLM ultrarrápida de Groq para mejora de texto</value>
@@ -1044,7 +1044,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - máxima precisión, más lento</value>
+    <value>SpaceXAI Grok STT - alta precisión, vocabulario personalizado como términos clave</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Este proveedor no admite vocabulario personalizado.</value>
@@ -2283,7 +2283,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>Micrófono</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Para poder escuchar tu voz.</value>
+    <value>Obligatorio. El audio solo se captura mientras hay una grabación activa.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Conceder</value>
@@ -2331,7 +2331,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>En este PC</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Funciona por completo en tu Mac. Gratis, privado y sin conexión: nada sale nunca de tu dispositivo.</value>
+    <value>Privado y gratuito. Descarga un modelo una vez y luego funciona sin red.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Tu clave de API</value>
@@ -2415,7 +2415,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>Solo inglés. El más rápido en este PC.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingüe · 25 idiomas</value>
+    <value>Multilingüe. Misma velocidad, descarga más grande.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Multilingüe · tamaño mínimo</value>
@@ -2583,7 +2583,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>Abrir configuración de privacidad</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Todo listo, empecemos tu primera grabación</value>
+    <value>Haz una grabación.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Pulsa el atajo, di la frase, vuelve a pulsarlo.</value>
@@ -2646,7 +2646,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>El clip de muestra falta en esta versión.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>¡Listo!</value>
+    <value>Ya puedes dictar.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Pulsa el atajo en cualquier app y empieza a hablar.</value>

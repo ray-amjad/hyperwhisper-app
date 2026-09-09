@@ -363,7 +363,7 @@
     <value>存储</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>模型</value>
+    <value>模型库</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API 密钥</value>
@@ -657,13 +657,13 @@
     <value>Deepgram Nova 系列模型，支持领域特定调优</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI 语音转文字平台，支持 Universal 和 SLAM 模型</value>
+    <value>AssemblyAI 的 Universal-2 和 Universal-3 Pro 语音转文字模型</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe 转写，支持丰富的时间戳和说话人分离</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral 的 Voxtral 语音转文字，具有顶尖准确度</value>
+    <value>Mistral 的 Voxtral 转写和用于文本增强的 Mistral 模型</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -673,7 +673,7 @@
     <value>Anthropic 的 Claude 模型，用于高级文本处理</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google 的 Gemini 模型，用于高效文本增强</value>
+    <value>Google 的 Gemini 模型，用于转写和文本增强</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq 超快速 LLM 推理，用于文本增强</value>
@@ -1044,7 +1044,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - 精度最高，速度较慢</value>
+    <value>SpaceXAI Grok STT - 高准确度，自定义词汇作为关键词</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>此提供商不支持自定义词汇。</value>
@@ -2283,7 +2283,7 @@
     <value>麦克风</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>以便我们听到您的语音。</value>
+    <value>必需。仅在录音进行时采集音频。</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>授权</value>
@@ -2331,7 +2331,7 @@
     <value>在这台电脑上</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>完全在您的 Mac 上运行。免费、私密、可离线使用——任何内容都不会离开您的设备。</value>
+    <value>私密且免费。模型只需下载一次，之后无需联网即可使用。</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>您的 API 密钥</value>
@@ -2415,7 +2415,7 @@
     <value>仅支持英语。在这台电脑上最快。</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>多语言 · 25 种语言</value>
+    <value>多语言。速度相同，下载更大。</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>多语言 · 体积小</value>
@@ -2583,7 +2583,7 @@
     <value>打开隐私设置</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>一切就绪，开始你的首次录音</value>
+    <value>进行一次录音。</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>按下快捷键，说出这句话，再按一次。</value>
@@ -2646,7 +2646,7 @@
     <value>此版本缺少示例音频。</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>完成！</value>
+    <value>你可以开始语音输入了。</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>在任意应用中按下快捷键并开始说话。</value>

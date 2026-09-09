@@ -13,6 +13,7 @@ var tests = new (string Name, Action Run)[]
     ("RTL cultures are identified", RtlCulturesAreIdentified),
     ("routing and persisted identifiers remain opaque", IdentifiersRemainOpaque),
     ("product names stay English in every culture", ProductNamesStayEnglish),
+    ("no stale English is shared across the catalogs", NoStaleEnglishIsSharedAcrossCatalogs),
 };
 
 var failures = 0;
@@ -223,6 +224,53 @@ static void ProductNamesStayEnglish()
             Equal(expected, new PortableLocalizer(culture).Get(key), $"{keyName} in {culture.Name}");
         }
     }
+}
+
+// Issue #574. ProductNamesStayEnglish above pins the values that must not be
+// translated. This pins the opposite failure: a value that IS translated, in
+// every catalog, into the SAME string — which is not translation, it is the
+// English that used to be in Strings.resx before someone rewrote the base value.
+// Seven keys were in that state, among them one that described the Grok model as
+// "slower" (it is not) and one that told Windows users to look in Finder.
+//
+// CatalogValidator gates the same rule at build time off the .resx sources. This
+// runs against the compiled satellite assemblies, so it also catches a catalog
+// that failed to embed.
+static void NoStaleEnglishIsSharedAcrossCatalogs()
+{
+    // Deliberately NOT sharedValueCeiling from translation-status.json. Restating
+    // that number here would let the two drift silently, and a test that claims to
+    // mirror a gate but does not is worse than no test. This is the independent,
+    // strictly weaker bound that needs no number: more than half the languages
+    // agreeing on one non-English string cannot be translation. CatalogValidator
+    // holds the tight bound, off the JSON, at build time.
+    var ceiling = PortableLocalizer.SupportedCultures.Count / 2;
+
+    var english = new PortableLocalizer(CultureInfo.GetCultureInfo("en"));
+    var sharers = new Dictionary<(string Key, string Value), int>();
+
+    foreach (var name in PortableLocalizer.BaseKeyNames)
+    {
+        var key = english.Key(name);
+        var baseValue = english.Get(key);
+        foreach (var culture in PortableLocalizer.SupportedCultures)
+        {
+            var value = new PortableLocalizer(culture).Get(key);
+            if (value == baseValue || !value.Any(char.IsLetter))
+            {
+                continue;
+            }
+
+            sharers[(name, value)] = sharers.GetValueOrDefault((name, value)) + 1;
+        }
+    }
+
+    var worst = sharers.OrderByDescending(pair => pair.Value).First();
+    True(
+        worst.Value <= ceiling,
+        $"'{worst.Key.Key}' is \"{worst.Key.Value}\" in {worst.Value} of " +
+        $"{PortableLocalizer.SupportedCultures.Count} locales while the base catalog says " +
+        $"\"{english.Get(english.Key(worst.Key.Key))}\" — that is stale English, not a translation");
 }
 
 static void Equal<T>(T expected, T actual, string message)

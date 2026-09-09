@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Thư viện mô hình</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Các mô hình chuyển giọng nói thành văn bản Universal-2 và Universal-3 Pro của AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Chuyển lời nói thành văn bản Voxtral của Mistral và các mô hình Mistral để cải thiện văn bản</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Các mô hình Gemini của Google để chuyển lời nói thành văn bản và cải thiện văn bản</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Thư mục Bản ghi âm</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Hiển thị trong Finder</value>
+    <value>Hiển thị trong File Explorer</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Chọn...</value>
@@ -956,7 +956,7 @@ Hành động này không thể được hoàn tác.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - độ chính xác cao, từ vựng tùy chỉnh làm từ khóa chính</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Hành động này không thể được hoàn tác.</value>
     <value>Xóa dấu chấm cuối</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Hướng dẫn cố định</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Thêm hướng dẫn luôn được áp dụng bên trên cài đặt sẵn đã chọn.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2278,7 +2278,7 @@ You can re-download it later.</value>
     <value>Micrô</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Để chúng tôi có thể nghe giọng nói của bạn.</value>
+    <value>Bắt buộc. Âm thanh chỉ được thu khi đang ghi âm.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Cấp quyền</value>
@@ -2326,7 +2326,7 @@ You can re-download it later.</value>
     <value>Trên PC này</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Chạy hoàn toàn trên Mac của bạn. Miễn phí, riêng tư, hoạt động ngoại tuyến — không có gì rời khỏi thiết bị của bạn.</value>
+    <value>Riêng tư và miễn phí. Tải mô hình một lần, sau đó hoạt động không cần mạng.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>API Key của bạn</value>
@@ -2410,7 +2410,7 @@ You can re-download it later.</value>
     <value>Chỉ tiếng Anh. Nhanh nhất trên PC này.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Đa ngôn ngữ · 25 ngôn ngữ</value>
+    <value>Đa ngôn ngữ. Cùng tốc độ, tải xuống lớn hơn.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Đa ngôn ngữ · dung lượng siêu nhỏ</value>
@@ -2578,7 +2578,7 @@ You can re-download it later.</value>
     <value>Mở cài đặt quyền riêng tư</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Tất cả đã sẵn sàng, hãy bắt đầu ghi âm đầu tiên của bạn</value>
+    <value>Thực hiện một bản ghi âm.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Nhấn phím tắt, nói câu đó, nhấn lại lần nữa.</value>
@@ -2641,7 +2641,7 @@ You can re-download it later.</value>
     <value>Bản dựng này thiếu đoạn mẫu.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Bạn đã hoàn thành!</value>
+    <value>Bạn đã sẵn sàng đọc chính tả.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Nhấn phím tắt trong bất kỳ ứng dụng nào và bắt đầu nói.</value>

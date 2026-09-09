@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Modellbibliotek</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>AssemblyAI:s tal-till-text-modeller Universal-2 och Universal-3 Pro</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Mistrals Voxtral-transkription och Mistral-modeller för textförbättring</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Googles Gemini-modeller för transkription och textförbättring</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Inspelningsmapp</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Visa i Finder</value>
+    <value>Visa i Utforskaren</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Välj...</value>
@@ -956,7 +956,7 @@ Denna åtgärd kan inte ångras.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - hög noggrannhet, eget ordförråd som nyckeltermer</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Denna åtgärd kan inte ångras.</value>
     <value>Ta bort avslutande punkt</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Bestående instruktioner</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Lägg till instruktioner som alltid gäller utöver den valda förinställningen.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Så att vi kan höra din röst.</value>
+    <value>Krävs. Ljud spelas bara in medan en inspelning pågår.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Bevilja</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>På den här datorn</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Körs helt på din Mac. Gratis, privat, fungerar offline — inget lämnar någonsin din enhet.</value>
+    <value>Privat och gratis. Laddar ner en modell en gång och fungerar sedan utan nätverk.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Din API-nyckel</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Endast engelska. Snabbast på den här datorn.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Flerspråkigt · 25 språk</value>
+    <value>Flerspråkig. Samma hastighet, större nedladdning.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Flerspråkigt · minimal storlek</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Öppna sekretessinställningar</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Allt är klart, låt oss börja din första inspelning</value>
+    <value>Gör en inspelning.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Tryck på genvägen, säg raden, tryck igen.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Exempelklippet saknas i den här versionen.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Du är klar!</value>
+    <value>Du kan börja diktera.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Tryck på genvägen i valfri app och börja prata.</value>
