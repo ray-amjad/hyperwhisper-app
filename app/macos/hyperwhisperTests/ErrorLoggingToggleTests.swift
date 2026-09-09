@@ -11,188 +11,202 @@
 //  `SentryService.isSDKRunning`) and on the queue it keeps on disk, rather than
 //  on a flag of ours, so a change that only flipped a boolean would fail here.
 //
+//  Serialized, and the whole suite is: every test drives one process-wide SDK
+//  and one directory on disk.
+//
 
-import XCTest
-@testable import hyperwhisper
+import Foundation
+import Testing
+@testable import HyperWhisper
 
-final class ErrorLoggingToggleTests: XCTestCase {
+@Suite("Error logging toggle", .serialized)
+struct ErrorLoggingToggleTests {
 
-    /// A syntactically valid DSN whose host is the discard port on loopback:
-    /// the SDK starts for real and builds real envelopes, but no request can
-    /// reach anything, and nothing leaves the machine.
-    private let localDSN = "http://0123456789abcdef0123456789abcdef@127.0.0.1:9/1"
+    /// A syntactically valid DSN whose host is the discard port on loopback: the
+    /// SDK starts for real and builds real envelopes, but no request can reach
+    /// anything and nothing leaves the machine.
+    private static let localDSN = "http://0123456789abcdef0123456789abcdef@127.0.0.1:9/1"
 
-    private var settingKey: String { "enableErrorLogging" }
-    private var originalSetting: Any?
+    private static let settingKey = "enableErrorLogging"
 
-    override func setUp() {
-        super.setUp()
-        originalSetting = UserDefaults.standard.object(forKey: settingKey)
-        // The gate reads the user setting on every call, so pin it on for the
-        // tests that are about the SDK rather than about the setting.
-        UserDefaults.standard.set(true, forKey: settingKey)
+    /// Leave no SDK running and no queue on disk for the next test, whichever
+    /// way the one that just ran exited.
+    private func withCleanSentry(_ body: () throws -> Void) rethrows {
+        let original = UserDefaults.standard.object(forKey: Self.settingKey)
+        UserDefaults.standard.set(true, forKey: Self.settingKey)
         SentryService.shutdown()
-    }
-
-    override func tearDown() {
-        SentryService.shutdown()
-        if let originalSetting {
-            UserDefaults.standard.set(originalSetting, forKey: settingKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: settingKey)
+        defer {
+            SentryService.shutdown()
+            if let original {
+                UserDefaults.standard.set(original, forKey: Self.settingKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.settingKey)
+            }
         }
-        super.tearDown()
+        try body()
     }
 
     // MARK: - The bug in #551
 
     /// Turning the setting off must stop the SDK there and then. Before the fix
     /// the `didSet` had an enable arm and no disable arm, so the SDK stayed up —
-    /// with its crash handler, app-hang detection, failed-request reporting and
+    /// crash handler, app-hang detection, failed-request reporting and
     /// release-health sessions all still running — until the app was restarted.
-    func testShutdownStopsTheSDKWithoutARestart() {
-        SentryService.initialize(dsn: localDSN, environment: "test")
-        XCTAssertTrue(SentryService.isSDKRunning, "Sentry should be running after initialize")
-        XCTAssertTrue(SentryService.isReportingEnabled, "Reporting should be open while the setting is on")
+    @Test func shutdownStopsTheSDKWithoutARestart() {
+        withCleanSentry {
+            SentryService.initialize(dsn: Self.localDSN, environment: "test")
+            #expect(SentryService.isSDKRunning)
+            #expect(SentryService.isReportingEnabled)
 
-        SentryService.shutdown()
+            SentryService.shutdown()
 
-        XCTAssertFalse(SentryService.isSDKRunning, "shutdown() must close the SDK, not just gate our own calls")
-        XCTAssertFalse(SentryService.isReportingEnabled, "Nothing may be sent once the user has opted out")
+            #expect(SentryService.isSDKRunning == false)
+            #expect(SentryService.isReportingEnabled == false)
+        }
     }
 
-    /// The reverse direction has to work without a restart too, otherwise the
-    /// fix would trade one restart for another.
-    func testTurningItBackOnRestartsTheSDKWithoutARestart() {
-        SentryService.initialize(dsn: localDSN, environment: "test")
-        SentryService.shutdown()
-        XCTAssertFalse(SentryService.isSDKRunning)
+    /// The reverse direction has to work without a restart too, or the fix would
+    /// only trade one restart for another.
+    @Test func turningItBackOnRestartsTheSDKWithoutARestart() {
+        withCleanSentry {
+            SentryService.initialize(dsn: Self.localDSN, environment: "test")
+            SentryService.shutdown()
+            #expect(SentryService.isSDKRunning == false)
 
-        SentryService.initialize(dsn: localDSN, environment: "test")
+            SentryService.initialize(dsn: Self.localDSN, environment: "test")
 
-        XCTAssertTrue(SentryService.isSDKRunning, "Re-enabling must start the SDK again in the same session")
-        XCTAssertTrue(SentryService.isReportingEnabled)
+            #expect(SentryService.isSDKRunning)
+            #expect(SentryService.isReportingEnabled)
+        }
     }
 
-    /// `capture` must be inert after the opt-out — and must not quietly restart
-    /// anything or write a new envelope to disk.
-    func testCaptureIsInertAfterShutdown() {
-        SentryService.initialize(dsn: localDSN, environment: "test")
-        SentryService.shutdown()
+    /// A capture after the opt-out must be inert, and must not quietly bring the
+    /// SDK back or write a new envelope to disk.
+    @Test func captureIsInertAfterShutdown() {
+        withCleanSentry {
+            SentryService.initialize(dsn: Self.localDSN, environment: "test")
+            SentryService.shutdown()
 
-        SentryService.capture(
-            error: NSError(domain: "hyperwhisper.test.551", code: 1),
-            message: "must not be captured",
-            includeRecentLogs: false
-        )
-        SentryService.captureMessage("must not be captured", includeRecentLogs: false)
-        SentryService.addBreadcrumb(message: "must not be recorded", category: "test")
-        XCTAssertNil(SentryService.startTransaction(name: "must not start", operation: "test"))
+            SentryService.capture(
+                error: NSError(domain: "hyperwhisper.test.551", code: 1),
+                message: "must not be captured",
+                includeRecentLogs: false
+            )
+            SentryService.captureMessage("must not be captured", includeRecentLogs: false)
+            SentryService.addBreadcrumb(message: "must not be recorded", category: "test")
+            #expect(SentryService.startTransaction(name: "must not start", operation: "test") == nil)
 
-        XCTAssertFalse(SentryService.isSDKRunning, "A capture after the opt-out must not bring the SDK back")
-        assertCacheDirectoryIsGone()
+            #expect(SentryService.isSDKRunning == false)
+            #expect(Self.waitForCacheDirectory(toExist: false))
+        }
     }
 
-    /// The second door: even with the SDK somehow still up, the user's setting
-    /// alone closes the send paths. Most call sites already check
-    /// `AppLogger.isErrorLoggingEnabled` by hand; this proves the one that
-    /// forgets is covered too.
-    func testTheSettingAloneGatesReportingWhileTheSDKIsUp() {
-        SentryService.initialize(dsn: localDSN, environment: "test")
-        XCTAssertTrue(SentryService.isReportingEnabled)
+    /// The second door: even with the SDK still up, the user's setting alone
+    /// closes the send paths. Most call sites already check
+    /// `AppLogger.isErrorLoggingEnabled` by hand; this covers the one that
+    /// forgets.
+    @Test func theSettingAloneGatesReportingWhileTheSDKIsUp() {
+        withCleanSentry {
+            SentryService.initialize(dsn: Self.localDSN, environment: "test")
+            #expect(SentryService.isReportingEnabled)
 
-        UserDefaults.standard.set(false, forKey: settingKey)
+            UserDefaults.standard.set(false, forKey: Self.settingKey)
 
-        XCTAssertTrue(SentryService.isSDKRunning, "precondition: the SDK is still up in this test")
-        XCTAssertFalse(SentryService.isReportingEnabled, "The user setting must gate reporting on its own")
-        XCTAssertNil(SentryService.startTransaction(name: "must not start", operation: "test"))
+            #expect(SentryService.isSDKRunning)
+            #expect(SentryService.isReportingEnabled == false)
+            #expect(SentryService.startTransaction(name: "must not start", operation: "test") == nil)
+        }
     }
 
     // MARK: - What is already queued on disk
 
     /// Starting the SDK creates its cache directory, and turning the setting off
-    /// deletes it. A crash report or an envelope that failed to upload sits
-    /// there and is sent the next time the SDK starts, so leaving it would be
-    /// the same leak one launch later.
-    func testShutdownDeletesTheQueueTheSDKKeepsOnDisk() throws {
-        let cacheDirectory = try XCTUnwrap(SentryService.cacheDirectory)
+    /// deletes it. A crash report, or an envelope that failed to upload while
+    /// the machine was offline, sits there and is sent the next time the SDK
+    /// starts — the same leak one launch later.
+    @Test func shutdownDeletesTheQueueTheSDKKeepsOnDisk() throws {
+        try withCleanSentry {
+            let cacheDirectory = try #require(SentryService.cacheDirectory)
 
-        SentryService.initialize(dsn: localDSN, environment: "test")
-        XCTAssertTrue(
-            waitForFile(at: cacheDirectory, toExist: true),
-            "Sentry should be writing its state under \(cacheDirectory.path) — if it is not, the cacheDirectoryPath override in initialize() no longer matches where the SDK actually writes, and shutdown() is deleting the wrong directory"
-        )
+            SentryService.initialize(dsn: Self.localDSN, environment: "test")
+            // If this fails, the cacheDirectoryPath override in initialize() no
+            // longer matches where sentry-cocoa actually writes, and shutdown()
+            // is deleting the wrong directory.
+            #expect(
+                Self.waitForCacheDirectory(toExist: true),
+                "Sentry should be writing its state under \(cacheDirectory.path)"
+            )
 
-        SentryService.shutdown()
+            SentryService.shutdown()
 
-        XCTAssertTrue(
-            waitForFile(at: cacheDirectory, toExist: false),
-            "shutdown() must delete Sentry's on-disk queue at \(cacheDirectory.path)"
-        )
+            #expect(
+                Self.waitForCacheDirectory(toExist: false),
+                "shutdown() must delete Sentry's on-disk queue at \(cacheDirectory.path)"
+            )
+        }
     }
 
     /// The purge runs even when the SDK was never started, so a queue left by an
     /// earlier session cannot outlive the opt-out.
-    func testShutdownPurgesAQueueLeftBehindByAnEarlierSession() throws {
-        let cacheDirectory = try XCTUnwrap(SentryService.cacheDirectory)
-        let leftover = cacheDirectory
-            .appendingPathComponent("io.sentry", isDirectory: true)
-            .appendingPathComponent("deadbeef", isDirectory: true)
-            .appendingPathComponent("envelopes", isDirectory: true)
-        try FileManager.default.createDirectory(at: leftover, withIntermediateDirectories: true)
-        try Data("queued".utf8).write(to: leftover.appendingPathComponent("1.envelope"))
+    @Test func shutdownPurgesAQueueLeftBehindByAnEarlierSession() throws {
+        try withCleanSentry {
+            let cacheDirectory = try #require(SentryService.cacheDirectory)
+            let leftover = cacheDirectory
+                .appendingPathComponent("io.sentry", isDirectory: true)
+                .appendingPathComponent("deadbeef", isDirectory: true)
+                .appendingPathComponent("envelopes", isDirectory: true)
+            try FileManager.default.createDirectory(at: leftover, withIntermediateDirectories: true)
+            try Data("queued".utf8).write(to: leftover.appendingPathComponent("1.envelope"))
 
-        XCTAssertFalse(SentryService.isSDKRunning, "precondition: nothing running")
-        SentryService.shutdown()
+            #expect(SentryService.isSDKRunning == false)
+            SentryService.shutdown()
 
-        assertCacheDirectoryIsGone()
+            #expect(Self.waitForCacheDirectory(toExist: false))
+        }
     }
 
     /// This app is not sandboxed, so the SDK's default cache location is the
     /// SHARED `~/Library/Caches` — every Sentry-using Mac app writes into the
-    /// same `io.sentry` folder there. The purge above is only safe because
-    /// `initialize` moves our state into a directory of our own; if that ever
-    /// regresses, `shutdown()` would be deleting other apps' crash queues.
-    func testTheCacheDirectoryIsPrivateToThisApp() throws {
-        let cacheDirectory = try XCTUnwrap(SentryService.cacheDirectory)
-        let sharedCaches = try XCTUnwrap(
+    /// same `io.sentry` folder there, and sentry-cocoa puts raw crash reports in
+    /// a sibling `SentryCrash/`. The purge is only safe because `initialize`
+    /// moves our state somewhere of our own; if that regresses, `shutdown()`
+    /// would be deleting another vendor's crash queue.
+    @Test func theCacheDirectoryIsPrivateToThisApp() throws {
+        let cacheDirectory = try #require(SentryService.cacheDirectory)
+        let sharedCaches = try #require(
             FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
         )
+        let bundleID = try #require(Bundle.main.bundleIdentifier)
 
-        XCTAssertNotEqual(cacheDirectory.standardizedFileURL, sharedCaches.standardizedFileURL)
-        XCTAssertNotEqual(
-            cacheDirectory.standardizedFileURL,
-            sharedCaches.appendingPathComponent("io.sentry").standardizedFileURL,
-            "shutdown() deletes this directory whole — it must never be a folder shared with other vendors' apps"
+        #expect(cacheDirectory.standardizedFileURL != sharedCaches.standardizedFileURL)
+        #expect(
+            cacheDirectory.standardizedFileURL
+                != sharedCaches.appendingPathComponent("io.sentry").standardizedFileURL
         )
-        let bundleID = try XCTUnwrap(Bundle.main.bundleIdentifier)
-        XCTAssertTrue(
-            cacheDirectory.path.contains(bundleID),
-            "The Sentry cache directory should be scoped to this app's bundle identifier, got \(cacheDirectory.path)"
+        #expect(
+            cacheDirectory.standardizedFileURL
+                != sharedCaches.appendingPathComponent("SentryCrash").standardizedFileURL
         )
+        #expect(cacheDirectory.path.contains(bundleID))
     }
 
     // MARK: - Helpers
 
-    private func assertCacheDirectoryIsGone(file: StaticString = #filePath, line: UInt = #line) {
-        guard let cacheDirectory = SentryService.cacheDirectory else { return }
-        XCTAssertTrue(
-            waitForFile(at: cacheDirectory, toExist: false),
-            "Sentry's on-disk state should be gone at \(cacheDirectory.path)",
-            file: file,
-            line: line
-        )
-    }
-
-    /// Poll for a file to appear or disappear. The SDK writes its cache from a
-    /// background queue, so both directions need a small window rather than an
-    /// instant read.
-    private func waitForFile(at url: URL, toExist shouldExist: Bool, timeout: TimeInterval = 5) -> Bool {
+    /// Poll for the cache directory to appear or disappear. The SDK writes it
+    /// from a background queue, so both directions need a small window rather
+    /// than one instant read.
+    private static func waitForCacheDirectory(
+        toExist shouldExist: Bool,
+        timeout: TimeInterval = 5
+    ) -> Bool {
+        guard let path = cacheDirectoryPath else { return !shouldExist }
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            if FileManager.default.fileExists(atPath: url.path) == shouldExist { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+            if FileManager.default.fileExists(atPath: path) == shouldExist { return true }
+            Thread.sleep(forTimeInterval: 0.05)
         } while Date() < deadline
-        return FileManager.default.fileExists(atPath: url.path) == shouldExist
+        return FileManager.default.fileExists(atPath: path) == shouldExist
     }
+
+    private static var cacheDirectoryPath: String? { SentryService.cacheDirectory?.path }
 }
