@@ -38,67 +38,77 @@ public class ModeOfflineVisibilityConverter : IValueConverter
     /// Whether every step this mode runs happens on this machine.
     /// </summary>
     /// <remarks>
-    /// The two halves are the macOS <c>ModeData.isOfflineCapable</c>'s two
-    /// halves — transcription is local, and post-processing is off or local —
-    /// but each is answered from the catalogue of models that actually run
-    /// on-device rather than from a flag, for two reasons.
+    /// THE SOURCE OF TRUTH IS THE BRANCH THE APP ITSELF TAKES. Each half below
+    /// mirrors, decision for decision, the one place that chooses between a local
+    /// call and a network call —
+    /// <see cref="Services.Transcription.TranscriptionOrchestrator"/> for the
+    /// transcription and <see cref="Services.PostProcessingService"/> for the
+    /// post-processing. That is the only definition that cannot drift into a lie:
+    /// a badge derived from anything else is a second opinion about what the app
+    /// will do.
     ///
-    /// The first is that a Windows row's <c>Model</c> field cannot be trusted
-    /// for this. macOS reads <c>model == "cloud"</c>; on Windows the mode editor
+    /// It is deliberately NOT the macOS <c>ModeData.isOfflineCapable</c> ported
+    /// across. macOS reads <c>model == "cloud"</c>; on Windows the mode editor
     /// seeds <c>Model = "cloud"</c> on a NEW mode and never clears it when the
-    /// user switches that mode to On-device, so the macOS test would call a
-    /// perfectly local mode a cloud one. <c>ProviderType</c> is the field the
-    /// editor actually writes and the field the rest of the app branches on.
+    /// user switches that mode to On-device (<c>ModeEditorWindow.xaml.cs:61</c>,
+    /// <c>:2144</c>), so the macOS test would call a perfectly local mode a cloud
+    /// one. The two halves of the QUESTION are the same on both platforms;
+    /// the fields that answer it are not.
     ///
-    /// The second is that "local" is a claim and the catalogue is the fact. A row
-    /// can name a Whisper type or a Parakeet id that no longer ships — a mode
-    /// restored from an old backup, or written through the Local API — and a
-    /// badge promising it runs offline would then be wrong. The same catalogues
-    /// are what <c>MainViewModel.IsLocalModelDownloaded</c> resolves against.
+    /// Nor is it "the named model is in the on-device catalogue". A row can name
+    /// a Whisper type or a local LLM the app no longer ships — an old backup, or
+    /// a POST to the Local API — and that row is broken, but it is not ONLINE:
+    /// neither service has a cloud fallback, so it fails on this machine without
+    /// a packet leaving it. Requiring the catalogue would hide the badge on modes
+    /// that genuinely never reach the network, which is what a first cut of this
+    /// converter did.
     ///
-    /// Deliberately NOT part of this: whether the model has been downloaded yet.
-    /// The badge answers "can this mode work with the network off", which is a
-    /// property of the mode's configuration; whether the weights are on disk is a
-    /// property of the machine, it changes under a list that is not re-bound, and
-    /// the app already says so elsewhere. macOS draws the same line.
+    /// Also not part of it: whether the model has been downloaded yet. The badge
+    /// answers "can this mode work with the network off", a property of the
+    /// mode's configuration; whether the weights are on disk is a property of the
+    /// machine, it changes under a list that is not re-bound, and the app already
+    /// says so elsewhere. macOS draws the same line.
     /// </remarks>
     public static bool IsOfflineCapable(Mode mode)
     {
         return TranscriptionRunsOnDevice(mode) && PostProcessingRunsOnDevice(mode);
     }
 
+    /// <summary>
+    /// Mirrors <c>TranscriptionOrchestrator.TranscribeAsync</c>, which is a
+    /// straight binary on this one field: <c>"cloud"</c> goes to the cloud path,
+    /// everything else goes to the local engine. There is no fallback either way.
+    /// </summary>
     private static bool TranscriptionRunsOnDevice(Mode mode)
-    {
-        if (mode.ProviderType == "cloud")
-            return false;
+        => mode.ProviderType != "cloud";
 
-        return mode.LocalEngine == "parakeet"
-            ? ParakeetModelInfo.AllModels.Any(m => m.Id == mode.LocalParakeetModel)
-            : WhisperModelInfo.AllModels.Any(m => m.Type == mode.ModelType);
-    }
-
+    /// <summary>
+    /// Mirrors <c>PostProcessingService.ProcessAsync</c>'s provider routing, in
+    /// its order: disabled skips, a custom endpoint is a URL, an unconfigured
+    /// provider skips, and only the local LLM stays on this machine.
+    /// </summary>
     private static bool PostProcessingRunsOnDevice(Mode mode)
     {
-        // 0 = off. Nothing runs, so nothing reaches the network.
+        // 0 = off. The service returns Skipped before it looks at anything else.
         if (mode.PostProcessingMode == 0)
             return true;
 
-        // Anything that is not the on-device LLM is a network call, including a
-        // custom endpoint: its URL may well be localhost, but the row does not
-        // say so and a badge is not the place to guess.
-        if (PostProcessingProviderExtensions.FromString(mode.PostProcessingProvider)
-            != PostProcessingProvider.LocalLlm)
-        {
+        // A custom endpoint is a URL the user typed. It may well be localhost,
+        // but the row does not say so and a badge is not the place to guess.
+        if (CustomPostProcessingEndpoint.IsCustomProviderString(mode.PostProcessingProvider))
             return false;
-        }
 
-        // The editor writes the on-device LLM to LocalPostProcessingModel;
-        // LanguageModel is the BYOK field and the pre-split fallback.
-        var modelId = string.IsNullOrEmpty(mode.LocalPostProcessingModel)
-            ? mode.LanguageModel
-            : mode.LocalPostProcessingModel;
+        var provider = PostProcessingProviderExtensions.FromString(mode.PostProcessingProvider ?? "");
 
-        return LocalLlmModelInfo.GetById(modelId) is not null;
+        // "No provider configured" — the service logs exactly that and returns
+        // Skipped, so nothing runs and nothing is sent.
+        if (provider == PostProcessingProvider.None)
+            return true;
+
+        // Every other provider is an HTTP call. The local LLM is not: the model
+        // id is resolved with a fallback to the default local model, so an
+        // unknown or unset id still runs on this machine.
+        return provider == PostProcessingProvider.LocalLlm;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

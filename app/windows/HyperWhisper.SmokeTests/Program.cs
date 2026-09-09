@@ -11149,10 +11149,9 @@ internal static class Program
                 // proves anything.
                 EnsureSmokeApplication();
 
-                // One row per answer the converter can give, so a change that makes
-                // the badge always-on fails just as loudly as one that makes it
-                // always-off. The local rows name a Whisper type and a Parakeet id
-                // that are really in the shipped catalogues.
+                // One row per branch the two services can take, so a change that
+                // makes the badge always-on fails just as loudly as one that makes
+                // it always-off.
                 var whisper = WhisperModelInfo.AllModels[0].Type;
                 var parakeet = ParakeetModelInfo.AllModels[0].Id;
                 var localLlm = LocalLlmModelInfo.AllModels[0].Id;
@@ -11171,6 +11170,17 @@ internal static class Program
                         PostProcessingProvider = PostProcessingProvider.LocalLlm.ToStringValue(),
                         LocalPostProcessingModel = localLlm
                     }, true),
+                    // The on-device LLM with NO model id, which a Local API PATCH can
+                    // leave behind. PostProcessingService resolves that to the default
+                    // local model, so the run stays on this machine and the badge must
+                    // stay on: a first cut of this converter demanded a catalogue hit
+                    // here and hid the badge on a mode that never touches the network.
+                    ("on-device LLM with no model id", new Mode
+                    {
+                        Name = "Unset", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 2,
+                        PostProcessingProvider = PostProcessingProvider.LocalLlm.ToStringValue()
+                    }, true),
                     ("cloud transcription", new Mode
                     {
                         Name = "Cloud", ProviderType = "cloud", CloudProvider = "hyperwhisper",
@@ -11183,20 +11193,21 @@ internal static class Program
                         PostProcessingProvider = PostProcessingProvider.OpenAI.ToStringValue(),
                         LanguageModel = "gpt-4.1-mini"
                     }, false),
-                    // A row that CLAIMS local and names a model the app no longer
-                    // ships - an old backup, or a POST to the Local API. Promising it
-                    // works offline would be a lie, so the catalogue decides.
-                    ("local, model not in the catalogue", new Mode
+                    // A custom endpoint is a URL the user typed. It may be localhost;
+                    // the row does not say so, and a badge may not guess.
+                    ("local transcription, custom endpoint post-processing", new Mode
                     {
-                        Name = "Ghost", ProviderType = "local", LocalEngine = "whisper",
-                        ModelType = "no-such-model", PostProcessingMode = 0
+                        Name = "Custom", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 1,
+                        PostProcessingProvider =
+                            CustomPostProcessingEndpoint.ProviderPrefix + Guid.NewGuid()
                     }, false)
                 };
 
-                foreach (var (label, mode, expectOffline) in rows)
+                foreach (var row in rows)
                 {
-                    mode.Id = Guid.NewGuid();
-                    mode.Language = "auto";
+                    row.Mode.Id = Guid.NewGuid();
+                    row.Mode.Language = "auto";
                 }
 
                 var page = new HyperWhisper.Views.Pages.ModesPage();
