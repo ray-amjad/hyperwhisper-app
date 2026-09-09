@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Šajā datorā</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Darbojas pilnībā jūsu Mac datorā. Bezmaksas, privāts, darbojas bezsaistē — dati nekad nepamet jūsu ierīci.</value>
+    <value>Privāti un bez maksas. Modelis tiek lejupielādēts vienreiz, pēc tam darbojas bez tīkla.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Jūsu API atslēga</value>

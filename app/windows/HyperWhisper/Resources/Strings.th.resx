@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>บนพีซีเครื่องนี้</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>ทำงานทั้งหมดบน Mac ของคุณ ฟรี เป็นส่วนตัว ใช้งานได้แบบออฟไลน์ — ไม่มีข้อมูลใดออกจากอุปกรณ์ของคุณ</value>
+    <value>เป็นส่วนตัวและฟรี ดาวน์โหลดโมเดลครั้งเดียว จากนั้นทำงานได้โดยไม่ต้องใช้เครือข่าย</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>API Key ของคุณ</value>

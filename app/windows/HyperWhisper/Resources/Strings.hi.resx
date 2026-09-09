@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>इस PC पर</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>पूरी तरह से आपके Mac पर चलता है। मुफ़्त, निजी, ऑफ़लाइन भी काम करता है — कुछ भी आपके डिवाइस से बाहर नहीं जाता।</value>
+    <value>निजी और निःशुल्क। मॉडल एक बार डाउनलोड होता है, फिर बिना नेटवर्क के काम करता है।</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>आपकी API कुंजी</value>

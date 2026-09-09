@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>במחשב הזה</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>פועל לחלוטין על ה-Mac שלכם. חינם, פרטי, עובד גם ללא חיבור לאינטרנט — שום דבר לא עוזב את המכשיר שלכם.</value>
+    <value>פרטי וחינמי. מוריד מודל פעם אחת ואז עובד ללא רשת.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>מפתח ה-API שלכם</value>

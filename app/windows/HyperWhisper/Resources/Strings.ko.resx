@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>이 PC에서</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Mac에서 완전히 실행됩니다. 무료이며 비공개, 오프라인에서도 작동 — 어떤 데이터도 기기 밖으로 나가지 않습니다.</value>
+    <value>비공개이며 무료입니다. 모델을 한 번 다운로드하면 네트워크 없이 작동합니다.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>내 API 키</value>

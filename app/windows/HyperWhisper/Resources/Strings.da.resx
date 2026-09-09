@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>På denne pc</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Kører udelukkende på din Mac. Gratis, privat og virker offline – intet forlader nogensinde din enhed.</value>
+    <value>Privat og gratis. Downloader en model én gang og fungerer derefter uden netværk.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Din API-nøgle</value>

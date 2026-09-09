@@ -1335,31 +1335,31 @@ You can re-download it later.</value>
     <value>Zvukové efekty</value>
   </data>
   <data name="settings.sound.enableSoundEffects.title" xml:space="preserve">
-    <value>Prehravat zvukové efekty</value>
+    <value>Přehrávat zvukové efekty</value>
   </data>
   <data name="settings.sound.enableSoundEffects.subtitle" xml:space="preserve">
-    <value>Prehrát zvuk pri spustení a zastavení nahravání</value>
+    <value>Přehrát zvuk při spuštění a zastavení nahrávání</value>
   </data>
   <!-- Sidebar -->
   <!-- Statistics Page -->
   <!-- Getting Started -->
   <data name="home.gettingStarted.title" xml:space="preserve">
-    <value>Zacínáme</value>
+    <value>Začínáme</value>
   </data>
   <data name="home.gettingStarted.recording.title" xml:space="preserve">
-    <value>Spustit nahravání</value>
+    <value>Spustit nahrávání</value>
   </data>
   <data name="home.gettingStarted.recording.description" xml:space="preserve">
     <value>Vyzkoušejte první přepis</value>
   </data>
   <data name="home.gettingStarted.shortcuts.title" xml:space="preserve">
-    <value>Prizpusobit klávesové zkratky</value>
+    <value>Přizpůsobit klávesové zkratky</value>
   </data>
   <data name="home.gettingStarted.shortcuts.description" xml:space="preserve">
     <value>Nastavte si oblíbené klávesové zkratky</value>
   </data>
   <data name="home.gettingStarted.mode.title" xml:space="preserve">
-    <value>Vytvorit režim</value>
+    <value>Vytvořit režim</value>
   </data>
   <data name="home.gettingStarted.mode.description" xml:space="preserve">
     <value>Přizpůsobte přepis pro různé pracovní postupy</value>
@@ -1381,7 +1381,7 @@ You can re-download it later.</value>
     <value>NOVÉ</value>
   </data>
   <data name="home.recentReleases.error" xml:space="preserve">
-    <value>Poznámky k vydání se nepodarily nacíst</value>
+    <value>Poznámky k vydání se nepodařilo načíst</value>
   </data>
   <data name="home.recentReleases.retry" xml:space="preserve">
     <value>Zkusit znovu</value>
@@ -1394,7 +1394,7 @@ You can re-download it later.</value>
     <value>Je dostupná nová verze aplikace HyperWhisper!</value>
   </data>
   <data name="update.available.currentVersion" xml:space="preserve">
-    <value>Aktuálne používáte verzi {0}</value>
+    <value>Aktuálně používáte verzi {0}</value>
   </data>
   <data name="update.available.releaseNotes" xml:space="preserve">
     <value>Co je nového</value>
@@ -1421,7 +1421,7 @@ You can re-download it later.</value>
     <value>Máte aktuální verzi</value>
   </data>
   <data name="update.upToDate.message" xml:space="preserve">
-    <value>HyperWhisper {0} je nejnovejší verze.</value>
+    <value>HyperWhisper {0} je nejnovější verze.</value>
   </data>
   <data name="update.skipped.title" xml:space="preserve">
     <value>Aktualizace přeskočena</value>
@@ -1430,10 +1430,10 @@ You can re-download it later.</value>
     <value>Rozhodli jste se tuto aktualizaci přeskočit.</value>
   </data>
   <data name="update.error.appcast" xml:space="preserve">
-    <value>Nelze zkontrolovat aktualizace. Zkontrolujte pripojení k internetu.</value>
+    <value>Nelze zkontrolovat aktualizace. Zkontrolujte připojení k internetu.</value>
   </data>
   <data name="update.error.download" xml:space="preserve">
-    <value>Pri stahování aktualizace doslo k chybe: {0}</value>
+    <value>Při stahování aktualizace došlo k chybě: {0}</value>
   </data>
   <data name="update.error.unknownFormat" xml:space="preserve">
     <value>Stažený soubor "{0}" má nerozpoznaný formát.</value>
@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Na tomto PC</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Běží celé na tvém Macu. Zdarma, soukromé, funguje offline – nic neopustí tvé zařízení.</value>
+    <value>Soukromé a zdarma. Model se stáhne jednou a pak funguje bez připojení.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Tvůj API klíč</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Otevřít nastavení soukromí</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Pořiďte jednu nahrávku.</value>
+    <value>Pořiď jednu nahrávku.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Stiskni zkratku, řekni větu, stiskni ji znovu.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Ukázková nahrávka v tomto sestavení chybí.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Můžete začít diktovat.</value>
+    <value>Můžeš začít diktovat.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Stiskni zkratku v jakékoli aplikaci a začni mluvit.</value>

@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>على هذا الكمبيوتر</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>يعمل بالكامل على جهاز Mac الخاص بك. مجاني وخاص ويعمل بلا اتصال بالإنترنت — لا يغادر أي شيء جهازك أبدًا.</value>
+    <value>خاص ومجاني. يتم تنزيل النموذج مرة واحدة، ثم يعمل بدون اتصال بالإنترنت.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>مفتاح API الخاص بك</value>

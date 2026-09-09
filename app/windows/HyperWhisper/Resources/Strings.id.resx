@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Di PC ini</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Berjalan sepenuhnya di Mac Anda. Gratis, privat, tetap berfungsi tanpa internet — tidak ada yang pernah meninggalkan perangkat Anda.</value>
+    <value>Privat dan gratis. Mengunduh model sekali, lalu bekerja tanpa jaringan.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Kunci API Anda</value>

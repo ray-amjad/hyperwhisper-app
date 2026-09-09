@@ -2326,7 +2326,7 @@ You can re-download it later.</value>
     <value>在這台電腦上</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>完全在您的 Mac 上執行。免費、私密、可離線使用——任何內容都不會離開您的裝置。</value>
+    <value>私密且免費。模型只需下載一次，之後無需連網即可使用。</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>您的 API 金鑰</value>

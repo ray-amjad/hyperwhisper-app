@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Á þessari tölvu</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Keyrir alfarið á Mac-tölvunni þinni. Ókeypis, einkamál, virkar án nettengingar — ekkert fer nokkurn tímann af tækinu þínu.</value>
+    <value>Einkamál og ókeypis. Sækir líkan einu sinni og virkar svo án nettengingar.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>API-lykillinn þinn</value>

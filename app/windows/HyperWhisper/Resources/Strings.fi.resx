@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Tällä tietokoneella</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Toimii kokonaan Macissasi. Ilmainen, yksityinen, toimii myös offline-tilassa — mikään ei poistu laitteeltasi.</value>
+    <value>Yksityinen ja ilmainen. Lataa mallin kerran ja toimii sen jälkeen ilman verkkoa.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Oma API-avaimesi</value>

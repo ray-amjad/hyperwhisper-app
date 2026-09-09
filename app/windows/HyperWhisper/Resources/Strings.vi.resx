@@ -2326,7 +2326,7 @@ You can re-download it later.</value>
     <value>Trên PC này</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Chạy hoàn toàn trên Mac của bạn. Miễn phí, riêng tư, hoạt động ngoại tuyến — không có gì rời khỏi thiết bị của bạn.</value>
+    <value>Riêng tư và miễn phí. Tải mô hình một lần, sau đó hoạt động không cần mạng.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>API Key của bạn</value>

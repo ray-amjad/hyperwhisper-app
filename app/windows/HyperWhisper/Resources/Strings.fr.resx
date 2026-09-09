@@ -2327,7 +2327,7 @@ Vous pourrez le télécharger à nouveau plus tard.</value>
     <value>Sur ce PC</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Fonctionne entièrement sur votre Mac. Gratuit, privé, fonctionne hors ligne — rien ne quitte jamais votre appareil.</value>
+    <value>Privé et gratuit. Télécharge un modèle une fois, puis fonctionne sans réseau.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Votre clé API</value>

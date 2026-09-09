@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Pada PC ini</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Berjalan sepenuhnya pada Mac anda. Percuma, peribadi, berfungsi luar talian — tiada apa-apa yang meninggalkan peranti anda.</value>
+    <value>Peribadi dan percuma. Memuat turun model sekali, kemudian berfungsi tanpa rangkaian.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Kunci API Anda</value>

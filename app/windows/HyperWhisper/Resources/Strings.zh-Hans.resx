@@ -2331,7 +2331,7 @@
     <value>在这台电脑上</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>完全在您的 Mac 上运行。免费、私密、可离线使用——任何内容都不会离开您的设备。</value>
+    <value>私密且免费。模型只需下载一次，之后无需联网即可使用。</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>您的 API 密钥</value>

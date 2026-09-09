@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Ezen a gépen</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Teljesen a Macodon fut. Ingyenes, privát, offline is működik — semmi sem hagyja el az eszközödet.</value>
+    <value>Privát és ingyenes. Egyszer letölt egy modellt, utána hálózat nélkül működik.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>A saját API-kulcsod</value>

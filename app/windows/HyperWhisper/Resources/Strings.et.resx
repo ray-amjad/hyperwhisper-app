@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Selles arvutis</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Töötab täielikult su Macis. Tasuta, privaatne, toimib ka võrguühenduseta — miski ei lahku sinu seadmest.</value>
+    <value>Privaatne ja tasuta. Laadib mudeli korra alla ja töötab seejärel ilma võrguta.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Sinu API võti</value>

@@ -44,6 +44,13 @@ try
     // value shared by more locales than the threshold is leftover English.
     var localesSharingValue = new Dictionary<(string Key, string Value), List<string>>();
 
+    // Also issue #574, and the cheapest check of the lot. These are the Windows
+    // catalogs. Two keys named the WRONG operating system's furniture in 34 and
+    // 35 locales: "Show in Explorer" was translated as "Im Finder anzeigen", and
+    // the on-device blurb told every non-English user the app "runs entirely on
+    // your Mac". Both read fine in isolation; only the word gives them away.
+    var foreignPlatform = new List<string>();
+
     foreach (var path in paths)
     {
         var catalog = ReadCatalog(path);
@@ -91,12 +98,18 @@ try
                 }
 
                 sharers.Add(locale);
+
+                if (NamesForeignPlatform(localized) && !NamesForeignPlatform(english))
+                {
+                    foreignPlatform.Add($"{locale} '{key}' = \"{localized}\"");
+                }
             }
         }
     }
 
     CheckCeilings(untranslatedCounts, status.Ceilings);
     CheckSharedValues(localesSharingValue, status.SharedValueCeiling, baseCatalog);
+    CheckForeignPlatform(foreignPlatform);
 
     var translatable = baseCatalog.Count(
         pair => !status.IdenticalByDesign.Contains(pair.Key) && HasLetters(pair.Value));
@@ -298,6 +311,22 @@ static void CheckCeilings(
             $"{slack.Length} locale(s) are now below their recorded ceiling by " +
             $"{slack.Sum(pair => ceilings[pair.Key] - pair.Value)} values in total. " +
             "Run untranslated_resx.py --seed to lower the ceilings.");
+    }
+}
+
+// Declined forms included: Czech had "na tvém Macu".
+static bool NamesForeignPlatform(string value) => Regex.IsMatch(
+    value,
+    @"\b(Finder|macOS|Mac(?:u|a|em|om|ovi|ovom|kem)?|Dock|Spotlight)\b",
+    RegexOptions.CultureInvariant);
+
+static void CheckForeignPlatform(IReadOnlyList<string> offenders)
+{
+    if (offenders.Count != 0)
+    {
+        throw new InvalidDataException(
+            $"{offenders.Count} localized value(s) name macOS furniture that the English does not: " +
+            $"{string.Join("; ", offenders)}. These are the Windows catalogs (issue #574).");
     }
 }
 

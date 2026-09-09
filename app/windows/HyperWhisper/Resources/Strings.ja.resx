@@ -2331,7 +2331,7 @@
     <value>このPC上</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>すべてMac上で動作します。無料でプライベート、オフラインでも使用可能 — デバイスから外部に情報が送られることはありません。</value>
+    <value>プライベートで無料。モデルを一度ダウンロードすれば、ネットワークなしで動作します。</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>あなたのAPIキー</value>

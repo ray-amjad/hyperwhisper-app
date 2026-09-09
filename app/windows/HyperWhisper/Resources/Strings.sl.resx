@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Na tem računalniku</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Deluje v celoti na tvojem Macu. Brezplačno, zasebno, deluje brez povezave — nič nikoli ne zapusti tvoje naprave.</value>
+    <value>Zasebno in brezplačno. Model se prenese enkrat, nato deluje brez omrežja.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Tvoj API-ključ</value>

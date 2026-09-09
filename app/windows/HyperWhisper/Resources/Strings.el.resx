@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Σε αυτόν τον υπολογιστή</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Λειτουργεί εξ ολοκλήρου στο Mac σου. Δωρεάν, ιδιωτικό, λειτουργεί εκτός σύνδεσης — τίποτα δεν φεύγει ποτέ από τη συσκευή σου.</value>
+    <value>Ιδιωτικό και δωρεάν. Κατεβάζει ένα μοντέλο μία φορά και μετά λειτουργεί χωρίς δίκτυο.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Το API κλειδί σου</value>

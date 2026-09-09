@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Pe acest PC</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Rulează complet pe Mac-ul tău. Gratuit, privat, funcționează offline — nimic nu părăsește vreodată dispozitivul tău.</value>
+    <value>Privat și gratuit. Descarcă un model o dată, apoi funcționează fără rețea.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Cheia ta API</value>

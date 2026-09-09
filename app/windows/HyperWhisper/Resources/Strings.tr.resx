@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Bu PC'de</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Tamamen Mac'inizde çalışır. Ücretsiz, gizli, çevrimdışı çalışır — hiçbir şey cihazınızdan asla dışarı çıkmaz.</value>
+    <value>Özel ve ücretsiz. Modeli bir kez indirir, sonra ağ olmadan çalışır.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>API Anahtarınız</value>

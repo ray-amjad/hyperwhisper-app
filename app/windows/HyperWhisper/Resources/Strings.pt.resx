@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Neste PC</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Funciona inteiramente no seu Mac. Grátis, privado, funciona offline — nada sai alguma vez do seu dispositivo.</value>
+    <value>Privado e gratuito. Baixa um modelo uma vez e depois funciona sem rede.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>A sua Chave API</value>

@@ -2327,7 +2327,7 @@ You can re-download it later.</value>
     <value>Šiame kompiuteryje</value>
   </data>
   <data name="onboarding.source.onDevice.description" xml:space="preserve">
-    <value>Veikia visiškai jūsų „Mac“ kompiuteryje. Nemokama, privatu, veikia neprisijungus — jokie duomenys niekada nepalieka jūsų įrenginio.</value>
+    <value>Privatu ir nemokama. Modelis atsisiunčiamas kartą, paskui veikia be tinklo.</value>
   </data>
   <data name="onboarding.source.provider.title" xml:space="preserve">
     <value>Jūsų API raktas</value>
