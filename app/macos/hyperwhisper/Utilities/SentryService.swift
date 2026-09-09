@@ -30,6 +30,76 @@ enum SentryService {
         return NSError(domain: nsError.domain, code: nsError.code, userInfo: nil)
     }
 
+    // MARK: - Enablement
+
+    /// The SDK's own view of whether it is running: it has a hub with a client
+    /// bound to it. False before `initialize()` and again after `shutdown()`.
+    ///
+    /// `isReportingEnabled` is the gate the send paths below check. This is the
+    /// raw state underneath it, exposed so a test can prove the Settings toggle
+    /// really stopped the SDK rather than only flipping a flag of ours.
+    // internal (not private): read by ErrorLoggingToggleTests.
+    static var isSDKRunning: Bool {
+        #if canImport(Sentry)
+        return SentrySDK.isEnabled
+        #else
+        return false
+        #endif
+    }
+
+    /// Whether an event may leave this machine right now.
+    ///
+    /// Both doors have to be open:
+    ///
+    /// - `isSDKRunning` — the door that matters most, because the automatic
+    ///   integrations (crash reporting, app-hang detection, the URLSession
+    ///   swizzle that reports failed requests, release-health sessions) never
+    ///   come through this type at all. Only closing the SDK stops those, so a
+    ///   flag on its own could never have fixed issue #551.
+    /// - `AppLogger.isErrorLoggingEnabled` — the user's Settings → General →
+    ///   Error logging toggle, read fresh on every call. Most call sites already
+    ///   check it by hand; checking it here too means the one that forgets still
+    ///   cannot send something the user has opted out of.
+    static var isReportingEnabled: Bool {
+        isSDKRunning && AppLogger.isErrorLoggingEnabled
+    }
+
+    // MARK: - On-disk state
+
+    /// Where the SDK keeps its on-disk state: queued envelopes, release-health
+    /// sessions, the pending app-hang event, and raw crash reports.
+    ///
+    /// The SDK defaults `cacheDirectoryPath` to `NSCachesDirectory`, and this app
+    /// is not sandboxed (see `hyperwhisper-release.entitlements`), so that is the
+    /// SHARED `~/Library/Caches` — every Sentry-using Mac app writes into the same
+    /// `io.sentry` folder there. Turning error logging off has to delete our
+    /// queue, and deleting a folder we share with other vendors' apps is not on,
+    /// so `initialize` points the SDK at a directory of our own and `shutdown`
+    /// deletes that instead.
+    ///
+    /// nil only if the user has no Caches directory, in which case there is
+    /// nothing to purge either.
+    // internal (not private): read by ErrorLoggingToggleTests.
+    static var cacheDirectory: URL? {
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.hyperwhisper.hyperwhisper"
+        return caches
+            .appendingPathComponent(bundleID, isDirectory: true)
+            .appendingPathComponent("Sentry", isDirectory: true)
+    }
+
+    /// Delete everything Sentry has queued on disk.
+    ///
+    /// Called only from `shutdown()`. Deliberately not "flush then delete": a
+    /// flush is an upload, and the whole point of the toggle is that nothing more
+    /// is uploaded.
+    private static func purgeQueuedReports() {
+        guard let directory = cacheDirectory else { return }
+        try? FileManager.default.removeItem(at: directory)
+    }
+
     // MARK: - Initialization
 
     /// Initialize Sentry using DSN from Info.plist or provided string.
@@ -49,6 +119,10 @@ enum SentryService {
     static func initialize(dsn: String?, environment: String? = nil) {
         guard let dsn, !dsn.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         #if canImport(Sentry)
+        // Already running: starting a second time would replace the hub and leak
+        // the first one's integrations. Matches Windows SentryService.Initialize.
+        guard !SentrySDK.isEnabled else { return }
+
         let release = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "unknown"
         let build = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "?"
         let resolvedEnv: String = {
@@ -64,6 +138,14 @@ enum SentryService {
             options.dsn = dsn
             options.environment = resolvedEnv
             options.releaseName = "hyperwhisper@\(release)"
+
+            // ON-DISK STATE
+            // Keep it in a HyperWhisper-owned directory rather than the shared
+            // ~/Library/Caches default, so turning error logging off can delete
+            // the queue without touching another app's. See `cacheDirectory`.
+            if let directory = Self.cacheDirectory {
+                options.cacheDirectoryPath = directory.path
+            }
 
             // PERFORMANCE TRACING
             // Sample 100% of transactions to capture all performance data
@@ -149,6 +231,51 @@ enum SentryService {
         #endif
     }
 
+    // MARK: - Shutdown
+
+    /// Stop error reporting now, and drop whatever is still queued.
+    ///
+    /// Called when the user turns Settings → General → Error logging off. That
+    /// switch is the opt-out the data-privacy page points at, so "stop" has to
+    /// mean three separate things:
+    ///
+    /// 1. **Nothing new is collected.** `SentrySDK.close()` uninstalls every
+    ///    integration — the crash handler, app-hang detection, the URLSession
+    ///    swizzle that reports failed requests, and release-health sessions.
+    ///    None of those go through `capture` below, so gating `capture` alone
+    ///    would have left them all running.
+    /// 2. **Nothing already collected is sent.** `SentrySDK.close()` calls
+    ///    `flush(shutdownTimeInterval)` on its way out (sentry-cocoa
+    ///    `SentryClient.close`), which drains the on-disk queue to the network —
+    ///    the exact opposite of what an opt-out should do. So the queue is
+    ///    deleted *before* the close, leaving that flush nothing to send. It
+    ///    also makes the close fast: the flush returns as soon as there is
+    ///    nothing cached, instead of waiting out its 2-second timeout on the
+    ///    main thread.
+    /// 3. **Nothing survives to the next launch.** A raw crash report, or an
+    ///    envelope that failed to upload while the machine was offline, sits on
+    ///    disk and is sent the next time the SDK starts. A crash report that
+    ///    flushes on the next launch is the same leak, one launch later, so the
+    ///    directory goes again once nothing is writing to it.
+    ///
+    /// Safe to call when Sentry was never started; it then just clears any queue
+    /// an earlier session left behind.
+    static func shutdown() {
+        #if canImport(Sentry)
+        // Before the close, because the close flushes (see 2 above).
+        purgeQueuedReports()
+
+        if SentrySDK.isEnabled {
+            SentrySDK.close()
+        }
+
+        // And again with the SDK stopped: the close can still write on the way
+        // out, and the raw crash reports are only turned into envelopes at the
+        // next start, which is what makes deleting them here the fix for (3).
+        purgeQueuedReports()
+        #endif
+    }
+
     /// Return whether an extra key can identify user speech or prompt content.
     static func isRedactedExtraKey(_ key: String) -> Bool {
         let lower = key.lowercased()
@@ -162,6 +289,7 @@ enum SentryService {
     /// but are useful for local debugging and understanding user flows.
     static func addBreadcrumb(message: String, category: String, level: SentryLevel = .info, data: [String: Any] = [:]) {
         #if canImport(Sentry)
+        guard isReportingEnabled else { return }
         let crumb = Breadcrumb(level: level, category: category)
         crumb.message = message
         crumb.data = data
@@ -188,6 +316,8 @@ enum SentryService {
         includeRecentLogs: Bool = true
     ) {
         #if canImport(Sentry)
+        guard isReportingEnabled else { return }
+
         // Capture error with ALL context in a SINGLE event
         // This prevents creating separate INFO-level message events
         let event = Event(error: error)
@@ -255,6 +385,8 @@ enum SentryService {
         includeRecentLogs: Bool = true
     ) {
         #if canImport(Sentry)
+        guard isReportingEnabled else { return }
+
         let event = Event()
         event.level = level
         event.message = SentryMessage(formatted: message)
@@ -287,6 +419,7 @@ enum SentryService {
     /// Tags are indexed and searchable in Sentry - use for filterable dimensions.
     static func setTag(_ key: String, _ value: String) {
         #if canImport(Sentry)
+        guard isReportingEnabled else { return }
         SentrySDK.configureScope { $0.setTag(value: value, key: key) }
         #else
         _ = (key, value)
@@ -298,6 +431,7 @@ enum SentryService {
     /// captured event — use for lightweight diagnostics like per-stage timings.
     static func setExtras(_ extras: [String: Any]) {
         #if canImport(Sentry)
+        guard isReportingEnabled else { return }
         SentrySDK.configureScope { scope in
             for (key, value) in extras {
                 scope.setExtra(value: value, key: key)
@@ -318,6 +452,9 @@ enum SentryService {
     @discardableResult
     static func startTransaction(name: String, operation: String) -> SpanProtocol? {
         #if canImport(Sentry)
+        // A finished transaction is an event like any other, so it goes through
+        // the same gate. Callers already handle a nil span.
+        guard isReportingEnabled else { return nil }
         return SentrySDK.startTransaction(name: name, operation: operation, bindToScope: true)
         #else
         return nil
