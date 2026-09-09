@@ -11376,6 +11376,224 @@ internal static class Program
                 }
             });
 
+            Run("tray: a 300-character mode name cannot widen the Select Mode submenu off the screen — issue #525", () =>
+            {
+                // #525, the half of #492 that XAML could not reach. A
+                // ToolStripDropDownMenu sizes itself to its widest item and never
+                // ellipsises, so the two tray submenus that list MODE NAMES - Select
+                // Mode and Transcribe File - grew to whatever the user typed. There is
+                // no TextTrimming for a Win32 menu; the only place to bound it is the
+                // string handed to the item, which is what MenuItemText.Bound does.
+                //
+                // MEASURED, not grepped: a character cap that does not actually bound
+                // the rendered menu would be worthless, so the menu is laid out.
+                var longName = "LongName" + new string('X', 292);
+
+                static int PreferredMenuWidth(string label)
+                {
+                    using var menu = new System.Windows.Forms.ToolStripDropDownMenu();
+                    menu.Items.Add(new System.Windows.Forms.ToolStripMenuItem(label));
+                    menu.Items.Add(new System.Windows.Forms.ToolStripMenuItem("Default"));
+                    return menu.GetPreferredSize(System.Drawing.Size.Empty).Width;
+                }
+
+                var boundedWidth = PreferredMenuWidth(MenuItemText.Bound(longName));
+                var rawWidth = PreferredMenuWidth(longName);
+
+                // Prove the case exercises the defect. If a 300-character item laid out
+                // narrow anyway, everything below would pass while proving nothing.
+                Assert(rawWidth > boundedWidth * 3,
+                    $"the unbounded {longName.Length}-character name laid out {rawWidth}px against " +
+                    $"{boundedWidth}px bounded, so this case is not exercising the overflow");
+
+                // THE BUG, STATED AS THE BUG: the submenu must fit on a screen. 1024 is
+                // the narrowest display Windows supports, not a font guess - a menu
+                // wider than that has entries the user cannot reach at all.
+                Assert(boundedWidth < 1024,
+                    $"the bounded Select Mode submenu wants {boundedWidth}px, which is wider than the " +
+                    "narrowest display Windows supports - its other entries are off the screen");
+
+                // The label is bounded; the NAME is not. Nothing here may truncate data.
+                var bounded = MenuItemText.Bound(longName);
+                Assert(bounded.Length <= MenuItemText.MaxLength + 1 && bounded.EndsWith(MenuItemText.Ellipsis),
+                    $"Bound() returned {bounded.Length} characters ending '{bounded[^1]}', expected at most " +
+                    $"{MenuItemText.MaxLength} plus an ellipsis");
+                Assert(longName.StartsWith(bounded[..^1]),
+                    "the bounded label is not a prefix of the real name - it is rewriting the name, not cutting it");
+
+                // THE BOUND IS A WIDTH, NOT A CHARACTER COUNT, and a full-width
+                // script is where the difference shows: 60 CJK glyphs are about
+                // twice 60 Latin ones, so a name in Japanese would clear a character
+                // cap and still hang off the screen. The app ships 40 locales.
+                var cjkName = string.Concat(Enumerable.Repeat("日本語のモードの名前", 30));
+                var boundedCjk = MenuItemText.Bound(cjkName);
+
+                Assert(boundedCjk.Length < bounded.Length,
+                    $"the CJK label kept {boundedCjk.Length} characters and the Latin one {bounded.Length} - " +
+                    "the cap is still counting characters rather than measuring the glyphs");
+                Assert(PreferredMenuWidth(boundedCjk) < 1024,
+                    $"a submenu of the bounded CJK name wants {PreferredMenuWidth(boundedCjk)}px, wider than the " +
+                    "narrowest display Windows supports");
+                Assert(PreferredMenuWidth(cjkName) > PreferredMenuWidth(boundedCjk) * 3,
+                    "the unbounded CJK name did not lay out wide, so this case proves nothing");
+                Assert(MenuItemText.NeedsFullTextTooltip(longName),
+                    "a truncated item reports no tooltip, so the full name would be unreachable from the tray");
+
+                // AND THE TOOLTIP IS BOUNDED TOO. Observed on a VM before this
+                // assertion existed: a WinForms tooltip is a SINGLE LINE unless the
+                // string carries its own newlines, so the first cut of this fix put a
+                // ~2100px tooltip across the whole screen and off both edges - the very
+                // defect the label cap was there to stop.
+                var tooltip = MenuItemText.Tooltip(longName);
+                Assert(tooltip is not null, "the truncated item got no tooltip text");
+
+                var tipLines = tooltip!.Split("\r\n");
+                Assert(tipLines.Length > 1, "the tooltip is still one line, so it renders wider than the screen");
+                Assert(tipLines.Length <= MenuItemText.TooltipMaxLines,
+                    $"the tooltip is {tipLines.Length} lines, past the {MenuItemText.TooltipMaxLines} cap - " +
+                    "a long enough name makes it taller than the screen");
+
+                var widest = tipLines.Max(l =>
+                    System.Windows.Forms.TextRenderer.MeasureText(l, System.Drawing.SystemFonts.DefaultFont).Width);
+                var unwrapped = System.Windows.Forms.TextRenderer.MeasureText(
+                    longName, System.Drawing.SystemFonts.DefaultFont).Width;
+
+                Assert(unwrapped > 1024,
+                    $"the unwrapped name measures {unwrapped}px, so this case is not exercising the wide tooltip");
+                Assert(widest < 1024,
+                    $"the tooltip's widest line is {widest}px, wider than the narrowest display Windows supports");
+
+                // It still carries the name: the visible characters are the name's own,
+                // in order, with only the collapsed spacing between them.
+                Assert(longName.StartsWith(string.Concat(tipLines).TrimEnd(MenuItemText.Ellipsis[0])),
+                    "the tooltip is not showing the name's own characters in order");
+
+                // A short name is passed through untouched and gets NO tooltip: a
+                // tooltip that repeats the label back at the user is noise.
+                Assert(MenuItemText.Bound("Meetings") == "Meetings", "a short name was altered");
+                Assert(!MenuItemText.NeedsFullTextTooltip("Meetings"), "a short name asked for a tooltip");
+                Assert(MenuItemText.Tooltip("Meetings") is null, "a short name was given a tooltip");
+
+                // A menu item grows in BOTH directions and the Local API accepts a mode
+                // name with a newline in it, so height is bounded too.
+                Assert(!MenuItemText.Bound("Notes\r\n\r\nand more").Contains('\n'),
+                    "a newline survived into the menu label, so the item renders several rows tall");
+                Assert(MenuItemText.Bound("Notes\r\n\r\nand more") == "Notes and more",
+                    $"whitespace collapsed to '{MenuItemText.Bound("Notes\r\n\r\nand more")}'");
+
+                // And the cut never lands between the halves of a surrogate pair, which
+                // would leave a lone surrogate rendering as a replacement glyph.
+                var emoji = new string('a', MenuItemText.MaxLength - 1) + "\U0001F600" + "tail";
+                var boundedEmoji = MenuItemText.Bound(emoji);
+                Assert(!char.IsSurrogate(boundedEmoji[^2]),
+                    "Bound() cut a surrogate pair in half");
+            });
+
+            Run("history: a 300-character mode name stays inside the transcript detail pane — issue #525", () =>
+            {
+                // #525. The detail header's mode badge binds SelectedTranscript.Mode -
+                // the mode NAME, copied onto the transcript - into a horizontal
+                // StackPanel with no MaxWidth. A StackPanel measures its children with
+                // infinite width, so the badge simply ran off the right of the detail
+                // pane and was hard-clipped by the window edge.
+                //
+                // MEASURED, not grepped: TextTrimming on its own changes nothing inside
+                // a StackPanel, so only the geometry proves the fix.
+                EnsureSmokeApplication();
+
+                var longName = "LongName" + new string('X', 292);
+
+                // The page is a fixed width like every other: 1000 less the 232 sidebar.
+                const double pageWidth = 1000 - 232;
+
+                var page = new HyperWhisper.Views.Pages.HistoryPage();
+
+                // HistoryPage only builds its ViewModel in the Loaded handler and a
+                // detached element is never Loaded, so a probe is set directly here.
+                // Bindings are duck-typed; only the detail header's paths matter.
+                page.DataContext = new HistoryDetailProbe
+                {
+                    SelectedTranscript = new HistoryTranscriptProbe
+                    {
+                        FormattedDate = "Today at 09:41",
+                        FormattedDuration = "0:12",
+                        Mode = longName
+                    }
+                };
+
+                page.Measure(new Size(pageWidth, 680));
+                page.Arrange(new Rect(0, 0, pageWidth, 680));
+                page.UpdateLayout();
+
+                var modeText = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Name == "DetailModeText");
+                Assert(modeText is not null, "the history detail header no longer has a DetailModeText");
+
+                // The row is untouched: this is a display fix and the badge must still
+                // carry the whole name, so the tooltip and any copy of it are right.
+                Assert(modeText!.Text == longName,
+                    $"the badge bound {modeText.Text.Length} characters of a {longName.Length}-character " +
+                    "name - the name is being truncated in data, which is not the fix");
+
+                // THE BUG, STATED AS THE BUG, AND FIRST: the badge stays inside the
+                // page. Without the MaxWidth its right edge sits ~2600px past a 768px
+                // page, entirely off the window. This is asserted ahead of the
+                // attribute checks below deliberately — a geometry failure is the one
+                // that says the user cannot see the badge, and it is the message
+                // whoever breaks this next should read first.
+                var badge = (System.Windows.Controls.Border)System.Windows.Media.VisualTreeHelper.GetParent(
+                    System.Windows.Media.VisualTreeHelper.GetParent(modeText));
+                var badgeLeft = badge.TransformToAncestor(page).Transform(new Point(0, 0)).X;
+                Assert(badgeLeft + badge.ActualWidth <= pageWidth + 0.5,
+                    $"the mode badge ends at {badgeLeft + badge.ActualWidth:F1} on a {pageWidth:F0} wide " +
+                    "page - a long mode name has pushed it off the right of the detail pane");
+
+                // Prove the case exercises the overflow. If the pane were ever wide
+                // enough for 300 characters, everything here would pass proving nothing.
+                Assert(modeText.ActualWidth > 0,
+                    "DetailModeText measured 0 - it never took part in the layout pass");
+                Assert(UnconstrainedWidthOf(modeText) > modeText.ActualWidth,
+                    $"the {longName.Length}-character name wanted {UnconstrainedWidthOf(modeText):F0}px and " +
+                    $"got {modeText.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
+
+                // And it says it was cut, rather than stopping mid-glyph.
+                Assert(modeText.TextTrimming == TextTrimming.CharacterEllipsis,
+                    $"DetailModeText trims with {modeText.TextTrimming}: a name wider than the pane is " +
+                    "cut off mid-glyph with nothing to show it continues");
+
+                // And the duration badge beside it is untouched and still whole.
+                var durationText = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Text == "0:12");
+                Assert(durationText is not null && durationText.ActualWidth > 0,
+                    "the duration badge is gone from the detail header");
+
+                // THE TOOLTIP IS BOUNDED IN BOTH DIRECTIONS. A wrapping tooltip with
+                // only a MaxWidth is a tooltip with no bound at all: nothing caps the
+                // name, so 10,000 characters is a 230-line block taller than the
+                // screen. MaxHeight plus TextTrimming caps it at seven lines and says
+                // it was cut, which is the same contract as the badge underneath it.
+                var tip = modeText.ToolTip as System.Windows.Controls.ToolTip;
+                Assert(tip is not null, "the mode badge lost its explicit ToolTip");
+                var tipText = tip!.Content as System.Windows.Controls.TextBlock;
+                Assert(tipText is not null, "the ToolTip content is no longer a TextBlock");
+
+                // A ToolTip is not in the visual tree until it opens, and its binding
+                // does not evaluate until then, so the string is assigned here rather
+                // than bound. The binding itself was read on a real desktop: hovering
+                // this badge shows all 300 characters over six wrapped lines.
+                foreach (var length in new[] { longName.Length, 10_000 })
+                {
+                    tipText!.Text = new string('M', length);
+                    tipText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+                    Assert(tipText.DesiredSize.Width <= 360.5,
+                        $"a {length}-character name gives a {tipText.DesiredSize.Width:F0}px-wide tooltip");
+                    Assert(tipText.DesiredSize.Height <= 126.5,
+                        $"a {length}-character name gives a {tipText.DesiredSize.Height:F0}px-tall tooltip, so a " +
+                        "long enough name renders one taller than the screen");
+                }
+            });
+
             Run("vocabulary: the whole replacement box is the replacement field — issue #496", () =>
             {
                 // The replacement row is DRAWN as a 64px text area. The TextBox inside
@@ -13971,6 +14189,26 @@ internal static class Program
         public string ModelStatus { get; init; } = "";
         public string LocalPostProcessingStatus { get; init; } = "";
         public bool HasLocalPostProcessingStatus { get; init; }
+    }
+
+    /// <summary>
+    /// Just enough of HistoryViewModel for the transcript detail header to lay
+    /// out. Bindings are duck-typed, and the real view model opens the database
+    /// and the audio player in its constructor.
+    /// </summary>
+    private sealed class HistoryDetailProbe
+    {
+        public HistoryTranscriptProbe? SelectedTranscript { get; init; }
+    }
+
+    /// <summary>The detail header's own binding paths, and nothing else.</summary>
+    private sealed class HistoryTranscriptProbe
+    {
+        public string FormattedDate { get; init; } = "";
+        public string FormattedDuration { get; init; } = "";
+
+        /// <summary>The mode NAME, copied onto the transcript. Free user text.</summary>
+        public string? Mode { get; init; }
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
