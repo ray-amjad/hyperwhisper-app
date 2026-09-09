@@ -427,6 +427,12 @@
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
+    <!-- A mode name is free user text with no cap anywhere, and the card header is a *,Auto
+         Grid with the gear beside it. The star column bounds the name, so the gear stays put,
+         but an untrimmed TextBlock is cut mid-glyph under the gear with nothing to say the
+         name continues. Windows sets this on ModeNameText itself (ModesPage.xaml, #521); the
+         Linux card takes it from the class, so every future .modeName inherits it (#526). -->
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
   </Style>
   <!-- Windows draws the SELECTED mode's title in the accent, not just its border
        (ModesPage.xaml:268-270). This rule has to sit AFTER the plain TextBlock.modeName rule
