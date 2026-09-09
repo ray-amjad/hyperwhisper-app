@@ -2424,6 +2424,7 @@ extension StreamingTranscriptionClient: URLSessionWebSocketDelegate {
         reason: Data?
     ) {
         Task { @MainActor in
+            let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? "none"
             logger.info("WebSocket closed: code=\(closeCode.rawValue, privacy: .public)")
 
             // Server-initiated close for credits exhausted (4001) or max duration (4002):
