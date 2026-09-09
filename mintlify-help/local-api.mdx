@@ -249,6 +249,24 @@ The deterministic text steps are different. They are your own settings, and they
   Each platform decides "is this English?" the way its own dictation does, so one case differs. Windows and Linux read the language of the request or the Mode. The default is `auto`, which is not English, so they do not remove filler words — send `"language": "en"` to make the step apply. macOS prefers the language the engine reported for the transcript, and falls back to the request's language when the engine reported none. So a `"language": "auto"` request against an engine that reports English does remove filler words on macOS and not on the other two. The other two steps behave the same everywhere.
 </Warning>
 
+### When `mode_id` and `engine` disagree
+
+You can send `mode_id` and `engine` in the same `/transcribe` request. The Mode is the baseline, and the `engine` replaces the provider for this one call. The two can name different cloud vendors, and then the question is which model runs.
+
+The Mode's saved model does **not** move to the other vendor. Each platform drops it and uses the engine's own default model. A model id is not portable between vendors: `nova-3-general` is a Deepgram model, and an OpenAI request that carries it is rejected — or, worse, is accepted because the same text is also a model of that vendor, and you are billed for a model you did not ask for.
+
+Three rules follow:
+
+- **An explicit `model` wins.** Send `"model"` to pin one. For a BYOK provider the value goes to the vendor as you sent it, and no other rule applies.
+- **A model that really belongs to the engine you named is kept.** This includes an old name for a current model. An AssemblyAI Mode saved with `universal`, re-run with `"engine": "assemblyai"`, still runs `universal`. It is not silently changed to a different model at a different rate.
+- **HyperWhisper Cloud is different.** It selects the model from the Mode's accuracy tier, not from a model id. `"engine": "cloud"` keeps the Mode's model only when that model is one of the tier's models, and uses the tier's default model in every other case. This applies to an explicit `model` too.
+
+Read the response `model` field to see which rule applied. It names the model that ran. It is empty only for an engine that takes no model parameter, which the [OpenAPI reference](/api-reference/local-api/openapi.yaml) describes in full.
+
+<Note>
+  Two engine names behave differently on Linux: `googlespeech` and `microsoftazurespeech`. These are old names for providers that Windows and macOS now serve through HyperWhisper Cloud, so those two platforms spend HyperWhisper Cloud credits. Linux still treats them as your own API key. Name the provider you want directly — `cloud` for HyperWhisper Cloud — until this is made the same everywhere.
+</Note>
+
 ### Mode write rules
 
 `POST /modes` and `PATCH /modes/{id}` reject an empty mode name and a case-insensitive duplicate. Windows trims whitespace at the start and end of the name. macOS also normalizes Unicode and trims invisible-only characters from the boundaries. A macOS name must contain at least one visible base character.

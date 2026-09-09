@@ -498,11 +498,21 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         };
         if (CloudProviders.Contains(cloud))
         {
+            // Captured BEFORE the column is overwritten: deciding whether the
+            // inherited model is foreign needs the provider it came FROM.
+            var priorProvider = mode.CloudProvider;
+            var priorModel = mode.CloudTranscriptionModel;
+
             mode.ProviderType = "cloud";
             mode.CloudProvider = cloud;
             mode.Model = "cloud";
-            if (normalizedModel is not null) mode.CloudTranscriptionModel = normalizedModel;
-            else if (cloud == "meta") mode.CloudTranscriptionModel = "muse-voice-transcribe-1.0";
+            if (normalizedModel is not null)
+            {
+                mode.CloudTranscriptionModel = normalizedModel;
+                return;
+            }
+
+            ApplyForeignModelGuard(mode, cloud, priorProvider, priorModel);
             return;
         }
 
@@ -546,6 +556,85 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             default:
                 throw new ArgumentException("The requested transcription engine is unsupported.");
         }
+    }
+
+    /// <summary>
+    /// Drop a <c>cloudTranscriptionModel</c> the request's NEW engine does not
+    /// own, so <c>{mode_id, engine}</c> cannot run another vendor's model
+    /// (issue #566).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A mixed request inherits the baseline mode's model column. Nothing used
+    /// to clear it, so <c>{mode_id: &lt;a Deepgram mode&gt;, engine: "openai"}</c>
+    /// kept <c>nova-3-general</c> and <see cref="ModeAwareTranscriptionRouter.BuildCloudRequest"/>
+    /// put it in the OpenAI request body verbatim. A rejection is the good
+    /// outcome; an id that happens to be valid for the new vendor runs, at that
+    /// model's price, without the caller asking for it.
+    /// </para>
+    /// <para>
+    /// Windows has guarded this since #528 and macOS since #533; this is the
+    /// portable half, with the same two-part test. An inherited id is kept when
+    /// EITHER the mode was already on this provider — the caller is re-asserting
+    /// the engine, so their saved sub-model stands, including providers such as
+    /// HyperWhisper Cloud and Grok whose sub-models are not catalog model rows —
+    /// OR the id really is one of this provider's models.
+    /// </para>
+    /// <para>
+    /// The membership half MUST resolve aliases, and this head had no
+    /// alias-resolving lookup until now, which is why #565 filed the defect
+    /// rather than fixing it in passing.
+    /// <see cref="SharedCoreBridge.CloudSttContainsModel"/> is an exact,
+    /// case-sensitive scan, so a legacy-but-serviceable id such as AssemblyAI
+    /// <c>universal</c> (which resolves to the catalogued <c>universal-2</c>)
+    /// would read as foreign and be silently upgraded to a different-priced
+    /// model. That is exactly the failure #528's second correction exists to
+    /// prevent, so the guard goes through
+    /// <see cref="ModeAwareTranscriptionRouter.CloudModelBelongsToProvider"/>,
+    /// which applies the shared <c>hw-catalog</c> alias table first.
+    /// </para>
+    /// <para>
+    /// HyperWhisper Cloud is exempt for the reason Windows records: it
+    /// dispatches on the accuracy tier, and both the send path and
+    /// <see cref="ModelLabel"/> already run the surviving id through
+    /// <see cref="ModeAwareTranscriptionRouter.DispatchedCloudModelId"/>, which
+    /// heals a blank, foreign, live-only or out-of-tier value on its own.
+    /// Writing a guess here would only add a second opinion that can disagree
+    /// with the run.
+    /// </para>
+    /// <para>
+    /// Meta is the mirror image and keeps its own arm, ABOVE the two-part test.
+    /// <c>metaMuse</c> has exactly one model, so a stored id that is not it can
+    /// only be stale or foreign — there is no legitimate sub-model to preserve,
+    /// and letting the "the caller re-asserted this engine" half stand would
+    /// hand Meta a Deepgram id for a mode already saved on <c>meta</c>. That is
+    /// the very defect this method exists to close, so the unconditional
+    /// assignment stays. Only the hard-coded <c>muse-voice-transcribe-1.0</c>
+    /// literal goes: the value now comes from the catalog, like every other
+    /// provider's. macOS handles <c>engine: "meta"</c> the same unconditional
+    /// way, in a block above its own guard.
+    /// </para>
+    /// </remarks>
+    private static void ApplyForeignModelGuard(
+        Mode mode, string cloud, string? priorProvider, string? priorModel)
+    {
+        if (!ModeAwareTranscriptionRouter.TryMapProvider(cloud, out var provider)) return;
+        if (provider == CloudTranscriptionProvider.HyperWhisperCloud) return;
+        if (provider == CloudTranscriptionProvider.Meta)
+        {
+            mode.CloudTranscriptionModel = ModeAwareTranscriptionRouter.DefaultCloudModelId(provider);
+            return;
+        }
+
+        var samePriorProvider =
+            ModeAwareTranscriptionRouter.TryMapProvider(priorProvider, out var mapped)
+            && mapped == provider;
+        var belongsToProvider = !string.IsNullOrWhiteSpace(priorModel)
+            && (samePriorProvider
+                || ModeAwareTranscriptionRouter.CloudModelBelongsToProvider(provider, priorModel));
+        if (belongsToProvider) return;
+
+        mode.CloudTranscriptionModel = ModeAwareTranscriptionRouter.DefaultCloudModelId(provider);
     }
 
     /// <summary>

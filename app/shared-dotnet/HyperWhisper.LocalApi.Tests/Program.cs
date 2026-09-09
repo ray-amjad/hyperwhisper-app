@@ -46,6 +46,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("mode wire contract matches the shared core", ApplicationBackendModeContract)
     ,("/transcribe runs the deterministic text passes", ApplicationBackendTextPasses)
     ,("/transcribe reports the cloud model that will run", ApplicationBackendCloudModelLabel)
+    ,("/transcribe never runs another vendor's cloud model", ApplicationBackendForeignCloudModel)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
@@ -1626,6 +1627,189 @@ static async Task ApplicationBackendCloudModelLabel()
         mode => mode.CloudTranscriptionModel = "mai-transcribe-1.5");
     Assert(azurePinned == "mai-transcribe-1.5" && azurePinned == azurePinnedDispatched,
         "Azure MAI dropped a sub-model that is really in its tier");
+}
+
+/// <summary>
+/// `{mode_id, engine}` must not run the BASELINE MODE's model when that model
+/// belongs to a different vendor (issue #566).
+/// </summary>
+/// <remarks>
+/// This is a wrong-transcription test, not a labelling one. Every case reads the
+/// model out of the request
+/// <see cref="ModeAwareTranscriptionRouter.BuildCloudRequest"/> would really
+/// send, so an assertion here is about what goes on the wire; the response label
+/// is checked alongside it only to prove the two still agree.
+///
+/// The alias case is the reason #565 could not fix this in passing. A guard that
+/// compares raw catalog strings judges AssemblyAI `universal` foreign and
+/// silently upgrades it to Universal-3.5 Pro — a different model at a different
+/// rate — which is the failure #528's second correction exists to prevent.
+/// </remarks>
+static async Task ApplicationBackendForeignCloudModel()
+{
+    static string Dispatched(TranscriptionWorkflowRequest request, HyperWhisper.Data.Entities.Mode mode)
+    {
+        Assert(ModeAwareTranscriptionRouter.TryMapProvider(mode.CloudProvider, out var provider),
+            $"the test mode carries an unroutable cloudProvider '{mode.CloudProvider}'");
+        var wire = ModeAwareTranscriptionRouter.BuildCloudRequest("/tmp/none.wav", request, mode, provider);
+        return (wire.RoutedModel ?? wire.Model) ?? string.Empty;
+    }
+
+    // A SAVED mode on `storedProvider` pinned to `storedModel`, transcribed with
+    // `{mode_id: <that mode>, engine: <engine>}` and no explicit model — the
+    // exact request form in the issue.
+    static async Task<(string Label, string Wire)> Mixed(
+        string storedProvider, string? storedModel, string engine, string? storedTier = null)
+    {
+        using var paths = new TempPaths();
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+
+        var stored = new HyperWhisper.Data.Entities.Mode
+        {
+            Name = "Stored", IsDefault = true, SortOrder = 1, Language = "en",
+            ProviderType = "cloud", Model = "cloud",
+            CloudProvider = storedProvider, CloudTranscriptionModel = storedModel,
+        };
+        if (storedTier is not null) stored.CloudAccuracyTier = storedTier;
+        await modes.UpsertAsync(stored);
+
+        var transcriber = new FixedTextTranscriber("ok");
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(
+            modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+        var result = await backend.TranscribeAsync(
+            new AudioUpload("a.wav", "audio/wav", new byte[] { 1 },
+                stored.Id.ToString(), engine, null, null),
+            CancellationToken.None);
+        var request = transcriber.Request!;
+        return (result.Model, Dispatched(request, request.SelectedMode!));
+    }
+
+    static string DefaultFor(string engine)
+    {
+        Assert(ModeAwareTranscriptionRouter.TryMapProvider(engine, out var provider),
+            $"the test engine '{engine}' is not routable");
+        return ModeAwareTranscriptionRouter.DefaultCloudModelId(provider);
+    }
+
+    // 1. THE ISSUE. A Deepgram mode asked to run on OpenAI kept `nova-3-general`
+    //    and `BuildCloudRequest` put it in the OpenAI request body verbatim.
+    var (openAiLabel, openAiWire) = await Mixed("deepgram", "nova-3-general", "openai");
+    Assert(openAiWire != "nova-3-general",
+        "an OpenAI request still carries Deepgram's model id (issue #566)");
+    Assert(openAiWire == DefaultFor("openai"),
+        $"the foreign model was dropped but '{openAiWire}' is not OpenAI's default");
+    Assert(openAiLabel == openAiWire,
+        $"the reported model '{openAiLabel}' is not the dispatched model '{openAiWire}'");
+
+    // 2. The same in the other direction, so the test cannot pass by accident on
+    //    one vendor's default happening to look right.
+    foreach (var (storedProvider, storedModel, engine) in new[]
+    {
+        ("openai", "gpt-4o-transcribe", "deepgram"),
+        ("elevenlabs", "scribe_v2", "mistral"),
+        ("deepgram", "nova-3-general", "grok"),
+        ("assemblyai", "universal-3-5-pro", "soniox"),
+    })
+    {
+        var (label, wire) = await Mixed(storedProvider, storedModel, engine);
+        Assert(wire != storedModel,
+            $"engine '{engine}' still ran {storedProvider}'s '{storedModel}' (issue #566)");
+        Assert(wire == DefaultFor(engine),
+            $"engine '{engine}' fell back to '{wire}' rather than its own default");
+        // `wire == DefaultFor(engine)` alone would be tautological — the guard
+        // and the assertion would call the same function. This second check is
+        // the independent one: whatever the guard chose has to pass the
+        // membership test for the provider the caller asked for. Grok is the one
+        // exemption, and it is not a hole: its catalogued model id IS the empty
+        // string, which is the "this vendor takes no model parameter" case.
+        Assert(wire.Length == 0
+            || ModeAwareTranscriptionRouter.TryMapProvider(engine, out var target)
+                && ModeAwareTranscriptionRouter.CloudModelBelongsToProvider(target, wire),
+            $"engine '{engine}' fell back to '{wire}', which is not one of its own models");
+        Assert(label == wire, $"engine '{engine}' reported '{label}' but dispatched '{wire}'");
+    }
+
+    // 3. ALIAS-RESOLVING, the half a raw string compare gets wrong. `universal`
+    //    is a legacy AssemblyAI id that `hw-catalog` resolves to `universal-2`,
+    //    a real AssemblyAI model — so it is NOT foreign and must survive. A
+    //    guard built on the exact catalog scan would replace it with
+    //    Universal-3.5 Pro, a different model at a different rate.
+    var (aliasLabel, aliasWire) = await Mixed("hyperwhisper", "universal", "assemblyai");
+    Assert(aliasWire == "universal",
+        $"a legacy AssemblyAI alias was judged foreign and became '{aliasWire}' (issue #566)");
+    Assert(aliasWire != DefaultFor("assemblyai"), "the alias case degenerated into the default case");
+    Assert(aliasLabel == aliasWire, "the alias case reported a model it would not have dispatched");
+
+    // 4. Re-asserting the SAME provider keeps the caller's pinned sub-model.
+    var (pinnedLabel, pinnedWire) = await Mixed("deepgram", "nova-3-medical", "deepgram");
+    Assert(pinnedWire == "nova-3-medical" && pinnedLabel == pinnedWire,
+        "re-asserting the mode's own engine dropped its saved sub-model");
+
+    // 5. HyperWhisper Cloud is exempt from the guard, because the send path
+    //    validates the column against the mode's ACCURACY TIER instead. The tier
+    //    is seeded explicitly in both halves: leaving it to the entity default
+    //    would make the first assertion pass for a reason that has nothing to do
+    //    with the behaviour being pinned.
+    //
+    //    a. A BYOK leftover that the tier does not serve heals to the tier's model.
+    var (cloudLabel, cloudWire) = await Mixed(
+        "deepgram", "nova-3-general", "cloud", storedTier: "elevenLabsScribeV2");
+    Assert(cloudWire == "scribe_v2" && cloudLabel == cloudWire,
+        $"engine 'cloud' dispatched '{cloudWire}' rather than the Scribe v2 tier's model");
+    //    b. An id the tier DOES serve is kept — the exemption is real, not an
+    //       accident of which tier the test happened to seed.
+    var (cloudPinnedLabel, cloudPinnedWire) = await Mixed(
+        "deepgram", "nova-3-medical", "cloud", storedTier: "deepgramNova3");
+    Assert(cloudPinnedWire == "nova-3-medical" && cloudPinnedLabel == cloudPinnedWire,
+        "engine 'cloud' dropped a sub-model that really is in the mode's tier");
+
+    // 6. Meta keeps its own arm, above the two-part test: `metaMuse` has exactly
+    //    one model, so a stored id that is not it can only be stale or foreign
+    //    and there is nothing to preserve. Both directions are pinned, because
+    //    the meta-to-meta one is the case the "re-asserting the engine" half
+    //    would otherwise let through.
+    //
+    //    The literal is deliberate. It is the deleted hard-coded string, so this
+    //    is the assertion that the removal changed nothing on the wire, and that
+    //    a catalog change moving Meta's default cannot ship as a silent swap.
+    foreach (var storedProvider in new[] { "deepgram", "meta" })
+    {
+        var (metaLabel, metaWire) = await Mixed(storedProvider, "nova-3-general", "meta");
+        Assert(metaWire == "muse-voice-transcribe-1.0" && metaLabel == metaWire,
+            $"a {storedProvider} mode run with engine 'meta' dispatched '{metaWire}'");
+    }
+
+    // 7. An explicit `model` still wins over everything above — the caller asked
+    //    for it by name, and `openapi.yaml` says it is echoed unvalidated.
+    using (var paths = new TempPaths())
+    {
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        var stored = new HyperWhisper.Data.Entities.Mode
+        {
+            Name = "Stored", IsDefault = true, SortOrder = 1, Language = "en",
+            ProviderType = "cloud", Model = "cloud",
+            CloudProvider = "deepgram", CloudTranscriptionModel = "nova-3-general",
+        };
+        await modes.UpsertAsync(stored);
+        var transcriber = new FixedTextTranscriber("ok");
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(
+            modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+        var result = await backend.TranscribeAsync(
+            new AudioUpload("a.wav", "audio/wav", new byte[] { 1 },
+                stored.Id.ToString(), "openai", "gpt-4o-mini-transcribe", null),
+            CancellationToken.None);
+        var wire = Dispatched(transcriber.Request!, transcriber.Request!.SelectedMode!);
+        Assert(wire == "gpt-4o-mini-transcribe" && result.Model == wire,
+            $"an explicit model was overridden by the guard and became '{wire}'");
+    }
 }
 
 static async Task ApplicationBackendModeValidation()
