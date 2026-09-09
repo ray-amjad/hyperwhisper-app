@@ -3,12 +3,17 @@
 //  hyperwhisper
 //
 //  APPCAST ITEM MODEL
-//  This model represents a single release entry from the appcast.xml feed.
-//  It parses version information, release dates, and HTML-formatted release notes.
+//  This model represents a single release entry from the appcast.xml feed, as
+//  the Recent Updates list renders it.
+//
+//  It decides nothing about the feed. Which field the version comes from, how
+//  the date text is read, which entries are dropped and how the list is ordered
+//  are `hw-releasenotes`' rules, shared with Windows (#353); the HTML notes are
+//  read by the same core (#284). This type formats what it is given.
 //
 //  Design Goals:
-//  - Parse Sparkle appcast XML format
-//  - Extract and format release notes from CDATA HTML
+//  - Hold one selected release from the shared appcast selection step
+//  - Parse the release notes once, at construction
 //  - Provide user-friendly date formatting
 //  - Support releases with or without release notes
 
@@ -18,9 +23,12 @@ import Foundation
 /// Represents a single software release from the appcast feed
 ///
 /// Properties:
-/// - version: The version string (e.g., "2.5.3")
-/// - buildNumber: The build number (e.g., "32")
-/// - pubDate: When this version was released
+/// - version: The version string (e.g., "2.5.3"), resolved by the core from
+///   `sparkle:shortVersionString`, else `sparkle:version`, else `<title>`
+/// - buildNumber: The feed's `sparkle:version` (e.g., "116"), or `version` again
+///   when the item carries none. Stored for completeness; nothing renders it.
+/// - pubDate: When this version was released. `Jan 1, 1970` when the feed's
+///   `<pubDate>` was absent or unreadable — which sorts the entry last.
 /// - releaseNotes: Optional HTML content with release information
 ///
 /// Usage:
@@ -30,15 +38,24 @@ struct AppcastItem: Identifiable, Equatable {
     // MARK: - Properties
 
     /// Unique identifier (uses version as ID)
+    ///
+    /// `RecentUpdatesView` renders with `ForEach(..., id: \.element.id)`, so two
+    /// items sharing a version would hand SwiftUI duplicate `Identifiable` ids.
+    /// The shared step dedupes by version (#353), so a feed that repeated one
+    /// can no longer produce that.
     var id: String { version }
 
     /// Version string (e.g., "2.5.3")
     let version: String
 
-    /// Build number (e.g., "32")
+    /// Build number — the feed's `sparkle:version` (e.g., "116"), falling back
+    /// to `version`. Kept as a native passthrough; no view reads it.
     let buildNumber: String
 
-    /// Publication date
+    /// Publication date. `1970-01-01` stands for "the feed's `<pubDate>` was
+    /// absent, blank or unreadable" — the core's sentinel (#353, decision D2),
+    /// chosen because it sorts such an entry last. This head used to substitute
+    /// the current date, which sorted it first and changed on every fetch.
     let pubDate: Date
 
     /// Optional HTML release notes from CDATA section
@@ -102,26 +119,13 @@ struct AppcastItem: Identifiable, Equatable {
     }
 
     /// Check if this release has release notes
+    ///
+    /// An item that comes from the feed always has them — the core drops an
+    /// entry whose notes are absent, blank or behind a `sparkle:releaseNotesLink`
+    /// — but `ReleaseNotesCard` still asks, and the `#if DEBUG` sample below
+    /// still answers `false`.
     var hasReleaseNotes: Bool {
         return releaseNotes != nil && !releaseNotes!.isEmpty
-    }
-
-    // MARK: - Static Methods
-
-    /// RFC 2822 date formatter for parsing appcast dates
-    /// Format: "Sat, 18 Oct 2025 13:17:41 +0900"
-    static let rfcDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
-
-    /// Parse an RFC date string to Date
-    /// - Parameter dateString: RFC 2822 formatted date string
-    /// - Returns: Date object, or current date if parsing fails
-    static func parseDate(_ dateString: String) -> Date {
-        return rfcDateFormatter.date(from: dateString) ?? Date()
     }
 }
 
