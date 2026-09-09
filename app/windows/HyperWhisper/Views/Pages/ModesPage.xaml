@@ -154,7 +154,13 @@
                                         </TextBlock.ToolTip>
                                     </TextBlock>
 
-                                    <!-- Offline Badge (inline with name) -->
+                                    <!-- Offline Badge (inline with name)
+                                         The visibility is a converter over the whole Mode row,
+                                         like the post-processing panel below. It used to be a
+                                         DataTrigger on IsOfflineCapable - a macOS-only property
+                                         that no C# type has - so WPF resolved the path to
+                                         UnsetValue, logged it to a trace source nobody listens
+                                         to, and the badge never once rendered (issue #527). -->
                                     <Border x:Name="OfflineBadge"
                                             Grid.Column="1"
                                             Background="{DynamicResource SuccessBackgroundBrush}"
@@ -162,7 +168,7 @@
                                             Padding="5,2"
                                             Margin="8,0,0,0"
                                             VerticalAlignment="Center"
-                                            Visibility="Collapsed">
+                                            Visibility="{Binding Path=., Converter={StaticResource ModeOfflineVisibilityConverter}}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="&#xE8A7;"
                                                        FontFamily="Segoe MDL2 Assets"
@@ -267,10 +273,6 @@
                             </Grid>
                         </Border>
                         <DataTemplate.Triggers>
-                            <!-- Show "Offline" badge when mode is offline-capable -->
-                            <DataTrigger Binding="{Binding IsOfflineCapable}" Value="True">
-                                <Setter TargetName="OfflineBadge" Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
                             <!-- Cloud provider visibility -->
                             <DataTrigger Binding="{Binding ProviderType}" Value="cloud">
                                 <Setter TargetName="CloudProviderPanel" Property="Visibility" Value="Visible"/>

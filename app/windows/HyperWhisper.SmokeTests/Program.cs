@@ -15,6 +15,7 @@
 // Requires InternalsVisibleTo("HyperWhisper.SmokeTests") in HyperWhisper.csproj.
 // Coverage is x64-only on the CI runner; ARM64 is exercised manually.
 
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -11134,6 +11135,142 @@ internal static class Program
                     $"{gearLeft:F1} - the name is rendering underneath the gear button");
             });
 
+            Run("modes: the offline badge renders for an on-device mode and only for one — issue #527", () =>
+            {
+                // #527. The badge's DataTrigger bound IsOfflineCapable, which the macOS
+                // ModeData struct has and no C# type has ever had. WPF resolves a
+                // missing path to UnsetValue, writes a line to a trace source nobody
+                // listens to, and carries on - so the trigger read as live in the
+                // markup while the badge had never once rendered, on any mode, since
+                // it was written.
+                //
+                // MEASURED, not grepped: the whole defect was that the markup looked
+                // right, so only laying the card out and reading the badge's size
+                // proves anything.
+                EnsureSmokeApplication();
+
+                // One row per answer the converter can give, so a change that makes
+                // the badge always-on fails just as loudly as one that makes it
+                // always-off. The local rows name a Whisper type and a Parakeet id
+                // that are really in the shipped catalogues.
+                var whisper = WhisperModelInfo.AllModels[0].Type;
+                var parakeet = ParakeetModelInfo.AllModels[0].Id;
+                var localLlm = LocalLlmModelInfo.AllModels[0].Id;
+
+                var rows = new (string Label, Mode Mode, bool Offline)[]
+                {
+                    ("local Whisper, no post-processing", new Mode
+                    {
+                        Name = "Local", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 0
+                    }, true),
+                    ("local Parakeet, on-device LLM", new Mode
+                    {
+                        Name = "Parakeet", ProviderType = "local", LocalEngine = "parakeet",
+                        LocalParakeetModel = parakeet, PostProcessingMode = 2,
+                        PostProcessingProvider = PostProcessingProvider.LocalLlm.ToStringValue(),
+                        LocalPostProcessingModel = localLlm
+                    }, true),
+                    ("cloud transcription", new Mode
+                    {
+                        Name = "Cloud", ProviderType = "cloud", CloudProvider = "hyperwhisper",
+                        PostProcessingMode = 0
+                    }, false),
+                    ("local transcription, CLOUD post-processing", new Mode
+                    {
+                        Name = "Half", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 1,
+                        PostProcessingProvider = PostProcessingProvider.OpenAI.ToStringValue(),
+                        LanguageModel = "gpt-4.1-mini"
+                    }, false),
+                    // A row that CLAIMS local and names a model the app no longer
+                    // ships - an old backup, or a POST to the Local API. Promising it
+                    // works offline would be a lie, so the catalogue decides.
+                    ("local, model not in the catalogue", new Mode
+                    {
+                        Name = "Ghost", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = "no-such-model", PostProcessingMode = 0
+                    }, false)
+                };
+
+                foreach (var (label, mode, expectOffline) in rows)
+                {
+                    mode.Id = Guid.NewGuid();
+                    mode.Language = "auto";
+                }
+
+                var page = new HyperWhisper.Views.Pages.ModesPage();
+                var list = (System.Windows.Controls.ListBox)page.FindName("ModeListBox")!;
+
+                // ModesPage only reaches ModeService from its Loaded handler, and a
+                // detached element is never Loaded, so the list is fed directly here.
+                list.ItemsSource = rows.Select(r => r.Mode).ToArray();
+
+                // THE GENERAL GATE. WPF swallows a binding whose path no type exposes;
+                // the only place it says so is PresentationTraceSources, which nothing
+                // reads in a release build. Listening to it while this page lays out
+                // turns the exact failure mode of #527 - a plausible-looking path that
+                // resolves to nothing - into a red test, for EVERY binding on the card
+                // and not only for the one that was wrong this time.
+                var bindingErrors = CollectBindingErrorsWhile(() =>
+                {
+                    page.Measure(new Size(1000, 700));
+                    page.Arrange(new Rect(0, 0, 1000, 700));
+                    page.UpdateLayout();
+                });
+
+                Assert(bindingErrors.Count == 0,
+                    $"the mode card produced {bindingErrors.Count} WPF binding error(s), i.e. a bound path " +
+                    $"no type exposes: {string.Join(" | ", bindingErrors.Take(3))}");
+
+                for (var i = 0; i < rows.Length; i++)
+                {
+                    var (label, _, expectOffline) = rows[i];
+
+                    var container = (System.Windows.Controls.ListBoxItem)
+                        list.ItemContainerGenerator.ContainerFromIndex(i);
+                    Assert(container is not null, $"{label}: the ListBox generated no container");
+
+                    var badge = DescendantsOf<System.Windows.Controls.Border>(container!)
+                        .FirstOrDefault(b => b.Name == "OfflineBadge");
+                    Assert(badge is not null, $"{label}: the mode card no longer has an OfflineBadge");
+
+                    if (expectOffline)
+                    {
+                        Assert(badge!.Visibility == Visibility.Visible,
+                            $"{label}: the offline badge is {badge.Visibility} on a mode that needs no network");
+
+                        // Visible is not shown: a zero-width Border is invisible to the
+                        // user and would satisfy the check above.
+                        Assert(badge.ActualWidth > 0 && badge.ActualHeight > 0,
+                            $"{label}: the offline badge measured {badge.ActualWidth:F1}x{badge.ActualHeight:F1}");
+                    }
+                    else
+                    {
+                        Assert(badge!.Visibility == Visibility.Collapsed,
+                            $"{label}: the offline badge is {badge.Visibility} on a mode that reaches the network");
+                    }
+                }
+
+                // #527's own note: a live badge takes width the name column used to
+                // have, so the two must still fit side by side with the gear.
+                var offlineContainer = (System.Windows.Controls.ListBoxItem)
+                    list.ItemContainerGenerator.ContainerFromIndex(0);
+                var offlineBadge = DescendantsOf<System.Windows.Controls.Border>(offlineContainer)
+                    .First(b => b.Name == "OfflineBadge");
+                var offlineGear = DescendantsOf<System.Windows.Controls.Button>(offlineContainer)
+                    .First(b => b.Tag is Mode);
+
+                var badgeLeft = offlineBadge.TransformToAncestor(offlineContainer).Transform(new Point(0, 0)).X;
+                var gearX = offlineGear.TransformToAncestor(offlineContainer).Transform(new Point(0, 0)).X;
+
+                Assert(badgeLeft + offlineBadge.ActualWidth <= gearX + 0.5,
+                    $"the offline badge ends at {badgeLeft + offlineBadge.ActualWidth:F1} and the gear starts " +
+                    $"at {gearX:F1} - the badge is rendering underneath the gear button");
+                Assert(gearX + offlineGear.ActualWidth <= offlineContainer.ActualWidth + 0.5,
+                    "the now-visible offline badge has pushed the gear button off the card");
+            });
+
             Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>
             {
                 // #492, and this is the half the issue actually complained about: with a
@@ -13687,6 +13824,75 @@ internal static class Program
         page.UpdateLayout();
 
         return page;
+    }
+
+    /// <summary>
+    /// Runs <paramref name="layout"/> with a listener attached to WPF's data-binding
+    /// trace source, and returns every binding error and warning it produced.
+    /// </summary>
+    /// <remarks>
+    /// This is the only way a bad binding can be seen from a test. WPF does not
+    /// throw on a path no type exposes, and it does not fail layout: it resolves
+    /// the path to <c>UnsetValue</c>, writes "BindingExpression path error" to
+    /// <see cref="PresentationTraceSources.DataBindingSource"/>, and carries on
+    /// with the element's default value. Nothing listens to that source in a
+    /// release build, which is how issue #527 - a DataTrigger on a property that
+    /// exists only in the macOS app - survived in the markup unnoticed.
+    ///
+    /// <see cref="PresentationTraceSources.Refresh"/> is what turns the source on;
+    /// without it the switch level is ignored outside a debugger.
+    /// </remarks>
+    private static List<string> CollectBindingErrorsWhile(Action layout)
+    {
+        PresentationTraceSources.Refresh();
+
+        var listener = new BindingErrorListener();
+        var source = PresentationTraceSources.DataBindingSource;
+        var previousLevel = source.Switch.Level;
+
+        source.Listeners.Add(listener);
+        source.Switch.Level = SourceLevels.Warning;
+        try
+        {
+            layout();
+        }
+        finally
+        {
+            source.Listeners.Remove(listener);
+            source.Switch.Level = previousLevel;
+        }
+
+        return listener.Errors;
+    }
+
+    /// <summary>Collects the messages WPF writes about failed bindings.</summary>
+    private sealed class BindingErrorListener : TraceListener
+    {
+        public List<string> Errors { get; } = new();
+
+        public override void Write(string? message) { }
+
+        public override void WriteLine(string? message) { }
+
+        public override void TraceEvent(
+            TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
+        {
+            if (IsFailure(eventType) && !string.IsNullOrEmpty(message))
+                Errors.Add(message);
+        }
+
+        public override void TraceEvent(
+            TraceEventCache? eventCache, string source, TraceEventType eventType, int id,
+            string? format, params object?[]? args)
+        {
+            if (!IsFailure(eventType) || format is null)
+                return;
+
+            Errors.Add(args is null || args.Length == 0 ? format : string.Format(format, args));
+        }
+
+        private static bool IsFailure(TraceEventType eventType)
+            => eventType is TraceEventType.Error or TraceEventType.Warning or TraceEventType.Critical;
     }
 
     /// <summary>
