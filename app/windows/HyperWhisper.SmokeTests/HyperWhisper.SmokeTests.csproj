@@ -24,6 +24,12 @@
          project: the Linux backup harness runs the same file. -->
     <Content Include="../../../shared-conformance/backup-vectors.json"
              Link="backup-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The LIVE Windows appcast, not a fixture: the AppcastService checks
+         replay the very feed the shipped app fetches and pin the 15 releases it
+         renders, so #353's move of the selection rules into the shared core is
+         proven against real input rather than a hand-written sample. -->
+    <Content Include="../../../nextjs/public/appcast-windows.xml"
+             Link="appcast-windows.xml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
