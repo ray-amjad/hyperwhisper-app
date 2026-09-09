@@ -956,15 +956,67 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         }
     }
 
-    /// Record a post-stop parser result as a fixed event slug only.
-    private func notePostStopParsedEvent(_ event: StreamingProviderEvent?) {
+    /// Record a fixed parser-result slug after the stop boundary.
+    private func notePostStopParsedEventSlug(_ slug: String) {
         guard stopFrameSentAt != nil else { return }
-        let slug = Self.normalizedEventSlug(for: event)
         postStopParsedEventCounts[slug, default: 0] += 1
         let sequence = postStopParsedEventCounts.values.reduce(0, +)
         logger.debug(
             "Post-stop parser result: event=\(slug, privacy: .public) sequence=\(sequence, privacy: .public)"
         )
+    }
+
+    /// Record a post-stop parser result as a fixed event slug only.
+    private func notePostStopParsedEvent(_ event: StreamingProviderEvent?) {
+        let slug = Self.normalizedEventSlug(for: event)
+        notePostStopParsedEventSlug(slug)
+    }
+
+    /// Record a binary UTF-8 failure after the stop boundary.
+    private func notePostStopUTF8DecodeFailure() {
+        guard stopFrameSentAt != nil else { return }
+        postStopUTF8DecodeFailures += 1
+        logger.debug(
+            "Post-stop binary frame UTF-8 decode failed: failures=\(self.postStopUTF8DecodeFailures, privacy: .public)"
+        )
+    }
+
+    /// Feed content-free frame measurements and a fixed event slug to the
+    /// same counter helpers used by the live receive path.
+    func recordPostStopDiagnosticsForTesting(
+        wireKind: String,
+        byteCount: Int,
+        normalizedEventSlug: String? = nil,
+        utf8DecodeFailed: Bool = false
+    ) {
+        if stopFrameSentAt == nil {
+            noteStopFrameSent()
+        }
+        precondition(wireKind == "string" || wireKind == "binary")
+        precondition(byteCount >= 0)
+        notePostStopWireFrame(kind: wireKind, byteCount: byteCount)
+        if let normalizedEventSlug {
+            notePostStopParsedEventSlug(normalizedEventSlug)
+        }
+        if utf8DecodeFailed {
+            precondition(wireKind == "binary")
+            notePostStopUTF8DecodeFailure()
+        }
+    }
+
+    /// Return only counts, byte measurements and fixed-slug event counts.
+    func postStopDiagnosticSnapshotForTesting() -> [String: Int] {
+        var snapshot = [
+            "string_frames": postStopStringFrameCount,
+            "string_bytes": postStopStringByteCount,
+            "binary_frames": postStopBinaryFrameCount,
+            "binary_bytes": postStopBinaryByteCount,
+            "utf8_decode_failures": postStopUTF8DecodeFailures
+        ]
+        for (slug, count) in postStopParsedEventCounts {
+            snapshot["event_\(slug)"] = count
+        }
+        return snapshot
     }
 
     /// Record the stage the session has reached and republish the diagnostics to
@@ -1490,11 +1542,8 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             notePostStopWireFrame(kind: "binary", byteCount: data.count)
             if let text = String(data: data, encoding: .utf8) {
                 await processServerMessage(text)
-            } else if stopFrameSentAt != nil {
-                postStopUTF8DecodeFailures += 1
-                logger.debug(
-                    "Post-stop binary frame UTF-8 decode failed: failures=\(self.postStopUTF8DecodeFailures, privacy: .public)"
-                )
+            } else {
+                notePostStopUTF8DecodeFailure()
             }
         @unknown default:
             logger.warning("Unknown WebSocket message type")
