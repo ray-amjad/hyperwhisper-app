@@ -137,11 +137,16 @@ struct ModesView: View {
                 }),
                 availableModelIds: downloadedLocalModelIds,
                 onSave: { updatedModeData in
-                    // Update the Core Data entity
-                    mode.name = ModeNamePolicy.storageName(
-                        updatedModeData.name,
-                        replacing: mode.name
-                    )
+                    // Update the Core Data entity. The default mode's name is
+                    // fixed (issue #536): the editor disables the field, so this
+                    // guard only ever fires for a mode that became the default
+                    // while the sheet was open.
+                    if DefaultModePolicy.canRename(mode, to: updatedModeData.name) {
+                        mode.name = ModeNamePolicy.storageName(
+                            updatedModeData.name,
+                            replacing: mode.name
+                        )
+                    }
                     mode.preset = updatedModeData.preset
                     mode.language = LanguageData.canonicalLanguageCode(updatedModeData.language)
                     mode.model = updatedModeData.model

@@ -315,6 +315,7 @@ dependencies = [
  "hw-input",
  "hw-license",
  "hw-localapi",
+ "hw-modes",
  "hw-net",
  "hw-phonetic",
  "hw-releasenotes",
@@ -343,6 +344,10 @@ dependencies = [
 
 [[package]]
 name = "hw-localapi"
+version = "0.1.0"
+
+[[package]]
+name = "hw-modes"
 version = "0.1.0"
 
 [[package]]

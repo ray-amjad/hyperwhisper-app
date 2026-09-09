@@ -212,6 +212,17 @@ internal static class ModesEndpoints
                         LocalApiErrorCode.InvalidRequest,
                         "Mode 'name' cannot be empty");
                 }
+                // The default mode's name is fixed (issue #536). The editor
+                // disables the field and says so (PR #535); accepting the rename
+                // here made that caption a lie, on a field the user cannot then
+                // use to put the name back.
+                if (!ModeService.CanRename(existing, trimmed))
+                {
+                    return LocalApiResponder.Failure(
+                        LocalApiErrorCode.InvalidRequest,
+                        "The default mode's name cannot be changed",
+                        "Rename a different mode, or make a different mode the default first.");
+                }
                 if (!string.Equals(trimmed, existing.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     var clash = ModeService.Instance.GetAllModes()
@@ -223,6 +234,19 @@ internal static class ModesEndpoints
                             $"A mode named '{trimmed}' already exists");
                     }
                 }
+            }
+
+            // Exactly one mode is the default (issue #536). Setting the flag is
+            // always allowed — it moves, clearing whichever mode held it — but
+            // clearing the only one is refused, because it left the app with no
+            // default and merely ACTING as if the first mode were one.
+            if (patch.IsDefault is { } requestedDefault
+                && !ModeService.Instance.CanWriteDefaultFlag(guid, requestedDefault))
+            {
+                return LocalApiResponder.Failure(
+                    LocalApiErrorCode.InvalidRequest,
+                    "At least one mode must be the default",
+                    "Set 'isDefault' on another mode instead — that clears this one.");
             }
 
             ApplyPatch(patch, existing);
@@ -239,7 +263,12 @@ internal static class ModesEndpoints
             existing.ModifiedDate = DateTime.UtcNow;
             ModeService.Instance.UpdateMode(existing);
 
-            return LocalApiResponder.Ok(new ModeResponse { Mode = ToDto(existing) });
+            // Re-read rather than echoing the entity we just sent in. Making
+            // this mode the default clears the flag on another row, and the
+            // repair happens on the service's own tracked copies, so `existing`
+            // can report a flag the database no longer agrees with.
+            var saved = ModeService.Instance.GetMode(guid) ?? existing;
+            return LocalApiResponder.Ok(new ModeResponse { Mode = ToDto(saved) });
         });
 
         app.MapDelete("/modes/{id}", (string id) =>

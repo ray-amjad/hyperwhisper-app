@@ -42,7 +42,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("host options validate eagerly", HostOptionsValidation)
     ,("application backend resolves modes and vocabulary", ApplicationBackendModeRouting)
     ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
+    ,("/transcribe runs the deterministic text passes", ApplicationBackendTextPasses)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
+    ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
 };
 foreach (var test in tests)
 {
@@ -723,6 +725,85 @@ static async Task DoubleDispose()
     Assert(!File.Exists(host.DiscoveryPath), "double dispose left discovery behind");
 }
 
+// Issue #536. `PATCH /modes/{id}` is the documented write path, and its rules
+// listed only non-empty / unique / normalize — so it could rename the default
+// mode and flag a second one, leaving the editor showing a disabled Name field
+// reading the new name above a caption saying it cannot be changed.
+static async Task DefaultModeInvariant()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    using var seed = new StringContent("{\"name\":\"Hyper\"}", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PostAsync("/modes", seed)).StatusCode == HttpStatusCode.OK, "seed mode create failed");
+    var theDefault = (await modes.ListAsync()).Single();
+    Assert(theDefault.IsDefault, "the first mode in an empty store must be the default");
+
+    using var second = new StringContent("{\"name\":\"Mine\"}", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PostAsync("/modes", second)).StatusCode == HttpStatusCode.OK, "second mode create failed");
+    var mine = (await modes.ListAsync()).Single(item => item.Id != theDefault.Id);
+    Assert(!mine.IsDefault, "a second mode created with no isDefault took the flag");
+
+    // 1. Renaming the default is refused.
+    using var rename = new StringContent("{\"name\":\"Zebra\"}", Encoding.UTF8, "application/json");
+    var renameResponse = await fixture.Client.PatchAsync($"/modes/{theDefault.Id:D}", rename);
+    Assert(await HasFailureEnvelope(renameResponse), "the default mode was renamed through PATCH /modes");
+    Assert((await modes.ListAsync()).Single(item => item.Id == theDefault.Id).Name == "Hyper",
+        "the refused rename was written anyway");
+
+    // 2. Every other mode still renames.
+    using var ordinaryRename = new StringContent("{\"name\":\"Renamed\"}", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PatchAsync($"/modes/{mine.Id:D}", ordinaryRename)).StatusCode == HttpStatusCode.OK,
+        "an ordinary mode could not be renamed");
+
+    // 3. isDefault:true MOVES the flag rather than producing two defaults.
+    using var promote = new StringContent("{\"isDefault\":true}", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PatchAsync($"/modes/{mine.Id:D}", promote)).StatusCode == HttpStatusCode.OK,
+        "promoting a mode to default failed");
+    var afterPromote = await modes.ListAsync();
+    Assert(afterPromote.Count(item => item.IsDefault) == 1 && afterPromote.Single(item => item.IsDefault).Id == mine.Id,
+        "two modes claim to be the default, so neither of them can be renamed");
+
+    // 4. …and the mode that lost the flag becomes renameable again.
+    using var nowAllowed = new StringContent("{\"name\":\"Free\"}", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PatchAsync($"/modes/{theDefault.Id:D}", nowAllowed)).StatusCode == HttpStatusCode.OK,
+        "a mode that is no longer the default is still locked");
+
+    // 5. Clearing the only default is refused.
+    using var demote = new StringContent("{\"isDefault\":false}", Encoding.UTF8, "application/json");
+    Assert(await HasFailureEnvelope(await fixture.Client.PatchAsync($"/modes/{mine.Id:D}", demote)),
+        "the last default flag was cleared, leaving the app with no default mode");
+
+    // 5b. Clearing the flag on a mode that does NOT hold it is a no-op, not a
+    // promotion. Nothing here is refused — `theDefault` still carries the flag,
+    // so the guard has no reason to object — which makes this the combination a
+    // repair pass can silently get backwards: name the patched mode as the
+    // shared plan's `preferred` and it takes the flag it just asked to give up,
+    // moving the default off the mode that really holds it.
+    using var demoteAnOrdinaryMode = new StringContent("{\"isDefault\":false}", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PatchAsync($"/modes/{theDefault.Id:D}", demoteAnOrdinaryMode)).StatusCode == HttpStatusCode.OK,
+        "clearing isDefault on a mode that is not the default was refused");
+    var afterNoOp = await modes.ListAsync();
+    Assert(afterNoOp.Count(item => item.IsDefault) == 1,
+        "clearing isDefault on an ordinary mode did not leave exactly one default");
+    Assert(afterNoOp.Single(item => item.IsDefault).Id == mine.Id,
+        "clearing isDefault on an ordinary mode moved the default onto it");
+
+    // 6. Deleting the default moves the flag instead of leaving none.
+    Assert((await fixture.Client.DeleteAsync($"/modes/{mine.Id:D}")).StatusCode == HttpStatusCode.OK,
+        "deleting the default mode failed");
+    var afterDelete = await modes.ListAsync();
+    Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
+        "deleting the default mode left the remaining mode without the flag");
+}
+
 static async Task ApplicationBackendErrors()
 {
     using var paths = new TempPaths();
@@ -866,6 +947,94 @@ static async Task ApplicationBackendModeRouting()
     _ = await backend.ToggleRecordingAsync(CancellationToken.None);
     Assert(transcriber.Request?.ModeId == defaultMode.Id, "recording stop did not retain the mode captured at start");
     Assert(transcriber.Request!.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper", "Rustscript", "multi word"]) == true, "recording stop did not retain vocabulary captured at start");
+}
+
+// Issue #530. /transcribe reached `TranscriptionWorkflow` with no
+// `OutputOptions` and no `VocabularyReplacements`, so two things were wrong at
+// once: filler words were stripped even for a user who had turned "Remove
+// filler words" OFF (the workflow's `BuildDefaultOutputOptions` hard-codes
+// `RemoveFillerWords: true`), and the user's word/replacement rules never ran
+// at all. The Windows head applies all three passes here (issues #495, #498).
+//
+// Drives the REAL workflow and the REAL `SpeechOutputProcessor`, so the shared
+// Rust core does the filler removal, the break commands and the hardened
+// replacement. Asserting the request fields alone would still pass if the
+// processor stopped honouring them.
+static async Task ApplicationBackendTextPasses()
+{
+    // "um" is a filler; "new line" is a dictated break command; "eta" is the
+    // vocabulary rule from the issue. English, because the shared core strips
+    // fillers for English only.
+    const string Raw = "um the eta is fine new line thanks";
+
+    static async Task<(TranscriptionResult Result, TranscriptionWorkflowRequest Request)> Transcribe(
+        TempPaths paths, bool removeFillerWords)
+    {
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        var vocabulary = new VocabularyRepository(database);
+        await modes.UpsertAsync(new HyperWhisper.Data.Entities.Mode
+        {
+            Name = "English local", IsDefault = true, SortOrder = 1, ProviderType = "local",
+            LocalEngine = "whisper", Model = "tiny.en", ModelType = "tiny.en", Language = "en",
+            // The Mode that made both settings look identical in issue #498:
+            // /transcribe declines the AI rewrite, so this must not also
+            // suppress the deterministic passes.
+            PostProcessingMode = 1, PostProcessingProvider = "openai",
+        });
+        await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem
+        {
+            Word = "eta", Replacement = "estimated time of arrival", SortOrder = 1,
+        });
+        // A prompt-hint-only row must not become a replacement rule.
+        await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "Deepgram", SortOrder = 2 });
+
+        var transcriber = new FixedTextTranscriber(Raw);
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(
+            modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0",
+            vocabulary: vocabulary,
+            outputOptions: _ => new HyperWhisper.SpeechOutput.SpeechOutputProcessingOptions(
+                RemoveFillerWords: removeFillerWords));
+        var result = await backend.TranscribeAsync(
+            new AudioUpload("text.wav", "audio/wav", new byte[] { 1 }, null, null, null, null),
+            CancellationToken.None);
+        return (result, transcriber.Request!);
+    }
+
+    using (var paths = new TempPaths())
+    {
+        var (on, request) = await Transcribe(paths, removeFillerWords: true);
+        Assert(request.OutputOptions?.RemoveFillerWords == true,
+            "the composed output options never reached the workflow");
+        Assert(request.VocabularyReplacements?.Count == 1
+            && request.VocabularyReplacements[0].Word == "eta",
+            "the vocabulary replacement rules never reached the workflow");
+        Assert(request.Vocabulary?.Contains("Deepgram") == true,
+            "the prompt hints stopped reaching the workflow");
+        Assert(!on.Text.Contains("um ", StringComparison.Ordinal),
+            "/transcribe did not remove filler words with the setting on");
+        Assert(on.Text.Contains("estimated time of arrival", StringComparison.Ordinal),
+            "/transcribe did not apply the user's vocabulary replacement (issue #530)");
+        Assert(!on.Text.Contains("new line", StringComparison.OrdinalIgnoreCase)
+            && on.Text.Contains('\n'),
+            "/transcribe did not honour the dictated break command");
+    }
+
+    using (var paths = new TempPaths())
+    {
+        var (off, request) = await Transcribe(paths, removeFillerWords: false);
+        Assert(request.OutputOptions?.RemoveFillerWords == false,
+            "the user's disabled filler-word setting never reached the workflow");
+        Assert(off.Text.StartsWith("um ", StringComparison.Ordinal),
+            "/transcribe stripped filler words even with the setting off (issue #530)");
+        // The other two passes are NOT gated on that setting.
+        Assert(off.Text.Contains("estimated time of arrival", StringComparison.Ordinal)
+            && off.Text.Contains('\n'),
+            "turning filler removal off also disabled the other deterministic passes");
+    }
 }
 
 static async Task ApplicationBackendModeValidation()
@@ -1194,6 +1363,20 @@ sealed class StaticTranscriber(bool success) : IRecordedAudioTranscriber
         => Task.FromResult(success
             ? PortableTranscriptionResult.Success("portable result", "Static")
             : PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.TranscriptionFailed, "expected failure", "Static"));
+}
+
+/// <summary>Returns one fixed transcript and remembers the request it ran under.</summary>
+sealed class FixedTextTranscriber(string text) : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "FixedText");
+    public TranscriptionWorkflowRequest? Request { get; private set; }
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => TranscribeAsync(audioPath, new TranscriptionWorkflowRequest(Language: language), cancellationToken);
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, TranscriptionWorkflowRequest request, CancellationToken cancellationToken = default)
+    {
+        Request = request;
+        return Task.FromResult(PortableTranscriptionResult.Success(text, "FixedText"));
+    }
 }
 
 sealed class CapturingTranscriber : IRecordedAudioTranscriber

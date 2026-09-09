@@ -30,6 +30,7 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Converters;
 using HyperWhisper.Models;
+using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
@@ -12234,6 +12235,124 @@ internal static class Program
                 Assert(ordinaryEditor.ModeNameLockedHint.Visibility == Visibility.Collapsed,
                     "an ordinary mode is told its name cannot be changed, which is untrue and is " +
                     "the mirror image of the reported bug");
+            });
+
+            Run("modes: exactly one default, and its name is fixed", () =>
+            {
+                // #536. #535 made the three editors agree that the default mode's
+                // name is locked, and added a sentence promising it. Nothing below
+                // the UI held either half up: no write path refused a rename, and
+                // nothing constrained IsDefault to one row, so `PATCH /modes` could
+                // rename the default or flag a second mode and leave the editor
+                // showing a disabled field above a caption that was now false.
+                //
+                // Asserted through the real DLL, so this is also the binding touch
+                // for the three new hw-modes functions.
+                static Mode Row(string name, bool isDefault, int sortOrder) => new()
+                {
+                    Id = Guid.NewGuid(), Name = name, IsDefault = isDefault, SortOrder = sortOrder
+                };
+
+                // 1. A healthy set is left alone — the repair must not churn every
+                //    mode's row on every save.
+                var healthy = new List<Mode> { Row("Hyper", true, 0), Row("Email", false, 1) };
+                Assert(!DefaultModePolicy.Apply(healthy),
+                    "a set that already has exactly one default was rewritten anyway");
+
+                // 2. Two defaults — what a restored backup from another machine
+                //    produces. Both modes claimed to be the default, and NEITHER
+                //    could be renamed, so the user could not rename a mode they
+                //    made themselves.
+                var two = new List<Mode> { Row("Hyper", true, 0), Row("Mine", true, 1) };
+                Assert(DefaultModePolicy.Apply(two), "two defaults were left standing");
+                Assert(two.Count(mode => mode.IsDefault) == 1 && two[0].IsDefault,
+                    "the stray flag must be cleared, and the first mode keeps it");
+
+                // 3. Zero defaults — a backup whose modes carry the field as false,
+                //    or a delete of the only flagged row. Windows then merely ACTED
+                //    as if the lowest-SortOrder mode were the default
+                //    (ModeService.GetDefaultMode's `?? OrderBy(SortOrder)` tail),
+                //    and that acting-default had an editable name and no hint.
+                var none = new List<Mode> { Row("Late", false, 7), Row("Early", false, 2) };
+                Assert(DefaultModePolicy.Apply(none), "a set with no default was left with none");
+                Assert(none.Single(mode => mode.IsDefault).Name == "Early",
+                    "the promoted mode must be the first one the user sees, not the first row returned");
+
+                // 4. Making a second mode the default MOVES the flag rather than
+                //    adding one. This is the POST/PATCH `isDefault: true` path.
+                var moving = new List<Mode> { Row("Hyper", true, 0), Row("Mine", false, 1) };
+                Assert(DefaultModePolicy.Apply(moving, moving[1].Id), "the preferred mode did not take the flag");
+                Assert(moving[1].IsDefault && !moving[0].IsDefault,
+                    "setting the flag on one mode must clear it on the other, or both claim to be the default");
+
+                // 5. Deleting the default reassigns it instead of leaving none.
+                var afterDelete = new List<Mode> { Row("Second", false, 1), Row("Third", false, 2) };
+                Assert(DefaultModePolicy.Apply(afterDelete) && afterDelete[0].IsDefault,
+                    "deleting the default mode left the app with no default at all");
+
+                // 6. The name half. Both directions, because a lock that applied to
+                //    every mode would be as wrong as none: five renameable modes
+                //    would stop renaming.
+                var theDefault = Row("Hyper", true, 0);
+                var ordinary = Row("Email", false, 1);
+                Assert(!ModeService.CanRename(theDefault, "Zebra"),
+                    "the default mode can still be renamed, which is exactly what #536 reported");
+                Assert(ModeService.CanRename(theDefault, "  Hyper  "),
+                    "re-sending the default's own name is not a rename and must not be refused");
+                Assert(ModeService.CanRename(ordinary, "Zebra"),
+                    "an ordinary mode cannot be renamed — every mode but the default renames freely");
+            });
+
+            Run("modes: the shared decision is idempotent and survives a round trip through EF", () =>
+            {
+                // The repair runs on app start and after every backup import, so a
+                // second pass over a repaired set must write nothing — otherwise
+                // every launch bumps ModifiedDate on a mode row and the next backup
+                // diff is noise. Run against a real SQLite database rather than a
+                // list, because that is where the flags actually live.
+                var databasePath = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N"), "modes.db");
+
+                try
+                {
+                    using (var context = new HyperWhisperDbContext(databasePath))
+                    {
+                        context.Database.Migrate();
+                        // Two defaults AND a gap in SortOrder — the shape a merge
+                        // import of a foreign backup leaves behind.
+                        context.Modes.Add(new Mode { Name = "Local", IsDefault = true, SortOrder = 5 });
+                        context.Modes.Add(new Mode { Name = "Imported", IsDefault = true, SortOrder = 0 });
+                        context.Modes.Add(new Mode { Name = "Other", IsDefault = false, SortOrder = 9 });
+                        context.SaveChanges();
+                    }
+
+                    using (var context = new HyperWhisperDbContext(databasePath))
+                    {
+                        var modes = context.Modes.OrderBy(mode => mode.SortOrder).ToList();
+                        Assert(DefaultModePolicy.Apply(modes), "the broken set reported nothing to repair");
+                        context.SaveChanges();
+                    }
+
+                    using (var verify = new HyperWhisperDbContext(databasePath))
+                    {
+                        var modes = verify.Modes.OrderBy(mode => mode.SortOrder).ToList();
+                        Assert(modes.Count(mode => mode.IsDefault) == 1,
+                            $"{modes.Count(mode => mode.IsDefault)} modes carry the flag after the repair");
+                        Assert(modes.Single(mode => mode.IsDefault).Name == "Imported",
+                            "the surviving default must be the first flagged mode by SortOrder");
+                        Assert(!DefaultModePolicy.Apply(modes),
+                            "a second pass wanted to write again — the repair is not idempotent, so " +
+                            "every launch would touch a mode row");
+                    }
+                }
+                finally
+                {
+                    var directory = Path.GetDirectoryName(databasePath);
+                    if (directory != null && Directory.Exists(directory))
+                    {
+                        try { Directory.Delete(directory, recursive: true); } catch (IOException) { }
+                    }
+                }
             });
 
             Run("mode editor: the wheel over a closed dropdown scrolls the page, it does not edit the mode", () =>
