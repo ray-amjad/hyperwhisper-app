@@ -12,6 +12,7 @@ var tests = new (string Name, Action Run)[]
     ("legacy placeholders remain usable", LegacyPlaceholdersRemainUsable),
     ("RTL cultures are identified", RtlCulturesAreIdentified),
     ("routing and persisted identifiers remain opaque", IdentifiersRemainOpaque),
+    ("product names stay English in every culture", ProductNamesStayEnglish),
 };
 
 var failures = 0;
@@ -192,6 +193,36 @@ static void IdentifiersRemainOpaque()
     Equal("openai", PortableLocalizer.PreserveIdentifier(LocalizationIdentifierKind.Provider, "openai"), "provider");
     Equal("whisper-1", PortableLocalizer.PreserveIdentifier(LocalizationIdentifierKind.Model, "whisper-1"), "model");
     Equal("PushToTalk", PortableLocalizer.PreserveIdentifier(LocalizationIdentifierKind.PersistedValue, "PushToTalk"), "persisted value");
+}
+
+// Issue #552 split the values that are identical to English into two sets: the
+// ones that are a defect, and the ones that are the product. The ceiling gate in
+// HyperWhisper.Localization.CatalogValidator enforces the first set at build
+// time, off translation-status.json. This test pins the SECOND set at runtime —
+// it is what stops a well-meaning translation batch from rendering the app's own
+// name, or a vendor's, in Cyrillic or kana.
+static void ProductNamesStayEnglish()
+{
+    string[] byDesign =
+    [
+        "app.title",                                  // HyperWhisper
+        "settings.nav.cloud",                         // HyperWhisper Cloud
+        "provider.openai",                            // OpenAI
+        "provider.deepgram",                          // Deepgram
+        "settings.streaming.deepgram.model.general",  // Nova 3 General
+    ];
+
+    var english = new PortableLocalizer(CultureInfo.GetCultureInfo("en"));
+    foreach (var keyName in byDesign)
+    {
+        var key = english.Key(keyName);
+        var expected = english.Get(key);
+        NotBlank(expected, keyName);
+        foreach (var culture in PortableLocalizer.SupportedCultures)
+        {
+            Equal(expected, new PortableLocalizer(culture).Get(key), $"{keyName} in {culture.Name}");
+        }
+    }
 }
 
 static void Equal<T>(T expected, T actual, string message)
