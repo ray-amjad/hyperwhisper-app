@@ -585,11 +585,12 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     /// alias-resolving lookup until now, which is why #565 filed the defect
     /// rather than fixing it in passing.
     /// <see cref="SharedCoreBridge.CloudSttContainsModel"/> is an exact,
-    /// case-sensitive scan, so a legacy-but-serviceable id — AssemblyAI
-    /// <c>universal</c>, Gemini <c>gemini-2.0-flash</c> — would read as foreign
-    /// and be silently upgraded to a different-priced model. That is exactly the
-    /// failure #528's second correction exists to prevent, so the guard goes
-    /// through <see cref="ModeAwareTranscriptionRouter.CloudModelBelongsToProvider"/>,
+    /// case-sensitive scan, so a legacy-but-serviceable id such as AssemblyAI
+    /// <c>universal</c> (which resolves to the catalogued <c>universal-2</c>)
+    /// would read as foreign and be silently upgraded to a different-priced
+    /// model. That is exactly the failure #528's second correction exists to
+    /// prevent, so the guard goes through
+    /// <see cref="ModeAwareTranscriptionRouter.CloudModelBelongsToProvider"/>,
     /// which applies the shared <c>hw-catalog</c> alias table first.
     /// </para>
     /// <para>
@@ -602,11 +603,16 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     /// with the run.
     /// </para>
     /// <para>
-    /// Meta used to be special-cased here with a hard-coded
-    /// <c>muse-voice-transcribe-1.0</c>. It is not special — it was the one arm
-    /// somebody had filled in, and #528 deleted the same special case on
-    /// Windows. The catalog default for <c>metaMuse</c> IS that id, so the
-    /// string on the wire is unchanged.
+    /// Meta is the mirror image and keeps its own arm, ABOVE the two-part test.
+    /// <c>metaMuse</c> has exactly one model, so a stored id that is not it can
+    /// only be stale or foreign — there is no legitimate sub-model to preserve,
+    /// and letting the "the caller re-asserted this engine" half stand would
+    /// hand Meta a Deepgram id for a mode already saved on <c>meta</c>. That is
+    /// the very defect this method exists to close, so the unconditional
+    /// assignment stays. Only the hard-coded <c>muse-voice-transcribe-1.0</c>
+    /// literal goes: the value now comes from the catalog, like every other
+    /// provider's. macOS handles <c>engine: "meta"</c> the same unconditional
+    /// way, in a block above its own guard.
     /// </para>
     /// </remarks>
     private static void ApplyForeignModelGuard(
@@ -614,6 +620,11 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     {
         if (!ModeAwareTranscriptionRouter.TryMapProvider(cloud, out var provider)) return;
         if (provider == CloudTranscriptionProvider.HyperWhisperCloud) return;
+        if (provider == CloudTranscriptionProvider.Meta)
+        {
+            mode.CloudTranscriptionModel = ModeAwareTranscriptionRouter.DefaultCloudModelId(provider);
+            return;
+        }
 
         var samePriorProvider =
             ModeAwareTranscriptionRouter.TryMapProvider(priorProvider, out var mapped)

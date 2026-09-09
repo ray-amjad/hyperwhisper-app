@@ -155,11 +155,19 @@ public static partial class SharedCoreBridge
     /// </summary>
     /// <remarks>
     /// <see cref="CloudSttContainsModel"/> is an exact, case-sensitive scan, so a
-    /// legacy-but-serviceable id such as AssemblyAI <c>universal</c> or Gemini
-    /// <c>gemini-2.0-flash</c> reads as "not one of this provider's models" and a
-    /// guard built on it would silently upgrade the request to a different-priced
-    /// model. That is the failure #528's second correction exists to prevent, and
-    /// it is why this method exists rather than the raw scan (issue #566).
+    /// legacy-but-serviceable id such as AssemblyAI <c>universal</c> reads as
+    /// "not one of this provider's models" and a guard built on it would silently
+    /// upgrade the request to a different-priced model. That is the failure
+    /// #528's second correction exists to prevent, and it is why this method
+    /// exists rather than the raw scan (issue #566).
+    ///
+    /// It rescues an alias only when the alias TARGET is still catalogued.
+    /// <c>universal</c> resolves to <c>universal-2</c>, which the
+    /// <c>assemblyAI</c> entry carries. Gemini's two aliases resolve to
+    /// <c>gemini-3.6-flash</c> and <c>gemini-3.1-flash-lite</c>, which the
+    /// <c>gemini</c> entry does not carry, so those ids are still judged foreign
+    /// — the alias table and the catalog disagree, which is a data question and
+    /// not this method's to answer.
     ///
     /// The comparison is case-insensitive to match Windows
     /// <c>CloudTranscriptionModels.GetById</c>, whose final compare is

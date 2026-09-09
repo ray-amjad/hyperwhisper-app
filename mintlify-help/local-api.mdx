@@ -253,15 +253,19 @@ The deterministic text steps are different. They are your own settings, and they
 
 You can send `mode_id` and `engine` in the same `/transcribe` request. The Mode is the baseline, and the `engine` replaces the provider for this one call. The two can name different cloud vendors, and then the question is which model runs.
 
-The Mode's saved model does **not** move to the other vendor. All three platforms drop it and run the new engine's own default model. A model id is not portable between vendors: `nova-3-general` is a Deepgram model, and an OpenAI request that carries it is rejected — or, worse, is accepted because the same text is also a model of that vendor, and you are billed for a model you did not ask for.
+The Mode's saved model does **not** move to the other vendor. Each platform drops it and uses the engine's own default model. A model id is not portable between vendors: `nova-3-general` is a Deepgram model, and an OpenAI request that carries it is rejected — or, worse, is accepted because the same text is also a model of that vendor, and you are billed for a model you did not ask for.
 
 Three rules follow:
 
-- **An explicit `model` always wins.** Send `"model"` to pin one. The value is used as you sent it, and no other rule applies.
+- **An explicit `model` wins.** Send `"model"` to pin one. For a BYOK provider the value goes to the vendor as you sent it, and no other rule applies.
 - **A model that really belongs to the engine you named is kept.** This includes an old name for a current model. An AssemblyAI Mode saved with `universal`, re-run with `"engine": "assemblyai"`, still runs `universal`. It is not silently changed to a different model at a different rate.
-- **HyperWhisper Cloud is the exception.** It selects the model from the Mode's accuracy tier, not from a model id. So `"engine": "cloud"` runs the tier's model whatever the Mode's model field holds.
+- **HyperWhisper Cloud is different.** It selects the model from the Mode's accuracy tier, not from a model id. `"engine": "cloud"` keeps the Mode's model only when that model is one of the tier's models, and uses the tier's default model in every other case. This applies to an explicit `model` too.
 
-The `model` field of the response always names the model that really ran, so you can read it back to see which of these rules applied.
+Read the response `model` field to see which rule applied. It names the model that ran. It is empty only for an engine that takes no model parameter, which the [OpenAPI reference](/api-reference/local-api/openapi.yaml) describes in full.
+
+<Note>
+  Two engine names behave differently on Linux: `googlespeech` and `microsoftazurespeech`. These are old names for providers that Windows and macOS now serve through HyperWhisper Cloud, so those two platforms spend HyperWhisper Cloud credits. Linux still treats them as your own API key. Name the provider you want directly — `cloud` for HyperWhisper Cloud — until this is made the same everywhere.
+</Note>
 
 ### Mode write rules
 

@@ -1659,7 +1659,7 @@ static async Task ApplicationBackendForeignCloudModel()
     // `{mode_id: <that mode>, engine: <engine>}` and no explicit model — the
     // exact request form in the issue.
     static async Task<(string Label, string Wire)> Mixed(
-        string storedProvider, string? storedModel, string engine)
+        string storedProvider, string? storedModel, string engine, string? storedTier = null)
     {
         using var paths = new TempPaths();
         var database = new ApplicationDb(paths);
@@ -1673,6 +1673,7 @@ static async Task ApplicationBackendForeignCloudModel()
             ProviderType = "cloud", Model = "cloud",
             CloudProvider = storedProvider, CloudTranscriptionModel = storedModel,
         };
+        if (storedTier is not null) stored.CloudAccuracyTier = storedTier;
         await modes.UpsertAsync(stored);
 
         var transcriber = new FixedTextTranscriber("ok");
@@ -1719,6 +1720,16 @@ static async Task ApplicationBackendForeignCloudModel()
             $"engine '{engine}' still ran {storedProvider}'s '{storedModel}' (issue #566)");
         Assert(wire == DefaultFor(engine),
             $"engine '{engine}' fell back to '{wire}' rather than its own default");
+        // `wire == DefaultFor(engine)` alone would be tautological — the guard
+        // and the assertion would call the same function. This second check is
+        // the independent one: whatever the guard chose has to pass the
+        // membership test for the provider the caller asked for. Grok is the one
+        // exemption, and it is not a hole: its catalogued model id IS the empty
+        // string, which is the "this vendor takes no model parameter" case.
+        Assert(wire.Length == 0
+            || ModeAwareTranscriptionRouter.TryMapProvider(engine, out var target)
+                && ModeAwareTranscriptionRouter.CloudModelBelongsToProvider(target, wire),
+            $"engine '{engine}' fell back to '{wire}', which is not one of its own models");
         Assert(label == wire, $"engine '{engine}' reported '{label}' but dispatched '{wire}'");
     }
 
@@ -1738,21 +1749,39 @@ static async Task ApplicationBackendForeignCloudModel()
     Assert(pinnedWire == "nova-3-medical" && pinnedLabel == pinnedWire,
         "re-asserting the mode's own engine dropped its saved sub-model");
 
-    // 5. HyperWhisper Cloud is exempt: it dispatches on the accuracy tier, and
-    //    the send path validates the column against that tier on its own. A
-    //    BYOK leftover must still not reach the wire.
-    var (cloudLabel, cloudWire) = await Mixed("deepgram", "nova-3-general", "cloud");
-    Assert(cloudWire != "nova-3-general" && cloudLabel == cloudWire,
-        "engine 'cloud' forwarded a BYOK model id instead of the tier's model");
+    // 5. HyperWhisper Cloud is exempt from the guard, because the send path
+    //    validates the column against the mode's ACCURACY TIER instead. The tier
+    //    is seeded explicitly in both halves: leaving it to the entity default
+    //    would make the first assertion pass for a reason that has nothing to do
+    //    with the behaviour being pinned.
+    //
+    //    a. A BYOK leftover that the tier does not serve heals to the tier's model.
+    var (cloudLabel, cloudWire) = await Mixed(
+        "deepgram", "nova-3-general", "cloud", storedTier: "elevenLabsScribeV2");
+    Assert(cloudWire == "scribe_v2" && cloudLabel == cloudWire,
+        $"engine 'cloud' dispatched '{cloudWire}' rather than the Scribe v2 tier's model");
+    //    b. An id the tier DOES serve is kept — the exemption is real, not an
+    //       accident of which tier the test happened to seed.
+    var (cloudPinnedLabel, cloudPinnedWire) = await Mixed(
+        "deepgram", "nova-3-medical", "cloud", storedTier: "deepgramNova3");
+    Assert(cloudPinnedWire == "nova-3-medical" && cloudPinnedLabel == cloudPinnedWire,
+        "engine 'cloud' dropped a sub-model that really is in the mode's tier");
 
-    // 6. Meta lost its hard-coded `muse-voice-transcribe-1.0` and now takes the
-    //    catalog default like every other provider. Pinned as a literal on
-    //    purpose: it is the one assertion that the deleted special case and the
-    //    catalog agree, so a catalog change that moved it would be caught here
-    //    rather than shipping as a silent model swap.
-    var (metaLabel, metaWire) = await Mixed("deepgram", "nova-3-general", "meta");
-    Assert(metaWire == "muse-voice-transcribe-1.0" && metaLabel == metaWire,
-        $"engine 'meta' dispatched '{metaWire}' rather than Muse Voice Transcribe 1.0");
+    // 6. Meta keeps its own arm, above the two-part test: `metaMuse` has exactly
+    //    one model, so a stored id that is not it can only be stale or foreign
+    //    and there is nothing to preserve. Both directions are pinned, because
+    //    the meta-to-meta one is the case the "re-asserting the engine" half
+    //    would otherwise let through.
+    //
+    //    The literal is deliberate. It is the deleted hard-coded string, so this
+    //    is the assertion that the removal changed nothing on the wire, and that
+    //    a catalog change moving Meta's default cannot ship as a silent swap.
+    foreach (var storedProvider in new[] { "deepgram", "meta" })
+    {
+        var (metaLabel, metaWire) = await Mixed(storedProvider, "nova-3-general", "meta");
+        Assert(metaWire == "muse-voice-transcribe-1.0" && metaLabel == metaWire,
+            $"a {storedProvider} mode run with engine 'meta' dispatched '{metaWire}'");
+    }
 
     // 7. An explicit `model` still wins over everything above — the caller asked
     //    for it by name, and `openapi.yaml` says it is echoed unvalidated.

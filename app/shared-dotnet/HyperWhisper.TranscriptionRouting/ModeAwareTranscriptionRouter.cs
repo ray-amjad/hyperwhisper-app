@@ -429,8 +429,15 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
     ///
     /// A live-only id is deliberately still a member. This answers "whose model
     /// is it", not "can this route serve it" — the pre-recorded question is
-    /// <see cref="SharedCoreBridge.CloudSttContainsDictationModel"/>, which the
-    /// send path already applies to every routed provider afterwards.
+    /// <see cref="SharedCoreBridge.CloudSttContainsDictationModel"/>, which
+    /// <see cref="RoutedModelFor"/> and <see cref="RoutedHyperWhisperCloudModel"/>
+    /// apply to the two PROXY-routed providers afterwards. A BYOK provider gets
+    /// no such second pass: <see cref="BodyModel"/> forwards its stored id
+    /// verbatim, so a mode saved with <c>gpt-live-transcribe</c> still posts a
+    /// live-only model to the pre-recorded route. That gap predates this method
+    /// and is unchanged by it — widening the membership test to close it would
+    /// silently rewrite a model the user chose, which is the opposite of what a
+    /// foreign-model guard is for.
     ///
     /// GoogleChirp is answered from its pinned default rather than the catalog:
     /// v8 retired the <c>googleChirp3</c> entry, and <see cref="CatalogTier"/>'s

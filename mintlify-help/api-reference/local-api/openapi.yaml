@@ -542,16 +542,25 @@ components:
             Saved Mode used as the baseline. May be combined with
             engine/model/language to override per-call. When `mode_id` and
             `engine` name DIFFERENT cloud providers, the Mode's saved model is
-            not carried across to the new provider: the request runs the new
-            engine's default model, on all three platforms. An inherited model
-            is kept only when it really belongs to the engine you named —
-            including under its legacy spelling, so an AssemblyAI Mode on
-            `universal` re-run with `engine: "assemblyai"` still runs
-            `universal` and is not upgraded to a different-priced model. Send an
-            explicit `model` to pin one; that always wins. HyperWhisper Cloud is
-            the exception, because it selects by the Mode's accuracy tier rather
-            than by a model id: `engine: "cloud"` runs the tier's model whatever
-            the Mode's model field holds.
+            not carried across to the new provider: the request runs the engine's
+            own default model. An inherited model is kept only when it really
+            belongs to the engine you named — including under its legacy
+            spelling, so an AssemblyAI Mode on `universal` re-run with
+            `engine: "assemblyai"` still runs `universal` and is not upgraded to
+            a different-priced model. Send an explicit `model` to pin one; for a
+            BYOK provider that wins outright. HyperWhisper Cloud is different,
+            because it selects by the Mode's accuracy tier rather than by a model
+            id: `engine: "cloud"` keeps the Mode's model only when that model
+            belongs to the tier, and otherwise runs the tier's default — an
+            explicit `model` included. TWO KNOWN GAPS, neither fixed here. The
+            default a dropped model falls back to is read from a different table
+            per platform, so `engine: "openai"` with no `model` resolves to
+            `whisper-1` on Windows and macOS and to the catalog default
+            `gpt-4o-transcribe` on Linux. And the legacy engine names
+            `googlespeech` and `microsoftazurespeech` are folded onto
+            HyperWhisper Cloud accuracy tiers on Windows and macOS — spending
+            credits — while Linux still routes them to the BYOK provider on your
+            own key.
         engine:
           type: string
           description: >-
