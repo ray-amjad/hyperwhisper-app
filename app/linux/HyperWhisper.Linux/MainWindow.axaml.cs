@@ -3258,15 +3258,66 @@ public partial class MainWindow : Window
     /// string itself wants, so no pixel number is hard-coded and a font change cannot fake it.
     ///
     /// Returns true when the check FAILED, so the caller can bail with a smoke exit code.
+    ///
+    /// The probe modes are inserted and then REMOVED again, and the selection is captured
+    /// BEFORE the insert and put back after. Every other seed on this path is guarded by an
+    /// "only if the table is empty" test, because run-ui-smoke.sh runs against the developer's
+    /// own profile as well as a throwaway CI one, and CI runs it twice (X11 and XWayland). An
+    /// unconditional insert would leave a 300-character mode behind on a real install, once
+    /// per run, and selecting one persists its id to settings.json.
     /// </summary>
     private async Task<bool> ModeNameLayoutFailureAsync()
     {
         var longName = "LongName" + new string('X', 292);
+        // Captured before anything is inserted: RefreshAsync re-picks the selection from the
+        // row set, so a selection read after the insert can already BE a probe.
+        var restoreSelected = _viewModel.Modes.Selected;
+        Guid cloudProbeId;
+        Guid localProbeId;
         await using (var context = _database.CreateContext())
         {
-            context.Modes.Add(new Mode { Name = longName, Language = "en" });
+            // Both configurations of the status bar, because the post-processing column is
+            // what makes the budget tight: it is hidden on a cloud mode and visible on a
+            // local post-processing one, and only the second case was ever near the edge.
+            // The Windows suite loops the same pair.
+            var cloud = new Mode { Name = longName, Language = "en" };
+            var local = new Mode
+            {
+                Name = longName,
+                Language = "en",
+                // The shape ApplicationShellViewModel.UpdateLocalPostProcessingStatus reads:
+                // mode 2 is "local", and only local_llm runs a model on this machine.
+                PostProcessingMode = 2,
+                PostProcessingProvider = "local_llm",
+                LocalPostProcessingModel = "Llama 3.2 3B Instruct Q4_K_M",
+            };
+            context.Modes.AddRange(cloud, local);
             await context.SaveChangesAsync();
+            cloudProbeId = cloud.Id;
+            localProbeId = local.Id;
         }
+        try
+        {
+            return await ModeNameLayoutFailureCoreAsync(longName, cloudProbeId, localProbeId);
+        }
+        finally
+        {
+            if (restoreSelected is not null) _viewModel.Modes.Selected = restoreSelected;
+            await using (var context = _database.CreateContext())
+            {
+                foreach (var id in new[] { cloudProbeId, localProbeId })
+                    if (await context.Modes.FindAsync(id) is { } probe)
+                        context.Modes.Remove(probe);
+                await context.SaveChangesAsync();
+            }
+            // Re-resolves Selected against the rows that are left, so a settings.json still
+            // pointing at a deleted probe falls back to a real mode instead of nothing.
+            await _viewModel.Modes.RefreshAsync();
+        }
+    }
+
+    private async Task<bool> ModeNameLayoutFailureCoreAsync(string longName, Guid cloudProbeId, Guid localProbeId)
+    {
         await _viewModel.Modes.RefreshAsync();
         _viewModel.Navigate("modes");
         await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
@@ -3274,11 +3325,25 @@ public partial class MainWindow : Window
         // THE CARD. The header is a *,Auto Grid with the gear beside the name, so the star
         // column already stops the name pushing the gear off the card; what it does not do is
         // say the name was cut.
+        //
+        // Found by the row it draws, never by its text: a lookup keyed on the text reports a
+        // name truncated in DATA as a missing control, which points the reader at the wrong
+        // thing entirely. The two are separate assertions below, as they are on Windows.
         var card = this.GetLogicalDescendants().OfType<TextBlock>()
-            .FirstOrDefault(block => block.Name == "ModeNameText" && block.Text == longName);
+            .FirstOrDefault(block => block.Name == "ModeNameText"
+                                     && block.DataContext is Mode mode && mode.Id == cloudProbeId);
         if (card is null)
         {
-            Console.Error.WriteLine("Smoke: no mode card carries the whole long name in a ModeNameText.");
+            Console.Error.WriteLine("Smoke: the long mode's card has no ModeNameText.");
+            return true;
+        }
+        // The row itself is untouched: this is a display fix, and the card must still carry the
+        // whole name so the tooltip and any copy of it are right.
+        if (card.Text != longName)
+        {
+            Console.Error.WriteLine($"Smoke: the card bound {card.Text?.Length} characters of a "
+                + $"{longName.Length}-character name — the name is being truncated in data, "
+                + "which is not the fix.");
             return true;
         }
         if (card.TextTrimming != TextTrimming.CharacterEllipsis)
@@ -3315,63 +3380,113 @@ public partial class MainWindow : Window
         // THE STATUS BAR, which is the half the issue actually complained about. The mode name
         // sits in an Auto column, an Auto column grows to whatever it is given, and one
         // unbounded item in a row this window cannot widen pushes the others out of it.
-        var previous = _viewModel.Modes.Selected;
-        try
+        // The caller puts the previous selection back.
+        foreach (var (label, probeId) in new[]
+                 { ("cloud mode", cloudProbeId), ("with post-processing", localProbeId) })
         {
-            _viewModel.Modes.Selected =
-                _viewModel.Modes.Items.FirstOrDefault(mode => mode.Name == longName);
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (await StatusBarRowFailureAsync(longName, label, probeId)) return true;
+        }
+        return false;
+    }
 
-            var modeName = FindNamed<TextBlock>("StatusModeName");
-            var modelName = FindNamed<TextBlock>("StatusModelName");
-            if (StatusText is null || modeName is null || modelName is null
-                || modeName.Parent?.Parent is not Grid row)
+    /// <summary>
+    /// Selects one probe mode and measures the whole status-bar row it produces.
+    /// Returns true when the check FAILED.
+    /// </summary>
+    private async Task<bool> StatusBarRowFailureAsync(string longName, string label, Guid probeId)
+    {
+        _viewModel.Modes.Selected = _viewModel.Modes.Items.FirstOrDefault(mode => mode.Id == probeId);
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+        var modeName = FindNamed<TextBlock>("StatusModeName");
+        var modelName = FindNamed<TextBlock>("StatusModelName");
+        var postProcessing = FindNamed<TextBlock>("StatusPostProcessingText");
+        if (StatusText is null || modeName is null || modelName is null || postProcessing is null
+            || modeName.Parent?.Parent is not Grid row)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the status bar row is missing a named item.");
+            return true;
+        }
+        // Without this the whole-hint check below is vacuous: StatusText has no XAML binding
+        // and is composed imperatively by UpdateShortcutHint, so an empty one would want 0px
+        // and satisfy every width comparison while the star column was in fact collapsed.
+        if (string.IsNullOrWhiteSpace(StatusText.Text))
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the status hint is empty, so this check "
+                + "cannot tell a whole hint from a hint the mode name has squeezed out.");
+            return true;
+        }
+        if (modeName.Text != longName)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the status bar bound {modeName.Text?.Length} "
+                + $"characters of a {longName.Length}-character name — it is being truncated in "
+                + "data, which is not the fix.");
+            return true;
+        }
+        var withPostProcessing = label == "with post-processing";
+        if (withPostProcessing != postProcessing.IsEffectivelyVisible)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the post-processing column is "
+                + $"{(postProcessing.IsEffectivelyVisible ? "visible" : "hidden")}, so this case is "
+                + "not the configuration it claims to be.");
+            return true;
+        }
+
+        // THE BUG, STATED AS THE BUG: nothing may be pushed out of the row. Before the fix the
+        // name's Auto column took the whole width and column 0 measured nothing at all.
+        foreach (var (name, block) in new[]
+                 { ("the status hint", StatusText), ("the model status", modelName) })
+        {
+            if (block.Bounds.Width <= 0)
             {
-                Console.Error.WriteLine("Smoke: the status bar row is missing one of its named items.");
+                Console.Error.WriteLine($"Smoke: {label}: {name} measured 0px — the mode name has "
+                    + "taken the whole status bar.");
                 return true;
             }
-            if (modeName.Text != longName)
-            {
-                Console.Error.WriteLine($"Smoke: the status bar bound {modeName.Text?.Length} characters "
-                    + $"of a {longName.Length}-character name — it is being truncated in data, "
-                    + "which is not the fix.");
-                return true;
-            }
-            // Nothing may be pushed out of the row, and on a cloud mode — this profile, and the
-            // common case, since the post-processing column only appears for a local LLM — the
-            // hint and the model status must be WHOLE. A hint trimmed to "Ready - Press Ct..."
-            // would still be hiding the hotkey.
-            foreach (var (label, block) in new[]
+        }
+        // On a cloud mode — the issue's own repro, and the common case, since the
+        // post-processing column only appears for a LOCAL LLM — both must be WHOLE and not
+        // merely present. A hint trimmed to "Ready - Press Ct..." would satisfy the check
+        // above while still hiding the hotkey.
+        //
+        // The tight case is deliberately not held to this. Four items in a fixed row, two of
+        // them long local model names, genuinely do not all fit; the caps decide who gives
+        // way, and every one of them now says so with an ellipsis instead of vanishing.
+        if (!withPostProcessing)
+        {
+            foreach (var (name, block) in new[]
                      { ("the status hint", StatusText), ("the model status", modelName) })
             {
                 var wanted = UnconstrainedTextWidth(block);
                 if (block.Bounds.Width + 0.5 < wanted)
                 {
-                    Console.Error.WriteLine($"Smoke: {label} rendered {block.Bounds.Width:F1}px for text "
-                        + $"that needs {wanted:F1}px — the mode name has taken the status bar.");
+                    Console.Error.WriteLine($"Smoke: {label}: {name} rendered {block.Bounds.Width:F1}px "
+                        + $"for text that needs {wanted:F1}px — the mode name has taken the status bar.");
                     return true;
                 }
             }
-            if (modelName.TranslatePoint(new Point(modelName.Bounds.Width, 0), row) is not { } modelEnd
-                || modelEnd.X > row.Bounds.Width + 0.5)
-            {
-                Console.Error.WriteLine("Smoke: the model status runs past the right edge of the "
-                    + $"{row.Bounds.Width:F1}px status bar.");
-                return true;
-            }
-            // And the mode name is the item that gives way, with an ellipsis.
-            if (modeName.TextTrimming != TextTrimming.CharacterEllipsis
-                || modeName.Bounds.Width >= UnconstrainedTextWidth(modeName))
-            {
-                Console.Error.WriteLine($"Smoke: the status bar mode name trims with "
-                    + $"{modeName.TextTrimming} and rendered {modeName.Bounds.Width:F1}px of "
-                    + $"{UnconstrainedTextWidth(modeName):F1}px — it was not bounded at all.");
-                return true;
-            }
         }
-        finally
+        else if (postProcessing.Bounds.Width > 150.5)
         {
-            if (previous is not null) _viewModel.Modes.Selected = previous;
+            Console.Error.WriteLine($"Smoke: {label}: the post-processing status rendered "
+                + $"{postProcessing.Bounds.Width:F1}px against its 150px cap.");
+            return true;
+        }
+        if (modelName.TranslatePoint(new Point(modelName.Bounds.Width, 0), row) is not { } modelEnd
+            || modelEnd.X > row.Bounds.Width + 0.5)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the model status runs past the right edge of "
+                + $"the {row.Bounds.Width:F1}px status bar.");
+            return true;
+        }
+        // And the mode name is the item that gives way, with an ellipsis.
+        if (modeName.TextTrimming != TextTrimming.CharacterEllipsis
+            || modeName.Bounds.Width >= UnconstrainedTextWidth(modeName))
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the status bar mode name trims with "
+                + $"{modeName.TextTrimming} and rendered {modeName.Bounds.Width:F1}px of "
+                + $"{UnconstrainedTextWidth(modeName):F1}px — it was not bounded at all.");
+            return true;
         }
         return false;
     }
