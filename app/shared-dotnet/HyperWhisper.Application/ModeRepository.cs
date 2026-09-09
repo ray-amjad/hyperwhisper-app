@@ -1,4 +1,5 @@
 using HyperWhisper.Data.Entities;
+using HyperWhisper.SharedCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace HyperWhisper.PortableApplication.Persistence;
@@ -45,12 +46,13 @@ public sealed class ModeRepository(ApplicationDb database)
         if (target is null) return false;
         if (modes.Count == 1) throw new InvalidOperationException("Cannot delete the last remaining mode.");
         context.Modes.Remove(target);
-        if (target.IsDefault)
-        {
-            var replacement = modes.First(item => item.Id != id);
-            replacement.IsDefault = true;
-            replacement.ModifiedDate = DateTime.UtcNow;
-        }
+        // Deleting the default moves the flag rather than leaving none. Which
+        // mode it moves to is the shared core's decision (issue #536), so a
+        // backup restored on Linux, Windows and macOS promotes the same one.
+        var remaining = modes.Where(item => item.Id != id).ToList();
+        var moved = DefaultModePolicy.ApplyAndReport(remaining);
+        foreach (var row in remaining.Where(row => moved.Contains(row.Id)))
+            row.ModifiedDate = DateTime.UtcNow;
         await context.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -61,17 +63,28 @@ public sealed class ModeRepository(ApplicationDb database)
         mode.Name = mode.Name.Trim();
         if (mode.Name.Length == 0) throw new ArgumentException("A mode name is required.", nameof(mode));
         await using var context = _database.CreateContext();
-        var all = await context.Modes.ToListAsync(cancellationToken);
+        var all = await context.Modes.OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
         if (all.Any(item => item.Id != mode.Id && string.Equals(item.Name, mode.Name, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("A mode with that name already exists.");
-        if (all.Count == 0) mode.IsDefault = true;
-        if (mode.IsDefault)
-            foreach (var item in all.Where(item => item.Id != mode.Id)) item.IsDefault = false;
-        else if (all.Count > 0 && all.All(item => item.Id == mode.Id || !item.IsDefault))
-            throw new InvalidOperationException("At least one mode must remain the default.");
         var existing = all.SingleOrDefault(item => item.Id == mode.Id);
-        if (existing is null) context.Modes.Add(mode);
-        else context.Entry(existing).CurrentValues.SetValues(mode);
+        // Both checks read the row as it stands BEFORE the write (issue #536).
+        if (existing is not null
+            && DefaultModePolicy.CheckRename(existing, mode.Name)
+                == PortableModeNameChange.RejectedDefaultIsFixed)
+            throw new InvalidOperationException("The default mode's name cannot be changed.");
+        if (DefaultModePolicy.CheckDefaultFlag(all, mode.Id, mode.IsDefault)
+            == PortableDefaultFlagChange.RejectedLastDefault)
+            throw new InvalidOperationException("At least one mode must remain the default.");
+        if (existing is null)
+        {
+            context.Modes.Add(mode);
+            all.Add(mode);
+        }
+        else
+        {
+            context.Entry(existing).CurrentValues.SetValues(mode);
+        }
+        DefaultModePolicy.Apply(all, mode.IsDefault ? mode.Id : null);
         await context.SaveChangesAsync(cancellationToken);
     }
 }

@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
+using HyperWhisper.PortableApplication.Persistence;
+using HyperWhisper.SharedCore;
 using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Services;
@@ -68,6 +70,128 @@ public class ModeService
         // modes wrote Model only.
         HealMissingModelTypes();
         NormalizeLegacyCloudModeValues();
+        // A database can arrive with two default modes or none — a backup
+        // restored from another machine is the realistic route (issue #536).
+        // Repair it once, before anything reads the flag.
+        EnforceDefaultModeInvariant();
+    }
+
+    // =========================================================================
+    // THE DEFAULT-MODE INVARIANT (issue #536)
+    // =========================================================================
+
+    /// <summary>
+    /// Make exactly one mode the default again, if something left the database
+    /// with two or with none.
+    /// </summary>
+    /// <remarks>
+    /// Every write below already keeps the invariant, so this exists for the
+    /// rows nothing here wrote: a restored backup, which
+    /// <see cref="BackupService"/> puts straight into the DbSet, and a database
+    /// that was already broken before this code shipped. Idempotent and silent
+    /// when there is nothing to repair.
+    /// </remarks>
+    public void EnforceDefaultModeInvariant()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                using var context = new HyperWhisperDbContext();
+                if (!ApplyDefaultModeInvariant(context, null, null)) return;
+                context.SaveChanges();
+                LoggingService.Info(
+                    "ModeService: repaired the default-mode flag — exactly one mode is the default again");
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"ModeService: EnforceDefaultModeInvariant failed — {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Apply the shared decision (<c>hw-modes</c>, through
+    /// <see cref="DefaultModePolicy"/>) to a context the caller is about to save.
+    /// Returns whether anything changed.
+    /// </summary>
+    /// <param name="pending">
+    /// A row that is being added and is therefore not in the database yet, so
+    /// the query below cannot see it. The rule is a whole-set rule, and a plan
+    /// computed without the new row would leave the set with two defaults.
+    /// </param>
+    /// <param name="preferred">
+    /// The mode the caller is trying to make the default, or null when it has no
+    /// opinion and this is only a repair.
+    /// </param>
+    private static bool ApplyDefaultModeInvariant(
+        HyperWhisperDbContext context,
+        Mode? pending,
+        Guid? preferred)
+    {
+        var all = context.Modes.OrderBy(m => m.SortOrder).ToList();
+        if (pending != null && all.All(m => m.Id != pending.Id))
+        {
+            all.Add(pending);
+        }
+        var changed = DefaultModePolicy.Apply(all, preferred);
+
+        // When the row already existed, the plan wrote the flag onto the TRACKED
+        // entity, not onto the caller's detached copy — and that copy is what
+        // `ModeChanged` publishes. Mirror the settled value back, or a subscriber
+        // binding to the payload shows a default flag the database disagrees
+        // with until the next full reload. `KeepDefaultModeName` does the same
+        // for the name.
+        if (changed && pending != null)
+        {
+            var settled = all.FirstOrDefault(m => m.Id == pending.Id);
+            if (settled != null && !ReferenceEquals(settled, pending))
+            {
+                pending.IsDefault = settled.IsDefault;
+            }
+        }
+        return changed;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="stored"/> may be renamed to
+    /// <paramref name="newName"/>. The default mode's name is fixed — the mode
+    /// editor disables the field and says so (PR #535), and this is what makes
+    /// that true for every other write path.
+    /// </summary>
+    public static bool CanRename(Mode stored, string newName) =>
+        DefaultModePolicy.CheckRename(stored, newName) == PortableModeNameChange.Allowed;
+
+    /// <summary>
+    /// Whether <paramref name="id"/> may have its default flag written to
+    /// <paramref name="requestedIsDefault"/>. Only one combination is refused:
+    /// clearing the flag on the one mode that carries it, which would leave the
+    /// app with no default at all.
+    /// </summary>
+    public bool CanWriteDefaultFlag(Guid id, bool requestedIsDefault) =>
+        DefaultModePolicy.CheckDefaultFlag(GetAllModes(), id, requestedIsDefault)
+            == PortableDefaultFlagChange.Allowed;
+
+    /// <summary>
+    /// Last line: a write that would rename the default mode keeps the stored
+    /// name instead.
+    /// </summary>
+    /// <remarks>
+    /// The two layers above this answer differently, on purpose. The Local API
+    /// is a contract, so it calls <see cref="CanRename"/> first and REFUSES,
+    /// because a caller told "ok" while its rename was dropped would keep
+    /// sending it. The mode editor disables the field, so it never asks. This
+    /// is for everything else — and it repairs rather than throws, because
+    /// <see cref="SaveMode"/> is also how onboarding rolls a mode back, and a
+    /// throw there would abandon the rollback over a field the caller did not
+    /// mean to change.
+    /// </remarks>
+    private static void KeepDefaultModeName(Mode stored, Mode incoming)
+    {
+        if (CanRename(stored, incoming.Name)) return;
+        LoggingService.Warn(
+            $"ModeService: refused to rename the default mode '{stored.Name}' — its name is fixed");
+        incoming.Name = stored.Name;
     }
 
     /// <summary>
@@ -307,6 +431,7 @@ public class ModeService
                 var existing = context.Modes.Find(mode.Id);
                 if (existing != null)
                 {
+                    KeepDefaultModeName(existing, mode);
                     // Update existing - use Entry.CurrentValues pattern for clean update
                     context.Entry(existing).CurrentValues.SetValues(mode);
                     LoggingService.Info($"ModeService: Updated mode '{mode.Name}'");
@@ -318,6 +443,7 @@ public class ModeService
                     LoggingService.Info($"ModeService: Created mode '{mode.Name}'");
                 }
 
+                ApplyDefaultModeInvariant(context, mode, mode.IsDefault ? mode.Id : null);
                 context.SaveChanges();
             }
             catch (DbUpdateException ex)
@@ -360,6 +486,15 @@ public class ModeService
                 var modeName = mode.Name; // Capture for logging
                 context.Modes.Remove(mode);
                 context.SaveChanges();
+
+                // Deleting the default mode used to leave no default at all, and
+                // the app then merely ACTED as if the lowest-SortOrder mode were
+                // one — with an editable name and no hint (issue #536). Move the
+                // flag for real instead.
+                if (ApplyDefaultModeInvariant(context, null, null))
+                {
+                    context.SaveChanges();
+                }
 
                 // If deleted mode was selected, select first remaining mode
                 if (SettingsService.Instance.SelectedModeId == id)
@@ -404,7 +539,9 @@ public class ModeService
                 var existing = context.Modes.Find(mode.Id);
                 if (existing != null)
                 {
+                    KeepDefaultModeName(existing, mode);
                     context.Entry(existing).CurrentValues.SetValues(mode);
+                    ApplyDefaultModeInvariant(context, mode, mode.IsDefault ? mode.Id : null);
                     context.SaveChanges();
                     LoggingService.Info($"ModeService: Updated mode '{mode.Name}'");
                 }

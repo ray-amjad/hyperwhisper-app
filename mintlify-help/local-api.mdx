@@ -253,6 +253,13 @@ The deterministic text steps are different. They are your own settings, and they
 
 `POST /modes` and `PATCH /modes/{id}` reject an empty mode name and a case-insensitive duplicate. Windows trims whitespace at the start and end of the name. macOS also normalizes Unicode and trims invisible-only characters from the boundaries. A macOS name must contain at least one visible base character.
 
+Exactly one Mode is the default Mode, and its name is fixed. Two rules follow, and all three platforms apply them:
+
+- A `PATCH` that changes the name of the default Mode returns `ok: false` with `INVALID_REQUEST`. The name field is disabled in the app for the same reason. Rename a different Mode, or make a different Mode the default first.
+- `"isDefault": true` moves the flag. The Mode that held it stops being the default in the same request. `"isDefault": false` on the only default Mode returns `ok: false` with `INVALID_REQUEST`, because it would leave no default Mode.
+
+`DELETE /modes/{id}` on the default Mode moves the flag to the first remaining Mode. A restored backup that carries two default Modes, or none, is repaired the same way when the app starts.
+
 On macOS, `postProcessingMode` must be `0`, `1`, or `2` on create and patch. A PATCH `sortOrder` must be from `-32768` to `32767`. macOS ignores `sortOrder` on create and assigns the next stored order. An invalid value returns `ok: false` with `INVALID_REQUEST` and does not change the mode.
 
 For a macOS PATCH, an omitted field stays unchanged. An explicit JSON `null` clears these string fields: `customInstructions`, `userSystemPrompt`, `languageModel`, `cloudTranscriptionModel`, `cloudTranscriptionDomain`, `cloudProvider`, `postProcessingProvider`, `englishSpelling`, `cloudAccuracyTier`, `geminiCustomPrompt`, and `cloudPostProcessingModel`. Windows treats `null` like an omitted value for these PATCH fields.

@@ -220,6 +220,10 @@ public sealed partial class ApplicationBackupService
         {
             context.RemoveRange(current);
             context.AddRange(imported);
+            // A backup written on another machine carries whatever `isDefault`
+            // that machine held — two rows, or none. Replacing the whole set
+            // used to import that state verbatim (issue #536).
+            DefaultModePolicy.Apply(imported.OrderBy(item => item.SortOrder).ToList());
             return;
         }
 
@@ -236,16 +240,18 @@ public sealed partial class ApplicationBackupService
                 context.Entry(existing).CurrentValues.SetValues(importedMode);
             }
         }
-        if (imported.Any(item => item.IsDefault))
-        {
-            var chosen = imported.Where(item => item.IsDefault)
-                .OrderBy(item => item.SortOrder).ThenBy(item => item.Id).First();
-            foreach (var mode in current) mode.IsDefault = mode.Id == chosen.Id;
-        }
-        else if (!current.Any(item => item.IsDefault))
-        {
-            current.OrderBy(item => item.SortOrder).ThenBy(item => item.Id).First().IsDefault = true;
-        }
+        // An imported default wins over the local one; otherwise the local set
+        // keeps — or is given — its own. Which mode that is comes from the
+        // shared core (issue #536), so a backup restored on Linux, Windows and
+        // macOS lands on the same default rather than on three tie-breaks that
+        // happened to be written separately.
+        var preferred = imported.Where(item => item.IsDefault)
+            .OrderBy(item => item.SortOrder)
+            .Select(item => (Guid?)item.Id)
+            .FirstOrDefault();
+        DefaultModePolicy.Apply(
+            current.OrderBy(item => item.SortOrder).ToList(),
+            preferred);
     }
 
     private static void ApplyVocabulary(
