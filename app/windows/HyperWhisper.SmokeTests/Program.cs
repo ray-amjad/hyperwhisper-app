@@ -11267,11 +11267,27 @@ internal static class Program
 
                 // The label is bounded; the NAME is not. Nothing here may truncate data.
                 var bounded = MenuItemText.Bound(longName);
-                Assert(bounded.Length == MenuItemText.MaxLength + 1 && bounded.EndsWith(MenuItemText.Ellipsis),
-                    $"Bound() returned {bounded.Length} characters ending '{bounded[^1]}', expected " +
+                Assert(bounded.Length <= MenuItemText.MaxLength + 1 && bounded.EndsWith(MenuItemText.Ellipsis),
+                    $"Bound() returned {bounded.Length} characters ending '{bounded[^1]}', expected at most " +
                     $"{MenuItemText.MaxLength} plus an ellipsis");
                 Assert(longName.StartsWith(bounded[..^1]),
                     "the bounded label is not a prefix of the real name - it is rewriting the name, not cutting it");
+
+                // THE BOUND IS A WIDTH, NOT A CHARACTER COUNT, and a full-width
+                // script is where the difference shows: 60 CJK glyphs are about
+                // twice 60 Latin ones, so a name in Japanese would clear a character
+                // cap and still hang off the screen. The app ships 40 locales.
+                var cjkName = string.Concat(Enumerable.Repeat("日本語のモードの名前", 30));
+                var boundedCjk = MenuItemText.Bound(cjkName);
+
+                Assert(boundedCjk.Length < bounded.Length,
+                    $"the CJK label kept {boundedCjk.Length} characters and the Latin one {bounded.Length} - " +
+                    "the cap is still counting characters rather than measuring the glyphs");
+                Assert(PreferredMenuWidth(boundedCjk) < 1024,
+                    $"a submenu of the bounded CJK name wants {PreferredMenuWidth(boundedCjk)}px, wider than the " +
+                    "narrowest display Windows supports");
+                Assert(PreferredMenuWidth(cjkName) > PreferredMenuWidth(boundedCjk) * 3,
+                    "the unbounded CJK name did not lay out wide, so this case proves nothing");
                 Assert(MenuItemText.NeedsFullTextTooltip(longName),
                     "a truncated item reports no tooltip, so the full name would be unreachable from the tray");
 
@@ -11402,6 +11418,42 @@ internal static class Program
                     .FirstOrDefault(t => t.Text == "0:12");
                 Assert(durationText is not null && durationText.ActualWidth > 0,
                     "the duration badge is gone from the detail header");
+
+                // THE TOOLTIP IS BOUNDED IN BOTH DIRECTIONS. A wrapping tooltip with
+                // only a MaxWidth is a tooltip with no bound at all: nothing caps the
+                // name, so 10,000 characters is a 230-line block taller than the
+                // screen. MaxHeight plus TextTrimming caps it at seven lines and says
+                // it was cut, which is the same contract as the badge underneath it.
+                var tip = modeText.ToolTip as System.Windows.Controls.ToolTip;
+                Assert(tip is not null, "the mode badge lost its explicit ToolTip");
+                var tipText = tip!.Content as System.Windows.Controls.TextBlock;
+                Assert(tipText is not null, "the ToolTip content is no longer a TextBlock");
+
+                Assert(tipText!.Text == longName,
+                    $"the tooltip shows {tipText.Text?.Length ?? 0} characters of a {longName.Length}-character " +
+                    "name - its binding is not resolving, which is the failure the tooltip exists to avoid");
+
+                foreach (var length in new[] { longName.Length, 10_000 })
+                {
+                    page.DataContext = new HistoryDetailProbe
+                    {
+                        SelectedTranscript = new HistoryTranscriptProbe
+                        {
+                            FormattedDate = "Today at 09:41",
+                            FormattedDuration = "0:12",
+                            Mode = new string('M', length)
+                        }
+                    };
+                    page.UpdateLayout();
+
+                    tipText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+                    Assert(tipText.DesiredSize.Width <= 360.5,
+                        $"a {length}-character name gives a {tipText.DesiredSize.Width:F0}px-wide tooltip");
+                    Assert(tipText.DesiredSize.Height <= 126.5,
+                        $"a {length}-character name gives a {tipText.DesiredSize.Height:F0}px-tall tooltip, so a " +
+                        "long enough name renders one taller than the screen");
+                }
             });
 
             Run("vocabulary: the whole replacement box is the replacement field — issue #496", () =>

@@ -233,7 +233,7 @@
                                                TextTrimming="CharacterEllipsis" MaxWidth="260">
                                         <TextBlock.ToolTip>
                                             <ToolTip>
-                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360"/>
+                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>
@@ -366,7 +366,7 @@
                                              would render as one line far wider than the screen. -->
                                         <TextBlock.ToolTip>
                                             <ToolTip>
-                                                <TextBlock Text="{Binding SelectedTranscript.Mode}" TextWrapping="Wrap" MaxWidth="360"/>
+                                                <TextBlock Text="{Binding SelectedTranscript.Mode}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
                                             </ToolTip>
                                         </TextBlock.ToolTip>
                                     </TextBlock>

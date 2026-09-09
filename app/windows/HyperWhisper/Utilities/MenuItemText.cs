@@ -17,24 +17,34 @@ namespace HyperWhisper.Utilities;
 /// as on the WPF side, the caller keeps the full name for the tooltip and for
 /// anything that is not display.
 ///
-/// The cap is on characters rather than pixels because a menu item is laid out
-/// long before there is a device context to measure against, and because a
-/// character cap is deterministic enough to assert. It is not an exact pixel
-/// bound — 60 wide CJK glyphs are roughly twice the width of 60 Latin ones —
-/// but it bounds the item to a fraction of any real display either way, which
-/// is the property the menu needs.
+/// THE BOUND IS ON RENDERED WIDTH, not on a character count. A character count
+/// is not a width: sixty full-width CJK glyphs are about twice sixty Latin ones,
+/// and a mode name in Japanese is not exotic in an app that ships forty locales.
+/// So the label is measured with the menu's own font and cut to fit
+/// <see cref="MaxWidthPixels"/>. <see cref="MaxLength"/> stays as a second,
+/// cheaper ceiling so the answer is bounded even where measurement is not
+/// available.
 /// </summary>
 public static class MenuItemText
 {
     /// <summary>
-    /// Characters of the original text kept before the ellipsis. At the menu's
-    /// ~9pt Segoe UI this is roughly 420px of Latin text: comfortably readable,
-    /// far longer than any real mode name, and a small fraction of the narrowest
-    /// display the app supports.
+    /// The widest a menu label may render, in the same device pixels
+    /// <see cref="System.Windows.Forms.TextRenderer"/> measures in. Roughly sixty
+    /// Latin characters at the menu font: far longer than any real mode name, and
+    /// a fraction of the narrowest display Windows supports, so the submenu always
+    /// has room to open beside its parent.
+    /// </summary>
+    public const int MaxWidthPixels = 420;
+
+    /// <summary>
+    /// Hard ceiling on characters kept before the ellipsis, applied on top of
+    /// <see cref="MaxWidthPixels"/>. It is what bounds the label if measurement
+    /// is unavailable — a menu can be rebuilt on a session with no usable device
+    /// context, and a tray that throws there is worse than one that over-trims.
     /// </summary>
     public const int MaxLength = 60;
 
-    /// <summary>Appended in place of everything past <see cref="MaxLength"/>.</summary>
+    /// <summary>Appended in place of everything that did not fit.</summary>
     public const string Ellipsis = "…";
 
     /// <summary>
@@ -43,10 +53,10 @@ public static class MenuItemText
     /// </summary>
     /// <remarks>
     /// Two things are bounded, because a menu item grows in both directions:
-    /// width, via the length cap; and height, because WinForms renders a literal
-    /// newline as a line break and the Local API will accept a mode name with one
-    /// in it. Whitespace runs — including newlines and tabs — collapse to a single
-    /// space so the item stays exactly one row tall.
+    /// width, by measuring; and height, because WinForms renders a literal newline
+    /// as a line break and the Local API will accept a mode name with one in it.
+    /// Whitespace runs — including newlines and tabs — collapse to a single space
+    /// so the item stays exactly one row tall.
     /// </remarks>
     public static string Bound(string? text)
     {
@@ -54,20 +64,16 @@ public static class MenuItemText
             return string.Empty;
 
         var collapsed = CollapseWhitespace(text);
-        if (collapsed.Length <= MaxLength)
+        var fits = FittingLength(collapsed, 0, MaxWidthPixels);
+
+        if (fits >= collapsed.Length)
             return collapsed;
 
-        // Never cut between the two halves of a surrogate pair: the lone
-        // surrogate left behind renders as a replacement glyph.
-        var cut = MaxLength;
-        if (char.IsHighSurrogate(collapsed[cut - 1]))
-            cut--;
-
-        return collapsed[..cut].TrimEnd() + Ellipsis;
+        return collapsed[..fits].TrimEnd() + Ellipsis;
     }
 
-    /// <summary>Characters per line in the tooltip built by <see cref="Tooltip"/>.</summary>
-    public const int TooltipLineLength = 60;
+    /// <summary>The widest a single tooltip line may render, in device pixels.</summary>
+    public const int TooltipLineWidthPixels = MaxWidthPixels;
 
     /// <summary>Lines <see cref="Tooltip"/> will show before it gives up and elides.</summary>
     public const int TooltipMaxLines = 10;
@@ -92,11 +98,12 @@ public static class MenuItemText
     /// mode name renders a tooltip about 2100px wide, off both edges of the
     /// screen, which is the same defect as the menu it was meant to relieve —
     /// observed on a VM before this was written. So the tooltip is bounded in
-    /// both directions: <see cref="TooltipLineLength"/> characters per line and
-    /// at most <see cref="TooltipMaxLines"/> lines, then an ellipsis.
+    /// both directions: each line is measured to
+    /// <see cref="TooltipLineWidthPixels"/>, and there are at most
+    /// <see cref="TooltipMaxLines"/> lines before an ellipsis.
     ///
     /// This is the Win32 counterpart of the WPF surfaces' explicit
-    /// <c>&lt;ToolTip&gt;&lt;TextBlock TextWrapping="Wrap" MaxWidth="360"/&gt;</c>,
+    /// <c>&lt;ToolTip&gt;&lt;TextBlock TextWrapping="Wrap" MaxWidth MaxHeight/&gt;</c>,
     /// which exists for exactly the same reason (#492).
     /// </remarks>
     public static string? Tooltip(string? text)
@@ -110,21 +117,23 @@ public static class MenuItemText
 
         while (index < collapsed.Length && lines.Count < TooltipMaxLines)
         {
-            if (collapsed.Length - index <= TooltipLineLength)
+            var fits = FittingLength(collapsed, index, TooltipLineWidthPixels);
+            if (index + fits >= collapsed.Length)
             {
                 lines.Add(collapsed[index..]);
                 index = collapsed.Length;
                 break;
             }
 
-            // Break on the last space that fits, so a name made of words stays
-            // readable; fall back to a hard break for one long run of characters.
-            var window = collapsed.Substring(index, TooltipLineLength + 1);
-            var space = window.LastIndexOf(' ');
+            // Break on the last space inside what fits, so a name made of words
+            // stays readable; fall back to the measured cut for one long run.
+            var space = collapsed.LastIndexOf(' ', index + fits, fits);
+            var take = space > index ? space - index : fits;
 
-            var take = space > 0 ? space : TooltipLineLength;
-            if (space <= 0 && char.IsHighSurrogate(collapsed[index + take - 1]))
-                take--;
+            // A single glyph wider than a whole line would otherwise make this
+            // loop take nothing and never end.
+            if (take <= 0)
+                take = char.IsHighSurrogate(collapsed[index]) ? 2 : 1;
 
             lines.Add(collapsed.Substring(index, take));
             index += take;
@@ -137,6 +146,78 @@ public static class MenuItemText
             lines[^1] += Ellipsis;
 
         return string.Join("\r\n", lines);
+    }
+
+    /// <summary>
+    /// How many characters of <paramref name="text"/>, starting at
+    /// <paramref name="start"/>, render inside <paramref name="maxWidth"/> — never
+    /// more than <see cref="MaxLength"/>, and never splitting a surrogate pair.
+    /// </summary>
+    /// <remarks>
+    /// Rendered width is monotonic in length, so this is a binary search: about
+    /// six measurements per label rather than one per character.
+    /// </remarks>
+    private static int FittingLength(string text, int start, int maxWidth)
+    {
+        var available = text.Length - start;
+        var high = Math.Min(available, MaxLength);
+        if (high <= 0)
+            return 0;
+
+        // The common case by far: a real mode name that fits whole.
+        if (high == available && MeasuredWidth(text.AsSpan(start, high)) <= maxWidth)
+            return high;
+
+        var low = 0;
+        while (low < high)
+        {
+            var middle = (low + high + 1) / 2;
+            if (MeasuredWidth(text.AsSpan(start, middle)) <= maxWidth)
+                low = middle;
+            else
+                high = middle - 1;
+        }
+
+        // Never cut between the two halves of a surrogate pair: the lone
+        // surrogate left behind renders as a replacement glyph.
+        if (low > 0 && char.IsHighSurrogate(text[start + low - 1]))
+            low--;
+
+        return low;
+    }
+
+    /// <summary>
+    /// The width this text renders at in the menu's own font, or 0 when there is
+    /// no device context to measure against — in which case
+    /// <see cref="MaxLength"/> is the only bound left, which is the point of
+    /// having it.
+    /// </summary>
+    private static bool _measurementFailureLogged;
+
+    private static int MeasuredWidth(ReadOnlySpan<char> text)
+    {
+        try
+        {
+            var font = System.Drawing.SystemFonts.MenuFont ?? System.Drawing.SystemFonts.DefaultFont;
+            return System.Windows.Forms.TextRenderer.MeasureText(
+                text.ToString(),
+                font,
+                new System.Drawing.Size(int.MaxValue, int.MaxValue),
+                System.Windows.Forms.TextFormatFlags.NoPadding).Width;
+        }
+        catch (Exception ex)
+        {
+            // Once, not once per glyph of a binary search over every menu item.
+            if (!_measurementFailureLogged)
+            {
+                _measurementFailureLogged = true;
+                Services.LoggingService.Warn(
+                    $"MenuItemText: cannot measure menu labels, falling back to the {MaxLength}-character " +
+                    $"cap: {ex.Message}");
+            }
+
+            return 0;
+        }
     }
 
     /// <summary>
