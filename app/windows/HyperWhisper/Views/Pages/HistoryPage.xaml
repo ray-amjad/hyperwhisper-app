@@ -224,7 +224,19 @@
                         <MenuItem Header="{loc:Loc history.context.retryWith}" ItemsSource="{Binding AvailableModes}">
                             <MenuItem.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}"/>
+                                    <!-- The third mode-name site on this page, and the same
+                                         defect as the badge below: a WPF submenu sizes to its
+                                         widest item, so an untrimmed name makes the Retry With
+                                         list wider than the screen. Bounded the same way; the
+                                         full name is on the tooltip. -->
+                                    <TextBlock Text="{Binding Name}"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="260">
+                                        <TextBlock.ToolTip>
+                                            <ToolTip>
+                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
                                 </DataTemplate>
                             </MenuItem.ItemTemplate>
                             <MenuItem.ItemContainerStyle>
@@ -336,9 +348,28 @@
                                     Visibility="{Binding SelectedTranscript.Mode, Converter={StaticResource NullToVisibility}}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#x2699;" FontSize="12" Foreground="{DynamicResource BadgeGrayForegroundBrush}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding SelectedTranscript.Mode}"
+                                    <!-- Bounded exactly like the mode card's name (#492/#525). The
+                                         mode name is stored on the transcript and is free user text
+                                         of any length; this badge sits in a horizontal StackPanel
+                                         inside a fixed-width detail pane, so an untrimmed name runs
+                                         straight off the right of the pane and is hard-clipped by
+                                         the header border. MaxWidth is what actually bounds it —
+                                         TextTrimming alone does nothing inside a StackPanel, which
+                                         measures its children with infinite width. -->
+                                    <TextBlock x:Name="DetailModeText"
+                                               Text="{Binding SelectedTranscript.Mode}"
                                                FontSize="12" Foreground="{DynamicResource BadgeGrayForegroundBrush}"
-                                               Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                               Margin="4,0,0,0" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="260">
+                                        <!-- An explicit ToolTip, not ToolTip="{Binding}": the stock
+                                             string tooltip does not wrap, so a 300-character name
+                                             would render as one line far wider than the screen. -->
+                                        <TextBlock.ToolTip>
+                                            <ToolTip>
+                                                <TextBlock Text="{Binding SelectedTranscript.Mode}" TextWrapping="Wrap" MaxWidth="360" MaxHeight="126" TextTrimming="CharacterEllipsis"/>
+                                            </ToolTip>
+                                        </TextBlock.ToolTip>
+                                    </TextBlock>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
