@@ -534,16 +534,17 @@ components:
         model:
           type: string
           description: >-
-            The resolved model id. When the request names an explicit `model`,
-            that value is echoed. When the request sends `engine` (or only
-            `mode_id`) and no `model`, Windows resolves the engine's default
-            rather than returning an empty string, so a caller driving the API
+            The model that actually transcribed the audio, on all three
+            platforms. When the request names an explicit `model`, that value is
+            echoed back unvalidated. When the request sends `engine` (or only
+            `mode_id`) and no `model`, the response reports the model the engine
+            resolved to rather than an empty string, so a caller driving the API
             by `engine` can still record which model produced the text; for
-            HyperWhisper Cloud that is the model behind the mode's accuracy
-            tier (for example `scribe_v2`), because the tier is what the
-            service dispatches on. macOS and Linux still return an empty string
-            in that case — treat a non-empty value as authoritative and an
-            empty one as "unreported", not as "no model".
+            HyperWhisper Cloud that is the model behind the mode's accuracy tier
+            (for example `scribe_v2`), because the tier is what the service
+            dispatches on. It is still empty for the handful of providers that
+            take no model parameter at all — read an empty value as "this engine
+            has no model id", not as "unreported".
         language: { type: string, nullable: true }
         timings:
           type: object

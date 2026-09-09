@@ -13,5 +13,9 @@
     <!-- SharedCoreBridge.NormalizeVocabularyTerms; a transitive reference would
          resolve, but this project now depends on the bridge directly. -->
     <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
+    <!-- ModeAwareTranscriptionRouter.DispatchedCloudModelId: the `model` a
+         /transcribe response reports has to be the model the send path really
+         dispatches, so it is read from the send path itself (issue #533). -->
+    <ProjectReference Include="..\HyperWhisper.TranscriptionRouting\HyperWhisper.TranscriptionRouting.csproj" />
   </ItemGroup>
 </Project>

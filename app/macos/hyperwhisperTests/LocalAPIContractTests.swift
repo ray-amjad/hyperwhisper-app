@@ -317,4 +317,129 @@ struct LocalAPIContractTests {
         )
         #expect(processed.hasPrefix("um "), "a German transcript lost a real German word")
     }
+
+    // MARK: - The reported cloud model
+
+    /// `model` must name the model that ACTUALLY ran (issue #533).
+    ///
+    /// The cloud arm of `modelLabel(forMode:)` used to be a bare
+    /// `mode.cloudTranscriptionModel ?? ""`. For HyperWhisper Cloud that field
+    /// is legitimately unset — the provider dispatches on the accuracy tier,
+    /// and `CloudTranscriptionModels.defaultModel(for: .hyperwhisper)` is
+    /// literally `""` — so a run that really did transcribe with Scribe v2
+    /// answered `model: ""`.
+    ///
+    /// Each case is asserted against `HyperWhisperCloudProvider.resolvedSTTModelId`,
+    /// which is the SEND path's own resolver, not against a hand-copied model
+    /// id. That is the property being fixed: the label is the dispatched model
+    /// by construction, so a catalog change moves both at once.
+    @MainActor
+    @Test func transcribeReportsTheDispatchedHyperWhisperCloudModel() {
+        let persistence = PersistenceController(inMemory: true)
+
+        func label(tier: String?, storedModel: String?) -> String {
+            let mode = Mode(context: persistence.container.viewContext)
+            mode.model = "cloud"
+            mode.cloudProvider = CloudProvider.hyperwhisper.rawValue
+            mode.cloudAccuracyTier = tier
+            mode.cloudTranscriptionModel = storedModel
+            return TranscribeEndpoint.modelLabel(forMode: mode)
+        }
+        func dispatched(tier: String?, storedModel: String?) -> String {
+            HyperWhisperCloudProvider.resolvedSTTModelId(
+                tier: CloudAccuracyTier.fromStorageValue(tier), storedModelId: storedModel)
+        }
+
+        // The reported bug: a mode on the seeded tier with no model of its own.
+        let seeded = label(tier: "elevenLabsScribeV2", storedModel: nil)
+        #expect(!seeded.isEmpty, "/transcribe still reports an empty model for HyperWhisper Cloud")
+        #expect(seeded == dispatched(tier: "elevenLabsScribeV2", storedModel: nil))
+
+        // A nil tier is the transient-mode state, and resolves to the same
+        // default `fromStorageValue` gives the send path.
+        #expect(label(tier: nil, storedModel: nil) == dispatched(tier: nil, storedModel: nil))
+        #expect(!label(tier: nil, storedModel: nil).isEmpty)
+
+        // A legacy accuracy-tier spelling still resolves. An exact-id lookup
+        // would answer "" here; `fromStorageValue` migrates it via the catalog.
+        #expect(label(tier: "highest", storedModel: nil) == seeded)
+
+        // Ids the tier cannot serve heal to the tier default in both places: a
+        // live-only id is an HTTP 400 if forwarded, and `whisper-1` is the Core
+        // Data default left behind by the shared BYOK field.
+        for stale in ["gemini-3.5-transcribe-live", "whisper-1", ""] {
+            #expect(label(tier: "elevenLabsScribeV2", storedModel: stale) == seeded,
+                    "a stored model of '\(stale)' was reported instead of the dispatched one")
+        }
+
+        // A model that really is in the tier survives.
+        #expect(label(tier: "elevenLabsScribeV2", storedModel: seeded) == seeded)
+    }
+
+    /// A BYOK provider sends `cloudTranscriptionModel` verbatim, so the label is
+    /// that field — except when it is unset, where the provider's own default is
+    /// what runs and `""` was equally wrong.
+    @MainActor
+    @Test func transcribeReportsTheProviderDefaultForBYOK() {
+        let persistence = PersistenceController(inMemory: true)
+
+        func label(provider: String?, storedModel: String?) -> String {
+            let mode = Mode(context: persistence.container.viewContext)
+            mode.model = "cloud"
+            mode.cloudProvider = provider
+            mode.cloudTranscriptionModel = storedModel
+            return TranscribeEndpoint.modelLabel(forMode: mode)
+        }
+
+        let openAIDefault = CloudTranscriptionModels.defaultModel(for: .openai)
+        #expect(label(provider: CloudProvider.openai.rawValue, storedModel: nil) == openAIDefault)
+        #expect(label(provider: CloudProvider.openai.rawValue, storedModel: "gpt-4o-transcribe")
+                == "gpt-4o-transcribe")
+
+        // An unrecognised provider string can reach the column through a Local
+        // API mode write or a backup restore. There is no send path to consult,
+        // so the stored id stands rather than being forced onto another
+        // vendor's default.
+        #expect(label(provider: "not-a-provider", storedModel: "some-model") == "some-model")
+        #expect(label(provider: "not-a-provider", storedModel: nil).isEmpty)
+
+        // Azure MAI is the exception among the BYOK-NAMED providers: it routes
+        // through our proxy and validates the id against its tier first, so a
+        // stale value in the shared column RUNS as `mai-transcribe-2` and must
+        // be reported that way rather than echoed back.
+        let azure = CloudProvider.microsoftAzureSpeech.rawValue
+        #expect(label(provider: azure, storedModel: "whisper-1")
+                == AzureMAIProvider.routedModelId(storedModelId: "whisper-1"))
+        #expect(label(provider: azure, storedModel: "whisper-1") != "whisper-1")
+        #expect(label(provider: azure, storedModel: "mai-transcribe-1.5") == "mai-transcribe-1.5")
+        #expect(!label(provider: azure, storedModel: nil).isEmpty)
+    }
+
+    /// `applyEngineModel`'s inferred-tier arm used to overwrite
+    /// `cloudTranscriptionModel` with the tier default unconditionally, which
+    /// dropped a sub-model the caller had pinned inside the SAME tier. Azure MAI
+    /// has two models at different rates, so `engine: "microsoftazurespeech"`
+    /// and `engine: "cloud"` gave opposite outcomes for one Mode — a different
+    /// model ran, and a different price (issue #533, mirroring #528).
+    @MainActor
+    @Test func assertingAnEngineKeepsASubModelPinnedInTheSameTier() {
+        let persistence = PersistenceController(inMemory: true)
+        let mode = Mode(context: persistence.container.viewContext)
+        mode.model = "cloud"
+        mode.cloudProvider = CloudProvider.hyperwhisper.rawValue
+        mode.cloudAccuracyTier = "azureMaiTranscribe"
+        mode.cloudTranscriptionModel = "mai-transcribe-1.5"
+
+        TranscribeEndpoint.applyEngineModel(to: mode, engine: "microsoftazurespeech", model: nil)
+
+        #expect(mode.cloudAccuracyTier == "azureMaiTranscribe")
+        #expect(mode.cloudTranscriptionModel == "mai-transcribe-1.5",
+                "re-asserting the engine dropped a sub-model pinned in the same tier")
+        #expect(TranscribeEndpoint.modelLabel(forMode: mode) == "mai-transcribe-1.5")
+
+        // An explicit model still wins outright.
+        TranscribeEndpoint.applyEngineModel(
+            to: mode, engine: "microsoftazurespeech", model: "mai-transcribe-2")
+        #expect(mode.cloudTranscriptionModel == "mai-transcribe-2")
+    }
 }

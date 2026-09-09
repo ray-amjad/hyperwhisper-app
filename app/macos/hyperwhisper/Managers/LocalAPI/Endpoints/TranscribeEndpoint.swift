@@ -1026,9 +1026,23 @@ enum TranscribeEndpoint {
             mode.cloudProvider = cloudType.rawValue
             if let inferredTier = providerNormalization.accuracyTier {
                 mode.cloudAccuracyTier = inferredTier
-                mode.cloudTranscriptionModel = model?.isEmpty == false
-                    ? model
-                    : CloudSTTCatalog.shared.defaultModelId(forEntryId: inferredTier)
+                if let m = model, !m.isEmpty {
+                    mode.cloudTranscriptionModel = m
+                }
+                // Otherwise leave the field alone. This used to overwrite it
+                // with the tier default unconditionally, which silently dropped
+                // a sub-model the caller had pinned inside the SAME tier — the
+                // Azure MAI entry has two models at different rates, so
+                // `engine: "microsoftazurespeech"` and `engine: "cloud"` gave
+                // opposite outcomes for one Mode, changing what ran and what it
+                // cost. Nothing stale can leak through: `modelLabel(forMode:)`
+                // and the send path both run the surviving id through
+                // `resolvedSTTModelId`, which validates it against the NEW tier
+                // and falls back to that tier's default when it does not belong.
+                // This arm is only ever reached for HyperWhisper Cloud —
+                // `normalizeCloudProvider` returns a tier only for a legacy
+                // standalone alias that is now one of its accuracy tiers, and
+                // then reports `provider: "hyperwhisper"` (issues #500, #533).
                 return
             }
             if let m = model, !m.isEmpty {
@@ -1046,10 +1060,19 @@ enum TranscribeEndpoint {
                 // transient leaking the Core Data default ("whisper-1") to every
                 // non-OpenAI engine, and the mixed mode_id+engine form clobbering
                 // a saved HyperWhisper Cloud model with "".
+                //
+                // The membership half uses `model(withId:provider:)`, not a raw
+                // scan of `models(for:)`, because that lookup applies
+                // `resolveModelAlias`: a legacy-but-serviceable id such as
+                // AssemblyAI `universal` or Gemini `gemini-2.0-flash` is not in
+                // the curated list, so a raw scan judged it foreign and silently
+                // upgraded it to a different-priced model — and for a BYOK
+                // provider that changes the model that RUNS, not just the label
+                // (issue #533, mirroring #528's `GetById` fix on Windows).
                 let belongsToProvider: Bool = {
                     guard let priorModel, !priorModel.isEmpty else { return false }
                     if priorProvider == cloudType.rawValue { return true }
-                    return CloudTranscriptionModels.models(for: cloudType).contains { $0.id == priorModel }
+                    return CloudTranscriptionModels.model(withId: priorModel, provider: cloudType) != nil
                 }()
                 if !belongsToProvider {
                     mode.cloudTranscriptionModel = CloudTranscriptionModels.defaultModel(for: cloudType)
@@ -1191,12 +1214,65 @@ enum TranscribeEndpoint {
         return "whisperLocal"
     }
 
+    /// The `model` a response carries: the model that ACTUALLY RAN, not the one
+    /// the request named (issue #533).
+    ///
+    /// The cloud arm used to be a bare `mode.cloudTranscriptionModel ?? ""`. For
+    /// HyperWhisper Cloud that field is legitimately unset — the provider picks
+    /// by accuracy tier, and `CloudTranscriptionModels.defaultModel(for:
+    /// .hyperwhisper)` is literally `""` because there is no client-side model
+    /// parameter — so `/transcribe` answered `model: ""` for a run that really
+    /// did dispatch Scribe v2 (or whatever the tier resolves to).
+    ///
+    /// Resolution happens HERE, at the projection, and not only in
+    /// `applyEngineModel`, because that function runs only when the request
+    /// carries an `engine`. A plain `mode_id` request never reaches it, so a fix
+    /// planted there would leave the two request forms disagreeing about the
+    /// same Mode — the opposite of the point. Windows records the same reasoning
+    /// in `TranscribeEndpoints.ModelLabel` (#528).
+    ///
+    /// HyperWhisper Cloud goes through
+    /// `HyperWhisperCloudProvider.resolvedSTTModelId` — the SAME function the
+    /// send path uses to choose the `X-STT-Model` header, reached through the
+    /// same `CloudAccuracyTier.fromStorageValue` normalisation. The label is
+    /// therefore the dispatched model by construction: a blank, foreign,
+    /// live-only, legacy-alias or out-of-tier id heals to the tier's default in
+    /// both places at once, and the two cannot drift.
+    ///
+    /// `internal` so `LocalAPIContractTests` can assert the wire label directly.
     @MainActor
-    private static func modelLabel(forMode mode: Mode) -> String {
+    static func modelLabel(forMode mode: Mode) -> String {
         let modelString = mode.model ?? ""
-        if modelString.lowercased() == "cloud" {
-            return mode.cloudTranscriptionModel ?? ""
+        guard modelString.lowercased() == "cloud" else { return modelString }
+
+        let provider = CloudProvider.parse(mode.cloudProvider)
+        if provider == .hyperwhisper {
+            return HyperWhisperCloudProvider.resolvedSTTModelId(
+                tier: CloudAccuracyTier.fromStorageValue(mode.cloudAccuracyTier),
+                storedModelId: mode.cloudTranscriptionModel
+            )
         }
-        return modelString
+        // Azure MAI is BYOK-NAMED but routed: `TranscriptionProviderRouter`
+        // sends `.microsoftAzureSpeech` to `AzureMAIProvider`, which terminates
+        // at our own proxy and validates the stored id against its tier before
+        // putting it in `X-STT-Model`. Reading the same function it uses keeps
+        // the label honest for the one case where a BYOK-looking provider does
+        // NOT forward the field verbatim — a stale `whisper-1` in the shared
+        // column runs as `mai-transcribe-2` and used to be reported as
+        // `whisper-1`. `nil` means "no header, backend default", which is the
+        // same "no client-side model id" the empty string reports elsewhere.
+        if provider == .microsoftAzureSpeech {
+            return AzureMAIProvider.routedModelId(storedModelId: mode.cloudTranscriptionModel) ?? ""
+        }
+        // Every other BYOK provider sends this field verbatim, so it is already the model
+        // that runs — except when it is unset, where the provider applies its
+        // own default. An unrecognised `cloudProvider` string (any value can
+        // reach the field through a Local API mode write or a backup restore)
+        // has no default to offer, so the stored id stands rather than being
+        // forced onto some other vendor's model.
+        let stored = mode.cloudTranscriptionModel ?? ""
+        if !stored.isEmpty { return stored }
+        guard let provider else { return "" }
+        return CloudTranscriptionModels.defaultModel(for: provider)
     }
 }
