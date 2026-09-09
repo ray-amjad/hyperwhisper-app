@@ -186,11 +186,11 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         CancellationToken cancellationToken)
     {
         var ordered = all.OrderBy(item => item.SortOrder).ToList();
-        var before = ordered.ToDictionary(item => item.Id, item => item.IsDefault);
-        if (!DefaultModePolicy.Apply(ordered, preferred)) return;
+        var moved = DefaultModePolicy.ApplyAndReport(ordered, preferred);
+        if (moved.Count == 0) return;
         foreach (var row in ordered)
         {
-            if (row.Id == skipUpsert || before[row.Id] == row.IsDefault) continue;
+            if (row.Id == skipUpsert || !moved.Contains(row.Id)) continue;
             row.ModifiedDate = DateTime.UtcNow;
             await _modes.UpsertAsync(row, cancellationToken).ConfigureAwait(false);
         }

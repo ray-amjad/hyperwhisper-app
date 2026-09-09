@@ -780,6 +780,21 @@ static async Task DefaultModeInvariant()
     Assert(await HasFailureEnvelope(await fixture.Client.PatchAsync($"/modes/{mine.Id:D}", demote)),
         "the last default flag was cleared, leaving the app with no default mode");
 
+    // 5b. Clearing the flag on a mode that does NOT hold it is a no-op, not a
+    // promotion. Nothing here is refused — `theDefault` still carries the flag,
+    // so the guard has no reason to object — which makes this the combination a
+    // repair pass can silently get backwards: name the patched mode as the
+    // shared plan's `preferred` and it takes the flag it just asked to give up,
+    // moving the default off the mode that really holds it.
+    using var demoteAnOrdinaryMode = new StringContent("{\"isDefault\":false}", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PatchAsync($"/modes/{theDefault.Id:D}", demoteAnOrdinaryMode)).StatusCode == HttpStatusCode.OK,
+        "clearing isDefault on a mode that is not the default was refused");
+    var afterNoOp = await modes.ListAsync();
+    Assert(afterNoOp.Count(item => item.IsDefault) == 1,
+        "clearing isDefault on an ordinary mode did not leave exactly one default");
+    Assert(afterNoOp.Single(item => item.IsDefault).Id == mine.Id,
+        "clearing isDefault on an ordinary mode moved the default onto it");
+
     // 6. Deleting the default moves the flag instead of leaving none.
     Assert((await fixture.Client.DeleteAsync($"/modes/{mine.Id:D}")).StatusCode == HttpStatusCode.OK,
         "deleting the default mode failed");

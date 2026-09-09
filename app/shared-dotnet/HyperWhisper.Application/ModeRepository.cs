@@ -50,10 +50,9 @@ public sealed class ModeRepository(ApplicationDb database)
         // mode it moves to is the shared core's decision (issue #536), so a
         // backup restored on Linux, Windows and macOS promotes the same one.
         var remaining = modes.Where(item => item.Id != id).ToList();
-        var before = remaining.ToDictionary(item => item.Id, item => item.IsDefault);
-        if (DefaultModePolicy.Apply(remaining))
-            foreach (var row in remaining.Where(row => before[row.Id] != row.IsDefault))
-                row.ModifiedDate = DateTime.UtcNow;
+        var moved = DefaultModePolicy.ApplyAndReport(remaining);
+        foreach (var row in remaining.Where(row => moved.Contains(row.Id)))
+            row.ModifiedDate = DateTime.UtcNow;
         await context.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -70,7 +69,7 @@ public sealed class ModeRepository(ApplicationDb database)
         var existing = all.SingleOrDefault(item => item.Id == mode.Id);
         // Both checks read the row as it stands BEFORE the write (issue #536).
         if (existing is not null
-            && SharedCoreBridge.CheckModeNameChange(existing.IsDefault, existing.Name, mode.Name)
+            && DefaultModePolicy.CheckRename(existing, mode.Name)
                 == PortableModeNameChange.RejectedDefaultIsFixed)
             throw new InvalidOperationException("The default mode's name cannot be changed.");
         if (DefaultModePolicy.CheckDefaultFlag(all, mode.Id, mode.IsDefault)

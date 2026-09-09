@@ -134,7 +134,23 @@ public class ModeService
         {
             all.Add(pending);
         }
-        return DefaultModePolicy.Apply(all, preferred);
+        var changed = DefaultModePolicy.Apply(all, preferred);
+
+        // When the row already existed, the plan wrote the flag onto the TRACKED
+        // entity, not onto the caller's detached copy — and that copy is what
+        // `ModeChanged` publishes. Mirror the settled value back, or a subscriber
+        // binding to the payload shows a default flag the database disagrees
+        // with until the next full reload. `KeepDefaultModeName` does the same
+        // for the name.
+        if (changed && pending != null)
+        {
+            var settled = all.FirstOrDefault(m => m.Id == pending.Id);
+            if (settled != null && !ReferenceEquals(settled, pending))
+            {
+                pending.IsDefault = settled.IsDefault;
+            }
+        }
+        return changed;
     }
 
     /// <summary>

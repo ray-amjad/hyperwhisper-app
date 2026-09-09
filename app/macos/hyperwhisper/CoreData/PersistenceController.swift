@@ -2261,6 +2261,7 @@ class PersistenceController: ObservableObject {
         cloudTranscriptionDomain: String? = nil,
         foreignPlatformExtensions: String? = nil,
         persist: Bool = true,
+        restoringFromBackup: Bool = false,
         in suppliedContext: NSManagedObjectContext? = nil
     ) -> Mode {
         let context = suppliedContext ?? container.viewContext
@@ -2295,7 +2296,17 @@ class PersistenceController: ObservableObject {
         // onboarding rollback take, and neither should be abandoned over a field
         // its caller did not mean to change. `ModesEndpoint` checks first so the
         // API can say no out loud.
-        if let existing = mode, !DefaultModePolicy.canRename(existing, to: name) {
+        //
+        // A restore is exempt. It is not a rename: it replays a whole store, and
+        // which row carries the flag afterwards is decided by the backup, not by
+        // whichever row happens to hold it right now. Holding the lock here
+        // would keep the LOCAL name on a row the backup renamed — and Windows
+        // and Linux (`ApplicationBackupSelection.ApplyModes`, which does a plain
+        // `SetValues`) restore the backup's name — so the same file would land
+        // with different mode names per platform, which is the divergence this
+        // issue exists to remove. `importModes` settles the flag straight after,
+        // and `enforceDefaultModeInvariant()` backstops the whole set.
+        if let existing = mode, !restoringFromBackup, !DefaultModePolicy.canRename(existing, to: name) {
             AppLogger.coreData.warning(
                 "createOrUpdateMode: refused to rename the default mode · its name is fixed"
             )
@@ -2796,7 +2807,8 @@ class PersistenceController: ObservableObject {
                 geminiCustomPrompt: backupMode.geminiCustomPrompt,
                 cloudPostProcessingModel: backupMode.cloudPostProcessingModel,
                 cloudTranscriptionDomain: backupMode.cloudTranscriptionDomain,
-                foreignPlatformExtensions: backupMode.foreignPlatformExtensions
+                foreignPlatformExtensions: backupMode.foreignPlatformExtensions,
+                restoringFromBackup: true
             )
 
             // Update isDefault flag if this mode should be default

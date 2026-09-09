@@ -43,23 +43,47 @@ public static class DefaultModePolicy
     /// the invariant, so the caller can skip its save and the change
     /// notification behind it.
     /// </returns>
-    public static bool Apply(IReadOnlyList<Mode> modes, Guid? preferred = null)
+    public static bool Apply(IReadOnlyList<Mode> modes, Guid? preferred = null) =>
+        ApplyAndReport(modes, preferred).Count != 0;
+
+    /// <summary>
+    /// As <see cref="Apply"/>, but returns the ids of the rows whose
+    /// <see cref="Mode.IsDefault"/> this call actually wrote — empty when the
+    /// set already satisfied the invariant.
+    /// </summary>
+    /// <remarks>
+    /// For callers that must do something else to exactly those rows, such as
+    /// bumping <c>ModifiedDate</c> or upserting them. The plan already knows
+    /// which they are, so reading it here is better than snapshotting every
+    /// row's flag and diffing it afterwards — two callers that each did their
+    /// own diff could drift from each other, and from this.
+    /// </remarks>
+    public static IReadOnlyList<Guid> ApplyAndReport(IReadOnlyList<Mode> modes, Guid? preferred = null)
     {
         ArgumentNullException.ThrowIfNull(modes);
         var plan = SharedCoreBridge.PlanDefaultMode(Flags(modes), preferred);
-        if (!plan.Changed) return false;
+        if (!plan.Changed) return [];
 
+        var touched = new List<Guid>(plan.ClearIds.Count + 1);
         foreach (var id in plan.ClearIds)
         {
             var row = modes.FirstOrDefault(mode => mode.Id == id);
-            if (row != null) row.IsDefault = false;
+            if (row is null) continue;
+            row.IsDefault = false;
+            touched.Add(row.Id);
         }
         if (plan.DefaultId is { } winner)
         {
             var row = modes.FirstOrDefault(mode => mode.Id == winner);
-            if (row != null) row.IsDefault = true;
+            // The winner may already carry the flag — the plan is `Changed`
+            // whenever ANY row moves — so only report a row this call wrote.
+            if (row is { IsDefault: false })
+            {
+                row.IsDefault = true;
+                touched.Add(row.Id);
+            }
         }
-        return true;
+        return touched;
     }
 
     /// <summary>
