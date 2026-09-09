@@ -190,8 +190,25 @@ enum SentryService {
                 #"^(?!https?://(127\.0\.0\.1|localhost|\[?::1\]?)(:|/|$)).*"#
             ]
 
+            // SHUTDOWN FLUSH
+            // shutdownTimeInterval is only read by SentrySDK.close(), and the
+            // only thing that closes this SDK is the user opting out. Waiting
+            // two seconds on the main thread to upload more of what they just
+            // refused is the wrong trade in both directions, so don't wait.
+            options.shutdownTimeInterval = 0
+
             // Scrub potentially sensitive data from error events
             options.beforeSend = { event in
+                // LAST GATE BEFORE THE NETWORK
+                // The user can turn error logging off at any moment, including
+                // while an event the SDK built for itself is already in flight —
+                // a failed request, an app hang, a crash report recovered from
+                // the last session. None of those pass through capture() below,
+                // and shutdown() cannot reach one that is mid-air. beforeSend
+                // runs on the way out of every event, so it is the last place to
+                // drop it. Issue #551.
+                guard AppLogger.isErrorLoggingEnabled else { return nil }
+
                 // Remove breadcrumbs to avoid leaking text content via logs
                 // Note: We still collect breadcrumbs locally for debugging flow,
                 // but strip them before sending to Sentry for privacy
@@ -260,6 +277,15 @@ enum SentryService {
     ///
     /// Safe to call when Sentry was never started; it then just clears any queue
     /// an earlier session left behind.
+    ///
+    /// What this cannot stop: `close()` uninstalls the release-health
+    /// integration by *ending* the session, and ending a session enqueues one
+    /// last session envelope, which the close may then upload. sentry-cocoa has
+    /// no hook to suppress it — `beforeSend` sees events, not sessions, and
+    /// there is no `beforeSendEnvelope` in 8.x. That envelope carries no error,
+    /// no audio and no text: session id, install id, start time, duration and
+    /// the status `exited`. It is the one thing that can still leave after the
+    /// tick, and it is the shutdown itself, not a diagnostic.
     static func shutdown() {
         #if canImport(Sentry)
         // Before the close, because the close flushes (see 2 above).

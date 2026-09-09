@@ -11,14 +11,23 @@
 //  `SentryService.isSDKRunning`) and on the queue it keeps on disk, rather than
 //  on a flag of ours, so a change that only flipped a boolean would fail here.
 //
-//  Serialized, and the whole suite is: every test drives one process-wide SDK
-//  and one directory on disk.
+//  Serialized and @MainActor, and the whole suite is: every test drives one
+//  process-wide SDK and one directory on disk, and sentry-cocoa only installs
+//  its hub synchronously when start() is called from the main thread (off the
+//  main thread it dispatches the install async, so `isSDKRunning` would read
+//  false right after `initialize`).
+//
+//  Note for anyone running these on their own Mac: the test host shares the
+//  installed app's bundle identifier, so the purge clears
+//  ~/Library/Caches/<bundle id>/Sentry for the copy of HyperWhisper you have
+//  installed too. That is only Sentry's own queue, and only for this app.
 //
 
 import Foundation
 import Testing
 @testable import HyperWhisper
 
+@MainActor
 @Suite("Error logging toggle", .serialized)
 struct ErrorLoggingToggleTests {
 
@@ -62,6 +71,24 @@ struct ErrorLoggingToggleTests {
 
             #expect(SentryService.isSDKRunning == false)
             #expect(SentryService.isReportingEnabled == false)
+        }
+    }
+
+    /// The regression test proper: drive the Settings toggle itself rather than
+    /// `SentryService`, so that deleting the `didSet` disable arm — the whole of
+    /// issue #551 — fails here rather than passing on the service API alone.
+    @Test func theSettingsToggleItselfStopsTheSDK() {
+        withCleanSentry {
+            let settings = GeneralSettingsManager()
+            #expect(settings.enableErrorLogging)
+            SentryService.initialize(dsn: Self.localDSN, environment: "test")
+            #expect(SentryService.isSDKRunning)
+
+            settings.enableErrorLogging = false
+
+            #expect(SentryService.isSDKRunning == false)
+            #expect(SentryService.isReportingEnabled == false)
+            #expect(Self.waitForCacheDirectory(toExist: false))
         }
     }
 
@@ -195,15 +222,16 @@ struct ErrorLoggingToggleTests {
     /// Poll for the cache directory to appear or disappear. The SDK writes it
     /// from a background queue, so both directions need a small window rather
     /// than one instant read.
+    @MainActor
     private static func waitForCacheDirectory(
         toExist shouldExist: Bool,
-        timeout: TimeInterval = 5
+        timeout: TimeInterval = 3
     ) -> Bool {
         guard let path = cacheDirectoryPath else { return !shouldExist }
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
             if FileManager.default.fileExists(atPath: path) == shouldExist { return true }
-            Thread.sleep(forTimeInterval: 0.05)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         } while Date() < deadline
         return FileManager.default.fileExists(atPath: path) == shouldExist
     }
