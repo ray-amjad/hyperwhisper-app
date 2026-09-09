@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Libreria modelli</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>I modelli speech-to-text Universal-2 e Universal-3 Pro di AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>La trascrizione Voxtral di Mistral e i modelli Mistral per il miglioramento del testo</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>I modelli Gemini di Google per la trascrizione e il miglioramento del testo</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Cartella Registrazioni</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Mostra nel Finder</value>
+    <value>Mostra in Esplora file</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Scegli...</value>
@@ -956,7 +956,7 @@ Questa azione non può essere annullata.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - alta precisione, vocabolario personalizzato come termini chiave</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Questa azione non può essere annullata.</value>
     <value>Rimuovi il punto finale</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Istruzioni permanenti</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Aggiungi istruzioni che si applicano sempre oltre al preset selezionato.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Microfono</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Per poter sentire la tua voce.</value>
+    <value>Necessario. L'audio viene acquisito solo mentre una registrazione è attiva.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Concedi</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Solo inglese. Il più veloce su questo PC.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingue · 25 lingue</value>
+    <value>Multilingue. Stessa velocità, download più grande.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Multilingue · ingombro minimo</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Apri le impostazioni privacy</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Tutto pronto, iniziamo la tua prima registrazione</value>
+    <value>Fai una registrazione.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Premi la scorciatoia, pronuncia la frase, premila di nuovo.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>La clip di esempio manca in questa build.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Hai finito!</value>
+    <value>Ora puoi dettare.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Premi la scorciatoia in qualsiasi app e inizia a parlare.</value>

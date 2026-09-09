@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Bibliotecă de modele</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Modelele de transcriere vocală Universal-2 și Universal-3 Pro de la AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Transcrierea Voxtral de la Mistral și modelele Mistral pentru îmbunătățirea textului</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Modelele Gemini de la Google pentru transcriere și îmbunătățirea textului</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Folder înregistrări</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Afișați în Finder</value>
+    <value>Afișați în Explorer</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Alegeți...</value>
@@ -956,7 +956,7 @@ Această acțiune nu poate fi anulată.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - precizie ridicată, vocabular personalizat ca termeni-cheie</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Această acțiune nu poate fi anulată.</value>
     <value>Eliminați punctul final</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Instrucțiuni permanente</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Adăugați instrucțiuni care se aplică întotdeauna peste presetarea selectată.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Microfon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Ca să-ți putem auzi vocea.</value>
+    <value>Necesar. Sunetul este captat doar cât timp o înregistrare este activă.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Acordă</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Doar engleză. Cel mai rapid pe acest PC.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilingv · 25 de limbi</value>
+    <value>Multilingv. Aceeași viteză, descărcare mai mare.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Multilingv · dimensiune minimă</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Deschide setările de confidențialitate</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Gata, să porniți prima înregistrare</value>
+    <value>Faceți o înregistrare.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Apasă scurtătura, spune propoziția, apasă-o din nou.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Clipul demonstrativ lipsește din această versiune.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Gata!</value>
+    <value>Sunteți gata să dictați.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Apasă scurtătura în orice aplicație și începe să vorbești.</value>

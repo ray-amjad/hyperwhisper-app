@@ -35,6 +35,15 @@ try
     var status = ReadTranslationStatus(Path.Combine(directory, "translation-status.json"), baseCatalog);
     var untranslatedCounts = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
+    // Issue #574. The ceiling above only sees a value that IS the English one.
+    // The neighbouring defect is a value that is present, not English, and wrong
+    // — and the way it happens in bulk is that a base value is rewritten and the
+    // 39 catalogs keep a translation of the superseded English. Nothing about
+    // one such value looks wrong on its own, but the AGREEMENT does: twenty
+    // independent translators do not produce the same string by accident, so a
+    // value shared by more locales than the threshold is leftover English.
+    var localesSharingValue = new Dictionary<(string Key, string Value), List<string>>();
+
     foreach (var path in paths)
     {
         var catalog = ReadCatalog(path);
@@ -61,12 +70,33 @@ try
 
         if (!string.Equals(path, basePath, StringComparison.Ordinal))
         {
-            untranslatedCounts[LocaleOf(path)] = baseCatalog.Count(
+            var locale = LocaleOf(path);
+            untranslatedCounts[locale] = baseCatalog.Count(
                 pair => IsUntranslated(pair.Key, pair.Value, catalog[pair.Key], status.IdenticalByDesign));
+
+            foreach (var (key, english) in baseCatalog)
+            {
+                var localized = catalog[key];
+                // A value that IS the English one is the ceiling gate's business,
+                // and a value with no letters is the same string everywhere.
+                if (!HasLetters(localized) || string.Equals(localized, english, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!localesSharingValue.TryGetValue((key, localized), out var sharers))
+                {
+                    sharers = [];
+                    localesSharingValue[(key, localized)] = sharers;
+                }
+
+                sharers.Add(locale);
+            }
         }
     }
 
     CheckCeilings(untranslatedCounts, status.Ceilings);
+    CheckSharedValues(localesSharingValue, status.SharedValueCeiling, baseCatalog);
 
     var translatable = baseCatalog.Count(
         pair => !status.IdenticalByDesign.Contains(pair.Key) && HasLetters(pair.Value));
@@ -119,7 +149,8 @@ static bool IsUntranslated(string key, string english, string localized, IReadOn
     && HasLetters(english)
     && string.Equals(localized, english, StringComparison.Ordinal);
 
-static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int> Ceilings) ReadTranslationStatus(
+static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int> Ceilings, int SharedValueCeiling)
+    ReadTranslationStatus(
     string path,
     Dictionary<string, string> baseCatalog)
 {
@@ -186,7 +217,42 @@ static (IReadOnlySet<string> IdenticalByDesign, IReadOnlyDictionary<string, int>
         ceilings[property.Name] = ceiling;
     }
 
-    return (byDesign, ceilings);
+    if (!root.TryGetProperty("sharedValueCeiling", out var sharedElement)
+        || sharedElement.ValueKind != JsonValueKind.Number
+        || !sharedElement.TryGetInt32(out var sharedValueCeiling)
+        || sharedValueCeiling < 1)
+    {
+        throw new InvalidDataException(
+            $"{Path.GetFileName(path)} needs a positive integer 'sharedValueCeiling' (issue #574).");
+    }
+
+    return (byDesign, ceilings, sharedValueCeiling);
+}
+
+// Issue #574. See the note at the call site: agreement between many locales on a
+// value that is not the English one is the signature of stale English, not of
+// translation. The threshold has real headroom — the largest honest coincidence
+// in the catalogs is "Mikrofon", which 13 languages share.
+static void CheckSharedValues(
+    IReadOnlyDictionary<(string Key, string Value), List<string>> localesSharingValue,
+    int ceiling,
+    IReadOnlyDictionary<string, string> baseCatalog)
+{
+    var over = localesSharingValue
+        .Where(pair => pair.Value.Count > ceiling)
+        .OrderByDescending(pair => pair.Value.Count)
+        .ThenBy(pair => pair.Key.Key, StringComparer.Ordinal)
+        .Select(pair =>
+            $"'{pair.Key.Key}' is \"{pair.Key.Value}\" in {pair.Value.Count} locales " +
+            $"while Strings.resx says \"{baseCatalog[pair.Key.Key]}\"")
+        .ToArray();
+    if (over.Length != 0)
+    {
+        throw new InvalidDataException(
+            $"{over.Length} value(s) are shared by more than {ceiling} locales: {string.Join("; ", over)}. " +
+            "That is what a rewritten base value looks like: the English changed and the catalogs kept a " +
+            "translation of the old text. Retranslate them, do not raise the ceiling (issue #574).");
+    }
 }
 
 static void CheckCeilings(

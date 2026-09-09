@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Бібліотека моделей</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Моделі розпізнавання мовлення Universal-2 та Universal-3 Pro від AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Транскрипція Voxtral від Mistral і моделі Mistral для покращення тексту</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Моделі Gemini від Google для транскрипції та покращення тексту</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Папка записів</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Показати в Finder</value>
+    <value>Показати в Провіднику</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Вибрати...</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - висока точність, власний словник як ключові терміни</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>Видалити кінцеву крапку</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Постійні інструкції</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Додайте інструкції, які завжди застосовуються поверх вибраного передналаштування.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2278,7 +2278,7 @@ You can re-download it later.</value>
     <value>Мікрофон</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Щоб ми могли чути ваш голос.</value>
+    <value>Обов'язково. Звук записується лише під час запису.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Надати</value>
@@ -2410,7 +2410,7 @@ You can re-download it later.</value>
     <value>Тільки англійська. Найшвидший на цьому ПК.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Багатомовна · 25 мов</value>
+    <value>Багатомовна. Та сама швидкість, більший обсяг завантаження.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Багатомовна · мінімальний розмір</value>
@@ -2578,7 +2578,7 @@ You can re-download it later.</value>
     <value>Відкрити параметри конфіденційності</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Усе готово, почніть свій перший запис</value>
+    <value>Зробіть один запис.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Натисніть комбінацію клавіш, скажіть фразу, натисніть ще раз.</value>
@@ -2641,7 +2641,7 @@ You can re-download it later.</value>
     <value>У цій збірці немає зразка запису.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Все готово!</value>
+    <value>Тепер ви можете диктувати.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Натисніть комбінацію клавіш у будь-якому застосунку і почніть говорити.</value>

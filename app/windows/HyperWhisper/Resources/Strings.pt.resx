@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Biblioteca de modelos</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Modelos de voz para texto Universal-2 e Universal-3 Pro da AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>A transcrição Voxtral da Mistral e os modelos Mistral para melhoria de texto</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Os modelos Gemini da Google para transcrição e melhoria de texto</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Pasta de Gravações</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Mostrar no Finder</value>
+    <value>Mostrar no Explorador de Arquivos</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Escolher...</value>
@@ -956,7 +956,7 @@ Esta ação não pode ser desfeita.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - alta precisão, vocabulário personalizado como termos-chave</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Esta ação não pode ser desfeita.</value>
     <value>Remover ponto final</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Instruções permanentes</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Adicione instruções que se aplicam sempre além da predefinição selecionada.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Microfone</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Para podermos ouvir a sua voz.</value>
+    <value>Obrigatório. O áudio só é capturado enquanto há uma gravação ativa.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Conceder</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Apenas inglês. O mais rápido neste PC.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Multilíngue · 25 idiomas</value>
+    <value>Multilíngue. Mesma velocidade, download maior.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Multilíngue · extremamente leve</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Abrir definições de privacidade</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Tudo certo, vamos começar sua primeira gravação</value>
+    <value>Faça uma gravação.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Prima o atalho, diga a frase, prima novamente.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>O clipe de exemplo falta nesta versão.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Pronto!</value>
+    <value>Você já pode ditar.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Prima o atalho em qualquer aplicação e comece a falar.</value>

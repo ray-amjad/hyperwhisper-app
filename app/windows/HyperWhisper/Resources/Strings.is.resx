@@ -156,7 +156,7 @@
     <value>Mistókst</value>
   </data>
   <data name="history.context.retry" xml:space="preserve">
-    <value>Reyna afritun aftur</value>
+    <value>Reyna umritun aftur</value>
   </data>
   <data name="history.toggle.showProcessed" xml:space="preserve">
     <value>Sýna unnið</value>
@@ -285,7 +285,7 @@
     <value>Engin orðaforðaorð ennþá</value>
   </data>
   <data name="vocabulary.empty.subtitle" xml:space="preserve">
-    <value>Bættu við sérsniðnum orðum til að bæta nákvæmni afritunar</value>
+    <value>Bættu við sérsniðnum orðum til að bæta nákvæmni umritunar</value>
   </data>
   <data name="vocabulary.limit.title" xml:space="preserve">
     <value>Leitarorðamörk náð</value>
@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Líkanasafn</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -539,7 +539,7 @@
     <value>Hjálp með API lykla</value>
   </data>
   <data name="settings.api.transcription.title" xml:space="preserve">
-    <value>Afritun</value>
+    <value>Umritun</value>
   </data>
   <data name="settings.api.transcription.subtitle" xml:space="preserve">
     <value>API lyklar fyrir skýjatengda tal-til-texta þjónustu.</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Universal-2 og Universal-3 Pro tal-í-texta líkön frá AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Voxtral umritun frá Mistral og Mistral líkön fyrir textabætingu</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Gemini líkön Google fyrir umritun og textabætingu</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -633,13 +633,13 @@
     <value>Fjarlægja fylliorð</value>
   </data>
   <data name="settings.output.removeFillerWords.subtitle" xml:space="preserve">
-    <value>Fjarlægir 'uh', 'um' og 'er' úr hráum afritum.</value>
+    <value>Fjarlægir 'uh', 'um' og 'er' úr hráum umritunum.</value>
   </data>
   <data name="settings.output.paste.title" xml:space="preserve">
     <value>Líma niðurstöðu sjálfkrafa</value>
   </data>
   <data name="settings.output.paste.subtitle" xml:space="preserve">
-    <value>Límdu sjálfkrafa afritaðan texta í virka forritið</value>
+    <value>Límdu sjálfkrafa umritaðan texta í virka forritið</value>
   </data>
   <data name="settings.output.restoreClipboard.title" xml:space="preserve">
     <value>Endurheimta klippispjald eftir límingu</value>
@@ -667,7 +667,7 @@
     <value>Upptökumappa</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Sýna í Finder</value>
+    <value>Sýna í Explorer</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Velja...</value>
@@ -704,7 +704,7 @@
     <value>Vinnur hljóð...</value>
   </data>
   <data name="recording.state.transcribing" xml:space="preserve">
-    <value>Afritar...</value>
+    <value>Umritar...</value>
   </data>
   <data name="recording.success.pasted" xml:space="preserve">
     <value>Límt!</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - mikil nákvæmni, sérsniðinn orðaforði sem lykilhugtök</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>Fjarlægja lokapunkt</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Varanlegar leiðbeiningar</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Bættu við leiðbeiningum sem gilda alltaf ofan á valda forstillingu.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -1512,7 +1512,7 @@ You can re-download it later.</value>
     <value>Hafa API-lykla með</value>
   </data>
   <data name="settings.backup.export.subtitle" xml:space="preserve">
-    <value>Vistaðu stillingar, stillingar og orðaforða í öryggisafritaskrá.</value>
+    <value>Vistaðu stillingar, hami og orðaforða í öryggisafritaskrá sem má endurheimta síðar eða flytja á aðra vél.</value>
   </data>
   <data name="settings.backup.export.success" xml:space="preserve">
     <value>Öryggisafrit flutt út.</value>
@@ -1539,7 +1539,7 @@ You can re-download it later.</value>
     <value>Hreinsa öll gögn áður en inn er flutt. Ef ekki hakað við, verður gögnum blandað saman.</value>
   </data>
   <data name="settings.backup.import.subtitle" xml:space="preserve">
-    <value>Endurheimtu stillingar, stillingar og orðaforða úr öryggisafritaskrá.</value>
+    <value>Endurheimtu stillingar, hami og orðaforða úr áður útfluttri öryggisafritaskrá.</value>
   </data>
   <data name="settings.backup.import.success" xml:space="preserve">
     <value>Öryggisafrit flutt inn. {0}</value>
@@ -1548,7 +1548,7 @@ You can re-download it later.</value>
     <value>Flytja inn öryggisafrit</value>
   </data>
   <data name="settings.backup.notice" xml:space="preserve">
-    <value>Öryggisafrit innihalda stillingar, stillingar og orðaforða. Hljóðskrár eru ekki innifaldar.</value>
+    <value>Öryggisafrit innihalda stillingar, hami og orðaforða. Hljóðskrár eru ekki innifaldar.</value>
   </data>
   <data name="settings.nav.backup" xml:space="preserve">
     <value>Öryggisafrit</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Hljóðnemi</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Svo að við getum heyrt rödd þína.</value>
+    <value>Nauðsynlegt. Hljóð er aðeins tekið upp á meðan upptaka stendur yfir.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Veita</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Aðeins enska. Hraðast á þessari tölvu.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Fjöltyngt · 25 tungumál</value>
+    <value>Fjöltyngt. Sami hraði, stærra niðurhal.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Fjöltyngt · mjög lítil stærð</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Opna persónuverndarstillingar</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Allt til reiðu, byrjum fyrstu upptökuna þína</value>
+    <value>Taktu upp eina upptöku.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Ýttu á flýtileiðina, segðu setninguna, ýttu aftur.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Sýnishornið vantar í þessa útgáfu.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Þú ert búinn!</value>
+    <value>Nú geturðu lesið fyrir.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Ýttu á flýtileiðina í hvaða forriti sem er og byrjaðu að tala.</value>

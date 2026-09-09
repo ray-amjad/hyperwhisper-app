@@ -69,10 +69,10 @@
     <value>OK</value>
   </data>
   <data name="common.cancel" xml:space="preserve">
-    <value>Zrusit</value>
+    <value>Zrušit</value>
   </data>
   <data name="common.save" xml:space="preserve">
-    <value>Ulozit</value>
+    <value>Uložit</value>
   </data>
   <data name="common.delete" xml:space="preserve">
     <value>Smazat</value>
@@ -81,7 +81,7 @@
     <value>Upravit</value>
   </data>
   <data name="common.copy" xml:space="preserve">
-    <value>Kopirovat</value>
+    <value>Kopírovat</value>
   </data>
   <data name="common.yes" xml:space="preserve">
     <value>Ano</value>
@@ -96,7 +96,7 @@
     <value>Zkusit znovu</value>
   </data>
   <data name="common.open.settings" xml:space="preserve">
-    <value>Otevrit Nastaveni</value>
+    <value>Otevřít nastavení</value>
   </data>
 
   <!-- Sidebar Navigation -->
@@ -104,16 +104,16 @@
     <value>Domov</value>
   </data>
   <data name="sidebar.modes" xml:space="preserve">
-    <value>Rezimy</value>
+    <value>Režimy</value>
   </data>
   <data name="sidebar.vocabulary" xml:space="preserve">
-    <value>Slovnik</value>
+    <value>Slovník</value>
   </data>
   <data name="sidebar.history" xml:space="preserve">
     <value>Historie</value>
   </data>
   <data name="sidebar.settings" xml:space="preserve">
-    <value>Nastaveni</value>
+    <value>Nastavení</value>
   </data>
 
   <!-- Home Page -->
@@ -126,43 +126,43 @@
     <value>Historie</value>
   </data>
   <data name="history.filter.all" xml:space="preserve">
-    <value>Vse</value>
+    <value>Vše</value>
   </data>
   <data name="history.filter.today" xml:space="preserve">
     <value>Dnes</value>
   </data>
   <data name="history.filter.week" xml:space="preserve">
-    <value>Tento tyden</value>
+    <value>Tento týden</value>
   </data>
   <data name="history.filter.month" xml:space="preserve">
-    <value>Tento mesic</value>
+    <value>Tento měsíc</value>
   </data>
   <data name="history.empty.title" xml:space="preserve">
-    <value>Zadne nahravky nenalezeny</value>
+    <value>Žádné nahrávky nenalezeny</value>
   </data>
   <data name="history.empty.subtitle" xml:space="preserve">
-    <value>Zkuste upravit vyhledavani</value>
+    <value>Zkuste upravit vyhledávání</value>
   </data>
   <data name="history.detail.empty" xml:space="preserve">
-    <value>Vyberte nahravku pro zobrazeni podrobnosti</value>
+    <value>Vyberte nahrávku pro zobrazení podrobností</value>
   </data>
   <data name="history.section.today" xml:space="preserve">
     <value>Dnes</value>
   </data>
   <data name="history.section.yesterday" xml:space="preserve">
-    <value>Vcera</value>
+    <value>Včera</value>
   </data>
   <data name="history.status.failed" xml:space="preserve">
     <value>Selhalo</value>
   </data>
   <data name="history.context.retry" xml:space="preserve">
-    <value>Opakovat prepis</value>
+    <value>Opakovat přepis</value>
   </data>
   <data name="history.toggle.showProcessed" xml:space="preserve">
-    <value>Zobrazit zpracovane</value>
+    <value>Zobrazit zpracované</value>
   </data>
   <data name="history.toggle.showOriginal" xml:space="preserve">
-    <value>Zobrazit original</value>
+    <value>Zobrazit originál</value>
   </data>
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Delete Selected</value>
@@ -180,7 +180,7 @@
     <value>Original</value>
   </data>
   <data name="history.context.retryWith" xml:space="preserve">
-    <value>Opakovat pomoci...</value>
+    <value>Opakovat pomocí...</value>
   </data>
   <data name="history.empty.noRecordings" xml:space="preserve">
     <value>No recordings yet</value>
@@ -191,28 +191,28 @@
 
   <!-- Modes Page -->
   <data name="modes.header.title" xml:space="preserve">
-    <value>Rezimy</value>
+    <value>Režimy</value>
   </data>
   <data name="modes.header.subtitle" xml:space="preserve">
-    <value>Vytvarrejte vlastni profily pro ruzne kontexty a pracovni postupy</value>
+    <value>Vytvářejte vlastní profily pro různé kontexty a pracovní postupy</value>
   </data>
   <data name="modes.header.create" xml:space="preserve">
-    <value>Vytvorit rezim</value>
+    <value>Vytvořit režim</value>
   </data>
   <data name="modes.badge.offline" xml:space="preserve">
     <value>Offline</value>
   </data>
   <data name="modes.badge.recommended" xml:space="preserve">
-    <value>Doporuceno</value>
+    <value>Doporučeno</value>
   </data>
   <data name="modes.button.create" xml:space="preserve">
-    <value>Vytvorit rezim</value>
+    <value>Vytvořit režim</value>
   </data>
   <data name="modes.button.delete" xml:space="preserve">
-    <value>Smazat rezim</value>
+    <value>Smazat režim</value>
   </data>
   <data name="modes.button.save" xml:space="preserve">
-    <value>Ulozit zmeny</value>
+    <value>Uložit změny</value>
   </data>
 
   <!-- Mode Editor -->
@@ -247,7 +247,7 @@
     <value>Klíč API</value>
   </data>
   <data name="mode.editor.engine.recommendedLabel" xml:space="preserve">
-    <value>{0} (Doporuceno)</value>
+    <value>{0} (Doporučeno)</value>
   </data>
   <data name="mode.editor.section.basic" xml:space="preserve">
     <value>Basic Settings</value>
@@ -264,31 +264,31 @@
 
   <!-- Vocabulary Page -->
   <data name="vocabulary.title" xml:space="preserve">
-    <value>Slovnik</value>
+    <value>Slovník</value>
   </data>
   <data name="vocabulary.description" xml:space="preserve">
-    <value>Pomaha softwaru rozpoznavat jmena, zkratky, slang nebo slova z jinych jazyku pri michani jazyku.</value>
+    <value>Pomáhá softwaru rozpoznávat jména, zkratky, slang nebo slova z jiných jazyků při míchání jazyků.</value>
   </data>
   <data name="common.update" xml:space="preserve">
     <value>Update</value>
   </data>
   <data name="vocabulary.word.column" xml:space="preserve">
-    <value>Slovo/Fraze</value>
+    <value>Slovo/Fráze</value>
   </data>
   <data name="vocabulary.replacement.column" xml:space="preserve">
-    <value>Nahrada</value>
+    <value>Náhrada</value>
   </data>
   <data name="vocabulary.source.column" xml:space="preserve">
     <value>Zdroj</value>
   </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
-    <value>Zatim zadna slova ve slovniku</value>
+    <value>Zatím žádná slova ve slovníku</value>
   </data>
   <data name="vocabulary.empty.subtitle" xml:space="preserve">
-    <value>Pridejte vlastni slova pro zlepseni presnosti prepisu</value>
+    <value>Přidejte vlastní slova pro zlepšení přesnosti přepisu</value>
   </data>
   <data name="vocabulary.limit.title" xml:space="preserve">
-    <value>Prekrocen limit klicovych slov</value>
+    <value>Překročen limit klíčových slov</value>
   </data>
   <data name="vocabulary.input.placeholder" xml:space="preserve">
     <value>Přidejte slovo nebo vytvořte úryvek</value>
@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Knihovna modelů</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -339,19 +339,19 @@
     <value>About</value>
   </data>
   <data name="settings.section.storage" xml:space="preserve">
-    <value>Uloziste</value>
+    <value>Úložiště</value>
   </data>
   <data name="settings.section.models" xml:space="preserve">
     <value>Modely</value>
   </data>
   <data name="settings.section.api.keys" xml:space="preserve">
-    <value>API klice</value>
+    <value>API klíče</value>
   </data>
   <data name="settings.section.shortcuts" xml:space="preserve">
-    <value>Klavesove zkratky</value>
+    <value>Klávesové zkratky</value>
   </data>
   <data name="settings.section.output" xml:space="preserve">
-    <value>Textovy vystup</value>
+    <value>Textový výstup</value>
   </data>
   <data name="settings.section.about" xml:space="preserve">
     <value>About</value>
@@ -362,13 +362,13 @@
     <value>General</value>
   </data>
   <data name="settings.general.launchAtLogin.title" xml:space="preserve">
-    <value>Spustit pri prihlaseni</value>
+    <value>Spustit při přihlášení</value>
   </data>
   <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
     <value>Start HyperWhisper automatically when you log in.</value>
   </data>
   <data name="settings.general.launchMinimized.title" xml:space="preserve">
-    <value>Spustit minimalizovane</value>
+    <value>Spustit minimalizovaně</value>
   </data>
   <data name="settings.general.launchMinimized.subtitle" xml:space="preserve">
     <value>Start HyperWhisper hidden in the system tray.</value>
@@ -380,13 +380,13 @@
     <value>Closing the window minimizes to tray instead of quitting</value>
   </data>
   <data name="settings.general.showRecordingWindow.title" xml:space="preserve">
-    <value>Zobrazit okno nahravani</value>
+    <value>Zobrazit okno nahrávání</value>
   </data>
   <data name="settings.general.showRecordingWindow.subtitle" xml:space="preserve">
     <value>Display the recording overlay with audio visualization</value>
   </data>
   <data name="settings.general.errorLogging.title" xml:space="preserve">
-    <value>Logovani chyb</value>
+    <value>Odesílat hlášení chyb</value>
   </data>
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
@@ -401,7 +401,7 @@
     <value>Zobrazit srovnání rychlosti</value>
   </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
-    <value>Automaticke aktualizace</value>
+    <value>Automatické aktualizace</value>
   </data>
   <data name="settings.general.autoUpdate.subtitle" xml:space="preserve">
     <value>Silently check for new versions on startup</value>
@@ -453,7 +453,7 @@
     <value>Aktivace...</value>
   </data>
   <data name="license.button.deactivate" xml:space="preserve">
-    <value>Deaktivovat zarizeni</value>
+    <value>Deaktivovat zařízení</value>
   </data>
   <data name="license.button.manageBilling" xml:space="preserve">
     <value>Spravovat fakturaci</value>
@@ -467,7 +467,7 @@
     <value>minutes remaining</value>
   </data>
   <data name="settings.credits.loading" xml:space="preserve">
-    <value>Nacitani zustatku kreditu...</value>
+    <value>Načítání zůstatku kreditů...</value>
   </data>
   <data name="settings.credits.lowWarning" xml:space="preserve">
     <value>Your credits are running low. Consider adding more credits to continue using HyperWhisper Cloud.</value>
@@ -494,7 +494,7 @@
     <value>Daily Reset</value>
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
-    <value>Nelze nacist zustatek kreditu</value>
+    <value>Nelze načíst zůstatek kreditů</value>
   </data>
   <!-- Settings - HyperWhisper Cloud (combined account panel) -->
   <data name="settings.cloud.licenseKey" xml:space="preserve">
@@ -533,22 +533,22 @@
 
   <!-- Settings - API Keys -->
   <data name="settings.api.info" xml:space="preserve">
-    <value>API klice jsou bezpecne ulozeny na vasem zarizeni a odesilany poskytovateli pouze v pripade potreby.</value>
+    <value>API klíče jsou bezpečně uloženy na vašem zařízení a odesílány poskytovateli pouze v případě potřeby.</value>
   </data>
   <data name="settings.api.help.link" xml:space="preserve">
-    <value>Napoveda k API klicum</value>
+    <value>Nápověda k API klíčům</value>
   </data>
   <data name="settings.api.transcription.title" xml:space="preserve">
-    <value>Prepis</value>
+    <value>Přepis</value>
   </data>
   <data name="settings.api.transcription.subtitle" xml:space="preserve">
-    <value>API klice pro cloudove sluzby prevodu reci na text.</value>
+    <value>API klíče pro cloudové služby převodu řeči na text.</value>
   </data>
   <data name="settings.api.postProcessing.title" xml:space="preserve">
-    <value>Nasledne zpracovani</value>
+    <value>Následné zpracování</value>
   </data>
   <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
-    <value>API klice pro AI vylepseni a formatovani textu.</value>
+    <value>API klíče pro AI vylepšení a formátování textu.</value>
   </data>
   <data name="settings.api.invalidKey.title" xml:space="preserve">
     <value>Invalid Key</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Modely převodu řeči na text Universal-2 a Universal-3 Pro od AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Přepis pomocí Voxtralu od Mistralu a modely Mistral pro vylepšení textu</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Modely Gemini od Googlu pro přepis a vylepšení textu</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -636,16 +636,16 @@
     <value>Odstraňuje 'uh', 'um' a 'er' z neupravených přepisů.</value>
   </data>
   <data name="settings.output.paste.title" xml:space="preserve">
-    <value>Automaticky vlozit vysledek</value>
+    <value>Automaticky vložit výsledek</value>
   </data>
   <data name="settings.output.paste.subtitle" xml:space="preserve">
-    <value>Automaticky vlozit prepsany text do aktivni aplikace</value>
+    <value>Automaticky vložit přepsaný text do aktivní aplikace</value>
   </data>
   <data name="settings.output.restoreClipboard.title" xml:space="preserve">
-    <value>Obnovit schranku po vlozeni</value>
+    <value>Obnovit schránku po vložení</value>
   </data>
   <data name="settings.output.restoreClipboard.subtitle" xml:space="preserve">
-    <value>Obnovit predchozi obsah schranky po vlozeni</value>
+    <value>Obnovit předchozí obsah schránky po vložení</value>
   </data>
   <data name="settings.output.clipboard.section" xml:space="preserve">
     <value>Clipboard</value>
@@ -659,21 +659,21 @@
 
   <!-- Settings - Shortcuts -->
   <data name="settings.shortcuts.reset.button" xml:space="preserve">
-    <value>Obnovit vychozi</value>
+    <value>Obnovit výchozí</value>
   </data>
 
   <!-- Settings - Storage -->
   <data name="settings.storage.recordings.title" xml:space="preserve">
-    <value>Slozka nahravek</value>
+    <value>Složka nahrávek</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Zobrazit ve Finderu</value>
+    <value>Zobrazit v Průzkumníku</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Vybrat...</value>
   </data>
   <data name="settings.storage.notice" xml:space="preserve">
-    <value>Zmena slozky nahravek ovlivni pouze nove nahravky. Stavajici nahravky zustanou na svem puvodnim miste.</value>
+    <value>Změna složky nahrávek ovlivní pouze nové nahrávky. Stávající nahrávky zůstanou na svém původním místě.</value>
   </data>
 
   <!-- Settings - About -->
@@ -698,19 +698,19 @@
 
   <!-- Recording Overlay -->
   <data name="recording.state.recording" xml:space="preserve">
-    <value>Nahravani...</value>
+    <value>Nahrávání...</value>
   </data>
   <data name="recording.state.processing" xml:space="preserve">
-    <value>Zpracovani zvuku...</value>
+    <value>Zpracování zvuku...</value>
   </data>
   <data name="recording.state.transcribing" xml:space="preserve">
-    <value>Prepisovani...</value>
+    <value>Přepisování...</value>
   </data>
   <data name="recording.success.pasted" xml:space="preserve">
-    <value>Vlozeno!</value>
+    <value>Vloženo!</value>
   </data>
   <data name="recording.copy.copied" xml:space="preserve">
-    <value>Zkopirovano!</value>
+    <value>Zkopírováno!</value>
   </data>
 
   <!-- Error Messages -->
@@ -724,18 +724,18 @@
 
   <!-- Transcripts -->
   <data name="transcripts.delete.single.title" xml:space="preserve">
-    <value>Smazat nahravku?</value>
+    <value>Smazat nahrávku?</value>
   </data>
   <data name="transcripts.delete.single.message" xml:space="preserve">
-    <value>Timto trvale smazete tuto nahravku a jeji zvukovy soubor.</value>
+    <value>Tímto trvale smažete tuto nahrávku a její zvukový soubor.</value>
   </data>
   <data name="transcripts.delete.multiple.title" xml:space="preserve">
-    <value>Smazat %d nahravek?</value>
+    <value>Smazat %d nahrávek?</value>
   </data>
   <data name="transcripts.delete.multiple.message" xml:space="preserve">
-    <value>Timto trvale smazete %d nahravek a jejich zvukove soubory.
+    <value>Tímto trvale smažete %d nahrávek a jejich zvukové soubory.
 
-Tuto akci nelze vratit zpet.</value>
+Tuto akci nelze vrátit zpět.</value>
   </data>
 
   <!-- Audio Errors -->
@@ -754,7 +754,7 @@ Tuto akci nelze vratit zpet.</value>
 
   <!-- Settings - Models -->
   <data name="settings.models.download" xml:space="preserve">
-    <value>Stahnout</value>
+    <value>Stáhnout</value>
   </data>
   <data name="settings.models.download.cancelled" xml:space="preserve">
     <value>Download was cancelled by the user</value>
@@ -956,7 +956,7 @@ Tuto akci nelze vratit zpet.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - vysoká přesnost, vlastní slovník jako klíčové termíny</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Tuto akci nelze vratit zpet.</value>
     <value>Odebrat koncovou tečku</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Trvalé pokyny</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Přidejte pokyny, které se vždy použijí navíc k vybrané předvolbě.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -1319,7 +1319,7 @@ You can re-download it later.</value>
 
   <!-- Mode Change Toast -->
   <data name="mode.change.toast" xml:space="preserve">
-    <value>Rezim: {0}</value>
+    <value>Režim: {0}</value>
   </data>
   <!-- Mode Editor -->
   <!-- Settings Navigation -->
@@ -1350,7 +1350,7 @@ You can re-download it later.</value>
     <value>Spustit nahravání</value>
   </data>
   <data name="home.gettingStarted.recording.description" xml:space="preserve">
-    <value>Vyzkoušejte první prepis</value>
+    <value>Vyzkoušejte první přepis</value>
   </data>
   <data name="home.gettingStarted.shortcuts.title" xml:space="preserve">
     <value>Prizpusobit klávesové zkratky</value>
@@ -1362,13 +1362,13 @@ You can re-download it later.</value>
     <value>Vytvorit režim</value>
   </data>
   <data name="home.gettingStarted.mode.description" xml:space="preserve">
-    <value>Prizpusobte prepis pro ruzné pracovní postupy</value>
+    <value>Přizpůsobte přepis pro různé pracovní postupy</value>
   </data>
   <data name="home.gettingStarted.vocabulary.title" xml:space="preserve">
-    <value>Pridat slovník</value>
+    <value>Přidat slovník</value>
   </data>
   <data name="home.gettingStarted.vocabulary.description" xml:space="preserve">
-    <value>Zlepsete presnost pro jména a odborné výrazy</value>
+    <value>Zlepšete přesnost pro jména a odborné výrazy</value>
   </data>
   <data name="home.gettingStarted.completed" xml:space="preserve">
     <value>Vše hotovo!</value>
@@ -1406,10 +1406,10 @@ You can re-download it later.</value>
     <value>Nainstalovat aktualizaci</value>
   </data>
   <data name="update.available.skip" xml:space="preserve">
-    <value>Preskocit tuto verzi</value>
+    <value>Přeskočit tuto verzi</value>
   </data>
   <data name="update.available.remindLater" xml:space="preserve">
-    <value>Pripomenout pozdeji</value>
+    <value>Připomenout později</value>
   </data>
   <data name="update.checking" xml:space="preserve">
     <value>Kontrola aktualizací...</value>
@@ -1424,10 +1424,10 @@ You can re-download it later.</value>
     <value>HyperWhisper {0} je nejnovejší verze.</value>
   </data>
   <data name="update.skipped.title" xml:space="preserve">
-    <value>Aktualizace preskocena</value>
+    <value>Aktualizace přeskočena</value>
   </data>
   <data name="update.skipped.message" xml:space="preserve">
-    <value>Zvolili jste preskocit tuto aktualizaci.</value>
+    <value>Rozhodli jste se tuto aktualizaci přeskočit.</value>
   </data>
   <data name="update.error.appcast" xml:space="preserve">
     <value>Nelze zkontrolovat aktualizace. Zkontrolujte pripojení k internetu.</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Abychom slyšeli tvůj hlas.</value>
+    <value>Povinné. Zvuk se zaznamenává pouze v průběhu nahrávání.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Udělit</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Pouze angličtina. Nejrychlejší na tomto PC.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Vícejazyčný · 25 jazyků</value>
+    <value>Vícejazyčný. Stejná rychlost, větší stahování.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Vícejazyčný · minimální velikost</value>
@@ -2420,7 +2420,7 @@ You can re-download it later.</value>
     <value>Vícejazyčný · nejpřesnější Whisper</value>
   </data>
   <data name="onboarding.model.downloaded" xml:space="preserve">
-    <value>Stazeno</value>
+    <value>Staženo</value>
   </data>
   <data name="onboarding.setup.cloud.title" xml:space="preserve">
     <value>Aktivuj svůj klíč</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Otevřít nastavení soukromí</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Vse je pripraveno, zahajme vasi prvni nahravku</value>
+    <value>Pořiďte jednu nahrávku.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Stiskni zkratku, řekni větu, stiskni ji znovu.</value>
@@ -2597,10 +2597,10 @@ You can re-download it later.</value>
     <value>Nahrát znovu</value>
   </data>
   <data name="onboarding.test.stop" xml:space="preserve">
-    <value>Zastavit nahravani</value>
+    <value>Zastavit nahrávání</value>
   </data>
   <data name="onboarding.test.status.speak" xml:space="preserve">
-    <value>Mluvte nyni...</value>
+    <value>Mluvte nyní...</value>
   </data>
   <data name="onboarding.tryIt.trySaying" xml:space="preserve">
     <value>Zkus říct</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Ukázková nahrávka v tomto sestavení chybí.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Hotovo!</value>
+    <value>Můžete začít diktovat.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Stiskni zkratku v jakékoli aplikaci a začni mluvit.</value>
@@ -2678,7 +2678,7 @@ You can re-download it later.</value>
     <value>HyperWhisper žije v oznamovací oblasti. Klikni na něj pro historii, režimy a všechno výše.</value>
   </data>
   <data name="onboarding.done.button" xml:space="preserve">
-    <value>Dokoncit uvodni pruvodce</value>
+    <value>Dokončit úvodního průvodce</value>
   </data>
   <data name="onboarding.done.mic.noneConnected" xml:space="preserve">
     <value>Nic připojeno</value>
@@ -2774,6 +2774,6 @@ You can re-download it later.</value>
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
   </data>
   <data name="app.unknown.error" xml:space="preserve">
-    <value>Doslo k nezname chybe</value>
+    <value>Došlo k neznámé chybě</value>
   </data>
 </root>

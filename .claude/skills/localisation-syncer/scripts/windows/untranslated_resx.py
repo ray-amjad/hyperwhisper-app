@@ -25,11 +25,29 @@ build, so this script and CI read the same file and agree by construction. This
 script is the authoring tool: it reports, it reseeds the ceilings after a
 translation batch, and it lists the outstanding keys for one locale.
 
+`--audit` answers the neighbouring question, from issue #574: not "is this value
+still English" but "is this value WRONG". Two shapes of that are mechanical:
+
+  * a locale value byte-identical to the English of a DIFFERENT key - how
+    `settings.nav.models` came to read "Models" in 34 catalogues when the base
+    value is "Model Library";
+  * a base value that was rewritten after the machine pass, leaving every
+    catalogue holding a translation of the superseded English. That one shows up
+    as a translation whose LENGTH diverges from the base in the same direction in
+    almost every locale.
+
+The exact half of that - many locales sharing one non-English value - is a build
+gate in `CatalogValidator`, off `sharedValueCeiling` in translation-status.json.
+The two heuristics here are deliberately NOT gates: both have honest false
+positives (French "Modifier" really is the English word), so they are an
+authoring report a human reads.
+
 Usage:
     python3 untranslated_resx.py                  # per-locale report
     python3 untranslated_resx.py --markdown       # report as a Markdown table
     python3 untranslated_resx.py --list de        # keys still English in de
     python3 untranslated_resx.py --list de --json # same, as JSON, for tooling
+    python3 untranslated_resx.py --audit          # look for WRONG values (#574)
     python3 untranslated_resx.py --seed           # rewrite ceilings to today's counts
 
 Exit status is 2 if any locale is over its recorded ceiling, 0 otherwise.
@@ -95,14 +113,67 @@ def measure(resource_dir: Path) -> tuple[dict[str, str], dict[str, list[str]], d
     return base, untranslated, status
 
 
+def audit(resource_dir: Path) -> None:
+    """Report values that look WRONG rather than untranslated (issue #574)."""
+    base = parse_resx(resource_dir / "Strings.resx")
+    catalogs = {locale_of(path): parse_resx(path) for path in sorted(resource_dir.glob("Strings.*.resx"))}
+
+    english_of = {}
+    for key, value in base.items():
+        english_of.setdefault(value, []).append(key)
+
+    print("Locale values byte-identical to the English of a DIFFERENT key:")
+    found = 0
+    for locale, catalog in catalogs.items():
+        for key, value in catalog.items():
+            english = base.get(key)
+            if english is None or value == english or not has_letters(value):
+                continue
+            others = [other for other in english_of.get(value, []) if other != key]
+            if others:
+                found += 1
+                print(f"  {locale:>8} {key} = {value!r}, which is the English of {', '.join(others)}")
+    if not found:
+        print("  none")
+
+    # A base value that was rewritten after translation leaves every catalogue
+    # holding the old text, so the ratio of translated length to English length
+    # goes the same way in nearly every locale. Logographic scripts are excluded:
+    # they are legitimately about half the length of English everywhere.
+    logographic = {"ja", "ko", "zh-Hans", "zh-Hant", "th"}
+    print("\nBase values that every locale renders at a wildly different length:")
+    found = 0
+    for key, english in base.items():
+        if len(english) < 8 or not has_letters(english):
+            continue
+        ratios = sorted(
+            len(catalog[key]) / len(english)
+            for locale, catalog in catalogs.items()
+            if locale not in logographic and catalog.get(key) and catalog[key] != english
+        )
+        if len(ratios) < 25:
+            continue
+        median = ratios[len(ratios) // 2]
+        if median > 1.9 or median < 0.55:
+            found += 1
+            print(f"  x{median:.2f}  {key}\n            English: {english!r}\n            de:      {catalogs['de'][key]!r}")
+    if not found:
+        print("  none")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resources", default=str(DEFAULT_RESOURCE_DIR))
     parser.add_argument("--list", metavar="LOCALE", help="print the outstanding keys for one locale")
     parser.add_argument("--json", action="store_true", help="with --list, emit JSON")
     parser.add_argument("--markdown", action="store_true", help="emit the report as a Markdown table")
+    parser.add_argument("--audit", action="store_true", help="report values that look wrong (issue #574)")
     parser.add_argument("--seed", action="store_true", help="rewrite the ceilings to today's counts")
     args = parser.parse_args()
+
+    if args.audit:
+        audit(Path(args.resources))
+        return 0
 
     resource_dir = Path(args.resources)
     base, untranslated, status = measure(resource_dir)

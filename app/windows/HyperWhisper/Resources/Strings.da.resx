@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Modelbibliotek</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Tale-til-tekst-modellerne Universal-2 og Universal-3 Pro fra AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Mistrals Voxtral-transskription og Mistral-modeller til tekstforbedring</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Googles Gemini-modeller til transskription og tekstforbedring</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Optagelsesmappe</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Vis i Finder</value>
+    <value>Vis i Stifinder</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Vælg...</value>
@@ -956,7 +956,7 @@ Denne handling kan ikke fortrydes.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - høj nøjagtighed, tilpasset ordforråd som nøgletermer</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Denne handling kan ikke fortrydes.</value>
     <value>Fjern afsluttende punktum</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Vedvarende instruktioner</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Tilføj instruktioner, der altid gælder oven på den valgte forudindstilling.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Så vi kan høre din stemme.</value>
+    <value>Påkrævet. Lyd optages kun, mens en optagelse er i gang.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Giv adgang</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Kun engelsk. Hurtigst på denne pc.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Flersproget · 25 sprog</value>
+    <value>Flersproget. Samme hastighed, større download.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Flersproget · minimal størrelse</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Åbn indstillinger for beskyttelse af personlige oplysninger</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Alt er klar, lad os starte din første optagelse</value>
+    <value>Lav én optagelse.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Tryk på genvejen, sig sætningen, tryk igen.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Prøveklippet mangler i denne version.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Du er færdig!</value>
+    <value>Du er klar til at diktere.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Tryk på genvejen i en hvilken som helst app, og begynd at tale.</value>

@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>模型庫</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>AssemblyAI 的 Universal-2 和 Universal-3 Pro 語音轉文字模型</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Mistral 的 Voxtral 轉錄和用於文字增強的 Mistral 模型</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Google 的 Gemini 模型，用於轉錄和文字增強</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>錄音資料夾</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>在 Finder 中顯示</value>
+    <value>在檔案總管中顯示</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>選擇...</value>
@@ -956,7 +956,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - 高準確度，自訂詞彙作為關鍵詞</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@
     <value>刪除結尾句號</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>持續指令</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>新增一律套用於所選預設集之上的指令。</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2278,7 +2278,7 @@ You can re-download it later.</value>
     <value>麥克風</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>以便我們聽到您的語音。</value>
+    <value>必要。僅在錄音進行時擷取音訊。</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>授予</value>
@@ -2410,7 +2410,7 @@ You can re-download it later.</value>
     <value>僅支援英語。在這台電腦上最快。</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>多語言 · 25 種語言</value>
+    <value>多語言。速度相同，下載較大。</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>多語言 · 體積小</value>
@@ -2578,7 +2578,7 @@ You can re-download it later.</value>
     <value>開啟隱私權設定</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>準備好了，讓我們開始您的第一次錄音</value>
+    <value>進行一次錄音。</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>按下快捷鍵，說出這句話，再按一次。</value>
@@ -2641,7 +2641,7 @@ You can re-download it later.</value>
     <value>此版本缺少範例音訊。</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>完成了！</value>
+    <value>您可以開始語音輸入了。</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>在任何應用程式中按下快捷鍵並開始說話。</value>

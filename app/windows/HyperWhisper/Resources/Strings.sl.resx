@@ -324,7 +324,7 @@
     <value>Storage</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>Models</value>
+    <value>Knjižnica modelov</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>API Keys</value>
@@ -600,13 +600,13 @@
     <value>Deepgram Nova family models with domain-specific tuning</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAI's speech-to-text platform with Universal and SLAM models</value>
+    <value>Modela za pretvorbo govora v besedilo Universal-2 in Universal-3 Pro podjetja AssemblyAI</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribe transcription with rich timestamps and diarization</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>Mistral's Voxtral speech-to-text with state-of-the-art accuracy</value>
+    <value>Prepis Voxtral podjetja Mistral in modeli Mistral za izboljšanje besedila</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -616,7 +616,7 @@
     <value>Anthropic's Claude models for advanced text processing</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google's Gemini models for efficient text enhancement</value>
+    <value>Googlovi modeli Gemini za prepis in izboljšanje besedila</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groq's ultra-fast LLM inference for text enhancement</value>
@@ -667,7 +667,7 @@
     <value>Mapa posnetkov</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
-    <value>Prikaži v Finderju</value>
+    <value>Prikaži v Raziskovalcu</value>
   </data>
   <data name="settings.storage.choose.button" xml:space="preserve">
     <value>Izberi...</value>
@@ -956,7 +956,7 @@ Te akcije se ne da razveljaviti.</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - highest accuracy, slower</value>
+    <value>SpaceXAI Grok STT - visoka natančnost, lasten besednjak kot ključni izrazi</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not supported with this provider.</value>
@@ -1021,10 +1021,10 @@ Te akcije se ne da razveljaviti.</value>
     <value>Odstrani končno piko</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
-    <value>Custom system prompt</value>
+    <value>Trajna navodila</value>
   </data>
   <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
-    <value>Override the default AI instructions</value>
+    <value>Dodajte navodila, ki se vedno uporabijo poleg izbrane prednastavitve.</value>
   </data>
   <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
     <value>API Key Required</value>
@@ -2279,7 +2279,7 @@ You can re-download it later.</value>
     <value>Mikrofon</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>Da lahko slišimo tvoj glas.</value>
+    <value>Obvezno. Zvok se zajema samo med snemanjem.</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>Dovoli</value>
@@ -2411,7 +2411,7 @@ You can re-download it later.</value>
     <value>Samo angleščina. Najhitrejši na tem računalniku.</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>Večjezično · 25 jezikov</value>
+    <value>Večjezičen. Enaka hitrost, večji prenos.</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>Večjezično · minimalna velikost</value>
@@ -2579,7 +2579,7 @@ You can re-download it later.</value>
     <value>Odpri nastavitve zasebnosti</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>Vse je pripravljeno, začnimo s tvojim prvim posnetkom</value>
+    <value>Naredite en posnetek.</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>Pritisni bližnjico, izgovori stavek, pritisni jo znova.</value>
@@ -2642,7 +2642,7 @@ You can re-download it later.</value>
     <value>Vzorčni posnetek v tej gradnji manjka.</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>Končano!</value>
+    <value>Zdaj lahko narekujete.</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>Pritisni bližnjico v kateri koli aplikaciji in začni govoriti.</value>

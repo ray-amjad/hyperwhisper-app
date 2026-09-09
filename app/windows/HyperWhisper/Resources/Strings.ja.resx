@@ -363,7 +363,7 @@
     <value>ストレージ</value>
   </data>
   <data name="settings.nav.models" xml:space="preserve">
-    <value>モデル</value>
+    <value>モデルライブラリ</value>
   </data>
   <data name="settings.nav.apiKeys" xml:space="preserve">
     <value>APIキー</value>
@@ -657,13 +657,13 @@
     <value>Deepgram Novaモデルファミリーとドメイン特化チューニング</value>
   </data>
   <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
-    <value>AssemblyAIのUniversalとSLAMモデルを使用した音声認識</value>
+    <value>AssemblyAIのUniversal-2およびUniversal-3 Pro音声認識モデル</value>
   </data>
   <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
     <value>ElevenLabs Scribeの詳細なタイムスタンプとダイアライゼーション</value>
   </data>
   <data name="settings.api.provider.mistral.description" xml:space="preserve">
-    <value>MistralのVoxtralによる最先端精度の音声認識</value>
+    <value>MistralのVoxtralによる文字起こしとMistralモデルによるテキスト補正</value>
   </data>
   <!-- API Provider Descriptions - Post-Processing -->
   <data name="settings.api.provider.openai.post.description" xml:space="preserve">
@@ -673,7 +673,7 @@
     <value>Anthropic Claudeモデルによる高度なテキスト処理</value>
   </data>
   <data name="settings.api.provider.gemini.description" xml:space="preserve">
-    <value>Google Geminiモデルによる効率的なテキスト補正</value>
+    <value>GoogleのGeminiモデルによる文字起こしとテキスト補正</value>
   </data>
   <data name="settings.api.provider.groq.post.description" xml:space="preserve">
     <value>Groqの超高速LLM推論によるテキスト補正</value>
@@ -1044,7 +1044,7 @@
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>SpaceXAI Grok STT - 最高精度、低速</value>
+    <value>SpaceXAI Grok STT - 高精度、カスタム語彙をキータームとして使用</value>
   </data>
   <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
     <value>このプロバイダーではカスタム語彙はサポートされていません。</value>
@@ -2283,7 +2283,7 @@
     <value>マイク</value>
   </data>
   <data name="onboarding.permissions.microphone.subtitle" xml:space="preserve">
-    <value>声を聞き取るために使用します。</value>
+    <value>必須。録音中のみ音声を取得します。</value>
   </data>
   <data name="onboarding.permissions.grant" xml:space="preserve">
     <value>許可する</value>
@@ -2415,7 +2415,7 @@
     <value>英語のみ。このPCで最速です。</value>
   </data>
   <data name="onboarding.model.parakeetV3.subtitle" xml:space="preserve">
-    <value>多言語 · 25言語</value>
+    <value>多言語対応。速度は同じ、ダウンロードは大きめ。</value>
   </data>
   <data name="onboarding.model.whisperBase.subtitle" xml:space="preserve">
     <value>多言語 · 軽量</value>
@@ -2583,7 +2583,7 @@
     <value>プライバシー設定を開く</value>
   </data>
   <data name="onboarding.test.title" xml:space="preserve">
-    <value>準備完了です。最初の録音を始めましょう</value>
+    <value>録音を1回行います。</value>
   </data>
   <data name="onboarding.tryIt.detail" xml:space="preserve">
     <value>ショートカットを押し、一言話し、もう一度押します。</value>
@@ -2646,7 +2646,7 @@
     <value>このビルドにはサンプル音声が含まれていません。</value>
   </data>
   <data name="onboarding.completion.title" xml:space="preserve">
-    <value>これで完了です!</value>
+    <value>これで音声入力ができます。</value>
   </data>
   <data name="onboarding.done.detail" xml:space="preserve">
     <value>どのアプリでもショートカットを押して話し始めましょう。</value>
