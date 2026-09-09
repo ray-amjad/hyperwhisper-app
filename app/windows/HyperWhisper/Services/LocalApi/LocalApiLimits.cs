@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using uniffi.hyperwhisper_core;
@@ -174,6 +175,96 @@ internal static class LocalApiLimits
         catch
         {
             return (null, LocalApiResponder.BadRequest("Invalid JSON body", invalidJsonHint));
+        }
+    }
+
+    /// <summary>
+    /// <see cref="ReadJsonBodyAsync{T}"/>, plus the body's top-level key names
+    /// (issue #356).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// WHY THIS EXISTS AT ALL. The create path has to know which keys the caller
+    /// SENT, and this head cannot infer that from its DTO:
+    /// <c>ModeDto.Punctuation</c>, <c>Capitalization</c> and
+    /// <c>ProfanityFilter</c> are non-nullable <c>bool</c>, so an absent key and
+    /// an explicit <c>false</c> deserialise to the same value. The portable head
+    /// gets the names for free from its <c>EnumerateObject()</c> walk and macOS
+    /// gets the check for free from its decoder; only Windows needs a reader.
+    /// </para>
+    /// <para>
+    /// IT IS FOR THE REQUIRED-KEY CHECK, NOT FOR PATCH SEMANTICS. The key list
+    /// does NOT distinguish "key omitted" from "key present and null" — that is
+    /// macOS's <c>@NullablePatch</c>, this head has never had it, and
+    /// <c>openapi.yaml</c> already sanctions the difference. Do not grow this
+    /// into one.
+    /// </para>
+    /// <para>
+    /// The size-limit half is byte-for-byte <see cref="ReadJsonBodyAsync{T}"/>'s
+    /// — the same <c>Content-Length</c> pre-check, the same
+    /// <see cref="IsBodyTooLarge"/> match anywhere in the inner-exception chain,
+    /// the same 400 for a genuine JSON error. That behaviour is #375's and the
+    /// smoke suite pins it. The only difference is that the body is buffered
+    /// into a <see cref="JsonDocument"/> once and BOTH the names and the value
+    /// come out of that one parse, so a caller cannot make this head read the
+    /// stream twice.
+    /// </para>
+    /// </remarks>
+    /// <param name="ctx">The in-flight request.</param>
+    /// <param name="invalidJsonHint">The route's own hint for a genuine JSON error.</param>
+    public static async Task<(T? Value, IReadOnlyList<string> Keys, IResult? Failure)> ReadJsonBodyWithKeysAsync<T>(
+        HttpContext ctx,
+        string? invalidJsonHint = null)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+
+        if (ctx.Request.ContentLength is { } declaredLength && ExceedsRequestLimit(declaredLength))
+        {
+            return (null, Array.Empty<string>(), RequestTooLargeResult());
+        }
+
+        // `ReadFromJsonAsync` refuses a non-JSON content type before it reads a
+        // byte, and answers the same 400 a malformed body gets. Keeping that
+        // check here is what makes this a drop-in for the existing reader
+        // rather than a quiet loosening of one route.
+        if (!ctx.Request.HasJsonContentType())
+        {
+            return (null, Array.Empty<string>(), LocalApiResponder.BadRequest("Invalid JSON body", invalidJsonHint));
+        }
+
+        JsonDocument document;
+        try
+        {
+            // UTF-8, which is what `JsonDocument` reads and what every Local API
+            // client sends; a declared non-UTF-8 charset lands in the catch
+            // below as a parse failure rather than being transcoded.
+            document = await JsonDocument.ParseAsync(ctx.Request.Body);
+        }
+        catch (Exception ex) when (IsBodyTooLarge(ex))
+        {
+            return (null, Array.Empty<string>(), RequestTooLargeResult());
+        }
+        catch
+        {
+            return (null, Array.Empty<string>(), LocalApiResponder.BadRequest("Invalid JSON body", invalidJsonHint));
+        }
+
+        using (document)
+        {
+            // A non-object body has no top-level keys; `Deserialize` still gets
+            // to answer for it, exactly as `ReadFromJsonAsync` did.
+            var keys = document.RootElement.ValueKind == JsonValueKind.Object
+                ? document.RootElement.EnumerateObject().Select(property => property.Name).ToList()
+                : [];
+            try
+            {
+                return (document.RootElement.Deserialize<T>(LocalApiResponder.JsonOptions), keys, null);
+            }
+            catch
+            {
+                return (null, Array.Empty<string>(), LocalApiResponder.BadRequest("Invalid JSON body", invalidJsonHint));
+            }
         }
     }
 
