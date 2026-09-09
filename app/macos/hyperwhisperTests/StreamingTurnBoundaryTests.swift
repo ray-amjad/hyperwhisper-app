@@ -151,6 +151,89 @@ struct StreamingTurnBoundaryTests {
         return (client, recorder)
     }
 
+    @Test("Post-stop normalized event slugs contain no provider content")
+    func postStopNormalizedEventSlugsAreFixed() {
+        let completion = StreamingProviderEvent.sessionComplete(
+            durationSeconds: 4,
+            creditsUsed: 0
+        )
+        let combined = StreamingProviderEvent.finalTranscriptAndSessionComplete(
+            text: "must not enter diagnostics",
+            durationSeconds: 4,
+            creditsUsed: 0
+        )
+
+        #expect(StreamingTranscriptionClient.normalizedEventSlug(for: completion) == "session_complete")
+        #expect(StreamingTranscriptionClient.normalizedEventSlug(for: combined) == "final_and_complete")
+        #expect(StreamingTranscriptionClient.normalizedEventSlug(for: nil) == "ignored")
+    }
+
+    @Test("Post-stop diagnostics count only frame shape and normalized events")
+    func postStopDiagnosticsCountContentFreeMetadata() {
+        let (client, _) = makeClient(completeEndsSessionBeforeStop: false)
+        client.recordPostStopDiagnosticsForTesting(
+            wireKind: "string",
+            byteCount: 31,
+            normalizedEventSlug: "session_complete"
+        )
+        client.recordPostStopDiagnosticsForTesting(
+            wireKind: "string",
+            byteCount: 47,
+            normalizedEventSlug: "final_and_complete"
+        )
+        client.recordPostStopDiagnosticsForTesting(
+            wireKind: "string",
+            byteCount: 9,
+            normalizedEventSlug: "ignored"
+        )
+        client.recordPostStopDiagnosticsForTesting(
+            wireKind: "binary",
+            byteCount: 2,
+            utf8DecodeFailed: true
+        )
+
+        let snapshot = client.postStopDiagnosticSnapshotForTesting()
+        #expect(
+            snapshot == [
+                "string_frames": 3,
+                "string_bytes": 87,
+                "binary_frames": 1,
+                "binary_bytes": 2,
+                "utf8_decode_failures": 1,
+                "event_session_complete": 1,
+                "event_final_and_complete": 1,
+                "event_ignored": 1
+            ]
+        )
+    }
+
+    @Test("An old receive loop cannot change a new session snapshot")
+    func receiveActivityCountersIgnoreOldGenerations() {
+        var counters = StreamingTranscriptionClient.ReceiveActivityCounters()
+
+        counters.reset(generation: 1)
+        counters.startLoop(generation: 1)
+        counters.startReceive(generation: 1)
+        #expect(counters.active == 1)
+        #expect(counters.pending == 1)
+
+        // A new session resets the snapshot before cancellation from the old
+        // receive task resumes. Its deferred decrements must not touch the new
+        // session's counters.
+        counters.reset(generation: 2)
+        counters.finishReceive(generation: 1)
+        counters.finishLoop(generation: 1)
+        #expect(counters.active == 0)
+        #expect(counters.pending == 0)
+
+        counters.startLoop(generation: 2)
+        counters.startReceive(generation: 2)
+        counters.finishReceive(generation: 1)
+        counters.finishLoop(generation: 1)
+        #expect(counters.active == 1)
+        #expect(counters.pending == 1)
+    }
+
     /// Inherited from `GeminiStreamingStrategyTests`' two-utterance walk-through.
     /// The combined-frame half of that case is
     /// `combinedFinalAndCompleteBeforeStopCommitsTextOnly`, below.
