@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 10);
+        assert_eq!(c.version(), 12);
         assert!(c.providers().len() >= 10);
     }
 
@@ -725,9 +725,18 @@ mod tests {
                 "{dropped} must not reach the picker"
             );
         }
-        // Azure declares `nb`.
+        // Azure declares `nb`, and since MAI-Transcribe-2 also `fil`, `yue` and
+        // `he`. `fil` folds to the picker's `tl`; `yue` is one of the few
+        // three-letter codes the picker does carry, so it survives unfolded.
         let azure = c.picker_language_codes("azureMaiTranscribe").unwrap();
         assert!(azure.contains(&"no".to_string()) && !azure.contains(&"nb".to_string()));
+        assert!(azure.contains(&"tl".to_string()) && !azure.contains(&"fil".to_string()));
+        assert!(azure.contains(&"yue".to_string()));
+        assert!(azure.contains(&"he".to_string()));
+        // `or` (Odia) has no shared language-catalog row, but the fold passes
+        // unknown TWO-letter codes straight through (unlike `fil`/`cmn` above),
+        // so it reaches the picker set and is intersected away per client.
+        assert!(azure.contains(&"or".to_string()));
         // googleChirp3 was the only entry declaring the deprecated `iw-IL` /
         // `jv-ID` tags; catalog v8 replaced it, so pin that fold synthetically
         // rather than losing the coverage.

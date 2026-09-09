@@ -186,6 +186,30 @@ static async Task TestRouterAsync(string root)
                 + "of geminiTranscribe, so the tier default must win.");
     }
 
+    // --- HyperWhisper Cloud must carry a base URL -----------------------------
+    //
+    // Every other cloud provider has a fixed host baked into hw-net. Ours does
+    // not: `hyperwhisper_cloud.rs` reads `params.base_url` and returns
+    // BadRequest{status:0,"HyperWhisper Cloud requires base_url"} when it is
+    // empty, BEFORE any I/O. That surfaces to the user as
+    // "The provider rejected the transcription request. / workflow.invalidrequest",
+    // which reads like a backend fault and is not one — no request ever leaves
+    // the process. Linux is the only head that transcribes through this router,
+    // and all six of its seeded modes are HyperWhisper Cloud modes, so dropping
+    // this line means a default Linux install can never transcribe at all.
+    {
+        var cloudMode = new Mode
+        {
+            ProviderType = "cloud",
+            CloudProvider = "hyperwhisper",
+            CloudAccuracyTier = "elevenLabsScribeV2",
+        };
+        await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: cloudMode));
+        Assert(!string.IsNullOrWhiteSpace(cloud.LastRequest!.BaseUrl),
+            "HyperWhisper Cloud request carried no BaseUrl. hw-net rejects that locally with "
+                + "`workflow.invalidrequest` and no request is ever sent.");
+    }
+
     // The same canonicalisation, one layer down, on the bridge the Mode editor
     // and the Local API both call. Asserted separately so a regression names the
     // layer that broke rather than only the route that noticed.
@@ -228,6 +252,49 @@ static async Task TestRouterAsync(string root)
             RoutedProvider: null,
             RoutedModel: null,
         }, "direct Meta did not stay separate from HyperWhisper Cloud or use the exact default model");
+
+    // AZURE MAI — a standalone `microsoftazurespeech` mode is not a BYOK mode.
+    // It terminates at the same HW Cloud /transcribe proxy, where the model is
+    // `X-STT-Model`, built by hw-net from `routed_model` and never from `model`.
+    // A null RoutedModel let the backend apply its own default, so a mode pinned
+    // to 1.5 transcribed AND billed as mai-transcribe-2.
+    var azurePinnedMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "microsoftazurespeech",
+        CloudTranscriptionModel = "mai-transcribe-1.5",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: azurePinnedMode));
+    Assert(cloud.LastRequest is
+        {
+            Provider: CloudTranscriptionProvider.AzureMai,
+            RoutedModel: "mai-transcribe-1.5",
+        }, "an Azure MAI mode pinned to 1.5 did not carry that model as the routed (X-STT-Model) value");
+
+    // A model id that is not one of this entry's pre-recorded models — a stale
+    // save, a BYOK id left in the shared field — degrades to the catalog default
+    // instead of being forwarded into a backend 400.
+    var azureStaleMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "microsoftazurespeech",
+        CloudTranscriptionModel = "whisper-1",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: azureStaleMode));
+    Assert(cloud.LastRequest!.RoutedModel == SharedCoreBridge.CloudSttDefaultModel("azureMaiTranscribe"),
+        $"a stale Azure MAI model id routed as '{cloud.LastRequest.RoutedModel}' instead of the catalog default");
+
+    // BYOK providers must NOT gain a routed model: their model travels in their
+    // own request body, and a routed value would become a stray X-STT-Model.
+    var byokOpenAiMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "openai",
+        CloudTranscriptionModel = "whisper-1",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: byokOpenAiMode));
+    Assert(cloud.LastRequest is { Model: "whisper-1", RoutedModel: null },
+        "a BYOK OpenAI mode gained a routed model");
 
     // This route's own 1000-term cap, kept out of the shared core deliberately:
     // the live-streaming router caps at 100 and neither may drift onto the other.

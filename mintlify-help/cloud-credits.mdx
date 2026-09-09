@@ -3,7 +3,9 @@ title: HyperWhisper Cloud Credits
 description: How credits work, how to see your balance, and how to buy more.
 ---
 
-HyperWhisper Cloud is the built-in transcription service. It needs no API key. It takes payment from a credit balance, so you pay only for what you use.
+HyperWhisper Cloud is the built-in transcription and post-processing service.
+It needs no provider API key. It takes payment from a credit balance, so you
+pay only for what you use.
 
 <Note>
   HyperWhisper does not sell a license. If you bought a "Pro license" before HyperWhisper went open source, see [Going Open Source](/going-open-source) — it explains what changed and why your credits can run out even though you paid once.
@@ -11,9 +13,17 @@ HyperWhisper Cloud is the built-in transcription service. It needs no API key. I
 
 ## What are credits?
 
-Credits are the currency for HyperWhisper Cloud transcription. One credit equals **$0.001 USD**. HyperWhisper deducts credits from your balance after each successful transcription. A transcription that fails costs no credits.
+Credits are the currency for HyperWhisper Cloud transcription and
+post-processing. One credit equals **$0.001 USD**. HyperWhisper deducts the
+measured provider cost after a provider processes a request. A request that
+stops before a provider call costs no credits.
 
-The number of credits depends on the provider that you select in your mode settings. A new installation starts on ElevenLabs Scribe v2, which costs about **9.83 credits per minute** of audio. **Settings → HyperWhisper Cloud** always shows the exact rate next to your balance.
+For transcription, the number of credits depends on the provider that you
+select in your mode settings. A new installation starts on ElevenLabs Scribe
+v2, which costs about **9.83 credits per minute** of audio. **Settings →
+HyperWhisper Cloud** always shows the exact transcription rate next to your
+balance. Post-processing uses the input and output token counts of its selected
+model.
 
 Credits belong to your account key, not to a device. The same balance applies on all your devices and platforms.
 
@@ -25,7 +35,7 @@ Credits belong to your account key, not to a device. The same balance applies on
 
 HyperWhisper Cloud needs an account key for every request. There is no trial and no anonymous usage. You do not buy the key separately. Your first credit purchase creates a key and emails it to you. This key is both your Cloud license and your credit wallet. If you already have a key, a new purchase adds credits to that key.
 
-## Per-provider credit rates
+## Transcription credit rates
 
 Each HyperWhisper Cloud provider has a different cost per minute. The backend sets the rate. The credits card shows the rate next to your balance.
 
@@ -34,7 +44,7 @@ Each HyperWhisper Cloud provider has a different cost per minute. The backend se
 | Groq Whisper | ~0.7 |
 | Deepgram Nova 3 | ~5.5 |
 | Grok STT | ~1.67 |
-| Microsoft MAI-Transcribe 1.5 | ~6.0 |
+| Microsoft MAI-Transcribe 2 | ~1.67 |
 | ElevenLabs Scribe v2 (default) | ~9.83 |
 | Google Gemini 3.5 Transcribe | ~5.5 |
 | OpenAI | ~6.0 |
@@ -56,7 +66,7 @@ The rates follow the current prices of the backend and can change. Settings alwa
 
 The rate in the table is the rate of the default model of each provider. Three things change the number of credits that a transcription costs.
 
-**A different model.** Each provider offers more than one model, and each model has its own rate. For example, OpenAI GPT-4o Mini Transcribe costs approximately half of OpenAI GPT-4o Transcribe. Select the model in the Model row of the mode editor.
+**A different model.** Each provider offers more than one model, and each model has its own rate. For example, OpenAI GPT-4o Mini Transcribe costs approximately half of OpenAI GPT-4o Transcribe. The Microsoft row gives a larger difference: **MAI-Transcribe 2** costs approximately **1.67 credits per minute**, and the older **MAI-Transcribe 1.5** costs approximately **6.0**. Select the model in the Model row of the mode editor.
 
 **Custom vocabulary.** Two providers charge more when your mode has [custom vocabulary](/vocabulary):
 

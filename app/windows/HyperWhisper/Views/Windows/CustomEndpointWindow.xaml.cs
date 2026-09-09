@@ -18,6 +18,20 @@ public partial class CustomEndpointWindow : Window
     private bool _isLoading = true;
     private bool _isTesting;
 
+    /// <summary>
+    /// The last Test Connection outcome, together with the exact configuration
+    /// it was measured against.
+    /// </summary>
+    /// <remarks>
+    /// The window used to render its test result and throw it away, so a saved
+    /// endpoint reached the Model Library with no recorded outcome and was
+    /// labelled "Connected" seconds after a test that failed (#509). The tested
+    /// values are kept alongside the verdict because the user is free to edit
+    /// the URL, model or key after testing; a verdict that no longer describes
+    /// what is being saved is not carried over.
+    /// </remarks>
+    private (string Url, string Model, string ApiKey, bool Success)? _lastTest;
+
     /// <summary>The saved endpoint after successful save.</summary>
     public CustomPostProcessingEndpoint? SavedEndpoint { get; private set; }
 
@@ -49,9 +63,17 @@ public partial class CustomEndpointWindow : Window
     {
         _isLoading = true;
 
+        // The heading and the OS window title are the same sentence, so they are
+        // written from the same string. They were not: the heading switched to
+        // "Edit Endpoint" and Window.Title kept the "Add Endpoint" the XAML set,
+        // which is what the taskbar entry and Alt+Tab showed while the user was
+        // editing an endpoint that already existed (#510).
+        var heading = _existingEndpoint != null ? "Edit Endpoint" : "Add Endpoint";
+        Title = heading;
+        TitleText.Text = heading;
+
         if (_existingEndpoint != null)
         {
-            TitleText.Text = "Edit Endpoint";
             SaveButton.Content = "Save Changes";
 
             // Load existing data
@@ -272,9 +294,12 @@ public partial class CustomEndpointWindow : Window
         TestingPanel.Visibility = Visibility.Visible;
 
         var (url, model) = GetEndpointUrlAndModel();
+        var apiKey = ApiKeyBox.Password;
 
         var result = await CustomEndpointManager.Instance.TestEndpointAsync(
-            url, model, ApiKeyBox.Password);
+            url, model, apiKey);
+
+        _lastTest = (url, model, apiKey, result.success);
 
         TestingPanel.Visibility = Visibility.Collapsed;
 
@@ -332,20 +357,28 @@ public partial class CustomEndpointWindow : Window
             return;
         }
 
+        var testOutcome = TestOutcomeFor(endpointUrl, modelName, apiKey);
+
         if (_existingEndpoint != null)
         {
             // Update existing
             var success = CustomEndpointManager.Instance.UpdateEndpoint(
                 _existingEndpoint.Id,
+                out var updateError,
                 name: name,
                 endpointURL: endpointUrl,
                 modelName: modelName,
-                apiKey: apiKey);
+                apiKey: apiKey,
+                lastTestSuccess: testOutcome);
 
             if (success)
             {
                 SavedEndpoint = CustomEndpointManager.Instance.GetEndpoint(_existingEndpoint.Id);
                 DialogResult = true;
+            }
+            else
+            {
+                ShowSaveRefused(updateError);
             }
         }
         else
@@ -353,14 +386,53 @@ public partial class CustomEndpointWindow : Window
             // Create new
             SavedEndpoint = CustomEndpointManager.Instance.AddEndpoint(
                 name, endpointUrl, modelName,
-                string.IsNullOrEmpty(apiKey) ? null : apiKey);
+                out var addError,
+                string.IsNullOrEmpty(apiKey) ? null : apiKey,
+                lastTestSuccess: testOutcome);
 
             if (SavedEndpoint != null)
             {
                 DialogResult = true;
             }
+            else
+            {
+                ShowSaveRefused(addError);
+            }
         }
     }
+
+    /// <summary>
+    /// Report a refused save in the same message box the three empty-field
+    /// checks above already use.
+    /// </summary>
+    /// <remarks>
+    /// There was no else on either save branch, so a Base URL the validator had
+    /// already rejected — with a usable sentence, written to the log and thrown
+    /// away — left the button looking dead (#507). The fallback covers a refusal
+    /// that arrives with no message: silence is the one outcome the user cannot
+    /// act on.
+    /// </remarks>
+    private static void ShowSaveRefused(string? reason)
+    {
+        System.Windows.MessageBox.Show(
+            string.IsNullOrWhiteSpace(reason) ? "This endpoint could not be saved." : reason,
+            "Validation",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+
+    /// <summary>
+    /// The recorded Test Connection outcome, but only when it was measured
+    /// against the configuration now being saved. Null means "not tested",
+    /// which the Model Library renders as such rather than as "Connected".
+    /// </summary>
+    internal bool? TestOutcomeFor(string endpointUrl, string modelName, string apiKey)
+        => _lastTest is { } test
+            && string.Equals(test.Url, endpointUrl, StringComparison.Ordinal)
+            && string.Equals(test.Model, modelName, StringComparison.Ordinal)
+            && string.Equals(test.ApiKey, apiKey, StringComparison.Ordinal)
+            ? test.Success
+            : null;
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {

@@ -114,7 +114,8 @@ public static class UnifiedModelCatalog
                     ModelSurface.BatchTranscription, vocab, allLanguages, languages, streaming,
                     CloudTierEligible: access.@cloudTierEligible,
                     ByokEligible: access.@byokEligible,
-                    CredentialAccount: CredentialAccountFor(sttProvider)));
+                    CredentialAccount: CredentialAccountFor(sttProvider),
+                    ModelLanguageCount: ModelLanguageCount(providerId, modelId, languages)));
             }
         }
     }
@@ -248,6 +249,58 @@ public static class UnifiedModelCatalog
         => HyperwhisperCoreMethods.CloudSttLanguageCodes(providerId)
                ?.Where(code => code.Length > 0).ToArray()
            ?? [];
+
+    /// <summary>
+    /// Cloud STT entry ids whose models do NOT share one language set, mapped to
+    /// their <c>shared-models/models-catalog.json</c> provider key.
+    ///
+    /// <c>cloud-stt-catalog.json</c>'s <c>languages.codes</c> is provider-level
+    /// by schema. For <c>azureMaiTranscribe</c> it is the UNION of
+    /// MAI-Transcribe 2's 60 locales and 1.5's 42, so publishing its LENGTH as
+    /// every model's language count made the Model Library tell a 1.5 user the
+    /// model speaks 18 languages it cannot transcribe. The per-model split lives
+    /// only in <c>models-catalog.json</c> — the same data the Windows Mode editor
+    /// and macOS <c>STTLanguageTemplates</c> narrow on.
+    ///
+    /// Deliberately a short opt-in list rather than "always prefer the per-model
+    /// set", and deliberately a COUNT rather than a code list. The two files use
+    /// different CODE SPACES: this file's rows are raw upstream codes (Deepgram's
+    /// include <c>multi</c> and region variants like <c>ar-AE</c>, Azure's include
+    /// <c>nb</c> and <c>fil</c>), models-catalog's are folded picker codes
+    /// (<c>no</c>, <c>tl</c>). Putting the folded codes into
+    /// <c>SupportedLanguages</c> for these two rows only — which is what an
+    /// earlier cut of this fix did — left one field answering in two spaces, so
+    /// <c>SupportsLanguage(azureRow, "nb")</c> flipped from true to false while
+    /// every other vendor's row kept the catalog space. A count carries the fact
+    /// the Model Library shows and takes no code space with it.
+    ///
+    /// Deepgram and AssemblyAI have the same provider-level over-claim in
+    /// <c>SupportedLanguages</c> (an English-only medical model listed as if it
+    /// spoke all 88) — pre-existing, unchanged by this file, and recorded as an
+    /// open question rather than fixed here.
+    /// </summary>
+    private static readonly Dictionary<string, string> PerModelLanguageProviders =
+        new(StringComparer.Ordinal)
+        {
+            ["azureMaiTranscribe"] = "microsoftAzureSpeech",
+        };
+
+    /// <summary>
+    /// How many languages ONE cloud STT model supports, or null when the
+    /// provider list already is this model's list. A model the per-model file
+    /// does not carry (a stale id, a new row landing in one file first) also
+    /// answers null, so a row never ends up claiming NO languages.
+    ///
+    /// Null is also returned when the per-model figure equals the provider's, so
+    /// the field means "this model differs" and never merely restates the list.
+    /// </summary>
+    private static int? ModelLanguageCount(
+        string providerId, string modelId, IReadOnlyList<string> providerCodes)
+    {
+        if (!PerModelLanguageProviders.TryGetValue(providerId, out var modelsCatalogKey)) return null;
+        var codes = SharedCoreBridge.SharedModelVoiceLanguageCodes(modelsCatalogKey, modelId);
+        return codes is null || codes.Count == providerCodes.Count ? null : codes.Count;
+    }
 
     private static string Required(string? value, string property)
         => string.IsNullOrWhiteSpace(value)

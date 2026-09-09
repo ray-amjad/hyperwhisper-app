@@ -132,6 +132,9 @@ fn server_frames_decode_to_the_expected_events() {
             gt::LiveServerMessage::FinalTranscript { text } => {
                 ("finalTranscript", Some(text.clone()))
             }
+            gt::LiveServerMessage::FinalTranscriptAndComplete { text } => {
+                ("finalTranscriptAndComplete", Some(text.clone()))
+            }
             gt::LiveServerMessage::Complete => ("complete", None),
             gt::LiveServerMessage::Error { message } => ("error", Some(message.clone())),
             gt::LiveServerMessage::Unhandled => ("unhandled", None),

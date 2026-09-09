@@ -284,6 +284,11 @@ final class ModelLibraryManager: ObservableObject {
         // and anything over ~55s falls onto a real-time GCS+batchRecognize
         // path, so it earns the lowest speed bar. MAI-Transcribe is comparably
         // accurate but returns in a single multipart round-trip (~5s).
+        // v2 keeps 1.5's bars rather than raising them: Microsoft claims it is
+        // both faster and more accurate, but that is a vendor figure on vendor
+        // audio and these bars are our own. Without a row here it would silently
+        // fall back to (3, 3) and rank BELOW 1.5.
+        "mai-transcribe-2":                  (4, 5),
         "mai-transcribe-1.5":                (4, 5),
         "chirp_3":                           (1, 5),
     ]
@@ -557,6 +562,7 @@ final class ModelLibraryManager: ObservableObject {
         "gemini-3.5-flash":                              (2, 5),
         "gemini-3.6-flash":                              (2, 5),
         "gemini-3.7-flash":                              (2, 5),
+        "gemini-3.8-flash":                              (2, 5),
         "gemini-2.5-flash-lite":                         (4, 5),
         "gemini-3.5-flash-lite":                         (5, 4),
         "gemini-2.5-pro":                                (2, 4),

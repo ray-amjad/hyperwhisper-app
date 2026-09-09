@@ -185,6 +185,7 @@ public static class PortableLocalApi
                 model = result.Model,
                 preset = result.Preset,
                 latency_ms = result.LatencyMs,
+                post_processed = result.PostProcessed,
             });
         });
         app.MapPost("/transcribe", Transcribe);

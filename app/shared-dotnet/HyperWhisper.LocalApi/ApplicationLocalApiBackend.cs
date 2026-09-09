@@ -5,6 +5,7 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.SharedCore;
+using HyperWhisper.SpeechOutput;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.LocalApi;
@@ -51,6 +52,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     private readonly ILocalApiCapabilityCatalog _catalog;
     private readonly ILocalApiPostProcessor? _postProcessor;
     private readonly VocabularyRepository? _vocabulary;
+    private readonly Func<Mode?, SpeechOutputProcessingOptions>? _outputOptions;
     private readonly IPrivateFileService _privateFiles;
     private readonly string _recordingsDirectory;
     private readonly string _appVersion;
@@ -66,7 +68,8 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         IAppPaths paths,
         string appVersion,
         ILocalApiPostProcessor? postProcessor = null,
-        VocabularyRepository? vocabulary = null)
+        VocabularyRepository? vocabulary = null,
+        Func<Mode?, SpeechOutputProcessingOptions>? outputOptions = null)
     {
         _modes = modes ?? throw new ArgumentNullException(nameof(modes));
         _history = history ?? throw new ArgumentNullException(nameof(history));
@@ -78,6 +81,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         _appVersion = appVersion;
         _postProcessor = postProcessor;
         _vocabulary = vocabulary;
+        _outputOptions = outputOptions;
     }
 
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken cancellationToken)
@@ -215,9 +219,18 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                 upload.Engine, upload.Model, upload.ApplicationContext?.ToSnapshot(),
                 RequestsTimestamps(upload.TimestampGranularities)).ConfigureAwait(false);
             var mode = request.SelectedMode;
-            // Match the Windows Local API contract: /transcribe returns the
-            // transcription result and never runs a mode's post-processing.
-            // Callers that want enhancement use the separate /post-process route.
+            // Match the Windows Local API contract: /transcribe declines the AI
+            // REWRITE, even when the resolved Mode enables it. Callers that want
+            // enhancement use the separate /post-process route.
+            //
+            // Forcing the mode to 0 also puts `SpeechOutputProcessor` on its
+            // `PostProcessingMode.Off` arm, which is the arm that runs the
+            // deterministic passes — filler-word removal (gated on the user's
+            // own setting, through `OutputOptions` above) and dictated
+            // "new line" / "new paragraph" break commands. Vocabulary
+            // replacements run on every arm. Those three are the user's own
+            // configuration and contain no LLM, so they belong to this route's
+            // `text` exactly as they do on Windows (issues #495, #498, #530).
             if (mode is not null) mode.PostProcessingMode = 0;
             var started = Stopwatch.GetTimestamp();
             var result = await _workflow.TranscribeFileAsync(path, request, cancellationToken).ConfigureAwait(false);
@@ -361,14 +374,32 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         if (mode is not null)
             ApplyTranscriptionOverrides(mode, engineOverride, modelOverride);
 
+        IReadOnlyList<VocabularyItem> vocabularyItems = _vocabulary is null
+            ? []
+            : await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false);
         // Shared core rule: sanitize, drop empties, dedupe case-insensitively.
         // Uncapped — the local API hands the whole vocabulary to the workflow,
         // and each provider applies its own cap downstream.
-        IReadOnlyList<string> vocabulary = _vocabulary is null
+        IReadOnlyList<string> vocabulary = vocabularyItems.Count == 0
             ? []
-            : SharedCoreBridge.NormalizeVocabularyTerms(
-                [.. (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false)).Select(item => item.Word)],
-                null);
+            : SharedCoreBridge.NormalizeVocabularyTerms([.. vocabularyItems.Select(item => item.Word)], null);
+        // The word/replacement pairs, which are a DIFFERENT thing from the
+        // prompt hints above: the hints bias the engine, these rewrite the
+        // finished transcript. The backend only ever sent the hints, so
+        // /transcribe returned "eta" for a user whose rule says "estimated time
+        // of arrival" while dictation of the same audio in the same Mode
+        // returned the expansion (issue #530). Built the same way
+        // `ApplicationShellViewModel.BuildVocabularyReplacements` builds them
+        // for the GUI path, off the same repository rows. Not normalized through
+        // the shared core: `NormalizeVocabularyTerms` is the prompt-hint rule
+        // (it strips punctuation and collapses whitespace), and a replacement
+        // rule must match the word the user actually typed.
+        IReadOnlyList<PortableVocabularyReplacement> replacements =
+        [
+            .. vocabularyItems
+                .Where(item => !string.IsNullOrWhiteSpace(item.Word) && !string.IsNullOrWhiteSpace(item.Replacement))
+                .Select(item => new PortableVocabularyReplacement(item.Word, item.Replacement!)),
+        ];
         return new(
             languageOverride ?? mode?.Language,
             mode?.Name,
@@ -376,6 +407,18 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             mode,
             vocabulary,
             applicationContext,
+            VocabularyReplacements: replacements,
+            // Mode-level word/replacement pairs have no portable storage yet;
+            // `ApplicationShellViewModel` passes the same empty list.
+            ModeVocabularyReplacements: [],
+            // Without this the workflow falls back to
+            // `BuildDefaultOutputOptions`, which hard-codes
+            // `RemoveFillerWords: true` — so /transcribe stripped filler words
+            // even for a user who had turned that setting OFF, the opposite of
+            // the Windows defect in issue #498. The composed application hands
+            // in the SAME projection its own dictation path uses, so the two
+            // cannot disagree about one user's settings.
+            OutputOptions: _outputOptions?.Invoke(mode),
             StoreWordTimestamps: storeWordTimestamps);
     }
 

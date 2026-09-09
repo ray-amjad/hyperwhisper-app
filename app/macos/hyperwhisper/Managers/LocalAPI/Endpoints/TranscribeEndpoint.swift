@@ -5,6 +5,16 @@
 //  Implements `POST /transcribe`. Accepts either `mode_id` (resolve a saved
 //  Mode) or `engine`+`model`+`language` (Mode-less direct invocation).
 //
+//  `/post-process` is the formatting endpoint, so this route never runs the AI
+//  rewrite. The DETERMINISTIC text passes are a different thing: they are the
+//  user's own settings and contain no LLM, so the `text` field carries the
+//  transcript after them — the user's vocabulary replacements, dictated
+//  "new line" / "new paragraph" break commands, and filler-word removal when
+//  that setting is on. Windows made the same split for issues #495 / #498; this
+//  head returned the engine's raw string with none of the three applied, so a
+//  user with the rule `eta` → `estimated time of arrival` got `eta` back from
+//  the API and the expansion from dictation of the same audio (issue #530).
+//
 
 import Foundation
 import CoreData
@@ -76,6 +86,18 @@ enum TranscribeEndpoint {
 
         let started = Date()
         let text: String
+        // The language the engine reported for THIS run. Captured on the very
+        // next line after the awaited `transcribe`, before the health calls and
+        // before any other read of the provider, because `detectedLanguage` is
+        // per-provider mutable state and this is the ordering its own contract
+        // asks for. That contract rests on "transcriptions are serialized per
+        // session", which the GUI honours and two overlapping Local API
+        // requests against the same provider instance do not — the same
+        // pre-existing hazard `lastTimestamps` below is already read under.
+        // Closing it properly means returning per-call metadata from
+        // `TranscriptionProvider.transcribe`, across all eighteen conformers;
+        // that is a protocol change and is not made here.
+        let detectedLanguage: String?
         do {
             text = try await resolution.provider.transcribe(
                 audioURL: fileURL,
@@ -83,6 +105,7 @@ enum TranscribeEndpoint {
                 mode: resolution.mode,
                 vocabulary: resolution.vocabulary
             )
+            detectedLanguage = resolution.provider.detectedLanguage
             if let cloudProviderType {
                 if let credentialGeneration {
                     healthManager?.recordTranscriptionOutcome(
@@ -108,6 +131,18 @@ enum TranscribeEndpoint {
         }
         let latencyMs = Int(Date().timeIntervalSince(started) * 1000)
 
+        // The deterministic passes, in the order and on the terms
+        // `TranscriptionPipeline`'s no-post-processing branch applies them.
+        // Filler removal is gated on the language that actually came back
+        // rather than on a requested "auto" — "er" and "um" are real words in
+        // other languages (issue #278).
+        let finalText = Self.applyDeterministicTextPasses(
+            to: text,
+            language: detectedLanguage ?? language,
+            mode: resolution.mode,
+            pipeline: pipeline
+        )
+
         // Read timestamps produced by the run (nil unless requested AND the
         // engine could produce them → graceful omission for cloud/other engines).
         let timestamps = granularities.isEmpty ? nil : resolution.provider.lastTimestamps
@@ -122,7 +157,7 @@ enum TranscribeEndpoint {
 
         let response = TranscribeResponse(
             ok: true,
-            text: text,
+            text: finalText,
             engine: resolution.engineLabel,
             model: resolution.modelLabel,
             language: language,
@@ -133,6 +168,63 @@ enum TranscribeEndpoint {
             words: words
         )
         return LocalAPIResponder.ok(response)
+    }
+
+    // MARK: - Deterministic text passes
+
+    /// The three passes `/transcribe`'s `text` carries, read off the running
+    /// pipeline's settings.
+    ///
+    /// A thin adapter over the pure form below so `handle` stays one call and
+    /// the decision itself is testable without a `TranscriptionPipeline` (which
+    /// needs a provider router, a model manager and a settings manager).
+    @MainActor
+    static func applyDeterministicTextPasses(
+        to text: String,
+        language: String?,
+        mode: Mode?,
+        pipeline: TranscriptionPipeline
+    ) -> String {
+        applyDeterministicTextPasses(
+            to: text,
+            language: language,
+            mode: mode,
+            // `== false`, not `?? true` inverted: a pipeline with no settings
+            // manager keeps the app's default, exactly as
+            // `TranscriptionPipeline+Transcription` reads it.
+            removeFillerWords: pipeline.settingsManager?.removeFillerWords != false,
+            vocabularyProcessor: pipeline.vocabularyProcessor
+        )
+    }
+
+    /// Filler-word removal, then dictated break commands, then the user's
+    /// vocabulary replacements — the order and the gating of
+    /// `TranscriptionPipeline`'s no-post-processing branch, which is the branch
+    /// this route is always on because it declines the AI rewrite.
+    ///
+    /// Vocabulary replacements are NOT gated on the filler-word setting: they
+    /// are a separate switch, and Windows' orchestrator runs them
+    /// unconditionally in the same arm. Only the first pass reads
+    /// `removeFillerWords`.
+    ///
+    /// The insert-time steps stay out on purpose. Autocapitalize Insert and the
+    /// trailing space depend on where the text is being typed, and no API
+    /// response has a cursor — the portable head omits them here for the same
+    /// reason (it projects `SpeechOutputProcessingResult.transcriptText`, which
+    /// is taken before those steps run).
+    @MainActor
+    static func applyDeterministicTextPasses(
+        to text: String,
+        language: String?,
+        mode: Mode?,
+        removeFillerWords: Bool,
+        vocabularyProcessor: VocabularyProcessor
+    ) -> String {
+        let withoutFillers = removeFillerWords
+            ? TranscriptionTextProcessing.removeFillerWords(text, language: language)
+            : text
+        let withCommands = TranscriptionTextProcessing.processVoiceCommands(withoutFillers)
+        return vocabularyProcessor.applyVocabularyReplacements(withCommands, mode: mode)
     }
 
     // MARK: - Audio source resolution
@@ -757,6 +849,14 @@ enum TranscribeEndpoint {
     ) async throws -> ProviderResolution {
         let router = pipeline.providerCoordinator
 
+        // The SAME snapshot `TranscriptionPipeline` takes for a dictation run.
+        // Every branch below used to pass `[]`, so a local engine skipped the
+        // phonetic and substring matching it does for dictation, and a cloud
+        // provider was sent no keyterm / initial_prompt biasing (issue #530).
+        // Taken once, before any await, so all branches of one request see one
+        // vocabulary.
+        let vocabulary = PersistenceController.shared.fetchAllVocabularyItems()
+
         let trimmedEngine = req.engine?.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = req.model?.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedLanguage = req.language?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -771,12 +871,11 @@ enum TranscribeEndpoint {
 
             // Pure mode_id call → use saved Mode untouched.
             if !hasOverride {
-                let vocab: [Vocabulary] = []
-                let selection = try await router.selectProvider(for: stored, vocabulary: vocab)
+                let selection = try await router.selectProvider(for: stored, vocabulary: vocabulary)
                 return ProviderResolution(
                     provider: selection.provider,
                     mode: stored,
-                    vocabulary: vocab,
+                    vocabulary: vocabulary,
                     engineLabel: engineLabel(forMode: stored),
                     modelLabel: modelLabel(forMode: stored),
                     transientMode: nil,
@@ -786,11 +885,11 @@ enum TranscribeEndpoint {
 
             // Mixed: saved mode supplies defaults, request overrides specific fields.
             let transient = makeTransientMode(baseline: stored, engine: trimmedEngine, model: trimmedModel, language: trimmedLanguage)
-            let selection = try await router.selectProvider(for: transient, vocabulary: [])
+            let selection = try await router.selectProvider(for: transient, vocabulary: vocabulary)
             return ProviderResolution(
                 provider: selection.provider,
                 mode: transient,
-                vocabulary: [],
+                vocabulary: vocabulary,
                 engineLabel: engineLabel(forMode: transient),
                 modelLabel: modelLabel(forMode: transient),
                 transientMode: transient,
@@ -820,7 +919,7 @@ enum TranscribeEndpoint {
         return ProviderResolution(
             provider: selection.provider,
             mode: transient,
-            vocabulary: [],
+            vocabulary: vocabulary,
             engineLabel: engineLabel(forMode: transient),
             modelLabel: modelLabel(forMode: transient),
             transientMode: transient,

@@ -145,24 +145,50 @@ internal static class PostProcessEndpoints
                     // Post-processing silently skipped (PostProcessingMode == 0
                     // slipped past BuildWorkingMode, or empty system prompt).
                     // Treat as no-op success — return the input text labelled
-                    // `provider: "none"` so callers can distinguish.
+                    // `provider: "none"` so callers can distinguish. Nothing ran,
+                    // so the stored `LanguageModel` is the only label there is and
+                    // is not a claim about a run (#314) — it can legitimately be
+                    // `""`, and `provider: "none"` is what tells the caller.
                     return LocalApiResponder.Ok(new PostProcessResponse
                     {
                         Text = result.Text,
                         Provider = "none",
                         Model = workingMode.LanguageModel ?? "",
                         Preset = workingMode.Preset ?? "hyper",
-                        LatencyMs = latencyMs
+                        LatencyMs = latencyMs,
+                        // Nothing ran; `result.Text` is the caller's own input
+                        // echoed back. `provider: "none"` above is this head's
+                        // OWN signal for that and is Windows-only — macOS
+                        // reports the configured provider here and leans on
+                        // `post_processed` alone, so the two fields are not
+                        // interchangeable across platforms and a client must
+                        // read this one. Not unified here: changing the
+                        // `provider` value is a wire break for existing
+                        // Windows callers and is not what #499 asks for.
+                        PostProcessed = false
                     });
                 }
+
+                // Report the provider and model that ACTUALLY ran (issue #314),
+                // not the ones stored on the Mode — every fallback inside
+                // PostProcessingService happens after the Mode was read. `preset`
+                // is not remapped anywhere, so it still comes off the Mode.
+                var labels = ResponseLabels(
+                    workingMode.PostProcessingProvider,
+                    workingMode.LanguageModel,
+                    result.ResolvedProvider,
+                    result.ResolvedModel);
 
                 return LocalApiResponder.Ok(new PostProcessResponse
                 {
                     Text = result.Text,
-                    Provider = workingMode.PostProcessingProvider ?? "hyperwhisper",
-                    Model = workingMode.LanguageModel ?? "",
+                    Provider = labels.Provider,
+                    Model = labels.Model,
                     Preset = workingMode.Preset ?? "hyper",
-                    LatencyMs = latencyMs
+                    LatencyMs = latencyMs,
+                    // Reached only past the `!result.WasApplied` guard above, so
+                    // an LLM ran and this text is its output.
+                    PostProcessed = true
                 });
             }
             finally
@@ -173,21 +199,112 @@ internal static class PostProcessEndpoints
     }
 
     // =========================================================================
+    // Response labels
+    // =========================================================================
+
+    /// <summary>
+    /// Decide the `provider` and `model` fields of the success body: what
+    /// actually ran, falling back to the working Mode's stored values only when
+    /// nothing ran (issue #314).
+    /// <para>
+    /// <see cref="PostProcessingService"/> fills
+    /// <see cref="PostProcessingResult.ResolvedProvider"/> /
+    /// <see cref="PostProcessingResult.ResolvedModel"/> only on
+    /// <see cref="PostProcessingResult.Applied"/>, so a non-null resolved value
+    /// already means "an LLM produced this text". No separate
+    /// <see cref="PostProcessingResult.WasApplied"/> cross-check is needed here,
+    /// and a run that picked a model and then failed cannot leave a stale label.
+    /// </para>
+    /// <para>
+    /// PROVIDER SPELLING IS PRESERVED. When the caller's stored provider NAMES
+    /// the provider that ran, the caller's own spelling is echoed back verbatim,
+    /// so this field changes ONLY in the cases that are the bug — a genuine
+    /// provider substitution. This is load-bearing on Windows: the resolved
+    /// HyperWhisper Cloud value is <c>"hyperwhispercloud"</c> while a mode synced
+    /// from macOS stores <c>"hyperwhisper"</c>, and both name the same provider —
+    /// emitting the resolved spelling would change the wire value for every
+    /// ordinary cloud request. Hence the comparison parses both sides
+    /// (<see cref="PostProcessingProviderExtensions.FromString"/>) instead of
+    /// comparing strings, with a plain string match first so a
+    /// <c>custom:&lt;guid&gt;</c> string — which parses to
+    /// <see cref="PostProcessingProvider.None"/>, as does every OTHER custom
+    /// endpoint — is preserved only when it is genuinely the same one.
+    /// </para>
+    /// <para>
+    /// An empty resolved model is treated as absent: <c>""</c> is "no answer",
+    /// not an answer. When nothing ran at all, `model` can still be <c>""</c> —
+    /// that is honest, and this method is not reached on the skipped path.
+    /// </para>
+    /// </summary>
+    internal static (string Provider, string Model) ResponseLabels(
+        string? storedProvider,
+        string? storedModel,
+        string? resolvedProvider,
+        string? resolvedModel)
+    {
+        var stored = storedProvider?.Trim() ?? "";
+        var resolved = resolvedProvider?.Trim() ?? "";
+
+        string provider;
+        if (resolved.Length == 0)
+        {
+            provider = stored.Length == 0 ? "hyperwhisper" : stored;
+        }
+        else if (stored.Length > 0 && NamesTheSameProvider(stored, resolved))
+        {
+            provider = stored;
+        }
+        else
+        {
+            provider = resolved;
+        }
+
+        // A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. The fallback keys on
+        // `resolvedModel is null` — "nothing ran" — NOT on the resolved string
+        // being empty. `""` is reported as `""`.
+        var model = resolvedModel is null ? (storedModel ?? "") : resolvedModel.Trim();
+
+        return (provider, model);
+    }
+
+    /// <summary>
+    /// True when two provider strings name the same provider. Exact (ignoring
+    /// case) counts, which covers custom-endpoint ids; otherwise both must parse
+    /// to the same non-<see cref="PostProcessingProvider.None"/> enum case, so
+    /// two DIFFERENT custom endpoints — both of which parse to `None` — are not
+    /// mistaken for each other.
+    /// </summary>
+    private static bool NamesTheSameProvider(string stored, string resolved)
+    {
+        if (string.Equals(stored, resolved, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        var storedParsed = PostProcessingProviderExtensions.FromString(stored);
+        return storedParsed != PostProcessingProvider.None
+            && storedParsed == PostProcessingProviderExtensions.FromString(resolved);
+    }
+
+    // =========================================================================
     // Mode resolution
     // =========================================================================
 
     /// <summary>
     /// Build the in-memory Mode that drives this request. Three shapes:
-    ///   1. `mode_id` alone, no overrides → load saved Mode, force
-    ///      PostProcessingMode to 1 if it was 0 (request implies caller wants
-    ///      post-processing on), and use as-is.
+    ///   1. `mode_id` alone, no overrides → load saved Mode and use it
+    ///      as-is, or reject it if post-processing is disabled.
     ///   2. `mode_id` + any of preset/prompt/provider/model → clone saved Mode
     ///      and apply overrides.
     ///   3. No `mode_id` but preset/prompt/provider/model present → build a
     ///      transient Mode from defaults and apply overrides.
     /// Never persisted.
+    /// <para>
+    /// `internal` rather than `private` so <c>HyperWhisper.SmokeTests</c> can pin
+    /// the override rules directly. Shape 3 is the only one it exercises — the
+    /// other two need <see cref="ModeService"/>.
+    /// </para>
     /// </summary>
-    private static Mode BuildWorkingMode(PostProcessRequest req)
+    internal static Mode BuildWorkingMode(PostProcessRequest req)
     {
         var preset = req.Preset?.Trim();
         var prompt = req.Prompt?.Trim();
@@ -242,7 +359,10 @@ internal static class PostProcessEndpoints
                     LocalApiErrorCode.ModeNotFound,
                     $"No mode with id '{modeId}'");
             }
-            mode = CloneMode(stored);
+            mode = LocalApiTransientMode.Create(
+                stored,
+                "__local_api_pp_transient__",
+                LocalApiTransientModeFields.Shared);
         }
         else
         {
@@ -267,6 +387,32 @@ internal static class PostProcessEndpoints
         if (!string.IsNullOrEmpty(model))
         {
             mode.LanguageModel = model;
+            // A LOCAL run resolves from `LocalPostProcessingModel ?? LanguageModel`
+            // (`PostProcessingService.ProcessAsync`), so writing only
+            // `LanguageModel` let a mode that already had a `LocalPostProcessingModel`
+            // silently ignore the caller's `model` and run the baseline GGUF.
+            //
+            // KEYED ON THE PROVIDER, NOT ON `PostProcessingMode`. Windows decides
+            // a local run from the provider STRING alone — `ProcessAsync` parses
+            // `mode.PostProcessingProvider` and never reads `PostProcessingMode`
+            // beyond the `== 0` skip — so a mode with post-processing switched off
+            // (`PostProcessingMode == 0`) whose provider is still `"local_llm"`
+            // runs the local GGUF as soon as the rule below promotes it to 1. A
+            // mode-keyed guard skipped this write on exactly that shape and ran
+            // the STALE GGUF, now honestly reported as a model the caller never
+            // asked for. `FromString` is the same predicate `ProcessAsync` routes
+            // on, so the two cannot disagree.
+            //
+            // The portable head keys on `PostProcessingMode == 2` instead
+            // (`LinuxLocalApiAdapters.BuildWorkingModeAsync`) and is correct to:
+            // its router requires mode 2 AND the provider string
+            // (`LinuxPostProcessingRouter.ProcessAsync`). Same intent, different
+            // routers.
+            if (PostProcessingProviderExtensions.FromString(mode.PostProcessingProvider)
+                == PostProcessingProvider.LocalLlm)
+            {
+                mode.LocalPostProcessingModel = model;
+            }
         }
 
         // After applying overrides, the request implied post-processing is
@@ -284,45 +430,6 @@ internal static class PostProcessEndpoints
         return string.Equals(id, "local_llm", StringComparison.OrdinalIgnoreCase)
             || string.Equals(id, "localLLM", StringComparison.OrdinalIgnoreCase)
             || string.Equals(id, "localLlm", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Shallow clone of a saved Mode into a transient, non-persisted instance.
-    /// </summary>
-    private static Mode CloneMode(Mode baseline)
-    {
-        return new Mode
-        {
-            Id = Guid.NewGuid(),
-            Name = "__local_api_pp_transient__",
-            Preset = baseline.Preset,
-            Language = baseline.Language,
-            Model = baseline.Model,
-            Punctuation = baseline.Punctuation,
-            Capitalization = baseline.Capitalization,
-            ProfanityFilter = baseline.ProfanityFilter,
-            CustomInstructions = baseline.CustomInstructions,
-            UserSystemPrompt = baseline.UserSystemPrompt,
-            LanguageModel = baseline.LanguageModel,
-            CloudProvider = baseline.CloudProvider,
-            CloudTranscriptionModel = baseline.CloudTranscriptionModel,
-            ProviderType = baseline.ProviderType,
-            PostProcessingMode = baseline.PostProcessingMode,
-            PostProcessingProvider = baseline.PostProcessingProvider,
-            EnglishSpelling = baseline.EnglishSpelling,
-            CloudAccuracyTier = baseline.CloudAccuracyTier,
-            RemoveTrailingPeriod = baseline.RemoveTrailingPeriod,
-            EnableScreenOCR = baseline.EnableScreenOCR,
-            GeminiCustomPrompt = baseline.GeminiCustomPrompt,
-            CloudPostProcessingModel = baseline.CloudPostProcessingModel,
-            LocalEngine = baseline.LocalEngine,
-            LocalParakeetModel = baseline.LocalParakeetModel,
-            LocalPostProcessingModel = baseline.LocalPostProcessingModel,
-            CustomVocabulary = baseline.CustomVocabulary,
-            SortOrder = int.MaxValue,
-            CreatedDate = DateTime.UtcNow,
-            ModifiedDate = DateTime.UtcNow
-        };
     }
 
     /// <summary>

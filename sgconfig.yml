@@ -1,0 +1,3 @@
+# ast-grep configuration. See .ast-grep/rules for what is enforced and why.
+ruleDirs:
+  - .ast-grep/rules

@@ -52,6 +52,9 @@ mod ffi_releasenotes;
 // the same reason as `ffi_catalog`: `tests/stats_vectors.rs` drives these
 // functions directly.
 pub mod ffi_stats;
+// The streaming word-agreement engines, shared by macOS and the parakeet
+// daemon (#286).
+mod ffi_stream;
 
 // ===========================================================================
 // hw-text (Milestone 1): pure text logic. Thin wrappers over the dep-free

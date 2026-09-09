@@ -26,7 +26,23 @@ public partial class ModeEditorWindow : Window
         _mode = mode;
         _isCreateMode = false;
 
+        ApplyDefaultModeNameLock();
         Loaded += OnLoaded;
+    }
+
+    /// <summary>
+    /// The default mode's name is fixed, and the field says so rather than just going
+    /// grey (issue #494). Keyed on IsDefault - the mode's identity, not its label.
+    ///
+    /// Here and not in Loaded: it reads only _mode, which is fixed from construction,
+    /// so a window that is never shown still applies the rule.
+    /// </summary>
+    private void ApplyDefaultModeNameLock()
+    {
+        ModeNameBox.IsEnabled = !_mode.IsDefault;
+        ModeNameLockedHint.Visibility = _mode.IsDefault ? Visibility.Visible : Visibility.Collapsed;
+        System.Windows.Automation.AutomationProperties.SetHelpText(
+            ModeNameBox, _mode.IsDefault ? ModeNameLockedHint.Text : string.Empty);
     }
 
     public ModeEditorWindow(bool isCreateMode)
@@ -62,6 +78,9 @@ public partial class ModeEditorWindow : Window
             ModifiedDate = DateTime.UtcNow
         };
 
+        // No ApplyDefaultModeNameLock() here: this constructor sets IsDefault = false
+        // above, so the lock could only ever be a no-op, and the XAML already ships
+        // the unlocked state.
         Loaded += OnLoaded;
     }
 
@@ -84,9 +103,6 @@ public partial class ModeEditorWindow : Window
             DeleteModeButton.Visibility = Visibility.Collapsed;
             SaveModeButton.Content = Loc.S("modes.button.create");
         }
-
-        // Disable name field for Default mode
-        ModeNameBox.IsEnabled = !_mode.IsDefault;
 
         // Update save button state based on name
         UpdateSaveButtonState();
@@ -616,10 +632,13 @@ public partial class ModeEditorWindow : Window
     /// provider is "hyperwhisper", but the real upstream provider is the selected
     /// accuracy tier's X-STT-Provider value and the model is the selected tier
     /// model (CloudTierModelCombo). For every other (BYOK) provider the model is
-    /// the CloudModelCombo selection. Tiers whose upstream provider has no enum
-    /// mapping (azure-mai / google-chirp / gemini → None) resolve to
-    /// <see cref="CloudTranscriptionProvider.None"/>, so callers fall through to
-    /// their default (full language list) branch. <paramref name="modelId"/> is
+    /// the CloudModelCombo selection. The tier's X-STT-Provider value is mapped
+    /// through <see cref="CloudTranscriptionProviderExtensions.FromCatalogSttProvider"/>,
+    /// which is the only function that knows the catalog-only spellings
+    /// (<c>azure-mai</c>, <c>gemini-transcribe</c>); a tier the catalog does not
+    /// name still resolves to <see cref="CloudTranscriptionProvider.None"/>, so
+    /// callers fall through to their default (full language list) branch.
+    /// <paramref name="modelId"/> is
     /// never null (empty string when unselected, matching the X-STT-Model
     /// "provider default" convention).
     /// </summary>
@@ -632,7 +651,13 @@ public partial class ModeEditorWindow : Window
         {
             var tierId = SelectedCloudTierId();
             var sttProvider = Services.AppClassification.CloudSttCatalog.Shared.SttProviderForId(tierId);
-            provider = CloudTranscriptionProviderExtensions.FromIdentifier(sttProvider);
+            // FromCatalogSttProvider, NOT FromIdentifier: the catalog's
+            // `sttProvider` is the backend dispatch key, a different namespace
+            // from the identifiers we persist. `azure-mai` and
+            // `gemini-transcribe` have no spelling in that other namespace, so
+            // FromIdentifier answered None and every provider-keyed branch below
+            // was skipped for those two tiers.
+            provider = CloudTranscriptionProviderExtensions.FromCatalogSttProvider(sttProvider);
             modelId = (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? string.Empty;
             return;
         }
@@ -2460,6 +2485,27 @@ public partial class ModeEditorWindow : Window
         }
     }
 
+    private void ReplaceLanguageItems(IEnumerable<LanguageInfo> languages)
+    {
+        var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+
+        LanguageCombo.Items.Clear();
+        foreach (var lang in languages)
+        {
+            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
+        }
+
+        bool found = false;
+        if (!string.IsNullOrEmpty(currentLang))
+        {
+            foreach (ComboBoxItem item in LanguageCombo.Items)
+            {
+                if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
+            }
+        }
+        if (!found) SelectLanguage("auto");
+    }
+
     /// <summary>
     /// Filters the language dropdown based on the selected model.
     /// Parakeet v3 shows only its supported languages + Automatic.
@@ -2481,28 +2527,10 @@ public partial class ModeEditorWindow : Window
                 if (model != null && !model.IsEnglishOnly)
                 {
                     // Multilingual Parakeet: filter to supported languages
-                    var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
                     var supportedCodes = model.SupportedLanguages;
-
-                    LanguageCombo.Items.Clear();
-                    foreach (var lang in LanguageInfo.AllLanguages)
-                    {
-                        if (lang.Code == "auto" || supportedCodes.Contains(lang.Code, StringComparer.OrdinalIgnoreCase))
-                        {
-                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                        }
-                    }
-
-                    // Preserve current selection if still valid, otherwise fall back to "auto"
-                    bool found = false;
-                    if (!string.IsNullOrEmpty(currentLang))
-                    {
-                        foreach (ComboBoxItem item in LanguageCombo.Items)
-                        {
-                            if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                        }
-                    }
-                    if (!found) SelectLanguage("auto");
+                    var filteredLanguages = LanguageInfo.AllLanguages.Where(lang =>
+                        lang.Code == "auto" || supportedCodes.Contains(lang.Code, StringComparer.OrdinalIgnoreCase));
+                    ReplaceLanguageItems(filteredLanguages);
                     return;
                 }
                 // English-only Parakeet: language picker is disabled by AutoSelectEnglishForModel,
@@ -2527,27 +2555,9 @@ public partial class ModeEditorWindow : Window
 
             if (cloudProvider == CloudTranscriptionProvider.Soniox)
             {
-                var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
                 var supportedCodes = new HashSet<string>(LanguageInfo.SonioxAsyncLanguageCodes, StringComparer.OrdinalIgnoreCase);
-
-                LanguageCombo.Items.Clear();
-                foreach (var lang in LanguageInfo.AllLanguages)
-                {
-                    if (supportedCodes.Contains(lang.Code))
-                    {
-                        LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                    }
-                }
-
-                bool found = false;
-                if (!string.IsNullOrEmpty(currentLang))
-                {
-                    foreach (ComboBoxItem item in LanguageCombo.Items)
-                    {
-                        if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                    }
-                }
-                if (!found) SelectLanguage("auto");
+                var filteredLanguages = LanguageInfo.AllLanguages.Where(lang => supportedCodes.Contains(lang.Code));
+                ReplaceLanguageItems(filteredLanguages);
                 return;
             }
 
@@ -2583,53 +2593,18 @@ public partial class ModeEditorWindow : Window
                 }
                 if (filteredCodes != null)
                 {
-                    var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
                     var supportedCodes = new HashSet<string>(filteredCodes, StringComparer.OrdinalIgnoreCase);
-
-                    LanguageCombo.Items.Clear();
-                    foreach (var lang in LanguageInfo.AllLanguages)
-                    {
-                        if (supportedCodes.Contains(lang.Code))
-                        {
-                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                        }
-                    }
-
-                    bool found = false;
-                    if (!string.IsNullOrEmpty(currentLang))
-                    {
-                        foreach (ComboBoxItem item in LanguageCombo.Items)
-                        {
-                            if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                        }
-                    }
-                    if (!found) SelectLanguage("auto");
+                    var filteredLanguages = LanguageInfo.AllLanguages.Where(lang => supportedCodes.Contains(lang.Code));
+                    ReplaceLanguageItems(filteredLanguages);
                     return;
                 }
             }
 
             if (cloudProvider == CloudTranscriptionProvider.Grok)
             {
-                var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-                LanguageCombo.Items.Clear();
-                foreach (var lang in LanguageInfo.AllLanguages)
-                {
-                    if (lang.Code == "auto" || GrokSttService.TryGetSupportedFormattingLanguageCode(lang.Code, out _))
-                    {
-                        LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                    }
-                }
-
-                bool found = false;
-                if (!string.IsNullOrEmpty(currentLang))
-                {
-                    foreach (ComboBoxItem item in LanguageCombo.Items)
-                    {
-                        if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                    }
-                }
-                if (!found) SelectLanguage("auto");
+                var filteredLanguages = LanguageInfo.AllLanguages.Where(lang =>
+                    lang.Code == "auto" || GrokSttService.TryGetSupportedFormattingLanguageCode(lang.Code, out _));
+                ReplaceLanguageItems(filteredLanguages);
                 return;
             }
 
@@ -2645,27 +2620,57 @@ public partial class ModeEditorWindow : Window
                 && effectiveModelId.EndsWith("-medical", StringComparison.Ordinal))
             {
                 var allowedMedical = new HashSet<string>(new[] { "auto", "en" }, StringComparer.OrdinalIgnoreCase);
-                var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-                LanguageCombo.Items.Clear();
-                foreach (var lang in LanguageInfo.AllLanguages)
-                {
-                    if (allowedMedical.Contains(lang.Code))
-                    {
-                        LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                    }
-                }
-
-                bool found = false;
-                if (!string.IsNullOrEmpty(currentLang))
-                {
-                    foreach (ComboBoxItem item in LanguageCombo.Items)
-                    {
-                        if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                    }
-                }
-                if (!found) SelectLanguage("auto");
+                var filteredLanguages = LanguageInfo.AllLanguages.Where(lang => allowedMedical.Contains(lang.Code));
+                ReplaceLanguageItems(filteredLanguages);
                 return;
+            }
+
+            // HyperWhisper Cloud Azure MAI tier: the two models do NOT share a
+            // language set. mai-transcribe-2 documents 60 locales, 1.5 only 42,
+            // and `cloud-stt-catalog.json`'s provider-level `languages.codes` is
+            // their UNION — so the tier-keyed fallback below would offer a 1.5
+            // user the 18 codes only v2 has, and Azure would silently fall back
+            // to auto-detect on each of them. The per-model split lives in
+            // `shared-models/models-catalog.json` (`supportedLanguages`), which
+            // is the same data macOS reads through STTLanguageTemplates; reading
+            // it over the FFI here keeps the two heads on one source rather than
+            // retyping the list.
+            //
+            // Deliberately scoped to Azure. The tier branch below is NOT
+            // generalised to per-model for every provider: nova-3-medical's
+            // English-only clamp already sits above with its own vendor-confirmed
+            // reasoning, and no other tier's per-model `supportedLanguages` rows
+            // have been validated against these branches.
+            if (isHyperWhisperCloud
+                && cloudProvider == CloudTranscriptionProvider.MicrosoftAzureSpeech)
+            {
+                var azureSupport = Services.SharedModelsCatalog.GetLanguageSupport(
+                    Services.SharedModelsCatalog.CatalogKey(CloudTranscriptionProvider.MicrosoftAzureSpeech),
+                    CatalogKind.Voice,
+                    effectiveModelId);
+
+                // SupportsAll means the catalog does not carry this id — a stale
+                // saved model, say. Fall through to the tier branch, which is
+                // today's behaviour, so the picker degrades rather than empties.
+                if (!azureSupport.SupportsAll && azureSupport.Codes.Count > 0)
+                {
+                    var allowedAzure = new HashSet<string>(azureSupport.Codes, StringComparer.OrdinalIgnoreCase)
+                    {
+                        "auto",
+                    };
+
+                    var filteredAzure = LanguageInfo.AllLanguages
+                        .Where(lang => allowedAzure.Contains(lang.Code))
+                        .ToList();
+
+                    // Same safety net as the tier branch: never show a near-empty
+                    // picker, fall through to the full list instead.
+                    if (filteredAzure.Count > 2)
+                    {
+                        ReplaceLanguageItems(filteredAzure);
+                        return;
+                    }
+                }
             }
 
             // HyperWhisper Cloud tiers without a dedicated branch above
@@ -2682,11 +2687,9 @@ public partial class ModeEditorWindow : Window
                 var allowed = Services.AppClassification.CloudSttCatalog.Shared.PickerLanguageCodesForId(tierId);
                 if (allowed is { Count: > 0 })
                 {
-                    var filtered = new List<LanguageInfo>();
-                    foreach (var lang in LanguageInfo.AllLanguages)
-                    {
-                        if (allowed.Contains(lang.Code)) filtered.Add(lang);
-                    }
+                    var filtered = LanguageInfo.AllLanguages
+                        .Where(lang => allowed.Contains(lang.Code))
+                        .ToList();
 
                     // Safety net: never show a near-empty picker. If normalization
                     // collapsed the set to ~just "auto" (a malformed/unmappable
@@ -2694,23 +2697,7 @@ public partial class ModeEditorWindow : Window
                     // macOS "miss → full list" semantics — rather than regress.
                     if (filtered.Count > 2)
                     {
-                        var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-
-                        LanguageCombo.Items.Clear();
-                        foreach (var lang in filtered)
-                        {
-                            LanguageCombo.Items.Add(new ComboBoxItem { Content = lang.DisplayName, Tag = lang.Code });
-                        }
-
-                        bool found = false;
-                        if (!string.IsNullOrEmpty(currentLang))
-                        {
-                            foreach (ComboBoxItem item in LanguageCombo.Items)
-                            {
-                                if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                            }
-                        }
-                        if (!found) SelectLanguage("auto");
+                        ReplaceLanguageItems(filtered);
                         return;
                     }
                 }
@@ -2720,18 +2707,7 @@ public partial class ModeEditorWindow : Window
         // Whisper or Cloud: restore full language list if it was filtered
         if (LanguageCombo.Items.Count < LanguageInfo.AllLanguages.Length)
         {
-            var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-            LoadLanguages();
-
-            bool found = false;
-            if (!string.IsNullOrEmpty(currentLang))
-            {
-                foreach (ComboBoxItem item in LanguageCombo.Items)
-                {
-                    if (item.Tag?.ToString() == currentLang) { LanguageCombo.SelectedItem = item; found = true; break; }
-                }
-            }
-            if (!found && LanguageCombo.Items.Count > 0) LanguageCombo.SelectedIndex = 0;
+            ReplaceLanguageItems(LanguageInfo.AllLanguages);
         }
     }
 

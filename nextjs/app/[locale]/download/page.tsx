@@ -7,6 +7,8 @@ import { Button } from "@heroui/button";
 import { Download, Copy, Check, Terminal, CheckCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { isRecord } from "@/src/lib/type-guards";
+
 type Platform = "mac" | "windows" | "linux";
 
 /**
@@ -22,6 +24,18 @@ type LinuxLatest = {
   checksums: string;
   releasePage: string;
 };
+
+function isLinuxLatest(value: unknown): value is LinuxLatest {
+  return (
+    isRecord(value) &&
+    typeof value.version === "string" &&
+    typeof value.releasedAt === "string" &&
+    typeof value.deb === "string" &&
+    (value.aptArchive === null || typeof value.aptArchive === "string") &&
+    typeof value.checksums === "string" &&
+    typeof value.releasePage === "string"
+  );
+}
 
 // Used only if /linux-latest.json cannot be read. It points at the releases
 // list rather than a pinned version, so a stale build can never advertise a
@@ -93,16 +107,14 @@ export default function DownloadPage() {
     const fetchLinuxLatest = async () => {
       try {
         const response = await fetch("/linux-latest.json");
-        const data: LinuxLatest | null = response.ok
-          ? await response.json()
-          : null;
-        if (!cancelled && data?.version && data?.deb) setLinuxLatest(data);
+        const data: unknown = response.ok ? await response.json() : null;
+        if (!cancelled && isLinuxLatest(data)) setLinuxLatest(data);
       } catch {
         // Fall back to LINUX_RELEASES_URL below.
       }
     };
 
-    fetchLinuxLatest();
+    void fetchLinuxLatest();
 
     return () => {
       cancelled = true;
@@ -143,7 +155,7 @@ export default function DownloadPage() {
 
     // Only fetch if we don't have a URL yet
     if (!currentState.url) {
-      fetchDownloadUrl();
+      void fetchDownloadUrl();
     }
   }, [selectedPlatform, currentState.url]);
 

@@ -209,6 +209,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>選択を削除</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>{0} 件の録音を選択中</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>音声ファイルが利用できません</value>
   </data>
@@ -260,6 +263,9 @@
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>名前</value>
+  </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>これは既定のモードのため、名前を変更できません。他のモードの名前は変更できます。</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>プロバイダー</value>
@@ -890,6 +896,9 @@
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>録音がキャンセルされました</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>ファイルの文字起こしをキャンセルしました</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>不明</value>
   </data>
@@ -1162,6 +1171,36 @@
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>クリックして使用したいキーを押してください</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Ctrl、Alt、Shift、Win などの修飾キー単体のショートカットはサポートされていません。修飾キーと組み合わせたキー、または Ctrl+Win のような複数修飾キーのショートカットを使用してください。</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>このショートカットは既に{0}に割り当てられています（{1}）</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>ショートカット {0} は修飾キー単体です。修飾キーと組み合わせたキー、または Ctrl+Win のような複数修飾キーのショートカットを使用してください。</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>ショートカット {0} は既に他のアプリケーションで使用されています。別の組み合わせを選んでください。</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>ショートカット {0} は Windows によって予約されているため使用できません。</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>ショートカット {0} を登録できませんでした（Windows エラー {1}）。別の組み合わせをお試しください。</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>ショートカットの競合</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>ストリーミングのショートカットの競合</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>ショートカット設定を開く</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>ショートカットを変更</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1884,10 +1923,10 @@
     <value>custom vocabulary</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -2392,6 +2431,12 @@
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>キーが確認され、クレジットも確認済みです。録音はHyperWhisper Cloudに送られます。</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>このPCをアクティベートして、HyperWhisper Cloudへの接続を完了してください。</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>このPCはアクティベート済みです。録音はHyperWhisper Cloudに送られます。</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Cloudを有効化</value>

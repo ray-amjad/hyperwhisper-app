@@ -109,6 +109,9 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
     /// each request.
     private(set) var detectedLanguage: String?
 
+    /// Metadata from the final HTTP response. The response body is never retained.
+    private(set) var lastAttemptDiagnostics: TranscriptionAttemptDiagnostics?
+
     /// Pre-captured application context from the pipeline.
     /// Set by TranscriptionPipeline before calling transcribe() so that server-side
     /// post-processing sees the user's actual foreground app (not HyperWhisper's recording dialog).
@@ -237,6 +240,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // Reset cached corrected text and detected language at the start of each request
         aiEnhancedText = nil
         detectedLanguage = nil
+        lastAttemptDiagnostics = nil
 
         // Verify audio file exists
         guard FileManager.default.fileExists(atPath: audioURL.path) else {
@@ -483,6 +487,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // HYPERWHISPER-T2 needs.
         let authRecoveryTrace = CloudAuthRecoveryTrace()
 
+        let responseClock = ContinuousClock()
+        let responseStart = responseClock.now
         let requestResult = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
             sourceURL: audioURL,
             maximumReencodedBytes: accuracyTier == .metaMuse
@@ -522,9 +528,15 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 )
             }
         )
+        let responseLatencyMs = Self.elapsedMilliseconds(from: responseStart, to: responseClock.now)
         let response = requestResult.response
         let successfulIdentifier = requestResult.identifier
         let successfulIsLicensed = requestResult.isLicensed
+        lastAttemptDiagnostics = Self.responseDiagnostics(
+            response: response,
+            elapsedMs: responseLatencyMs,
+            providerDisplayName: name
+        )
         try throwIfCancelled()
 
         // Parse the success response via the core.
@@ -538,6 +550,10 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             // mirroring the success path below (which is otherwise skipped by this
             // re-throw). `defer` can't be used here because invalidateCache() awaits.
             await creditManager.invalidateCache()
+            let diagnostics = lastAttemptDiagnostics
+            AppLogger.network.warning(
+                "HyperWhisper Cloud response parse failed · outcome=response_parse_failed · source=\(diagnostics?.attemptSource ?? "unknown", privacy: .public) · backendProvider=\(diagnostics?.backendSTTProvider ?? "unknown", privacy: .public) · backendModel=\(diagnostics?.backendSTTModel ?? "unknown", privacy: .public) · status=\(diagnostics?.httpStatusCode ?? -1, privacy: .public) · responseLatencyMs=\(diagnostics?.responseLatencyMs ?? -1, privacy: .public) · requestId=\(diagnostics?.backendRequestId ?? "unknown", privacy: .public)"
+            )
             throw RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
         }
 
@@ -804,7 +820,50 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         }
     }
 
-    // MARK: - Rust Core Helpers (mode query, credit context, detected language)
+    // MARK: - Rust Core Helpers (mode query, response diagnostics)
+
+    private struct NoSpeechFlagResponse: Decodable {
+        let noSpeechDetected: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case noSpeechDetected = "no_speech_detected"
+        }
+    }
+
+    /// Build a metadata-only snapshot. Decode only the response flag needed by
+    /// the diagnostic and never retain the body or transcript result.
+    static func responseDiagnostics(
+        response: HttpResponse,
+        elapsedMs: Int,
+        providerDisplayName: String = "HyperWhisper Cloud"
+    ) -> TranscriptionAttemptDiagnostics {
+        func header(_ name: String) -> String? {
+            response.headers.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.value
+        }
+
+        let decoded = try? JSONDecoder().decode(NoSpeechFlagResponse.self, from: response.body)
+        let noSpeechDetected = decoded?.noSpeechDetected
+
+        return TranscriptionAttemptDiagnostics(
+            attemptSource: "cloud_instrumented",
+            providerDisplayName: providerDisplayName,
+            backendRequestId: header("X-Request-ID"),
+            backendSTTProvider: header("X-STT-Provider"),
+            backendSTTModel: header("X-STT-Model"),
+            backendNoSpeechDetected: noSpeechDetected,
+            httpStatusCode: Int(response.status),
+            responseLatencyMs: elapsedMs,
+            providerAttemptMs: nil
+        )
+    }
+
+    static func elapsedMilliseconds(
+        from start: ContinuousClock.Instant,
+        to end: ContinuousClock.Instant
+    ) -> Int {
+        let components = start.duration(to: end).components
+        return Int(components.seconds) * 1_000 + Int(components.attoseconds / 1_000_000_000_000_000)
+    }
 
     /// Append the HW-Cloud-specific `mode` query param to a core-built URL. The
     /// shared contract has no `mode` field, so this stays native. Appends with

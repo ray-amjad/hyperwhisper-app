@@ -1,0 +1,25 @@
+id: no-bare-recording-cancelled-status
+language: csharp
+severity: error
+message: "Read the cancelled status through MainViewModel.CancelledStatusText, not the key directly."
+note: |
+  `status.recordingCancelled` says a RECORDING was cancelled. A file import reads
+  audio off disk and never opens the microphone, so it has its own string,
+  `status.fileTranscriptionCancelled` (issue #506). The choice belongs to
+  `MainViewModel.CancelledStatusText(bool)` — which is the one place allowed to
+  name either key — so that a new cancel path has to answer the question instead
+  of inheriting the microphone's answer, which is how #506 happened.
+
+  The smoke suite can pin that helper but cannot reach the call sites, so this
+  rule is what keeps a call site from quietly reverting to the raw key.
+
+  A genuine new microphone-only site is `CancelledStatusText(false)`. If you
+  really need the literal, add
+  `// ast-grep-ignore: no-bare-recording-cancelled-status -- <why>` above it.
+files:
+  - "app/windows/**/*.cs"
+ignores:
+  - "**/obj/**"
+  - "**/bin/**"
+rule:
+  pattern: Loc.S("status.recordingCancelled")

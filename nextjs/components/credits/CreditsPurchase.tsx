@@ -15,6 +15,7 @@ import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
+import { isRecord } from "@/src/lib/type-guards";
 
 const PRESETS = [5, 10] as const;
 
@@ -91,14 +92,22 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), amount: effectiveAmount }),
       });
-      const data = await response.json();
+      const data: unknown = await response.json();
 
-      if (response.ok && data.checkoutUrl) {
+      if (
+        response.ok &&
+        isRecord(data) &&
+        typeof data.checkoutUrl === "string"
+      ) {
         window.location.href = data.checkoutUrl;
         return;
       }
 
-      setError(data.error || t("errorCheckout"));
+      setError(
+        isRecord(data) && typeof data.error === "string"
+          ? data.error
+          : t("errorCheckout"),
+      );
       setLoading(false);
     } catch {
       setError(t("errorGeneric"));

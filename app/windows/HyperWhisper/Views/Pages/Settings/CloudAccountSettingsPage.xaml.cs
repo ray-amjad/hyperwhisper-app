@@ -77,7 +77,14 @@ public partial class CloudAccountSettingsPage : Page
         // Expired/Invalid: keep the activation view but explain WHY the customer
         // landed here instead of showing a fresh-install screen. The activation
         // box below the banner stays usable (renewed key, different key).
-        if (status is LicenseStatus.Expired or LicenseStatus.Invalid)
+        //
+        // Only for a device that HAS a stored key. That is what "returning
+        // customer" means here, and it is the half the branch was missing: a
+        // fresh install whose first-ever key was mistyped came through as
+        // Invalid and was told its licence was no longer valid (#511).
+        if (LicenseManager.ShouldExplainLapsedLicense(
+                status,
+                !string.IsNullOrEmpty(LicenseManager.Instance.GetStoredLicenseKey())))
         {
             LicenseStatusBannerText.Text = Loc.S(status == LicenseStatus.Expired
                 ? "license.status.expired.description"

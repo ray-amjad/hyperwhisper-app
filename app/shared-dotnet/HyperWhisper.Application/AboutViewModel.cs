@@ -25,8 +25,10 @@ public sealed class AboutViewModel
     public string AppVersion { get; }
     public string PackageVersion { get; }
     public string UpdateDescription => "Linux updates are managed by APT. Use your package manager to check for and install releases.";
+    // Held to one line under the Export Diagnostics card, which is why this is a short sentence
+    // rather than the full paragraph: at the card width the long form clipped at "fixed-cate...".
     public string DiagnosticsPrivacyDescription =>
-        "The archive contains only filtered system metadata, capability booleans, and fixed-category event outcomes. It never contains settings, transcript or audio content, prompts, clipboard text, credentials, account identifiers, or paths.";
+        "System metadata only. No transcripts, audio, prompts, credentials or paths.";
     public UiStatus Status { get; } = new();
 
     public async Task ExportDiagnosticsAsync(string destinationPath, CancellationToken cancellationToken = default)

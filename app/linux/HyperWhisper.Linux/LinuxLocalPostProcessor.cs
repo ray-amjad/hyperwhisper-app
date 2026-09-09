@@ -82,9 +82,14 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
                 result.Failure?.Message ?? "Local post-processing failed.");
         }
 
+        // The GGUF filename is this head's model identity, and it is the one that
+        // ran: it was validated above and passed straight to the engine. Report
+        // it rather than letting the endpoint fall back to `mode.LanguageModel`,
+        // which on a local run holds a leftover CLOUD model id (issue #314).
         return PortablePostProcessingResult.Applied(
             result.Text,
-            $"Local LLM · {fileName} · {result.Runtime}");
+            $"Local LLM · {fileName} · {result.Runtime}",
+            fileName);
     }
 
     public Task<PortablePostProcessingResult> ProcessAsync(

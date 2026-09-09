@@ -223,14 +223,18 @@ internal sealed class FakeOnboardingCredits : IOnboardingCreditsGateway
     public int RefreshCount { get; private set; }
     public bool ThrowOnRefresh { get; set; }
 
+    /// <summary>The key the last refresh was asked to read the balance for, if any.</summary>
+    public string? LastLicenseKeyOverride { get; private set; }
+
     /// <summary>What a successful refresh lands, if anything.</summary>
     public OnboardingCloudCredits? NextCredits { get; set; }
 
     public event EventHandler? CreditsChanged;
 
-    public Task RefreshAsync(bool force, CancellationToken cancellationToken)
+    public Task RefreshAsync(bool force, CancellationToken cancellationToken, string? licenseKeyOverride = null)
     {
         RefreshCount++;
+        LastLicenseKeyOverride = licenseKeyOverride;
 
         if (ThrowOnRefresh)
             return Task.FromException(new InvalidOperationException("credits endpoint unreachable"));

@@ -167,6 +167,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Delete Selected</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>{0} optagelser valgt</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
@@ -221,6 +224,9 @@
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
+  </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Dette er standardtilstanden, så dens navn kan ikke ændres. Du kan omdøbe alle andre tilstande.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
@@ -805,6 +811,9 @@ Denne handling kan ikke fortrydes.</value>
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>Filtranskription annulleret</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1064,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>Slå optagelse til/fra</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>Annuller optagelse</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>Skift tilstand</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>Klik, og tryk på de taster, du vil bruge</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Genveje med kun én modifikatortast som Ctrl, Alt, Shift eller Win understøttes ikke. Brug en tast med modifikatorer eller en genvej med flere modifikatorer, f.eks. Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Denne genvej bruges allerede til {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>Genvejen {0} bruger kun én modifikatortast. Brug en tast med modifikatorer eller en genvej med flere modifikatorer, f.eks. Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Genvejen {0} bruges allerede af et andet program. Vælg en anden kombination.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>Genvejen {0} er reserveret af Windows og kan ikke bruges.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>Genvejen {0} kunne ikke registreres (Windows-fejl {1}). Prøv en anden kombination.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Genvejskonflikt</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Konflikt med streaming-genvej</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Åbn genvejsindstillinger</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Skift genvej</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1796,10 +1835,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -2388,6 +2427,12 @@ You can re-download it later.</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Nøgle verificeret, kredit bekræftet. Optagelser sendes til HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Aktivér denne pc for at fuldføre forbindelsen til HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Denne pc er aktiveret. Optagelser sendes til HyperWhisper Cloud.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Aktivér Cloud</value>

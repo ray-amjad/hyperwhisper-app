@@ -8,6 +8,39 @@
 import Foundation
 import CoreData
 
+/// Metadata-only facts from the final response handled by a transcription provider.
+struct TranscriptionAttemptDiagnostics: Sendable, Equatable {
+    let attemptSource: String
+    let providerDisplayName: String
+    let backendRequestId: String?
+    let backendSTTProvider: String?
+    let backendSTTModel: String?
+    let backendNoSpeechDetected: Bool?
+    let httpStatusCode: Int?
+    let responseLatencyMs: Int?
+    var providerAttemptMs: Int?
+
+    static func failureSnapshot(
+        providerDiagnostics: TranscriptionAttemptDiagnostics?,
+        providerDisplayName: String,
+        providerAttemptMs: Int
+    ) -> TranscriptionAttemptDiagnostics {
+        var diagnostics = providerDiagnostics ?? TranscriptionAttemptDiagnostics(
+            attemptSource: "provider_uninstrumented",
+            providerDisplayName: providerDisplayName,
+            backendRequestId: nil,
+            backendSTTProvider: nil,
+            backendSTTModel: nil,
+            backendNoSpeechDetected: nil,
+            httpStatusCode: nil,
+            responseLatencyMs: nil,
+            providerAttemptMs: nil
+        )
+        diagnostics.providerAttemptMs = providerAttemptMs
+        return diagnostics
+    }
+}
+
 /// Protocol that all transcription providers must implement
 /// This allows us to easily switch between local and cloud providers
 protocol TranscriptionProvider {
@@ -36,6 +69,9 @@ protocol TranscriptionProvider {
     /// when none were requested / the engine can't produce them. Read with the
     /// same ordering guarantee as `detectedLanguage`. Default nil.
     var lastTimestamps: TranscriptionTimestamps? { get }
+
+    /// Metadata from the final response handled by the most recent attempt.
+    var lastAttemptDiagnostics: TranscriptionAttemptDiagnostics? { get }
 }
 
 extension TranscriptionProvider {
@@ -46,4 +82,5 @@ extension TranscriptionProvider {
     /// Providers that don't support timestamps inherit a no-op + nil.
     func setTimestampGranularities(_ granularities: TimestampGranularities) {}
     var lastTimestamps: TranscriptionTimestamps? { nil }
+    var lastAttemptDiagnostics: TranscriptionAttemptDiagnostics? { nil }
 }

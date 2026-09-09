@@ -402,6 +402,40 @@ public sealed partial class OnboardingFlowViewModel
     /// </summary>
     public bool AreCreditsConfirmed => IsSelectedSourceUsable && HasCredits;
 
+    /// <summary>
+    /// The Cloud setup step's subtitle, which has to describe the state the step is
+    /// actually in.
+    ///
+    /// It used to be the static "Key verified, credits confirmed." — printed on
+    /// arrival, directly above a checklist showing both of those rows EMPTY, an
+    /// "Activate Cloud" button and a disabled Continue. The step's whole job is the
+    /// activation the subtitle was already claiming had happened.
+    ///
+    /// It reads the SAME two flags the checklist rows below it read, in the same
+    /// order, so the sentence cannot contradict the ticks:
+    ///
+    /// <list type="bullet">
+    /// <item>not activated — the ask, matching the "Activate Cloud" button on show;</item>
+    /// <item>activated, balance not in — states the activation and claims nothing
+    /// about credits. The fetch is display-only and swallows its failures by design
+    /// (RefreshCreditsCoreAsync), and it is asynchronous even when it succeeds, so
+    /// "credits confirmed" is not true the moment the licence goes active;</item>
+    /// <item>activated with a balance — the original sentence, now true.</item>
+    /// </list>
+    /// </summary>
+    public string SetupCloudSubtitle
+    {
+        get
+        {
+            if (!IsSelectedSourceUsable)
+                return Loc.S("onboarding.setup.cloud.subtitle.pending");
+
+            return Loc.S(AreCreditsConfirmed
+                ? "onboarding.setup.cloud.subtitle"
+                : "onboarding.setup.cloud.subtitle.balancePending");
+        }
+    }
+
     public string SelectedModelDisplayName => SelectedModel?.DisplayName ?? string.Empty;
 
     public string SelectedModelSubtitle =>
@@ -774,7 +808,10 @@ public sealed partial class OnboardingFlowViewModel
                 nameof(SetupCloudErrorText), nameof(SetupOnDeviceErrorText), nameof(SetupProviderErrorText),
                 nameof(ShowsLicenseTestFailed), nameof(ShowsProviderTestError)
             },
-            [nameof(IsSelectedSourceUsable)] = new[] { nameof(AreCreditsConfirmed) },
+            [nameof(IsSelectedSourceUsable)] = new[]
+            {
+                nameof(AreCreditsConfirmed), nameof(SetupCloudSubtitle)
+            },
             [nameof(IsSelectedModelInstalled)] = new[]
             {
                 nameof(ModelOptions), nameof(ShowsDownloadButton)
@@ -785,7 +822,10 @@ public sealed partial class OnboardingFlowViewModel
                 nameof(SelectedModelProgressPercent), nameof(SelectedModelProgressPercentText),
                 nameof(DownloadingPillText)
             },
-            [nameof(HasCredits)] = new[] { nameof(AreCreditsConfirmed), nameof(SourceSummary) },
+            [nameof(HasCredits)] = new[]
+            {
+                nameof(AreCreditsConfirmed), nameof(SetupCloudSubtitle), nameof(SourceSummary)
+            },
             [nameof(CreditsFormatted)] = new[] { nameof(SourceSummary) },
             [nameof(CreditsCountFormatted)] = new[] { nameof(SourceSummary) },
             [nameof(DeviceOptions)] = new[] { nameof(DeviceRows) },

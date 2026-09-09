@@ -1835,6 +1835,39 @@ fn a_frame_that_is_not_a_json_object_is_ignored_by_every_provider() {
     }
 }
 
+/// `decode` + `parse_value` must answer exactly what `parse` answers.
+///
+/// The split exists so `HwLiveSession::parse` can do the JSON decode OUTSIDE
+/// the mutex the platform's real-time audio thread also takes (`note_audio`,
+/// `control_frames`), which is what stops the audio thread's worst case being a
+/// function of how large a frame the provider sent. Two entry points into one
+/// parser is a drift hazard, so they are asserted to agree — including on the
+/// frames that decode to nothing.
+#[test]
+fn the_split_decode_answers_exactly_what_parse_answers() {
+    for provider in LiveProvider::ALL {
+        for frame in [
+            "",
+            "not json",
+            "[1,2,3]",
+            "{}",
+            r#"{"type":"Results","channel":{"alternatives":[{"transcript":"hello"}]},"is_final":true}"#,
+            r#"{"message_type":"partial_transcript","text":"hel"}"#,
+            r#"{"type":"session.created","session":{"id":"s-1"}}"#,
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world"},"generationComplete":true}}"#,
+            r#"{"type":"session_complete","duration_seconds":1.5,"credits_used":0.25}"#,
+        ] {
+            let expected = credentialed(provider).parse(frame);
+            let mut split = credentialed(provider);
+            let actual = match LiveSession::decode(frame) {
+                Some(root) => split.parse_value(&root, frame),
+                None => LiveEvent::Ignore,
+            };
+            assert_eq!(actual, expected, "{provider:?} on {frame:?}");
+        }
+    }
+}
+
 #[test]
 fn the_connect_descriptor_agrees_with_the_free_capability_functions() {
     // Two sources for one number is how the fifteen implementations drifted.
@@ -1998,6 +2031,64 @@ fn gemini_reads_the_final_before_the_interim_in_one_frame() {
         ),
         LiveEvent::FinalTranscript {
             text: "hello world.".to_string()
+        }
+    );
+}
+
+#[test]
+fn gemini_reports_both_halves_of_a_combined_final_and_completion_frame() {
+    // THE FRAME THE STOP IS WAITING FOR. Google answers `audio_stream_end` with
+    // ONE serverContent carrying the last committed segment and
+    // `generationComplete` together. Reporting the text alone drops the only
+    // completion the session will ever be sent, so `WaitForSessionComplete`
+    // burns its whole 5 s budget and the head reports a stop failure on an
+    // ordinary dictation.
+    let mut session = credentialed(LiveProvider::GeminiTranscribe);
+
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world."},"generationComplete":true}}"#
+        ),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "hello world.".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0
+        }
+    );
+
+    // `turnComplete` is the same boundary under Google's other spelling, and
+    // the snake_case forms are what the REST-shaped payloads use.
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"input_transcription":{"text":"hello world."},"turn_complete":true}}"#
+        ),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "hello world.".to_string(),
+            duration_seconds: 0.0,
+            credits_used: 0.0
+        }
+    );
+
+    // An explicit `false` is not a boundary, and neither shape may leak into
+    // the plain-final path's behaviour.
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"inputTranscription":{"text":"hello world."},"generationComplete":false}}"#
+        ),
+        LiveEvent::FinalTranscript {
+            text: "hello world.".to_string()
+        }
+    );
+
+    // An INTERIM riding with a completion stays a plain partial: there is no
+    // committed text to pair the completion with, and the preview is
+    // superseded by the final that follows.
+    assert_eq!(
+        session.parse(
+            r#"{"serverContent":{"interimInputTranscription":{"text":"hello wor"},"generationComplete":true}}"#
+        ),
+        LiveEvent::PartialTranscript {
+            text: "hello wor".to_string()
         }
     );
 }

@@ -1,13 +1,12 @@
 import type { Context } from 'hono';
 import type { AuthContext } from '../middleware/auth';
-import { validateCredits, estimateAudioSecondsFromSize } from '../middleware/credits';
+import { validateCredits } from '../middleware/credits';
 import { creditsForCost, estimatePromptInputReservationUsd } from '../lib/cost-calculator';
 import { logEvent } from '../lib/logging';
 import { errorResponse } from '../lib/responses';
 import type { SttProviderId } from '../lib/stt-models';
-import { parseMetaWav } from '../providers/meta';
+import { providerAudioReservation } from '../providers/audio-reservation';
 import { maxReservationUsdPerMinute } from '../providers/reservation';
-import { ProviderInputError, UnsupportedAudioFormatError } from '../providers/types';
 
 /**
  * Preflight credit reservation: turn a declared Content-Length into the credits
@@ -30,14 +29,8 @@ export function estimateCreditsForProviderFallbacks(
   language?: string,
   exactAudioSeconds?: number,
 ): number {
-  // Muse requests are canonical mono PCM16 WAV at 16 or 24 kHz. The route
-  // supplies the parsed duration because Content-Length cannot identify which
-  // accepted byte rate produced the file. Keep the 16 kHz size fallback for
-  // direct historical callers of this estimator; the live route never uses it
-  // for a valid Muse WAV.
-  const estimatedSeconds = exactAudioSeconds ?? (provider === 'meta'
-    ? Math.max(10, Math.max(0, sizeBytes - 44) / (16_000 * 2))
-    : estimateAudioSecondsFromSize(sizeBytes));
+  const estimatedSeconds = exactAudioSeconds
+    ?? providerAudioReservation(provider, sizeBytes).estimatedAudioSeconds;
   const usdPerMinute = maxReservationUsdPerMinute({
     provider,
     model,
@@ -105,15 +98,14 @@ export async function prepareTranscriptionAudio({
     return body;
   };
 
-  // Meta needs the buffered WAV to calculate an exact reservation. Before that
-  // allocation, reserve the lowest possible cost for this byte count: accepted
-  // 24 kHz mono PCM16 has the highest byte rate, so any canonical Muse WAV of
-  // this size is at least this long. The exact duration check below still owns
-  // the final amount and increases it for 16 kHz audio.
-  if (provider === 'meta') {
-    const minimumAudioSeconds = Math.max(0, contentLength - 44) / (24_000 * 2);
+  const audioReservation = providerAudioReservation(provider, contentLength);
+
+  // Some providers need the buffered audio to calculate an exact reservation.
+  // Before that allocation, check the provider boundary's safe duration floor.
+  if (audioReservation.requiresBufferedBody) {
     const minimumEstimatedCredits = estimateCreditsForProviderFallbacks(
-      contentLength, provider, model, medical, initialPrompt, language, minimumAudioSeconds,
+      contentLength, provider, model, medical, initialPrompt, language,
+      audioReservation.preBufferAudioSeconds,
     );
     const minimumCreditCheck = await validateCredits(auth, minimumEstimatedCredits, clientIP);
     if (!minimumCreditCheck.ok) {
@@ -130,25 +122,19 @@ export async function prepareTranscriptionAudio({
     });
   }
 
-  // Meta billing is duration-based while its two accepted PCM sample rates
-  // have different byte rates. Read this finite-capped body and parse the WAV
-  // before reservation; Content-Length cannot distinguish a 60-second 24 kHz
-  // clip from a 90-second 16 kHz clip. Invalid/noncanonical audio deliberately
-  // skips reservation and continues to the adapter, which returns the 415/400
-  // that tells a native client whether to normalize and retry.
+  // Read before reservation only when the provider boundary needs the body.
+  // A local input error deliberately skips the final credit check and continues
+  // to the adapter, which returns the existing client-facing response.
   let audioBuffer: ArrayBuffer | undefined;
   let exactAudioSeconds: number | undefined;
   let skipCreditValidationForLocalInputError = false;
-  if (provider === 'meta') {
+  if (audioReservation.requiresBufferedBody) {
     audioBuffer = await readAudioBuffer();
-    try {
-      exactAudioSeconds = parseMetaWav(audioBuffer, contentType).durationSeconds;
-    } catch (error) {
-      if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) {
-        skipCreditValidationForLocalInputError = true;
-      } else {
-        throw error;
-      }
+    const resolvedReservation = audioReservation.resolveBufferedAudio(audioBuffer, contentType);
+    if (resolvedReservation.kind === 'duration') {
+      exactAudioSeconds = resolvedReservation.audioSeconds;
+    } else {
+      skipCreditValidationForLocalInputError = true;
     }
   }
 

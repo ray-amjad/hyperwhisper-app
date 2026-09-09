@@ -192,6 +192,7 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
     {
         _lastWarmupAt = DateTime.UtcNow;
 
+        // ast-grep-ignore: no-discarded-task-run -- SendWarmup is on the hotkey-down path; HttpClient.SendAsync can write headers synchronously on a warm pool, so the hop is the point
         _ = Task.Run(async () =>
         {
             // Snapshot the current client so a concurrent rebuild (DNS recovery)

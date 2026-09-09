@@ -43,6 +43,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("application backend resolves modes and vocabulary", ApplicationBackendModeRouting)
     ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
     ,("mode wire contract matches the shared core", ApplicationBackendModeContract)
+    ,("/transcribe runs the deterministic text passes", ApplicationBackendTextPasses)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
@@ -469,7 +470,7 @@ static async Task EndpointContractSnapshots()
     using (var post = JsonDocument.Parse(await postResponse.Content.ReadAsStreamAsync()))
     {
         Assert(postResponse.StatusCode == HttpStatusCode.OK, "post-process override contract failed");
-        AssertProperties(post.RootElement, "ok", "text", "provider", "model", "preset", "latency_ms");
+        AssertProperties(post.RootElement, "ok", "text", "provider", "model", "preset", "latency_ms", "post_processed");
         Assert(fixture.Backend.PostProcess is { Prompt: "Be concise", Provider: "groq", Model: "llama" },
             "post-process provider/model overrides were lost");
     }
@@ -641,9 +642,33 @@ static async Task PostProcessContextContract()
     using var response = await fixture.Client.PostAsync("/post-process", new StringContent(body, Encoding.UTF8, "application/json"));
     Assert(response.StatusCode == HttpStatusCode.OK, "Windows post-process request failed");
     using var json = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
-    string[] exact = ["ok", "text", "provider", "model", "preset", "latency_ms"];
+    // `post_processed` is part of the shape (issue #499). macOS declares it a
+    // non-optional `Bool`, so a client sharing that decoder throws `keyNotFound`
+    // on a body without it — which is what this head and Windows both sent.
+    string[] exact = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
     Assert(json.RootElement.EnumerateObject().Select(item => item.Name).Order().SequenceEqual(exact.Order()), "post-process response drifted from Windows shape");
+    Assert(json.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.True,
+        "post_processed must be a real boolean and must be true when an LLM ran");
     Assert(fixture.Backend.PostProcess?.ApplicationContext?.ToSnapshot().AppType == "terminal", "post-process applicationContext was lost");
+
+    // Drive the OTHER half through the real endpoint. Asserting only `true`
+    // cannot distinguish a head that forwards `PostProcessResult.PostProcessed`
+    // from one that writes a constant — and a wrongly-constant `true` is worse
+    // than the missing key this issue is about, because it claims a rewrite
+    // that never happened.
+    fixture.Backend.PostProcessApplied = false;
+    using (var skipped = await fixture.Client.PostAsync("/post-process", JsonContent("""{"text":"raw words","preset":"hyper"}""")))
+    using (var skippedJson = JsonDocument.Parse(await skipped.Content.ReadAsStreamAsync()))
+    {
+        Assert(skipped.StatusCode == HttpStatusCode.OK, "a skipped post-process must still be HTTP 200");
+        Assert(skippedJson.RootElement.EnumerateObject().Select(item => item.Name).Order().SequenceEqual(exact.Order()),
+            "a skipped post-process must carry the same key set");
+        Assert(skippedJson.RootElement.GetProperty("post_processed").ValueKind == JsonValueKind.False,
+            "post_processed must be false when no LLM ran, not dropped and not true");
+        Assert(skippedJson.RootElement.GetProperty("ok").GetBoolean(),
+            "graceful degradation keeps ok:true — post_processed is the only signal");
+    }
+    fixture.Backend.PostProcessApplied = true;
 
     using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
     Assert((await fixture.Client.PostAsync("/post-process", conflicting)).StatusCode == HttpStatusCode.BadRequest,
@@ -1299,6 +1324,94 @@ static async Task ApplicationBackendModeContract()
     await AssertBusinessFailure(await Patch(twin.Id.ToString("D"), """{"name":"Edge"}"""), LocalApiErrorCodes.ModeNameTaken, "a real rename onto a taken name");
 }
 
+// Issue #530. /transcribe reached `TranscriptionWorkflow` with no
+// `OutputOptions` and no `VocabularyReplacements`, so two things were wrong at
+// once: filler words were stripped even for a user who had turned "Remove
+// filler words" OFF (the workflow's `BuildDefaultOutputOptions` hard-codes
+// `RemoveFillerWords: true`), and the user's word/replacement rules never ran
+// at all. The Windows head applies all three passes here (issues #495, #498).
+//
+// Drives the REAL workflow and the REAL `SpeechOutputProcessor`, so the shared
+// Rust core does the filler removal, the break commands and the hardened
+// replacement. Asserting the request fields alone would still pass if the
+// processor stopped honouring them.
+static async Task ApplicationBackendTextPasses()
+{
+    // "um" is a filler; "new line" is a dictated break command; "eta" is the
+    // vocabulary rule from the issue. English, because the shared core strips
+    // fillers for English only.
+    const string Raw = "um the eta is fine new line thanks";
+
+    static async Task<(TranscriptionResult Result, TranscriptionWorkflowRequest Request)> Transcribe(
+        TempPaths paths, bool removeFillerWords)
+    {
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        var vocabulary = new VocabularyRepository(database);
+        await modes.UpsertAsync(new HyperWhisper.Data.Entities.Mode
+        {
+            Name = "English local", IsDefault = true, SortOrder = 1, ProviderType = "local",
+            LocalEngine = "whisper", Model = "tiny.en", ModelType = "tiny.en", Language = "en",
+            // The Mode that made both settings look identical in issue #498:
+            // /transcribe declines the AI rewrite, so this must not also
+            // suppress the deterministic passes.
+            PostProcessingMode = 1, PostProcessingProvider = "openai",
+        });
+        await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem
+        {
+            Word = "eta", Replacement = "estimated time of arrival", SortOrder = 1,
+        });
+        // A prompt-hint-only row must not become a replacement rule.
+        await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "Deepgram", SortOrder = 2 });
+
+        var transcriber = new FixedTextTranscriber(Raw);
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(
+            modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0",
+            vocabulary: vocabulary,
+            outputOptions: _ => new HyperWhisper.SpeechOutput.SpeechOutputProcessingOptions(
+                RemoveFillerWords: removeFillerWords));
+        var result = await backend.TranscribeAsync(
+            new AudioUpload("text.wav", "audio/wav", new byte[] { 1 }, null, null, null, null),
+            CancellationToken.None);
+        return (result, transcriber.Request!);
+    }
+
+    using (var paths = new TempPaths())
+    {
+        var (on, request) = await Transcribe(paths, removeFillerWords: true);
+        Assert(request.OutputOptions?.RemoveFillerWords == true,
+            "the composed output options never reached the workflow");
+        Assert(request.VocabularyReplacements?.Count == 1
+            && request.VocabularyReplacements[0].Word == "eta",
+            "the vocabulary replacement rules never reached the workflow");
+        Assert(request.Vocabulary?.Contains("Deepgram") == true,
+            "the prompt hints stopped reaching the workflow");
+        Assert(!on.Text.Contains("um ", StringComparison.Ordinal),
+            "/transcribe did not remove filler words with the setting on");
+        Assert(on.Text.Contains("estimated time of arrival", StringComparison.Ordinal),
+            "/transcribe did not apply the user's vocabulary replacement (issue #530)");
+        Assert(!on.Text.Contains("new line", StringComparison.OrdinalIgnoreCase)
+            && on.Text.Contains('\n'),
+            "/transcribe did not honour the dictated break command");
+    }
+
+    using (var paths = new TempPaths())
+    {
+        var (off, request) = await Transcribe(paths, removeFillerWords: false);
+        Assert(request.OutputOptions?.RemoveFillerWords == false,
+            "the user's disabled filler-word setting never reached the workflow");
+        Assert(off.Text.StartsWith("um ", StringComparison.Ordinal),
+            "/transcribe stripped filler words even with the setting off (issue #530)");
+        // The other two passes are NOT gated on that setting.
+        Assert(off.Text.Contains("estimated time of arrival", StringComparison.Ordinal)
+            && off.Text.Contains('\n'),
+            "turning filler removal off also disabled the other deterministic passes");
+    }
+}
+
 static async Task ApplicationBackendModeValidation()
 {
     using var paths = new TempPaths();
@@ -1553,8 +1666,15 @@ sealed class FakeBackend : ILocalApiBackend
                 [new(0, 0, 0.5, "hello")], [new("hello", 0, 0.5, 0.9)])
             : new("hello", "fake", "fake", "en", 1, 1, 2);
     }
+    /// <summary>
+    /// What <see cref="PostProcessAsync"/> reports as `post_processed`. Settable
+    /// so a test can drive BOTH halves of the flag through the real endpoint: a
+    /// fake that hard-codes `true` cannot tell a head that forwards the value
+    /// from one that writes a constant (issue #499).
+    /// </summary>
+    public bool PostProcessApplied { get; set; } = true;
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
-    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1)); }
+    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1, PostProcessApplied)); }
     /// <summary>
     /// The full match set this fake holds. <see cref="GetRecordingsAsync"/> pages it
     /// with the query's limit, so a caller can set more rows than the limit and get
@@ -1693,6 +1813,20 @@ sealed class CancelledTranscriber : IRecordedAudioTranscriber
     public TranscriptionBackendCapability Capability { get; } = new(true, "Cancelling");
     public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
         => Task.FromResult(PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.", "Cancelling"));
+}
+
+/// <summary>Returns one fixed transcript and remembers the request it ran under.</summary>
+sealed class FixedTextTranscriber(string text) : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "FixedText");
+    public TranscriptionWorkflowRequest? Request { get; private set; }
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => TranscribeAsync(audioPath, new TranscriptionWorkflowRequest(Language: language), cancellationToken);
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, TranscriptionWorkflowRequest request, CancellationToken cancellationToken = default)
+    {
+        Request = request;
+        return Task.FromResult(PortableTranscriptionResult.Success(text, "FixedText"));
+    }
 }
 
 sealed class CapturingTranscriber : IRecordedAudioTranscriber

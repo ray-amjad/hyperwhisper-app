@@ -421,8 +421,9 @@ class FileTranscriptionFlow {
             // STEP 5a: Save trimmed audio path if VAD was used
             // This allows users to toggle between original and trimmed audio in history view.
             if vadResult.wasProcessed, let result = trimResult {
-                PersistenceController.shared.setTrimmedAudioPath(processingTranscript, trimmedPath: result.outputURL.path)
-                AppLogger.transcription.debug("📝 [FileImport] Saved trimmed audio path to transcript")
+                if await PersistenceController.shared.setTrimmedAudioPath(processingTranscript, trimmedPath: result.outputURL.path) {
+                    AppLogger.transcription.debug("📝 [FileImport] Saved trimmed audio path to transcript")
+                }
             }
 
             AppLogger.transcription.info("📝 Created processing transcript for file: \(copiedURL.lastPathComponent)")

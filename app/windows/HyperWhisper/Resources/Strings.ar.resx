@@ -167,6 +167,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Delete Selected</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>تم تحديد {0} تسجيلات</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
@@ -221,6 +224,9 @@
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Name</value>
+  </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>هذا هو الوضع الافتراضي، لذا لا يمكن تغيير اسمه. يمكنك إعادة تسمية أي وضع آخر.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Provider</value>
@@ -805,6 +811,9 @@
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Recording cancelled</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>تم إلغاء تفريغ الملف</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -1064,16 +1073,46 @@ You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
-    <value>Toggle Recording</value>
+    <value>تبديل التسجيل</value>
   </data>
   <data name="settings.shortcuts.cancel.label" xml:space="preserve">
-    <value>Cancel Recording</value>
+    <value>إلغاء التسجيل</value>
   </data>
   <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
-    <value>Change Mode</value>
+    <value>تغيير الوضع</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
-    <value>Click and press the keys you want to use</value>
+    <value>انقر واضغط المفاتيح التي تريد استخدامها</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>اختصارات المُعدِّل الفردي مثل Ctrl أو Alt أو Shift أو Win غير مدعومة. استخدم مفتاحًا مع مُعدِّلات أو اختصارًا متعدد المُعدِّلات مثل Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>هذا الاختصار مستخدم بالفعل لـ {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>الاختصار {0} يستخدم مُعدِّلًا فرديًا مجردًا. استخدم مفتاحًا مع مُعدِّلات أو اختصارًا متعدد المُعدِّلات مثل Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>الاختصار {0} مستخدم بالفعل بواسطة تطبيق آخر. يُرجى اختيار تركيبة مختلفة.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>الاختصار {0} محجوز بواسطة Windows ولا يمكن استخدامه.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>تعذّر تسجيل الاختصار {0} (خطأ Windows {1}). يُرجى تجربة تركيبة مختلفة.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>تعارض في الاختصارات</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>تعارض اختصار البث المباشر</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>فتح إعدادات الاختصارات</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>تغيير الاختصار</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1661,7 +1700,7 @@ You can re-download it later.</value>
     <value>Transcribe File</value>
   </data>
   <data name="menu.version.label" xml:space="preserve">
-    <value>Version {0}</value>
+    <value>الإصدار {0}</value>
   </data>
   <data name="common.quit" xml:space="preserve">
     <value>Quit</value>
@@ -1682,7 +1721,7 @@ You can re-download it later.</value>
     <value>Could not open the support page: {0}</value>
   </data>
   <data name="settings.version.detail" xml:space="preserve">
-    <value>Version {0} ({1})</value>
+    <value>الإصدار {0} ({1})</value>
   </data>
   <data name="settings.resources.help.center" xml:space="preserve">
     <value>Help Center</value>
@@ -1796,10 +1835,10 @@ You can re-download it later.</value>
     <value>{0} (Popular)</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -1859,7 +1898,7 @@ You can re-download it later.</value>
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
   <data name="settings.shortcuts.streaming.label" xml:space="preserve">
-    <value>Streaming</value>
+    <value>البث المباشر</value>
   </data>
   <data name="settings.streaming.title" xml:space="preserve">
     <value>Streaming</value>
@@ -2388,6 +2427,12 @@ You can re-download it later.</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>تم التحقق من المفتاح وتأكيد الرصيد. ستُرسَل التسجيلات إلى HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>فعّل هذا الكمبيوتر لإكمال الاتصال بـ HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>تم تفعيل هذا الكمبيوتر. ستُرسَل التسجيلات إلى HyperWhisper Cloud.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>تفعيل Cloud</value>

@@ -52,6 +52,7 @@ extension RecordingTranscriptionFlow {
         var vadTrimMs = -1
         var createRowMs = -1
         var transcribeMs = -1
+        var transcribeStart: Date?
         var coreDataUpdateMs = -1
         // HYPERWHISPER-P4: same fix as HYPERWHISPER-P3 (TranscriptionPipeline+Transcription.swift) —
         // these base thresholds cover fixed overhead; `slowTranscribingUIPerAudioSecondMs` adds a
@@ -341,7 +342,7 @@ extension RecordingTranscriptionFlow {
         if processingTranscriptID == nil {
             AppLogger.audio.warning("⚠️ Failed to create processing transcript row — transcription/paste proceed, persistence updates skipped")
         } else {
-            AppLogger.audio.info("💾 Created processing transcript: duration=\(recordingDuration)s, mode=\(actualMode)")
+            AppLogger.audio.info("💾 Created processing transcript: duration=\(recordingDuration)s")
         }
 
         // Step 2: Update state to show transcription in progress
@@ -393,7 +394,7 @@ extension RecordingTranscriptionFlow {
             // else the raw recording. Reused below for the UI-side slow threshold so
             // both P3 (pipeline) and P4 (this flow) scale off the same duration.
             let effectiveAudioDurationSeconds = (vadResult.wasProcessed ? trimResult?.trimmedDuration : nil) ?? recordingDuration
-            let transcribeStart = Date()
+            transcribeStart = Date()
             let transcriptionResult = try await transcriptionMgr.transcribeWithDetails(
                 audioURL: finalAudioURL,
                 mode: transcriptionMode,
@@ -401,7 +402,7 @@ extension RecordingTranscriptionFlow {
                 applicationContext: capturedApplicationContext,
                 audioDurationSeconds: effectiveAudioDurationSeconds
             )
-            transcribeMs = Int(Date().timeIntervalSince(transcribeStart) * 1000)
+            transcribeMs = transcribeStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
 
             // No local usage recording — local transcription is unlimited (open source).
 
@@ -663,10 +664,12 @@ extension RecordingTranscriptionFlow {
 
         } catch {
             let flowElapsedMs = Int(Date().timeIntervalSince(flowStart) * 1000)
+            transcribeMs = transcribeStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? transcribeMs
             let transcribingUIElapsedMs = transcribingUIStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
             let stageTimings = "wavReadyMs=\(wavReadyMs) · fileCheckMs=\(fileCheckMs) · vadTrimMs=\(vadTrimMs) · createRowMs=\(createRowMs) · transcribeMs=\(transcribeMs)"
+            let nsError = error as NSError
             AppLogger.audio.error(
-                "Recording transcription flow failed · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · mode=\(actualMode, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public) · \(stageTimings, privacy: .public) · error=\(error.localizedDescription, privacy: .public)"
+                "Recording transcription flow failed · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public) · \(stageTimings, privacy: .public) · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public)"
             )
             // Attach per-stage timings as scope extras so the pipeline's error event carries them.
             SentryService.setExtras([
@@ -680,11 +683,11 @@ extension RecordingTranscriptionFlow {
             handleTranscriptionError(
                 error,
                 processingTranscriptID: processingTranscriptID,
-                mode: actualMode,
                 // Snapshot the resolved Mode here, on the main actor, while it is
                 // still in scope — the no-speech diagnostic groups on it and runs
                 // on a detached task, where a managed object must not follow.
                 modeIdentity: TranscriptionDiagnosticsService.modeIdentity(for: transcriptionMode),
+                attemptDiagnostics: transcriptionPipeline?.lastFailedAttemptDiagnostics,
                 duration: recordingDuration,
                 audioURL: audioURL
             )

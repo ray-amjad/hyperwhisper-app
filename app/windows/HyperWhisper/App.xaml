@@ -17,6 +17,7 @@
             <converters:LanguageCodeToDisplayNameConverter x:Key="LanguageCodeToDisplayNameConverter"/>
             <converters:PostProcessingVisibilityConverter x:Key="PostProcessingVisibilityConverter"/>
             <converters:PostProcessingDisplayConverter x:Key="PostProcessingDisplayConverter"/>
+            <converters:ModeOfflineVisibilityConverter x:Key="ModeOfflineVisibilityConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

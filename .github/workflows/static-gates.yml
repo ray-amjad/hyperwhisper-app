@@ -1,0 +1,98 @@
+name: static-gates
+
+# Three cheap, deterministic gates that hold a defect class at zero. Each one
+# was measured against `main` before it was added here (2026-09-07), and each
+# was green, so a red check on this workflow means the PR introduced something
+# — not that the repo was already dirty.
+#
+# The shape of each gate is deliberate:
+#   - secrets scans ONLY the commits the PR adds. A full-history scan reports 34
+#     findings on this repo, and every one is a test fixture, a benchmark result
+#     or a documented example — a history gate would be red forever.
+#   - patterns re-checks the two code patterns whose migrations already finished,
+#     so a closed campaign cannot silently reopen. It did reopen once: the
+#     .then() count reached 0 on 2026-08-27 and a commit put a new chain into
+#     nextjs three days later.
+#   - docs-links runs OFFLINE, so a third-party outage never fails it.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+concurrency:
+  group: static-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secrets (new commits only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The scan needs both ends of the range, so a shallow clone is not
+          # enough.
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz -o /tmp/gl.tgz
+          tar -xzf /tmp/gl.tgz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan the commits this PR adds
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          echo "scanning $RANGE"
+          gitleaks git --log-opts "$RANGE" --redact --no-banner .
+
+  patterns:
+    name: Closed patterns stay closed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ast-grep
+        run: sudo npm i -g --prefix /usr/local @ast-grep/cli
+
+      # Rules and their reasons live in .ast-grep/rules. A deliberate exception
+      # is an `// ast-grep-ignore: <rule-id> -- <why>` comment on the line above
+      # the site, so every exception is documented in the code rather than
+      # remembered by whoever wrote it.
+      - name: ast-grep scan
+        run: ast-grep scan
+
+  docs-links:
+    name: Docs links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lychee
+        # The -gnu asset needs GLIBC 2.38 and the runner may be older; -musl is
+        # static and always works.
+        run: |
+          curl -sSfL https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-musl.tar.gz -o /tmp/ly.tgz
+          tar -xzf /tmp/ly.tgz -C /tmp
+          sudo install -m 0755 /tmp/lychee-x86_64-unknown-linux-musl/lychee /usr/local/bin/lychee
+
+      - name: Check links in mintlify-help
+        # --root-dir is mintlify-help, because Mintlify serves that tree at the
+        # site root, so a link to /models is that directory.
+        # --fallback-extensions lets an extensionless Mintlify route resolve to
+        # the .mdx file behind it. Without it every root-relative link reports a
+        # false "File not found".
+        run: |
+          lychee --no-progress --offline \
+            --root-dir "$GITHUB_WORKSPACE/mintlify-help" \
+            --fallback-extensions mdx,md \
+            'mintlify-help/**/*.mdx'

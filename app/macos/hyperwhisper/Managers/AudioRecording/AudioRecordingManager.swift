@@ -85,12 +85,10 @@ class AudioRecordingManager: NSObject, ObservableObject {
 
     /// Currently selected audio input device
     /// When changed, device manager updates volume metrics
-    @Published var selectedDevice: AudioDevice? {
-        didSet {
-            guard selectedDevice?.id != oldValue?.id else { return }
-            deviceManager.updateInputVolumeMetrics()
-        }
-    }
+    // This mirrors AudioDeviceManager. Selection changes must go through selectDevice(_:),
+    // where the device manager reads metrics once. A didSet here would repeat synchronous
+    // CoreAudio reads when Combine mirrors an invalidated device during a route change.
+    @Published var selectedDevice: AudioDevice? = nil
 
     /// Current system input volume slider value (0.0 - 1.0)
     /// Read by AudioDeviceManager from CoreAudio APIs

@@ -143,19 +143,38 @@ impl LiveSession {
     /// "no event" rather than failing the session, because a provider adding a
     /// frame shape must not end a recording in progress.
     pub fn parse(&mut self, text: &str) -> LiveEvent {
-        let Ok(root) = serde_json::from_str::<serde_json::Value>(text) else {
+        let Some(root) = Self::decode(text) else {
             return LiveEvent::Ignore;
         };
-        if !root.is_object() {
-            return LiveEvent::Ignore;
+        self.parse_value(&root, text)
+    }
+
+    /// Decode one frame WITHOUT touching the session.
+    ///
+    /// Split out of [`LiveSession::parse`] so a caller that guards this object
+    /// with a lock can do the decode outside it: the JSON is unbounded in size
+    /// and the session is reached from the socket loop AND the platform's
+    /// real-time audio thread, so a decode inside the critical section is time
+    /// the audio thread can be made to wait for. `ffi_live::HwLiveSession::parse`
+    /// is that caller. `None` covers both "not JSON" and "not an object", which
+    /// are the two shapes that mean [`LiveEvent::Ignore`] — a provider adding a
+    /// frame shape must never end a recording in progress.
+    pub fn decode(text: &str) -> Option<serde_json::Value> {
+        match serde_json::from_str::<serde_json::Value>(text) {
+            Ok(root) if root.is_object() => Some(root),
+            _ => None,
         }
+    }
+
+    /// Apply an already-decoded frame. See [`LiveSession::decode`].
+    pub fn parse_value(&mut self, root: &serde_json::Value, text: &str) -> LiveEvent {
         match self.config.provider {
-            LiveProvider::Deepgram => deepgram::parse(&root, text),
-            LiveProvider::ElevenLabs => elevenlabs::parse(&root),
-            LiveProvider::OpenAi => openai::parse(&mut self.state, &root),
-            LiveProvider::Grok => xai::parse(&mut self.state, &root),
-            LiveProvider::GeminiTranscribe => gemini::parse(&root, text),
-            LiveProvider::HyperWhisperCloud => hw_cloud::parse(&root),
+            LiveProvider::Deepgram => deepgram::parse(root, text),
+            LiveProvider::ElevenLabs => elevenlabs::parse(root),
+            LiveProvider::OpenAi => openai::parse(&mut self.state, root),
+            LiveProvider::Grok => xai::parse(&mut self.state, root),
+            LiveProvider::GeminiTranscribe => gemini::parse(root, text),
+            LiveProvider::HyperWhisperCloud => hw_cloud::parse(root),
         }
     }
 

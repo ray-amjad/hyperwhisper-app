@@ -20,7 +20,20 @@ public enum LibraryModelStatusKind
     Locked,
     Error,
     Downloadable,
-    Downloading
+    Downloading,
+    /// <summary>
+    /// The row is configured but nothing has ever confirmed it works. Only
+    /// custom endpoints reach it: a saved endpoint whose Test Connection has
+    /// never run, or has not run since the URL/model/key last changed.
+    /// </summary>
+    /// <remarks>
+    /// This state exists because there was no way to say "I don't know". A
+    /// never-tested endpoint was folded into <see cref="Enabled"/> and rendered
+    /// as "Connected", which is a claim about a server the app has never
+    /// reached — see issue #509. macOS has always been honest here by omission:
+    /// its row draws a tick or a cross only when `lastTestSuccess` is non-nil.
+    /// </remarks>
+    Untested
 }
 
 public enum LibraryModelSource
@@ -80,7 +93,19 @@ public sealed class LibraryModel
     public double? DownloadProgress { get; init; }
     public object? Payload { get; init; }
 
-    public bool IsInstalled => LocationKind == LibraryModelLocationKind.Offline && StatusKind == LibraryModelStatusKind.Enabled;
+    /// <summary>
+    /// Present on this machine and selectable — what the "Installed Only"
+    /// location filter and the row count mean.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="LibraryModelStatusKind.Untested"/> counts. It is only ever an
+    /// offline row when the user pointed a custom endpoint at localhost, and
+    /// such a row was installed before #509 split "never tested" out of
+    /// <see cref="LibraryModelStatusKind.Enabled"/>. Whether the app has probed
+    /// it is a statement about the label, not about whether it is there.
+    /// </remarks>
+    public bool IsInstalled => LocationKind == LibraryModelLocationKind.Offline
+        && StatusKind is LibraryModelStatusKind.Enabled or LibraryModelStatusKind.Untested;
     public bool IsCloud => LocationKind == LibraryModelLocationKind.Cloud;
     public bool IsVoice => Kind == LibraryModelKind.Voice;
 
@@ -141,6 +166,7 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     {
         LibraryModelStatusKind.Enabled when Model.Source == LibraryModelSource.CustomEndpoint => "Connected",
         LibraryModelStatusKind.Enabled => Model.IsCloud ? "Connected" : "Installed",
+        LibraryModelStatusKind.Untested => "Not tested",
         LibraryModelStatusKind.Locked => "Connect",
         LibraryModelStatusKind.Error => Model.StatusMessage ?? "Needs attention",
         LibraryModelStatusKind.Downloadable => "Download",
@@ -151,6 +177,7 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     {
         LibraryModelStatusKind.Enabled when Model.Source == LibraryModelSource.CustomEndpoint => "\uE753",
         LibraryModelStatusKind.Enabled => Model.IsCloud ? "\uE753" : "\uE73E",
+        LibraryModelStatusKind.Untested => "\uE946",
         LibraryModelStatusKind.Locked => "\uE72E",
         LibraryModelStatusKind.Error => "\uE783",
         LibraryModelStatusKind.Downloadable => "\uE896",
@@ -182,7 +209,8 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     public string GaugeBrushKey => Model.StatusKind switch
     {
         LibraryModelStatusKind.Error => "WarningBrush",
-        LibraryModelStatusKind.Locked or LibraryModelStatusKind.Downloadable => "TextSecondaryBrush",
+        LibraryModelStatusKind.Locked or LibraryModelStatusKind.Downloadable
+            or LibraryModelStatusKind.Untested => "TextSecondaryBrush",
         _ => "AccentBrush" // Enabled, Downloading
     };
 

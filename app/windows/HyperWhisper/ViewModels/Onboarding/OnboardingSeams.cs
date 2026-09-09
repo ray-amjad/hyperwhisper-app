@@ -344,7 +344,11 @@ public interface IOnboardingCreditsGateway
 
     bool IsFetching { get; }
 
-    Task RefreshAsync(bool force, CancellationToken cancellationToken);
+    /// <param name="licenseKeyOverride">
+    /// A key verified this session but not yet stored, so the balance for the key the user just
+    /// typed can be read before activation. Null uses whatever identifier the app already holds.
+    /// </param>
+    Task RefreshAsync(bool force, CancellationToken cancellationToken, string? licenseKeyOverride = null);
 
     event EventHandler? CreditsChanged;
 }

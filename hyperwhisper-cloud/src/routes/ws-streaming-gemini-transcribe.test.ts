@@ -127,6 +127,16 @@ describe('live frame vectors (shared-conformance/live-frame-vectors.json)', () =
             { kind: 'transcript', text: vector.expect.text!, isFinal: true, speechFinal: true },
           ]);
           break;
+        case 'finalTranscriptAndComplete':
+          // TWO events, final first. This route's `UpstreamEvent` vocabulary has
+          // no combined shape, so the vector's one decode is two events here —
+          // and the ORDER is the contract: `handleUpstreamEvent` bills the
+          // final's characters before the `complete` arm closes the upstream.
+          expect(events).toEqual([
+            { kind: 'transcript', text: vector.expect.text!, isFinal: true, speechFinal: true },
+            { kind: 'complete' },
+          ]);
+          break;
         case 'complete':
           expect(events).toEqual([{ kind: 'complete' }]);
           break;

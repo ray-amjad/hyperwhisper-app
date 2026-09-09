@@ -46,7 +46,7 @@ public sealed class CloudTranscriptionService : IDisposable
         new(CloudTranscriptionProvider.Groq, "groqWhisper", "Groq Whisper", false, true),
         new(CloudTranscriptionProvider.Deepgram, "deepgramNova3", "Deepgram Nova 3", false, true),
         new(CloudTranscriptionProvider.Grok, "grokStt", "Grok STT", false, true),
-        new(CloudTranscriptionProvider.AzureMai, "azureMaiTranscribe", "Microsoft MAI-Transcribe 1.5", false, true),
+        new(CloudTranscriptionProvider.AzureMai, "azureMaiTranscribe", "Microsoft MAI-Transcribe", false, true),
         new(CloudTranscriptionProvider.GoogleChirp, "googleChirp3", "Google Chirp 3", false, true),
         new(CloudTranscriptionProvider.ElevenLabs, "elevenLabsScribeV2", "ElevenLabs Scribe v2", false, true),
         new(CloudTranscriptionProvider.OpenAi, "openaiWhisper", "OpenAI Whisper", false, true),

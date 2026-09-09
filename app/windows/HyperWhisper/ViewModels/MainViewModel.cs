@@ -50,6 +50,14 @@ public partial class MainViewModel : ViewModelBase
     private StreamingTranscriptionClient? _streamingClient;
     private System.Timers.Timer? _durationTimer;
     private CancellationTokenSource? _activeTranscriptionCts;
+
+    /// <summary>
+    /// True while the transcription behind <see cref="_activeTranscriptionCts"/> came
+    /// from a file on disk rather than the microphone. The generic cancel paths cannot
+    /// tell the two apart from <see cref="IsTranscribing"/> alone, and they have to,
+    /// because they name what was cancelled (issue #506).
+    /// </summary>
+    private bool _fileTranscriptionActive;
     private bool _toggleShortcutHeld;
     private bool _isStreamingSession;
     private bool _isStreamingStarting;
@@ -278,6 +286,9 @@ public partial class MainViewModel : ViewModelBase
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
         RegisterShortcutsFromSettings();
+        // After, not before: RegisterShortcutsFromSettings is what refreshes HotkeyText,
+        // and the Start Recording badge shows the same chord the status bar does.
+        RefreshGettingStartedShortcuts();
         UpdateMicrophoneKeepWarm();
     }
 
@@ -485,6 +496,19 @@ public partial class MainViewModel : ViewModelBase
     /// </summary>
     internal static bool ShouldReportUndeliveredTranscript() => !TextDeliveryGate.IsSuppressed;
 
+    /// <summary>
+    /// The status line a cancelled transcription leaves behind, split out for the
+    /// same reason: one decision in one place, pinnable without a MainViewModel.
+    ///
+    /// A file import reads audio off disk and never opens the microphone, so
+    /// cancelling one must not report that a recording was cancelled (issue #506).
+    /// The microphone paths keep the string they always had.
+    /// </summary>
+    internal static string CancelledStatusText(bool cancelledFileTranscription) =>
+        Loc.S(cancelledFileTranscription
+            ? "status.fileTranscriptionCancelled"
+            : "status.recordingCancelled");
+
     private void ReportUndeliveredTranscript()
     {
         if (!ShouldReportUndeliveredTranscript())
@@ -645,59 +669,6 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand] private void NavigateToModelLibrary() => CurrentPage = NavigationPage.ModelLibrary;
     [RelayCommand] private void NavigateToHistory() => CurrentPage = NavigationPage.History;
     [RelayCommand] private void NavigateToSettings() => CurrentPage = NavigationPage.Settings;
-
-    // =========================================================================
-    // GETTING STARTED
-    // =========================================================================
-
-    private void InitializeGettingStarted()
-    {
-        var completedSteps = _settingsService.GettingStartedCompletedSteps
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .ToHashSet();
-
-        GettingStartedItems = new ObservableCollection<GettingStartedItem>
-        {
-            new() { Id = "recording", Icon = "\U0001F3A4", IconColor = System.Windows.Media.Color.FromRgb(0, 122, 255), Title = Localization.Loc.S("home.gettingStarted.recording.title"), Description = Localization.Loc.S("home.gettingStarted.recording.description"), ShortcutText = HotkeyText, IsCompleted = completedSteps.Contains("recording") },
-            new() { Id = "shortcuts", Icon = "\u2328\uFE0F", IconColor = System.Windows.Media.Color.FromRgb(175, 82, 222), Title = Localization.Loc.S("home.gettingStarted.shortcuts.title"), Description = Localization.Loc.S("home.gettingStarted.shortcuts.description"), IsCompleted = completedSteps.Contains("shortcuts") },
-            new() { Id = "mode", Icon = "\U0001F3AF", IconColor = System.Windows.Media.Color.FromRgb(52, 199, 89), Title = Localization.Loc.S("home.gettingStarted.mode.title"), Description = Localization.Loc.S("home.gettingStarted.mode.description"), ShortcutText = _settingsService.ChangeModeShortcut.ToDisplayString(), IsCompleted = completedSteps.Contains("mode") },
-            new() { Id = "vocabulary", Icon = "\U0001F4DA", IconColor = System.Windows.Media.Color.FromRgb(255, 149, 0), Title = Localization.Loc.S("home.gettingStarted.vocabulary.title"), Description = Localization.Loc.S("home.gettingStarted.vocabulary.description"), IsCompleted = completedSteps.Contains("vocabulary") },
-        };
-
-        ShowGettingStarted = completedSteps.Count < 4;
-    }
-
-    [RelayCommand]
-    private void ToggleGettingStartedStep(string stepId)
-    {
-        var completedSteps = _settingsService.GettingStartedCompletedSteps
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .ToHashSet();
-
-        if (completedSteps.Contains(stepId))
-            completedSteps.Remove(stepId);
-        else
-            completedSteps.Add(stepId);
-
-        _settingsService.GettingStartedCompletedSteps = string.Join(",", completedSteps.OrderBy(s => s));
-
-        var item = GettingStartedItems.FirstOrDefault(i => i.Id == stepId);
-        if (item != null)
-            item.IsCompleted = completedSteps.Contains(stepId);
-
-        ShowGettingStarted = completedSteps.Count < 4;
-
-        // Navigate to relevant page on check (not uncheck)
-        if (completedSteps.Contains(stepId))
-        {
-            switch (stepId)
-            {
-                case "shortcuts": CurrentPage = NavigationPage.Settings; break;
-                case "mode": CurrentPage = NavigationPage.Modes; break;
-                case "vocabulary": CurrentPage = NavigationPage.Vocabulary; break;
-            }
-        }
-    }
 
     // =========================================================================
     // RECENT RELEASES
@@ -2315,6 +2286,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             // Compress audio in background after the terminal status is durable.
+            // ast-grep-ignore: no-discarded-task-run -- compression is deliberately off the critical path, after the terminal status is durable
             _ = Task.Run(() =>
             {
                 try
@@ -2356,7 +2328,7 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Info("TranscriptionFlow: Transcription cancelled by user");
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            StatusText = CancelledStatusText(cancelledFileTranscription: false);
             if (transcript != null)
             {
                 transcriptDeleted = HistoryService.Instance.DeleteTranscript(transcript.Id);
@@ -2555,7 +2527,9 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Debug("Cancelled transcription via Escape");
                 HideOverlayRequested?.Invoke(this, EventArgs.Empty);
                 HideFileProgressRequested?.Invoke(this, EventArgs.Empty);
-                StatusText = Loc.S("status.recordingCancelled");
+                // This branch serves BOTH kinds of transcription, so it has to ask which
+                // one it just cancelled rather than assume the microphone (issue #506).
+                StatusText = CancelledStatusText(_fileTranscriptionActive);
             }
             return;
         }
@@ -2680,7 +2654,7 @@ public partial class MainViewModel : ViewModelBase
                 });
 
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            StatusText = CancelledStatusText(cancelledFileTranscription: false);
             _toggleShortcutHeld = false;
             _pushToTalkMonitor.Reset();
             _shortcutService.ResetKeyboardState();
@@ -2717,7 +2691,7 @@ public partial class MainViewModel : ViewModelBase
 
         await CleanupStreamingSessionAsync();
         HideOverlayRequested?.Invoke(this, EventArgs.Empty);
-        StatusText = Loc.S("status.recordingCancelled");
+        StatusText = CancelledStatusText(cancelledFileTranscription: false);
         _toggleShortcutHeld = false;
         _pushToTalkMonitor.Reset();
         _shortcutService.ResetKeyboardState();
@@ -2873,6 +2847,7 @@ public partial class MainViewModel : ViewModelBase
 
         // STEP 3: Show progress window
         IsTranscribing = true;
+        _fileTranscriptionActive = true;
         ShowFileProgressRequested?.Invoke(this, new FileTranscriptionProgressEventArgs(
             fileName,
             onCancel: () =>
@@ -3016,7 +2991,9 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggingService.Info("TranscribeFileAsync: File transcription cancelled by user");
             HideFileProgressRequested?.Invoke(this, EventArgs.Empty);
-            StatusText = Loc.S("status.recordingCancelled");
+            // The audio came off disk and the microphone was never opened, so
+            // "Recording cancelled" would describe something that did not happen (#506).
+            StatusText = CancelledStatusText(cancelledFileTranscription: true);
 
             if (transcript != null)
             {
@@ -3102,6 +3079,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             IsTranscribing = false;
+            _fileTranscriptionActive = false;
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
                 _activeTranscriptionCts = null;

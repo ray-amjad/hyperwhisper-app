@@ -45,12 +45,27 @@
                     <StackPanel>
                         <TextBlock Text="{loc:Loc mode.editor.field.name}" FontSize="13"
                                    Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <!-- HelpText, not just the sibling TextBlock: a disabled TextBox is
+                             skipped in tab order, so a Narrator user would never reach the
+                             visible hint and the field would be dead AND silent. -->
                         <TextBox x:Name="ModeNameBox"
                                  Background="{DynamicResource InputBackgroundBrush}"
                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                  BorderBrush="{DynamicResource BorderBrush}"
                                  Padding="10,8"
+                                 AutomationProperties.Name="{loc:Loc mode.editor.field.name}"
                                  TextChanged="ModeNameBox_TextChanged"/>
+                        <!-- Shown only for the default mode, whose name field is
+                             disabled. A greyed-out text box with nothing next to it
+                             reads as a broken control rather than a deliberate rule
+                             (issue #494), so the rule says itself. -->
+                        <TextBlock x:Name="ModeNameLockedHint"
+                                   Text="{loc:Loc mode.editor.field.name.defaultLocked}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,4,0,0"
+                                   Visibility="Collapsed"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

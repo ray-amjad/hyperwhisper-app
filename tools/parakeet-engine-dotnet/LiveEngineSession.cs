@@ -1,4 +1,5 @@
 using SherpaOnnx;
+using uniffi.hyperwhisper_core;
 
 internal sealed record LiveEngineUpdate(string Preview, string Committed);
 
@@ -93,7 +94,7 @@ internal sealed class LiveEngineSession : IDisposable
                 return update;
             },
             () => agreement.Finish(Decode()),
-            () => { });
+            agreement.Dispose);
     }
 
     public LiveEngineUpdate Accept(float[] samples)
@@ -126,93 +127,95 @@ internal sealed class LiveEngineSession : IDisposable
         (value ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 }
 
-internal sealed class BoundedWordAgreement
+/// <summary>
+/// The bounded LocalAgreement-3 engine behind the rolling-offline live path:
+/// three consecutive hypotheses must agree on a word before it is committed,
+/// and the transcript is capped at 512 KiB of UTF-16 units.
+/// <para>
+/// The algorithm itself now lives in <c>hw_text::agreement</c> and is reached
+/// through the core's <c>HwBoundedAgreementSession</c> (issue #286), so the
+/// daemon and the macOS streaming engine share one implementation instead of
+/// two ports of the same paper. This type is only the adapter: it keeps the
+/// daemon-facing surface — the constructor, <see cref="Preview"/>,
+/// <see cref="Observe"/>, <see cref="Finish"/> and the
+/// <see cref="InvalidOperationException"/> thrown at the cap —
+/// exactly as it was, which is why the harness in
+/// <c>parakeet-engine-dotnet.Tests</c> did not change with it.
+/// </para>
+/// </summary>
+internal sealed class BoundedWordAgreement : IDisposable
 {
-    private const int ConfirmationsNeeded = 3;
-    private const int MinimumWords = 8;
-    private const int TrailingWords = 3;
-    private const int MaximumCharacters = 512 * 1024;
-    private readonly string _join;
-    private readonly List<string[]> _hypotheses = [];
-    private readonly List<string> _committed = [];
+    private readonly HwBoundedAgreementSession _session;
 
-    public BoundedWordAgreement(string join) => _join = join;
+    /// <summary>
+    /// What the core's <c>preview()</c> would return right now, without asking
+    /// it. The accessor exists but must not be called on the audio path:
+    /// <c>LiveEngineSession.Decode</c> and the sub-interval early return read
+    /// <see cref="Preview"/> on <em>every</em> <c>audio</c> request, and the
+    /// value is a pure function of state that only <see cref="Observe"/> and
+    /// <see cref="Finish"/> change — so caching what those two returned is
+    /// exactly equivalent and keeps the audio path off the FFI entirely.
+    /// <para>
+    /// "What those two returned" is not the whole story, which is what
+    /// <see cref="Apply"/> exists to handle: a failed call also changes state.
+    /// The rule this field keeps is the stronger one the
+    /// <c>Join(_committed.Concat(...))</c> property it replaced had for free —
+    /// it always reflects current engine state, on every path.
+    /// </para>
+    /// </summary>
+    private string _preview = "";
 
-    public string Preview => Join(_committed.Concat(_hypotheses.LastOrDefault() ?? []));
+    public BoundedWordAgreement(string join) => _session = new HwBoundedAgreementSession(join);
 
-    public LiveEngineUpdate Observe(string hypothesis)
+    public string Preview => _preview;
+
+    public LiveEngineUpdate Observe(string hypothesis) => Apply(() => _session.Observe(hypothesis));
+
+    public LiveEngineUpdate Finish(string finalHypothesis) => Apply(() => _session.Finish(finalHypothesis));
+
+    public void Dispose() => _session.Dispose();
+
+    /// <summary>
+    /// Run one core call, cache its preview and translate its failure.
+    /// <para>
+    /// <b>A cap failure is not atomic.</b> The core commits word by word and
+    /// stops at the first word that will not fit, so the words before it stay
+    /// committed and the hypothesis that triggered the failure has already been
+    /// taken — <c>HwBoundedAgreementSession.Observe</c>'s doc says so, and
+    /// <c>bounded_session_limit_exceeded_still_moves_the_preview</c> pins it.
+    /// The cache is therefore refreshed from <c>preview()</c> before the
+    /// rethrow. It has to be: <c>Program</c>'s <c>audio</c> handler logs the
+    /// exception, answers <c>"Live audio could not be processed"</c> and keeps
+    /// the session alive, so every later sub-interval request reads this field
+    /// again. Skipping the refresh leaves the daemon serving a pre-failure
+    /// transcript for the rest of the recording. One accessor call per failed
+    /// request is not a per-request FFI call: the success path, which is every
+    /// request that matters, still never touches the core twice.
+    /// </para>
+    /// <para>
+    /// The rethrow re-supplies the message because the generated
+    /// <c>HwStreamException.LimitExceeded</c> is <c>base()</c> with no message
+    /// at all. It does <em>not</em> reach the wire: all three live handlers
+    /// (<c>start</c>, <c>audio</c>, <c>finish</c>) write fixed strings, and only
+    /// the non-live transcribe handler echoes <c>ex.Message</c>, which this type
+    /// never reaches. What the message serves is the log line beside each of
+    /// those — <c>LogError($"Live audio failed: {ex.Message}")</c> — which
+    /// without it records a cap failure as an empty reason.
+    /// </para>
+    /// </summary>
+    private LiveEngineUpdate Apply(Func<HwStreamUpdate> call)
     {
-        var words = WithoutCommittedOverlap(Split(hypothesis));
-        if (Join(_committed.Concat(words)).Length > MaximumCharacters)
+        HwStreamUpdate update;
+        try
+        {
+            update = call();
+        }
+        catch (HwStreamException.LimitExceeded)
+        {
+            _preview = _session.Preview();
             throw new InvalidOperationException("Live transcript exceeded the 512 KiB limit");
-        _hypotheses.Add(words);
-        if (_hypotheses.Count > ConfirmationsNeeded) _hypotheses.RemoveAt(0);
-
-        string[] newlyCommitted = [];
-        if (_hypotheses.Count == ConfirmationsNeeded)
-        {
-            var common = CommonPrefix(_hypotheses);
-            var confirmationCount = common.Length >= MinimumWords
-                ? common.Length - TrailingWords
-                : 0;
-            if (confirmationCount >= MinimumWords - TrailingWords)
-            {
-                newlyCommitted = common[..confirmationCount];
-                AppendCommitted(newlyCommitted);
-                for (var index = 0; index < _hypotheses.Count; index++)
-                    _hypotheses[index] = _hypotheses[index].Skip(confirmationCount).ToArray();
-            }
         }
-        return new LiveEngineUpdate(Preview, Join(newlyCommitted));
+        _preview = update.preview;
+        return new LiveEngineUpdate(update.preview, update.committed);
     }
-
-    public LiveEngineUpdate Finish(string finalHypothesis)
-    {
-        var tail = WithoutCommittedOverlap(Split(finalHypothesis));
-        AppendCommitted(tail);
-        _hypotheses.Clear();
-        var final = Join(_committed);
-        return new LiveEngineUpdate(final, Join(tail));
-    }
-
-    private string[] WithoutCommittedOverlap(string[] words)
-    {
-        var maximum = Math.Min(_committed.Count, words.Length);
-        for (var count = maximum; count > 0; count--)
-        {
-            var matches = true;
-            for (var index = 0; index < count; index++)
-            {
-                if (!Equivalent(_committed[_committed.Count - count + index], words[index]))
-                { matches = false; break; }
-            }
-            if (matches) return words[count..];
-        }
-        return words;
-    }
-
-    private void AppendCommitted(IEnumerable<string> words)
-    {
-        foreach (var word in words)
-        {
-            if (Preview.Length + word.Length + 1 > MaximumCharacters)
-                throw new InvalidOperationException("Live transcript exceeded the 512 KiB limit");
-            _committed.Add(word);
-        }
-    }
-
-    private static string[] CommonPrefix(IReadOnlyList<string[]> values)
-    {
-        var length = values.Min(value => value.Length);
-        var count = 0;
-        while (count < length && values.Skip(1).All(value => Equivalent(values[0][count], value[count]))) count++;
-        return values[0][..count];
-    }
-
-    private static bool Equivalent(string left, string right) => string.Equals(
-        NormalizeWord(left), NormalizeWord(right), StringComparison.Ordinal);
-    private static string NormalizeWord(string value) => new(value.ToLowerInvariant()
-        .Where(character => char.IsLetterOrDigit(character)).ToArray());
-    private static string[] Split(string value) => value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-    private string Join(IEnumerable<string> words) => string.Join(_join, words);
 }

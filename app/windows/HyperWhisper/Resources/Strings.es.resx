@@ -209,6 +209,9 @@
   <data name="history.action.deleteSelected" xml:space="preserve">
     <value>Eliminar Seleccionados</value>
   </data>
+  <data name="history.selection.count" xml:space="preserve">
+    <value>{0} grabaciones seleccionadas</value>
+  </data>
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Archivo de audio no disponible</value>
   </data>
@@ -260,6 +263,9 @@
   </data>
   <data name="mode.editor.field.name" xml:space="preserve">
     <value>Nombre</value>
+  </data>
+  <data name="mode.editor.field.name.defaultLocked" xml:space="preserve">
+    <value>Este es el modo predeterminado, por lo que su nombre no se puede cambiar. Puede cambiar el nombre de cualquier otro modo.</value>
   </data>
   <data name="mode.editor.field.provider" xml:space="preserve">
     <value>Proveedor</value>
@@ -890,6 +896,9 @@
   <data name="status.recordingCancelled" xml:space="preserve">
     <value>Grabación cancelada</value>
   </data>
+  <data name="status.fileTranscriptionCancelled" xml:space="preserve">
+    <value>Transcripción del archivo cancelada</value>
+  </data>
   <data name="status.unknown" xml:space="preserve">
     <value>Desconocido</value>
   </data>
@@ -1162,6 +1171,36 @@ Debe tener al menos un modo.</value>
   </data>
   <data name="settings.shortcuts.tooltip" xml:space="preserve">
     <value>Haga clic y presione las teclas que desea usar</value>
+  </data>
+  <data name="settings.shortcuts.error.singleModifier" xml:space="preserve">
+    <value>Los atajos con un solo modificador como Ctrl, Alt, Shift o Win no son compatibles. Usa una tecla con modificadores o un atajo con varios modificadores, como Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.duplicate" xml:space="preserve">
+    <value>Este atajo ya se usa para {0} ({1})</value>
+  </data>
+  <data name="settings.shortcuts.error.bareModifier" xml:space="preserve">
+    <value>El atajo {0} usa un único modificador suelto. Usa una tecla con modificadores o un atajo con varios modificadores, como Ctrl+Win.</value>
+  </data>
+  <data name="settings.shortcuts.error.inUse" xml:space="preserve">
+    <value>Otra aplicación ya usa el atajo {0}. Elige una combinación diferente.</value>
+  </data>
+  <data name="settings.shortcuts.error.reserved" xml:space="preserve">
+    <value>El atajo {0} está reservado por Windows y no se puede usar.</value>
+  </data>
+  <data name="settings.shortcuts.error.registerFailed" xml:space="preserve">
+    <value>No se pudo registrar el atajo {0} (error de Windows {1}). Prueba con otra combinación.</value>
+  </data>
+  <data name="settings.shortcuts.conflict.title" xml:space="preserve">
+    <value>Conflicto de atajos</value>
+  </data>
+  <data name="settings.streaming.conflict.title" xml:space="preserve">
+    <value>Conflicto del atajo de streaming</value>
+  </data>
+  <data name="settings.shortcuts.conflict.openSettings" xml:space="preserve">
+    <value>Abrir configuración de atajos</value>
+  </data>
+  <data name="settings.shortcuts.conflict.changeShortcut" xml:space="preserve">
+    <value>Cambiar atajo</value>
   </data>
   <!-- App Error Messages -->
   <data name="errors.database.initFailed" xml:space="preserve">
@@ -1884,10 +1923,10 @@ Puede volver a descargarlo más tarde.</value>
     <value>custom vocabulary</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5</value>
+    <value>Microsoft MAI-Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+    <value>Microsoft MAI-Transcribe - up to 60 languages with phrase biasing</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe</value>
@@ -2392,6 +2431,12 @@ Puede volver a descargarlo más tarde.</value>
   </data>
   <data name="onboarding.setup.cloud.subtitle" xml:space="preserve">
     <value>Clave verificada, créditos confirmados. Las grabaciones irán a HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.pending" xml:space="preserve">
+    <value>Activa este PC para terminar de conectarlo a HyperWhisper Cloud.</value>
+  </data>
+  <data name="onboarding.setup.cloud.subtitle.balancePending" xml:space="preserve">
+    <value>Este PC está activado. Las grabaciones irán a HyperWhisper Cloud.</value>
   </data>
   <data name="onboarding.setup.cloud.activate" xml:space="preserve">
     <value>Activar Cloud</value>

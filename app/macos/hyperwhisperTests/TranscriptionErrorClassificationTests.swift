@@ -88,6 +88,25 @@ struct TranscriptionErrorClassificationTests {
         )
     }
 
+    @Test func transcriptionFailureErrorDropsDescriptionsAndUserInfo() {
+        let original = NSError(
+            domain: "FluidAudio.ModelLoader",
+            code: 17,
+            userInfo: [
+                NSLocalizedDescriptionKey: "Failed under /Users/private/recording.wav",
+                "token": "secret-value",
+            ]
+        )
+
+        let sanitized = TranscriptionPipeline.sentrySafeTranscriptionError(original) as NSError
+
+        #expect(sanitized.domain == original.domain)
+        #expect(sanitized.code == original.code)
+        #expect(sanitized.userInfo.isEmpty)
+        #expect(!sanitized.localizedDescription.contains("/Users/private"))
+        #expect(!sanitized.localizedDescription.contains("secret-value"))
+    }
+
     // MARK: - HYPERWHISPER-T2: the refusal status has to survive the boundary
 
     /// The core classifies a 401 and a 403 into the same `.Unauthorized` and

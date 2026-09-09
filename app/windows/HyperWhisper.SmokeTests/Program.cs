@@ -15,6 +15,7 @@
 // Requires InternalsVisibleTo("HyperWhisper.SmokeTests") in HyperWhisper.csproj.
 // Coverage is x64-only on the CI runner; ARM64 is exercised manually.
 
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -33,6 +34,7 @@ using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.LocalApi;
+using HyperWhisper.Services.LocalApi.Endpoints;
 using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
@@ -105,6 +107,160 @@ internal static class Program
             {
                 var credits = HyperwhisperCoreMethods.CloudSttCreditsPerMinute("balanced");
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
+            });
+
+            Run("ApplicationControlDiagnostics handles only the classifier load failure", () =>
+            {
+                const string privateUrl = "https://private.example.test/download";
+                var zone = ApplicationControlDiagnostics.ParseZoneId($"ZoneId=3\r\nHostUrl={privateUrl}");
+                var snapshot = new ApplicationControlDiagnostics.Snapshot(
+                    true, 48128, "untrusted", unchecked((int)0x800B0109), null, null,
+                    zone.Status, zone.ZoneId, "complete");
+                var sentinel = new FileLoadException(
+                    "private path must not enter the payload",
+                    @"C:\Users\private-user\HyperWhisper.AppClassification.dll");
+                ApplicationControlDiagnostics.Payload? capturedPayload = null;
+                var reentered = true;
+                var unsubscribed = false;
+
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(new InvalidOperationException()),
+                    "a non-load exception passed the classifier filter");
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("other", @"C:\Users\private-user\Other.dll")),
+                    "an unrelated assembly passed the classifier filter");
+                Assert(ApplicationControlDiagnostics.IsClassifierLoadFailure(sentinel),
+                    "the classifier DLL path did not pass the filter");
+                Assert(ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("private", "HyperWhisper.AppClassification")),
+                    "the classifier simple assembly name did not pass the filter");
+                Assert(ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException(
+                            "private",
+                            "HyperWhisper.AppClassification, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null")),
+                    "the classifier display name did not pass the filter");
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("private", "HyperWhisper.AppClassification.Other, Version=1.0.0.0")),
+                    "an assembly-name prefix passed the classifier filter");
+                Assert(!ApplicationControlDiagnostics.IsClassifierLoadFailure(
+                        new FileLoadException("private", "HyperWhisper.AppClassification, not-a-display-name")),
+                    "an invalid display name passed the classifier filter");
+
+                var unrelatedHandled = ApplicationControlDiagnostics.HandleFirstChanceException(
+                    new FileLoadException("other", @"C:\Users\private-user\Other.dll"),
+                    () => throw new InvalidOperationException("an unrelated load was inspected"),
+                    _ => throw new InvalidOperationException("an unrelated load was reported"),
+                    () => unsubscribed = true);
+                Assert(!unrelatedHandled && !unsubscribed,
+                    "an unrelated load removed the first-chance handler");
+
+                var handled = ApplicationControlDiagnostics.HandleFirstChanceException(
+                    sentinel,
+                    () => snapshot,
+                    payload =>
+                    {
+                        capturedPayload = payload;
+                        reentered = ApplicationControlDiagnostics.HandleFirstChanceException(
+                            sentinel,
+                            () => snapshot,
+                            _ => throw new InvalidOperationException("a duplicate diagnostic was reported"),
+                            () => throw new InvalidOperationException("a duplicate diagnostic removed the handler"));
+                    },
+                    () => unsubscribed = true);
+
+                Assert(handled, "the first-chance callback did not handle the classifier load failure");
+                Assert(!reentered, "the first-chance callback reentered for the same load failure");
+                Assert(unsubscribed, "the matching load did not remove the first-chance handler");
+                Assert(capturedPayload != null, "the failure reporter did not receive a payload");
+                Assert(capturedPayload.Tags["classifier_authenticode_status"] == "untrusted" &&
+                    capturedPayload.Tags["capture_stage"] == "first_chance_exception" &&
+                    (int)capturedPayload.Extras["classifier_zone_id"] == 3, "diagnostic metadata is missing");
+                var expectedHResult = $"0x{unchecked((uint)sentinel.HResult):X8}";
+                Assert((string)capturedPayload.Extras["classifier_outer_exception_type"] == typeof(FileLoadException).FullName &&
+                    (string)capturedPayload.Extras["classifier_outer_hresult"] == expectedHResult &&
+                    (string)capturedPayload.Extras["classifier_innermost_hresult"] == expectedHResult,
+                    "exception type or HRESULT is missing");
+                Assert(!capturedPayload.Extras.Keys.Any(SentryService.IsRedactedExtraKey), "an extra is redacted");
+
+                var values = capturedPayload.Tags.Values
+                    .Concat(capturedPayload.Extras.Values.Select(
+                        value => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty));
+                Assert(!values.Any(value => value.Contains("private-user", StringComparison.OrdinalIgnoreCase)),
+                    "exception content entered the custom failure payload");
+                Assert(!values.Any(value => value.Contains(privateUrl, StringComparison.OrdinalIgnoreCase)),
+                    "URL-like zone data entered the payload");
+            });
+
+            Run("ApplicationControlDiagnostics maps distinct trust failures", () =>
+            {
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(0) == "trusted",
+                    "WinVerifyTrust success is not trusted");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0100)) == "unsigned",
+                    "TRUST_E_NOSIGNATURE is not unsigned");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0001)) == "provider_unknown",
+                    "TRUST_E_PROVIDER_UNKNOWN is mislabeled");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0003)) == "subject_form_unknown",
+                    "TRUST_E_SUBJECT_FORM_UNKNOWN is mislabeled");
+                Assert(ApplicationControlDiagnostics.DescribeTrustStatus(unchecked((int)0x800B0109)) == "untrusted",
+                    "a certificate-chain failure is not untrusted");
+
+                var probeException = new DllNotFoundException("private probe message");
+                var probeSnapshot = new ApplicationControlDiagnostics.Snapshot(
+                    true, 48128, "check_failed", null, typeof(DllNotFoundException).FullName,
+                    probeException.HResult, "absent", null, "trust_check_failed");
+                var probePayload = ApplicationControlDiagnostics.BuildPayload(
+                    probeSnapshot, new FileLoadException());
+                Assert((string)probePayload.Extras["classifier_winverifytrust_hresult"] == "not_checked",
+                    "a managed probe exception is reported as a WinVerifyTrust return code");
+                Assert((string)probePayload.Extras["classifier_trust_probe_exception_type"] ==
+                    typeof(DllNotFoundException).FullName &&
+                    (string)probePayload.Extras["classifier_trust_probe_exception_hresult"] ==
+                    $"0x{unchecked((uint)probeException.HResult):X8}",
+                    "the trust probe exception evidence is missing");
+            });
+
+            Run("ApplicationContextService exception evidence is privacy-safe", () =>
+            {
+                const string privatePath = @"C:\Users\private-user\Documents\spoken-note.txt";
+                string evidence;
+                string debugEvidence;
+                try
+                {
+                    throw new InvalidOperationException(
+                        $"private outer message {privatePath}",
+                        new ArgumentException("private inner message"));
+                }
+                catch (Exception exception)
+                {
+                    evidence = ApplicationContextService.DescribeExceptionEvidence(exception);
+                    debugEvidence = ApplicationContextService.DescribeExceptionEvidence(exception, includeStack: false);
+                }
+
+                Assert(evidence.Contains(typeof(InvalidOperationException).FullName!, StringComparison.Ordinal),
+                    "outer exception type is missing");
+                Assert(evidence.Contains(typeof(ArgumentException).FullName!, StringComparison.Ordinal),
+                    "inner exception type is missing");
+                Assert(evidence.Contains("HyperWhisper.SmokeTests.Program", StringComparison.Ordinal),
+                    "the privacy-safe call stack is missing");
+                Assert(!evidence.Contains("private outer message", StringComparison.Ordinal) &&
+                    !evidence.Contains("private inner message", StringComparison.Ordinal) &&
+                    !evidence.Contains("private-user", StringComparison.Ordinal),
+                    "exception content entered the evidence");
+                Assert(debugEvidence.Contains(typeof(InvalidOperationException).FullName!, StringComparison.Ordinal) &&
+                    debugEvidence.Contains(typeof(ArgumentException).FullName!, StringComparison.Ordinal),
+                    "debug evidence dropped the exception type chain");
+                Assert(debugEvidence.Contains(
+                        $"hresult=0x{unchecked((uint)new InvalidOperationException().HResult):X8}",
+                        StringComparison.Ordinal) &&
+                    debugEvidence.Contains(
+                        $"hresult=0x{unchecked((uint)new ArgumentException().HResult):X8}",
+                        StringComparison.Ordinal),
+                    "debug evidence dropped the HRESULT chain");
+                Assert(!debugEvidence.Contains("stack=", StringComparison.Ordinal),
+                    "debug evidence included a stack");
+                Assert(!debugEvidence.Contains("private outer message", StringComparison.Ordinal) &&
+                    !debugEvidence.Contains("private inner message", StringComparison.Ordinal) &&
+                    !debugEvidence.Contains("private-user", StringComparison.Ordinal),
+                    "exception content entered the debug evidence");
             });
 
             Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
@@ -582,6 +738,195 @@ internal static class Program
 
                 Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
                     "new OpenAI modes should default to GPT-5.6 Luna");
+            });
+
+            // Issue #314: `/post-process` used to project `provider` and `model`
+            // straight off the working Mode, so every fallback inside
+            // PostProcessingService (retired-id migration, provider default, the
+            // cloud route's own X-LLM-Model, a repaired custom-endpoint model)
+            // landed after the label was decided and the caller was told, silently,
+            // a model that never saw its text.
+            Run("Local API /post-process labels name what actually ran", () =>
+            {
+                static (string Provider, string Model) Labels(
+                    string? storedProvider, string? storedModel,
+                    string? resolvedProvider, string? resolvedModel)
+                    => HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.ResponseLabels(
+                        storedProvider, storedModel, resolvedProvider, resolvedModel);
+
+                // The reported case: the Mode names a model that belongs to
+                // another provider, the service falls back to the provider
+                // default, and the response used to name the dead id.
+                var fellBack = Labels("anthropic", "gpt-4.1-nano", "anthropic", "claude-haiku-4-5");
+                Assert(fellBack.Provider == "anthropic" && fellBack.Model == "claude-haiku-4-5",
+                    "/post-process still reports the Mode's model instead of the one that ran");
+
+                // ---------------------------------------------------------------
+                // UNIT-ONLY, AND SAY SO. On Windows today the PROVIDER half of
+                // this rule cannot fire end-to-end. `PostProcessingService` derives
+                // its resolved provider from the SAME `Mode.PostProcessingProvider`
+                // the endpoint passes as `storedProvider`, and nothing mutates the
+                // Mode in between — so `NamesTheSameProvider` is true on every
+                // reachable input and the wire `provider` always equals the stored
+                // spelling. The two cases below are (stored, resolved) pairs this
+                // head cannot emit. They pin `ResponseLabels` as a unit, against a
+                // future path that resolves a provider somewhere else and against a
+                // careless simplification of the helper — they are NOT evidence
+                // that the head reports a substitution, and they pass regardless of
+                // the endpoint code. The MODEL half below IS reachable.
+                // ---------------------------------------------------------------
+
+                // UNREACHABLE TODAY (see above): a genuine provider substitution.
+                var swapped = Labels("openai", "gpt-4.1-nano", "local_llm", "gemma-4-31b");
+                Assert(swapped.Provider == "local_llm" && swapped.Model == "gemma-4-31b",
+                    "/post-process does not report a genuine provider substitution");
+
+                // PROVIDER SPELLING IS PRESERVED — the rule that keeps this fix
+                // from rewriting every ordinary cloud response. Windows resolves
+                // HyperWhisper Cloud as "hyperwhispercloud"; a Mode synced from
+                // macOS stores "hyperwhisper", and both name the same provider.
+                Assert(PostProcessingProvider.HyperWhisperCloud.ToStringValue() == "hyperwhispercloud"
+                        && PostProcessingProviderExtensions.FromString("hyperwhisper")
+                            == PostProcessingProvider.HyperWhisperCloud,
+                    "the HyperWhisper Cloud provider spellings this rule reconciles have drifted");
+                var macSpelling = Labels("hyperwhisper", "gpt-4.1-nano", "hyperwhispercloud", "claude-haiku-4-5");
+                Assert(macSpelling.Provider == "hyperwhisper" && macSpelling.Model == "claude-haiku-4-5",
+                    "/post-process rewrote the caller's provider spelling when the provider did not change");
+                var winSpelling = Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", "claude-haiku-4-5");
+                Assert(winSpelling.Provider == "hyperwhispercloud",
+                    "/post-process changed the Windows-native cloud provider spelling");
+                Assert(Labels("OpenAI", "x", "openai", "x").Provider == "OpenAI",
+                    "/post-process did not echo the caller's provider casing");
+
+                // Custom endpoints: the `custom:<guid>` string IS the resolved
+                // provider. Two DIFFERENT endpoints both parse to `None`, so a
+                // parse-only comparison would wrongly preserve the stale one.
+                const string EndpointA = "custom:0f5f6b1e-4b4a-4e0b-9c2e-6f8c3f2a1d77";
+                const string EndpointB = "custom:11111111-2222-3333-4444-555555555555";
+                var custom = Labels(EndpointA, "ignored-by-custom-endpoints", EndpointA, "llama3.2");
+                Assert(custom.Provider == EndpointA && custom.Model == "llama3.2",
+                    "/post-process did not report the custom endpoint's own provider string and model");
+                // UNREACHABLE TODAY (see above): the endpoint hands the SAME
+                // `custom:<guid>` string to both sides, so two different endpoints
+                // never meet here. It pins the parse-only trap in
+                // `NamesTheSameProvider` — every custom string parses to `None`, so
+                // dropping the exact-match arm would echo the stale endpoint.
+                Assert(Labels(EndpointA, "m", EndpointB, "m").Provider == EndpointB,
+                    "/post-process confused two different custom endpoints for each other");
+
+                // Nothing ran: fall back to the Mode, and never invent a value.
+                var noRun = Labels("openai", "gpt-4.1-nano", null, null);
+                Assert(noRun.Provider == "openai" && noRun.Model == "gpt-4.1-nano",
+                    "/post-process did not fall back to the stored labels when nothing ran");
+                var noRunNoMode = Labels(null, null, null, null);
+                Assert(noRunNoMode.Provider == "hyperwhisper" && noRunNoMode.Model.Length == 0,
+                    "/post-process invented a label when nothing ran and nothing was stored");
+                // A blank resolved PROVIDER means nothing ran.
+                var blank = Labels("openai", "gpt-4.1-nano", "   ", null);
+                Assert(blank.Provider == "openai" && blank.Model == "gpt-4.1-nano",
+                    "/post-process treated a blank resolved provider as an answer");
+                // A RUN THAT DID NOT NAME ITS MODEL IS STILL A RUN. A custom
+                // endpoint saved with a blank model name posts `"model": ""` and a
+                // single-model server answers 200. Reporting the Mode's stored
+                // value there would name a leftover BYOK cloud id for text a local
+                // endpoint produced — issue #314 verbatim — so `""` is reported.
+                var ranUnnamed = Labels(EndpointA, "gpt-4.1-nano", EndpointA, "");
+                Assert(ranUnnamed.Provider == EndpointA && ranUnnamed.Model.Length == 0,
+                    "/post-process reported the Mode's model for a run that named none");
+                Assert(Labels("  ", null, "anthropic", "claude-haiku-4-5").Provider == "anthropic",
+                    "/post-process kept a blank stored provider over the one that ran");
+
+                // The contract the endpoint leans on: only Applied carries the
+                // pair, so a non-null resolved value already means "an LLM ran"
+                // and a run that picks a model then fails leaves no stale label.
+                var applied = PostProcessingResult.Applied("out", "anthropic", "claude-haiku-4-5");
+                Assert(applied.WasApplied
+                        && applied.ResolvedProvider == "anthropic"
+                        && applied.ResolvedModel == "claude-haiku-4-5",
+                    "PostProcessingResult.Applied does not carry the resolved provider/model");
+                var skipped = PostProcessingResult.Skipped("in");
+                Assert(!skipped.WasApplied
+                        && skipped.ResolvedProvider == null
+                        && skipped.ResolvedModel == null,
+                    "PostProcessingResult.Skipped leaked a resolved provider/model");
+
+                // The cloud branch labels the model from `CloudPostProcessingModel`
+                // (the X-LLM-Model value it really sends), NOT `Mode.LanguageModel`
+                // — which that branch never reads, so the old response reported an
+                // unrelated field rather than merely a stale one. Assert the exact
+                // catalog value: `FromString` answers `CloudPostProcessingModel
+                // .Fallback` for an id it cannot resolve, so a weaker "non-empty and
+                // not the Mode's model" check passes even when the entry is gone.
+                var cloudModel = CloudPostProcessingModelExtensions.FromString("anthropic:claude-haiku-4-5");
+                var cloudLabel = cloudModel.ToLlmModelHeader() ?? cloudModel.ModelId;
+                var fallbackModel = CloudPostProcessingModel.Fallback;
+                var fallbackLabel = fallbackModel.ToLlmModelHeader() ?? fallbackModel.ModelId;
+                Assert(cloudLabel == "claude-haiku-4-5",
+                    "the anthropic cloud post-processing engine no longer yields the claude-haiku-4-5 X-LLM-Model label");
+                Assert(cloudLabel != fallbackLabel,
+                    "the cloud label check is no longer distinguishable from the catalog fallback");
+                Assert(Labels("hyperwhispercloud", "gpt-4.1-nano", "hyperwhispercloud", cloudLabel).Model == cloudLabel,
+                    "/post-process does not report the cloud model it actually sent");
+            });
+
+            // Issue #314, group B: a `local_llm` run resolves its GGUF from
+            // `LocalPostProcessingModel ?? LanguageModel`, so writing the caller's
+            // `model` only to `LanguageModel` let a mode that already had a
+            // `LocalPostProcessingModel` run the baseline GGUF and (now honestly)
+            // report it. The portable head already writes both fields.
+            Run("Local API /post-process applies a model override to the local GGUF field", () =>
+            {
+                var local = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "local_llm",
+                        Model = "gemma-4-31B-it-Q4_K_M.gguf",
+                    });
+                Assert(local.PostProcessingMode == 2 && local.PostProcessingProvider == "local_llm",
+                    "a local_llm provider override did not switch the working mode to local post-processing");
+                Assert(local.LocalPostProcessingModel == "gemma-4-31B-it-Q4_K_M.gguf",
+                    "the caller's model override never reached the field a local run resolves from");
+                Assert(local.LanguageModel == "gemma-4-31B-it-Q4_K_M.gguf",
+                    "the caller's model override no longer reaches LanguageModel");
+
+                // A CLOUD run must not gain a local GGUF it never asked for.
+                var cloud = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "openai",
+                        Model = "gpt-4.1-nano",
+                    });
+                Assert(cloud.PostProcessingMode == 1 && cloud.LocalPostProcessingModel == null,
+                    "a cloud model override leaked into the local GGUF field");
+
+                // The write is keyed on the PROVIDER, not on `PostProcessingMode`,
+                // because that is what `PostProcessingService.ProcessAsync` routes
+                // on — it parses `Mode.PostProcessingProvider` and never reads
+                // `PostProcessingMode` past the `== 0` skip. `"local"` is the
+                // reachable proof: `FromString` maps it to `LocalLlm` (so the run
+                // IS local) while `IsLocalLlmProvider` above does not (so the mode
+                // int is 1, not 2). A mode-int guard skipped the write on exactly
+                // this input. The worse shape — a SAVED mode with post-processing
+                // off whose provider is still `local_llm`, where the skipped write
+                // meant a stale GGUF ran and was honestly reported as a model the
+                // caller never asked for — needs `ModeService` and is covered by
+                // this predicate alignment rather than end to end.
+                Assert(PostProcessingProviderExtensions.FromString("local") == PostProcessingProvider.LocalLlm
+                        && PostProcessingProviderExtensions.FromString("local_llm") == PostProcessingProvider.LocalLlm,
+                    "the local_llm spellings ProcessAsync routes on have drifted");
+                var altSpelling = HyperWhisper.Services.LocalApi.Endpoints.PostProcessEndpoints.BuildWorkingMode(
+                    new PostProcessRequest
+                    {
+                        Text = "raw",
+                        Provider = "local",
+                        Model = "gemma-4-12b-it-Q4_K_M.gguf",
+                    });
+                Assert(altSpelling.PostProcessingMode == 1,
+                    "the PostProcessingMode this case depends on being 1 has changed");
+                Assert(altSpelling.LocalPostProcessingModel == "gemma-4-12b-it-Q4_K_M.gguf",
+                    "the model override missed the local GGUF field for a run ProcessAsync routes local");
             });
 
             Run("Retired cloud models resolve to selectable canonical models", () =>
@@ -1074,6 +1419,240 @@ internal static class Program
                         && handler.LastRequestUri?.Port == 1234
                         && handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
                     $"probe went to '{handler.LastRequestUri}'");
+            });
+
+            // Issue #509. The Model Library called a custom endpoint "Connected"
+            // when nothing had ever connected to it. Two independent gaps, so
+            // two independent groups of assertions: the outcome was never
+            // recorded, and "no outcome" was mapped to the healthy branch.
+            Run("a custom endpoint records its test outcome and never claims an untested one", () =>
+            {
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var manager = CustomEndpointManager.Instance;
+                    const string Url = "https://percy.example.com/v1/chat/completions";
+
+                    // (1) Saving without a test leaves NO verdict behind. This is
+                    // the state every endpoint ever created used to be in.
+                    var untested = manager.AddEndpoint("untested", Url, "m-1", out _);
+                    Assert(untested is not null, "AddEndpoint should accept a valid configuration");
+                    Assert(untested!.LastTestSuccess is null && untested.LastTestedAt is null,
+                        "a save with no test behind it must record no verdict");
+
+                    // (2) A failed test is carried into the saved endpoint. Before
+                    // the fix the window showed this result and dropped it.
+                    var failed = manager.AddEndpoint("failed", Url, "m-1", out _, null, lastTestSuccess: false);
+                    Assert(failed?.LastTestSuccess == false, "a failed test must be recorded");
+                    Assert(failed?.LastTestedAt is not null, "a recorded verdict must be dated");
+
+                    var passed = manager.AddEndpoint("passed", Url, "m-1", out _, null, lastTestSuccess: true);
+                    Assert(passed?.LastTestSuccess == true, "a successful test must be recorded");
+
+                    // (3) A verdict only describes the configuration it was measured
+                    // against. Editing the URL or the model must retire it, or the
+                    // row goes on claiming a server it has never reached.
+                    Assert(manager.UpdateEndpoint(passed!.Id, out _, endpointURL: "https://elsewhere.example.com/v1/chat/completions"),
+                        "UpdateEndpoint should accept a valid URL change");
+                    Assert(manager.GetEndpoint(passed.Id)?.LastTestSuccess is null,
+                        "a URL change must retire the old verdict");
+
+                    var reTested = manager.AddEndpoint("re-tested", Url, "m-1", out _, null, lastTestSuccess: true);
+                    Assert(manager.UpdateEndpoint(reTested!.Id, out _, modelName: "m-2"),
+                        "UpdateEndpoint should accept a model change");
+                    Assert(manager.GetEndpoint(reTested.Id)?.LastTestSuccess is null,
+                        "a model change must retire the old verdict");
+
+                    // A rename is not a configuration change, so a real verdict survives it.
+                    var renamed = manager.AddEndpoint("renamed", Url, "m-1", out _, null, lastTestSuccess: true);
+                    Assert(manager.UpdateEndpoint(renamed!.Id, out _, name: "renamed twice"),
+                        "UpdateEndpoint should accept a rename");
+                    Assert(manager.GetEndpoint(renamed.Id)?.LastTestSuccess == true,
+                        "a rename must not retire a verdict that still holds");
+
+                    manager.AddEndpoint("local", "http://localhost:1234/v1/chat/completions", "m-1", out _);
+
+                    // (4) The three verdicts reach the Model Library as three
+                    // states. `null` sharing the `true` branch is the bug.
+                    var library = new ModelLibraryManager(
+                        new WhisperModelService(),
+                        new ParakeetModelService(),
+                        new LocalLlmModelService(),
+                        ApiKeyService.Instance,
+                        CloudProviderHealthService.Instance);
+
+                    var rows = library.Rebuild()
+                        .Where(r => r.Source == LibraryModelSource.CustomEndpoint)
+                        .ToDictionary(r => r.DisplayName, r => r);
+
+                    Assert(rows["untested"].StatusKind == LibraryModelStatusKind.Untested,
+                        $"a never-tested endpoint should be Untested, got {rows["untested"].StatusKind}");
+                    Assert(rows["failed"].StatusKind == LibraryModelStatusKind.Error,
+                        "a failed endpoint should be Error");
+                    Assert(rows["passed"].StatusKind == LibraryModelStatusKind.Untested,
+                        "an endpoint whose URL changed after its test should be Untested");
+                    Assert(rows["renamed twice"].StatusKind == LibraryModelStatusKind.Enabled,
+                        "an endpoint that really passed should be Enabled");
+
+                    // (5) And the label the user reads. "Connected" is the exact
+                    // word the issue was filed about.
+                    Assert(new LibraryModelViewModel(rows["untested"]).StatusText == "Not tested",
+                        $"expected 'Not tested', got '{new LibraryModelViewModel(rows["untested"]).StatusText}'");
+                    Assert(new LibraryModelViewModel(rows["failed"]).StatusText == "Test failed",
+                        "a failed endpoint should read 'Test failed'");
+                    Assert(new LibraryModelViewModel(rows["renamed twice"]).StatusText == "Connected",
+                        "an endpoint that really passed should still read 'Connected'");
+                    Assert(new LibraryModelViewModel(rows["untested"]).TagVisibility == System.Windows.Visibility.Collapsed,
+                        "an untested endpoint must not carry the 'Verified' tag");
+
+                    // (6) The honesty change is about the label. A localhost
+                    // endpoint is an offline row, and it must not drop out of
+                    // "Installed Only" just because nobody has probed it.
+                    Assert(rows["local"].LocationKind == LibraryModelLocationKind.Offline,
+                        "a localhost endpoint should be an offline row");
+                    Assert(rows["local"].StatusKind == LibraryModelStatusKind.Untested,
+                        "the localhost endpoint was never tested either");
+                    Assert(rows["local"].IsInstalled,
+                        "an untested local endpoint must stay in 'Installed Only'");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
+            });
+
+            // Issue #507. A malformed Base URL made Save do nothing at all: the
+            // validator produced the exact sentence the user needed and the
+            // manager wrote it to the log and returned null, with no way for the
+            // window to get at it and no else branch to show it.
+            Run("a refused custom endpoint hands back the reason, and leaves nothing behind", () =>
+            {
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var manager = CustomEndpointManager.Instance;
+
+                    // The reported case: "not a url" in the Base URL box.
+                    var refused = manager.AddEndpoint("bad", "not a url", "test-model", out var addError);
+                    Assert(refused is null, "an unparsable URL must not be saved");
+                    Assert(!string.IsNullOrWhiteSpace(addError),
+                        "a refused add must say why — silence is what #507 was filed about");
+                    Assert(addError == new CustomPostProcessingEndpoint
+                        {
+                            Name = "bad", EndpointURL = "not a url", ModelName = "test-model"
+                        }.Validate(),
+                        $"the reason must be the validator's own sentence, got '{addError}'");
+
+                    // A scheme the app cannot speak is refused the same way.
+                    Assert(manager.AddEndpoint("bad", "ftp://percy.example.com/v1", "m", out var ftpError) is null,
+                        "a non-HTTP scheme must not be saved");
+                    Assert(!string.IsNullOrWhiteSpace(ftpError), "a refused scheme must say why");
+
+                    // And an accepted save reports no error at all.
+                    var ok = manager.AddEndpoint("good", "https://percy.example.com/v1/chat/completions", "m",
+                        out var okError);
+                    Assert(ok is not null && okError is null,
+                        "a valid endpoint must be saved with no error");
+
+                    // The edit path, which #507 reports separately. It must refuse
+                    // the change AND leave the live endpoint untouched: the settings
+                    // getter hands out the live List and an endpoint is a class, so
+                    // the old order mutated the object it then refused to save.
+                    Assert(!manager.UpdateEndpoint(ok!.Id, out var editError,
+                            endpointURL: "ftp://percy.example.com/v1"),
+                        "a malformed URL must not be accepted on the edit path either");
+                    Assert(!string.IsNullOrWhiteSpace(editError), "a refused edit must say why");
+                    Assert(manager.GetEndpoint(ok.Id)?.EndpointURL == "https://percy.example.com/v1/chat/completions",
+                        "a refused edit must not leave the rejected URL on the endpoint");
+
+                    // An id that is not there is a refusal the user can act on too.
+                    Assert(!manager.UpdateEndpoint(Guid.NewGuid(), out var missingError, name: "x"),
+                        "an unknown id must not report success");
+                    Assert(!string.IsNullOrWhiteSpace(missingError), "an unknown id must say why");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
+            });
+
+            // Issue #510. The heading said "Edit Endpoint" and Window.Title still
+            // said "Add Endpoint", so the taskbar entry and Alt+Tab named the
+            // wrong operation. The two now come from one string, and this asserts
+            // they agree in both directions.
+            Run("the endpoint window's title bar names the operation its heading does", () =>
+            {
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var saved = settings.CustomEndpoints;
+                settings.CustomEndpoints = new List<CustomPostProcessingEndpoint>();
+                try
+                {
+                    var existing = CustomEndpointManager.Instance.AddEndpoint(
+                        "Percy", "https://percy.example.com/v1/chat/completions", "m-1", out _);
+                    Assert(existing is not null, "the fixture endpoint should save");
+
+                    // A detached window is never Loaded, and OnLoaded is where the
+                    // window decides which operation it is.
+                    var edit = new HyperWhisper.Views.Windows.CustomEndpointWindow(existing!);
+                    edit.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    var editHeading = (System.Windows.Controls.TextBlock)edit.FindName("TitleText")!;
+
+                    Assert(edit.Title == "Edit Endpoint",
+                        $"the edit window's title bar should read 'Edit Endpoint', got '{edit.Title}'");
+                    Assert(edit.Title == editHeading.Text,
+                        $"title bar '{edit.Title}' and heading '{editHeading.Text}' must agree");
+
+                    var add = new HyperWhisper.Views.Windows.CustomEndpointWindow();
+                    add.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    var addHeading = (System.Windows.Controls.TextBlock)add.FindName("TitleText")!;
+
+                    Assert(add.Title == "Add Endpoint",
+                        $"the add window's title bar should read 'Add Endpoint', got '{add.Title}'");
+                    Assert(add.Title == addHeading.Text,
+                        $"title bar '{add.Title}' and heading '{addHeading.Text}' must agree");
+                }
+                finally
+                {
+                    settings.CustomEndpoints = saved;
+                }
+            });
+
+            // Issue #511. "Your license key is no longer valid. Enter a new key
+            // below, or get credits to create one." is a statement about a licence
+            // this device once had. A fresh install that mistyped its first-ever
+            // key got it too, because the branch tested the status and nothing
+            // else — so the first thing the page ever said about the customer's
+            // account was untrue, and it pointed at billing instead of the typo.
+            Run("the lapsed-licence banner needs a licence that lapsed — issue #511", () =>
+            {
+                // No stored key means no licence has ever worked on this device:
+                // LicenseNetworkService persists a key only after it validates.
+                foreach (var status in Enum.GetValues<LicenseStatus>())
+                {
+                    Assert(!LicenseManager.ShouldExplainLapsedLicense(status, hasStoredKey: false),
+                        $"{status} with no stored key claimed a licence had lapsed on a device that "
+                        + "has never had one");
+                }
+
+                // With a stored key the banner is right, and it is the whole point
+                // of the branch — a returning customer must not get a fresh-install
+                // screen with no explanation.
+                Assert(LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Expired, hasStoredKey: true),
+                    "a stored key that expired must still be explained");
+                Assert(LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Invalid, hasStoredKey: true),
+                    "a stored key that was revoked must still be explained");
+
+                // And a working or unlicensed device is not a lapse either way.
+                Assert(!LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Active, hasStoredKey: true),
+                    "an active licence must not be reported as lapsed");
+                Assert(!LicenseManager.ShouldExplainLapsedLicense(LicenseStatus.Trial, hasStoredKey: true),
+                    "a device back in trial must not be reported as lapsed");
             });
 
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
@@ -5074,8 +5653,7 @@ internal static class Program
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
 
-                var application = new System.Windows.Application();
-                LoadApplicationResources(application);
+                EnsureSmokeApplication();
 
                 // Constructing the page exercises the exact construction-order NRE this
                 // regression test covers. Export selection handlers must not run until
@@ -5096,7 +5674,8 @@ internal static class Program
                 Assert(page.ExportButton.IsEnabled,
                     "expected ExportButton to be re-enabled after re-checking a section");
 
-                application.Shutdown();
+                // No Shutdown(): the Application is shared with every other WPF case
+                // now, so tearing it down here would depend on this case running last.
             });
 
             Run("VocabularyProcessor.ApplyReplacements trims even with no vocabulary configured — issue #92", () =>
@@ -5474,6 +6053,165 @@ internal static class Program
                 }
             });
 
+            Run("the standalone Azure MAI service sends the mode's model as X-STT-Model", () =>
+            {
+                // AzureMAITranscriptionService routes to the same HW Cloud
+                // /transcribe proxy as the HyperWhisper Cloud tier, where the
+                // model travels ONLY as X-STT-Model (hw-net builds that header
+                // from `routed_model`, never from `model`). Before this was
+                // wired the service sent nothing, so a mode pinned to
+                // mai-transcribe-1.5 transcribed and billed as mai-transcribe-2.
+                //
+                // The model is CONSTRUCTOR state, not a settable property: the
+                // service is built once per request precisely so two overlapping
+                // requests cannot overwrite each other's model.
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("mai-transcribe-1.5")
+                        .ResolveRoutedModel() == "mai-transcribe-1.5",
+                    "a mode pinned to mai-transcribe-1.5 did not resolve that model for X-STT-Model");
+
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("mai-transcribe-2")
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "a mode pinned to mai-transcribe-2 did not resolve that model for X-STT-Model");
+
+                // A stale id (the field is shared with the BYOK path) degrades to
+                // the catalog default rather than earning a backend 400.
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService("whisper-1")
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "a stale Azure model id did not fall back to the catalog default");
+
+                Assert(new HyperWhisper.Services.AzureMAITranscriptionService(null)
+                        .ResolveRoutedModel() == "mai-transcribe-2",
+                    "an unset Azure model did not fall back to the catalog default");
+            });
+
+            Run("two overlapping Azure MAI requests keep their own model", () =>
+            {
+                // REGRESSION GUARD for a billing bug. The first cut of the fix
+                // above stored the model on a settable property of the factory's
+                // CACHED service instance. TranscriptionRuntime.Orchestrator is a
+                // static singleton holding one TranscriptionProviderFactory and
+                // nothing locks, so a hotkey dictation and a Local API
+                // POST /transcribe that overlap overwrote each other's model
+                // between "configure" and "send" — one request then transcribed
+                // and billed as the other's model (v2 at 1.5's 6.0 credits/min is
+                // a 3.6x overcharge; 1.5 at v2's rate also sends v2's
+                // transcribeStyle: clean).
+                //
+                // The property this pins: the model reaches the request as
+                // immutable per-call state. Interleave two "requests" the way the
+                // race did — build both before either resolves — and each must
+                // still answer with its own model.
+                var factory = new HyperWhisper.Services.Transcription.TranscriptionProviderFactory();
+                try
+                {
+                    var requestA = factory.GetConfiguredCloudProvider(
+                        CloudTranscriptionProvider.MicrosoftAzureSpeech, "mai-transcribe-1.5");
+                    var requestB = factory.GetConfiguredCloudProvider(
+                        CloudTranscriptionProvider.MicrosoftAzureSpeech, "mai-transcribe-2");
+
+                    Assert(!ReferenceEquals(requestA, requestB),
+                        "the factory handed both requests the SAME routed instance - the model is shared mutable state again");
+
+                    var routedA = requestA as HyperWhisper.Services.Transcription.RoutedTranscriptionServiceBase;
+                    var routedB = requestB as HyperWhisper.Services.Transcription.RoutedTranscriptionServiceBase;
+                    Assert(routedA != null && routedB != null,
+                        "the Azure MAI arm stopped returning a RoutedTranscriptionServiceBase");
+
+                    // Resolve AFTER both were built - this is the interleaving
+                    // that produced the wrong bill.
+                    Assert(routedA!.ResolveRoutedModel() == "mai-transcribe-1.5",
+                        "request A's model was overwritten by a later overlapping request");
+                    Assert(routedB!.ResolveRoutedModel() == "mai-transcribe-2",
+                        "request B did not carry its own model");
+                }
+                finally
+                {
+                    factory.Dispose();
+                }
+            });
+
+            Run("the Azure MAI language picker narrows per model, not per tier", () =>
+            {
+                // The Mode editor's Azure branch (ModeEditorWindow.xaml.cs) is WPF
+                // UI with no unit-test home, so pin the DATA it reads instead.
+                //
+                // The two Azure models have different language sets, and
+                // cloud-stt-catalog.json's provider-level `languages.codes` is
+                // their UNION — so a tier-keyed filter would offer a 1.5 user the
+                // 18 codes only v2 has, and Azure would silently auto-detect on
+                // each of them. `models-catalog.json` is the only file that
+                // carries the split; this is the assertion that keeps it honest.
+                var key = HyperWhisper.Services.SharedModelsCatalog.CatalogKey(
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech);
+
+                var v15 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-1.5");
+                var v2 = HyperWhisper.Services.SharedModelsCatalog.GetLanguageSupport(
+                    key, HyperWhisper.Services.CatalogKind.Voice, "mai-transcribe-2");
+
+                Assert(!v15.SupportsAll && !v2.SupportsAll,
+                    "an Azure model lost its per-model language set - the picker would fall back to every language");
+                Assert(v15.Codes.Count == 41,
+                    $"mai-transcribe-1.5 should carry 41 picker codes, got {v15.Codes.Count}");
+                Assert(v2.Codes.Count == 59,
+                    $"mai-transcribe-2 should carry 59 picker codes, got {v2.Codes.Count}");
+
+                // `he` (Hebrew) is the code that proves the split is real: v2
+                // lists it, 1.5 does not.
+                Assert(v2.Supports("he") && !v15.Supports("he"),
+                    "Hebrew must be v2-only - if both or neither carry it the per-model split is not being read");
+                Assert(v2.Supports("tl") && v2.Supports("yue") && v2.Supports("zh"),
+                    "v2 lost one of the codes the upstream->picker fold produces (fil->tl, yue, zh)");
+
+                // The fold drops Odia on BOTH: upstream lists `or`, the shared
+                // language catalog has no row for it, so no picker can offer it.
+                Assert(!v2.Supports("or") && !v15.Supports("or"),
+                    "`or` (Odia) reached a picker set - it has no shared language-catalog row");
+
+                // 1.5's set must be a strict subset of v2's, or one of the two
+                // lists was hand-edited rather than folded from the same source.
+                foreach (var code in v15.Codes)
+                {
+                    Assert(v2.Codes.Contains(code),
+                        $"mai-transcribe-1.5 carries '{code}' but mai-transcribe-2 does not - the two lists have diverged");
+                }
+
+                // And the tier default is v2, which is what the picker preselects.
+                Assert(CloudSttCatalog.Shared.DefaultModelIdForId("azureMaiTranscribe") == "mai-transcribe-2",
+                    "the azureMaiTranscribe tier default is no longer mai-transcribe-2");
+            });
+
+            Run("the Mode editor's per-model Azure language branch is reachable", () =>
+            {
+                // The data assertions above passed for a whole review round while
+                // the branch that reads them could not execute:
+                // ResolveEffectiveCloudProviderAndModel resolved the HW Cloud tier
+                // through FromIdentifier, which has no `azure-mai` arm, so the
+                // branch's `cloudProvider == MicrosoftAzureSpeech` guard was never
+                // true and the picker fell to the tier branch — the 60-code union.
+                // This is the trace, asserted step by step, so a rename or a
+                // dropped arm fails here instead of silently un-filtering.
+                var sttProvider = CloudSttCatalog.Shared.SttProviderForId("azureMaiTranscribe");
+                Assert(sttProvider == "azure-mai",
+                    $"azureMaiTranscribe's sttProvider is '{sttProvider}', not 'azure-mai'");
+                Assert(CloudTranscriptionProviderExtensions.FromCatalogSttProvider(sttProvider)
+                        == CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    "the catalog's azure-mai sttProvider no longer resolves to MicrosoftAzureSpeech - "
+                    + "the Mode editor's per-model Azure language branch is unreachable again");
+
+                // Every HW Cloud tier must resolve to a real provider, or its
+                // provider-keyed branches are dead the same way. Derived from the
+                // catalog, so a new tier is covered the day it lands.
+                foreach (var entry in CloudSttCatalog.Shared.CloudTierEligibleProviders())
+                {
+                    var resolved = CloudTranscriptionProviderExtensions.FromCatalogSttProvider(
+                        CloudSttCatalog.Shared.SttProviderForId(entry.Id));
+                    Assert(resolved != CloudTranscriptionProvider.None,
+                        $"HW Cloud tier '{entry.Id}' resolves to no provider enum; every "
+                        + "provider-keyed branch in the Mode editor is skipped for it");
+                }
+            });
+
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
             {
                 // Configure ONLY the new key. The LEGACY `gemini` post-processing
@@ -5755,6 +6493,307 @@ internal static class Program
                 }
             });
 
+            Run("Local API transient Mode clone preserves the shared fields", () =>
+            {
+                var vocabulary = new List<string> { "vocabulary-value" };
+                var source = new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "source-name",
+                    Preset = "preset-value",
+                    IsDefault = true,
+                    IsSystemProvided = true,
+                    SortOrder = 17,
+                    Language = "language-value",
+                    Model = "model-value",
+                    ModelType = "model-type-value",
+                    LocalEngine = "local-engine-value",
+                    LocalParakeetModel = "local-parakeet-value",
+                    CloudProvider = "cloud-provider-value",
+                    CloudTranscriptionModel = "cloud-transcription-model-value",
+                    CloudTranscriptionDomain = "cloud-domain-value",
+                    ProviderType = "provider-type-value",
+                    CloudAccuracyTier = "cloud-accuracy-tier-value",
+                    GeminiCustomPrompt = "gemini-prompt-value",
+                    Punctuation = false,
+                    Capitalization = false,
+                    ProfanityFilter = true,
+                    RemoveTrailingPeriod = true,
+                    EnglishSpelling = "english-spelling-value",
+                    PostProcessingMode = 19,
+                    PostProcessingProvider = "post-processing-provider-value",
+                    LanguageModel = "language-model-value",
+                    LocalPostProcessingModel = "local-post-processing-model-value",
+                    UserSystemPrompt = "system-prompt-value",
+                    CustomInstructions = "custom-instructions-value",
+                    EnableScreenOCR = true,
+                    CloudPostProcessingModel = "cloud-post-processing-model-value",
+                    CustomVocabulary = vocabulary,
+                    CreatedDate = DateTime.UnixEpoch.AddDays(1),
+                    ModifiedDate = DateTime.UnixEpoch.AddDays(2),
+                    ForeignPlatformExtensions = "foreign-platform-value"
+                };
+                var before = DateTime.UtcNow;
+
+                var clone = LocalApiTransientMode.Create(
+                    source,
+                    "transient-name",
+                    LocalApiTransientModeFields.Shared);
+
+                var after = DateTime.UtcNow;
+                Assert(clone.Id != source.Id, "the transient Mode reused the source id");
+                Assert(clone.Name == "transient-name", "the transient Mode lost the supplied name");
+                Assert(clone.Preset == source.Preset, "Preset was not copied");
+                Assert(clone.Language == source.Language, "Language was not copied");
+                Assert(clone.Model == source.Model, "Model was not copied");
+                Assert(clone.Punctuation == source.Punctuation, "Punctuation was not copied");
+                Assert(clone.Capitalization == source.Capitalization, "Capitalization was not copied");
+                Assert(clone.ProfanityFilter == source.ProfanityFilter, "ProfanityFilter was not copied");
+                Assert(clone.CustomInstructions == source.CustomInstructions, "CustomInstructions was not copied");
+                Assert(clone.UserSystemPrompt == source.UserSystemPrompt, "UserSystemPrompt was not copied");
+                Assert(clone.LanguageModel == source.LanguageModel, "LanguageModel was not copied");
+                Assert(clone.CloudProvider == source.CloudProvider, "CloudProvider was not copied");
+                Assert(clone.CloudTranscriptionModel == source.CloudTranscriptionModel, "CloudTranscriptionModel was not copied");
+                Assert(clone.ProviderType == source.ProviderType, "ProviderType was not copied");
+                Assert(clone.PostProcessingMode == source.PostProcessingMode, "PostProcessingMode was not copied");
+                Assert(clone.PostProcessingProvider == source.PostProcessingProvider, "PostProcessingProvider was not copied");
+                Assert(clone.EnglishSpelling == source.EnglishSpelling, "EnglishSpelling was not copied");
+                Assert(clone.CloudAccuracyTier == source.CloudAccuracyTier, "CloudAccuracyTier was not copied");
+                Assert(clone.RemoveTrailingPeriod == source.RemoveTrailingPeriod, "RemoveTrailingPeriod was not copied");
+                Assert(clone.EnableScreenOCR == source.EnableScreenOCR, "EnableScreenOCR was not copied");
+                Assert(clone.GeminiCustomPrompt == source.GeminiCustomPrompt, "GeminiCustomPrompt was not copied");
+                Assert(clone.CloudPostProcessingModel == source.CloudPostProcessingModel, "CloudPostProcessingModel was not copied");
+                Assert(clone.LocalEngine == source.LocalEngine, "LocalEngine was not copied");
+                Assert(clone.LocalParakeetModel == source.LocalParakeetModel, "LocalParakeetModel was not copied");
+                Assert(clone.LocalPostProcessingModel == source.LocalPostProcessingModel, "LocalPostProcessingModel was not copied");
+                Assert(clone.CustomVocabulary != null
+                    && clone.CustomVocabulary.SequenceEqual(vocabulary),
+                    "CustomVocabulary values were not copied");
+                Assert(clone.SortOrder == int.MaxValue, "the transient Mode sort order changed");
+                Assert(clone.CreatedDate >= before && clone.CreatedDate <= after, "CreatedDate is not fresh UTC time");
+                Assert(clone.ModifiedDate >= before && clone.ModifiedDate <= after, "ModifiedDate is not fresh UTC time");
+                Assert(!clone.IsDefault, "the transient Mode copied IsDefault");
+                Assert(!clone.IsSystemProvided, "the transient Mode copied IsSystemProvided");
+                Assert(clone.ForeignPlatformExtensions == null, "the transient Mode copied ForeignPlatformExtensions");
+                Assert(clone.ModelType == null, "the shared helper copied transcription-only ModelType");
+                Assert(clone.CloudTranscriptionDomain == null, "the shared helper copied transcription-only CloudTranscriptionDomain");
+            });
+
+            Run("Local API transcription transient Mode preserves transcription-only fields with an override", () =>
+            {
+                var source = new Mode
+                {
+                    ModelType = "model-type-value",
+                    CloudTranscriptionDomain = "cloud-domain-value"
+                };
+
+                var mode = TranscribeEndpoints.BuildTransientMode(
+                    source,
+                    engine: null,
+                    model: null,
+                    language: "override-language");
+
+                Assert(mode.Language == "override-language",
+                    "the transcription transient Mode did not apply the override");
+                Assert(mode.ModelType == source.ModelType,
+                    "the transcription transient Mode lost ModelType");
+                Assert(mode.CloudTranscriptionDomain == source.CloudTranscriptionDomain,
+                    "the transcription transient Mode lost CloudTranscriptionDomain");
+            });
+
+            // =================================================================
+            // Local API /transcribe deterministic text passes (issues #495, #498)
+            //
+            // /transcribe declines the AI rewrite — /post-process is the
+            // formatting endpoint. It used to decline the orchestrator's three
+            // DETERMINISTIC passes with it, because they sat behind the same
+            // `applyPostProcessing` flag, and then it read RawText anyway. So a
+            // caller got the provider's untouched string: no vocabulary
+            // replacement (#495), no dictated break command and no filler-word
+            // removal (#498).
+            //
+            // The two halves are one bug. Flipping the orchestrator gate alone
+            // changed nothing on the wire because the response still read
+            // RawText; reading FinalText alone changed nothing because the gate
+            // left FinalText == RawText. Both are asserted here, in that order.
+            // =================================================================
+
+            Run("the orchestrator runs filler removal, break commands and vocabulary with the AI rewrite off — issues #495, #498", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                // The shipped default, restated so the assertion does not depend
+                // on whatever an earlier test left behind.
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                var added = vocabulary.TryAdd("eta", "estimated time of arrival", out var vocabError);
+                Assert(added, $"could not seed the vocabulary entry for the test: {vocabError}");
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+                Assert(seeded != null, "the seeded vocabulary entry did not come back from VocabularyService");
+
+                try
+                {
+                    // PostProcessingMode 1 on purpose: the "Hyper" mode is the one
+                    // whose GUI path DOES run the LLM. With the rewrite declined it
+                    // must still take the deterministic arm, which is what made the
+                    // two modes return byte-identical raw text in #498.
+                    var mode = new Mode
+                    {
+                        Name = "Local API deterministic passes",
+                        ProviderType = "local",
+                        Language = "en",
+                        PostProcessingMode = 1
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. Uh, that is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    Assert(result.RawText == raw,
+                        $"RawText must stay the provider's own output, got '{result.RawText}'");
+
+                    // #495 — the vocabulary replacement.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary replacement was not applied, got '{result.FinalText}'");
+
+                    // #498 — the dictated break command.
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"the dictated paragraph break did not become a break, got '{result.FinalText}'");
+                    Assert(!result.FinalText.Contains("New paragraph", StringComparison.OrdinalIgnoreCase),
+                        $"the break command survived as a literal phrase, got '{result.FinalText}'");
+
+                    // #498 — filler-word removal, gated on the global setting.
+                    Assert(!result.FinalText.Contains("Um,", StringComparison.OrdinalIgnoreCase)
+                        && !result.FinalText.Contains("Uh,", StringComparison.OrdinalIgnoreCase),
+                        $"filler words survived with RemoveFillerWords on, got '{result.FinalText}'");
+
+                    // The AI rewrite really was declined: no provider is recorded
+                    // and no post-processed text is stored.
+                    Assert(!result.WasPostProcessed && result.PostProcessingProvider == null,
+                        "declining the AI rewrite still recorded a post-processing provider");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("an auto-language Mode keeps vocabulary and break commands but not filler removal — issues #495, #498, #278", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var settings = SettingsService.Instance;
+                var previousRemoveFillerWords = settings.RemoveFillerWords;
+                settings.RemoveFillerWords = true;
+
+                var vocabulary = VocabularyService.Instance;
+                vocabulary.TryAdd("eta", "estimated time of arrival", out _);
+                var seeded = vocabulary.GetAll()
+                    .FirstOrDefault(v => string.Equals(v.Word, "eta", StringComparison.OrdinalIgnoreCase));
+
+                try
+                {
+                    // "auto" is the language of every shipped Mode and of every
+                    // transient Mode the Local API builds, so this — not "en" —
+                    // is the shape of the common /transcribe request.
+                    var mode = new Mode
+                    {
+                        Name = "Local API auto language",
+                        ProviderType = "local",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    };
+
+                    const string raw = "Um, the eta is thirty minutes. New paragraph. That is the plan.";
+                    var orchestrator = new TranscriptionOrchestrator();
+                    TranscriptionResult result;
+                    try
+                    {
+                        result = orchestrator.TranscribeAsync(
+                            audioPath: "C:\\hyperwhisper-smoketest\\unused.wav",
+                            mode: mode,
+                            vocabulary: null,
+                            localTranscriptionProvider: new FixedTextTranscriptionProvider(raw),
+                            applicationContext: null,
+                            cancellationToken: CancellationToken.None,
+                            callSite: TranscriptionCallSite.Api,
+                            applyAiPostProcessing: false).GetAwaiter().GetResult();
+                    }
+                    finally
+                    {
+                        orchestrator.Dispose();
+                    }
+
+                    // Language-independent: both still run.
+                    Assert(result.FinalText.Contains("estimated time of arrival", StringComparison.Ordinal),
+                        $"vocabulary must not depend on the language, got '{result.FinalText}'");
+                    Assert(result.FinalText.Contains("\n\n", StringComparison.Ordinal),
+                        $"break commands must not depend on the language, got '{result.FinalText}'");
+
+                    // Language-gated: "er"/"um" are real words elsewhere, so the
+                    // shared core no-ops for "auto" (issue #278). This is the
+                    // documented behaviour, not a gap in the #498 fix.
+                    Assert(result.FinalText.Contains("Um,", StringComparison.Ordinal),
+                        $"an auto-language transcript must keep its fillers, got '{result.FinalText}'");
+                }
+                finally
+                {
+                    if (seeded != null)
+                    {
+                        vocabulary.Delete(seeded.Id);
+                    }
+                    settings.RemoveFillerWords = previousRemoveFillerWords;
+                }
+            });
+
+            Run("the /transcribe response projects FinalText, not RawText — issues #495, #498", () =>
+            {
+                var mode = new Mode
+                {
+                    Name = "Local API response projection",
+                    ProviderType = "local",
+                    Language = "en"
+                };
+
+                var result = new TranscriptionResult(
+                    RawText: "Um, the eta is thirty minutes",
+                    FinalText: "The estimated time of arrival is thirty minutes",
+                    TranscriptionProvider: "Local");
+
+                var response = TranscribeEndpoints.BuildResponse(result, mode, latencyMs: 42);
+
+                Assert(response.Text == result.FinalText,
+                    $"the /transcribe response must carry FinalText, got '{response.Text}'");
+                Assert(response.Text != result.RawText,
+                    "the /transcribe response is still carrying the provider's raw text");
+                Assert(response.LatencyMs == 42 && response.Timings.DecodeMs == 42,
+                    "the /transcribe response lost the measured latency");
+            });
+
             // =================================================================
             // Local API wire contract (issue #289)
             //
@@ -5801,6 +6840,193 @@ internal static class Program
                 Assert(!Allowed(null, null, null, 51671), "a request with no Host header must be rejected");
                 Assert(!Allowed("127.0.0.1:51672", null, null, 51671), "the wrong port must be rejected");
                 Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
+            });
+
+            Run("/transcribe names the cloud model that actually ran", () =>
+            {
+                // Issue #500. `engine: "cloud"` / `"hyperwhisper"` with no
+                // explicit `model` transcribed correctly but reported
+                // `model: ""`: the cloud arm of `ApplyEngineModel` assigned
+                // `CloudTranscriptionModel` only when a tier was inferred, a
+                // model was given, or the provider was Meta — so the ordinary
+                // case fell through and `ModelLabel` projected null.
+                var catalog = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared;
+                var tierDefault = catalog.DefaultModelIdForId("elevenLabsScribeV2");
+                Assert(!string.IsNullOrEmpty(tierDefault),
+                    "the catalog has no default model for the default accuracy tier");
+
+                // Drive the REAL builder and the REAL projection, so the seeded
+                // transient defaults, the engine dispatch and `ModelLabel` are
+                // all inside the assertion. Hand-rolling a Mode here would pass
+                // even if `BuildTransientMode` stopped seeding a tier.
+                static string LabelFor(string? engine, string? model, Mode? baseline = null) =>
+                    TranscribeEndpoints.ModelLabel(
+                        TranscribeEndpoints.BuildTransientMode(baseline, engine, model, language: null));
+
+                foreach (var alias in new[] { "cloud", "hyperwhisper" })
+                {
+                    var label = LabelFor(alias, model: null);
+                    Assert(!string.IsNullOrEmpty(label),
+                        $"engine='{alias}' reported an empty model (issue #500)");
+                    // HyperWhisper Cloud routes on the TIER, so the tier's model
+                    // is what runs. `GetDefault` would answer the "default"
+                    // routing sentinel, which is not a model id.
+                    Assert(label == tierDefault,
+                        $"engine='{alias}' did not report the tier's model");
+                    Assert(label != "default",
+                        $"engine='{alias}' reported the routing sentinel as a model id");
+                }
+
+                // The BARE `mode_id` form must agree with the `engine` form for
+                // the same Mode. This is the case a fix planted only in
+                // `ApplyEngineModel` would miss: that method never runs without
+                // an `engine`, and a HyperWhisper Cloud mode whose model field
+                // was never written is the ordinary state.
+                var storedNoModel = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                };
+                Assert(TranscribeEndpoints.ModelLabel(storedNoModel) == tierDefault,
+                    "a stored HyperWhisper Cloud mode with no model reported an empty label");
+
+                // An id that does not belong to the tier is NOT what runs:
+                // `ResolveDictationModelId` heals it on the send path, so the
+                // label must heal identically rather than echo the stale value.
+                var staleInTier = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "nova-3-general",
+                };
+                Assert(TranscribeEndpoints.ModelLabel(staleInTier) == tierDefault,
+                    "an out-of-tier model was reported instead of the model that runs");
+                Assert(TranscribeEndpoints.ModelLabel(new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "default",
+                }) == tierDefault,
+                    "the legacy 'default' sentinel was reported as a model id");
+
+                // A legacy accuracy-tier spelling must still resolve. The label
+                // normalizes the tier the same way the send path does, so an
+                // unrecognised spelling cannot produce "".
+                Assert(!string.IsNullOrEmpty(TranscribeEndpoints.ModelLabel(new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "a-tier-spelling-the-catalog-does-not-list",
+                })), "an unrecognised accuracy tier reported an empty model");
+
+                // A BYOK provider routes on the model id, so its own default is
+                // what runs. Meta used to be the only arm that did this.
+                Assert(LabelFor("openai", model: null) == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "engine='openai' did not report the provider default model");
+                Assert(!string.IsNullOrEmpty(LabelFor("openai", model: null)),
+                    "engine='openai' reported an empty model (issue #500)");
+
+                // An explicit model is still honoured for a BYOK provider, which
+                // sends it verbatim.
+                Assert(LabelFor("openai", "gpt-4o-transcribe") == "gpt-4o-transcribe",
+                    "an explicit model was not honoured");
+
+                // Re-asserting the SAME provider must preserve the caller's saved
+                // sub-model, and a sub-model pinned INSIDE the tier must survive
+                // an engine that names that same tier.
+                var pinnedInTier = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "openai",
+                    CloudTranscriptionModel = "gpt-4o-transcribe",
+                };
+                Assert(LabelFor("openai", null, pinnedInTier) == "gpt-4o-transcribe",
+                    "re-asserting the same engine clobbered the saved sub-model");
+
+                // ...but a model inherited from ANOTHER vendor is foreign. For a
+                // BYOK provider this is not only a label problem: the field is
+                // sent verbatim, so leaving it would change the model that RUNS.
+                var foreign = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "elevenLabsScribeV2",
+                    CloudTranscriptionModel = "scribe_v2",
+                };
+                var foreignLabel = LabelFor("openai", null, foreign);
+                Assert(foreignLabel != "scribe_v2",
+                    "an OpenAI run reported the baseline's HyperWhisper Cloud model");
+                Assert(foreignLabel == CloudTranscriptionModels
+                        .GetDefault(CloudTranscriptionProvider.OpenAI)?.Id,
+                    "a foreign inherited model was not replaced by the provider default");
+
+                // A legacy alias that resolves within the provider is NOT foreign
+                // and must not be silently upgraded to a different-priced model.
+                var legacyAlias = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "assemblyai",
+                    CloudTranscriptionModel = "universal",
+                };
+                Assert(LabelFor("assemblyai", null, legacyAlias) == "universal",
+                    "a legacy provider alias was treated as foreign and replaced");
+            });
+
+            Run("/post-process emits the documented post_processed flag", () =>
+            {
+                // Issue #499. macOS declares `post_processed` a NON-OPTIONAL
+                // `Bool` (`LocalAPITypes.swift`, `PostProcessResponse`) and
+                // `openapi.yaml` documents it as the field that separates a
+                // real rewrite from a no-op. Windows omitted the key entirely,
+                // so a client sharing the macOS `Codable` model threw
+                // `keyNotFound` on every Windows reply.
+                //
+                // WHAT THIS PINS, AND WHAT IT DOES NOT. It pins the SERIALISED
+                // SHAPE: the `[JsonPropertyName]` spelling, the full key set,
+                // and that both boolean values survive the responder's own
+                // `JsonOptions` (the options are the thing that decides what
+                // reaches the wire, so a bare `JsonSerializer` here would test
+                // the wrong object). It does NOT pin which branch of
+                // `PostProcessEndpoints` picks which value — that needs
+                // `ModeService` and a live host, which this harness has no way
+                // to stand up. The `required` modifier on the property is what
+                // stops a new branch omitting the field: it is a compile error,
+                // not a test. The portable suite covers the endpoint wiring
+                // end-to-end over real HTTP for the head that can be hosted.
+                static JsonNode Wire(bool postProcessed) =>
+                    JsonSerializer.SerializeToNode(
+                        new PostProcessResponse
+                        {
+                            Text = "text",
+                            Provider = postProcessed ? "hyperwhispercloud" : "none",
+                            Model = "model",
+                            Preset = "note",
+                            LatencyMs = 7,
+                            PostProcessed = postProcessed
+                        },
+                        LocalApiResponder.JsonOptions)!;
+
+                string[] expected = ["ok", "text", "provider", "model", "preset", "latency_ms", "post_processed"];
+                foreach (var flag in new[] { true, false })
+                {
+                    var node = Wire(flag);
+                    var keys = node.AsObject().Select(pair => pair.Key).Order().ToArray();
+                    Assert(keys.SequenceEqual(expected.Order()),
+                        $"the /post-process body drifted from the documented shape (post_processed={flag}): got {string.Join(",", keys)}");
+                    Assert(node["post_processed"]!.GetValue<bool>() == flag,
+                        "post_processed must carry the value it was given");
+                }
             });
 
             Run("the bearer check accepts only the real token", () =>
@@ -6407,6 +7633,28 @@ internal static class Program
             // The clock is injected exactly as macOS injects `now: () -> Date`,
             // so the 60 s window is crossed without a wall-clock wait.
             // =================================================================
+
+            RunAsync("cloud health probe sends provider auth and maps provider replies", async () =>
+            {
+                var handler = new CapturingHandler();
+                using var client = new HttpClient(handler);
+                using var health = new CloudProviderHealthService(() => DateTime.UtcNow, client);
+
+                handler.Next = () => Respond(HttpStatusCode.OK, "{}");
+                var openAi = await health.ProbeAsync(CloudTranscriptionProvider.OpenAI, "openai-key");
+
+                Assert(openAi == ProviderHealth.Healthy, $"OpenAI status {openAi}");
+                Assert(handler.LastAuthorizationScheme == "Bearer", $"OpenAI auth scheme {handler.LastAuthorizationScheme}");
+                Assert(handler.LastAuthorizationParameter == "openai-key", "OpenAI bearer key was not sent");
+
+                handler.Next = () => Respond(HttpStatusCode.BadRequest, "{}");
+                var gemini = await health.ProbeAsync(CloudTranscriptionProvider.Gemini, "gemini key");
+
+                Assert(gemini == ProviderHealth.Unauthorized, $"Gemini HTTP 400 status {gemini}");
+                Assert(handler.LastRequestUri?.Query == "?key=gemini%20key",
+                    $"Gemini query {handler.LastRequestUri?.Query}");
+                Assert(handler.LastAuthorizationScheme is null, "Gemini sent an authorization header");
+            });
 
             const CloudTranscriptionProvider healthProvider = CloudTranscriptionProvider.GoogleSpeech;
 
@@ -7560,6 +8808,168 @@ internal static class Program
                 Assert(h.Flow.IsSelectedSourceUsable, "the per-session record keeps the setup gate open");
             });
 
+            RunAsync("onboarding: the cloud setup checklist keeps the key verified across Back", async () =>
+            {
+                // #491 part 2. The "Access key verified" row read the bare KeyValidated,
+                // which ResetConfigureTestResults clears on EVERY entry to the Configure
+                // step, in both directions. So one Back-and-forward unticked it while
+                // "Account activated for this device" and "Credits confirmed" below it
+                // stayed ticked and a live balance was still shown - the card claimed the
+                // key was unverified on a device whose account that same key had just
+                // activated.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, "$66.30 remaining");
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.CloudKeyIsVerified, "precondition: the probe passed");
+
+                Assert(h.Flow.Advance(), "setup must be reachable");
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: activated");
+                Assert(h.Flow.AreCreditsConfirmed, "precondition: the balance arrived");
+
+                Assert(h.Flow.Back(), "back to configure must work");
+                Assert(h.Flow.Advance(), "forward to setup must work");
+
+                Assert(!h.Flow.KeyValidated,
+                    "the inline result is still cleared on every appearance - that part was correct");
+                Assert(h.Flow.CloudKeyIsVerified,
+                    "but the checklist row must not untick: the key verified and the account is active");
+                Assert(h.Flow.IsSelectedSourceUsable && h.Flow.AreCreditsConfirmed,
+                    "the two rows below it were never in doubt, which is what made the contradiction");
+            });
+
+            Run("onboarding: an active cloud licence alone verifies the key", () =>
+            {
+                // The returning-user path: nothing was probed this session, the field is
+                // empty, but the server has already accepted this key on this device.
+                // ConfigureGateIsOpen has always read it that way; the checklist row now
+                // reads the same property rather than a second, narrower rule.
+                var h = new OnboardingHarness();
+                h.License.IsActive = true;
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+
+                Assert(!h.Flow.KeyValidated, "no inline test ran this session");
+                Assert(h.Flow.CloudKeyIsVerified, "an active licence is proof enough on its own");
+            });
+
+            Run("onboarding: the cloud key is only verified for the cloud source", () =>
+            {
+                // CloudKeyIsVerified feeds the Configure gate's cloud branch, so it must
+                // never read true under BYOK - a licence left active from an earlier run
+                // would otherwise tick a row about an API key that was never entered.
+                var h = new OnboardingHarness();
+                h.License.IsActive = true;
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                Assert(h.Flow.Advance(), "the BYOK branch reaches configure");
+
+                Assert(!h.Flow.CloudKeyIsVerified, "the licence says nothing about a BYOK key");
+                Assert(!h.Flow.CanContinue, "and it must not open the BYOK gate either");
+            });
+
+            RunAsync("onboarding: the BYOK setup checklist keeps the key verified across Back", async () =>
+            {
+                // The BYOK "API key verified" row on the same page had the identical
+                // defect for the identical reason: it bound the bare KeyValidated, which
+                // is cleared on every entry to Configure, while "Saved to Windows
+                // Credential Manager" below it reads the per-session record and stayed
+                // ticked. Same fix, so the same case, one branch over.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.ApiKeyInput = "sk-test";
+                h.Flow.TestProviderKey();
+                await h.LastTask;
+                Assert(h.Flow.ProviderKeyIsVerified, "precondition: probed and stored");
+
+                Assert(h.Flow.Advance(), "setup must be reachable");
+                Assert(h.Flow.Back(), "back to configure must work");
+                Assert(h.Flow.Advance(), "forward to setup must work");
+
+                Assert(!h.Flow.KeyValidated, "the inline result is cleared on every appearance");
+                Assert(h.Flow.ProviderKeyIsVerified, "but the checklist row must not untick");
+                Assert(h.Flow.IsSelectedSourceUsable,
+                    "the row below it was never in doubt, which is what made the contradiction");
+                Assert(!h.Flow.CloudKeyIsVerified, "and the cloud row stays out of the BYOK branch");
+            });
+
+            RunAsync("onboarding: the cloud setup subtitle never claims a state the step has not reached", async () =>
+            {
+                // #491 part 1. The subtitle was the static
+                // "Key verified, credits confirmed. Recordings will go to HyperWhisper
+                // Cloud." - printed on arrival, directly above a checklist with both of
+                // those rows EMPTY, an "Activate Cloud" button showing and Continue
+                // disabled. It described the end of the step from its beginning.
+                //
+                // Three states, because the checklist has three rows and the credits
+                // fetch is asynchronous AND allowed to fail: claiming "credits
+                // confirmed" the instant the licence goes active would just move the
+                // same contradiction one row down.
+                var subtitle = HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle");
+                var pendingKey = HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.pending");
+                var pendingBalance =
+                    HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.balancePending");
+
+                // Loc.S echoes the KEY back when the resource is missing, so a dropped
+                // resx entry would make every comparison below pass on its own.
+                foreach (var (name, text) in new[]
+                         {
+                             ("onboarding.setup.cloud.subtitle", subtitle),
+                             ("onboarding.setup.cloud.subtitle.pending", pendingKey),
+                             ("onboarding.setup.cloud.subtitle.balancePending", pendingBalance)
+                         })
+                {
+                    Assert(text != name, $"{name} resolved to its own key - it is not in Strings.resx");
+                }
+
+                Assert(
+                    subtitle != pendingKey && subtitle != pendingBalance && pendingKey != pendingBalance,
+                    "the three states must read differently, or two of them are the same state");
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+
+                Assert(!h.Flow.IsSelectedSourceUsable, "precondition: not activated yet");
+                Assert(h.Flow.SetupCloudSubtitle == pendingKey,
+                    "an unactivated step gets the sentence that asks for the activation");
+
+                // Activation with the credits fetch failing - the #463 shape, where the
+                // balance never arrives and the row below stays unticked.
+                h.Credits.ThrowOnRefresh = true;
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: activated");
+                Assert(!h.Flow.AreCreditsConfirmed, "precondition: the balance did not arrive");
+                Assert(h.Flow.SetupCloudSubtitle == pendingBalance,
+                    "activated with no balance must not claim the credits were confirmed");
+
+                h.Credits.ThrowOnRefresh = false;
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, "$66.30 remaining");
+                h.Flow.RefreshCredits(force: true);
+                await h.LastTask;
+
+                Assert(h.Flow.AreCreditsConfirmed, "precondition: the balance arrived");
+                Assert(h.Flow.SetupCloudSubtitle == subtitle,
+                    "only once all three rows are true is the original sentence used");
+            });
+
             RunAsync("onboarding: validation is remembered per provider, not globally", async () =>
             {
                 var h = new OnboardingHarness();
@@ -7795,6 +9205,34 @@ internal static class Program
                 Assert(h.Credits.RefreshCount > before, "activation must ask for the balance again");
                 Assert(h.Flow.HasCredits, "and the balance must land on the flow");
                 Assert(h.Flow.AreCreditsConfirmed, "so the Credits confirmed row ticks");
+            });
+
+            RunAsync("onboarding: a passing probe refreshes the balance with the probed key", async () =>
+            {
+                // Same first-run problem one step earlier. The entry fetch runs unlicensed and
+                // comes back "Invalid license key", so the big number above "credits available"
+                // sat on its "…" placeholder for good on a perfectly valid key. A probe does NOT
+                // store the key -- only activation does -- so the key has to be handed to the
+                // fetch, or it asks about the device id and fails the same way again.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.LicenseKeyInput = "  HW-GOOD  ";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66950, 10627, "$66.95 remaining");
+                var before = h.Credits.RefreshCount;
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                await h.LastTask;
+
+                Assert(h.Flow.LicenseTestPassed == true, "the probe passed");
+                Assert(h.Credits.RefreshCount > before, "a passing probe must ask for the balance");
+                Assert(h.Credits.LastLicenseKeyOverride == "HW-GOOD",
+                    $"the probed key must reach the fetch, got '{h.Credits.LastLicenseKeyOverride}'");
+                Assert(h.Flow.HasCredits, "and the balance must land on the flow");
             });
 
             Run("onboarding: the Done summary shows the credit count, not the balance line", () =>
@@ -9852,6 +11290,1512 @@ internal static class Program
                 }
             });
 
+            // Same reason as the two blocks above: RunAsync blocks on the awaited task,
+            // and this region runs AFTER the onboarding block put the WPF
+            // DispatcherSynchronizationContext back. A continuation posted to a
+            // dispatcher this console harness never pumps would hang the suite rather
+            // than fail it, so detach for the duration.
+            var balancePreviousContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
+
+            RunAsync("onboarding: the cloud credit balance is never cut without an ellipsis", async () =>
+            {
+                // Both cloud steps draw CreditsFormatted with OnboardingBigNumberStyle
+                // (30 pt) in the `*` column of a two-column row whose `Auto` column
+                // holds a pill (Setup) or the "Get credits" button (Configure). The
+                // formatted balance is wider than what is left of that row, and the
+                // style set no TextTrimming and no TextWrapping, so the text ran under
+                // the neighbour and was cut mid-word at the card edge: the Configure
+                // step rendered "$66.30 remainir" and the Setup step
+                // "$66.30 remaining (~10523 min", with nothing to say either had been
+                // cut. The caption directly below has always trimmed.
+                //
+                // The gateway's own numbers: FormattedBalance divides the credit count
+                // by 1000 to get the dollars (HyperWhisperCloudCredits.cs:112-119), so
+                // 66300 credits IS "$66.30 remaining".
+                var balance = "$66.30 remaining (~10523 minutes)";
+
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, balance);
+
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.ShowsLicenseTestPassed, "precondition: the probe passed");
+                Assert(h.Flow.CreditsFormatted == balance, "precondition: the balance landed");
+
+                AssertBalanceReadoutFits(OnboardingStep.Configure, h.Flow, balance);
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.IsSelectedSourceUsable, "precondition: the licence activated");
+
+                AssertBalanceReadoutFits(OnboardingStep.Setup, h.Flow, balance);
+            });
+
+            RunAsync("onboarding: the cloud setup step RENDERS the state it reports", async () =>
+            {
+                // #491, at the binding layer. The four view-model cases next to the flow
+                // seams prove the properties are right; they cannot prove SetupStepPage
+                // reads them. A typo in a binding path is silent in WPF - the row simply
+                // never ticks - so this lays the real page out in both states and reads
+                // what is on it.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                h.AdvanceTo(OnboardingStep.Configure);
+
+                h.Flow.LicenseKeyInput = "HW-GOOD";
+                h.Credits.NextCredits = new OnboardingCloudCredits(66300, 10523, "$66.30 remaining");
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.Advance(), "setup must be reachable");
+
+                // Arrival: verified, not yet activated.
+                var arrival = VisualTextOf(
+                    LayOutOnboardingStepPage(OnboardingStep.Setup, h.Flow, 760, 521));
+
+                Assert(
+                    arrival.Contains(
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle.pending"),
+                        StringComparer.Ordinal),
+                    "the unactivated step must render the sentence that asks for the activation");
+                Assert(
+                    !arrival.Contains(
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
+                        StringComparer.Ordinal),
+                    "and must not render the one that says it already happened");
+
+                h.Flow.ActivateCloudLicense();
+                await h.LastTask;
+                Assert(h.Flow.Back() && h.Flow.Advance(), "a Back-and-forward must move both ways");
+
+                var afterBack = LayOutOnboardingStepPage(OnboardingStep.Setup, h.Flow, 760, 521);
+                var texts = VisualTextOf(afterBack);
+
+                Assert(
+                    texts.Contains(
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.subtitle"),
+                        StringComparer.Ordinal),
+                    "an activated step with a balance renders the original sentence");
+
+                // The tick itself, not the row's label: the label is always there, and
+                // it was the GLYPH that disappeared after Back.
+                var keyVerifiedRow = DescendantsOf<System.Windows.Controls.TextBlock>(afterBack)
+                    .FirstOrDefault(t => string.Equals(
+                        t.Text,
+                        HyperWhisper.Localization.Loc.S("onboarding.setup.cloud.check.keyVerified"),
+                        StringComparison.Ordinal));
+
+                Assert(keyVerifiedRow is not null, "the Access key verified row is on the page");
+
+                var glyphs = DescendantsOf<System.Windows.Controls.TextBlock>(
+                        (DependencyObject)System.Windows.Media.VisualTreeHelper.GetParent(keyVerifiedRow!)!)
+                    .Where(t => t != keyVerifiedRow)
+                    .ToList();
+
+                Assert(
+                    glyphs.Count(t => t.Visibility == Visibility.Visible) == 1,
+                    "exactly one of the tick and the pending circle is ever shown");
+                Assert(
+                    glyphs.Any(t => t.Visibility == Visibility.Visible
+                                    && t.Style == afterBack.TryFindResource("OnboardingCheckGlyphStyle")),
+                    "and after a Back-and-forward on an activated device it has to be the TICK");
+            });
+
+            RunAsync("onboarding: the BYOK setup step RENDERS the state it reports", async () =>
+            {
+                // The same binding-path check for the twin row one branch over. There is
+                // no BYOK provider key on the test box, so this is the only place the
+                // BYOK row is exercised end to end: the fake gateway makes the probe
+                // pass, and the page is laid out for real.
+                var b = new OnboardingHarness();
+                b.GrantMicrophone();
+                b.AdvanceTo(OnboardingStep.Source);
+                b.Flow.SelectSource(OnboardingSourceKind.YourProvider);
+                b.AdvanceTo(OnboardingStep.Configure);
+
+                b.Flow.ApiKeyInput = "sk-test";
+                b.Flow.TestProviderKey();
+                await b.LastTask;
+                Assert(b.Flow.Advance(), "setup must be reachable");
+                Assert(b.Flow.Back() && b.Flow.Advance(), "a Back-and-forward must move both ways");
+                Assert(!b.Flow.KeyValidated, "precondition: the inline result was cleared");
+
+                var page = LayOutOnboardingStepPage(OnboardingStep.Setup, b.Flow, 760, 521);
+
+                var row = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => string.Equals(
+                        t.Text, b.Flow.ProviderValidatedCheckText, StringComparison.Ordinal));
+
+                Assert(row is not null, "the API key verified row is on the page");
+
+                var rowGlyphs = DescendantsOf<System.Windows.Controls.TextBlock>(
+                        (DependencyObject)System.Windows.Media.VisualTreeHelper.GetParent(row!)!)
+                    .Where(t => t != row)
+                    .ToList();
+
+                Assert(
+                    rowGlyphs.Count(t => t.Visibility == Visibility.Visible) == 1,
+                    "exactly one of the tick and the pending circle is ever shown");
+                Assert(
+                    rowGlyphs.Any(t => t.Visibility == Visibility.Visible
+                                       && t.Style == page.TryFindResource("OnboardingCheckGlyphStyle")),
+                    "and after a Back-and-forward on a probed and stored key it has to be the TICK");
+            });
+
+            SynchronizationContext.SetSynchronizationContext(balancePreviousContext);
+
+            Run("modes: a 300-character mode name is ellipsised on the card, not clipped under the gear", () =>
+            {
+                // #492. A mode name is free user text with no cap anywhere - not in the
+                // editor, not in the entity, not in the column. The card header is a
+                // three-column Grid (name *, offline badge Auto, gear Auto), so the star
+                // column does stop the name pushing the gear off the card; what it does
+                // NOT do is say the name was cut. Without TextTrimming the TextBlock
+                // hard-clips mid-glyph right under the gear button, which reads as a
+                // rendering fault rather than as a long name.
+                //
+                // The offline badge between them is collapsed here and, today, always:
+                // its DataTrigger binds IsOfflineCapable, which exists on the macOS Mode
+                // and on no C# type, so WPF no-ops it. That is its own defect and is
+                // filed separately; the geometry below deliberately does not depend on
+                // the badge's width either way.
+                //
+                // MEASURED, not grepped: the attribute can be added to the wrong
+                // TextBlock, and a future container change could reintroduce the clip
+                // with the attribute still present.
+                EnsureSmokeApplication();
+
+                var longName = "LongName" + new string('X', 292);
+                var page = new HyperWhisper.Views.Pages.ModesPage();
+                var list = (System.Windows.Controls.ListBox)page.FindName("ModeListBox")!;
+
+                // ModesPage only reaches ModeService from its Loaded handler, and a
+                // detached element is never Loaded, so the list is fed directly here.
+                list.ItemsSource = new[]
+                {
+                    new Mode
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = longName,
+                        ProviderType = "cloud",
+                        CloudProvider = "hyperwhisper",
+                        Language = "auto",
+                        PostProcessingMode = 0
+                    }
+                };
+
+                page.Measure(new Size(1000, 700));
+                page.Arrange(new Rect(0, 0, 1000, 700));
+                page.UpdateLayout();
+
+                var nameBlock = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Name == "ModeNameText");
+                Assert(nameBlock is not null, "the mode card no longer has a ModeNameText");
+
+                // The row itself is untouched: this is a display fix, and the card must
+                // still carry the whole name so the tooltip and any copy of it are right.
+                Assert(nameBlock!.Text == longName,
+                    $"the card bound {nameBlock.Text.Length} characters of a {longName.Length}-character " +
+                    "name - the name is being truncated in data, which is not the fix");
+
+                Assert(nameBlock.TextTrimming == TextTrimming.CharacterEllipsis,
+                    $"ModeNameText trims with {nameBlock.TextTrimming}: a name wider than its column " +
+                    "is cut off mid-glyph with nothing to show it continues");
+
+                // Prove the case actually exercises the overflow. If the card were ever
+                // wide enough to fit 300 characters, every assertion above would pass
+                // while proving nothing at all.
+                var unconstrained = UnconstrainedWidthOf(nameBlock);
+                Assert(nameBlock.ActualWidth > 0,
+                    "ModeNameText measured 0 - it never took part in the layout pass");
+                Assert(unconstrained > nameBlock.ActualWidth,
+                    $"the {longName.Length}-character name wanted {unconstrained:F0}px and got " +
+                    $"{nameBlock.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
+
+                // And the gear is still reachable: fully inside the card, clear of the name.
+                var container = (System.Windows.Controls.ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+                Assert(container is not null, "the ListBox generated no container for the mode");
+                var gear = DescendantsOf<System.Windows.Controls.Button>(container!)
+                    .FirstOrDefault(b => b.Tag is Mode);
+                Assert(gear is not null && gear.ActualWidth > 0, "the mode card has no laid-out gear button");
+
+                var gearLeft = gear!.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+                var nameLeft = nameBlock.TransformToAncestor(container!).Transform(new Point(0, 0)).X;
+
+                Assert(gearLeft + gear.ActualWidth <= container!.ActualWidth + 0.5,
+                    $"the gear button ends at {gearLeft + gear.ActualWidth:F1} on a {container.ActualWidth:F1} " +
+                    "wide card - a long name has pushed it off the card");
+                Assert(nameLeft + nameBlock.ActualWidth <= gearLeft + 0.5,
+                    $"the name ends at {nameLeft + nameBlock.ActualWidth:F1} and the gear starts at " +
+                    $"{gearLeft:F1} - the name is rendering underneath the gear button");
+            });
+
+            Run("modes: the offline badge renders for an on-device mode and only for one — issue #527", () =>
+            {
+                // #527. The badge's DataTrigger bound IsOfflineCapable, which the macOS
+                // ModeData struct has and no C# type has ever had. WPF resolves a
+                // missing path to UnsetValue, writes a line to a trace source nobody
+                // listens to, and carries on - so the trigger read as live in the
+                // markup while the badge had never once rendered, on any mode, since
+                // it was written.
+                //
+                // MEASURED, not grepped: the whole defect was that the markup looked
+                // right, so only laying the card out and reading the badge's size
+                // proves anything.
+                EnsureSmokeApplication();
+
+                // One row per branch the two services can take, so a change that
+                // makes the badge always-on fails just as loudly as one that makes
+                // it always-off.
+                var whisper = WhisperModelInfo.AllModels[0].Type;
+                var parakeet = ParakeetModelInfo.AllModels[0].Id;
+                var localLlm = LocalLlmModelInfo.AllModels[0].Id;
+
+                var rows = new (string Label, Mode Mode, bool Offline)[]
+                {
+                    ("local Whisper, no post-processing", new Mode
+                    {
+                        Name = "Local", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 0
+                    }, true),
+                    ("local Parakeet, on-device LLM", new Mode
+                    {
+                        Name = "Parakeet", ProviderType = "local", LocalEngine = "parakeet",
+                        LocalParakeetModel = parakeet, PostProcessingMode = 2,
+                        PostProcessingProvider = PostProcessingProvider.LocalLlm.ToStringValue(),
+                        LocalPostProcessingModel = localLlm
+                    }, true),
+                    // The on-device LLM with NO model id, which a Local API PATCH can
+                    // leave behind. PostProcessingService resolves that to the default
+                    // local model, so the run stays on this machine and the badge must
+                    // stay on: a first cut of this converter demanded a catalogue hit
+                    // here and hid the badge on a mode that never touches the network.
+                    ("on-device LLM with no model id", new Mode
+                    {
+                        Name = "Unset", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 2,
+                        PostProcessingProvider = PostProcessingProvider.LocalLlm.ToStringValue()
+                    }, true),
+                    ("cloud transcription", new Mode
+                    {
+                        Name = "Cloud", ProviderType = "cloud", CloudProvider = "hyperwhisper",
+                        PostProcessingMode = 0
+                    }, false),
+                    ("local transcription, CLOUD post-processing", new Mode
+                    {
+                        Name = "Half", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 1,
+                        PostProcessingProvider = PostProcessingProvider.OpenAI.ToStringValue(),
+                        LanguageModel = "gpt-4.1-mini"
+                    }, false),
+                    // A custom endpoint is a URL the user typed. It may be localhost;
+                    // the row does not say so, and a badge may not guess.
+                    ("local transcription, custom endpoint post-processing", new Mode
+                    {
+                        Name = "Custom", ProviderType = "local", LocalEngine = "whisper",
+                        ModelType = whisper, PostProcessingMode = 1,
+                        PostProcessingProvider =
+                            CustomPostProcessingEndpoint.ProviderPrefix + Guid.NewGuid()
+                    }, false)
+                };
+
+                foreach (var row in rows)
+                {
+                    row.Mode.Id = Guid.NewGuid();
+                    row.Mode.Language = "auto";
+                }
+
+                var page = new HyperWhisper.Views.Pages.ModesPage();
+                var list = (System.Windows.Controls.ListBox)page.FindName("ModeListBox")!;
+
+                // ModesPage only reaches ModeService from its Loaded handler, and a
+                // detached element is never Loaded, so the list is fed directly here.
+                list.ItemsSource = rows.Select(r => r.Mode).ToArray();
+
+                // THE GENERAL GATE. WPF swallows a binding whose path no type exposes;
+                // the only place it says so is PresentationTraceSources, which nothing
+                // reads in a release build. Listening to it while this page lays out
+                // turns the exact failure mode of #527 - a plausible-looking path that
+                // resolves to nothing - into a red test, for EVERY binding on the card
+                // and not only for the one that was wrong this time.
+                var bindingErrors = CollectBindingErrorsWhile(() =>
+                {
+                    page.Measure(new Size(1000, 700));
+                    page.Arrange(new Rect(0, 0, 1000, 700));
+                    page.UpdateLayout();
+                });
+
+                Assert(bindingErrors.Count == 0,
+                    $"the mode card produced {bindingErrors.Count} WPF binding error(s), i.e. a bound path " +
+                    $"no type exposes: {string.Join(" | ", bindingErrors.Take(3))}");
+
+                for (var i = 0; i < rows.Length; i++)
+                {
+                    var (label, _, expectOffline) = rows[i];
+
+                    var container = (System.Windows.Controls.ListBoxItem)
+                        list.ItemContainerGenerator.ContainerFromIndex(i);
+                    Assert(container is not null, $"{label}: the ListBox generated no container");
+
+                    var badge = DescendantsOf<System.Windows.Controls.Border>(container!)
+                        .FirstOrDefault(b => b.Name == "OfflineBadge");
+                    Assert(badge is not null, $"{label}: the mode card no longer has an OfflineBadge");
+
+                    if (expectOffline)
+                    {
+                        Assert(badge!.Visibility == Visibility.Visible,
+                            $"{label}: the offline badge is {badge.Visibility} on a mode that needs no network");
+
+                        // Visible is not shown: a zero-width Border is invisible to the
+                        // user and would satisfy the check above.
+                        Assert(badge.ActualWidth > 0 && badge.ActualHeight > 0,
+                            $"{label}: the offline badge measured {badge.ActualWidth:F1}x{badge.ActualHeight:F1}");
+                    }
+                    else
+                    {
+                        Assert(badge!.Visibility == Visibility.Collapsed,
+                            $"{label}: the offline badge is {badge.Visibility} on a mode that reaches the network");
+                    }
+                }
+
+                // #527's own note: a live badge takes width the name column used to
+                // have, so the two must still fit side by side with the gear.
+                var offlineContainer = (System.Windows.Controls.ListBoxItem)
+                    list.ItemContainerGenerator.ContainerFromIndex(0);
+                var offlineBadge = DescendantsOf<System.Windows.Controls.Border>(offlineContainer)
+                    .First(b => b.Name == "OfflineBadge");
+                var offlineGear = DescendantsOf<System.Windows.Controls.Button>(offlineContainer)
+                    .First(b => b.Tag is Mode);
+
+                var badgeLeft = offlineBadge.TransformToAncestor(offlineContainer).Transform(new Point(0, 0)).X;
+                var gearX = offlineGear.TransformToAncestor(offlineContainer).Transform(new Point(0, 0)).X;
+
+                Assert(badgeLeft + offlineBadge.ActualWidth <= gearX + 0.5,
+                    $"the offline badge ends at {badgeLeft + offlineBadge.ActualWidth:F1} and the gear starts " +
+                    $"at {gearX:F1} - the badge is rendering underneath the gear button");
+                Assert(gearX + offlineGear.ActualWidth <= offlineContainer.ActualWidth + 0.5,
+                    "the now-visible offline badge has pushed the gear button off the card");
+            });
+
+            Run("modes: a long mode name never pushes the hint or the model out of the status bar", () =>
+            {
+                // #492, and this is the half the issue actually complained about: with a
+                // 300-character name the status bar showed the name and nothing else -
+                // "Ready - Press Ctrl+Alt to record" and "Model: HyperWhisper Cloud
+                // (Ready)" were both gone, because the mode name sits in an Auto column
+                // and an Auto column grows to whatever it is given.
+                //
+                // The window is a fixed 1000 wide and CanMinimize, so this row's budget
+                // is fixed too and can be measured exactly: 1000 less the 232 sidebar
+                // (Generic.xaml ContentSidebarWidth) less the StatusBarStyle's 12,5
+                // padding on each side.
+                EnsureSmokeApplication();
+
+                const double budget = 1000 - 232 - 24;
+                var longName = "LongName" + new string('X', 292);
+
+                // Both cases, because the post-processing column is what makes the
+                // budget tight: it is Collapsed on a cloud mode and visible on a local
+                // post-processing one, and only the second case was ever near the edge.
+                foreach (var withPostProcessing in new[] { false, true })
+                {
+                    var bar = new StatusBarView
+                    {
+                        // Bindings are duck-typed, so the row can be measured against a
+                        // probe instead of the real MainViewModel - which builds the
+                        // audio stack and the tray icon in its constructor.
+                        DataContext = new StatusBarProbe
+                        {
+                            StatusText = HyperWhisper.Localization.Loc.S("status.ready.withHotkey", "Ctrl+Alt"),
+                            CurrentMode = new Mode { Name = longName },
+                            // The longest shape ModelStatus takes: "Local: {0} ({1} Ready)".
+                            ModelStatus = HyperWhisper.Localization.Loc.S(
+                                "status.model.localReady", "Parakeet TDT 0.6B v3", "GPU"),
+                            HasLocalPostProcessingStatus = withPostProcessing,
+                            LocalPostProcessingStatus = "Llama 3.2 3B Instruct Q4_K_M"
+                        }
+                    };
+
+                    bar.Measure(new Size(budget, 26));
+                    bar.Arrange(new Rect(0, 0, budget, 26));
+                    bar.UpdateLayout();
+
+                    var label = withPostProcessing ? "with post-processing" : "cloud mode";
+
+                    // THE BUG, STATED AS THE BUG: nothing may be pushed out of the row.
+                    // On main the name's Auto column took the whole width and both of
+                    // these measured nothing at all.
+                    foreach (var (name, block) in new[]
+                             {
+                                 ("StatusText", bar.StatusText),
+                                 ("ModelStatusText", bar.ModelStatusText)
+                             })
+                    {
+                        Assert(block.ActualWidth > 0,
+                            $"{label}: {name} measured 0 - the mode name has taken the whole bar");
+                    }
+
+                    // On a cloud mode - the issue's own repro, and the common case, since
+                    // the post-processing column only appears for a LOCAL LLM - both must
+                    // be WHOLE and not merely present. A hint trimmed to "Ready - Press
+                    // Ct..." would satisfy the check above while still hiding the hotkey.
+                    //
+                    // The tight case is deliberately not held to this. Four items in a
+                    // fixed 744px row, two of them long local model names, genuinely do
+                    // not all fit; the caps decide who gives way, and every one of them
+                    // now says so with an ellipsis instead of vanishing.
+                    if (!withPostProcessing)
+                    {
+                        foreach (var (name, block) in new[]
+                                 {
+                                     ("StatusText", bar.StatusText),
+                                     ("ModelStatusText", bar.ModelStatusText)
+                                 })
+                        {
+                            Assert(block.ActualWidth + 0.5 >= UnconstrainedWidthOf(block),
+                                $"{label}: {name} rendered {block.ActualWidth:F1}px for text that needs " +
+                                $"{UnconstrainedWidthOf(block):F1}px, so it is being cut off");
+                        }
+                    }
+
+                    Assert(bar.DesiredSize.Width <= budget + 0.5,
+                        $"{label}: the status bar wants {bar.DesiredSize.Width:F1}px of a " +
+                        $"{budget:F0}px row, so its right-hand item leaves the window");
+
+                    // And the mode name is the item that gives way, with an ellipsis.
+                    Assert(bar.ModeNameText.TextTrimming == TextTrimming.CharacterEllipsis,
+                        $"{label}: the mode name trims with {bar.ModeNameText.TextTrimming}");
+                    Assert(bar.ModeNameText.ActualWidth < UnconstrainedWidthOf(bar.ModeNameText),
+                        $"{label}: the {longName.Length}-character name was not truncated at all, " +
+                        "so this case proves nothing");
+                }
+            });
+
+            Run("tray: a 300-character mode name cannot widen the Select Mode submenu off the screen — issue #525", () =>
+            {
+                // #525, the half of #492 that XAML could not reach. A
+                // ToolStripDropDownMenu sizes itself to its widest item and never
+                // ellipsises, so the two tray submenus that list MODE NAMES - Select
+                // Mode and Transcribe File - grew to whatever the user typed. There is
+                // no TextTrimming for a Win32 menu; the only place to bound it is the
+                // string handed to the item, which is what MenuItemText.Bound does.
+                //
+                // MEASURED, not grepped: a character cap that does not actually bound
+                // the rendered menu would be worthless, so the menu is laid out.
+                var longName = "LongName" + new string('X', 292);
+
+                static int PreferredMenuWidth(string label)
+                {
+                    using var menu = new System.Windows.Forms.ToolStripDropDownMenu();
+                    menu.Items.Add(new System.Windows.Forms.ToolStripMenuItem(label));
+                    menu.Items.Add(new System.Windows.Forms.ToolStripMenuItem("Default"));
+                    return menu.GetPreferredSize(System.Drawing.Size.Empty).Width;
+                }
+
+                var boundedWidth = PreferredMenuWidth(MenuItemText.Bound(longName));
+                var rawWidth = PreferredMenuWidth(longName);
+
+                // Prove the case exercises the defect. If a 300-character item laid out
+                // narrow anyway, everything below would pass while proving nothing.
+                Assert(rawWidth > boundedWidth * 3,
+                    $"the unbounded {longName.Length}-character name laid out {rawWidth}px against " +
+                    $"{boundedWidth}px bounded, so this case is not exercising the overflow");
+
+                // THE BUG, STATED AS THE BUG: the submenu must fit on a screen. 1024 is
+                // the narrowest display Windows supports, not a font guess - a menu
+                // wider than that has entries the user cannot reach at all.
+                Assert(boundedWidth < 1024,
+                    $"the bounded Select Mode submenu wants {boundedWidth}px, which is wider than the " +
+                    "narrowest display Windows supports - its other entries are off the screen");
+
+                // The label is bounded; the NAME is not. Nothing here may truncate data.
+                var bounded = MenuItemText.Bound(longName);
+                Assert(bounded.Length <= MenuItemText.MaxLength + 1 && bounded.EndsWith(MenuItemText.Ellipsis),
+                    $"Bound() returned {bounded.Length} characters ending '{bounded[^1]}', expected at most " +
+                    $"{MenuItemText.MaxLength} plus an ellipsis");
+                Assert(longName.StartsWith(bounded[..^1]),
+                    "the bounded label is not a prefix of the real name - it is rewriting the name, not cutting it");
+
+                // THE BOUND IS A WIDTH, NOT A CHARACTER COUNT, and a full-width
+                // script is where the difference shows: 60 CJK glyphs are about
+                // twice 60 Latin ones, so a name in Japanese would clear a character
+                // cap and still hang off the screen. The app ships 40 locales.
+                var cjkName = string.Concat(Enumerable.Repeat("日本語のモードの名前", 30));
+                var boundedCjk = MenuItemText.Bound(cjkName);
+
+                Assert(boundedCjk.Length < bounded.Length,
+                    $"the CJK label kept {boundedCjk.Length} characters and the Latin one {bounded.Length} - " +
+                    "the cap is still counting characters rather than measuring the glyphs");
+                Assert(PreferredMenuWidth(boundedCjk) < 1024,
+                    $"a submenu of the bounded CJK name wants {PreferredMenuWidth(boundedCjk)}px, wider than the " +
+                    "narrowest display Windows supports");
+                Assert(PreferredMenuWidth(cjkName) > PreferredMenuWidth(boundedCjk) * 3,
+                    "the unbounded CJK name did not lay out wide, so this case proves nothing");
+                Assert(MenuItemText.NeedsFullTextTooltip(longName),
+                    "a truncated item reports no tooltip, so the full name would be unreachable from the tray");
+
+                // AND THE TOOLTIP IS BOUNDED TOO. Observed on a VM before this
+                // assertion existed: a WinForms tooltip is a SINGLE LINE unless the
+                // string carries its own newlines, so the first cut of this fix put a
+                // ~2100px tooltip across the whole screen and off both edges - the very
+                // defect the label cap was there to stop.
+                var tooltip = MenuItemText.Tooltip(longName);
+                Assert(tooltip is not null, "the truncated item got no tooltip text");
+
+                var tipLines = tooltip!.Split("\r\n");
+                Assert(tipLines.Length > 1, "the tooltip is still one line, so it renders wider than the screen");
+                Assert(tipLines.Length <= MenuItemText.TooltipMaxLines,
+                    $"the tooltip is {tipLines.Length} lines, past the {MenuItemText.TooltipMaxLines} cap - " +
+                    "a long enough name makes it taller than the screen");
+
+                var widest = tipLines.Max(l =>
+                    System.Windows.Forms.TextRenderer.MeasureText(l, System.Drawing.SystemFonts.DefaultFont).Width);
+                var unwrapped = System.Windows.Forms.TextRenderer.MeasureText(
+                    longName, System.Drawing.SystemFonts.DefaultFont).Width;
+
+                Assert(unwrapped > 1024,
+                    $"the unwrapped name measures {unwrapped}px, so this case is not exercising the wide tooltip");
+                Assert(widest < 1024,
+                    $"the tooltip's widest line is {widest}px, wider than the narrowest display Windows supports");
+
+                // It still carries the name: the visible characters are the name's own,
+                // in order, with only the collapsed spacing between them.
+                Assert(longName.StartsWith(string.Concat(tipLines).TrimEnd(MenuItemText.Ellipsis[0])),
+                    "the tooltip is not showing the name's own characters in order");
+
+                // A short name is passed through untouched and gets NO tooltip: a
+                // tooltip that repeats the label back at the user is noise.
+                Assert(MenuItemText.Bound("Meetings") == "Meetings", "a short name was altered");
+                Assert(!MenuItemText.NeedsFullTextTooltip("Meetings"), "a short name asked for a tooltip");
+                Assert(MenuItemText.Tooltip("Meetings") is null, "a short name was given a tooltip");
+
+                // A menu item grows in BOTH directions and the Local API accepts a mode
+                // name with a newline in it, so height is bounded too.
+                Assert(!MenuItemText.Bound("Notes\r\n\r\nand more").Contains('\n'),
+                    "a newline survived into the menu label, so the item renders several rows tall");
+                Assert(MenuItemText.Bound("Notes\r\n\r\nand more") == "Notes and more",
+                    $"whitespace collapsed to '{MenuItemText.Bound("Notes\r\n\r\nand more")}'");
+
+                // And the cut never lands between the halves of a surrogate pair, which
+                // would leave a lone surrogate rendering as a replacement glyph.
+                var emoji = new string('a', MenuItemText.MaxLength - 1) + "\U0001F600" + "tail";
+                var boundedEmoji = MenuItemText.Bound(emoji);
+                Assert(!char.IsSurrogate(boundedEmoji[^2]),
+                    "Bound() cut a surrogate pair in half");
+            });
+
+            Run("history: a 300-character mode name stays inside the transcript detail pane — issue #525", () =>
+            {
+                // #525. The detail header's mode badge binds SelectedTranscript.Mode -
+                // the mode NAME, copied onto the transcript - into a horizontal
+                // StackPanel with no MaxWidth. A StackPanel measures its children with
+                // infinite width, so the badge simply ran off the right of the detail
+                // pane and was hard-clipped by the window edge.
+                //
+                // MEASURED, not grepped: TextTrimming on its own changes nothing inside
+                // a StackPanel, so only the geometry proves the fix.
+                EnsureSmokeApplication();
+
+                var longName = "LongName" + new string('X', 292);
+
+                // The page is a fixed width like every other: 1000 less the 232 sidebar.
+                const double pageWidth = 1000 - 232;
+
+                var page = new HyperWhisper.Views.Pages.HistoryPage();
+
+                // HistoryPage only builds its ViewModel in the Loaded handler and a
+                // detached element is never Loaded, so a probe is set directly here.
+                // Bindings are duck-typed; only the detail header's paths matter.
+                page.DataContext = new HistoryDetailProbe
+                {
+                    SelectedTranscript = new HistoryTranscriptProbe
+                    {
+                        FormattedDate = "Today at 09:41",
+                        FormattedDuration = "0:12",
+                        Mode = longName
+                    }
+                };
+
+                page.Measure(new Size(pageWidth, 680));
+                page.Arrange(new Rect(0, 0, pageWidth, 680));
+                page.UpdateLayout();
+
+                var modeText = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Name == "DetailModeText");
+                Assert(modeText is not null, "the history detail header no longer has a DetailModeText");
+
+                // The row is untouched: this is a display fix and the badge must still
+                // carry the whole name, so the tooltip and any copy of it are right.
+                Assert(modeText!.Text == longName,
+                    $"the badge bound {modeText.Text.Length} characters of a {longName.Length}-character " +
+                    "name - the name is being truncated in data, which is not the fix");
+
+                // THE BUG, STATED AS THE BUG, AND FIRST: the badge stays inside the
+                // page. Without the MaxWidth its right edge sits ~2600px past a 768px
+                // page, entirely off the window. This is asserted ahead of the
+                // attribute checks below deliberately — a geometry failure is the one
+                // that says the user cannot see the badge, and it is the message
+                // whoever breaks this next should read first.
+                var badge = (System.Windows.Controls.Border)System.Windows.Media.VisualTreeHelper.GetParent(
+                    System.Windows.Media.VisualTreeHelper.GetParent(modeText));
+                var badgeLeft = badge.TransformToAncestor(page).Transform(new Point(0, 0)).X;
+                Assert(badgeLeft + badge.ActualWidth <= pageWidth + 0.5,
+                    $"the mode badge ends at {badgeLeft + badge.ActualWidth:F1} on a {pageWidth:F0} wide " +
+                    "page - a long mode name has pushed it off the right of the detail pane");
+
+                // Prove the case exercises the overflow. If the pane were ever wide
+                // enough for 300 characters, everything here would pass proving nothing.
+                Assert(modeText.ActualWidth > 0,
+                    "DetailModeText measured 0 - it never took part in the layout pass");
+                Assert(UnconstrainedWidthOf(modeText) > modeText.ActualWidth,
+                    $"the {longName.Length}-character name wanted {UnconstrainedWidthOf(modeText):F0}px and " +
+                    $"got {modeText.ActualWidth:F0}px, so it did not overflow and this case proves nothing");
+
+                // And it says it was cut, rather than stopping mid-glyph.
+                Assert(modeText.TextTrimming == TextTrimming.CharacterEllipsis,
+                    $"DetailModeText trims with {modeText.TextTrimming}: a name wider than the pane is " +
+                    "cut off mid-glyph with nothing to show it continues");
+
+                // And the duration badge beside it is untouched and still whole.
+                var durationText = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+                    .FirstOrDefault(t => t.Text == "0:12");
+                Assert(durationText is not null && durationText.ActualWidth > 0,
+                    "the duration badge is gone from the detail header");
+
+                // THE TOOLTIP IS BOUNDED IN BOTH DIRECTIONS. A wrapping tooltip with
+                // only a MaxWidth is a tooltip with no bound at all: nothing caps the
+                // name, so 10,000 characters is a 230-line block taller than the
+                // screen. MaxHeight plus TextTrimming caps it at seven lines and says
+                // it was cut, which is the same contract as the badge underneath it.
+                var tip = modeText.ToolTip as System.Windows.Controls.ToolTip;
+                Assert(tip is not null, "the mode badge lost its explicit ToolTip");
+                var tipText = tip!.Content as System.Windows.Controls.TextBlock;
+                Assert(tipText is not null, "the ToolTip content is no longer a TextBlock");
+
+                // A ToolTip is not in the visual tree until it opens, and its binding
+                // does not evaluate until then, so the string is assigned here rather
+                // than bound. The binding itself was read on a real desktop: hovering
+                // this badge shows all 300 characters over six wrapped lines.
+                foreach (var length in new[] { longName.Length, 10_000 })
+                {
+                    tipText!.Text = new string('M', length);
+                    tipText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+                    Assert(tipText.DesiredSize.Width <= 360.5,
+                        $"a {length}-character name gives a {tipText.DesiredSize.Width:F0}px-wide tooltip");
+                    Assert(tipText.DesiredSize.Height <= 126.5,
+                        $"a {length}-character name gives a {tipText.DesiredSize.Height:F0}px-tall tooltip, so a " +
+                        "long enough name renders one taller than the screen");
+                }
+            });
+
+            Run("vocabulary: the whole replacement box is the replacement field — issue #496", () =>
+            {
+                // The replacement row is DRAWN as a 64px text area. The TextBox inside
+                // it used to carry VerticalAlignment="Top", so it auto-sized to one
+                // line and the other ~44px was bare Grid. A click there is hit-testable
+                // but not focusable: focus left the field and everything typed after it
+                // was discarded with no error. That is data loss, so it is asserted by
+                // MEASURING the laid-out tree, not by grepping XAML.
+                //
+                // No DatabaseInitializer here: VocabularyPage's constructor only runs
+                // InitializeComponent and takes the service singleton, whose constructor
+                // is empty. Every read hangs off OnLoaded, which never fires on a
+                // detached tree.
+                // The page binds through BoolToVisibilityConverter, which App.xaml
+                // declares inline and {StaticResource} resolves at parse time. The
+                // helper loads App.xaml itself, so it is already there - this used to
+                // need a hand-registration here.
+                EnsureSmokeApplication();
+
+                var page = new HyperWhisper.Views.Pages.VocabularyPage();
+
+                // The row is revealed by Ctrl+Enter at runtime; a collapsed element
+                // measures 0 and would pass this check while proving nothing.
+                page.ReplacementBorder.Visibility = Visibility.Visible;
+                page.Measure(new Size(900, 700));
+                page.Arrange(new Rect(0, 0, 900, 700));
+                page.UpdateLayout();
+
+                var box = page.ReplacementBox;
+                var host = System.Windows.Media.VisualTreeHelper.GetParent(box)
+                    as System.Windows.Controls.Grid;
+                Assert(host is not null,
+                    "the replacement TextBox is no longer hosted in a Grid — this case's geometry is stale");
+
+                Assert(host!.ActualHeight >= 64,
+                    $"the replacement box drew {host.ActualHeight:F2} tall, not the 64 the design asks for");
+
+                // The field must BE the box, not a line sitting at the top of it.
+                Assert(Math.Abs(box.ActualHeight - host.ActualHeight) <= 0.5,
+                    $"the replacement TextBox measured {box.ActualHeight:F2} inside a " +
+                    $"{host.ActualHeight:F2} box. The rest of the box is dead space that " +
+                    "steals focus and silently eats the user's replacement text.");
+
+                // The exact click the issue reports: the obvious middle of the box, well
+                // below the first text line. InputHitTest is not available here — this
+                // console harness has no PresentationSource, so nothing is ever rendered
+                // and every hit test answers null. The honest substitute is the geometry
+                // WPF would hit-test against: the TextBox's own bounds in the host's
+                // coordinates.
+                var clickPoint = new System.Windows.Point(host.ActualWidth / 2, host.ActualHeight - 8);
+                var boxBounds = box.TransformToAncestor(host)
+                    .TransformBounds(new Rect(box.RenderSize));
+
+                Assert(boxBounds.Contains(clickPoint),
+                    $"a click at {clickPoint} — the middle of the replacement box — falls outside " +
+                    $"ReplacementBox, which occupies only {boxBounds}. Focus moves off the field " +
+                    "and the next keystrokes are lost.");
+
+                // Bounds only matter if a point inside them is hit-testable, and the
+                // surface that answers a mouse click is the template's Border, not the
+                // TextBox object: a Border with a null Background is invisible to the
+                // mouse and reopens the same hole with the same geometry. Reading the
+                // TextBox's own Background would prove nothing — the implicit style in
+                // Generic.xaml gives every TextBox one whether the page asks or not.
+                var surface = FindDescendant<System.Windows.Controls.Border>(box);
+                Assert(surface is not null,
+                    "the TextBox template no longer has a Border — this case's hit surface is stale");
+                Assert(surface!.Background is not null,
+                    "the replacement field's template Border has no Background, so its empty area is " +
+                    "transparent to the mouse and a click there falls through to the container");
+                Assert(Math.Abs(surface.ActualHeight - host.ActualHeight) <= 0.5,
+                    $"the clickable surface measured {surface.ActualHeight:F2} inside a " +
+                    $"{host.ActualHeight:F2} box");
+
+                // The other half of the fix, measured rather than grepped: the content
+                // host has to fill the box too. Generic.xaml's implicit TextBox style
+                // sets VerticalContentAlignment="Center" and template-binds it to
+                // PART_ContentHost, so dropping the page's Stretch would recentre the
+                // caret and the first typed line ~22px below the placeholder, with
+                // every height above still passing.
+                var contentHost = box.Template.FindName("PART_ContentHost", box)
+                    as System.Windows.Controls.ScrollViewer;
+                Assert(contentHost is not null,
+                    "the TextBox template no longer names PART_ContentHost — this case's geometry is stale");
+                Assert(Math.Abs(contentHost!.ActualHeight - box.ActualHeight) <= 0.5,
+                    $"PART_ContentHost measured {contentHost.ActualHeight:F2} inside a " +
+                    $"{box.ActualHeight:F2} field, so the text is aligned to a fraction of the box " +
+                    "and no longer starts where the placeholder draws");
+
+                var contentTop = contentHost.TransformToAncestor(box)
+                    .TransformBounds(new Rect(contentHost.RenderSize)).Top;
+                Assert(contentTop <= 0.5,
+                    $"PART_ContentHost starts {contentTop:F2} below the top of the field; the " +
+                    "replacement text would not line up with the placeholder it replaces");
+            });
+
+            Run("mode editor: the default mode's locked name says why, and only the default's is locked", () =>
+            {
+                // #494. The default mode's Name field is disabled, correctly, but with
+                // nothing to say so: a greyed-out text box that still looks like a text
+                // box reads as a broken control rather than a deliberate rule.
+                //
+                // Both halves are asserted, because a hint that shows on EVERY mode
+                // would be just as wrong as no hint at all - it would tell five
+                // renameable modes that they cannot be renamed.
+                EnsureSmokeApplication();
+
+                static ModeEditorWindow Editor(bool isDefault) => new(new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = isDefault ? "Hyper" : "Message",
+                    IsDefault = isDefault,
+                    ProviderType = "cloud",
+                    CloudProvider = "elevenlabs",
+                    Language = "auto"
+                });
+
+                var defaultEditor = Editor(isDefault: true);
+                Assert(!defaultEditor.ModeNameBox.IsEnabled,
+                    "the default mode's name field is editable - the rule this hint explains is gone");
+                Assert(defaultEditor.ModeNameLockedHint.Visibility == Visibility.Visible,
+                    "the default mode's name field is disabled with no explanation beside it, which " +
+                    "is exactly what #494 reported");
+
+                var hint = defaultEditor.ModeNameLockedHint.Text;
+                Assert(!string.IsNullOrWhiteSpace(hint) && hint != "mode.editor.field.name.defaultLocked",
+                    $"the hint reads '{hint}' - the localization key did not resolve, so the user " +
+                    "sees a resource id where the reason should be");
+
+                var ordinaryEditor = Editor(isDefault: false);
+                Assert(ordinaryEditor.ModeNameBox.IsEnabled,
+                    "an ordinary mode's name field is disabled - every mode but the default renames");
+                Assert(ordinaryEditor.ModeNameLockedHint.Visibility == Visibility.Collapsed,
+                    "an ordinary mode is told its name cannot be changed, which is untrue and is " +
+                    "the mirror image of the reported bug");
+            });
+
+            Run("mode editor: the wheel over a closed dropdown scrolls the page, it does not edit the mode", () =>
+            {
+                // #493. WPF's ComboBox moves its own selection on the wheel even when
+                // closed, and marks the event handled either way. Every dropdown here
+                // sits in one long ScrollViewer, so a user who picks a value - which
+                // leaves the control focused - and then scrolls to the next section
+                // silently rewrites the mode's transcription engine, with the model row
+                // and the credit line following it. Save Changes then stores an engine
+                // nobody chose.
+                //
+                // This is asserted by REPLAYING THE EVENT PAIR WPF itself raises: the
+                // tunnelling PreviewMouseWheel first, then - only if nothing handled it,
+                // which is exactly the promotion rule InputManager applies - the bubbling
+                // MouseWheel that ComboBox.OnMouseWheel reads. Raising only the preview
+                // would pass with no fix at all, because the selection is changed by the
+                // event that would then never be raised.
+                EnsureSmokeApplication();
+
+                var editor = new ModeEditorWindow(new Mode
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Wheel",
+                    ProviderType = "cloud",
+                    CloudProvider = "elevenlabs",
+                    Language = "auto"
+                });
+
+                var root = (FrameworkElement)editor.Content;
+                editor.Content = null;
+                root.Measure(new Size(550, 700));
+                root.Arrange(new Rect(0, 0, 550, 700));
+                root.UpdateLayout();
+
+                var scroller = FindDescendant<System.Windows.Controls.ScrollViewer>(root);
+                Assert(scroller is not null, "the mode editor is no longer one ScrollViewer");
+
+                var combos = DescendantsOf<System.Windows.Controls.ComboBox>(root);
+
+                // EVERY dropdown, not the one the issue happened to be over. There are a
+                // dozen and the report named six; a per-control fix would leave the rest.
+                Assert(combos.Count >= 8,
+                    $"the mode editor has {combos.Count} dropdowns - this case expects the " +
+                    "editor's full set, so it is looking at the wrong tree");
+
+                // A dropdown needs at least two items for a wheel turn to have anywhere
+                // to go. Only four of the twelve fill at construction - the rest populate
+                // in response to a selection, which needs a loaded control this console
+                // process cannot give them - so the set is NAMED rather than counted.
+                //
+                // Skipping the empty ones silently inside the loop was how this started,
+                // and it hid that two thirds of the loop was doing nothing; naming them
+                // means an editor that stops populating CloudProviderCombo - the control
+                // #493 was actually reported over - fails here instead of passing on a
+                // shorter list. The other eight are covered by the type-level rule, which
+                // the next case proves on a ComboBox belonging to no page at all.
+                var loaded = combos.Where(c => c.Items.Count >= 2).ToList();
+                var loadedNames = loaded.Select(NameOrType).OrderBy(n => n, StringComparer.Ordinal).ToList();
+                Assert(
+                    loadedNames.SequenceEqual(new[]
+                    {
+                        "CloudProviderCombo",
+                        "EnglishSpellingCombo",
+                        "PostProcessingProviderCombo",
+                        "PresetCombo"
+                    }),
+                    $"the editor's populated dropdowns are now [{string.Join(", ", loadedNames)}] - " +
+                    "if one was renamed or now fills lazily, update this list; if one stopped " +
+                    "populating, the wheel over it is no longer being tested at all");
+
+                foreach (var combo in loaded)
+                {
+                    combo.SelectedIndex = 0;
+                    var before = combo.SelectedIndex;
+
+                    var handled = RaiseWheelPair(combo, -120);
+
+                    // The load-bearing assertion is `handled`, not the selection. WPF
+                    // only promotes an UNHANDLED preview to the bubbling MouseWheel, and
+                    // that bubble is the sole route by which ComboBox.OnMouseWheel edits
+                    // the value - so suppressing the promotion is the fix, exactly.
+                    //
+                    // The selection check is a backstop and cannot carry this case on its
+                    // own: a detached ComboBox in a console process has no items host, so
+                    // it does not actually move even with the guard removed. The
+                    // user-visible half - "ElevenLabs became Groq" - is proved on a real
+                    // GUI instead; see the PR.
+                    Assert(handled,
+                        $"{NameOrType(combo)}: the wheel was left unhandled, so WPF will " +
+                        "promote it to the bubbling event ComboBox.OnMouseWheel changes the " +
+                        "selection on");
+                    Assert(combo.SelectedIndex == before,
+                        $"{NameOrType(combo)}: one wheel turn moved the selection from {before} to " +
+                        $"{combo.SelectedIndex} - the dialog silently edited the mode");
+                }
+
+                // And the wheel is not simply swallowed: the page has to scroll, which is
+                // what the user was turning the wheel for.
+                Assert(scroller!.ScrollableHeight > 0,
+                    "the editor's content fits its 700px window here, so nothing could scroll " +
+                    "and the forwarding half of this case proves nothing");
+
+                var wheelTarget = loaded[0];
+                scroller.ScrollToVerticalOffset(0);
+                scroller.UpdateLayout();
+                RaiseWheelPair(wheelTarget, -120);
+                scroller.UpdateLayout();
+
+                Assert(scroller.VerticalOffset > 0,
+                    $"the wheel over {NameOrType(wheelTarget)} left the page at offset " +
+                    $"{scroller.VerticalOffset} - the dropdown ate the event instead of passing it on");
+
+                // THE OPEN DROPDOWN KEEPS THE WHEEL. It is scrolling the list it is
+                // showing, so taking the event away from it would break picking a value
+                // out of a long list - the Cloud model dropdown here has dozens.
+                //
+                // ComboBox coerces IsDropDownOpen back to false while the control is
+                // unloaded, and nothing in this console process is ever loaded: there is
+                // no PresentationSource, so no Popup can be hosted. Hence the guard takes
+                // the open state as an argument and this drives it directly. The tripwire
+                // below keeps that claim honest - if the harness ever gains a real Popup,
+                // it fails and this becomes a plain event-pair case like the one above.
+                var open = loaded[0];
+                open.IsDropDownOpen = true;
+                Assert(!open.IsDropDownOpen,
+                    "a dropdown now opens in the console harness - drive the guard through a " +
+                    "real PreviewMouseWheel instead of passing isDropDownOpen by hand");
+
+                var openArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                ComboBoxWheelGuard.Decide(open, isDropDownOpen: true, openArgs);
+                Assert(!openArgs.Handled,
+                    "the guard swallowed the wheel over an OPEN dropdown - the list it is showing " +
+                    "would no longer scroll, so a long model list cannot be browsed");
+
+                var closedArgs = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                ComboBoxWheelGuard.Decide(open, isDropDownOpen: false, closedArgs);
+                Assert(closedArgs.Handled,
+                    "the guard let the wheel through over a CLOSED dropdown, which is the whole " +
+                    "of #493");
+            });
+
+            Run("every dropdown in the app is covered, not just the mode editor's", () =>
+            {
+                // #493 asked whether the Settings pages and the Model Library need the
+                // same treatment. Streaming, Shortcuts and Sound settings, the History
+                // page and the custom-endpoint window all hold ComboBoxes inside
+                // ScrollViewers; the Model Library (ModelsSettingsPage) holds none.
+                //
+                // The rule is registered for the TYPE rather than per control, so a bare
+                // ComboBox that belongs to no page is the honest proof of that: if this
+                // passes, every dropdown in the process is covered, including ones added
+                // later to pages this suite never constructs.
+                EnsureSmokeApplication();
+
+                var host = new System.Windows.Controls.StackPanel();
+                var combo = new System.Windows.Controls.ComboBox();
+                combo.Items.Add("first");
+                combo.Items.Add("second");
+                combo.Items.Add("third");
+                host.Children.Add(combo);
+                combo.SelectedIndex = 0;
+
+                Assert(RaiseWheelPair(combo, -120),
+                    "a plain ComboBox did not get the class handler, so the rule is not app-wide");
+                Assert(combo.SelectedIndex == 0,
+                    $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn");
+
+                // Up as well as down: ComboBox.OnMouseWheel reads the sign, so a guard
+                // written as `if (e.Delta >= 0) return;` would leave half the bug in
+                // place. Asserting the return value is what catches that - the selection
+                // check below cannot, because a detached ComboBox has no items host and
+                // does not move even unguarded.
+                combo.SelectedIndex = 2;
+                Assert(RaiseWheelPair(combo, 120),
+                    "an upward wheel turn was left unhandled, so WPF will promote it and " +
+                    "ComboBox.OnMouseWheel will move the selection back up the list");
+                Assert(combo.SelectedIndex == 2,
+                    $"a plain ComboBox moved to index {combo.SelectedIndex} on one wheel turn upward");
+            });
+
+            Run("onboarding: a region with nothing to scroll hands the wheel back to the stage", () =>
+            {
+                // The OTHER caller of MouseWheelForwarding.RaiseOnParent. The re-raise
+                // used to be copied into both this and ComboBoxWheelGuard, and the two
+                // copies had already drifted; #493 made it one helper, and this is the
+                // side that had no test, so the extraction was unverified in the
+                // direction it could most easily break.
+                //
+                // The case is the scroll LIMIT, which is what the attached property
+                // exists for: an inner region that cannot move must not eat the wheel,
+                // or the onboarding page stops scrolling once the pointer wanders over
+                // a short transcript box.
+                EnsureSmokeApplication();
+
+                var stage = new System.Windows.Controls.StackPanel();
+                var inner = new System.Windows.Controls.ScrollViewer
+                {
+                    Height = 200,
+                    Content = new System.Windows.Controls.TextBlock { Text = "one short line" }
+                };
+                stage.Children.Add(inner);
+                OnboardingStage.SetBubblesMouseWheel(inner, true);
+
+                stage.Measure(new Size(400, 400));
+                stage.Arrange(new Rect(0, 0, 400, 400));
+                stage.UpdateLayout();
+
+                Assert(inner.ScrollableHeight <= 0,
+                    $"the inner region can scroll {inner.ScrollableHeight}px here, so it is " +
+                    "entitled to keep the wheel and this case proves nothing");
+
+                var forwarded = 0;
+                stage.AddHandler(
+                    UIElement.MouseWheelEvent,
+                    new MouseWheelEventHandler((_, _) => forwarded++));
+
+                var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, -120)
+                { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+                inner.RaiseEvent(preview);
+
+                Assert(preview.Handled,
+                    "the stage's forwarder left the wheel to WPF, which would scroll the inner " +
+                    "region and the page both");
+                Assert(forwarded == 1,
+                    $"the stage received {forwarded} forwarded wheel events, not 1 - a region at " +
+                    "its limit swallowed the turn instead of passing it up");
+            });
+
+            Run("error toast: the whole message is readable, however long it is — issue #489", () =>
+            {
+                // #489. The pill is 360 wide and its own comment says the extra width is
+                // there "to accommodate message + countdown", but the message TextBlock
+                // carried MaxWidth="200" — the RECORDING pill's width — plus
+                // CharacterEllipsis. So ~60px of the toast stayed empty and everything
+                // past roughly 35 characters was cut: the live report showed
+                // "Transcription failed: HyperWhisper Cl…" for a 62-character message.
+                //
+                // MEASURED, not grepped. The window is never Shown here (the CI runner
+                // has no interactive desktop to place it on); its content is measured
+                // directly, which is the same layout pass Show() would run.
+                EnsureSmokeApplication();
+
+                // The real worst case in Strings.resx: 121 characters whose final clause
+                // is the one that tells the user the transcript is safe.
+                var longest = HyperWhisper.Localization.Loc.S("errors.textNotDelivered");
+                Assert(longest.Length > 100,
+                    $"errors.textNotDelivered is now {longest.Length} characters, so this case " +
+                    "no longer exercises a message that needs more than one line");
+
+                static (double Height, System.Windows.Controls.TextBlock Message) LayOutToast(string text)
+                {
+                    var toast = new ErrorToastWindow();
+                    var root = (FrameworkElement)toast.Content;
+                    toast.ErrorMessage.Text = text;
+
+                    // WindowStyle=None + AllowsTransparency, so the content gets the
+                    // window's whole 360px width and the height is SizeToContent's.
+                    root.Measure(new Size(360, double.PositiveInfinity));
+                    root.Arrange(new Rect(0, 0, 360, root.DesiredSize.Height));
+                    root.UpdateLayout();
+                    return (root.DesiredSize.Height, toast.ErrorMessage);
+                }
+
+                // The height this text needs when wrapped into `width`. Comparing it
+                // against ActualHeight is how the case tells "all of it is on screen"
+                // from "the rest was trimmed", without a pixel constant a font change
+                // would invalidate.
+                static double WrappedHeightOf(System.Windows.Controls.TextBlock block, double width)
+                {
+                    var typeface = new System.Windows.Media.Typeface(
+                        block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+                    return new System.Windows.Media.FormattedText(
+                        block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+                        typeface, block.FontSize, System.Windows.Media.Brushes.Black, 1.0)
+                    { MaxTextWidth = width }.Height;
+                }
+
+                var (longHeight, longMessage) = LayOutToast(longest);
+
+                Assert(longMessage.TextWrapping == TextWrapping.Wrap,
+                    $"the message wraps with {longMessage.TextWrapping}: a message longer than one " +
+                    "line is cut instead of continuing onto the next one");
+
+                // The regression this issue actually was: a width cap borrowed from the
+                // 200px recording pill.
+                Assert(double.IsNaN(longMessage.MaxWidth) || longMessage.MaxWidth >= 260,
+                    $"the message is capped at {longMessage.MaxWidth}px inside a 360px toast, so it " +
+                    "is trimmed with the pill still part empty");
+                Assert(longMessage.ActualWidth > 200,
+                    $"the message was laid out {longMessage.ActualWidth:F0}px wide - no wider than the " +
+                    "recording pill, so the toast's extra width is still unused");
+
+                // Prove the case exercises wrapping at all, then that nothing was lost.
+                var needed = WrappedHeightOf(longMessage, longMessage.ActualWidth);
+                Assert(needed > longMessage.FontSize * 1.5,
+                    $"the {longest.Length}-character message fits on one {longMessage.ActualWidth:F0}px " +
+                    "line, so this case would pass against no fix at all");
+                Assert(longMessage.ActualHeight + 0.5 >= needed,
+                    $"the message rendered {longMessage.ActualHeight:F1}px tall for text that needs " +
+                    $"{needed:F1}px at that width - the last lines are not on screen");
+                Assert(longMessage.Text == longest,
+                    "the toast is truncating the message in data, which is not the fix");
+                Assert(longHeight > 40,
+                    $"the toast is still {longHeight:F1}px tall for a message that needs " +
+                    $"{needed:F0}px of text - the window did not grow to fit it");
+
+                // And a SHORT message must still look like the pill it was: one line,
+                // the same 40px-ish height, not a box with empty space under the text.
+                var (shortHeight, shortMessage) = LayOutToast("Transcription failed");
+                Assert(WrappedHeightOf(shortMessage, shortMessage.ActualWidth) <= shortMessage.FontSize * 1.5,
+                    "the short probe wrapped, so it cannot say what a one-line toast looks like");
+                Assert(shortHeight <= 40,
+                    $"a one-line message now makes a {shortHeight:F1}px toast; the pill was 40px");
+
+                // A provider exception is arbitrary text, and an unbounded toast would
+                // walk off the top of the screen. It grows, but not without limit.
+                var (runawayHeight, _) = LayOutToast(new string('x', 40) + " " + string.Join(" ",
+                    Enumerable.Repeat("providerfailure", 120)));
+                Assert(runawayHeight <= 130,
+                    $"a 1900-character provider message made a {runawayHeight:F0}px toast - it is " +
+                    "unbounded and will cover the screen");
+                Assert(runawayHeight >= longHeight,
+                    $"the runaway message ({runawayHeight:F0}px) made a SHORTER toast than the " +
+                    $"121-character one ({longHeight:F0}px), so the cap is cutting real messages");
+            });
+
+            Run("backup: a landed import refreshes the vocabulary export count — issue #497", () =>
+            {
+                // The export card reads "Vocabulary (N)". N was read once, in the page
+                // constructor, so an import a few pixels below it left the user looking
+                // at the old number until they navigated away and back — and that is the
+                // number they read before ticking Vocabulary and exporting.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var page = new BackupExportSettingsPage();
+                var before = page.ExportVocabularyCheckbox.Content as string;
+                Assert(!string.IsNullOrEmpty(before),
+                    "the export vocabulary checkbox has no label to keep up to date");
+
+                // The word an import would have added. Written through the same service
+                // BackupService's merge writes through, then removed again: this suite
+                // runs against a real database that later cases share.
+                var word = "percy497-" + Guid.NewGuid().ToString("N")[..8];
+                Assert(VocabularyService.Instance.TryAdd(word, "issue 497 probe", out var addError),
+                    $"could not stage a vocabulary word for this case: {addError ?? "no reason given"}");
+
+                var staged = VocabularyService.Instance.GetAll().FirstOrDefault(v => v.Word == word);
+                try
+                {
+                    Assert(staged is not null, "the staged vocabulary word is not in the table");
+
+                    // Exactly what the click handler does once ImportSelective succeeds.
+                    page.ApplyImportSuccess(new ImportSummary
+                    {
+                        ModesImported = 0,
+                        VocabularyAdded = 1,
+                        VocabularyConflicts = 0
+                    });
+
+                    var after = page.ExportVocabularyCheckbox.Content as string;
+                    Assert(after != before,
+                        $"the export label still reads '{after}' after an import added a word. " +
+                        "It is stale until the user leaves the page and comes back.");
+
+                    var expected = HyperWhisper.Localization.Loc.S(
+                        "settings.backup.export.section.vocabulary",
+                        VocabularyService.Instance.GetAll().Count);
+                    Assert(after == expected,
+                        $"the export label reads '{after}', the real vocabulary is '{expected}'");
+                }
+                finally
+                {
+                    if (staged is not null)
+                        VocabularyService.Instance.Delete(staged.Id);
+                }
+            });
+
+            Run("settings: an info notice is given the whole column, so it wraps — issues #503, #508", () =>
+            {
+                // A horizontal StackPanel measures its children with infinite available
+                // width. TextWrapping="Wrap" is therefore dead inside one: the TextBlock
+                // asks for its full single-line width, gets it, and is then cut off by the
+                // 560px ContentMaxWidthForm cap on the column. The Storage notice is 113
+                // characters and was clipped mid-sentence in English; the Backup notice
+                // happened to fit in English and would clip in a longer locale.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                // The settings frame's real width: MainWindow is a fixed 1000px, minus the
+                // 232px SidebarWidth and the 200px settings nav column. PagePadding then
+                // takes 48, so the content column is 520 — NARROWER than the 560px
+                // ContentMaxWidthForm cap, which is why the cap alone does not describe
+                // what the user sees. A width picked wider than 560 misses this bug.
+                const double PageWidth = 1000 - 232 - 200;
+                const double PageHeight = 680 - 44;
+
+                var storagePage = new StorageSettingsPage();
+                var backupPage = new BackupExportSettingsPage();
+                var streamingPage = new StreamingSettingsPage();
+
+                var rows = new (string Label, System.Windows.Controls.Page Page, System.Windows.Controls.TextBlock Block)[]
+                {
+                    ("StorageSettingsPage.StorageNoticeText", storagePage, storagePage.StorageNoticeText),
+                    ("StorageSettingsPage.LastCleanupText", storagePage, storagePage.LastCleanupText),
+                    ("BackupExportSettingsPage.BackupNoticeText", backupPage, backupPage.BackupNoticeText),
+                    ("StreamingSettingsPage.ProviderStatusText", streamingPage, streamingPage.ProviderStatusText),
+                    ("StreamingSettingsPage.VocabularyWarningText", streamingPage, streamingPage.VocabularyWarningText),
+                };
+
+                // The last-cleanup panel is collapsed until auto-delete is on, and a
+                // collapsed element is never laid out. Show it and give the line the real
+                // string, which is what UpdateLastCleanupInfo would have put there.
+                storagePage.LastCleanupInfoPanel.Visibility = Visibility.Visible;
+                storagePage.LastCleanupText.Text = HyperWhisper.Localization.Loc.S(
+                    "settings.storage.autoDelete.lastCleanup",
+                    new DateTime(2026, 9, 8, 1, 5, 0).ToString("g"),
+                    7);
+
+                // Same on Streaming: the options block is hidden until streaming is
+                // enabled and the vocabulary warning until there is vocabulary to
+                // warn about. Both rows get the LONGEST string the catalog can put
+                // in them, because the bug scales with the sentence — the Deepgram
+                // line lost four characters and the Gemini line lost "PI keys
+                // manager.", the part that says where to go (#508).
+                streamingPage.StreamingOptionsPanel.Visibility = Visibility.Visible;
+                streamingPage.VocabularyWarningPanel.Visibility = Visibility.Visible;
+                streamingPage.ProviderStatusText.Text = HyperWhisper.Localization.Loc.S(
+                    "settings.streaming.providerStatus.geminiTranscribe.missingKey");
+                streamingPage.VocabularyWarningText.Text = HyperWhisper.Localization.Loc.S(
+                    "settings.streaming.warning.vocabularyAutoDetect");
+
+                // Every row is measured before anything is asserted, so one bad row does
+                // not hide the state of the other two.
+                var problems = new List<string>();
+
+                foreach (var (label, page, block) in rows)
+                {
+                    page.Measure(new Size(PageWidth, PageHeight));
+                    page.Arrange(new Rect(0, 0, PageWidth, PageHeight));
+                    page.UpdateLayout();
+
+                    Assert(!string.IsNullOrWhiteSpace(block.Text),
+                        $"{label} has no text, so this case would assert nothing");
+                    Assert(block.TextWrapping == TextWrapping.Wrap,
+                        $"{label} is not set to wrap; this case is about whether wrapping can fire");
+
+                    // 1. The text column ends exactly where its row ends. Over is the
+                    //    English Storage bug: the row is layout-clipped to the 560px column,
+                    //    so whatever hangs past it is invisible and unscrollable. Under is
+                    //    the Backup notice: it took its own single-line width and happens to
+                    //    fit today, which is not a property any of the 39 locales inherit.
+                    var row = (FrameworkElement)System.Windows.Media.VisualTreeHelper.GetParent(block);
+                    var leftInRow = block.TransformToAncestor(row).Transform(new Point(0, 0)).X;
+                    var right = leftInRow + block.ActualWidth;
+                    if (Math.Abs(right - row.ActualWidth) > 0.5)
+                    {
+                        problems.Add(
+                            $"{label} was laid out {block.ActualWidth:F0}px wide at x={leftInRow:F0}, ending at "
+                            + $"{right:F0}px inside a {row.ActualWidth:F0}px {row.GetType().Name} row; it should "
+                            + "end exactly at the row's edge");
+                    }
+
+                    // 2. And the row itself stays inside the settings content column. A
+                    //    horizontal StackPanel whose children want more than it was given
+                    //    does NOT shrink them: it takes their full width and hangs over the
+                    //    column edge, where the ScrollViewer clips it. That is the English
+                    //    Storage bug, and it is invisible to check 1 because the overhanging
+                    //    row and its overhanging child agree with each other.
+                    //    Found by walking up to the row's own ScrollViewer rather than
+                    //    assuming the page IS one: Storage and Backup put the
+                    //    ScrollViewer at the root, Streaming puts it in row 2 of a Grid.
+                    var column = (FrameworkElement)ScrollViewerAbove(block).Content;
+                    var rightInColumn = block.TransformToAncestor(column).Transform(new Point(0, 0)).X
+                                        + block.ActualWidth;
+                    if (rightInColumn > column.ActualWidth + 0.5)
+                    {
+                        problems.Add(
+                            $"{label} ends {rightInColumn - column.ActualWidth:F0}px past the right edge of the "
+                            + $"{column.ActualWidth:F0}px content column, so that much of it is clipped away and "
+                            + "cannot be scrolled to");
+                    }
+
+                    // 3. And a string that is too long for the column really is on more
+                    //    than one line, rather than cut at the column edge.
+                    if (UnconstrainedWidthOf(block) > block.ActualWidth + 0.5
+                        && block.ActualHeight <= LineHeightOf(block) * 1.5)
+                    {
+                        problems.Add(
+                            $"{label} wants {UnconstrainedWidthOf(block):F0}px, was given "
+                            + $"{block.ActualWidth:F0}px, and is still one {block.ActualHeight:F0}px line, "
+                            + "so the overflow is cut rather than wrapped");
+                    }
+                }
+
+                Assert(problems.Count == 0,
+                    "a horizontal StackPanel measures its children with infinite width, so "
+                    + "TextWrapping=\"Wrap\" never fires inside one and the text is clipped at the "
+                    + "column edge. Use a two-column Grid. " + string.Join("; ", problems));
+            });
+
+            Run("storage: a cleanup that deleted nothing is still recorded, and survives a restart — issue #514", () =>
+            {
+                // Two separate reasons the Storage page said "No cleanup has run yet"
+                // immediately after the app reported "Cleanup Complete":
+                //   1. PerformCleanup returned early when there was nothing to delete,
+                //      before it stamped anything;
+                //   2. the stamp was a private field, so even a sweep that DID delete
+                //      something was forgotten at shutdown.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var history = HistoryService.Instance;
+                var autoDelete = AutoDeleteService.Instance;
+
+                var enabledBefore = settings.AutoDeleteEnabled;
+                var daysBefore = settings.AutoDeleteDaysOld;
+                var stampBefore = settings.AutoDeleteLastCleanupUtc;
+                var countBefore = settings.AutoDeleteLastCleanupDeleted;
+
+                // 365 is the maximum retention the page allows, so the sweep can only
+                // ever reach the row this case backdates — never another case's.
+                settings.AutoDeleteEnabled = true;
+                settings.AutoDeleteDaysOld = 365;
+
+                var settingsFile = Path.Combine(AppPaths.AppDataRoot, "settings.json");
+
+                try
+                {
+                    // ARM 1: nothing to delete. This is the reported repro.
+                    var beforeZeroSweep = DateTime.UtcNow.AddSeconds(-1);
+                    int deletedNothing = autoDelete.PerformManualCleanup();
+
+                    Assert(deletedNothing == 0,
+                        $"expected an empty sweep, but it deleted {deletedNothing}; this case's "
+                        + "arms are no longer distinguishable");
+                    Assert(autoDelete.LastCleanupTime.HasValue,
+                        "a sweep that deleted nothing left LastCleanupTime null, so the page still "
+                        + "reads \"No cleanup has run yet\" right after the app said \"Cleanup Complete\"");
+                    Assert(autoDelete.LastCleanupTime!.Value >= beforeZeroSweep,
+                        $"LastCleanupTime is {autoDelete.LastCleanupTime:O}, which predates this sweep");
+                    Assert(autoDelete.LastCleanupTranscriptsDeleted == 0,
+                        $"an empty sweep reported {autoDelete.LastCleanupTranscriptsDeleted} deleted");
+
+                    // The line the user reads must change, not just the service field.
+                    var page = new StorageSettingsPage();
+                    page.UpdateLastCleanupInfo();
+                    var neverRun = HyperWhisper.Localization.Loc.S("settings.storage.autoDelete.noCleanupYet");
+                    Assert(page.LastCleanupText.Text != neverRun,
+                        $"the page still reads '{neverRun}' after a completed sweep. \"0 deleted just "
+                        + "now\" and \"never run\" are different facts, and the second is the one that "
+                        + "makes a user press the button again");
+
+                    var expectedLine = StorageSettingsPage.FormatLastCleanupLine(
+                        autoDelete.LastCleanupTime!.Value, 0, TimeZoneInfo.Local);
+                    Assert(page.LastCleanupText.Text == expectedLine,
+                        $"the line reads '{page.LastCleanupText.Text}', expected '{expectedLine}'");
+
+                    // ARM 2: it survives a restart. The stamp is a fact about the profile,
+                    // so it has to be on disk, not in a field that dies with the process.
+                    Assert(File.Exists(settingsFile), $"no settings.json at {settingsFile}");
+                    using (var doc = JsonDocument.Parse(File.ReadAllText(settingsFile)))
+                    {
+                        Assert(doc.RootElement.TryGetProperty("AutoDeleteLastCleanupUtc", out var stampNode)
+                               && stampNode.ValueKind != JsonValueKind.Null,
+                            "settings.json carries no AutoDeleteLastCleanupUtc, so the next launch "
+                            + "reverts the line to \"No cleanup has run yet\"");
+                        Assert(doc.RootElement.TryGetProperty("AutoDeleteLastCleanupDeleted", out _),
+                            "settings.json carries no AutoDeleteLastCleanupDeleted");
+                    }
+
+                    // ARM 3: a sweep that DOES delete records the real count.
+                    var old = history.CreateProcessingTranscript(1.0, "percy514", audioFilePath: null);
+                    old.Date = DateTime.UtcNow.AddDays(-400);
+                    old.Status = TranscriptStatus.Completed;
+                    old.Text = "issue 514 probe";
+                    history.UpdateTranscript(old);
+
+                    int deletedOne = autoDelete.PerformManualCleanup();
+                    Assert(deletedOne == 1,
+                        $"the sweep deleted {deletedOne} rows; exactly the one backdated row was due");
+                    Assert(autoDelete.LastCleanupTranscriptsDeleted == 1,
+                        $"the recorded count is {autoDelete.LastCleanupTranscriptsDeleted}, not 1");
+                    Assert(history.GetTranscript(old.Id) is null,
+                        "the backdated transcript is still in the database");
+                }
+                finally
+                {
+                    // This suite runs against one shared profile. Put back what was there;
+                    // if nothing had ever run, the stamp this case left behind is harmless
+                    // because no other case reads it.
+                    if (stampBefore.HasValue)
+                        settings.RecordAutoDeleteCleanup(stampBefore.Value, countBefore);
+
+                    settings.AutoDeleteDaysOld = daysBefore;
+                    settings.AutoDeleteEnabled = enabledBefore;
+                }
+            });
+
+            Run("storage: the last-cleanup line is the user's local time, not UTC — issue #504", () =>
+            {
+                EnsureSmokeApplication();
+
+                // The reported instant. On the reporter's UTC-7 box the line read
+                // "9/8/2026 8:05 AM" while the tray clock read 1:05 AM: DateTime.UtcNow is
+                // recorded, and ToString("g") formats a UTC DateTime WITHOUT converting it,
+                // so a UTC instant was printed in a local-looking format, 7 hours ahead.
+                var stampUtc = new DateTime(2026, 9, 8, 8, 5, 0, DateTimeKind.Utc);
+
+                // A fixed custom offset, not the runner's zone: GitHub's Windows runners are
+                // on UTC, where a missing conversion is invisible. This makes the case
+                // discriminating on every machine.
+                var minusSeven = TimeZoneInfo.CreateCustomTimeZone(
+                    "percy-504-utc-minus-7", TimeSpan.FromHours(-7), "UTC-07", "UTC-07");
+
+                var line = StorageSettingsPage.FormatLastCleanupLine(stampUtc, 7, minusSeven);
+
+                var localReading = new DateTime(2026, 9, 8, 1, 5, 0).ToString("g");
+                var utcReading = stampUtc.ToString("g");
+                Assert(localReading != utcReading, "this case's two readings must differ to prove anything");
+
+                Assert(line.Contains(localReading),
+                    $"the line reads '{line}'; in UTC-7 it must show '{localReading}', "
+                    + "the same convention History uses for the same underlying UTC timestamps");
+                Assert(!line.Contains(utcReading),
+                    $"the line reads '{line}', which is the raw UTC instant '{utcReading}' printed as "
+                    + "if it were local — 7 hours in this user's future");
+
+                // Unspecified is what a DateTime can come back as from settings.json, and it
+                // is UTC there. It must not be shifted a second time.
+                var unspecified = DateTime.SpecifyKind(stampUtc, DateTimeKind.Unspecified);
+                Assert(StorageSettingsPage.FormatLastCleanupLine(unspecified, 7, minusSeven) == line,
+                    "an Unspecified stamp read back from settings.json rendered differently from the "
+                    + "Utc one it was written as");
+
+                // A Local-kind stamp must be converted to UTC first, not thrown on.
+                var asLocal = stampUtc.ToLocalTime();
+                Assert(StorageSettingsPage.FormatLastCleanupLine(asLocal, 7, minusSeven) == line,
+                    "a Local-kind stamp did not render as the same instant");
+
+                // And the page uses the helper rather than formatting the UTC value itself.
+                var settings = SettingsService.Instance;
+                var stampBefore = settings.AutoDeleteLastCleanupUtc;
+                var countBefore = settings.AutoDeleteLastCleanupDeleted;
+                try
+                {
+                    settings.RecordAutoDeleteCleanup(stampUtc, 7);
+
+                    var page = new StorageSettingsPage();
+                    page.UpdateLastCleanupInfo();
+
+                    var expected = StorageSettingsPage.FormatLastCleanupLine(stampUtc, 7, TimeZoneInfo.Local);
+                    Assert(page.LastCleanupText.Text == expected,
+                        $"the page renders '{page.LastCleanupText.Text}', expected '{expected}'");
+                }
+                finally
+                {
+                    if (stampBefore.HasValue)
+                        settings.RecordAutoDeleteCleanup(stampBefore.Value, countBefore);
+                }
+            });
+
             Run("single instance: a second profile boots, but never takes the global keyboard", () =>
             {
                 // C10. Making the mutex per-profile was deliberate and is what lets
@@ -9888,6 +12832,320 @@ internal static class Program
                 {
                     Assert(!SingleInstanceGuard.EvaluateGlobalInputOverride(no),
                         $"'{no ?? "<null>"}' must not opt back in - an empty value is how PowerShell unsets");
+                }
+            });
+
+            Run("cancel: a cancelled FILE transcription does not report a cancelled recording — issue #506", () =>
+            {
+                // #506. TranscribeFileAsync's OperationCanceledException handler reused
+                // status.recordingCancelled, so cancelling a file imported from disk
+                // said "Recording cancelled" on a box where the microphone was never
+                // opened - and, on the reporter's VM, where there is no audio device at
+                // all. The other four callers of that key are genuine microphone paths,
+                // so the key was right and the one call site was not; the choice is now
+                // one method, which is what this pins.
+                var recording = MainViewModel.CancelledStatusText(cancelledFileTranscription: false);
+                var file = MainViewModel.CancelledStatusText(cancelledFileTranscription: true);
+
+                // Loc.S returns the key name for a key that is not in the catalog, so
+                // this also catches the resource never having been added.
+                Assert(recording == HyperWhisper.Localization.Loc.S("status.recordingCancelled")
+                        && recording != "status.recordingCancelled",
+                    $"the microphone paths now say '{recording}' - their string was already right");
+                Assert(file != "status.fileTranscriptionCancelled",
+                    "status.fileTranscriptionCancelled is not in Strings.resx, so the file path " +
+                    "renders a raw resource key at the user");
+                Assert(file != recording,
+                    $"cancelling a file import still reports '{file}' - the microphone string");
+                Assert(file.IndexOf("record", StringComparison.OrdinalIgnoreCase) < 0,
+                    $"the file-import status reads '{file}', which still tells the user something " +
+                    "was recorded");
+            });
+
+            Run("privacy: error reports are ON by default, which is what data-privacy.mdx now says — issue #517", () =>
+            {
+                // #517. data-privacy.mdx said error reports "are off unless you turn on
+                // Send error reports", while App.xaml.cs starts Sentry on a brand-new
+                // profile because the getter is `?? true`. The page a user reads to
+                // decide whether to trust the app was wrong about what the app does.
+                //
+                // The doc was the side that changed - macOS registers
+                // "enableErrorLogging": true, Linux reads the setting with a `true`
+                // fallback, and the same page's own Summary already said "to stop them,
+                // turn off ...". This pins the behaviour the corrected sentence claims,
+                // so flipping the default becomes a decision that fails CI and sends
+                // whoever makes it back to the page, instead of drifting again.
+                //
+                // The backing value is read through reflection because "unset" is what
+                // is being tested and no public setter can produce it: SettingsData is
+                // a private nested type and the property is a `bool?`.
+                var service = SettingsService.Instance;
+                var dataField = typeof(SettingsService).GetField(
+                    "_settings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert(dataField is not null,
+                    "SettingsService._settings is gone - this case can no longer see the unset state");
+
+                var data = dataField!.GetValue(service)!;
+                var property = data.GetType().GetProperty("EnableErrorLogging");
+                Assert(property is not null,
+                    "SettingsData.EnableErrorLogging is gone - the default this pins no longer exists");
+
+                var previous = property!.GetValue(data);
+                try
+                {
+                    property.SetValue(data, null);
+                    Assert(service.EnableErrorLogging,
+                        "error reports are now OFF on a profile that never touched the setting. "
+                        + "That is a deliberate privacy change, not a refactor: mintlify-help/"
+                        + "data-privacy.mdx and mintlify-help/general-settings.mdx both state the "
+                        + "setting is ON by default, and both have to change with it.");
+
+                    // And the setter still works in the direction a user needs, which is
+                    // the half of the promise the page is actually about.
+                    property.SetValue(data, false);
+                    Assert(!service.EnableErrorLogging,
+                        "turning the setting off does not take - the documented opt-out does nothing");
+                }
+                finally
+                {
+                    property.SetValue(data, previous);
+                }
+            });
+
+            Run("history: the multi-selection heading is localized — issue #505", () =>
+            {
+                // #505. HistoryPage.xaml built the heading as
+                // `<Run Text="{Binding SelectionCount}"/> recordings selected` - a bare
+                // English literal with no resource key at all, one line above a Delete
+                // button that IS localized, in an app that ships 39 catalogs. It is now
+                // one string from the view model, so the number can move within the
+                // sentence, which several of those languages need.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var history = new HistoryViewModel();
+
+                // Strings.Culture is null in the app, so Loc.S follows CurrentUICulture -
+                // the OS UI language. This suite is also run by hand on non-English
+                // Windows, where an unpinned baseline would read "3 Aufnahmen
+                // ausgewählt" and fail every assertion below for the wrong reason. Pin
+                // it for the whole case and put it back afterwards, along with the
+                // view model's own subscriptions to the history/mode singletons, which
+                // outlive the case and reach into every later one if left running.
+                var previousCulture = HyperWhisper.Resources.Strings.Culture;
+                try
+                {
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("en");
+
+                    history.UpdateSelection(new[]
+                    {
+                        new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "one" }),
+                        new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "two" }),
+                        new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "three" })
+                    });
+
+                    Assert(history.SelectionCount == 3, $"the probe selected {history.SelectionCount}, not 3");
+                    Assert(history.HasMultipleSelection, "the multi-selection pane would not be shown at all");
+
+                    var english = history.SelectionSummary;
+                    Assert(english == "3 recordings selected",
+                        $"the English heading reads '{english}'");
+
+                    // The point of the issue: it changes with the catalog. A per-culture
+                    // miss falls back to the base catalog rather than to the raw key, so
+                    // `translated != english` is the assertion doing the work here; the
+                    // raw-key check only catches the key going missing everywhere.
+                    foreach (var culture in new[] { "de", "ja", "ru" })
+                    {
+                        HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
+                        var translated = history.SelectionSummary;
+                        Assert(translated != "history.selection.count",
+                            $"{culture}: the heading rendered the raw resource key");
+                        Assert(translated != english,
+                            $"{culture}: the heading is still the English '{translated}'");
+                        Assert(translated.Contains('3'),
+                            $"{culture}: '{translated}' lost the count - the placeholder did not survive");
+                        Assert(translated.IndexOf("recordings selected", StringComparison.Ordinal) < 0,
+                            $"{culture}: '{translated}' still carries the English words");
+                    }
+
+                    // One plural form is only safe because the pane never shows for a
+                    // single row. If that ever changes, the string has to grow a
+                    // singular, so pin the assumption HERE rather than leave it in a
+                    // comment.
+                    history.UpdateSelection(new[]
+                    {
+                        new TranscriptViewModel(new Transcript { Id = Guid.NewGuid(), Text = "only one" })
+                    });
+                    Assert(!history.HasMultipleSelection,
+                        "the multi-selection pane now shows for ONE row, so its heading would read " +
+                        "'1 recordings selected' - it needs a singular form as well");
+                }
+                finally
+                {
+                    HyperWhisper.Resources.Strings.Culture = previousCulture;
+                    history.Cleanup();
+                }
+            });
+
+            Run("shortcuts/about: the refusal text and the version line are localized — issue #516", () =>
+            {
+                // #516. Everything the Shortcuts page says when it REFUSES a chord was
+                // a hard-coded English literal, in a 39-catalog app: the single-modifier
+                // sentence (twice - service and recorder), the four duplicate messages,
+                // the three registration failures, the shortcut conflict banner's title
+                // (twice) and its settings button (twice), the streaming conflict
+                // banner's own title and Change Shortcut button, and About's version
+                // line. Sixteen literals, ten keys. The strings a user needs most in
+                // order to understand a refusal were the ones they could not read.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                var ctrl = new KeyboardShortcut { Control = true };
+                var chord = new KeyboardShortcut { Control = true, Shift = true, Key = Key.Space };
+                var unused = new KeyboardShortcut();
+                var previousCulture = HyperWhisper.Resources.Strings.Culture;
+
+                string[] Refusals() => new[]
+                {
+                    ShortcutValidationService.ValidateActionShortcut(ctrl)!,
+                    ShortcutValidationService.ValidateDuplicate(
+                        chord, "Cancel", chord, unused, unused, unused)!,
+                    ShortcutValidationService.GetRegistrationErrorMessage(1409, chord),
+                    ShortcutValidationService.GetRegistrationErrorMessage(1413, chord),
+                    ShortcutValidationService.GetRegistrationErrorMessage(4242, chord),
+                    HyperWhisper.Localization.Loc.S("settings.streaming.conflict.title"),
+                    HyperWhisper.Localization.Loc.S("settings.shortcuts.conflict.changeShortcut")
+                };
+
+                try
+                {
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("en");
+
+                    var english = Refusals();
+                    foreach (var text in english)
+                    {
+                        Assert(!string.IsNullOrWhiteSpace(text), "a refusal with no message at all");
+                        Assert(!text.StartsWith("settings.", StringComparison.Ordinal),
+                            $"'{text}' is a raw resource key - the key is missing from the base catalog");
+                    }
+
+                    // The duplicate message names the ROW, so the label has to be the
+                    // localized one the user can see, not the internal role token.
+                    Assert(english[1].Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.toggle.label"),
+                            StringComparison.Ordinal),
+                        $"'{english[1]}' does not name the row it collides with");
+                    Assert(english[1].Contains(chord.ToDisplayString(), StringComparison.Ordinal),
+                        $"'{english[1]}' lost the chord");
+                    Assert(english[4].Contains("4242", StringComparison.Ordinal),
+                        $"'{english[4]}' lost the Win32 code, which is the only thing that arm adds");
+
+                    // And the whole set moves with the catalog. Every one of these was
+                    // frozen in English before this change.
+                    foreach (var culture in new[] { "de", "ja", "ru" })
+                    {
+                        HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
+                        var translated = Refusals();
+
+                        for (var i = 0; i < english.Length; i++)
+                        {
+                            Assert(translated[i] != english[i],
+                                $"{culture}: message {i} is still the English '{translated[i]}'");
+                        }
+
+                        // The chord is an identifier: no catalog may drop it.
+                        Assert(translated[1].Contains(chord.ToDisplayString(), StringComparison.Ordinal)
+                               && translated[2].Contains(chord.ToDisplayString(), StringComparison.Ordinal),
+                            $"{culture}: a translation lost the chord");
+                    }
+
+                    // About's version line is checked against ja and ru only. "Version
+                    // {0}" is the CORRECT German, Danish and Swedish translation too,
+                    // so a `!= english` assertion there would demand a wrong string.
+                    foreach (var culture in new[] { "ja", "ru" })
+                    {
+                        HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo(culture);
+                        var line = HyperWhisper.Localization.Loc.S("menu.version.label", "1.12.0");
+                        Assert(!line.StartsWith("Version ", StringComparison.Ordinal),
+                            $"{culture}: the version line is still the English '{line}'");
+                        Assert(line.Contains("1.12.0", StringComparison.Ordinal),
+                            $"{culture}: '{line}' lost the version number");
+                    }
+
+                    // The recorder must not carry its own copy of the single-modifier
+                    // sentence. Driven through the REAL gesture path, in German: an
+                    // assertion that only compares the service against itself would
+                    // stay green with the recorder's old English literal in place.
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("de");
+                    var box = new ShortcutRecorderBox { Role = "Toggle", DisplayText = "Ctrl+Alt" };
+                    box.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    box.HandleKeyUp(Key.LeftCtrl);
+                    Assert(box.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        $"the recorder refused a bare Ctrl with '{box.ErrorMessage}', which is not the "
+                        + "catalogue's sentence - it still has a copy of its own");
+
+                    // The two XAML sites, measured rather than grepped. The banner is
+                    // Collapsed until a conflict happens, so this reads the text, not
+                    // the visibility.
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("de");
+                    var shortcuts = new ShortcutsSettingsPage();
+                    shortcuts.Measure(new Size(900, 900));
+                    shortcuts.Arrange(new Rect(0, 0, 900, 900));
+                    shortcuts.UpdateLayout();
+                    var onPage = VisualTextOf(shortcuts);
+                    Assert(onPage.Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.conflict.title")),
+                        "the conflict banner title is not the localized string");
+                    Assert(!onPage.Contains("Shortcut Conflict"),
+                        "the conflict banner is still the English literal");
+
+                    // The streaming page carries a SECOND conflict banner, whose
+                    // heading and first button were the two literals left behind
+                    // when only its "Open Shortcut Settings" button was converted.
+                    var streaming = new StreamingSettingsPage();
+                    streaming.Measure(new Size(900, 900));
+                    streaming.Arrange(new Rect(0, 0, 900, 900));
+                    streaming.UpdateLayout();
+                    var streamingText = VisualTextOf(streaming);
+                    foreach (var key in new[]
+                             {
+                                 "settings.streaming.conflict.title",
+                                 "settings.shortcuts.conflict.changeShortcut",
+                                 "settings.shortcuts.conflict.openSettings"
+                             })
+                    {
+                        Assert(streamingText.Contains(HyperWhisper.Localization.Loc.S(key)),
+                            $"the streaming conflict banner is missing {key}");
+                    }
+                    foreach (var literal in new[]
+                             { "Streaming shortcut conflict", "Change Shortcut", "Open Shortcut Settings" })
+                    {
+                        Assert(!streamingText.Contains(literal),
+                            $"the streaming conflict banner still shows the English literal '{literal}' - "
+                            + "one banner in two languages is what #516 was about");
+                    }
+
+                    // About fills its version line from Loaded, so raise it: Measure
+                    // and Arrange alone never do.
+                    HyperWhisper.Resources.Strings.Culture = CultureInfo.GetCultureInfo("ru");
+                    var about = new AboutSettingsPage();
+                    about.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    about.Measure(new Size(900, 900));
+                    about.Arrange(new Rect(0, 0, 900, 900));
+                    about.UpdateLayout();
+                    var aboutText = VisualTextOf(about);
+                    Assert(aboutText.Any(t => t.StartsWith(
+                            HyperWhisper.Localization.Loc.S("menu.version.label", string.Empty).Trim(),
+                            StringComparison.Ordinal)),
+                        "the About version line is not the localized string");
+                    Assert(!aboutText.Any(t => t.StartsWith("Version ", StringComparison.Ordinal)),
+                        "the About version line is still the English 'Version <n>'");
+                }
+                finally
+                {
+                    HyperWhisper.Resources.Strings.Culture = previousCulture;
                 }
             });
 
@@ -9959,6 +13217,170 @@ internal static class Program
                 Assert(box.ErrorMessage is null, "re-seeding the field clears the last verdict");
                 Assert(box.ErrorText.Visibility != Visibility.Visible, "text and border go together");
                 Assert(box.Field.BorderThickness.Left <= 1, "including the border");
+            });
+
+            Run("shortcuts: the recorder commits once per gesture, not once per key-down", () =>
+            {
+                // #513. Field_PreviewKeyDown validated and reported on EVERY key-down,
+                // so typing a three-key chord was three captures. Ctrl+Shift+Space over
+                // the Cancel field produced: Ctrl (refused), Ctrl+Shift (ACCEPTED AND
+                // STORED), Ctrl+Shift+Space (refused as Streaming's). The user read the
+                // last verdict and kept the middle one - a bare two-modifier chord that
+                // fires on any Ctrl+Shift in Windows, survives a restart, and is not
+                // what the modifier-only migration undoes (IsSingleBareModifier is
+                // false for two modifiers).
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var savedToggle = settings.ToggleShortcut;
+                var savedCancel = settings.CancelShortcut;
+                var savedChangeMode = settings.ChangeModeShortcut;
+                var savedStreaming = settings.StreamingShortcut;
+                try
+                {
+                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+
+                    var recorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    var captured = new List<string>();
+                    recorder.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+
+                    // Type the chord that is already Streaming's, one key at a time.
+                    recorder.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    recorder.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    Assert(captured.Count == 0,
+                        "the modifiers of a chord still being typed are not a finished shortcut");
+
+                    recorder.HandleKeyDown(Key.Space, control: true, alt: false, shift: true, win: false);
+                    recorder.HandleKeyUp(Key.Space);
+                    recorder.HandleKeyUp(Key.LeftShift);
+                    recorder.HandleKeyUp(Key.LeftCtrl);
+
+                    Assert(captured.Count == 0,
+                        "a refused chord reports NOTHING - not itself, and not the Ctrl+Shift behind it");
+                    // Against the catalogue value, not the English word: the role
+                    // label became a resource in #516, so a literal here would fail
+                    // on a non-English host and on any English copy edit.
+                    Assert(recorder.ErrorMessage != null && recorder.ErrorMessage.Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.streaming.label"),
+                            StringComparison.Ordinal),
+                        "and the user is told which role already holds it");
+                    Assert(recorder.Field.Text == "Esc",
+                        "the field goes back to what is really configured, not the half-typed prefix");
+                    Assert(settings.CancelShortcut.ToPersistedString() == "Esc",
+                        "the setting the user was only EDITING is untouched - the whole point of #513");
+
+                    // The happy path still works, and still commits exactly once.
+                    recorder.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    recorder.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    recorder.HandleKeyDown(Key.K, control: true, alt: false, shift: true, win: false);
+                    recorder.HandleKeyUp(Key.K);
+                    recorder.HandleKeyUp(Key.LeftShift);
+                    recorder.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Shift+K",
+                        "one gesture is one capture, of the chord that was actually typed - got ["
+                        + string.Join(", ", captured) + "]");
+
+                    // Modifier-only chords are legal here ON PURPOSE - the default
+                    // Toggle is Ctrl+Alt and push-to-talk takes them - so the gesture
+                    // cannot end on "key-up of a non-modifier" that never arrives. It
+                    // ends when the LAST key is released, which is also what stops a
+                    // fumbled reach for the final key committing the prefix.
+                    captured.Clear();
+                    var modifierOnly = new ShortcutRecorderBox { Role = "Toggle", DisplayText = "Ctrl+Alt" };
+                    modifierOnly.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    modifierOnly.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    modifierOnly.HandleKeyDown(Key.LWin, control: true, alt: false, shift: false, win: true);
+                    Assert(captured.Count == 0, "still held down, so still unfinished");
+
+                    modifierOnly.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 0,
+                        "one modifier released while another is still down is mid-gesture, not the end of one");
+
+                    modifierOnly.HandleKeyUp(Key.LWin);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Win",
+                        "the last key up commits the whole chord, whatever order it was released in - got ["
+                        + string.Join(", ", captured) + "]");
+
+                    // A key still held from a FINISHED gesture must not hold the next
+                    // one open. Press F8 (commits), keep holding it, and tap Alt then
+                    // Shift as two separate taps: if the held F8 kept the set
+                    // non-empty, releasing it would commit a merged Alt+Shift that was
+                    // never typed - the same class of phantom chord as #513 itself.
+                    captured.Clear();
+                    var straggler = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    straggler.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    straggler.HandleKeyDown(Key.F8, control: false, alt: false, shift: false, win: false);
+                    Assert(captured.Count == 1 && captured[0] == "F8",
+                        "precondition: a bare function key is a complete chord and commits at once");
+
+                    straggler.HandleKeyDown(Key.LeftAlt, control: false, alt: true, shift: false, win: false);
+                    straggler.HandleKeyUp(Key.LeftAlt);
+                    straggler.HandleKeyDown(Key.LeftShift, control: false, alt: false, shift: true, win: false);
+                    straggler.HandleKeyUp(Key.LeftShift);
+                    straggler.HandleKeyUp(Key.F8);
+                    Assert(!captured.Contains("Alt+Shift"),
+                        "two separate taps are not one chord, whatever is still held from a finished gesture - got ["
+                        + string.Join(", ", captured) + "]");
+
+                    // And a lone modifier is still refused, on that same one path.
+                    captured.Clear();
+                    var bare = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    bare.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    bare.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    bare.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 0, "a lone Ctrl is still not a shortcut");
+                    Assert(bare.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        "and it still says why - in the catalogue's words, not a literal of its own");
+                    Assert(bare.Field.Text == "Esc", "and it leaves the field showing what is configured");
+                }
+                finally
+                {
+                    settings.ToggleShortcut = savedToggle;
+                    settings.CancelShortcut = savedCancel;
+                    settings.ChangeModeShortcut = savedChangeMode;
+                    settings.StreamingShortcut = savedStreaming;
+                }
+            });
+
+            Run("home: the Getting Started badges follow the shortcut, with no restart", () =>
+            {
+                // #515. The rows are built once, by InitializeGettingStarted, whose
+                // only caller is OnNavigatedToAsync behind an "if (IsInitialized)
+                // return;" - and ShortcutText was init-only, so nothing could update
+                // them in place either. Home went on telling a new user to press
+                // Ctrl+Alt after they had rebound Toggle to Alt+F9, on the one row
+                // whose whole job is to teach them the hotkey, while the status bar
+                // beside it was already right. Only a restart fixed it.
+                var items = new List<GettingStartedItem>
+                {
+                    new() { Id = "recording" },
+                    new() { Id = "shortcuts" },
+                    new() { Id = "mode" },
+                    new() { Id = "vocabulary" },
+                };
+
+                MainViewModel.ApplyShortcutsToGettingStarted(items, "Ctrl+Alt", "Ctrl+Shift+.");
+                Assert(items[0].ShortcutText == "Ctrl+Alt",
+                    "the Start Recording row carries the toggle hotkey");
+                Assert(items[2].ShortcutText == "Ctrl+Shift+.",
+                    "and the Create a Mode row carries the change-mode hotkey - both rows were stale");
+                Assert(items[1].ShortcutText is null && items[3].ShortcutText is null,
+                    "the rows that teach no hotkey keep no badge: Home's DataTrigger hides it on null");
+
+                // The badge has to be able to CHANGE, and to say so. Init-only made
+                // both impossible, which is why navigating away and back did nothing.
+                var changed = new List<string?>();
+                items[0].PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+                MainViewModel.ApplyShortcutsToGettingStarted(items, "Alt+F9", "Ctrl+Shift+,");
+                Assert(items[0].ShortcutText == "Alt+F9" && items[2].ShortcutText == "Ctrl+Shift+,",
+                    "a later pass rebinds both badges");
+                Assert(changed.Contains(nameof(GettingStartedItem.ShortcutText)),
+                    "and it raises PropertyChanged, or the Home badge keeps painting the old chord");
             });
 
             Console.WriteLine(_failures == 0
@@ -10592,11 +14014,15 @@ internal static class Program
         public Func<HttpResponseMessage>? Next;
         public int Sends;
         public Uri? LastRequestUri;
+        public string? LastAuthorizationScheme;
+        public string? LastAuthorizationParameter;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Sends++;
             LastRequestUri = request.RequestUri;
+            LastAuthorizationScheme = request.Headers.Authorization?.Scheme;
+            LastAuthorizationParameter = request.Headers.Authorization?.Parameter;
             if (Next is null)
                 throw new InvalidOperationException("CapturingHandler.Next was not set");
             return Task.FromResult(Next());
@@ -10738,6 +14164,24 @@ internal static class Program
     }
 
     /// <summary>
+    /// An <c>ITranscriptionProvider</c> that returns one fixed string and never
+    /// opens the audio file, so a test can drive the REAL
+    /// <c>TranscriptionOrchestrator.TranscribeAsync</c> — including its STEP 3
+    /// text passes — without a loaded model or a microphone (issues #495, #498).
+    /// </summary>
+    private sealed class FixedTextTranscriptionProvider(string text) : ITranscriptionProvider
+    {
+        public bool IsAvailable => true;
+        public string Name => "SmokeTestFixedText";
+
+        public Task<string> TranscribeAsync(
+            string audioPath,
+            string? language = null,
+            IReadOnlyList<string>? vocabulary = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(text);
+    }
+
+    /// <summary>
     /// Minimal IStreamingProviderStrategy for exercising StreamingTranscriptionClient
     /// methods (like AppendFinalTranscript) that never touch the provider strategy.
     /// Any member a test does end up hitting should throw loudly rather than fake
@@ -10816,13 +14260,7 @@ internal static class Program
     private static IReadOnlyList<(OnboardingStep Step, System.Windows.Controls.Page Page)>
         BuildOnboardingStepPages(out OnboardingFlowViewModel flow)
     {
-        // One Application per AppDomain, and an earlier case may already own it.
-        var application = System.Windows.Application.Current;
-        if (application is null)
-        {
-            application = new System.Windows.Application();
-            LoadApplicationResources(application);
-        }
+        EnsureSmokeApplication();
 
         var harness = new OnboardingHarness();
         flow = harness.Flow;
@@ -10854,6 +14292,324 @@ internal static class Program
         }
 
         return pages;
+    }
+
+    /// <summary>
+    /// Replays the mouse-wheel event pair WPF's InputManager raises for one wheel
+    /// turn: the tunnelling PreviewMouseWheel, then - only if nothing handled it -
+    /// the bubbling MouseWheel. That promotion rule is the whole mechanism a
+    /// PreviewMouseWheel guard relies on, so a case that raises only the preview
+    /// would pass against no fix at all.
+    /// </summary>
+    /// <returns>Whether the preview was handled, i.e. whether the bubble was suppressed.</returns>
+    private static bool RaiseWheelPair(UIElement element, int delta)
+    {
+        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
+        {
+            RoutedEvent = UIElement.PreviewMouseWheelEvent
+        };
+        element.RaiseEvent(preview);
+
+        if (preview.Handled)
+            return true;
+
+        element.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
+        {
+            RoutedEvent = UIElement.MouseWheelEvent
+        });
+
+        return false;
+    }
+
+    /// <summary>The control's x:Name if it has one, so a failure names the dropdown.</summary>
+    private static string NameOrType(FrameworkElement element) =>
+        string.IsNullOrEmpty(element.Name) ? $"an unnamed {element.GetType().Name}" : element.Name;
+
+    /// <summary>
+    /// Assert the cloud balance readout on a step is not silently cut, at every window
+    /// size the product can render that step at.
+    /// </summary>
+    private static void AssertBalanceReadoutFits(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance)
+    {
+        // Both window sizes the product can actually render the step at. The window
+        // is NoResize and FitToWorkArea clamps it between a floor and the design
+        // size, so a desktop gets 760 wide and a 1366x768 laptop at 200% gets 683.
+        // The narrow end is where the readout is squeezed hardest, and asserting
+        // only at 760 would miss it.
+        var design = OnboardingWindow.FitToWorkArea(1920, 1032);
+        var clamped = OnboardingWindow.FitToWorkArea(1366 / 2.0, (768 - 72) / 2.0);
+
+        // 521 is the page area the design-size window leaves once its own chrome is
+        // out - the number BuildOnboardingStepPages already lays pages out at.
+        var chrome = design.Height - 521;
+
+        foreach (var window in new[] { design, clamped })
+        {
+            AssertBalanceReadoutFitsAt(
+                step, flow, balance, window.Width, Math.Max(1, window.Height - chrome));
+        }
+    }
+
+    private static void AssertBalanceReadoutFitsAt(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        string balance,
+        double width,
+        double height)
+    {
+        var page = LayOutOnboardingStepPage(step, flow, width, height);
+        var where = $"{step} at {width:F0} DIP";
+
+        var readout = DescendantsOf<System.Windows.Controls.TextBlock>(page)
+            .FirstOrDefault(t => string.Equals(t.Text, balance, StringComparison.Ordinal));
+
+        Assert(readout is not null, $"{where}: the balance readout is not on the page at all");
+        Assert(readout!.ActualWidth > 0, $"{where}: the balance readout was never laid out");
+
+        // The readout's own parent chain, not a search for any two-column Grid: the
+        // stock ScrollViewer template inside OnboardingStage is itself a `*`/Auto Grid
+        // and would happily stand in for the credits row, turning the assertion below
+        // into "does not exceed the whole viewport".
+        var column = System.Windows.Media.VisualTreeHelper.GetParent(readout);
+        var row = column is null ? null : System.Windows.Media.VisualTreeHelper.GetParent(column);
+
+        Assert(
+            row is System.Windows.Controls.Grid { ColumnDefinitions.Count: 2 },
+            $"{where}: the balance readout is no longer one level inside a two-column row - " +
+            "this case measures the wrong thing until it is pointed at the new shape");
+
+        var grid = (System.Windows.Controls.Grid)row!;
+        var neighbour = grid.Children
+            .OfType<FrameworkElement>()
+            .FirstOrDefault(child => System.Windows.Controls.Grid.GetColumn(child) == 1);
+
+        Assert(neighbour is not null, $"{where}: the row's second column is empty");
+
+        var readoutRight = readout
+            .TransformToAncestor(grid)
+            .Transform(new Point(readout.ActualWidth, 0)).X;
+        var neighbourLeft = neighbour!
+            .TransformToAncestor(grid)
+            .Transform(new Point(0, 0)).X;
+
+        // A vertical StackPanel arranges a child at max(its own width, the child's
+        // desired width), so an untrimmed 30 pt line does not stop at the end of its
+        // column - it is arranged past it and drawn underneath whatever the Auto
+        // column holds. That is the defect, and it is what this measures.
+        Assert(
+            readoutRight <= neighbourLeft + 0.5,
+            $"{where}: '{balance}' is arranged out to {readoutRight:F0} DIP while the " +
+            $"{neighbour.GetType().Name} beside it starts at {neighbourLeft:F0}. The readout " +
+            "runs under its neighbour and is cut with nothing to say it was cut.");
+
+        // Staying inside the column is only half of it. A readout that wants more room
+        // than the column has must also SAY it was shortened, or the same value is
+        // still cut mid-word - just tidily. Capping the width alone would satisfy the
+        // measurement above and reproduce the defect.
+        var natural = UnconstrainedWidthOf(readout);
+
+        if (natural <= readout.ActualWidth + 0.5)
+            return;
+
+        Assert(
+            readout.TextTrimming != TextTrimming.None
+            || readout.TextWrapping != TextWrapping.NoWrap,
+            $"{where}: '{balance}' wants {natural:F0} DIP in a {readout.ActualWidth:F0} DIP " +
+            "column and neither trims nor wraps, so it is cut with no ellipsis");
+    }
+
+    /// <summary>
+    /// Lay out one onboarding step page against a flow the caller has already driven.
+    ///
+    /// Separate from BuildOnboardingStepPages because the cloud readouts only exist
+    /// once the flow is in a state that shows them, and that helper always uses a
+    /// virgin harness.
+    /// </summary>
+    private static System.Windows.Controls.Page LayOutOnboardingStepPage(
+        OnboardingStep step,
+        OnboardingFlowViewModel flow,
+        double width,
+        double height)
+    {
+        EnsureSmokeApplication();
+
+        System.Windows.Controls.Page page = step switch
+        {
+            OnboardingStep.Configure => new ConfigureStepPage(),
+            OnboardingStep.Setup => new SetupStepPage(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(step), step, "only the two cloud steps carry a balance readout")
+        };
+
+        page.DataContext = flow;
+
+        // The stage is a ScrollViewer, so the height only decides whether a vertical
+        // scrollbar appears and takes width away from the row: the shorter the page,
+        // the stricter this is.
+        page.Measure(new Size(width, height));
+        page.Arrange(new Rect(0, 0, width, height));
+        page.UpdateLayout();
+
+        return page;
+    }
+
+    /// <summary>
+    /// Runs <paramref name="layout"/> with a listener attached to WPF's data-binding
+    /// trace source, and returns every binding error and warning it produced.
+    /// </summary>
+    /// <remarks>
+    /// This is the only way a bad binding can be seen from a test. WPF does not
+    /// throw on a path no type exposes, and it does not fail layout: it resolves
+    /// the path to <c>UnsetValue</c>, writes "BindingExpression path error" to
+    /// <see cref="PresentationTraceSources.DataBindingSource"/>, and carries on
+    /// with the element's default value. Nothing listens to that source in a
+    /// release build, which is how issue #527 - a DataTrigger on a property that
+    /// exists only in the macOS app - survived in the markup unnoticed.
+    ///
+    /// <see cref="PresentationTraceSources.Refresh"/> is what turns the source on;
+    /// without it the switch level is ignored outside a debugger.
+    /// </remarks>
+    private static List<string> CollectBindingErrorsWhile(Action layout)
+    {
+        PresentationTraceSources.Refresh();
+
+        var listener = new BindingErrorListener();
+        var source = PresentationTraceSources.DataBindingSource;
+        var previousLevel = source.Switch.Level;
+
+        source.Listeners.Add(listener);
+        source.Switch.Level = SourceLevels.Warning;
+        try
+        {
+            layout();
+        }
+        finally
+        {
+            source.Listeners.Remove(listener);
+            source.Switch.Level = previousLevel;
+        }
+
+        return listener.Errors;
+    }
+
+    /// <summary>Collects the messages WPF writes about failed bindings.</summary>
+    private sealed class BindingErrorListener : TraceListener
+    {
+        public List<string> Errors { get; } = new();
+
+        public override void Write(string? message) { }
+
+        public override void WriteLine(string? message) { }
+
+        public override void TraceEvent(
+            TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
+        {
+            if (IsFailure(eventType) && !string.IsNullOrEmpty(message))
+                Errors.Add(message);
+        }
+
+        public override void TraceEvent(
+            TraceEventCache? eventCache, string source, TraceEventType eventType, int id,
+            string? format, params object?[]? args)
+        {
+            if (!IsFailure(eventType) || format is null)
+                return;
+
+            Errors.Add(args is null || args.Length == 0 ? format : string.Format(format, args));
+        }
+
+        private static bool IsFailure(TraceEventType eventType)
+            => eventType is TraceEventType.Error or TraceEventType.Warning or TraceEventType.Critical;
+    }
+
+    /// <summary>
+    /// The width this TextBlock's own text wants with nothing constraining it.
+    /// Comparing that against ActualWidth is how a layout case tells "fits" from
+    /// "was cut", without hard-coding a pixel number that a font change invalidates.
+    /// </summary>
+    private static double UnconstrainedWidthOf(System.Windows.Controls.TextBlock block)
+    {
+        var typeface = new System.Windows.Media.Typeface(
+            block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+
+        return new System.Windows.Media.FormattedText(
+            block.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+            block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Width;
+    }
+
+    /// <summary>
+    /// The height of ONE line of this TextBlock's text. Comparing ActualHeight
+    /// against it is how a layout case tells "wrapped onto a second line" from
+    /// "cut at the column edge", without hard-coding a font's line spacing.
+    /// </summary>
+    private static double LineHeightOf(System.Windows.Controls.TextBlock block)
+    {
+        var typeface = new System.Windows.Media.Typeface(
+            block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
+
+        return new System.Windows.Media.FormattedText(
+            "Ag", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+            block.FontSize, System.Windows.Media.Brushes.Black, 1.0).Height;
+    }
+
+    /// <summary>
+    /// The ScrollViewer this element scrolls inside. Its Content is the settings
+    /// content column — the width a notice row really has to stay within.
+    /// </summary>
+    /// <remarks>
+    /// Walked rather than assumed. Storage and Backup make the ScrollViewer the
+    /// page root, so <c>page.Content</c> is it; Streaming puts a header, a
+    /// separator and then the ScrollViewer in a three-row Grid, and casting its
+    /// root would throw.
+    /// </remarks>
+    private static System.Windows.Controls.ScrollViewer ScrollViewerAbove(DependencyObject element)
+    {
+        for (var node = System.Windows.Media.VisualTreeHelper.GetParent(element);
+             node != null;
+             node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is System.Windows.Controls.ScrollViewer scrollViewer) return scrollViewer;
+        }
+
+        throw new InvalidOperationException(
+            $"{element.GetType().Name} is not inside a ScrollViewer, so it has no content column to measure against.");
+    }
+
+    /// <summary>
+    /// Everything MainWindow's status bar binds, and nothing else. WPF bindings
+    /// are duck-typed, so the row can be laid out against this instead of the real
+    /// MainViewModel, whose constructor builds the audio stack and the tray icon.
+    /// </summary>
+    private sealed class StatusBarProbe
+    {
+        public string StatusText { get; init; } = "";
+        public Mode? CurrentMode { get; init; }
+        public string ModelStatus { get; init; } = "";
+        public string LocalPostProcessingStatus { get; init; } = "";
+        public bool HasLocalPostProcessingStatus { get; init; }
+    }
+
+    /// <summary>
+    /// Just enough of HistoryViewModel for the transcript detail header to lay
+    /// out. Bindings are duck-typed, and the real view model opens the database
+    /// and the audio player in its constructor.
+    /// </summary>
+    private sealed class HistoryDetailProbe
+    {
+        public HistoryTranscriptProbe? SelectedTranscript { get; init; }
+    }
+
+    /// <summary>The detail header's own binding paths, and nothing else.</summary>
+    private sealed class HistoryTranscriptProbe
+    {
+        public string FormattedDate { get; init; } = "";
+        public string FormattedDuration { get; init; } = "";
+
+        /// <summary>The mode NAME, copied onto the transcript. Free user text.</summary>
+        public string? Mode { get; init; }
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
@@ -10914,18 +14670,28 @@ internal static class Program
         }
     }
 
-    private static void LoadApplicationResources(System.Windows.Application application)
+    /// <summary>
+    /// The one WPF Application this process gets, and it is the app's OWN
+    /// <see cref="App"/> with App.xaml's resources loaded.
+    ///
+    /// That matters, and a hand-written copy of those resources would not: page
+    /// XAML resolves {StaticResource} at PARSE time, so a page whose converter or
+    /// brush is missing cannot be constructed at all, and the failure lands as a
+    /// XamlParseException in whichever case first touches the new key. Loading
+    /// App.xaml means the harness cannot drift from the app.
+    ///
+    /// Only InitializeComponent runs. OnStartup, StartupUri and therefore
+    /// SingleInstanceGuard and MainWindow are all Run()'s doing, and this process
+    /// never calls Run().
+    /// </summary>
+    private static System.Windows.Application EnsureSmokeApplication()
     {
-        AddResourceDictionary(application, "Themes/LightColors.xaml");
-        AddResourceDictionary(application, "Themes/Brushes.xaml");
-        AddResourceDictionary(application, "Themes/Generic.xaml");
-    }
+        // One Application per AppDomain, and an earlier case may already own it.
+        if (System.Windows.Application.Current is { } existing)
+            return existing;
 
-    private static void AddResourceDictionary(System.Windows.Application application, string resourcePath)
-    {
-        application.Resources.MergedDictionaries.Add(new ResourceDictionary
-        {
-            Source = new Uri($"pack://application:,,,/HyperWhisper;component/{resourcePath}", UriKind.Absolute)
-        });
+        var application = new App();
+        application.InitializeComponent();
+        return application;
     }
 }

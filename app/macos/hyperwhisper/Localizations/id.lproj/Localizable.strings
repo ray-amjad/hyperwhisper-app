@@ -778,8 +778,8 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Akurasi tertinggi dengan pemrosesan lebih lambat. Terbaik untuk transkripsi penting.";
 "modes.cloudAccuracy.geminiTranscribe.label" = "Tinggi (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multibahasa, dengan dukungan kosakata khusus.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe 1.5)";
-"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 melalui Azure Speech. 43 bahasa dengan bias kontekstual.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe melalui Azure Speech. Hingga 60 bahasa dengan bias kontekstual.";
 
 "modes.create.title" = "Buat Mode Baru";
 "modes.create.subtitle" = "Konfigurasi profil transkripsi khusus";
@@ -794,6 +794,7 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.field.name" = "Nama";
 "modes.field.name.placeholder" = "misalnya, Catatan Rapat";
 "modes.field.name.editPlaceholder" = "Nama mode";
+"modes.field.name.defaultLocked" = "Ini adalah mode default, jadi namanya tidak dapat diubah. Anda dapat mengganti nama mode lainnya.";
 "modes.field.model" = "Model";
 "modes.field.provider" = "Penyedia";
 "modes.provider.local" = "Lokal";

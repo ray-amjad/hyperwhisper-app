@@ -6,6 +6,9 @@
 // - Lazy<T> ensures providers only created when first needed
 // - Single point of configuration (API key lookup)
 // - Proper disposal of all HttpClient resources
+// - EXCEPT the HW-Cloud-routed providers (Azure MAI, Google Chirp), which are
+//   built fresh per request. They own no HttpClient, and their per-request
+//   model id must not be shared mutable state — see GetConfiguredCloudProvider.
 //
 // NOTE: Does NOT own TranscriptionService (local) - that requires
 // model loading and has different lifecycle management.
@@ -37,8 +40,9 @@ public class TranscriptionProviderFactory : IDisposable
     private readonly Lazy<MetaMuseService> _meta;
     private readonly Lazy<HyperWhisperCloudService> _hyperWhisperCloud;
     private readonly Lazy<GrokSttService> _grok;
-    private readonly Lazy<AzureMAITranscriptionService> _azureMai;
-    private readonly Lazy<GoogleChirpTranscriptionService> _googleChirp;
+
+    // NO Lazy<> for the HW-Cloud-routed services (Azure MAI, Google Chirp).
+    // They are built per request instead — see GetConfiguredCloudProvider.
 
     private bool _disposed;
 
@@ -61,8 +65,6 @@ public class TranscriptionProviderFactory : IDisposable
         _meta = new Lazy<MetaMuseService>(() => new MetaMuseService());
         _hyperWhisperCloud = new Lazy<HyperWhisperCloudService>(() => new HyperWhisperCloudService());
         _grok = new Lazy<GrokSttService>(() => new GrokSttService());
-        _azureMai = new Lazy<AzureMAITranscriptionService>(() => new AzureMAITranscriptionService());
-        _googleChirp = new Lazy<GoogleChirpTranscriptionService>(() => new GoogleChirpTranscriptionService());
 
         LoggingService.Debug("TranscriptionProviderFactory: Initialized (providers will be created on first use)");
     }
@@ -114,10 +116,26 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.Meta => ConfigureAndReturn(_meta.Value, apiKey!, effectiveModelId),
             CloudTranscriptionProvider.HyperWhisperCloud => ConfigureHyperWhisperCloud(_hyperWhisperCloud.Value),
             CloudTranscriptionProvider.Grok => ConfigureAndReturn(_grok.Value, apiKey!, effectiveModelId),
-            // HW-Cloud-routed providers — no per-request configuration; the
-            // service is a thin wrapper around HyperWhisperRoutedTranscriptionClient.
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => _azureMai.Value,
-            CloudTranscriptionProvider.GoogleSpeech => _googleChirp.Value,
+            // HW-Cloud-routed providers — no API key, but the selected model
+            // still has to reach the request: it travels as X-STT-Model, which
+            // the routed client only sends when the service resolves one. Azure
+            // MAI serves two models at two prices, so an unconfigured service
+            // silently ran the backend default instead of the user's choice.
+            //
+            // BUILT PER REQUEST, NOT CACHED. Every other arm here hands back a
+            // cached Lazy<T> instance and mutates it (Configure sets the key and
+            // the model). Doing that for a routed provider is a billing bug: this
+            // factory is owned by the process-wide TranscriptionRuntime.Orchestrator
+            // singleton and nothing locks, so two overlapping transcriptions
+            // overwrite each other's model between here and the send. These two
+            // services hold no HttpClient (the routed client's is static and
+            // shared) and no other state, so a fresh instance costs an allocation
+            // and makes the model immutable per-call — the same property macOS
+            // gets from AzureMAIProvider.routedModelId and shared .NET from
+            // RoutedModelFor. The BYOK arms above have the same shared-mutable
+            // shape; that is pre-existing and out of scope here.
+            CloudTranscriptionProvider.MicrosoftAzureSpeech => new AzureMAITranscriptionService(effectiveModelId),
+            CloudTranscriptionProvider.GoogleSpeech => new GoogleChirpTranscriptionService(effectiveModelId),
             _ => throw new ArgumentException($"Unknown cloud provider: {providerType}")
         };
     }
@@ -237,7 +255,7 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
             CloudTranscriptionProvider.HyperWhisperCloud => "",
             CloudTranscriptionProvider.Grok => "",
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-1.5",
+            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-2",
             CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
             _ => "whisper-1"
         };
@@ -265,8 +283,8 @@ public class TranscriptionProviderFactory : IDisposable
         SafeDispose(_meta);
         SafeDispose(_hyperWhisperCloud);
         SafeDispose(_grok);
-        SafeDispose(_azureMai);
-        SafeDispose(_googleChirp);
+        // No SafeDispose for the routed services: they are not cached here, and
+        // their Dispose is a no-op (the routed HttpClient is process-wide).
 
         LoggingService.Debug("TranscriptionProviderFactory: Disposed");
         GC.SuppressFinalize(this);

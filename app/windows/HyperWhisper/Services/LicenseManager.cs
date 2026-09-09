@@ -357,6 +357,26 @@ public sealed class LicenseManager : INotifyPropertyChanged
         return LicenseNetworkService.Instance.GetStoredLicenseKey();
     }
 
+    /// <summary>
+    /// True when the Cloud page should explain a licence that STOPPED working —
+    /// the "expired or no longer valid" banner above the activation card.
+    /// </summary>
+    /// <remarks>
+    /// It is a claim about a licence this device once had, and it needs one, so
+    /// it also needs a stored key. A key is only ever stored after it validates
+    /// (<c>LicenseNetworkService</c> persists on success alone), so no stored key
+    /// means no licence has ever worked here.
+    ///
+    /// Without that second half, the first wrong key a fresh install ever typed
+    /// produced <see cref="LicenseStatus.Invalid"/> and was told "Your license
+    /// key is no longer valid" — expired or revoked — about an account that has
+    /// never existed, pointing at billing instead of at the typo (#511). The
+    /// activation card's own inline error already says what really happened:
+    /// "License key not found".
+    /// </remarks>
+    public static bool ShouldExplainLapsedLicense(LicenseStatus status, bool hasStoredKey)
+        => hasStoredKey && status is LicenseStatus.Expired or LicenseStatus.Invalid;
+
     // =========================================================================
     // HYPERWHISPER CLOUD
     // =========================================================================

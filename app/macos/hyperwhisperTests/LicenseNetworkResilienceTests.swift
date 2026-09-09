@@ -121,6 +121,25 @@ struct LicenseNetworkResilienceTests {
         #expect(!LicenseNetworkService.isNetworkFailure(unrelated))
     }
 
+    // MARK: - Offline diagnostic failure codes
+
+    @Test func offlineDiagnosticNamesConnectivityFailuresWithoutErrorText() {
+        #expect(
+            LicenseNetworkService.validationFailureCode(URLError(.timedOut))
+                == "network_-1001"
+        )
+    }
+
+    @Test func offlineDiagnosticKeepsUnknownCodesBounded() {
+        let unknownURL = URLError(URLError.Code(rawValue: 599))
+        #expect(LicenseNetworkService.validationFailureCode(unknownURL) == "http_599")
+
+        let nonURL = NSError(domain: "LicenseTransport", code: 17, userInfo: [
+            NSLocalizedDescriptionKey: "must not appear in diagnostics",
+        ])
+        #expect(LicenseNetworkService.validationFailureCode(nonURL) == "non_url_17")
+    }
+
     // MARK: - NetworkConfig.licenseLaunchValidationTimeout
 
     @Test func launchValidationPerRequestTimeoutIsMuchShorterThanDefault() {
@@ -213,6 +232,7 @@ struct LicenseNetworkResilienceTests {
         #expect(policy.retryConfig.maxAttempts == RetryConfiguration.licenseLaunchValidation.maxAttempts)
         #expect(policy.retryConfig.initialDelay == RetryConfiguration.licenseLaunchValidation.initialDelay)
         #expect(policy.retryConfig.maxDelay == RetryConfiguration.licenseLaunchValidation.maxDelay)
+        #expect(policy.diagnosticName == "launch_cached")
     }
 
     @Test func requestPolicyPairsNormalSettingsForExplicitActivation() {
@@ -224,6 +244,7 @@ struct LicenseNetworkResilienceTests {
         #expect(policy.retryConfig.maxAttempts == RetryConfiguration.cloud.maxAttempts)
         #expect(policy.retryConfig.initialDelay == RetryConfiguration.cloud.initialDelay)
         #expect(policy.retryConfig.maxDelay == RetryConfiguration.cloud.maxDelay)
+        #expect(policy.diagnosticName == "standard")
     }
 
     @Test func launchValidationWithoutCachedFallbackKeepsNormalSettings() {
@@ -235,6 +256,7 @@ struct LicenseNetworkResilienceTests {
         #expect(policy.retryConfig.maxAttempts == RetryConfiguration.cloud.maxAttempts)
         #expect(policy.retryConfig.initialDelay == RetryConfiguration.cloud.initialDelay)
         #expect(policy.retryConfig.maxDelay == RetryConfiguration.cloud.maxDelay)
+        #expect(policy.diagnosticName == "standard")
     }
 
     // MARK: - networkFailureFallback signal (drives the launch-time retry-soon)

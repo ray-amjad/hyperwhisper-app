@@ -9,54 +9,32 @@ import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderU
 // the route never imports an adapter or keeps a dispatch table of its own. See
 // providers/dispatch.ts.
 import { transcribeWithProvider } from '../providers/dispatch';
-import { formatUsd } from '../lib/cost-calculator';
 import {
   fallbackChainFor,
   getProviderDef,
-  isSelfOnly,
-  resolveModel,
   servedNameFor,
-  MEDICAL_DOMAIN,
   type SttProviderId,
 } from '../lib/stt-models';
-import { readClientInfo } from '../lib/client-info';
-import { clientOffersLatencyOptOut } from '../lib/latency-eligibility';
-import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
-import {
-  reportLatencySamples,
-  type LatencyFailureKind,
-  type LatencySample,
-} from '../lib/latency-report';
 // Content-type aware, unlike the billing estimators: a failed attempt still has
 // to land in the right clip-length bucket on the public /latency page.
 // runProviderAttempt is how the same page learns whether an attempt ever reached
 // the provider at all.
-import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
+import { runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
 // The providers layer's own answer to "can this Fly region reach this provider",
 // so the route never needs a provider's blocked-region list, its replay region,
 // or its id in a filter. See providers/geo-availability.ts.
-import { planGeoRouting, reachableFromRegion } from '../providers/geo-availability';
+import { reachableFromRegion } from '../providers/geo-availability';
 // The providers layer's own answer to "what is the worst USD/min this request
 // could be billed at", so the route never needs a provider's add-on eligibility
 // or an adapter's internal routing gate. See providers/reservation.ts.
-import { rawQuery } from '../lib/query';
-import { isIPBlocked } from '../lib/redis';
 import { errorResponse } from '../lib/responses';
-import { authDiagnosticsForLog, validateAuth } from '../middleware/auth';
-import { deductCredits } from '../middleware/credits';
-import { flyProxyOverheadMs, logEvent, machineUptimeMs } from '../lib/logging';
-import {
-  extractDomain,
-  extractModel,
-  extractProvider,
-  isLatencyOptOut,
-  validateStreamingHeaders,
-} from './transcribe-request';
-import { buildTranscriptionSuccess } from './transcribe-success';
-import {
-  estimateCreditsForProviderFallbacks,
-  prepareTranscriptionAudio,
-} from './transcribe-audio';
+import { logEvent } from '../lib/logging';
+import { isLatencyOptOut } from './transcribe-request';
+import { estimateCreditsForProviderFallbacks } from './transcribe-audio';
+import { prepareTranscriptionRequest } from './transcribe-preparation';
+import { completeTranscription } from './transcribe-completion';
+import { providerChainFailureResponse } from './transcribe-failure';
+import { createTranscriptionLatencyRecorder } from './transcribe-latency';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
@@ -65,191 +43,23 @@ export { estimateCreditsForProviderFallbacks };
 
 export { isLatencyOptOut };
 
-/**
- * The public page's failure taxonomy for whatever the attempt threw. Keeps the
- * mapping in one place so the catch arms below stay pure control flow.
- */
-function failureKindFor(error: unknown): LatencyFailureKind {
-  if (error instanceof ProviderUnavailableError) return error.kind;
-  if (error instanceof ProviderInputError) return 'input_rejected';
-  // A revoked key or a bug in an adapter lands here. Without a sample the page
-  // would report a 0% error rate for a provider that fails every call.
-  return 'unknown';
-}
-
-/**
- * How long a failed attempt cost the user, from the route's own clock.
- *
- * Deliberately NOT ProviderUnavailableError.elapsedMs: for the async providers
- * (AssemblyAI, Soniox, Google Chirp) that field times only the single
- * fetchWithTimeout that failed, while the upload, the job creation and every
- * earlier poll are already spent — a 90-second wait reported as the 8 seconds
- * of its last poll. The adapter's own number stays in the structured log, where
- * "which call failed" is the question; the page answers "how long did this
- * take", which is this one.
- */
-function elapsedFor(attemptStart: number): number {
-  return performance.now() - attemptStart;
-}
-
 export async function transcribeRoute(c: Context) {
-  const requestId = generateRequestId();
-  const startTime = performance.now();
-  const clientIP = getClientIP(c);
-  const flyRequestId = getFlyRequestId(c);
-
-  // IP block check
-  if (await isIPBlocked(clientIP)) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'ip_blocked',
-      flyRequestId,
-    });
-    return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
+  const preparation = await prepareTranscriptionRequest(c);
+  if (preparation instanceof Response) {
+    return preparation;
   }
-  logEvent(requestId, startTime, 'transcribe.ip_check_done', { flyRequestId });
-
-  const providerSelection = extractProvider(c);
-  if (!providerSelection.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'invalid_provider',
-      flyRequestId,
-      provided: providerSelection.provided,
-    });
-    return errorResponse(400, 'Invalid STT provider',
-      `Unknown X-STT-Provider "${providerSelection.provided}".`,
-      { requestId, provided: providerSelection.provided },
-    );
-  }
-  const provider = providerSelection.provider;
-
-  // Resolve + validate the requested model against the server-side registry.
-  // An unknown model for the provider is rejected (fail-closed) rather than
-  // silently routed to the provider default at a possibly different price.
-  const requestedModel = extractModel(c);
-  const modelResolution = resolveModel(provider, requestedModel);
-  if (!modelResolution.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'invalid_model',
-      flyRequestId,
-      provider,
-      requestedModel,
-    });
-    return errorResponse(400, 'Invalid STT model', modelResolution.reason, {
-      requestId,
-      provider,
-      requested_model: requestedModel,
-      valid_models: modelResolution.validModels,
-    });
-  }
-  const model = modelResolution.model.id;
-
-  const domain = extractDomain(c);
-  // Medical add-on only applies where the provider meters it (AssemblyAI today).
-  const medical = domain === MEDICAL_DOMAIN;
-
-  const headerValidation = validateStreamingHeaders(c, provider);
-  if (!headerValidation.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'invalid_streaming_headers',
-      flyRequestId,
-      provider,
-      status: headerValidation.response.status,
-    });
-    return headerValidation.response;
-  }
-
-  const { contentType, contentLength } = headerValidation;
-  // rawQuery, not c.req.query(): Hono's decoder adds an HTML-form `+` → space
-  // step, corrupting values like a `C++` vocabulary term. See lib/query.ts.
-  const language = rawQuery(c.req.url, 'language');
-  const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
-  const mode = rawQuery(c.req.url, 'mode');
-
-  // Some providers are unreachable from the region this machine runs in. The
-  // providers layer owns which ones, from where, and where to send the request
-  // instead — the route only carries out the plan it is handed, before doing
-  // any auth/credit work. A replay adds ~50-80ms vs ~6s of certain failure.
-  // See providers/geo-availability.ts.
-  const geoPlan = planGeoRouting(provider, contentLength);
-  if (geoPlan.action === 'replay') {
-    logEvent(requestId, startTime, 'transcribe.fly_replay', {
-      flyRequestId,
-      provider,
-      fromRegion: geoPlan.fromRegion,
-      toRegion: geoPlan.toRegion,
-      reason: geoPlan.reason,
-    });
-    c.header('fly-replay', `region=${geoPlan.toRegion}`);
-    return c.body(null, 200);
-  }
-  // The body was too large for Fly to replay, so the request stays in this
-  // region and the unreachable provider comes out of the chain below.
-  if (geoPlan.action === 'drop_from_chain') {
-    logEvent(requestId, startTime, 'transcribe.fly_replay_skipped_oversized', {
-      flyRequestId,
-      provider,
-      flyRegion: geoPlan.fromRegion,
-      contentLength,
-      replayMaxBytes: geoPlan.replayMaxBytes,
-    });
-  }
-
-  const proxyOverheadMs = flyProxyOverheadMs(c.req.header('Fly-Request-Start'));
-  const { clientPlatform, clientVersion } = readClientInfo(c);
-  logEvent(requestId, startTime, 'transcribe.request_start', {
-    flyRequestId,
-    clientPlatform,
-    clientVersion,
-    flyRegion: process.env.FLY_REGION || 'local',
-    flyMachineId: process.env.FLY_MACHINE_ID,
-    proxyOverheadMs,
-    provider,
-    model: model || 'default',
-    domain: domain || 'none',
-    contentType,
-    contentLength,
-    language: language || 'auto',
-    hasInitialPrompt: Boolean(initialPrompt),
-    mode: mode || 'default',
-  });
-
-  // Auth (query params only) — Cloud is licensed-only; a valid account key is required.
-  // `account_key` is the canonical param name; `license_key` is the legacy alias
-  // that installed native apps still send, so we accept either.
-  const authResult = await validateAuth({
-    licenseKey:
-      rawQuery(c.req.url, 'account_key') ?? rawQuery(c.req.url, 'license_key'),
-  });
-  if (!authResult.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'auth_failed',
-      flyRequestId,
-      status: authResult.response.status,
-      ...authDiagnosticsForLog(authResult.diagnostics),
-    });
-    return authResult.response;
-  }
-  logEvent(requestId, startTime, 'transcribe.auth_done', authDiagnosticsForLog(authResult.diagnostics));
-
-  const audioPreparation = await prepareTranscriptionAudio({
-    c,
+  const {
     requestId,
     startTime,
-    flyRequestId,
     provider,
-    contentType,
-    contentLength,
     model,
-    medical,
-    initialPrompt,
+    domain,
+    contentType,
     language,
-    auth: authResult.value,
-    clientIP,
-  });
-  if (!audioPreparation.ok) {
-    return audioPreparation.response;
-  }
-  const { audioBuffer } = audioPreparation;
+    initialPrompt,
+    audioBuffer,
+    latencyReportable,
+  } = preparation;
 
   let result: TranscriptionResult | undefined;
   let fallbackFrom: Provider | undefined;
@@ -327,67 +137,11 @@ export async function transcribeRoute(c: Context) {
      */
     emptyTranscript?: true;
   }> = [];
-  // Anonymous per-attempt timings for the public /latency page. Collected here
-  // and sent once, after the response is decided, so reporting never adds wall
-  // time to the latency it is measuring.
-  const latencySamples: LatencySample[] = [];
-  // Read once, up front: neither input can change mid-request, and the send
-  // site below is the only thing that consults the result.
-  //
-  // Two independent reasons not to report, both resolved here. The header is
-  // the user's live answer. Eligibility is whether they were ever asked: the
-  // opt-out switch shipped in macOS 2.43.0 and Windows 1.10.0, and sharing is
-  // on by default, so recording an older build would apply that default to
-  // someone who had no way to decline it. See lib/latency-eligibility.ts.
-  const latencyOptOut = isLatencyOptOut(c);
-  const latencyEligibleClient = clientOffersLatencyOptOut(clientPlatform, clientVersion);
-  const latencyReportable = !latencyOptOut && latencyEligibleClient;
-  // The clip length every row of this request is filed under — one estimate,
-  // from the bytes on the wire and the Content-Type describing them, used
-  // identically on success and on failure.
-  //
-  // Deliberately NOT the adapter's `result.durationSeconds`. That is a BILLING
-  // number, and when an upstream omits a duration the adapters fall back to
-  // estimateSecondsFromBytes() — a flat 64 kbps assumption that overstates the
-  // 16 kHz/16-bit mono WAV both desktop apps upload by ~4x. openai's default
-  // model (gpt-4o-transcribe) reports only tokens, so it takes that fallback on
-  // every call, and mistral/soniox/assemblyai take it whenever upstream omits a
-  // duration: a 3-second dictation would be stored as 12 seconds and bucketed
-  // 'medium'. Preferring it on success and estimating on failure also made the
-  // two incomparable, and put one clip in different buckets depending on
-  // whether the provider that answered happened to report a length. One
-  // estimator for every row is what makes a cell a like-for-like comparison.
-  const audioSeconds = estimateAudioSeconds(audioBuffer.byteLength, contentType);
-
-  // The one place an attempt becomes a sample. Every arm out of the loop below
-  // goes through it — success, retryable failure, and the failures that end the
-  // request outright — so "one row per attempt" holds by construction instead
-  // of by remembering to push. The loop is wrapped in a try/finally that sends
-  // whatever this collected, so an early return can no longer lose the most
-  // interesting rows this page has.
-  const recordAttempt = (sample: {
-    provider: Provider;
-    /**
-     * On success the model that actually ran (the adapter's, when it reports
-     * one); on a failure the model the attempt was made with, since none ran.
-     */
-    model?: string;
-    /** 0-based position in the chain; stored 1-based. */
-    index: number;
-    latencyMs: number;
-    /** Absent on success. */
-    failureKind?: LatencyFailureKind;
-  }) => {
-    latencySamples.push({
-      provider: sample.provider,
-      model: sample.model || undefined,
-      latencyMs: sample.latencyMs,
-      ok: sample.failureKind === undefined,
-      failureKind: sample.failureKind,
-      attempt: sample.index + 1,
-      audioSeconds,
-    });
-  };
+  const latency = createTranscriptionLatencyRecorder(
+    audioBuffer,
+    contentType,
+    latencyReportable,
+  );
 
   try {
     for (const [index, current] of chain.entries()) {
@@ -474,7 +228,7 @@ export async function transcribeRoute(c: Context) {
           resultSource: result.source,
           attemptMs: Math.round(attemptMs),
         });
-        recordAttempt({
+        latency.recordAttempt({
           provider: current,
           model: usedModel,
           index,
@@ -495,13 +249,7 @@ export async function transcribeRoute(c: Context) {
         // upstream 4xx) happens strictly after the request went out, so it is
         // still recorded — that direction is the bug this must not reintroduce.
         if (network.reachedProvider) {
-          recordAttempt({
-            provider: current,
-            model: attemptModel,
-            index,
-            latencyMs: elapsedFor(attemptStart),
-            failureKind: failureKindFor(error),
-          });
+          latency.recordFailure(current, attemptModel, index, attemptStart, error);
           // The same signal, read a second way: an attempt made AFTER a refusal
           // that reached the wire is the one extra upstream call the spec budgets,
           // spent. One that never reached it (no API key, a size cap, a
@@ -625,7 +373,7 @@ export async function transcribeRoute(c: Context) {
             attempt: index + 1,
             kind: terminalKind,
             message: error instanceof Error ? error.message : String(error),
-            attemptMs: Math.round(elapsedFor(attemptStart)),
+            attemptMs: Math.round(performance.now() - attemptStart),
             // The request is NOT ending here. Without this an operator reading the
             // line would expect the matching `request_fail` that never comes.
             afterEmptyTranscriptRefusal: true,
@@ -634,7 +382,7 @@ export async function transcribeRoute(c: Context) {
           attemptFailures.push({
             provider: current,
             kind: terminalKind,
-            attemptMs: Math.round(elapsedFor(attemptStart)),
+            attemptMs: Math.round(performance.now() - attemptStart),
           });
           lastError = error instanceof Error ? error : new Error(String(error));
           continue;
@@ -692,137 +440,31 @@ export async function transcribeRoute(c: Context) {
     // that must not be reported still collects samples, it just never sends
     // them, so they die with the request. Gating the single send is what makes
     // that impossible to leak past — there is no second way out of this loop.
-    if (latencyReportable) {
-      reportLatencySamples(latencySamples);
-    }
+    latency.report();
   }
 
   // All providers in the chain failed.
   if (!result) {
-    // Every provider rejected the input with a non-auth 4xx and none was merely
-    // unavailable — the input itself is the problem, so a retry won't help.
-    // Surface a 400 with the upstream message instead of a misleading 429/502
-    // ("rate-limited"/"unavailable") that would have the client back off and
-    // retry the same bad request. (issue ray-amjad/hyperwhisper#333)
-    if (lastInputError && !sawUnavailable) {
-      logEvent(requestId, startTime, 'transcribe.request_fail', {
-        kind: 'all_providers_rejected_input',
-        provider,
-        fallbackCount,
-        status: lastInputError.status,
-        message: lastInputError.message,
-      });
-      return errorResponse(400, 'Transcription input rejected',
-        `No transcription provider accepted this request: ${lastInputError.message}`,
-        { requestId, provider },
-      );
-    }
-
-    // Self-only chains (e.g. azure-mai, google-chirp) mean the user explicitly
-    // opted into a single upstream. Surfacing a 429 implies "we'll retry
-    // through siblings, just back off" — which is a lie when there are no
-    // siblings. Return 502 with the upstream's actual error message so client
-    // retry logic doesn't storm against a broken region.
-    //
-    // Ask the registry rather than measuring `chain`: that array is this
-    // request's own copy and may already have had a provider filtered out of
-    // it (the ElevenLabs geo-block above), so its length answers "how many did
-    // we try here", not "does this provider have siblings at all".
-    if (isSelfOnly(provider)) {
-      logEvent(requestId, startTime, 'transcribe.request_fail', {
-        kind: 'self_only_chain_failed',
-        provider,
-        fallbackCount,
-        attemptFailures,
-        message: lastError?.message,
-      });
-      return errorResponse(502, `${servedNameFor(provider)} unavailable`,
-        lastError?.message ?? `${servedNameFor(provider)} is currently unavailable. Please try again shortly.`,
-        { requestId, provider },
-      );
-    }
-
-    logEvent(requestId, startTime, 'transcribe.request_fail', {
-      kind: 'all_providers_unavailable',
+    return providerChainFailureResponse({
+      requestId,
+      startTime,
+      provider,
       fallbackCount,
       attemptFailures,
-      message: lastError?.message,
+      lastError,
+      lastInputError,
+      sawUnavailable,
     });
-    return errorResponse(429, 'All providers unavailable', 'All transcription providers are currently rate-limited. Please try again shortly.', { requestId });
   }
-  logEvent(requestId, startTime, 'transcribe.stt_done', {
-    provider: result.source,
-    upstreamRequestId: result.requestId,
-  });
-
-  const {
-    noSpeech,
-    providerName,
-    reportedModel,
-    billable,
-    creditsUsed,
-    response,
-  } = buildTranscriptionSuccess({
+  return completeTranscription({
+    c,
+    preparation,
     result,
-    requestId,
-    requestedProvider: provider,
-    requestedModel: model,
     usedModel,
     servedBy,
     chosenProviderAttempted,
     fallbackFrom,
-  });
-
-  if (billable) {
-    deductCredits(
-      authResult.value,
-      result.costUsd,
-      {
-        audio_duration_seconds: result.durationSeconds,
-        transcription_cost_usd: result.costUsd,
-        language: result.language ?? language ?? 'auto',
-        mode,
-        endpoint: '/transcribe',
-        stt_provider: providerName,
-        stt_model: reportedModel || undefined,
-      },
-      clientIP
-    ).catch(console.error);
-  }
-
-  c.header('X-Request-ID', requestId);
-  c.header('X-STT-Provider', providerName);
-  if (reportedModel) {
-    c.header('X-STT-Model', reportedModel);
-  }
-  c.header('X-Total-Cost-Usd', formatUsd(result.costUsd));
-  c.header('X-Credits-Used', creditsUsed.toFixed(1));
-
-  const memUsageMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
-  logEvent(requestId, startTime, 'transcribe.request_done', {
-    clientPlatform,
-    clientVersion,
-    finalProvider: providerName,
     fallbackCount,
-    // On a degraded success (fallbackCount > 0) this names which provider(s)
-    // failed and why, so a slow-but-successful transcription is diagnosable
-    // from the single outcome line.
-    ...(attemptFailures.length ? { attemptFailures } : {}),
-    noSpeech,
-    creditsUsed,
-    flyMachineId: process.env.FLY_MACHINE_ID,
-    // Region on the outcome line makes the Axiom dataset queryable by region on
-    // its own, without joining against the machine id.
-    flyRegion: process.env.FLY_REGION || 'local',
-    // Only present when this request contributed no timing, so the field's
-    // absence is the normal case. Without it a thin /latency dataset looks
-    // like a bug; with it, "how much of the installed base is still too old to
-    // be measured?" is one Axiom query.
-    ...(latencyReportable
-      ? {}
-      : { latencySkipped: latencyOptOut ? 'opted_out' : 'client_too_old' }),
-    machineUptimeMs: machineUptimeMs(),
-    rssMb: memUsageMb,
+    attemptFailures,
   });
-  return c.json(response);
 }

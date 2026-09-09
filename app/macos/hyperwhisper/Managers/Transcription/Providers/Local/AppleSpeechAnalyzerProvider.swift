@@ -46,7 +46,8 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             try await analyzer.prepareToAnalyze(in: nil)
             logger.info("SpeechAnalyzer preheated for locale: \(locale.identifier, privacy: .public)")
         } catch {
-            logger.error("Failed to preheat SpeechAnalyzer: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to preheat SpeechAnalyzer; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             throw TranscriptionError.providerNotAvailable(
                 provider: "Apple Speech",
                 reason: "Failed to prepare speech recognition: \(error.localizedDescription)"
@@ -60,12 +61,12 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
         // STEP 1: Validate audio file exists and is readable
         let fm = FileManager.default
         guard fm.fileExists(atPath: audioURL.path) else {
-            logger.error("Audio file not found: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("SpeechAnalyzer audio file not found")
             throw TranscriptionError.audioFileNotFound
         }
 
         guard fm.isReadableFile(atPath: audioURL.path) else {
-            logger.error("Audio file not readable: \(audioURL.lastPathComponent, privacy: .public)")
+            logger.error("SpeechAnalyzer audio file not readable")
             throw TranscriptionError.providerNotAvailable(
                 provider: "Apple Speech",
                 reason: "Audio file is not readable"
@@ -101,7 +102,8 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
         do {
             audioFile = try AVAudioFile(forReading: audioURL)
         } catch {
-            logger.error("Failed to open audio file: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to open SpeechAnalyzer audio file; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             throw TranscriptionError.invalidAudioFormat
         }
 
@@ -160,23 +162,26 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
                 throw CancellationError()
             }
 
-            logger.error("SpeechAnalyzer transcription failed: \(String(describing: type(of: error))) - \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("SpeechAnalyzer transcription failed; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
 
-            SentryService.addBreadcrumb(
-                message: "SpeechAnalyzer transcription error",
-                category: "speechanalyzer.transcription",
-                level: .error,
-                data: [
-                    "errorType": String(describing: type(of: error)),
-                    "errorDescription": error.localizedDescription,
-                    "locale": locale.identifier,
-                    // Not the file NAME: the import flow makes it the user's
-                    // own document name. The extension is the diagnostic part.
-                    "audioFileExtension": audioURL.pathExtension,
-                    "vocabularyCount": vocabulary.count,
-                    "analyzerSelfCancelled": didSelfCancelAnalyzer
-                ]
-            )
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "SpeechAnalyzer transcription error",
+                    category: "speechanalyzer.transcription",
+                    level: .error,
+                    data: [
+                        "errorDomain": nsError.domain,
+                        "errorCode": nsError.code,
+                        "locale": locale.identifier,
+                        // Not the file NAME: the import flow makes it the user's
+                        // own document name. The extension is the diagnostic part.
+                        "audioFileExtension": audioURL.pathExtension,
+                        "vocabularyCount": vocabulary.count,
+                        "analyzerSelfCancelled": didSelfCancelAnalyzer
+                    ]
+                )
+            }
 
             throw TranscriptionError.providerNotAvailable(
                 provider: "Apple Speech",
@@ -255,7 +260,8 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
         } catch let error as TranscriptionError {
             throw error
         } catch {
-            logger.error("Failed to download speech assets: \(error.localizedDescription, privacy: .public)")
+            let nsError = error as NSError
+            logger.error("Failed to download speech assets; errorDomain=\(nsError.domain, privacy: .public) errorCode=\(nsError.code, privacy: .public)")
             throw TranscriptionError.modelNotDownloaded
         }
     }
