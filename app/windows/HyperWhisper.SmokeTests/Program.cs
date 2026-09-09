@@ -11275,10 +11275,40 @@ internal static class Program
                 Assert(MenuItemText.NeedsFullTextTooltip(longName),
                     "a truncated item reports no tooltip, so the full name would be unreachable from the tray");
 
+                // AND THE TOOLTIP IS BOUNDED TOO. Observed on a VM before this
+                // assertion existed: a WinForms tooltip is a SINGLE LINE unless the
+                // string carries its own newlines, so the first cut of this fix put a
+                // ~2100px tooltip across the whole screen and off both edges - the very
+                // defect the label cap was there to stop.
+                var tooltip = MenuItemText.Tooltip(longName);
+                Assert(tooltip is not null, "the truncated item got no tooltip text");
+
+                var tipLines = tooltip!.Split("\r\n");
+                Assert(tipLines.Length > 1, "the tooltip is still one line, so it renders wider than the screen");
+                Assert(tipLines.Length <= MenuItemText.TooltipMaxLines,
+                    $"the tooltip is {tipLines.Length} lines, past the {MenuItemText.TooltipMaxLines} cap - " +
+                    "a long enough name makes it taller than the screen");
+
+                var widest = tipLines.Max(l =>
+                    System.Windows.Forms.TextRenderer.MeasureText(l, System.Drawing.SystemFonts.DefaultFont).Width);
+                var unwrapped = System.Windows.Forms.TextRenderer.MeasureText(
+                    longName, System.Drawing.SystemFonts.DefaultFont).Width;
+
+                Assert(unwrapped > 1024,
+                    $"the unwrapped name measures {unwrapped}px, so this case is not exercising the wide tooltip");
+                Assert(widest < 1024,
+                    $"the tooltip's widest line is {widest}px, wider than the narrowest display Windows supports");
+
+                // It still carries the name: the visible characters are the name's own,
+                // in order, with only the collapsed spacing between them.
+                Assert(longName.StartsWith(string.Concat(tipLines).TrimEnd(MenuItemText.Ellipsis[0])),
+                    "the tooltip is not showing the name's own characters in order");
+
                 // A short name is passed through untouched and gets NO tooltip: a
                 // tooltip that repeats the label back at the user is noise.
                 Assert(MenuItemText.Bound("Meetings") == "Meetings", "a short name was altered");
                 Assert(!MenuItemText.NeedsFullTextTooltip("Meetings"), "a short name asked for a tooltip");
+                Assert(MenuItemText.Tooltip("Meetings") is null, "a short name was given a tooltip");
 
                 // A menu item grows in BOTH directions and the Local API accepts a mode
                 // name with a newline in it, so height is bounded too.

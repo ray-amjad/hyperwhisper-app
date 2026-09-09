@@ -864,7 +864,7 @@ public partial class MainWindow : Window
             // the same way (issue #525).
             var deviceItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(device.Name))
             {
-                ToolTipText = MenuItemText.NeedsFullTextTooltip(device.Name) ? device.Name : null,
+                ToolTipText = MenuItemText.Tooltip(device.Name),
                 Checked = isSelected,
                 // The onboarding Microphone step captures the device it replaces
                 // ONCE and restores it on "Set Up Later", so a pick made here
@@ -925,7 +925,7 @@ public partial class MainWindow : Window
             // (issue #525). The full name stays on the tooltip and in the log.
             var modeItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(modeName))
             {
-                ToolTipText = MenuItemText.NeedsFullTextTooltip(modeName) ? modeName : null,
+                ToolTipText = MenuItemText.Tooltip(modeName),
                 Checked = isSelected,
                 // The flow stages the default Mode row and snapshots the active
                 // selection; a change made here is discarded by both Complete()
@@ -977,7 +977,7 @@ public partial class MainWindow : Window
             // Bounded for the same reason as the Select Mode submenu above.
             var modeItem = new System.Windows.Forms.ToolStripMenuItem(MenuItemText.Bound(modeName))
             {
-                ToolTipText = MenuItemText.NeedsFullTextTooltip(modeName) ? modeName : null,
+                ToolTipText = MenuItemText.Tooltip(modeName),
                 Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading && !IsOnboardingOpen,
                 Tag = mode
             };

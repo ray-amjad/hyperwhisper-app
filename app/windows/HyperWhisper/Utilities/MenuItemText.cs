@@ -66,6 +66,12 @@ public static class MenuItemText
         return collapsed[..cut].TrimEnd() + Ellipsis;
     }
 
+    /// <summary>Characters per line in the tooltip built by <see cref="Tooltip"/>.</summary>
+    public const int TooltipLineLength = 60;
+
+    /// <summary>Lines <see cref="Tooltip"/> will show before it gives up and elides.</summary>
+    public const int TooltipMaxLines = 10;
+
     /// <summary>
     /// True when <see cref="Bound"/> would drop or rewrite part of
     /// <paramref name="text"/>, i.e. when the item needs a tooltip carrying the
@@ -74,6 +80,64 @@ public static class MenuItemText
     /// </summary>
     public static bool NeedsFullTextTooltip(string? text)
         => !string.IsNullOrEmpty(text) && Bound(text) != text;
+
+    /// <summary>
+    /// What to put in <c>ToolStripItem.ToolTipText</c> for
+    /// <paramref name="text"/>, or <c>null</c> when the label already shows all
+    /// of it and a tooltip would just repeat itself.
+    /// </summary>
+    /// <remarks>
+    /// WRAPPED, and this is the whole point. A WinForms tooltip is a single line
+    /// unless the string carries its own newlines: handing it a 300-character
+    /// mode name renders a tooltip about 2100px wide, off both edges of the
+    /// screen, which is the same defect as the menu it was meant to relieve —
+    /// observed on a VM before this was written. So the tooltip is bounded in
+    /// both directions: <see cref="TooltipLineLength"/> characters per line and
+    /// at most <see cref="TooltipMaxLines"/> lines, then an ellipsis.
+    ///
+    /// This is the Win32 counterpart of the WPF surfaces' explicit
+    /// <c>&lt;ToolTip&gt;&lt;TextBlock TextWrapping="Wrap" MaxWidth="360"/&gt;</c>,
+    /// which exists for exactly the same reason (#492).
+    /// </remarks>
+    public static string? Tooltip(string? text)
+    {
+        if (!NeedsFullTextTooltip(text))
+            return null;
+
+        var collapsed = CollapseWhitespace(text!);
+        var lines = new List<string>();
+        var index = 0;
+
+        while (index < collapsed.Length && lines.Count < TooltipMaxLines)
+        {
+            if (collapsed.Length - index <= TooltipLineLength)
+            {
+                lines.Add(collapsed[index..]);
+                index = collapsed.Length;
+                break;
+            }
+
+            // Break on the last space that fits, so a name made of words stays
+            // readable; fall back to a hard break for one long run of characters.
+            var window = collapsed.Substring(index, TooltipLineLength + 1);
+            var space = window.LastIndexOf(' ');
+
+            var take = space > 0 ? space : TooltipLineLength;
+            if (space <= 0 && char.IsHighSurrogate(collapsed[index + take - 1]))
+                take--;
+
+            lines.Add(collapsed.Substring(index, take));
+            index += take;
+
+            while (index < collapsed.Length && collapsed[index] == ' ')
+                index++;
+        }
+
+        if (index < collapsed.Length)
+            lines[^1] += Ellipsis;
+
+        return string.Join("\r\n", lines);
+    }
 
     /// <summary>
     /// Collapses every run of whitespace to a single space and trims the ends,
