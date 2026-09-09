@@ -70,7 +70,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Search Box -->
-                    <Border Grid.Column="0" Background="{DynamicResource InputBackgroundBrush}"
+                    <Border x:Name="SearchFieldBorder" Grid.Column="0" Background="{DynamicResource InputBackgroundBrush}"
                             CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -90,8 +90,16 @@
                         </Grid>
                     </Border>
 
-                    <!-- Date Filter ComboBox -->
-                    <ComboBox Grid.Column="1" Margin="12,0,0,0" MinWidth="90"
+                    <!-- Date Filter ComboBox.
+                         Width="90" was sized for "All" in English and cut every longer
+                         option (Polish "Wszystko" wanted 96px). It sizes to its selected
+                         option now, but this row is only 268px wide and the search field
+                         beside it is the star column, so the growth is BOUNDED. 168 fits
+                         the widest option in all 40 catalogues (Romanian "Săptămâna
+                         aceasta" needs 152) and still leaves the search field 96px in
+                         that worst case. The smoke case lays out every option in every
+                         catalogue and asserts both halves. Issue #570. -->
+                    <ComboBox x:Name="DateFilterBox" Grid.Column="1" Margin="12,0,0,0" MinWidth="90" MaxWidth="168"
                               SelectedIndex="0" SelectionChanged="DateFilter_SelectionChanged"
                               VerticalContentAlignment="Center">
                         <ComboBoxItem Content="{loc:Loc history.filter.all}" Tag="All"/>

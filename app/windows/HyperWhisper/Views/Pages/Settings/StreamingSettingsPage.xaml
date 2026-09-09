@@ -78,13 +78,17 @@
                                        Margin="0,3,0,0"/>
                             <!-- WrapPanel, not StackPanel: the two buttons together are wider
                                  than the card in Bulgarian. Issue #570. -->
-                            <WrapPanel Margin="0,10,0,0">
+                            <WrapPanel Margin="0,10,0,-8">
+                                <!-- The gap is on the child and on BOTH axes: a WrapPanel adds
+                                     no spacing between lines, and a left-only margin would
+                                     indent the second button once it drops to its own line. -->
                                 <Button Content="{loc:Loc settings.shortcuts.conflict.changeShortcut}"
                                         Style="{StaticResource MacButtonStyle}"
+                                        Margin="0,0,8,8"
                                         Click="FocusStreamingShortcut_Click"/>
                                 <Button Content="{loc:Loc settings.shortcuts.conflict.openSettings}"
                                         Style="{StaticResource MacButtonStyle}"
-                                        Margin="8,0,0,0"
+                                        Margin="0,0,8,8"
                                         Click="OpenShortcutSettings_Click"/>
                             </WrapPanel>
                         </StackPanel>

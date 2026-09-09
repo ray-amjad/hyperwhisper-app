@@ -13202,7 +13202,9 @@ internal static class Program
                 // non-resizable 1000x680 (MinWidth == MaxWidth == 1000).
                 const double ContentWidth = 1000 - 232;            // less SidebarWidth
                 const double FormWidth = ContentWidth - 200;       // less the settings nav column
-                const double CardWidth = ContentWidth - 48 - 42;   // less PagePadding, card padding + border
+                const double CardWidth = ContentWidth - 48;        // less PagePadding. The card's own
+                                                                   // Padding is INSIDE HomeStatsBar,
+                                                                   // whose root element is that Border.
                 const double PageHeight = 680 - 44;                // less the title row
 
                 // The API keys page is the one screen here that is NOT in the settings
@@ -13213,6 +13215,11 @@ internal static class Program
                 var apiKeysWidth = 760
                     - (SystemParameters.ResizeFrameVerticalBorderWidth * 2)
                     - SystemParameters.VerticalScrollBarWidth;
+
+                // 300px panel less its 16,8 padding is 268; the filter's 12px margin and
+                // its 168px MaxWidth leave exactly this much for the search field, and
+                // only in the handful of locales whose "This week" is that long.
+                const double MinimumSearchFieldWidth = 96;
 
                 var cultures = ShippedUiCultures();
                 Assert(cultures.Count >= 39,
@@ -13232,17 +13239,24 @@ internal static class Program
                         // The two controls the issue names...
                         CheckLabelsFit(culture, "HomeStatsBar",
                             new HomeStatsBar { DataContext = new HomeStatsProbe() }, CardWidth, 140, problems);
-                        var rail = new SidebarNav();
-                        CheckLabelsFit(culture, "SidebarNav", rail, 232, PageHeight, problems);
+                        CheckLabelsFit(culture, "SidebarNav", new SidebarNav(), 232, PageHeight, problems);
 
-                        // The rail's answer to a long label is a second LINE, so the
-                        // other direction has to be checked too: nothing may be pushed
-                        // off the bottom of a window that cannot be resized.
-                        if (rail.DesiredSize.Height > PageHeight + 0.5)
+                        // The rail's answer to a long label is a second LINE, so the other
+                        // direction has to be checked too: nothing may be pushed off the
+                        // bottom of a window that cannot be resized. It needs its OWN
+                        // instance measured with an UNBOUNDED height - DesiredSize is
+                        // clamped to whatever it was measured against, so asking the
+                        // instance above could never report more than it was given. The
+                        // budget is the whole 680, because MainWindow gives the rail
+                        // Grid.Row="0" with RowSpan="3".
+                        var tallRail = new SidebarNav();
+                        System.Windows.Documents.TextElement.SetFontFamily(tallRail, AppUiFontFamily());
+                        tallRail.Measure(new Size(232, double.PositiveInfinity));
+                        if (tallRail.DesiredSize.Height > 680 + 0.5)
                         {
                             problems.Add(
-                                $"[{culture}] SidebarNav wants {rail.DesiredSize.Height:F0}px of a "
-                                + $"{PageHeight:F0}px window, so its lowest item is off the screen");
+                                $"[{culture}] SidebarNav wants {tallRail.DesiredSize.Height:F0}px of a "
+                                + "680px window, so its lowest item is off the screen");
                         }
 
                         // ...and every other screen the sweep for #570 found a cut label
@@ -13252,14 +13266,65 @@ internal static class Program
                             new HyperWhisper.Views.Pages.HomePage(), ContentWidth, PageHeight, problems);
                         CheckLabelsFit(culture, "SettingsPage",
                             new HyperWhisper.Views.Pages.SettingsPage(), ContentWidth, PageHeight, problems);
-                        CheckLabelsFit(culture, "HistoryPage",
-                            new HyperWhisper.Views.Pages.HistoryPage(), ContentWidth, PageHeight, problems);
+                        // The date filter sizes to its SELECTED option and only that
+                        // option is in the visual tree, so one layout covers one quarter of
+                        // the control. Every option is laid out, and each one has to leave
+                        // the search field beside it a usable width - the filter is bounded
+                        // by MaxWidth precisely so that it can.
+                        var history = new HyperWhisper.Views.Pages.HistoryPage();
+                        for (var option = 0; option < history.DateFilterBox.Items.Count; option++)
+                        {
+                            history.DateFilterBox.SelectedIndex = option;
+                            CheckLabelsFit(
+                                culture, $"HistoryPage (filter option {option})",
+                                history, ContentWidth, PageHeight, problems);
+
+                            if (history.SearchFieldBorder.ActualWidth < MinimumSearchFieldWidth)
+                            {
+                                problems.Add(
+                                    $"[{culture}] HistoryPage: date-filter option {option} leaves the search "
+                                    + $"field {history.SearchFieldBorder.ActualWidth:F0}px, under the "
+                                    + $"{MinimumSearchFieldWidth:F0}px floor");
+                            }
+                        }
                         CheckLabelsFit(culture, "ShortcutsSettingsPage",
                             new ShortcutsSettingsPage(), FormWidth, PageHeight, problems);
                         CheckLabelsFit(culture, "ApiKeysSettingsPage",
                             new ApiKeysSettingsPage(), apiKeysWidth, 760, problems);
                         CheckLabelsFit(culture, "StreamingSettingsPage",
                             new StreamingSettingsPage(), ContentWidth, PageHeight, problems);
+
+                        // The rest of the screens the sweep covered. They are clean today,
+                        // and they are listed so that they STAY clean: every one of them
+                        // carries the same shape of secondary caption that had to be fixed
+                        // on the API keys page. Named rather than reflected over, because
+                        // several pages in Views/Pages cannot be constructed headlessly at
+                        // all - BackupExportSettingsPage opens the vocabulary table, and
+                        // MainWindow builds the audio stack - and a reflection sweep that
+                        // swallowed those failures would quietly cover nothing. The eight
+                        // Onboarding step pages are deliberately out: they only hold their
+                        // real strings once a flow has been driven, which is what
+                        // BuildOnboardingStepPages already exists for.
+                        CheckLabelsFit(culture, "ModesPage",
+                            new HyperWhisper.Views.Pages.ModesPage(), ContentWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "VocabularyPage",
+                            new HyperWhisper.Views.Pages.VocabularyPage(), ContentWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "ModelsSettingsPage",
+                            new ModelsSettingsPage(), ContentWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "GeneralSettingsPage",
+                            new GeneralSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "SoundSettingsPage",
+                            new SoundSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "CloudAccountSettingsPage",
+                            new CloudAccountSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "OutputSettingsPage",
+                            new OutputSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "LocalApiSettingsPage",
+                            new LocalApiSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "AppearanceSettingsPage",
+                            new AppearanceSettingsPage(), FormWidth, PageHeight, problems);
+                        CheckLabelsFit(culture, "AboutSettingsPage",
+                            new AboutSettingsPage(), FormWidth, PageHeight, problems);
                     }
 
                     // Reported BEFORE the guards below, so that a run against the old
@@ -13278,33 +13343,39 @@ internal static class Program
                     // fixed widths came back.
                     System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo("de");
                     var germanBar = new HomeStatsBar { DataContext = new HomeStatsProbe() };
+                    System.Windows.Documents.TextElement.SetFontFamily(germanBar, AppUiFontFamily());
                     germanBar.Measure(new Size(CardWidth, 140));
                     germanBar.Arrange(new Rect(0, 0, CardWidth, 140));
                     germanBar.UpdateLayout();
 
                     var germanCaption = DescendantsOf<System.Windows.Controls.TextBlock>(germanBar)
-                        .Single(block => block.Text == HyperWhisper.Localization.Loc.S("home.stats.averageSpeed"));
-                    Assert(UnconstrainedWidthOf(germanCaption) > 132,
-                        $"the German Home caption now wants {UnconstrainedWidthOf(germanCaption):F0}px, which the "
+                        .FirstOrDefault(block => block.Text == HyperWhisper.Localization.Loc.S("home.stats.averageSpeed"));
+                    Assert(germanCaption != null,
+                        "no Home tile renders home.stats.averageSpeed any more, so this case cannot check it");
+                    Assert(UnconstrainedWidthOf(germanCaption!) > 132,
+                        $"the German Home caption now wants {UnconstrainedWidthOf(germanCaption!):F0}px, which the "
                         + "old Width=\"132\" tile fitted, so this case no longer exercises #570");
-                    Assert(germanCaption.ActualHeight > LineHeightOf(germanCaption) * 1.5,
-                        $"the German Home caption is still one {germanCaption.ActualHeight:F0}px line, so it is "
+                    Assert(germanCaption!.ActualHeight > LineHeightOf(germanCaption!) * 1.5,
+                        $"the German Home caption is still one {germanCaption!.ActualHeight:F0}px line, so it is "
                         + "being cut rather than wrapped");
 
                     System.Threading.Thread.CurrentThread.CurrentUICulture = new CultureInfo("fr");
                     var frenchRail = new SidebarNav();
+                    System.Windows.Documents.TextElement.SetFontFamily(frenchRail, AppUiFontFamily());
                     frenchRail.Measure(new Size(232, PageHeight));
                     frenchRail.Arrange(new Rect(0, 0, 232, PageHeight));
                     frenchRail.UpdateLayout();
 
                     var frenchItem = DescendantsOf<System.Windows.Controls.TextBlock>(frenchRail)
-                        .Single(block => block.Text == HyperWhisper.Localization.Loc.S("settings.nav.models"));
-                    Assert(UnconstrainedWidthOf(frenchItem) > frenchItem.ActualWidth + 0.5,
-                        $"the French Model Library label wants {UnconstrainedWidthOf(frenchItem):F0}px and was given "
-                        + $"{frenchItem.ActualWidth:F0}px, so it fits on one line and this case proves nothing");
-                    Assert(frenchItem.ActualHeight > LineHeightOf(frenchItem) * 1.5,
-                        $"the French Model Library label is still one {frenchItem.ActualHeight:F0}px line in a "
-                        + $"{frenchItem.ActualWidth:F0}px column, so it is being cut rather than wrapped");
+                        .FirstOrDefault(block => block.Text == HyperWhisper.Localization.Loc.S("settings.nav.models"));
+                    Assert(frenchItem != null,
+                        "no nav item renders settings.nav.models any more, so this case cannot check it");
+                    Assert(UnconstrainedWidthOf(frenchItem!) > frenchItem!.ActualWidth + 0.5,
+                        $"the French Model Library label wants {UnconstrainedWidthOf(frenchItem!):F0}px and was given "
+                        + $"{frenchItem!.ActualWidth:F0}px, so it fits on one line and this case proves nothing");
+                    Assert(frenchItem!.ActualHeight > LineHeightOf(frenchItem!) * 1.5,
+                        $"the French Model Library label is still one {frenchItem!.ActualHeight:F0}px line in a "
+                        + $"{frenchItem!.ActualWidth:F0}px column, so it is being cut rather than wrapped");
                 }
                 finally
                 {
@@ -15428,6 +15499,13 @@ internal static class Program
     /// every localized label that the layout cuts.
     /// </summary>
     /// <remarks>
+    /// The 3px slack on the TRIMMED check is measurement, not design: FormattedText
+    /// and the block's own formatter disagree by 1-2px on the same string (measured
+    /// examples - Turkish "Text Output" 67 vs 69, "Yedek" 34 vs 35, zh-Hans "替换为…"
+    /// 45 vs 46), and all three are identical in English, so a 0.5px bar would fail on
+    /// arithmetic rather than on a translation. The CUT check is exact geometry and
+    /// keeps 0.5px.
+    ///
     /// Two different cuts, because a fixed width produces both:
     ///   * TRIMMED - the block was given less width than its text needs and is still
     ///     one line, so the tail is replaced by an ellipsis or simply lost. The 3px
@@ -15609,7 +15687,11 @@ internal static class Program
         public int AverageWpm { get; init; } = 142;
         public int WordsThisWeek { get; init; } = 12345;
         public int WordsThisMonth { get; init; } = 54321;
-        public string SavedThisWeekDisplay { get; init; } = "1h 23m";
+        // Built the way HomeStatsBarViewModel builds it - Loc.S("home.stats.minutesValue", n) -
+        // because this is the one tile VALUE the app localizes, and a hard-coded English
+        // literal would measure the same six characters under all 40 catalogues.
+        public string SavedThisWeekDisplay { get; init; } =
+            HyperWhisper.Localization.Loc.S("home.stats.minutesValue", 83);
     }
 
     private sealed class StatusBarProbe
