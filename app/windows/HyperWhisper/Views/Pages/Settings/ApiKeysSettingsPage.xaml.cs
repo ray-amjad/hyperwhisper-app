@@ -134,8 +134,8 @@ public partial class ApiKeysSettingsPage : Page
         PasswordBox firstKeyBox,
         PasswordBox secondKeyBox,
         ref bool keyVisible,
-        Button firstShowButton,
-        Button secondShowButton,
+        System.Windows.Controls.Button firstShowButton,
+        System.Windows.Controls.Button secondShowButton,
         TextBlock firstStatusText,
         TextBlock secondStatusText)
     {
