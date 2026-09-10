@@ -169,7 +169,8 @@ class VADProcessingService {
         let originalExtension = audioURL.pathExtension.lowercased()
         let isImportedCompressedFormat = AudioConstants.isCloudCompatibleCompressedFormat(originalExtension)
 
-        let logPrefix = context.isEmpty ? "" : "[\(context)] "
+        let diagnosticContext = Self.diagnosticContext(context)
+        let logPrefix = diagnosticContext.isEmpty ? "" : "[\(diagnosticContext)] "
 
         // STEP 1: Check if VAD should be applied
         // ======================================
@@ -254,7 +255,8 @@ class VADProcessingService {
             // ====================================
             // Log the error and fall back to original audio.
             // This ensures transcription can still proceed.
-            AppLogger.audio.warning("⚠️ \(logPrefix)VAD analysis failed: \(error.localizedDescription) - using original audio")
+            let nsError = error as NSError
+            AppLogger.audio.warning("⚠️ \(logPrefix)VAD analysis failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · using original audio")
 
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -262,9 +264,9 @@ class VADProcessingService {
                     category: "audio.vad",
                     level: .warning,
                     data: [
-                        "error": error.localizedDescription,
-                        "audioPath": audioURL.path,
-                        "context": context
+                        "errorDomain": nsError.domain,
+                        "errorCode": nsError.code,
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -293,7 +295,8 @@ class VADProcessingService {
     ///
     /// - Returns: The trimmed file URL if valid, nil if validation fails
     private func validateTrimResult(_ result: TrimResult, context: String) -> URL? {
-        let logPrefix = context.isEmpty ? "" : "[\(context)] "
+        let diagnosticContext = Self.diagnosticContext(context)
+        let logPrefix = diagnosticContext.isEmpty ? "" : "[\(diagnosticContext)] "
 
         // CHECK 1: Minimum silence removed
         // ================================
@@ -319,7 +322,7 @@ class VADProcessingService {
                     data: [
                         "originalDuration": result.originalDuration,
                         "trimmedDuration": result.trimmedDuration,
-                        "context": context
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -344,7 +347,7 @@ class VADProcessingService {
                     data: [
                         "trimmedFileExists": trimmedFileExists,
                         "trimmedFileSizeBytes": trimmedFileSize,
-                        "context": context
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -365,7 +368,7 @@ class VADProcessingService {
                     "silenceRemoved": result.silenceRemoved,
                     "removalPercentage": result.removalPercentage,
                     "trimmedFileSizeBytes": trimmedFileSize,
-                    "context": context
+                    "context": diagnosticContext
                 ]
             )
         }
@@ -395,7 +398,8 @@ class VADProcessingService {
     ///
     /// - Returns: M4A URL if conversion succeeded, original WAV URL otherwise
     private func convertTrimmedToM4AIfNeeded(_ wavURL: URL, context: String) async -> URL {
-        let logPrefix = context.isEmpty ? "" : "[\(context)] "
+        let diagnosticContext = Self.diagnosticContext(context)
+        let logPrefix = diagnosticContext.isEmpty ? "" : "[\(diagnosticContext)] "
 
         // CHECK: Only process WAV files
         // =============================
@@ -457,7 +461,7 @@ class VADProcessingService {
                         "sampleRate": sampleRate,
                         "channels": channels,
                         "bitrate": bitrate,
-                        "context": context
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -465,7 +469,8 @@ class VADProcessingService {
             return m4aURL
 
         } catch {
-            AppLogger.audio.warning("⚠️ \(logPrefix)Primary M4A conversion failed: \(error.localizedDescription) - trying fallback")
+            let nsError = error as NSError
+            AppLogger.audio.warning("⚠️ \(logPrefix)Primary M4A conversion failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · trying fallback")
         }
 
         // FALLBACK METHOD: convertAudioToM4AWithExportSession
@@ -503,19 +508,33 @@ class VADProcessingService {
             AppLogger.audio.warning("⚠️ \(logPrefix)M4A fallback also failed - using original WAV")
 
             if AppLogger.isErrorLoggingEnabled {
+                let nsError = error as NSError
                 SentryService.addBreadcrumb(
                     message: "Trimmed WAV→M4A conversion failed",
                     category: "audio.vad",
                     level: .warning,
                     data: [
                         "originalSizeBytes": fileSize,
-                        "error": error.localizedDescription,
-                        "context": context
+                        "errorDomain": nsError.domain,
+                        "errorCode": nsError.code,
+                        "context": diagnosticContext
                     ]
                 )
             }
 
             return wavURL
+        }
+    }
+
+    /// Convert caller context to a fixed diagnostic label before logging it.
+    private static func diagnosticContext(_ context: String) -> String {
+        switch context {
+        case "":
+            return ""
+        case "Recording", "FileImport", "Retry":
+            return context
+        default:
+            return "Other"
         }
     }
 

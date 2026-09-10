@@ -109,6 +109,11 @@ class SilenceTrimmer {
     /// Logger for debugging
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "SilenceTrimmer")
 
+    /// File extensions that are safe to emit as format metadata.
+    private static let loggedAudioFormats: Set<String> = [
+        "aac", "aif", "aiff", "caf", "flac", "m4a", "mp3", "mp4", "ogg", "opus", "wav", "webm"
+    ]
+
     /// Sample rate for audio processing (Whisper standard)
     private let sampleRate: Double = 16000
 
@@ -138,7 +143,9 @@ class SilenceTrimmer {
     /// - Returns: TrimResult with output URL and statistics
     /// - Throws: TrimError if trimming fails
     func trimSilence(from inputURL: URL, to outputURL: URL? = nil) async throws -> TrimResult {
-        logger.info("Starting silence trimming for: \(inputURL.lastPathComponent)")
+        let inputExtension = inputURL.pathExtension.lowercased()
+        let inputFormat = Self.loggedAudioFormats.contains(inputExtension) ? inputExtension : "other"
+        logger.info("Starting silence trimming · inputFormat=\(inputFormat, privacy: .public) · outputFormat=wav")
 
         // STEP 1: Verify input file exists
         guard FileManager.default.fileExists(atPath: inputURL.path) else {
@@ -188,7 +195,7 @@ class SilenceTrimmer {
 
         // STEP 9: Write trimmed audio
         try await writeAudioFile(samples: speechSamples, to: finalOutputURL)
-        logger.info("Wrote trimmed audio to: \(finalOutputURL.lastPathComponent)")
+        logger.info("Wrote trimmed audio · outputFormat=wav · sampleCount=\(speechSamples.count, privacy: .public) · durationSeconds=\(trimmedDuration, privacy: .public)")
 
         return TrimResult(
             outputURL: finalOutputURL,
@@ -368,14 +375,16 @@ class SilenceTrimmer {
 
     /// Generate output URL for trimmed audio.
     ///
-    /// Creates a new filename by appending "_trimmed" before the extension.
-    /// Example: recording.wav -> recording_trimmed.wav
-    private func generateOutputURL(for inputURL: URL) -> URL {
+    /// Creates a new filename by appending "_trimmed" and the WAV extension.
+    /// The extension always matches the LPCM/WAV bytes written by `writeAudioFile`.
+    /// Example: recording.m4a -> recording_trimmed.wav
+    func generateOutputURL(for inputURL: URL) -> URL {
         let directory = inputURL.deletingLastPathComponent()
         let filename = inputURL.deletingPathExtension().lastPathComponent
-        let ext = inputURL.pathExtension
 
-        return directory.appendingPathComponent("\(filename)_trimmed.\(ext)")
+        return directory
+            .appendingPathComponent("\(filename)_trimmed")
+            .appendingPathExtension("wav")
     }
 
     /// Write audio samples to a WAV file.
