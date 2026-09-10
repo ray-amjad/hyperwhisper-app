@@ -19,6 +19,36 @@ namespace HyperWhisper.Views.Pages.Settings;
 
 public partial class ApiKeysSettingsPage : Page
 {
+    private sealed class SharedApiKeyCard
+    {
+        public required PostProcessingProvider Provider { get; init; }
+        public required string InvalidKeyLocalizationKey { get; init; }
+        public required string LogLabel { get; init; }
+        public required PasswordBox FirstKeyBox { get; init; }
+        public required PasswordBox SecondKeyBox { get; init; }
+        public required WpfButton FirstSaveButton { get; init; }
+        public required WpfButton SecondSaveButton { get; init; }
+        public required WpfButton FirstShowButton { get; init; }
+        public required WpfButton SecondShowButton { get; init; }
+        public required Action ResetVisibility { get; init; }
+        public required Action UpdateStatus { get; init; }
+
+        public PasswordBox KeyBoxFor(object sender)
+        {
+            if (ReferenceEquals(sender, FirstSaveButton))
+            {
+                return FirstKeyBox;
+            }
+
+            if (ReferenceEquals(sender, SecondSaveButton))
+            {
+                return SecondKeyBox;
+            }
+
+            throw new ArgumentException("The save button does not belong to this API key card.", nameof(sender));
+        }
+    }
+
     // =========================================================================
     // STATE
     // =========================================================================
@@ -37,10 +67,70 @@ public partial class ApiKeysSettingsPage : Page
     private bool _grokKeyVisible;
     private bool _geminiTranscribeKeyVisible;
     private bool _metaKeyVisible;
+    private readonly SharedApiKeyCard _openAIApiKeyCard;
+    private readonly SharedApiKeyCard _groqApiKeyCard;
+    private readonly SharedApiKeyCard _geminiApiKeyCard;
+    private readonly SharedApiKeyCard _grokApiKeyCard;
 
     public ApiKeysSettingsPage()
     {
         InitializeComponent();
+        _openAIApiKeyCard = new SharedApiKeyCard
+        {
+            Provider = PostProcessingProvider.OpenAI,
+            InvalidKeyLocalizationKey = "settings.api.invalidKey.openai",
+            LogLabel = "OpenAI",
+            FirstKeyBox = OpenAITranscriptionKeyBox,
+            SecondKeyBox = OpenAIPostKeyBox,
+            FirstSaveButton = OpenAITranscriptionSaveButton,
+            SecondSaveButton = OpenAIPostSaveButton,
+            FirstShowButton = OpenAITranscriptionShowButton,
+            SecondShowButton = OpenAIPostShowButton,
+            ResetVisibility = () => _openAIKeyVisible = false,
+            UpdateStatus = UpdateOpenAIStatus
+        };
+        _groqApiKeyCard = new SharedApiKeyCard
+        {
+            Provider = PostProcessingProvider.Groq,
+            InvalidKeyLocalizationKey = "settings.api.invalidKey.groq",
+            LogLabel = "Groq",
+            FirstKeyBox = GroqTranscriptionKeyBox,
+            SecondKeyBox = GroqPostKeyBox,
+            FirstSaveButton = GroqTranscriptionSaveButton,
+            SecondSaveButton = GroqPostSaveButton,
+            FirstShowButton = GroqTranscriptionShowButton,
+            SecondShowButton = GroqPostShowButton,
+            ResetVisibility = () => _groqKeyVisible = false,
+            UpdateStatus = UpdateGroqStatus
+        };
+        _geminiApiKeyCard = new SharedApiKeyCard
+        {
+            Provider = PostProcessingProvider.Gemini,
+            InvalidKeyLocalizationKey = "settings.api.invalidKey.gemini",
+            LogLabel = "Gemini",
+            FirstKeyBox = GeminiTranscriptionKeyBox,
+            SecondKeyBox = GeminiKeyBox,
+            FirstSaveButton = GeminiTranscriptionSaveButton,
+            SecondSaveButton = GeminiSaveButton,
+            FirstShowButton = GeminiTranscriptionShowButton,
+            SecondShowButton = GeminiShowButton,
+            ResetVisibility = () => _geminiKeyVisible = false,
+            UpdateStatus = UpdateGeminiStatus
+        };
+        _grokApiKeyCard = new SharedApiKeyCard
+        {
+            Provider = PostProcessingProvider.Grok,
+            InvalidKeyLocalizationKey = "settings.api.invalidKey.grok",
+            LogLabel = "Grok",
+            FirstKeyBox = GrokKeyBox,
+            SecondKeyBox = GrokPostKeyBox,
+            FirstSaveButton = GrokSaveButton,
+            SecondSaveButton = GrokPostSaveButton,
+            FirstShowButton = GrokShowButton,
+            SecondShowButton = GrokPostShowButton,
+            ResetVisibility = () => _grokKeyVisible = false,
+            UpdateStatus = UpdateGrokStatus
+        };
         Loaded += OnLoaded;
     }
 
@@ -126,47 +216,36 @@ public partial class ApiKeysSettingsPage : Page
         }
     }
 
-    private void SaveSharedApiKey(
-        string key,
-        PostProcessingProvider provider,
-        string invalidKeyLocalizationKey,
-        string logLabel,
-        PasswordBox firstKeyBox,
-        PasswordBox secondKeyBox,
-        ref bool keyVisible,
-        System.Windows.Controls.Button firstShowButton,
-        System.Windows.Controls.Button secondShowButton,
-        TextBlock firstStatusText,
-        TextBlock secondStatusText)
+    private void SaveSharedApiKey(SharedApiKeyCard card, object sender)
     {
+        var key = card.KeyBoxFor(sender).Password;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ApiKeyService.Instance.SetApiKey(provider, null);
-            LoggingService.Info($"ApiKeys: Cleared {logLabel} API key");
+            ApiKeyService.Instance.SetApiKey(card.Provider, null);
+            LoggingService.Info($"ApiKeys: Cleared {card.LogLabel} API key");
         }
         else
         {
-            if (!ApiKeyService.IsValidKeyFormat(provider, key))
+            if (!ApiKeyService.IsValidKeyFormat(card.Provider, key))
             {
                 WpfMessageBox.Show(
-                    Loc.S(invalidKeyLocalizationKey),
+                    Loc.S(card.InvalidKeyLocalizationKey),
                     Loc.S("settings.api.invalidKey.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
             }
 
-            ApiKeyService.Instance.SetApiKey(provider, key);
-            LoggingService.Info($"ApiKeys: Saved {logLabel} API key");
+            ApiKeyService.Instance.SetApiKey(card.Provider, key);
+            LoggingService.Info($"ApiKeys: Saved {card.LogLabel} API key");
         }
 
-        firstKeyBox.Password = "";
-        secondKeyBox.Password = "";
-        keyVisible = false;
-        firstShowButton.Content = Loc.S("settings.api.show");
-        secondShowButton.Content = Loc.S("settings.api.show");
-        UpdateKeyStatus(provider, firstStatusText);
-        UpdateKeyStatus(provider, secondStatusText);
+        card.FirstKeyBox.Password = "";
+        card.SecondKeyBox.Password = "";
+        card.ResetVisibility();
+        card.FirstShowButton.Content = Loc.S("settings.api.show");
+        card.SecondShowButton.Content = Loc.S("settings.api.show");
+        card.UpdateStatus();
     }
 
     // =========================================================================
@@ -208,20 +287,9 @@ public partial class ApiKeysSettingsPage : Page
         SyncOpenAIShowButtons();
     }
 
-    private void OpenAITranscriptionSaveButton_Click(object sender, RoutedEventArgs e)
+    private void OpenAISaveButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveSharedApiKey(
-            OpenAITranscriptionKeyBox.Password,
-            PostProcessingProvider.OpenAI,
-            "settings.api.invalidKey.openai",
-            "OpenAI",
-            OpenAITranscriptionKeyBox,
-            OpenAIPostKeyBox,
-            ref _openAIKeyVisible,
-            OpenAITranscriptionShowButton,
-            OpenAIPostShowButton,
-            OpenAITranscriptionStatusText,
-            OpenAIPostStatusText);
+        SaveSharedApiKey(_openAIApiKeyCard, sender);
     }
 
     private void OpenAIPostKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -233,22 +301,6 @@ public partial class ApiKeysSettingsPage : Page
     {
         _openAIKeyVisible = !_openAIKeyVisible;
         SyncOpenAIShowButtons();
-    }
-
-    private void OpenAIPostSaveButton_Click(object sender, RoutedEventArgs e)
-    {
-        SaveSharedApiKey(
-            OpenAIPostKeyBox.Password,
-            PostProcessingProvider.OpenAI,
-            "settings.api.invalidKey.openai",
-            "OpenAI",
-            OpenAITranscriptionKeyBox,
-            OpenAIPostKeyBox,
-            ref _openAIKeyVisible,
-            OpenAITranscriptionShowButton,
-            OpenAIPostShowButton,
-            OpenAITranscriptionStatusText,
-            OpenAIPostStatusText);
     }
 
     // =========================================================================
@@ -345,20 +397,9 @@ public partial class ApiKeysSettingsPage : Page
         SyncGroqShowButtons();
     }
 
-    private void GroqTranscriptionSaveButton_Click(object sender, RoutedEventArgs e)
+    private void GroqSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveSharedApiKey(
-            GroqTranscriptionKeyBox.Password,
-            PostProcessingProvider.Groq,
-            "settings.api.invalidKey.groq",
-            "Groq",
-            GroqTranscriptionKeyBox,
-            GroqPostKeyBox,
-            ref _groqKeyVisible,
-            GroqTranscriptionShowButton,
-            GroqPostShowButton,
-            GroqTranscriptionStatusText,
-            GroqPostStatusText);
+        SaveSharedApiKey(_groqApiKeyCard, sender);
     }
 
     private void GroqPostKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -370,22 +411,6 @@ public partial class ApiKeysSettingsPage : Page
     {
         _groqKeyVisible = !_groqKeyVisible;
         SyncGroqShowButtons();
-    }
-
-    private void GroqPostSaveButton_Click(object sender, RoutedEventArgs e)
-    {
-        SaveSharedApiKey(
-            GroqPostKeyBox.Password,
-            PostProcessingProvider.Groq,
-            "settings.api.invalidKey.groq",
-            "Groq",
-            GroqTranscriptionKeyBox,
-            GroqPostKeyBox,
-            ref _groqKeyVisible,
-            GroqTranscriptionShowButton,
-            GroqPostShowButton,
-            GroqTranscriptionStatusText,
-            GroqPostStatusText);
     }
 
     // =========================================================================
@@ -427,20 +452,9 @@ public partial class ApiKeysSettingsPage : Page
         SyncGeminiShowButtons();
     }
 
-    private void GeminiTranscriptionSaveButton_Click(object sender, RoutedEventArgs e)
+    private void GeminiSharedSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveSharedApiKey(
-            GeminiTranscriptionKeyBox.Password,
-            PostProcessingProvider.Gemini,
-            "settings.api.invalidKey.gemini",
-            "Gemini",
-            GeminiTranscriptionKeyBox,
-            GeminiKeyBox,
-            ref _geminiKeyVisible,
-            GeminiTranscriptionShowButton,
-            GeminiShowButton,
-            GeminiTranscriptionStatusText,
-            GeminiStatusText);
+        SaveSharedApiKey(_geminiApiKeyCard, sender);
     }
 
     private void GeminiKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -452,22 +466,6 @@ public partial class ApiKeysSettingsPage : Page
     {
         _geminiKeyVisible = !_geminiKeyVisible;
         SyncGeminiShowButtons();
-    }
-
-    private void GeminiSaveButton_Click(object sender, RoutedEventArgs e)
-    {
-        SaveSharedApiKey(
-            GeminiKeyBox.Password,
-            PostProcessingProvider.Gemini,
-            "settings.api.invalidKey.gemini",
-            "Gemini",
-            GeminiTranscriptionKeyBox,
-            GeminiKeyBox,
-            ref _geminiKeyVisible,
-            GeminiTranscriptionShowButton,
-            GeminiShowButton,
-            GeminiTranscriptionStatusText,
-            GeminiStatusText);
     }
 
     // =========================================================================
@@ -958,34 +956,7 @@ public partial class ApiKeysSettingsPage : Page
 
     private void GrokSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveSharedApiKey(
-            GrokKeyBox.Password,
-            PostProcessingProvider.Grok,
-            "settings.api.invalidKey.grok",
-            "Grok",
-            GrokKeyBox,
-            GrokPostKeyBox,
-            ref _grokKeyVisible,
-            GrokShowButton,
-            GrokPostShowButton,
-            GrokStatusText,
-            GrokPostStatusText);
-    }
-
-    private void GrokPostSaveButton_Click(object sender, RoutedEventArgs e)
-    {
-        SaveSharedApiKey(
-            GrokPostKeyBox.Password,
-            PostProcessingProvider.Grok,
-            "settings.api.invalidKey.grok",
-            "Grok",
-            GrokKeyBox,
-            GrokPostKeyBox,
-            ref _grokKeyVisible,
-            GrokShowButton,
-            GrokPostShowButton,
-            GrokStatusText,
-            GrokPostStatusText);
+        SaveSharedApiKey(_grokApiKeyCard, sender);
     }
 
     // =========================================================================
