@@ -239,6 +239,21 @@ describe('assistantRoute entitlement gate', () => {
     // rename at the edge only — not a second credential path.
     expect(creditCalls[0]?.license_key).toBe('HW-LEGACY-0001');
   });
+
+  test('account_key wins over the legacy license_key when both are sent', async () => {
+    const form = new FormData();
+    form.append('messages', JSON.stringify(TEXT_MESSAGES));
+    form.append('account_key', 'canonical-credential');
+    form.append('license_key', 'legacy-credential');
+
+    const res = await post({ form });
+    await readAndSettle(res);
+
+    expect(res.status).toBe(200);
+    expect(anthropicCalls).toHaveLength(1);
+    expect(creditCalls).toHaveLength(1);
+    expect(creditCalls[0]?.license_key).toBe('canonical-credential');
+  });
 });
 
 describe('assistantRoute credit pre-check', () => {

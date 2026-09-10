@@ -23,11 +23,15 @@ import { Hono } from 'hono';
 import { MAX_AUDIO_SIZE_BYTES } from '../lib/constants';
 
 let ipBlocked = false;
+const cacheReads: string[] = [];
 
 mock.module('../lib/redis', () => ({
   redis: {},
   isIPBlocked: async () => ipBlocked,
-  getCachedLicense: async () => ({ isValid: true, credits: 1000, cachedAt: 'cached' }),
+  getCachedLicense: async (licenseKey: string) => {
+    cacheReads.push(licenseKey);
+    return { isValid: true, credits: 1000, cachedAt: 'cached' };
+  },
   cacheLicense: async () => {},
 }));
 
@@ -73,6 +77,7 @@ describe('transcribeRoute request gates', () => {
 
   beforeEach(() => {
     ipBlocked = false;
+    cacheReads.length = 0;
     providerCalls = [];
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
 
@@ -178,6 +183,16 @@ describe('transcribeRoute request gates', () => {
     const { status } = await send(gateRequest({ query: '?license_key=test-account-key&language=en-US' }));
 
     expect(status).toBe(200);
+    expect(providerCalls.some((url) => url.includes('api.deepgram.com'))).toBe(true);
+  });
+
+  test('account_key wins over the legacy license_key when both are sent', async () => {
+    const { status } = await send(gateRequest({
+      query: '?account_key=canonical-credential&license_key=legacy-credential&language=en-US',
+    }));
+
+    expect(status).toBe(200);
+    expect(cacheReads).toEqual(['canonical-credential']);
     expect(providerCalls.some((url) => url.includes('api.deepgram.com'))).toBe(true);
   });
 

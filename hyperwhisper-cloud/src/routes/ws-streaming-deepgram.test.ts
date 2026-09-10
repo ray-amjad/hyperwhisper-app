@@ -140,6 +140,16 @@ describe('wsStreamingPreflight', () => {
     });
   });
 
+  test('account_key wins over the legacy license_key when both are sent', async () => {
+    const res = await buildApp().request(
+      '/ws/streaming-deepgram?account_key=canonical-credential&license_key=legacy-credential',
+      { headers: UPGRADE_HEADERS }
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json() as { licenseKey: string }).licenseKey).toBe('canonical-credential');
+  });
+
   test('rejects a revoked license without reaching the socket handler', async () => {
     cachedLicenseValue = { isValid: false, credits: 500, cachedAt: 'cached' };
 
