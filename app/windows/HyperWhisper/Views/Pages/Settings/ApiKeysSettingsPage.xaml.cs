@@ -126,6 +126,49 @@ public partial class ApiKeysSettingsPage : Page
         }
     }
 
+    private void SaveSharedApiKey(
+        string key,
+        PostProcessingProvider provider,
+        string invalidKeyLocalizationKey,
+        string logLabel,
+        PasswordBox firstKeyBox,
+        PasswordBox secondKeyBox,
+        ref bool keyVisible,
+        Button firstShowButton,
+        Button secondShowButton,
+        TextBlock firstStatusText,
+        TextBlock secondStatusText)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            ApiKeyService.Instance.SetApiKey(provider, null);
+            LoggingService.Info($"ApiKeys: Cleared {logLabel} API key");
+        }
+        else
+        {
+            if (!ApiKeyService.IsValidKeyFormat(provider, key))
+            {
+                WpfMessageBox.Show(
+                    Loc.S(invalidKeyLocalizationKey),
+                    Loc.S("settings.api.invalidKey.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            ApiKeyService.Instance.SetApiKey(provider, key);
+            LoggingService.Info($"ApiKeys: Saved {logLabel} API key");
+        }
+
+        firstKeyBox.Password = "";
+        secondKeyBox.Password = "";
+        keyVisible = false;
+        firstShowButton.Content = Loc.S("settings.api.show");
+        secondShowButton.Content = Loc.S("settings.api.show");
+        UpdateKeyStatus(provider, firstStatusText);
+        UpdateKeyStatus(provider, secondStatusText);
+    }
+
     // =========================================================================
     // OPENAI (appears in both Transcription and Post-Processing cards)
     // =========================================================================
@@ -167,34 +210,18 @@ public partial class ApiKeysSettingsPage : Page
 
     private void OpenAITranscriptionSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = OpenAITranscriptionKeyBox.Password;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.OpenAI, null);
-            LoggingService.Info("ApiKeys: Cleared OpenAI API key");
-        }
-        else
-        {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.OpenAI, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.openai"),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.OpenAI, key);
-            LoggingService.Info("ApiKeys: Saved OpenAI API key");
-        }
-
-        OpenAITranscriptionKeyBox.Password = "";
-        OpenAIPostKeyBox.Password = "";
-        _openAIKeyVisible = false;
-        OpenAITranscriptionShowButton.Content = Loc.S("settings.api.show");
-        OpenAIPostShowButton.Content = Loc.S("settings.api.show");
-        UpdateOpenAIStatus();
+        SaveSharedApiKey(
+            OpenAITranscriptionKeyBox.Password,
+            PostProcessingProvider.OpenAI,
+            "settings.api.invalidKey.openai",
+            "OpenAI",
+            OpenAITranscriptionKeyBox,
+            OpenAIPostKeyBox,
+            ref _openAIKeyVisible,
+            OpenAITranscriptionShowButton,
+            OpenAIPostShowButton,
+            OpenAITranscriptionStatusText,
+            OpenAIPostStatusText);
     }
 
     private void OpenAIPostKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -210,34 +237,18 @@ public partial class ApiKeysSettingsPage : Page
 
     private void OpenAIPostSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = OpenAIPostKeyBox.Password;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.OpenAI, null);
-            LoggingService.Info("ApiKeys: Cleared OpenAI API key");
-        }
-        else
-        {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.OpenAI, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.openai"),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.OpenAI, key);
-            LoggingService.Info("ApiKeys: Saved OpenAI API key");
-        }
-
-        OpenAITranscriptionKeyBox.Password = "";
-        OpenAIPostKeyBox.Password = "";
-        _openAIKeyVisible = false;
-        OpenAITranscriptionShowButton.Content = Loc.S("settings.api.show");
-        OpenAIPostShowButton.Content = Loc.S("settings.api.show");
-        UpdateOpenAIStatus();
+        SaveSharedApiKey(
+            OpenAIPostKeyBox.Password,
+            PostProcessingProvider.OpenAI,
+            "settings.api.invalidKey.openai",
+            "OpenAI",
+            OpenAITranscriptionKeyBox,
+            OpenAIPostKeyBox,
+            ref _openAIKeyVisible,
+            OpenAITranscriptionShowButton,
+            OpenAIPostShowButton,
+            OpenAITranscriptionStatusText,
+            OpenAIPostStatusText);
     }
 
     // =========================================================================
@@ -336,34 +347,18 @@ public partial class ApiKeysSettingsPage : Page
 
     private void GroqTranscriptionSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = GroqTranscriptionKeyBox.Password;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Groq, null);
-            LoggingService.Info("ApiKeys: Cleared Groq API key");
-        }
-        else
-        {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Groq, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.groq"),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Groq, key);
-            LoggingService.Info("ApiKeys: Saved Groq API key");
-        }
-
-        GroqTranscriptionKeyBox.Password = "";
-        GroqPostKeyBox.Password = "";
-        _groqKeyVisible = false;
-        GroqTranscriptionShowButton.Content = Loc.S("settings.api.show");
-        GroqPostShowButton.Content = Loc.S("settings.api.show");
-        UpdateGroqStatus();
+        SaveSharedApiKey(
+            GroqTranscriptionKeyBox.Password,
+            PostProcessingProvider.Groq,
+            "settings.api.invalidKey.groq",
+            "Groq",
+            GroqTranscriptionKeyBox,
+            GroqPostKeyBox,
+            ref _groqKeyVisible,
+            GroqTranscriptionShowButton,
+            GroqPostShowButton,
+            GroqTranscriptionStatusText,
+            GroqPostStatusText);
     }
 
     private void GroqPostKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -379,34 +374,18 @@ public partial class ApiKeysSettingsPage : Page
 
     private void GroqPostSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = GroqPostKeyBox.Password;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Groq, null);
-            LoggingService.Info("ApiKeys: Cleared Groq API key");
-        }
-        else
-        {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Groq, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.groq"),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Groq, key);
-            LoggingService.Info("ApiKeys: Saved Groq API key");
-        }
-
-        GroqTranscriptionKeyBox.Password = "";
-        GroqPostKeyBox.Password = "";
-        _groqKeyVisible = false;
-        GroqTranscriptionShowButton.Content = Loc.S("settings.api.show");
-        GroqPostShowButton.Content = Loc.S("settings.api.show");
-        UpdateGroqStatus();
+        SaveSharedApiKey(
+            GroqPostKeyBox.Password,
+            PostProcessingProvider.Groq,
+            "settings.api.invalidKey.groq",
+            "Groq",
+            GroqTranscriptionKeyBox,
+            GroqPostKeyBox,
+            ref _groqKeyVisible,
+            GroqTranscriptionShowButton,
+            GroqPostShowButton,
+            GroqTranscriptionStatusText,
+            GroqPostStatusText);
     }
 
     // =========================================================================
@@ -450,34 +429,18 @@ public partial class ApiKeysSettingsPage : Page
 
     private void GeminiTranscriptionSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = GeminiTranscriptionKeyBox.Password;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Gemini, null);
-            LoggingService.Info("ApiKeys: Cleared Gemini API key");
-        }
-        else
-        {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.gemini"),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Gemini, key);
-            LoggingService.Info("ApiKeys: Saved Gemini API key");
-        }
-
-        GeminiTranscriptionKeyBox.Password = "";
-        GeminiKeyBox.Password = "";
-        _geminiKeyVisible = false;
-        GeminiTranscriptionShowButton.Content = Loc.S("settings.api.show");
-        GeminiShowButton.Content = Loc.S("settings.api.show");
-        UpdateGeminiStatus();
+        SaveSharedApiKey(
+            GeminiTranscriptionKeyBox.Password,
+            PostProcessingProvider.Gemini,
+            "settings.api.invalidKey.gemini",
+            "Gemini",
+            GeminiTranscriptionKeyBox,
+            GeminiKeyBox,
+            ref _geminiKeyVisible,
+            GeminiTranscriptionShowButton,
+            GeminiShowButton,
+            GeminiTranscriptionStatusText,
+            GeminiStatusText);
     }
 
     private void GeminiKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -493,34 +456,18 @@ public partial class ApiKeysSettingsPage : Page
 
     private void GeminiSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var key = GeminiKeyBox.Password;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Gemini, null);
-            LoggingService.Info("ApiKeys: Cleared Gemini API key");
-        }
-        else
-        {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.gemini"),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Gemini, key);
-            LoggingService.Info("ApiKeys: Saved Gemini API key");
-        }
-
-        GeminiTranscriptionKeyBox.Password = "";
-        GeminiKeyBox.Password = "";
-        _geminiKeyVisible = false;
-        GeminiTranscriptionShowButton.Content = Loc.S("settings.api.show");
-        GeminiShowButton.Content = Loc.S("settings.api.show");
-        UpdateGeminiStatus();
+        SaveSharedApiKey(
+            GeminiKeyBox.Password,
+            PostProcessingProvider.Gemini,
+            "settings.api.invalidKey.gemini",
+            "Gemini",
+            GeminiTranscriptionKeyBox,
+            GeminiKeyBox,
+            ref _geminiKeyVisible,
+            GeminiTranscriptionShowButton,
+            GeminiShowButton,
+            GeminiTranscriptionStatusText,
+            GeminiStatusText);
     }
 
     // =========================================================================
@@ -1011,43 +958,34 @@ public partial class ApiKeysSettingsPage : Page
 
     private void GrokSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveGrokApiKey(GrokKeyBox.Password);
+        SaveSharedApiKey(
+            GrokKeyBox.Password,
+            PostProcessingProvider.Grok,
+            "settings.api.invalidKey.grok",
+            "Grok",
+            GrokKeyBox,
+            GrokPostKeyBox,
+            ref _grokKeyVisible,
+            GrokShowButton,
+            GrokPostShowButton,
+            GrokStatusText,
+            GrokPostStatusText);
     }
 
     private void GrokPostSaveButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveGrokApiKey(GrokPostKeyBox.Password);
-    }
-
-    private void SaveGrokApiKey(string key)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Grok, null);
-            LoggingService.Info("ApiKeys: Cleared Grok API key");
-        }
-        else
-        {
-            if (!ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Grok, key))
-            {
-                WpfMessageBox.Show(
-                    Loc.S("settings.api.invalidKey.grok"),
-                    Loc.S("settings.api.invalidKey.title"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            ApiKeyService.Instance.SetApiKey(PostProcessingProvider.Grok, key);
-            LoggingService.Info("ApiKeys: Saved Grok API key");
-        }
-
-        GrokKeyBox.Password = "";
-        GrokPostKeyBox.Password = "";
-        _grokKeyVisible = false;
-        GrokShowButton.Content = Loc.S("settings.api.show");
-        GrokPostShowButton.Content = Loc.S("settings.api.show");
-        UpdateGrokStatus();
+        SaveSharedApiKey(
+            GrokPostKeyBox.Password,
+            PostProcessingProvider.Grok,
+            "settings.api.invalidKey.grok",
+            "Grok",
+            GrokKeyBox,
+            GrokPostKeyBox,
+            ref _grokKeyVisible,
+            GrokShowButton,
+            GrokPostShowButton,
+            GrokStatusText,
+            GrokPostStatusText);
     }
 
     // =========================================================================
