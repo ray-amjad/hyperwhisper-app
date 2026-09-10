@@ -3,7 +3,7 @@
 
 import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
-import type { CorrectionRequestPayload } from './groq-llm';
+import type { CorrectionRequestPayload } from './llm-contract';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';

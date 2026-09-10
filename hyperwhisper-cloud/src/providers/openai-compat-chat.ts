@@ -9,8 +9,8 @@
 // fields) are unchanged.
 
 import { isRecord, safeReadText } from '../lib/utils';
-import { isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
-import { reportMissingUsage, type CorrectionRequestPayload } from './groq-llm';
+import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
+import type { CorrectionRequestPayload } from './llm-contract';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
@@ -23,6 +23,35 @@ export type OpenAICompatChatConfig = {
   buildBody: (payload: CorrectionRequestPayload, model: string) => Record<string, unknown>;
   computeCost: (usage: GroqUsage) => number;
 };
+
+// Fail-closed fallback for vendor usage-schema drift: estimate tokens from
+// character counts so a missing/unrecognized `usage` block is billed instead
+// of silently costing 0.
+function reportMissingUsage(
+  provider: string,
+  payload: CorrectionRequestPayload,
+  json: unknown,
+  requestId: string
+): GroqUsage {
+  const promptChars = payload.messages.reduce((sum, message) => sum + message.content.length, 0);
+
+  let completionChars = 0;
+  if (isRecord(json)) {
+    const choices = json['choices'];
+    const message = Array.isArray(choices) && isRecord(choices[0]) ? choices[0]['message'] : undefined;
+    const content = isRecord(message) ? message['content'] : undefined;
+    completionChars = typeof content === 'string' ? content.length : JSON.stringify(json).length;
+  }
+
+  const estimatedUsage = estimateUsageFromChars(promptChars, completionChars);
+  console.warn('LLM response missing/unrecognized usage; billing char-based estimate', {
+    requestId,
+    provider,
+    estimatedUsage,
+  });
+
+  return estimatedUsage;
+}
 
 export async function requestOpenAICompatibleChat(
   config: OpenAICompatChatConfig,

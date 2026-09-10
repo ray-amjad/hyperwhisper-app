@@ -1,7 +1,7 @@
 // XAI GROK LLM CLIENT (CHAT COMPLETIONS)
 
 import { computeXaiGrokFastChatCost, type GroqUsage } from '../lib/cost-calculator';
-import type { CorrectionRequestPayload } from './groq-llm';
+import type { CorrectionRequestPayload } from './llm-contract';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 const XAI_BASE_URL = 'https://api.x.ai/v1';

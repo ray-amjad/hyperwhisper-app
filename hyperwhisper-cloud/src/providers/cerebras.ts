@@ -1,7 +1,7 @@
 // CEREBRAS LLM CLIENT
 
 import { computeCerebrasChatCost, type GroqUsage } from '../lib/cost-calculator';
-import type { CorrectionRequestPayload } from './groq-llm';
+import type { CorrectionRequestPayload } from './llm-contract';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 const CEREBRAS_BASE_URL = 'https://api.cerebras.ai/v1';

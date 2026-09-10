@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test';
 
 import { ANTHROPIC_MAX_TOKENS, GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import { ANTHROPIC_WRAPPER_INSTRUCTION } from './anthropic';
-import { buildCorrectionRequest, buildGroqBody } from './groq-llm';
+import { buildCorrectionRequest } from './llm-contract';
+import { buildGroqBody } from './groq-llm';
 import { buildOpenAIBody } from './openai-llm';
 
 describe('hosted LLM output-limit policy', () => {

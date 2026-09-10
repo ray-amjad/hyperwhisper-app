@@ -6,7 +6,7 @@ import { defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName
 import { readClientInfo } from '../lib/client-info';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
-import { buildCorrectionRequest } from '../providers/groq-llm';
+import { buildCorrectionRequest } from '../providers/llm-contract';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';

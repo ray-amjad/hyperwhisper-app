@@ -1,7 +1,7 @@
 // MISTRAL LLM CLIENT (CHAT COMPLETIONS)
 
 import { computeMistralChatCost, type GroqUsage } from '../lib/cost-calculator';
-import type { CorrectionRequestPayload } from './groq-llm';
+import type { CorrectionRequestPayload } from './llm-contract';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 // Mistral's chat/completions accepts the shared chat payload unchanged.

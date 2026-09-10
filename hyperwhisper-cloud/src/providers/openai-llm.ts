@@ -1,7 +1,7 @@
 // OPENAI LLM CLIENT (CHAT COMPLETIONS)
 
 import { computeOpenAIChatCost, type GroqUsage } from '../lib/cost-calculator';
-import type { CorrectionRequestPayload } from './groq-llm';
+import type { CorrectionRequestPayload } from './llm-contract';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
