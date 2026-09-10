@@ -21,7 +21,7 @@
 //
 //  PROCESSING FLOW:
 //  ================
-//  Input: Audio URL, duration, VAD enabled flag, context string
+//  Input: Audio URL, duration, VAD enabled flag, fixed context
 //    │
 //    ├─ Check: VAD enabled AND duration >= 30s?
 //    │   └─ NO → Return original URL (wasProcessed = false)
@@ -94,6 +94,18 @@ struct VADProcessingResult {
     let originalAudioURL: URL
 }
 
+/// Fixed call-site labels used in VAD diagnostics.
+enum VADProcessingContext: String, Sendable {
+    case unspecified = ""
+    case recording = "Recording"
+    case fileImport = "FileImport"
+    case retry = "Retry"
+
+    var logPrefix: String {
+        rawValue.isEmpty ? "" : "[\(rawValue)] "
+    }
+}
+
 // MARK: - VADProcessingService
 
 /// Centralized service for VAD silence trimming with M4A conversion support
@@ -105,7 +117,7 @@ struct VADProcessingResult {
 ///     audioURL: recordingURL,
 ///     duration: 45.0,
 ///     vadEnabled: true,
-///     context: "Recording"
+///     context: .recording
 /// )
 /// // Use result.finalAudioURL for transcription
 /// // Store result.trimResult?.outputURL.path in Core Data if result.wasProcessed
@@ -137,24 +149,14 @@ class VADProcessingService {
     /// This is the main entry point for all VAD processing in the app.
     /// It handles the complete flow from silence detection to M4A conversion.
     ///
-    /// PROCESSING FLOW FOR IMPORTED FILES:
-    /// ====================================
-    /// When importing already-compressed files (m4a, mp3, etc.), we need special handling:
-    /// 1. VAD can still analyze and trim the audio (creates WAV output)
-    /// 2. BUT we skip M4A conversion to avoid re-encoding issues
-    /// 3. The trimmed WAV is used directly (cloud providers accept WAV)
-    ///
-    /// WHY SKIP M4A CONVERSION FOR IMPORTED COMPRESSED FILES:
-    /// - Re-encoding compressed→WAV→compressed is lossy and error-prone
-    /// - AVAssetWriter can fail on certain AAC configurations from imported files
-    /// - Results in "Invalid request: check audio file" errors from Deepgram
-    /// - WAV is universally accepted by all transcription providers
+    /// VAD always creates a WAV artifact. The artifact's size, not the source
+    /// format, decides whether it must be compressed for upload.
     ///
     /// - Parameters:
     ///   - audioURL: URL of the audio file to process
     ///   - duration: Duration of the audio in seconds
     ///   - vadEnabled: Whether VAD is enabled in settings
-    ///   - context: Logging context for diagnostics (e.g., "Recording", "Retry", "FileImport")
+    ///   - context: Fixed call-site label for diagnostics
     ///
     /// - Returns: VADProcessingResult with final audio URL and processing details
     ///
@@ -163,13 +165,11 @@ class VADProcessingService {
         audioURL: URL,
         duration: TimeInterval,
         vadEnabled: Bool,
-        context: String = ""
+        context: VADProcessingContext = .unspecified
     ) async -> VADProcessingResult {
-        // Track original file format to avoid re-encoding compressed formats
         let originalExtension = audioURL.pathExtension.lowercased()
-        let isImportedCompressedFormat = AudioConstants.isCloudCompatibleCompressedFormat(originalExtension)
-
-        let logPrefix = context.isEmpty ? "" : "[\(context)] "
+        let diagnosticContext = context.rawValue
+        let logPrefix = context.logPrefix
 
         // STEP 1: Check if VAD should be applied
         // ======================================
@@ -178,7 +178,7 @@ class VADProcessingService {
         // - Recording is >= 30 seconds (shorter recordings don't benefit)
         guard vadEnabled && duration >= AudioConstants.vadMinimumDuration else {
             if vadEnabled && duration < AudioConstants.vadMinimumDuration {
-                AppLogger.audio.debug("\(logPrefix)VAD skipped - duration too short (\(String(format: "%.1f", duration))s < \(AudioConstants.vadMinimumDuration)s)")
+                AppLogger.audio.debug("\(logPrefix, privacy: .public)VAD skipped - duration too short (\(String(format: "%.1f", duration), privacy: .public)s < \(AudioConstants.vadMinimumDuration, privacy: .public)s)")
             }
             return VADProcessingResult(
                 finalAudioURL: audioURL,
@@ -188,7 +188,8 @@ class VADProcessingService {
             )
         }
 
-        AppLogger.audio.info("🎤 \(logPrefix)VAD enabled - analyzing audio for silence trimming (duration: \(String(format: "%.1f", duration))s)...")
+        let inputFormat = AudioConstants.diagnosticAudioFormat(originalExtension)
+        AppLogger.audio.info("🎤 \(logPrefix, privacy: .public)VAD enabled - analyzing audio for silence trimming · inputFormat=\(inputFormat, privacy: .public) · durationSeconds=\(String(format: "%.1f", duration), privacy: .public)")
 
         // STEP 2: Run SilenceTrimmer
         // ==========================
@@ -204,21 +205,10 @@ class VADProcessingService {
             // If not, fall back to original audio.
             if let validatedURL = validateTrimResult(trimResult, context: context) {
 
-                // STEP 4: Convert to M4A if file is large (but NOT for imported compressed formats)
-                // ================================================================================
-                // Files >= 25MB are converted to M4A for upload efficiency.
-                // HOWEVER, if the original was a compressed format (m4a, mp3, etc.), we skip
-                // this conversion to avoid re-encoding issues that cause Deepgram errors.
-                let finalURL: URL
-                if isImportedCompressedFormat {
-                    // SKIP M4A CONVERSION: Original was already compressed
-                    // The trimmed WAV file will be used directly - all cloud providers accept WAV
-                    AppLogger.audio.info("🎵 \(logPrefix)Skipping M4A conversion - original was compressed format (.\(originalExtension))")
-                    finalURL = validatedURL
-                } else {
-                    // Apply M4A conversion for large WAV files from live recordings
-                    finalURL = await convertTrimmedToM4AIfNeeded(validatedURL, context: context)
-                }
+                // STEP 4: Convert every large trimmed WAV to M4A.
+                // The trimmer has decoded the source and written new LPCM/WAV bytes,
+                // so the source extension must not bypass the upload-size guard.
+                let finalURL = await convertTrimmedToM4AIfNeeded(validatedURL, context: context)
 
                 return VADProcessingResult(
                     finalAudioURL: finalURL,
@@ -241,7 +231,7 @@ class VADProcessingService {
             // =========================================
             // This isn't an error - the user may have recorded silence.
             // Return original audio for transcription (will likely result in empty text).
-            AppLogger.audio.warning("⚠️ \(logPrefix)VAD: No speech detected, using original file")
+            AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)VAD: No speech detected, using original file")
             return VADProcessingResult(
                 finalAudioURL: audioURL,
                 trimResult: nil,
@@ -254,7 +244,8 @@ class VADProcessingService {
             // ====================================
             // Log the error and fall back to original audio.
             // This ensures transcription can still proceed.
-            AppLogger.audio.warning("⚠️ \(logPrefix)VAD analysis failed: \(error.localizedDescription) - using original audio")
+            let diagnostic = TrimError.diagnosticMetadata(for: error)
+            AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)VAD processing failed · failureStage=\(diagnostic.stage, privacy: .public) · errorDomain=\(diagnostic.domain, privacy: .public) · errorCode=\(diagnostic.code, privacy: .public) · using original audio")
 
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -262,9 +253,10 @@ class VADProcessingService {
                     category: "audio.vad",
                     level: .warning,
                     data: [
-                        "error": error.localizedDescription,
-                        "audioPath": audioURL.path,
-                        "context": context
+                        "failureStage": diagnostic.stage,
+                        "errorDomain": diagnostic.domain,
+                        "errorCode": diagnostic.code,
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -289,18 +281,19 @@ class VADProcessingService {
     ///
     /// - Parameters:
     ///   - result: The TrimResult from SilenceTrimmer
-    ///   - context: Logging context string
+    ///   - context: Fixed call-site label
     ///
     /// - Returns: The trimmed file URL if valid, nil if validation fails
-    private func validateTrimResult(_ result: TrimResult, context: String) -> URL? {
-        let logPrefix = context.isEmpty ? "" : "[\(context)] "
+    private func validateTrimResult(_ result: TrimResult, context: VADProcessingContext) -> URL? {
+        let diagnosticContext = context.rawValue
+        let logPrefix = context.logPrefix
 
         // CHECK 1: Minimum silence removed
         // ================================
         // If less than 0.5s of silence was removed, not worth using trimmed file.
         // This prevents unnecessary file duplication for minimal gains.
         guard result.silenceRemoved > AudioConstants.minimumSilenceRemoved else {
-            AppLogger.audio.debug("\(logPrefix)VAD: No significant silence to trim")
+            AppLogger.audio.debug("\(logPrefix, privacy: .public)VAD: No significant silence to trim")
             return nil
         }
 
@@ -309,7 +302,7 @@ class VADProcessingService {
         // If trimmed audio is too short, VAD may have trimmed too aggressively.
         // Fall back to original to preserve potential speech content.
         guard result.trimmedDuration >= AudioConstants.minimumTrimmedDuration else {
-            AppLogger.audio.warning("⚠️ \(logPrefix)VAD trimmed audio too short (\(String(format: "%.2f", result.trimmedDuration))s) - using original")
+            AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)VAD trimmed audio too short (\(String(format: "%.2f", result.trimmedDuration), privacy: .public)s) - using original")
 
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -319,7 +312,7 @@ class VADProcessingService {
                     data: [
                         "originalDuration": result.originalDuration,
                         "trimmedDuration": result.trimmedDuration,
-                        "context": context
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -334,7 +327,7 @@ class VADProcessingService {
         let trimmedFileSize = (try? FileManager.default.attributesOfItem(atPath: result.outputURL.path)[.size] as? Int64) ?? 0
 
         guard trimmedFileExists && trimmedFileSize > AudioConstants.minimumTrimmedFileSize else {
-            AppLogger.audio.warning("⚠️ \(logPrefix)VAD trimmed file invalid (exists=\(trimmedFileExists), size=\(trimmedFileSize) bytes)")
+            AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)VAD trimmed file invalid (exists=\(trimmedFileExists), size=\(trimmedFileSize) bytes)")
 
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -344,7 +337,7 @@ class VADProcessingService {
                     data: [
                         "trimmedFileExists": trimmedFileExists,
                         "trimmedFileSizeBytes": trimmedFileSize,
-                        "context": context
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -353,7 +346,7 @@ class VADProcessingService {
 
         // SUCCESS: All validation checks passed
         // =====================================
-        AppLogger.audio.info("✂️ \(logPrefix)VAD trimmed \(String(format: "%.1f", result.silenceRemoved))s of silence (original: \(String(format: "%.1f", result.originalDuration))s → trimmed: \(String(format: "%.1f", result.trimmedDuration))s)")
+        AppLogger.audio.info("✂️ \(logPrefix, privacy: .public)VAD trimmed \(String(format: "%.1f", result.silenceRemoved), privacy: .public)s of silence (original: \(String(format: "%.1f", result.originalDuration), privacy: .public)s → trimmed: \(String(format: "%.1f", result.trimmedDuration), privacy: .public)s)")
 
         if AppLogger.isErrorLoggingEnabled {
             SentryService.addBreadcrumb(
@@ -365,7 +358,7 @@ class VADProcessingService {
                     "silenceRemoved": result.silenceRemoved,
                     "removalPercentage": result.removalPercentage,
                     "trimmedFileSizeBytes": trimmedFileSize,
-                    "context": context
+                    "context": diagnosticContext
                 ]
             )
         }
@@ -391,29 +384,23 @@ class VADProcessingService {
     ///
     /// - Parameters:
     ///   - wavURL: URL of the WAV file to potentially convert
-    ///   - context: Logging context string
+    ///   - context: Fixed call-site label
     ///
     /// - Returns: M4A URL if conversion succeeded, original WAV URL otherwise
-    private func convertTrimmedToM4AIfNeeded(_ wavURL: URL, context: String) async -> URL {
-        let logPrefix = context.isEmpty ? "" : "[\(context)] "
+    private func convertTrimmedToM4AIfNeeded(_ wavURL: URL, context: VADProcessingContext) async -> URL {
+        let diagnosticContext = context.rawValue
+        let logPrefix = context.logPrefix
 
         // CHECK: Only process WAV files
         // =============================
-        guard wavURL.pathExtension.lowercased() == "wav" else {
-            return wavURL
-        }
-
-        // CHECK: File size threshold
-        // ==========================
-        // Only convert files >= 25MB (OpenAI's limit)
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: wavURL.path),
               let fileSize = attributes[.size] as? Int64,
-              fileSize >= AudioConstants.maxWAVFileSizeForUpload else {
+              Self.shouldConvertTrimmedWAV(pathExtension: wavURL.pathExtension, fileSize: fileSize) else {
             return wavURL
         }
 
         let fileSizeMB = Double(fileSize) / (1024 * 1024)
-        AppLogger.audio.info("🔄 \(logPrefix)Trimmed WAV file is \(String(format: "%.1f", fileSizeMB))MB - converting to M4A")
+        AppLogger.audio.info("🔄 \(logPrefix, privacy: .public)Trimmed WAV file is \(String(format: "%.1f", fileSizeMB), privacy: .public)MB - converting to M4A")
 
         let m4aURL = wavURL.deletingPathExtension().appendingPathExtension("m4a")
 
@@ -440,12 +427,12 @@ class VADProcessingService {
             // Sometimes conversion "succeeds" but produces a corrupted file.
             // Verify the output by checking if AVURLAsset can read it.
             if !validateM4AOutput(m4aURL, context: context) {
-                AppLogger.audio.warning("⚠️ \(logPrefix)Primary M4A output validation failed - trying fallback")
+                AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)Primary M4A output validation failed - trying fallback")
                 try? FileManager.default.removeItem(at: m4aURL)
                 throw AudioError.exportFailed
             }
 
-            AppLogger.audio.info("✅ \(logPrefix)Trimmed WAV→M4A conversion succeeded: \(String(format: "%.1f", fileSizeMB))MB → \(String(format: "%.1f", m4aSizeMB))MB")
+            AppLogger.audio.info("✅ \(logPrefix, privacy: .public)Trimmed WAV→M4A conversion succeeded: \(String(format: "%.1f", fileSizeMB), privacy: .public)MB → \(String(format: "%.1f", m4aSizeMB), privacy: .public)MB")
 
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -457,7 +444,7 @@ class VADProcessingService {
                         "sampleRate": sampleRate,
                         "channels": channels,
                         "bitrate": bitrate,
-                        "context": context
+                        "context": diagnosticContext
                     ]
                 )
             }
@@ -465,7 +452,8 @@ class VADProcessingService {
             return m4aURL
 
         } catch {
-            AppLogger.audio.warning("⚠️ \(logPrefix)Primary M4A conversion failed: \(error.localizedDescription) - trying fallback")
+            let nsError = error as NSError
+            AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)Primary M4A conversion failed · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public) · trying fallback")
         }
 
         // FALLBACK METHOD: convertAudioToM4AWithExportSession
@@ -485,7 +473,7 @@ class VADProcessingService {
             // VALIDATION: Check fallback M4A output is valid
             // ==============================================
             if !validateM4AOutput(m4aURL, context: context) {
-                AppLogger.audio.warning("⚠️ \(logPrefix)Fallback M4A output validation failed - using original WAV")
+                AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)Fallback M4A output validation failed - using original WAV")
                 try? FileManager.default.removeItem(at: m4aURL)
                 throw AudioError.exportFailed
             }
@@ -493,30 +481,38 @@ class VADProcessingService {
             let m4aSize = (try? FileManager.default.attributesOfItem(atPath: m4aURL.path)[.size] as? Int64) ?? 0
             let m4aSizeMB = Double(m4aSize) / (1024 * 1024)
 
-            AppLogger.audio.info("✅ \(logPrefix)Trimmed WAV→M4A fallback succeeded: \(String(format: "%.1f", fileSizeMB))MB → \(String(format: "%.1f", m4aSizeMB))MB")
+            AppLogger.audio.info("✅ \(logPrefix, privacy: .public)Trimmed WAV→M4A fallback succeeded: \(String(format: "%.1f", fileSizeMB), privacy: .public)MB → \(String(format: "%.1f", m4aSizeMB), privacy: .public)MB")
 
             return m4aURL
 
         } catch {
             // BOTH METHODS FAILED: Use original WAV
             // =====================================
-            AppLogger.audio.warning("⚠️ \(logPrefix)M4A fallback also failed - using original WAV")
+            AppLogger.audio.warning("⚠️ \(logPrefix, privacy: .public)M4A fallback also failed - using original WAV")
 
             if AppLogger.isErrorLoggingEnabled {
+                let nsError = error as NSError
                 SentryService.addBreadcrumb(
                     message: "Trimmed WAV→M4A conversion failed",
                     category: "audio.vad",
                     level: .warning,
                     data: [
                         "originalSizeBytes": fileSize,
-                        "error": error.localizedDescription,
-                        "context": context
+                        "errorDomain": nsError.domain,
+                        "errorCode": nsError.code,
+                        "context": diagnosticContext
                     ]
                 )
             }
 
             return wavURL
         }
+    }
+
+    /// Return whether a VAD artifact needs the upload-size conversion path.
+    nonisolated static func shouldConvertTrimmedWAV(pathExtension: String, fileSize: Int64) -> Bool {
+        pathExtension.lowercased() == "wav"
+            && fileSize >= AudioConstants.maxWAVFileSizeForUpload
     }
 
     /// Validate that an M4A file is playable and not corrupted.
@@ -533,30 +529,30 @@ class VADProcessingService {
     ///
     /// - Parameters:
     ///   - url: URL of the M4A file to validate
-    ///   - context: Logging context string
+    ///   - context: Fixed call-site label
     ///
     /// - Returns: true if file is valid and playable, false if corrupted
-    private func validateM4AOutput(_ url: URL, context: String) -> Bool {
-        let logPrefix = context.isEmpty ? "" : "[\(context)] "
+    private func validateM4AOutput(_ url: URL, context: VADProcessingContext) -> Bool {
+        let logPrefix = context.logPrefix
 
         let asset = AVURLAsset(url: url)
 
         // CHECK 1: Asset has audio tracks
         let tracks = asset.tracks(withMediaType: .audio)
         guard let audioTrack = tracks.first else {
-            AppLogger.audio.error("❌ \(logPrefix)M4A validation failed: no audio tracks")
+            AppLogger.audio.error("❌ \(logPrefix, privacy: .public)M4A validation failed: no audio tracks")
             return false
         }
 
         // CHECK 2: Track has valid format description
         guard let formatDesc = audioTrack.formatDescriptions.first else {
-            AppLogger.audio.error("❌ \(logPrefix)M4A validation failed: no format description")
+            AppLogger.audio.error("❌ \(logPrefix, privacy: .public)M4A validation failed: no format description")
             return false
         }
 
         let fdesc = formatDesc as! CMAudioFormatDescription
         guard let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(fdesc) else {
-            AppLogger.audio.error("❌ \(logPrefix)M4A validation failed: no stream description")
+            AppLogger.audio.error("❌ \(logPrefix, privacy: .public)M4A validation failed: no stream description")
             return false
         }
 
@@ -565,11 +561,11 @@ class VADProcessingService {
 
         // CHECK 3: Sample rate and channels are valid
         guard sampleRate > 0 && channels > 0 else {
-            AppLogger.audio.error("❌ \(logPrefix)M4A validation failed: invalid format (sampleRate=\(sampleRate), channels=\(channels))")
+            AppLogger.audio.error("❌ \(logPrefix, privacy: .public)M4A validation failed: invalid format (sampleRate=\(sampleRate, privacy: .public), channels=\(channels, privacy: .public))")
             return false
         }
 
-        AppLogger.audio.debug("✓ \(logPrefix)M4A validation passed: \(Int(sampleRate))Hz, \(channels)ch")
+        AppLogger.audio.debug("✓ \(logPrefix, privacy: .public)M4A validation passed: \(Int(sampleRate), privacy: .public)Hz, \(channels, privacy: .public)ch")
         return true
     }
 }

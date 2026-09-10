@@ -58,28 +58,92 @@ struct TrimResult {
 /// Errors that can occur during silence trimming
 enum TrimError: Error, LocalizedError {
     case fileNotFound
-    case audioLoadFailed(String)
+    case audioLoadFailed(Error)
+    case audioLoadProducedNoSamples
+    case vadModelLoadFailed(Error)
     case vadAnalysisFailed(Error)
     case noSpeechDetected
-    case outputWriteFailed(String)
+    case outputBufferCreationFailed
+    case outputWriteFailed(Error)
     case invalidAudioFormat
 
     var errorDescription: String? {
         switch self {
         case .fileNotFound:
             return "Audio file not found"
-        case .audioLoadFailed(let detail):
-            return "Failed to load audio: \(detail)"
+        case .audioLoadFailed(let error):
+            return "Failed to load audio: \(error.localizedDescription)"
+        case .audioLoadProducedNoSamples:
+            return "Audio format conversion failed - no samples produced"
+        case .vadModelLoadFailed(let error):
+            return "Failed to load VAD model: \(error.localizedDescription)"
         case .vadAnalysisFailed(let error):
             return "VAD analysis failed: \(error.localizedDescription)"
         case .noSpeechDetected:
             return "No speech detected in audio"
-        case .outputWriteFailed(let detail):
-            return "Failed to write output: \(detail)"
+        case .outputBufferCreationFailed:
+            return "Failed to create output buffer"
+        case .outputWriteFailed(let error):
+            return "Failed to write output: \(error.localizedDescription)"
         case .invalidAudioFormat:
             return "Invalid audio format"
         }
     }
+
+    struct DiagnosticMetadata {
+        let stage: String
+        let domain: String
+        let code: String
+    }
+
+    /// Return stable stage and error identifiers without user content.
+    static func diagnosticMetadata(for error: Error) -> DiagnosticMetadata {
+        guard let trimError = error as? TrimError else {
+            let nsError = error as NSError
+            return DiagnosticMetadata(
+                stage: "vad_processing",
+                domain: nsError.domain,
+                code: String(nsError.code)
+            )
+        }
+
+        let stage: String
+        let stableCode: String
+        let cause: Error?
+
+        switch trimError {
+        case .fileNotFound:
+            (stage, stableCode, cause) = ("input_preflight", "file_not_found", nil)
+        case .audioLoadFailed(let error):
+            (stage, stableCode, cause) = ("audio_load", "framework_error", error)
+        case .audioLoadProducedNoSamples:
+            (stage, stableCode, cause) = ("audio_decode", "no_samples", nil)
+        case .vadModelLoadFailed(let error):
+            (stage, stableCode, cause) = ("vad_model_load", "framework_error", error)
+        case .vadAnalysisFailed(let error):
+            (stage, stableCode, cause) = ("vad_analysis", "framework_error", error)
+        case .noSpeechDetected:
+            (stage, stableCode, cause) = ("vad_analysis", "no_speech", nil)
+        case .outputBufferCreationFailed:
+            (stage, stableCode, cause) = ("output_buffer", "buffer_creation_failed", nil)
+        case .outputWriteFailed(let error):
+            (stage, stableCode, cause) = ("output_write", "framework_error", error)
+        case .invalidAudioFormat:
+            (stage, stableCode, cause) = ("output_format", "invalid_audio_format", nil)
+        }
+
+        if let cause {
+            let nsError = cause as NSError
+            return DiagnosticMetadata(stage: stage, domain: nsError.domain, code: String(nsError.code))
+        }
+
+        return DiagnosticMetadata(
+            stage: stage,
+            domain: "com.hyperwhisper.silence-trimmer",
+            code: stableCode
+        )
+    }
+
 }
 
 // MARK: - SilenceTrimmer
@@ -138,7 +202,8 @@ class SilenceTrimmer {
     /// - Returns: TrimResult with output URL and statistics
     /// - Throws: TrimError if trimming fails
     func trimSilence(from inputURL: URL, to outputURL: URL? = nil) async throws -> TrimResult {
-        logger.info("Starting silence trimming for: \(inputURL.lastPathComponent)")
+        let inputFormat = AudioConstants.diagnosticAudioFormat(inputURL.pathExtension)
+        logger.info("Starting silence trimming · inputFormat=\(inputFormat, privacy: .public) · outputFormat=wav")
 
         // STEP 1: Verify input file exists
         guard FileManager.default.fileExists(atPath: inputURL.path) else {
@@ -147,12 +212,16 @@ class SilenceTrimmer {
 
         // STEP 2: Load audio samples
         let (samples, originalDuration) = try await loadAudioSamples(from: inputURL)
-        logger.debug("Loaded \(samples.count) samples (\(String(format: "%.2f", originalDuration))s)")
+        logger.debug("Loaded \(samples.count, privacy: .public) samples (\(String(format: "%.2f", originalDuration), privacy: .public)s)")
 
         // STEP 3: Ensure VAD is ready
         let vad = VoiceActivityDetector.shared
         if await !vad.isReady {
-            try await vad.loadModel()
+            do {
+                try await vad.loadModel()
+            } catch {
+                throw TrimError.vadModelLoadFailed(error)
+            }
         }
 
         // STEP 4: Run VAD analysis
@@ -171,7 +240,7 @@ class SilenceTrimmer {
 
         // STEP 6: Merge close segments
         let mergedSegments = mergeCloseSegments(vadResult.segments)
-        logger.debug("Merged \(vadResult.segments.count) segments into \(mergedSegments.count)")
+        logger.debug("Merged \(vadResult.segments.count, privacy: .public) segments into \(mergedSegments.count, privacy: .public)")
 
         // STEP 7: Add extra padding and extract samples
         let paddedSegments = addExtraPadding(mergedSegments, totalDuration: Float(originalDuration))
@@ -181,14 +250,14 @@ class SilenceTrimmer {
         )
         let trimmedDuration = Double(speechSamples.count) / sampleRate
 
-        logger.info("Extracted \(speechSamples.count) samples (\(String(format: "%.2f", trimmedDuration))s)")
+        logger.info("Extracted \(speechSamples.count, privacy: .public) samples (\(String(format: "%.2f", trimmedDuration), privacy: .public)s)")
 
         // STEP 8: Determine output URL
         let finalOutputURL = outputURL ?? generateOutputURL(for: inputURL)
 
         // STEP 9: Write trimmed audio
         try await writeAudioFile(samples: speechSamples, to: finalOutputURL)
-        logger.info("Wrote trimmed audio to: \(finalOutputURL.lastPathComponent)")
+        logger.info("Wrote trimmed audio · outputFormat=wav · sampleCount=\(speechSamples.count, privacy: .public) · durationSeconds=\(trimmedDuration, privacy: .public)")
 
         return TrimResult(
             outputURL: finalOutputURL,
@@ -221,7 +290,7 @@ class SilenceTrimmer {
             let originalFormat = audioFile.processingFormat
             duration = Double(audioFile.length) / originalFormat.sampleRate
         } catch {
-            throw TrimError.audioLoadFailed(error.localizedDescription)
+            throw TrimError.audioLoadFailed(error)
         }
 
         // Stream-decode and convert to 16kHz mono Float32 in chunks.
@@ -254,13 +323,13 @@ class SilenceTrimmer {
                 )
             )
         } catch {
-            throw TrimError.audioLoadFailed(error.localizedDescription)
+            throw TrimError.audioLoadFailed(error)
         }
 
         // CRITICAL: Check conversion actually produced samples.
         // If conversion fails silently, we'd send empty audio to VAD.
         if samples.isEmpty {
-            throw TrimError.audioLoadFailed("Audio format conversion failed - no samples produced")
+            throw TrimError.audioLoadProducedNoSamples
         }
 
         return (samples, duration)
@@ -327,7 +396,7 @@ class SilenceTrimmer {
         let totalSamples = samples.count
         let audioDuration = Float(totalSamples) / samplesPerSecond
 
-        logger.debug("Extracting speech from \(segments.count) segment(s), totalSamples=\(totalSamples), audioDuration=\(String(format: "%.2f", audioDuration))s")
+        logger.debug("Extracting speech from \(segments.count, privacy: .public) segment(s), totalSamples=\(totalSamples, privacy: .public), audioDuration=\(String(format: "%.2f", audioDuration), privacy: .public)s")
 
         for (index, segment) in segments.enumerated() {
             let startSample = Int(segment.start * samplesPerSecond)
@@ -356,10 +425,10 @@ class SilenceTrimmer {
             let segmentSamples = Array(samples[clampedStart..<clampedEnd])
             result.append(contentsOf: segmentSamples)
 
-            logger.debug("Segment \(index): extracted \(segmentSampleCount) samples (\(String(format: "%.2f", Float(segmentSampleCount) / samplesPerSecond))s)")
+            logger.debug("Segment \(index, privacy: .public): extracted \(segmentSampleCount, privacy: .public) samples (\(String(format: "%.2f", Float(segmentSampleCount) / samplesPerSecond), privacy: .public)s)")
         }
 
-        logger.info("Total extracted: \(result.count) samples (\(String(format: "%.2f", Float(result.count) / samplesPerSecond))s) from \(segments.count) segment(s)")
+        logger.info("Total extracted: \(result.count, privacy: .public) samples (\(String(format: "%.2f", Float(result.count) / samplesPerSecond), privacy: .public)s) from \(segments.count, privacy: .public) segment(s)")
 
         return result
     }
@@ -368,14 +437,18 @@ class SilenceTrimmer {
 
     /// Generate output URL for trimmed audio.
     ///
-    /// Creates a new filename by appending "_trimmed" before the extension.
-    /// Example: recording.wav -> recording_trimmed.wav
-    private func generateOutputURL(for inputURL: URL) -> URL {
+    /// Creates a new filename that includes the source extension and ends in WAV.
+    /// The extension always matches the LPCM/WAV bytes written by `writeAudioFile`.
+    /// Example: recording.m4a -> recording_m4a_trimmed.wav
+    func generateOutputURL(for inputURL: URL) -> URL {
         let directory = inputURL.deletingLastPathComponent()
         let filename = inputURL.deletingPathExtension().lastPathComponent
-        let ext = inputURL.pathExtension
+        let sourceExtension = inputURL.pathExtension.lowercased()
+        let sourceFormatSuffix = sourceExtension.isEmpty ? "no_extension" : sourceExtension
 
-        return directory.appendingPathComponent("\(filename)_trimmed.\(ext)")
+        return directory
+            .appendingPathComponent("\(filename)_\(sourceFormatSuffix)_trimmed")
+            .appendingPathExtension("wav")
     }
 
     /// Write audio samples to a WAV file.
@@ -405,7 +478,7 @@ class SilenceTrimmer {
                         pcmFormat: format,
                         frameCapacity: AVAudioFrameCount(samples.count)
                     ) else {
-                        continuation.resume(throwing: TrimError.outputWriteFailed("Failed to create buffer"))
+                        continuation.resume(throwing: TrimError.outputBufferCreationFailed)
                         return
                     }
 
@@ -440,7 +513,7 @@ class SilenceTrimmer {
 
                     continuation.resume()
                 } catch {
-                    continuation.resume(throwing: TrimError.outputWriteFailed(error.localizedDescription))
+                    continuation.resume(throwing: TrimError.outputWriteFailed(error))
                 }
             }
         }

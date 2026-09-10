@@ -1869,6 +1869,10 @@ class PersistenceController: ObservableObject {
         container.viewContext.refreshAllObjects()
     }
 
+    private struct TrimmedPathUpdate: Sendable {
+        let unownedPreviousPath: String?
+    }
+
     /// Sets the trimmed audio file path for a transcript on the serial writer.
     ///
     /// Auto-delete uses the same writer. If cleanup runs first, the row no
@@ -1883,16 +1887,41 @@ class PersistenceController: ObservableObject {
     @discardableResult
     func setTrimmedAudioPath(_ transcript: Transcript, trimmedPath: String) async -> Bool {
         let transcriptID = transcript.objectID
-        let saved = await performWriteRequiringSave { context -> Bool? in
+        let update = await performWriteRequiringSave { context -> TrimmedPathUpdate? in
             guard let writerTranscript = try? context.existingObject(with: transcriptID) as? Transcript,
                   !writerTranscript.isDeleted else {
                 return nil
             }
-            writerTranscript.setValue(trimmedPath, forKey: "trimmedAudioFilePath")
-            return true
-        } == true
 
-        guard saved else {
+            let previousPath = writerTranscript.value(forKey: "trimmedAudioFilePath") as? String
+            let originalPath = writerTranscript.audioFilePath
+            writerTranscript.setValue(trimmedPath, forKey: "trimmedAudioFilePath")
+
+            // A pre-upgrade retry can replace `<name>_trimmed.<source-ext>`
+            // with the corrected collision-safe WAV path. Delete the prior
+            // artifact only after no transcript owns it and the path is not the
+            // original recording. The delete runs after this transaction saves.
+            var unownedPreviousPath: String?
+            if let previousPath,
+               previousPath != trimmedPath,
+               previousPath != originalPath {
+                let ownersRequest: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+                ownersRequest.predicate = NSPredicate(
+                    format: "trimmedAudioFilePath == %@ AND SELF != %@",
+                    previousPath,
+                    transcriptID
+                )
+                ownersRequest.fetchLimit = 1
+
+                if let owners = try? context.count(for: ownersRequest), owners == 0 {
+                    unownedPreviousPath = previousPath
+                }
+            }
+
+            return TrimmedPathUpdate(unownedPreviousPath: unownedPreviousPath)
+        }
+
+        guard let update else {
             // The VAD output has no Core Data owner if the row was deleted or
             // the path save failed. Remove it instead of leaking it on disk.
             _ = await FileDeletion.deleteFiles(at: [trimmedPath])
@@ -1900,7 +1929,13 @@ class PersistenceController: ObservableObject {
             return false
         }
 
-        AppLogger.coreData.debug("Set trimmed audio path for transcript: \(trimmedPath, privacy: .public)")
+        if let previousPath = update.unownedPreviousPath {
+            _ = await FileDeletion.deleteFiles(at: [previousPath])
+            AppLogger.coreData.info("Removed replaced trimmed audio artifact")
+        }
+
+        let trimmedFormat = AudioConstants.diagnosticAudioFormat(URL(fileURLWithPath: trimmedPath).pathExtension)
+        AppLogger.coreData.debug("Set trimmed audio path · format=\(trimmedFormat, privacy: .public)")
         return true
     }
 

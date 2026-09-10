@@ -280,6 +280,63 @@ struct AutoDeleteCleanupServiceTests {
         #expect(try transcriptCount(in: context) == 0)
     }
 
+    /// A successful retry path replacement removes the pre-upgrade artifact
+    /// only after the new path has a Core Data owner.
+    @Test func replacingTrimmedPathRemovesUnownedPreviousArtifact() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let originalPath = try makeFile(in: directory, byteCount: 64)
+        let legacyPath = try makeFile(in: directory, byteCount: 128)
+        let replacementPath = try makeFile(in: directory, byteCount: 256)
+        let transcript = insertTranscript(
+            into: context,
+            date: Date(),
+            audioFilePath: originalPath,
+            trimmedAudioFilePath: legacyPath
+        )
+        try context.save()
+
+        let saved = await persistence.setTrimmedAudioPath(transcript, trimmedPath: replacementPath)
+
+        #expect(saved)
+        #expect(!FileManager.default.fileExists(atPath: legacyPath))
+        #expect(FileManager.default.fileExists(atPath: replacementPath))
+    }
+
+    /// A path shared by another row remains owned and must not be deleted when
+    /// one retry replaces its path.
+    @Test func replacingSharedTrimmedPathPreservesOwnedArtifact() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+        let sharedLegacyPath = try makeFile(in: directory, byteCount: 128)
+        let replacementPath = try makeFile(in: directory, byteCount: 256)
+        let transcript = insertTranscript(
+            into: context,
+            date: Date(),
+            audioFilePath: try makeFile(in: directory, byteCount: 64),
+            trimmedAudioFilePath: sharedLegacyPath
+        )
+        insertTranscript(
+            into: context,
+            date: Date(),
+            audioFilePath: try makeFile(in: directory, byteCount: 64),
+            trimmedAudioFilePath: sharedLegacyPath
+        )
+        try context.save()
+
+        let saved = await persistence.setTrimmedAudioPath(transcript, trimmedPath: replacementPath)
+
+        #expect(saved)
+        #expect(FileManager.default.fileExists(atPath: sharedLegacyPath))
+        #expect(FileManager.default.fileExists(atPath: replacementPath))
+    }
+
     /// One production transaction is bounded even for a large old backlog.
     @Test func productionTransactionLimitsEachWriterBatch() async throws {
         let persistence = PersistenceController(inMemory: true)

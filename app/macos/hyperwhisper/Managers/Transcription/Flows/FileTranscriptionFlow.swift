@@ -384,7 +384,7 @@ class FileTranscriptionFlow {
                 audioURL: audioURL,
                 duration: duration,
                 vadEnabled: settingsManager?.enableVAD ?? false,
-                context: "FileImport"
+                context: .fileImport
             )
             let finalAudioURL = vadResult.finalAudioURL
             let trimResult = vadResult.trimResult
