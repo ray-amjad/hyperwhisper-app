@@ -58,26 +58,42 @@ struct TrimResult {
 /// Errors that can occur during silence trimming
 enum TrimError: Error, LocalizedError {
     case fileNotFound
-    case audioLoadFailed(String)
+    case audioLoadFailed(Error)
+    case audioLoadProducedNoSamples
     case vadAnalysisFailed(Error)
     case noSpeechDetected
-    case outputWriteFailed(String)
+    case outputBufferCreationFailed
+    case outputWriteFailed(Error)
     case invalidAudioFormat
 
     var errorDescription: String? {
         switch self {
         case .fileNotFound:
             return "Audio file not found"
-        case .audioLoadFailed(let detail):
-            return "Failed to load audio: \(detail)"
+        case .audioLoadFailed(let error):
+            return "Failed to load audio: \(error.localizedDescription)"
+        case .audioLoadProducedNoSamples:
+            return "Audio format conversion failed - no samples produced"
         case .vadAnalysisFailed(let error):
             return "VAD analysis failed: \(error.localizedDescription)"
         case .noSpeechDetected:
             return "No speech detected in audio"
-        case .outputWriteFailed(let detail):
-            return "Failed to write output: \(detail)"
+        case .outputBufferCreationFailed:
+            return "Failed to create output buffer"
+        case .outputWriteFailed(let error):
+            return "Failed to write output: \(error.localizedDescription)"
         case .invalidAudioFormat:
             return "Invalid audio format"
+        }
+    }
+
+    /// The first underlying error that carries framework-specific diagnostics.
+    var diagnosticCause: NSError {
+        switch self {
+        case .audioLoadFailed(let error), .vadAnalysisFailed(let error), .outputWriteFailed(let error):
+            return error as NSError
+        default:
+            return self as NSError
         }
     }
 }
@@ -109,11 +125,6 @@ class SilenceTrimmer {
     /// Logger for debugging
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "SilenceTrimmer")
 
-    /// File extensions that are safe to emit as format metadata.
-    private static let loggedAudioFormats: Set<String> = [
-        "aac", "aif", "aiff", "caf", "flac", "m4a", "mp3", "mp4", "ogg", "opus", "wav", "webm"
-    ]
-
     /// Sample rate for audio processing (Whisper standard)
     private let sampleRate: Double = 16000
 
@@ -143,8 +154,7 @@ class SilenceTrimmer {
     /// - Returns: TrimResult with output URL and statistics
     /// - Throws: TrimError if trimming fails
     func trimSilence(from inputURL: URL, to outputURL: URL? = nil) async throws -> TrimResult {
-        let inputExtension = inputURL.pathExtension.lowercased()
-        let inputFormat = Self.loggedAudioFormats.contains(inputExtension) ? inputExtension : "other"
+        let inputFormat = AudioConstants.diagnosticAudioFormat(inputURL.pathExtension)
         logger.info("Starting silence trimming · inputFormat=\(inputFormat, privacy: .public) · outputFormat=wav")
 
         // STEP 1: Verify input file exists
@@ -228,7 +238,7 @@ class SilenceTrimmer {
             let originalFormat = audioFile.processingFormat
             duration = Double(audioFile.length) / originalFormat.sampleRate
         } catch {
-            throw TrimError.audioLoadFailed(error.localizedDescription)
+            throw TrimError.audioLoadFailed(error)
         }
 
         // Stream-decode and convert to 16kHz mono Float32 in chunks.
@@ -261,13 +271,13 @@ class SilenceTrimmer {
                 )
             )
         } catch {
-            throw TrimError.audioLoadFailed(error.localizedDescription)
+            throw TrimError.audioLoadFailed(error)
         }
 
         // CRITICAL: Check conversion actually produced samples.
         // If conversion fails silently, we'd send empty audio to VAD.
         if samples.isEmpty {
-            throw TrimError.audioLoadFailed("Audio format conversion failed - no samples produced")
+            throw TrimError.audioLoadProducedNoSamples
         }
 
         return (samples, duration)
@@ -375,15 +385,17 @@ class SilenceTrimmer {
 
     /// Generate output URL for trimmed audio.
     ///
-    /// Creates a new filename by appending "_trimmed" and the WAV extension.
+    /// Creates a new filename that includes the source extension and ends in WAV.
     /// The extension always matches the LPCM/WAV bytes written by `writeAudioFile`.
-    /// Example: recording.m4a -> recording_trimmed.wav
+    /// Example: recording.m4a -> recording_m4a_trimmed.wav
     func generateOutputURL(for inputURL: URL) -> URL {
         let directory = inputURL.deletingLastPathComponent()
         let filename = inputURL.deletingPathExtension().lastPathComponent
+        let sourceExtension = inputURL.pathExtension.lowercased()
+        let sourceFormatSuffix = sourceExtension.isEmpty ? "no_extension" : sourceExtension
 
         return directory
-            .appendingPathComponent("\(filename)_trimmed")
+            .appendingPathComponent("\(filename)_\(sourceFormatSuffix)_trimmed")
             .appendingPathExtension("wav")
     }
 
@@ -414,7 +426,7 @@ class SilenceTrimmer {
                         pcmFormat: format,
                         frameCapacity: AVAudioFrameCount(samples.count)
                     ) else {
-                        continuation.resume(throwing: TrimError.outputWriteFailed("Failed to create buffer"))
+                        continuation.resume(throwing: TrimError.outputBufferCreationFailed)
                         return
                     }
 
@@ -449,7 +461,7 @@ class SilenceTrimmer {
 
                     continuation.resume()
                 } catch {
-                    continuation.resume(throwing: TrimError.outputWriteFailed(error.localizedDescription))
+                    continuation.resume(throwing: TrimError.outputWriteFailed(error))
                 }
             }
         }
