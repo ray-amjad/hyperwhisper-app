@@ -13,6 +13,7 @@ let cachedLicense: { isValid: boolean; credits: number; cachedAt: string } | nul
 // The abuse gate. Default off so every existing suite reaches the LLM chain;
 // the one suite that exercises the block flips it and resets it afterwards.
 let ipBlocked = false;
+const cacheReads: string[] = [];
 
 mock.module('../lib/redis', () => ({
   // mock.module is process-wide in bun, so an incomplete redis mock here breaks
@@ -22,7 +23,10 @@ mock.module('../lib/redis', () => ({
   // uses it.
   redis: {},
   isIPBlocked: async () => ipBlocked,
-  getCachedLicense: async () => cachedLicense,
+  getCachedLicense: async (licenseKey: string) => {
+    cacheReads.push(licenseKey);
+    return cachedLicense;
+  },
   cacheLicense: async () => {},
 }));
 
@@ -81,6 +85,7 @@ function withProviders(handlers: Record<string, (init: RequestInit) => Response 
 describe('postProcessRoute validation', () => {
   beforeEach(() => {
     cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    cacheReads.length = 0;
     process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
   });
@@ -158,6 +163,29 @@ describe('postProcessRoute validation', () => {
     );
 
     expect(response.status).toBe(200);
+  });
+
+  test('account_key wins over the legacy license_key when both are sent', async () => {
+    let cerebrasCalls = 0;
+    withProviders({
+      'api.cerebras.ai': () => {
+        cerebrasCalls += 1;
+        return Response.json(chatCompletion('hello world'));
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({
+        text: 'hello wrld',
+        prompt: 'fix grammar',
+        account_key: 'canonical-credential',
+        license_key: 'legacy-credential',
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(cerebrasCalls).toBe(1);
+    expect(cacheReads).toEqual(['canonical-credential']);
   });
 });
 
