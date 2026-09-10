@@ -95,9 +95,14 @@ enum AudioConstants {
         "m4a", "mp3", "mp4", "aac", "webm", "ogg", "opus"
     ]
 
-    /// Uncompressed and lossless formats that can be reported as diagnostic metadata.
-    private static let localAudioFormats: Set<String> = [
-        "aif", "aiff", "caf", "flac", "wav"
+    /// Fixed vocabulary for selectable import formats in diagnostic metadata.
+    ///
+    /// Keep this independent from conversion policy. A format can be safe to
+    /// identify in logs even when it is not eligible to bypass conversion.
+    private static let diagnosticAudioFormats: Set<String> = [
+        "aac", "aif", "aifc", "aiff", "amr", "caf", "flac", "m4a",
+        "mov", "mp3", "mp4", "mpeg", "mpga", "oga", "ogg", "opus",
+        "wav", "webm"
     ]
 
     /// Check if a file extension represents a cloud-compatible compressed format.
@@ -111,8 +116,7 @@ enum AudioConstants {
     /// Return a fixed audio-format label that is safe to include in logs.
     static func diagnosticAudioFormat(_ pathExtension: String) -> String {
         let normalizedExtension = pathExtension.lowercased()
-        if cloudCompatibleCompressedFormats.contains(normalizedExtension)
-            || localAudioFormats.contains(normalizedExtension) {
+        if diagnosticAudioFormats.contains(normalizedExtension) {
             return normalizedExtension
         }
         return "other"

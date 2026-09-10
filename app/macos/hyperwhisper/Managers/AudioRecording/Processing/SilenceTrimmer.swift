@@ -60,6 +60,7 @@ enum TrimError: Error, LocalizedError {
     case fileNotFound
     case audioLoadFailed(Error)
     case audioLoadProducedNoSamples
+    case vadModelLoadFailed(Error)
     case vadAnalysisFailed(Error)
     case noSpeechDetected
     case outputBufferCreationFailed
@@ -74,6 +75,8 @@ enum TrimError: Error, LocalizedError {
             return "Failed to load audio: \(error.localizedDescription)"
         case .audioLoadProducedNoSamples:
             return "Audio format conversion failed - no samples produced"
+        case .vadModelLoadFailed(let error):
+            return "Failed to load VAD model: \(error.localizedDescription)"
         case .vadAnalysisFailed(let error):
             return "VAD analysis failed: \(error.localizedDescription)"
         case .noSpeechDetected:
@@ -87,15 +90,60 @@ enum TrimError: Error, LocalizedError {
         }
     }
 
-    /// The first underlying error that carries framework-specific diagnostics.
-    var diagnosticCause: NSError {
-        switch self {
-        case .audioLoadFailed(let error), .vadAnalysisFailed(let error), .outputWriteFailed(let error):
-            return error as NSError
-        default:
-            return self as NSError
-        }
+    struct DiagnosticMetadata {
+        let stage: String
+        let domain: String
+        let code: String
     }
+
+    /// Return stable stage and error identifiers without user content.
+    static func diagnosticMetadata(for error: Error) -> DiagnosticMetadata {
+        guard let trimError = error as? TrimError else {
+            let nsError = error as NSError
+            return DiagnosticMetadata(
+                stage: "vad_processing",
+                domain: nsError.domain,
+                code: String(nsError.code)
+            )
+        }
+
+        let stage: String
+        let stableCode: String
+        let cause: Error?
+
+        switch trimError {
+        case .fileNotFound:
+            (stage, stableCode, cause) = ("input_preflight", "file_not_found", nil)
+        case .audioLoadFailed(let error):
+            (stage, stableCode, cause) = ("audio_load", "framework_error", error)
+        case .audioLoadProducedNoSamples:
+            (stage, stableCode, cause) = ("audio_decode", "no_samples", nil)
+        case .vadModelLoadFailed(let error):
+            (stage, stableCode, cause) = ("vad_model_load", "framework_error", error)
+        case .vadAnalysisFailed(let error):
+            (stage, stableCode, cause) = ("vad_analysis", "framework_error", error)
+        case .noSpeechDetected:
+            (stage, stableCode, cause) = ("vad_analysis", "no_speech", nil)
+        case .outputBufferCreationFailed:
+            (stage, stableCode, cause) = ("output_buffer", "buffer_creation_failed", nil)
+        case .outputWriteFailed(let error):
+            (stage, stableCode, cause) = ("output_write", "framework_error", error)
+        case .invalidAudioFormat:
+            (stage, stableCode, cause) = ("output_format", "invalid_audio_format", nil)
+        }
+
+        if let cause {
+            let nsError = cause as NSError
+            return DiagnosticMetadata(stage: stage, domain: nsError.domain, code: String(nsError.code))
+        }
+
+        return DiagnosticMetadata(
+            stage: stage,
+            domain: "com.hyperwhisper.silence-trimmer",
+            code: stableCode
+        )
+    }
+
 }
 
 // MARK: - SilenceTrimmer
@@ -164,12 +212,16 @@ class SilenceTrimmer {
 
         // STEP 2: Load audio samples
         let (samples, originalDuration) = try await loadAudioSamples(from: inputURL)
-        logger.debug("Loaded \(samples.count) samples (\(String(format: "%.2f", originalDuration))s)")
+        logger.debug("Loaded \(samples.count, privacy: .public) samples (\(String(format: "%.2f", originalDuration), privacy: .public)s)")
 
         // STEP 3: Ensure VAD is ready
         let vad = VoiceActivityDetector.shared
         if await !vad.isReady {
-            try await vad.loadModel()
+            do {
+                try await vad.loadModel()
+            } catch {
+                throw TrimError.vadModelLoadFailed(error)
+            }
         }
 
         // STEP 4: Run VAD analysis
@@ -188,7 +240,7 @@ class SilenceTrimmer {
 
         // STEP 6: Merge close segments
         let mergedSegments = mergeCloseSegments(vadResult.segments)
-        logger.debug("Merged \(vadResult.segments.count) segments into \(mergedSegments.count)")
+        logger.debug("Merged \(vadResult.segments.count, privacy: .public) segments into \(mergedSegments.count, privacy: .public)")
 
         // STEP 7: Add extra padding and extract samples
         let paddedSegments = addExtraPadding(mergedSegments, totalDuration: Float(originalDuration))
@@ -198,7 +250,7 @@ class SilenceTrimmer {
         )
         let trimmedDuration = Double(speechSamples.count) / sampleRate
 
-        logger.info("Extracted \(speechSamples.count) samples (\(String(format: "%.2f", trimmedDuration))s)")
+        logger.info("Extracted \(speechSamples.count, privacy: .public) samples (\(String(format: "%.2f", trimmedDuration), privacy: .public)s)")
 
         // STEP 8: Determine output URL
         let finalOutputURL = outputURL ?? generateOutputURL(for: inputURL)
@@ -344,7 +396,7 @@ class SilenceTrimmer {
         let totalSamples = samples.count
         let audioDuration = Float(totalSamples) / samplesPerSecond
 
-        logger.debug("Extracting speech from \(segments.count) segment(s), totalSamples=\(totalSamples), audioDuration=\(String(format: "%.2f", audioDuration))s")
+        logger.debug("Extracting speech from \(segments.count, privacy: .public) segment(s), totalSamples=\(totalSamples, privacy: .public), audioDuration=\(String(format: "%.2f", audioDuration), privacy: .public)s")
 
         for (index, segment) in segments.enumerated() {
             let startSample = Int(segment.start * samplesPerSecond)
@@ -373,10 +425,10 @@ class SilenceTrimmer {
             let segmentSamples = Array(samples[clampedStart..<clampedEnd])
             result.append(contentsOf: segmentSamples)
 
-            logger.debug("Segment \(index): extracted \(segmentSampleCount) samples (\(String(format: "%.2f", Float(segmentSampleCount) / samplesPerSecond))s)")
+            logger.debug("Segment \(index, privacy: .public): extracted \(segmentSampleCount, privacy: .public) samples (\(String(format: "%.2f", Float(segmentSampleCount) / samplesPerSecond), privacy: .public)s)")
         }
 
-        logger.info("Total extracted: \(result.count) samples (\(String(format: "%.2f", Float(result.count) / samplesPerSecond))s) from \(segments.count) segment(s)")
+        logger.info("Total extracted: \(result.count, privacy: .public) samples (\(String(format: "%.2f", Float(result.count) / samplesPerSecond), privacy: .public)s) from \(segments.count, privacy: .public) segment(s)")
 
         return result
     }

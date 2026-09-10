@@ -122,7 +122,7 @@ class TranscriptionRetryController {
             audioURL: audioURL,
             duration: recordingDuration,
             vadEnabled: settingsManager?.enableVAD ?? false,
-            context: "Retry"
+            context: .retry
         )
         let finalAudioURL = vadResult.finalAudioURL
         let trimResult = vadResult.trimResult

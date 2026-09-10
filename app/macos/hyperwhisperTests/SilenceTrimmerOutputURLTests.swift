@@ -33,6 +33,59 @@ struct SilenceTrimmerOutputURLTests {
         #expect(mp3Output.pathExtension == "wav")
     }
 
+    @Test func largeTrimmedWAVFromCompressedInputUsesConversionPath() {
+        let trimmedURL = outputURL(inputName: "recording.m4a")
+
+        #expect(VADProcessingService.shouldConvertTrimmedWAV(
+            pathExtension: trimmedURL.pathExtension,
+            fileSize: AudioConstants.maxWAVFileSizeForUpload
+        ))
+    }
+
+    @Test func smallTrimmedWAVDoesNotUseConversionPath() {
+        #expect(!VADProcessingService.shouldConvertTrimmedWAV(
+            pathExtension: "wav",
+            fileSize: AudioConstants.maxWAVFileSizeForUpload - 1
+        ))
+    }
+
+    @Test func diagnosticFormatVocabularyCoversSelectableFormats() {
+        let selectableFormats = [
+            "aac", "aif", "aifc", "aiff", "amr", "caf", "flac", "m4a",
+            "mov", "mp3", "mp4", "mpeg", "mpga", "oga", "ogg", "opus",
+            "wav", "webm"
+        ]
+
+        for format in selectableFormats {
+            #expect(AudioConstants.diagnosticAudioFormat(format.uppercased()) == format)
+        }
+        #expect(AudioConstants.diagnosticAudioFormat("private-name") == "other")
+    }
+
+    @Test func vadContextsHaveFixedDiagnosticLabels() {
+        #expect(VADProcessingContext.unspecified.logPrefix == "")
+        #expect(VADProcessingContext.recording.logPrefix == "[Recording] ")
+        #expect(VADProcessingContext.fileImport.logPrefix == "[FileImport] ")
+        #expect(VADProcessingContext.retry.logPrefix == "[Retry] ")
+    }
+
+    @Test func internalTrimErrorsUseStableDiagnosticMetadata() {
+        let metadata = TrimError.diagnosticMetadata(for: TrimError.invalidAudioFormat)
+
+        #expect(metadata.stage == "output_format")
+        #expect(metadata.domain == "com.hyperwhisper.silence-trimmer")
+        #expect(metadata.code == "invalid_audio_format")
+    }
+
+    @Test func frameworkTrimErrorsKeepStageAndFrameworkIdentifiers() {
+        let cause = NSError(domain: "AVFoundationErrorDomain", code: -11829)
+        let metadata = TrimError.diagnosticMetadata(for: TrimError.audioLoadFailed(cause))
+
+        #expect(metadata.stage == "audio_load")
+        #expect(metadata.domain == "AVFoundationErrorDomain")
+        #expect(metadata.code == "-11829")
+    }
+
     private func assertOutputName(inputName: String, expectedName: String) {
         let outputURL = outputURL(inputName: inputName)
 

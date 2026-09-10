@@ -320,7 +320,7 @@ extension RecordingTranscriptionFlow {
             audioURL: audioURL,
             duration: recordingDuration,
             vadEnabled: settingsManager?.enableVAD ?? false,
-            context: "Recording"
+            context: .recording
         )
         vadTrimMs = Int(Date().timeIntervalSince(vadStart) * 1000)
         let finalAudioURL = vadResult.finalAudioURL
