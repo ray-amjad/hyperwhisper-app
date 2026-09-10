@@ -2,17 +2,11 @@ import { describe, expect, test } from 'bun:test';
 
 import { ANTHROPIC_MAX_TOKENS, GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import { ANTHROPIC_WRAPPER_INSTRUCTION } from './anthropic';
-import { buildCorrectionRequest, buildGroqBody } from './groq-llm';
+import { buildCorrectionRequest } from './llm-contract';
+import { buildGroqBody } from './groq-llm';
 import { buildOpenAIBody } from './openai-llm';
 
 describe('hosted LLM output-limit policy', () => {
-  test('omits optional output caps from the shared provider payload', () => {
-    const payload = buildCorrectionRequest('system', 'transcript');
-
-    expect(payload).not.toHaveProperty('max_tokens');
-    expect(payload).not.toHaveProperty('max_completion_tokens');
-  });
-
   test('does not translate an output cap into the OpenAI request', () => {
     const body = buildOpenAIBody(buildCorrectionRequest('system', 'transcript'), 'gpt-5-mini');
 

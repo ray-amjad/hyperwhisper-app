@@ -787,7 +787,7 @@ describe('usage-object fallbacks and guards', () => {
   });
 
   test('the char estimate is what makes a missing usage object bill non-zero', () => {
-    // groq-llm.ts feeds this estimate to computeGroqChatCost when the upstream
+    // openai-compat-chat.ts feeds this estimate to computeGroqChatCost when the upstream
     // response omits `usage`. A 2000-char prompt must produce a real charge.
     const estimated = estimateUsageFromChars(2000, 800);
     expect(computeGroqChatCost(estimated)).toBeGreaterThan(0);

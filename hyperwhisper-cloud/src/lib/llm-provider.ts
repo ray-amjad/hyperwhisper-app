@@ -1,7 +1,7 @@
 // LLM PROVIDER SELECTION + RETRY
 
 import { retryWithBackoff } from './utils';
-import type { CorrectionRequestPayload } from '../providers/groq-llm';
+import type { CorrectionRequestPayload } from '../providers/llm-contract';
 import { requestCerebrasChat } from '../providers/cerebras';
 import { requestGroqChat } from '../providers/groq-llm';
 import { requestAnthropicChat } from '../providers/anthropic';

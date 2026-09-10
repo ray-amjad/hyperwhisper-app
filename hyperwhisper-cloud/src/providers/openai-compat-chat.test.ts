@@ -34,7 +34,8 @@ import {
 } from '../lib/cost-calculator';
 import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import { shouldFallback } from '../lib/llm-provider';
-import { buildCorrectionRequest, requestGroqChat, type CorrectionRequestPayload } from './groq-llm';
+import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
+import { requestGroqChat } from './groq-llm';
 import { requestCerebrasChat } from './cerebras';
 import { requestOpenAIChat } from './openai-llm';
 import { requestGeminiChat } from './gemini-llm';

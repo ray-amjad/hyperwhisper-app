@@ -1,7 +1,7 @@
 // GEMINI LLM CLIENT (OPENAI-COMPATIBLE CHAT COMPLETIONS)
 
 import { computeGeminiChatCost, type GroqUsage } from '../lib/cost-calculator';
-import type { CorrectionRequestPayload } from './groq-llm';
+import type { CorrectionRequestPayload } from './llm-contract';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
 // Gemini exposes an OpenAI-compatible surface that accepts the shared chat

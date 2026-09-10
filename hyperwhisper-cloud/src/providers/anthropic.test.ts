@@ -9,7 +9,7 @@ import {
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import { getLLMCompletionStatus } from '../lib/llm-completion';
 import { shouldFallback } from '../lib/llm-provider';
-import type { CorrectionRequestPayload } from './groq-llm';
+import type { CorrectionRequestPayload } from './llm-contract';
 
 // The Anthropic client talks to exactly one upstream over `fetch`, so the whole
 // module is exercised by swapping `globalThis.fetch`. Nothing here mocks a
