@@ -21,7 +21,7 @@ import {
 } from "@/lib/templates/credit-topup-email";
 import { logSentEmail } from "@/src/lib/db-layer";
 
-export interface EmailResult {
+interface EmailResult {
   success: boolean;
   /** The provider's raw success payload. Shape is Resend's, so it stays
    * `unknown` and callers must narrow it rather than dot into it. */
@@ -101,7 +101,7 @@ function isRetryableResendError(
   return statusCode >= 500;
 }
 
-export class EmailService {
+class EmailService {
   private static instance: EmailService;
   private readonly maxRetries = 3;
   // Base backoff. Kept small because retries run inline inside the Stripe
