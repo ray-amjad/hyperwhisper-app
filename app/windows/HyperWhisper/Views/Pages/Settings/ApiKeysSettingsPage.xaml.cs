@@ -28,10 +28,8 @@ public partial class ApiKeysSettingsPage : Page
         public required PasswordBox SecondKeyBox { get; init; }
         public required WpfButton FirstSaveButton { get; init; }
         public required WpfButton SecondSaveButton { get; init; }
-        public required WpfButton FirstShowButton { get; init; }
-        public required WpfButton SecondShowButton { get; init; }
         public required Action ResetVisibility { get; init; }
-        public required Action UpdateStatus { get; init; }
+        public required Action SyncShowButtons { get; init; }
 
         public PasswordBox KeyBoxFor(object sender)
         {
@@ -84,10 +82,8 @@ public partial class ApiKeysSettingsPage : Page
             SecondKeyBox = OpenAIPostKeyBox,
             FirstSaveButton = OpenAITranscriptionSaveButton,
             SecondSaveButton = OpenAIPostSaveButton,
-            FirstShowButton = OpenAITranscriptionShowButton,
-            SecondShowButton = OpenAIPostShowButton,
             ResetVisibility = () => _openAIKeyVisible = false,
-            UpdateStatus = UpdateOpenAIStatus
+            SyncShowButtons = SyncOpenAIShowButtons
         };
         _groqApiKeyCard = new SharedApiKeyCard
         {
@@ -98,10 +94,8 @@ public partial class ApiKeysSettingsPage : Page
             SecondKeyBox = GroqPostKeyBox,
             FirstSaveButton = GroqTranscriptionSaveButton,
             SecondSaveButton = GroqPostSaveButton,
-            FirstShowButton = GroqTranscriptionShowButton,
-            SecondShowButton = GroqPostShowButton,
             ResetVisibility = () => _groqKeyVisible = false,
-            UpdateStatus = UpdateGroqStatus
+            SyncShowButtons = SyncGroqShowButtons
         };
         _geminiApiKeyCard = new SharedApiKeyCard
         {
@@ -112,10 +106,8 @@ public partial class ApiKeysSettingsPage : Page
             SecondKeyBox = GeminiKeyBox,
             FirstSaveButton = GeminiTranscriptionSaveButton,
             SecondSaveButton = GeminiSaveButton,
-            FirstShowButton = GeminiTranscriptionShowButton,
-            SecondShowButton = GeminiShowButton,
             ResetVisibility = () => _geminiKeyVisible = false,
-            UpdateStatus = UpdateGeminiStatus
+            SyncShowButtons = SyncGeminiShowButtons
         };
         _grokApiKeyCard = new SharedApiKeyCard
         {
@@ -126,10 +118,8 @@ public partial class ApiKeysSettingsPage : Page
             SecondKeyBox = GrokPostKeyBox,
             FirstSaveButton = GrokSaveButton,
             SecondSaveButton = GrokPostSaveButton,
-            FirstShowButton = GrokShowButton,
-            SecondShowButton = GrokPostShowButton,
             ResetVisibility = () => _grokKeyVisible = false,
-            UpdateStatus = UpdateGrokStatus
+            SyncShowButtons = SyncGrokShowButtons
         };
         Loaded += OnLoaded;
     }
@@ -243,9 +233,7 @@ public partial class ApiKeysSettingsPage : Page
         card.FirstKeyBox.Password = "";
         card.SecondKeyBox.Password = "";
         card.ResetVisibility();
-        card.FirstShowButton.Content = Loc.S("settings.api.show");
-        card.SecondShowButton.Content = Loc.S("settings.api.show");
-        card.UpdateStatus();
+        card.SyncShowButtons();
     }
 
     // =========================================================================
