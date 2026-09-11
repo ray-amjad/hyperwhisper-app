@@ -162,15 +162,13 @@ public partial class MainViewModel : ViewModelBase
 
     private bool _hotkeyBlocked;
     private string _audioDeviceSelectionReason = AudioDeviceSelectionReason.NotSelected;
-    private bool _isApplyingAudioDeviceSelection;
 
     partial void OnSelectedAudioDeviceChanged(AudioDeviceService.AudioDevice? value)
     {
-        // Onboarding applies its device directly through this public generated
-        // property. Mark that path separately from startup, hot-plug refreshes and
-        // the tray selection, which all use ApplyAudioDeviceSelection below.
-        if (!_isApplyingAudioDeviceSelection)
-            _audioDeviceSelectionReason = AudioDeviceSelectionReason.External;
+        // A direct property write has no known source. All production selection
+        // paths use one of the named methods below and replace this value after
+        // the generated setter completes, including equal-value assignments.
+        _audioDeviceSelectionReason = AudioDeviceSelectionReason.Unknown;
 
         UpdateMicrophoneKeepWarm();
         CheckMicVolume();
@@ -180,31 +178,33 @@ public partial class MainViewModel : ViewModelBase
         AudioDeviceService.AudioDevice? device,
         string reason)
     {
-        _isApplyingAudioDeviceSelection = true;
-        try
-        {
-            SelectedAudioDevice = device;
-            _audioDeviceSelectionReason = reason;
-        }
-        finally
-        {
-            _isApplyingAudioDeviceSelection = false;
-        }
+        SelectedAudioDevice = device;
+        _audioDeviceSelectionReason = reason;
 
         var diagnostics = TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
             SelectedAudioDevice,
             AudioDevices,
-            _settingsService.LastSelectedMicrophone,
             _audioDeviceSelectionReason);
 
-        LoggingService.Info(
+        var message =
             "MainViewModel: Audio device selection " +
             $"(reason={diagnostics.Reason}, selected={SelectedAudioDevice != null}, " +
             $"list_position={diagnostics.SelectedListPosition?.ToString() ?? "unknown"}, " +
-            $"device_count={AudioDevices.Count}, saved_configured={diagnostics.SavedDeviceConfigured}, " +
-            $"saved_available={diagnostics.SavedDeviceAvailable?.ToString() ?? "unknown"}, " +
-            $"matches_saved={diagnostics.SelectedMatchesSavedDevice?.ToString() ?? "unknown"})");
+            $"device_count={AudioDevices.Count})";
+
+        if (device == null)
+            LoggingService.Warn(message);
+        else
+            LoggingService.Info(message);
     }
+
+    /// <summary>
+    /// Applies the input selected or restored by the onboarding flow and records
+    /// that fixed source slug even when the generated property setter sees an
+    /// equal value and skips its changed callback.
+    /// </summary>
+    internal void ApplyOnboardingAudioDeviceSelection(AudioDeviceService.AudioDevice? device) =>
+        ApplyAudioDeviceSelection(device, AudioDeviceSelectionReason.OnboardingSelection);
 
     /// <summary>
     /// Prevents concurrent model loads which crash the native whisper.cpp library.
@@ -600,7 +600,6 @@ public partial class MainViewModel : ViewModelBase
         if (AudioDevices.Count == 0)
         {
             ApplyAudioDeviceSelection(null, AudioDeviceSelectionReason.RefreshNoDevices);
-            LoggingService.Warn("MainViewModel: No audio devices available after refresh");
             return;
         }
 
@@ -611,8 +610,8 @@ public partial class MainViewModel : ViewModelBase
             var matchingDevice = AudioDevices.FirstOrDefault(d => d.Name == previousSelection.Name);
             if (matchingDevice != null)
             {
-                ApplyAudioDeviceSelection(matchingDevice, AudioDeviceSelectionReason.RefreshPreserved);
-                LoggingService.Info($"MainViewModel: Preserved device selection: {matchingDevice.Name}");
+                // A refresh did not choose this device. Keep the source that did.
+                ApplyAudioDeviceSelection(matchingDevice, _audioDeviceSelectionReason);
                 return;
             }
 
@@ -621,7 +620,6 @@ public partial class MainViewModel : ViewModelBase
 
         // Select first device if previous selection not found
         ApplyAudioDeviceSelection(AudioDevices[0], AudioDeviceSelectionReason.RefreshFirstAvailable);
-        LoggingService.Info($"MainViewModel: Selected new device: {SelectedAudioDevice.Name}");
     }
 
     /// <summary>
@@ -659,12 +657,10 @@ public partial class MainViewModel : ViewModelBase
         if (AudioDevices.Count > 0)
         {
             ApplyAudioDeviceSelection(AudioDevices[0], AudioDeviceSelectionReason.StartupFirstAvailable);
-            LoggingService.Info($"MainViewModel: Selected audio device: {SelectedAudioDevice.Name}");
         }
         else
         {
             ApplyAudioDeviceSelection(null, AudioDeviceSelectionReason.StartupNoDevices);
-            LoggingService.Warn("MainViewModel: No audio devices found!");
         }
     }
 
@@ -2414,7 +2410,6 @@ public partial class MainViewModel : ViewModelBase
                             deviceSelection: TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
                                 SelectedAudioDevice,
                                 AudioDevices,
-                                _settingsService.LastSelectedMicrophone,
                                 _audioDeviceSelectionReason));
                     }
 

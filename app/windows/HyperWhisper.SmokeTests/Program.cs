@@ -2571,7 +2571,6 @@ internal static class Program
                             new AudioDeviceService.AudioDevice(4, "ToDesk Virtual Audio"),
                             new AudioDeviceService.AudioDevice(9, "Microphone Array")
                         ],
-                        savedDeviceName: "Microphone Array",
                         reason: AudioDeviceSelectionReason.StartupFirstAvailable));
 
                 foreach (var key in extras.Keys)
@@ -2597,19 +2596,10 @@ internal static class Program
                     $"capture_device_selection_reason should identify startup selection, got {tags["capture_device_selection_reason"]}");
 
                 // This is the exact question the current HYPERWHISPER-PA report
-                // cannot answer: did startup take the first device even though a
-                // different saved device was still present? Names are inputs to the
-                // comparison only. The payload carries booleans and a list position.
+                // cannot answer: did startup take the first enumerated device, or
+                // did an explicit or onboarding selection choose the input?
                 Assert((int)extras["capture_device_list_position"] == 0,
                     $"expected the selected list position to be 0, got {extras["capture_device_list_position"]}");
-                Assert((bool)extras["capture_device_is_first_available"],
-                    "the first available device should be identified");
-                Assert((bool)extras["saved_capture_device_configured"],
-                    "the payload should say that a saved device was configured");
-                Assert((bool)extras["saved_capture_device_available"],
-                    "the payload should say that the saved device was available");
-                Assert(!(bool)extras["selected_capture_device_matches_saved"],
-                    "the payload should say that startup did not restore the saved device");
 
                 // mode_name carried whatever the user typed when they named a custom
                 // mode. It is user content and it is gone; mode_preset answers the same
@@ -2618,7 +2608,7 @@ internal static class Program
                 Assert(extras.ContainsKey("mode_preset"), "mode_preset is missing");
             });
 
-            Run("TranscriptionDiagnosticsService device selection: an explicit saved-device match is distinguishable from startup-first", () =>
+            Run("TranscriptionDiagnosticsService device selection: explicit selection is distinguishable from startup-first", () =>
             {
                 var devices = new List<AudioDeviceService.AudioDevice>
                 {
@@ -2629,21 +2619,19 @@ internal static class Program
                 var diagnostics = TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
                     selectedDevice: devices[1],
                     availableDevices: devices,
-                    savedDeviceName: "Microphone Array",
                     reason: AudioDeviceSelectionReason.ExplicitSelection);
 
                 Assert(diagnostics.Reason == AudioDeviceSelectionReason.ExplicitSelection,
                     $"expected explicit_selection, got {diagnostics.Reason}");
                 Assert(diagnostics.SelectedListPosition == 1,
                     $"expected list position 1, got {diagnostics.SelectedListPosition}");
-                Assert(diagnostics.SelectedIsFirstAvailable == false,
-                    "the second device must not be reported as first available");
-                Assert(diagnostics.SavedDeviceConfigured,
-                    "the saved device should be reported as configured");
-                Assert(diagnostics.SavedDeviceAvailable == true,
-                    "the saved device should be reported as available");
-                Assert(diagnostics.SelectedMatchesSavedDevice == true,
-                    "the explicit selection should match the saved device");
+
+                var unrecognized = TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
+                    selectedDevice: devices[0],
+                    availableDevices: devices,
+                    reason: "untrusted value");
+                Assert(unrecognized.Reason == AudioDeviceSelectionReason.Unknown,
+                    "an unrecognized selection reason must become the fixed unknown slug");
             });
 
             Run("TranscriptionDiagnosticsService payload: a provider that reports nothing says unknown, never zero", () =>

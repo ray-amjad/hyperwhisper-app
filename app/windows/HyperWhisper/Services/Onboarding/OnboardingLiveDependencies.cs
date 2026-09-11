@@ -1241,14 +1241,14 @@ public static class OnboardingLiveDependencies
     {
         if (string.IsNullOrEmpty(name))
         {
-            viewModel.SelectedAudioDevice = null;
+            viewModel.ApplyOnboardingAudioDeviceSelection(null);
             return;
         }
 
         var match = viewModel.AudioDevices.FirstOrDefault(d => d.Name == name);
         if (match is not null)
         {
-            viewModel.SelectedAudioDevice = match;
+            viewModel.ApplyOnboardingAudioDeviceSelection(match);
             return;
         }
 
@@ -1258,7 +1258,7 @@ public static class OnboardingLiveDependencies
             + (fallback is null
                 ? "there is nothing to fall back to"
                 : $"falling back to '{fallback.Name}'"));
-        viewModel.SelectedAudioDevice = fallback;
+        viewModel.ApplyOnboardingAudioDeviceSelection(fallback);
     }
 
     /// <summary>

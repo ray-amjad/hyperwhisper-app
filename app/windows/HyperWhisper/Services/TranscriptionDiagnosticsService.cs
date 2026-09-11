@@ -162,7 +162,7 @@ public static class TranscriptionDiagnosticsService
             ["capture_device_count"] = captureDeviceCount?.ToString() ?? "unknown",
             // Fixed slugs only. This answers whether startup, hot-plug handling,
             // onboarding, or an explicit selection chose the input.
-            ["capture_device_selection_reason"] = deviceSelection?.Reason ?? AudioDeviceSelectionReason.Unknown,
+            ["capture_device_selection_reason"] = AudioDeviceSelectionReason.Normalize(deviceSelection?.Reason),
             // A tag, not an extra, because the question it answers is a segmentation
             // one: of the events in this group, how many came from a local engine,
             // and how many from a cloud vendor that reports nothing about itself?
@@ -234,13 +234,9 @@ public static class TranscriptionDiagnosticsService
             ["mode_preset"] = mode?.Preset ?? "unknown",
             ["provider_display_name"] = transcriptionProviderDisplayName ?? providerDiagnostics?.ProviderDisplayName ?? exception?.ProviderName ?? "unknown",
             ["selected_input_device_name"] = inputDeviceName ?? "n/a",
-            // These values describe the device-list shape and saved-selection match.
-            // They never include another device name or any other user content.
+            // This value describes the device-list shape. It does not include
+            // another device name or any other user content.
             ["capture_device_list_position"] = (object?)deviceSelection?.SelectedListPosition ?? "unknown",
-            ["capture_device_is_first_available"] = (object?)deviceSelection?.SelectedIsFirstAvailable ?? "unknown",
-            ["saved_capture_device_configured"] = (object?)deviceSelection?.SavedDeviceConfigured ?? "unknown",
-            ["saved_capture_device_available"] = (object?)deviceSelection?.SavedDeviceAvailable ?? "unknown",
-            ["selected_capture_device_matches_saved"] = (object?)deviceSelection?.SelectedMatchesSavedDevice ?? "unknown",
             // Which arm produced the record, and how long that arm took. Filled for
             // every provider - local engines and BYOK cloud vendors included -
             // whereas the backend_* fields below can only ever be filled by a
@@ -279,44 +275,26 @@ public static class TranscriptionDiagnosticsService
     }
 
     /// <summary>
-    /// Describes why the current input can differ from the saved input without
-    /// putting another device name in Sentry.
+    /// Describes which app path selected the current input without putting
+    /// another device name in Sentry.
     /// </summary>
     internal static AudioDeviceSelectionDiagnostics DescribeAudioDeviceSelection(
         AudioDeviceService.AudioDevice? selectedDevice,
         IReadOnlyList<AudioDeviceService.AudioDevice> availableDevices,
-        string? savedDeviceName,
         string reason)
     {
         var selectedPosition = selectedDevice == null
             ? -1
             : availableDevices.ToList().FindIndex(device =>
                 device.DeviceNumber == selectedDevice.DeviceNumber);
-        var savedConfigured = !string.IsNullOrWhiteSpace(savedDeviceName);
-        var savedAvailable = savedConfigured
-            ? availableDevices.Any(device =>
-                string.Equals(device.Name, savedDeviceName, StringComparison.Ordinal))
-            : (bool?)null;
-        var selectedMatchesSaved = savedConfigured && selectedDevice != null
-            ? string.Equals(selectedDevice.Name, savedDeviceName, StringComparison.Ordinal)
-            : (bool?)null;
-
         return new AudioDeviceSelectionDiagnostics(
-            Reason: string.IsNullOrWhiteSpace(reason) ? AudioDeviceSelectionReason.Unknown : reason,
-            SelectedListPosition: selectedPosition >= 0 ? selectedPosition : null,
-            SelectedIsFirstAvailable: selectedPosition >= 0 ? selectedPosition == 0 : null,
-            SavedDeviceConfigured: savedConfigured,
-            SavedDeviceAvailable: savedAvailable,
-            SelectedMatchesSavedDevice: selectedMatchesSaved);
+            Reason: AudioDeviceSelectionReason.Normalize(reason),
+            SelectedListPosition: selectedPosition >= 0 ? selectedPosition : null);
     }
 
     public sealed record AudioDeviceSelectionDiagnostics(
         string Reason,
-        int? SelectedListPosition,
-        bool? SelectedIsFirstAvailable,
-        bool SavedDeviceConfigured,
-        bool? SavedDeviceAvailable,
-        bool? SelectedMatchesSavedDevice);
+        int? SelectedListPosition);
 
     /// <summary>
     /// Measure the recording's signal. Decodes to <see cref="AnalysisSampleRate"/>
