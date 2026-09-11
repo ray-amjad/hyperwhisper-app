@@ -557,7 +557,7 @@ components:
             `cloud-stt-catalog.json`, and
             `shared-conformance/default-model-vectors.json` pins the answer for
             all of them, so `engine: "openai"` with no `model` resolves to
-            `whisper-1` everywhere. ONE KNOWN GAP remains: the legacy engine
+            `gpt-transcribe` everywhere. ONE KNOWN GAP remains: the legacy engine
             names `googlespeech` and `microsoftazurespeech` are folded onto
             HyperWhisper Cloud accuracy tiers on Windows and macOS — spending
             credits — while Linux still routes them to the BYOK provider on your

@@ -158,7 +158,7 @@ mod tests {
             // reading the same function the builder reads is the tautology
             // issue #580 calls out. The cross-head agreement is pinned
             // separately by `tests/default_model_vectors.rs`.
-            assert_eq!(field(parts, "model"), Some("whisper-1"));
+            assert_eq!(field(parts, "model"), Some("gpt-transcribe"));
         } else {
             panic!("expected multipart");
         }

@@ -394,31 +394,33 @@ struct CloudTranscriptionModels {
             provider: .openai,
             pricePerSecond: 0.003 / 60.0
         ),
+        // The three rows below were deprecated by OpenAI on 2026-08-26 and shut
+        // down 2027-02-26. They still work, and a user who has one selected keeps
+        // working, so the rows stay for this release — but they are no longer
+        // promoted, and `resolve_openai_model_alias` now migrates them. Delete
+        // the rows once a build carrying that alias table has shipped.
         CloudTranscriptionModel(
             id: "gpt-4o-transcribe",
             displayName: "GPT-4o Transcribe",
             isAvailable: true,
-            description: "Advanced speech-to-text powered by GPT-4o. Higher accuracy with better context understanding.",
+            description: "Advanced speech-to-text powered by GPT-4o. Deprecated by OpenAI — retires 2027-02-26, use GPT Transcribe.",
             provider: .openai,
-            isPopular: true,
             pricePerSecond: 0.006 / 60.0
         ),
         CloudTranscriptionModel(
             id: "gpt-4o-mini-transcribe",
             displayName: "GPT-4o Mini Transcribe",
             isAvailable: true,
-            description: "Fast speech-to-text powered by GPT-4o Mini. Good balance of speed and accuracy.",
+            description: "Fast speech-to-text powered by GPT-4o Mini. Deprecated by OpenAI — retires 2027-02-26, use the 2025-12-15 snapshot.",
             provider: .openai,
-            isPopular: true,
             pricePerSecond: 0.003 / 60.0
         ),
         CloudTranscriptionModel(
             id: "whisper-1",
             displayName: "Whisper-1",
             isAvailable: true,
-            description: "General-purpose speech recognition model. Reliable and proven for all recording lengths.",
+            description: "General-purpose speech recognition model. Deprecated by OpenAI — retires 2027-02-26, use GPT Transcribe.",
             provider: .openai,
-            isPopular: true,
             pricePerSecond: 0.006 / 60.0
         ),
         CloudTranscriptionModel(
@@ -890,7 +892,9 @@ struct CloudTranscriptionModels {
     /// Read from `cloud-stt-catalog.json` through the shared core, not from a
     /// switch here. This function used to carry its own table and it disagreed
     /// with the catalog for OpenAI — the catalog said `gpt-4o-transcribe`, this
-    /// said `whisper-1` — so the same blank `cloudTranscriptionModel` column
+    /// said `whisper-1`, and after PR #597 moved this table (but not the
+    /// catalog) off the deprecated ids, it said `gpt-transcribe` — so the same
+    /// blank `cloudTranscriptionModel` column
     /// transcribed on a different model, at a different capability set,
     /// depending on which head served the request (issue #580).
     /// `shared-conformance/default-model-vectors.json` pins the answer and every

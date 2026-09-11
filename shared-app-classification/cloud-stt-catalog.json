@@ -277,8 +277,8 @@
       "models": [
         { "id": "gpt-4o-transcribe", "displayName": "GPT-4o Transcribe", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gpt-4o-mini-transcribe", "displayName": "GPT-4o Mini Transcribe", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "gpt-transcribe", "displayName": "GPT Transcribe", "creditsPerMinute": 4.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gpt-transcribe", "displayName": "GPT Transcribe", "creditsPerMinute": 4.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gpt-live-transcribe", "displayName": "GPT Live Transcribe", "creditsPerMinute": 17.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {

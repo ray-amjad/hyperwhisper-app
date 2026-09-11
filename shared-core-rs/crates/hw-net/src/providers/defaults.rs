@@ -10,6 +10,13 @@
 //! byte-identical request body transcribed on a different model depending on
 //! which head served the request.
 //!
+//! PR #597 then moved the two native heads to `gpt-transcribe`, because OpenAI
+//! deprecated `whisper-1` and `gpt-4o-transcribe` on 2026-08-26 (shutdown
+//! 2027-02-26). It did not touch the catalog, so the split survived in a worse
+//! form: the portable head and this crate kept creating modes on a model with a
+//! shutdown date. Moving the catalog's `isDefault` to `gpt-transcribe` is what
+//! makes all four agree, and it is the only value that is not deprecated.
+//!
 //! There is now ONE table. A provider module names the catalog ENTRY it belongs
 //! to (a key, not a duplicated value) and asks for that entry's default here.
 //! `shared-conformance/default-model-vectors.json` pins the answer and all four

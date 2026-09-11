@@ -1462,12 +1462,13 @@ mod tests {
             ]
         );
 
-        // The default is NOT the first row (issue #580 moved it to `whisper-1`),
-        // which is the point of pinning a pair whose flags differ: `is_default`
-        // must come from the flag and not from catalog position.
-        let default_row = &models[2];
-        assert_eq!(default_row.display_name, "Whisper");
-        assert_eq!(default_row.credits_per_minute, Some(6.0));
+        // The default is NOT the first row (issue #580 moved it to
+        // `gpt-transcribe`), which is the point of pinning a pair whose flags
+        // differ: `is_default` must come from the flag and not from catalog
+        // position.
+        let default_row = &models[3];
+        assert_eq!(default_row.display_name, "GPT Transcribe");
+        assert_eq!(default_row.credits_per_minute, Some(4.5));
         assert_eq!(default_row.is_default, Some(true));
         assert_eq!(default_row.preview_status, Some(false));
         assert_eq!(default_row.supports_custom_vocabulary, Some(true));

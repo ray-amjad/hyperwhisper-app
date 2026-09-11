@@ -12,7 +12,9 @@
 //!
 //! Issue #580: before this file the four heads kept four tables and nothing
 //! compared them, so OpenAI resolved to `gpt-4o-transcribe` on the portable head
-//! and `whisper-1` on the other three. The #566 test could not have caught it —
+//! and hw-net and to `whisper-1` on macOS and Windows. PR #597 then moved the two
+//! native tables to `gpt-transcribe` without touching the catalog, so the split
+//! outlived it. The #566 test could not have caught it —
 //! its guard and its assertion called the same function.
 //!
 //! This module deliberately asserts each provider module's `default_model()`

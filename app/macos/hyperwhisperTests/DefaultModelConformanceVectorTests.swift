@@ -12,9 +12,11 @@
 //
 //  Before this file, three of the four heads carried a hand-written table and
 //  nothing compared them: OpenAI resolved to `gpt-4o-transcribe` on the portable
-//  head and `whisper-1` here, on Windows and in `hw-net`, so byte-identical
+//  head and in `hw-net` and to `whisper-1` here and on Windows, so byte-identical
 //  audio and a byte-identical request body transcribed on a different model
-//  depending on which head served the request.
+//  depending on which head served the request. PR #597 moved this head and
+//  Windows to `gpt-transcribe` without touching the catalog; #580 is what makes
+//  the remaining two agree.
 //
 //  The row is asserted against the LITERAL in the vector file, never against a
 //  second call to `CloudSTTCatalog`. Reading the catalog on both sides restores

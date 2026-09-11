@@ -349,7 +349,7 @@ public sealed class PortableFileTranscriptionPreflight
     private static readonly IReadOnlyDictionary<CloudTranscriptionProvider, CloudTargetDescriptor> CloudCatalog =
         new Dictionary<CloudTranscriptionProvider, CloudTargetDescriptor>
         {
-            [CloudTranscriptionProvider.OpenAi] = Cloud(25L * 1024 * 1024, "whisper-1",
+            [CloudTranscriptionProvider.OpenAi] = Cloud(25L * 1024 * 1024, "gpt-transcribe",
                 ["gpt-4o-mini-transcribe-2025-12-15", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1", "gpt-transcribe"]),
             [CloudTranscriptionProvider.Groq] = Cloud(25L * 1024 * 1024, "whisper-large-v3-turbo",
                 ["whisper-large-v3-turbo", "whisper-large-v3"]),

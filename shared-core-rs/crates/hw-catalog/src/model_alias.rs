@@ -75,6 +75,26 @@ const GEMINI_ALIASES: &[(&str, &str)] = &[
     ("gemini-2.0-flash", "gemini-3.6-flash"),
 ];
 
+/// OpenAI STT ids deprecated 2026-08-26, shutdown 2027-02-26
+/// (developers.openai.com/api/docs/deprecations). OpenAI names `gpt-transcribe`
+/// and `gpt-4o-mini-transcribe-2025-12-15` as the replacements, and both are
+/// already picker rows on macOS and Windows.
+///
+/// `openai` was a KNOWN provider with NO table, so all three ids passed through
+/// unchanged and nothing migrated a saved mode off them. This table is the
+/// alias half of the retirement; the three picker rows stay for now and come out
+/// a release later, once a shipped build has had the chance to rewrite settings.
+///
+/// The targets keep each id in its own price tier, so a migrated mode does not
+/// silently get more expensive: the two $0.006/min ids go to `gpt-transcribe`
+/// ($0.0045/min, flat per-audio-minute like `whisper-1` was), and the
+/// $0.003/min mini id goes to its own dated snapshot at the same rate.
+const OPENAI_ALIASES: &[(&str, &str)] = &[
+    ("whisper-1", "gpt-transcribe"),
+    ("gpt-4o-transcribe", "gpt-transcribe"),
+    ("gpt-4o-mini-transcribe", "gpt-4o-mini-transcribe-2025-12-15"),
+];
+
 /// Resolve a legacy AssemblyAI model id to its current equivalent. Non-AssemblyAI
 /// and already-current ids pass through unchanged.
 pub fn resolve_assemblyai_model_alias(model_id: &str) -> String {
@@ -99,6 +119,11 @@ pub fn resolve_soniox_model_alias(model_id: &str) -> String {
 /// Resolve a legacy Gemini model id to its current equivalent.
 pub fn resolve_gemini_model_alias(model_id: &str) -> String {
     resolve_in(GEMINI_ALIASES, model_id)
+}
+
+/// Resolve a deprecated OpenAI STT model id to its current equivalent.
+pub fn resolve_openai_model_alias(model_id: &str) -> String {
+    resolve_in(OPENAI_ALIASES, model_id)
 }
 
 fn resolve_in(table: &[(&str, &str)], model_id: &str) -> String {
@@ -141,9 +166,19 @@ const KNOWN_PROVIDER_IDS: &[&str] = &[
 /// - a KNOWN provider without a table passes the id through unchanged;
 /// - `None`, an empty provider, or an UNKNOWN provider identifier chains every
 ///   table in the C# nesting order — ElevenLabs, AssemblyAI, Deepgram, Soniox,
-///   Gemini — because `CloudTranscriptionProviderExtensions.FromIdentifier`
-///   returns the concrete `None` enum value for an unrecognized string and the
-///   C# `null or CloudTranscriptionProvider.None` arm chains everything.
+///   Gemini, then OpenAI — because `CloudTranscriptionProviderExtensions
+///   .FromIdentifier` returns the concrete `None` enum value for an unrecognized
+///   string and the C# `null or CloudTranscriptionProvider.None` arm chains
+///   everything.
+///
+/// OpenAI is the one table added after the C# dictionaries were folded into this
+/// file, so it has no C# nesting position to mirror. It goes outermost. That is
+/// safe because its three keys (`whisper-1`, `gpt-4o-transcribe`,
+/// `gpt-4o-mini-transcribe`) appear in no other table and are no other table's
+/// target, so the pass cannot collide with an earlier rewrite in either
+/// direction. It is in the chain at all because a restored backup is exactly the
+/// case this module exists for, and a backup can carry a model id with no
+/// provider beside it.
 pub fn resolve_model_alias(model_id: &str, provider: Option<&str>) -> String {
     if model_id.is_empty() {
         return String::new();
@@ -156,12 +191,13 @@ pub fn resolve_model_alias(model_id: &str, provider: Option<&str>) -> String {
         Some("elevenlabs") => resolve_elevenlabs_model_alias(model_id),
         Some("soniox") => resolve_soniox_model_alias(model_id),
         Some("gemini") => resolve_gemini_model_alias(model_id),
+        Some("openai") => resolve_openai_model_alias(model_id),
         // Known provider with no alias table → pass through.
         Some(p) if KNOWN_PROVIDER_IDS.contains(&p) => model_id.to_string(),
         // `null` / `None` / unrecognized → chain everything, innermost first.
-        _ => resolve_gemini_model_alias(&resolve_soniox_model_alias(
-            &resolve_deepgram_model_alias(&resolve_assemblyai_model_alias(
-                &resolve_elevenlabs_model_alias(model_id),
+        _ => resolve_openai_model_alias(&resolve_gemini_model_alias(
+            &resolve_soniox_model_alias(&resolve_deepgram_model_alias(
+                &resolve_assemblyai_model_alias(&resolve_elevenlabs_model_alias(model_id)),
             )),
         )),
     }
@@ -202,9 +238,61 @@ mod tests {
     }
 
     #[test]
+    fn openai_stt_deprecations_resolve() {
+        // Deprecated 2026-08-26, shutdown 2027-02-26. Before this table `openai`
+        // was a known provider with no table, so all three passed through and no
+        // saved mode ever migrated off them.
+        assert_eq!(resolve_model_alias("whisper-1", Some("openai")), "gpt-transcribe");
+        assert_eq!(
+            resolve_model_alias("gpt-4o-transcribe", Some("openai")),
+            "gpt-transcribe"
+        );
+        assert_eq!(
+            resolve_model_alias("gpt-4o-mini-transcribe", Some("openai")),
+            "gpt-4o-mini-transcribe-2025-12-15"
+        );
+        // Case-insensitive like every other table.
+        assert_eq!(resolve_model_alias("Whisper-1", Some("OpenAI")), "gpt-transcribe");
+        // The replacements are already current and must not rewrite again — a
+        // second hop would be a loop.
+        assert_eq!(resolve_model_alias("gpt-transcribe", Some("openai")), "gpt-transcribe");
+        assert_eq!(
+            resolve_model_alias("gpt-4o-mini-transcribe-2025-12-15", Some("openai")),
+            "gpt-4o-mini-transcribe-2025-12-15"
+        );
+        // A backup can carry the id with no provider beside it.
+        assert_eq!(resolve_model_alias("whisper-1", None), "gpt-transcribe");
+        // An unrelated openai id still passes through.
+        assert_eq!(resolve_model_alias("nova-2", Some("openai")), "nova-2");
+    }
+
+    #[test]
+    fn openai_keys_collide_with_no_other_table() {
+        // The chain arm applies OPENAI_ALIASES outermost. That is only safe while
+        // its keys are absent from every other table and are no other table's
+        // target, so pin it rather than trusting a future edit to remember.
+        let others: &[&[(&str, &str)]] = &[
+            ASSEMBLYAI_ALIASES,
+            ELEVENLABS_ALIASES,
+            DEEPGRAM_ALIASES,
+            SONIOX_ALIASES,
+            GEMINI_ALIASES,
+        ];
+        for (key, target) in OPENAI_ALIASES {
+            for table in others {
+                for (other_key, other_target) in *table {
+                    assert_ne!(key, other_key, "{key} is also a key in another table");
+                    assert_ne!(key, other_target, "{key} is another table's target");
+                    assert_ne!(target, other_key, "{target} is another table's key");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn known_provider_without_a_table_passes_through() {
         // Windows' `_ => modelId` arm.
-        assert_eq!(resolve_model_alias("nova-2", Some("openai")), "nova-2");
+        assert_eq!(resolve_model_alias("nova-2", Some("groq")), "nova-2");
         assert_eq!(resolve_model_alias("scribe_v1", Some("hyperwhisper")), "scribe_v1");
         assert_eq!(
             resolve_model_alias("nova-2", Some("meta")),

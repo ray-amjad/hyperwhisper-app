@@ -28,19 +28,39 @@ describe('isValidProviderId', () => {
 
 describe('resolveModel', () => {
   test('empty request resolves to the provider default', () => {
+    // Was gpt-4o-transcribe until 2026-09-11; OpenAI deprecated that id on
+    // 2026-08-26, so the default must not sit on it.
     const r = resolveModel('openai', undefined);
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.model.id).toBe('gpt-4o-transcribe');
+    if (r.ok) expect(r.model.id).toBe('gpt-transcribe');
 
     const blank = resolveModel('openai', '   ');
     expect(blank.ok).toBe(true);
-    if (blank.ok) expect(blank.model.id).toBe('gpt-4o-transcribe');
+    if (blank.ok) expect(blank.model.id).toBe('gpt-transcribe');
   });
 
-  test('accepts a valid model for the provider', () => {
-    const r = resolveModel('openai', 'whisper-1');
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.model.id).toBe('whisper-1');
+  test('no provider default is a model its vendor has deprecated', () => {
+    // The OpenAI default was a deprecated id for 16 days before anyone noticed.
+    // Pin the general rule, not just the one instance.
+    const deprecated = new Set(['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe']);
+    for (const providerId of ALL_STT_PROVIDER_IDS) {
+      const { defaultModel } = getProviderDef(providerId);
+      expect(
+        deprecated.has(defaultModel),
+        `${providerId} defaults to the deprecated model ${defaultModel}`,
+      ).toBe(false);
+    }
+  });
+
+  test('a deprecated model is still routable until OpenAI shuts it down', () => {
+    // The three ids retire 2027-02-26. Until then an explicit request for one
+    // must keep working — the apps migrate saved settings off them via the
+    // shared alias table, and nothing here should fail-closed early.
+    for (const id of ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe']) {
+      const r = resolveModel('openai', id);
+      expect(r.ok).toBe(true);
+      if (r.ok) expect(r.model.id).toBe(id);
+    }
   });
 
   test('rejects a model that belongs to a different provider (fail-closed)', () => {

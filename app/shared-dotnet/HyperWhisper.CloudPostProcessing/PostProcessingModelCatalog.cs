@@ -28,7 +28,7 @@ public static class PostProcessingModelCatalog
             [CloudPostProcessingProvider.Groq] =
             [
                 new("openai/gpt-oss-120b", "GPT OSS 120B"), new("openai/gpt-oss-20b", "GPT OSS 20B"),
-                new("qwen/qwen3.6-27b", "Qwen 3.6 27B"),
+                new("qwen/qwen3.6-27b", "Qwen 3.6 27B"), new("qwen/qwen3.8-27b", "Qwen 3.8 27B"),
             ],
             [CloudPostProcessingProvider.Grok] =
             [new("grok-4.3", "Grok 4.3"), new("grok-4.5", "Grok 4.5"), new("grok-4.6", "Grok 4.6")],
@@ -42,7 +42,7 @@ public static class PostProcessingModelCatalog
                 new("gemini-3.1-pro-preview", "Gemini 3.1 Pro"), new("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"),
             ],
             [CloudPostProcessingProvider.Cerebras] =
-            [new("gpt-oss-120b", "GPT OSS 120B"), new("gemma-4-31b", "Gemma 4 31B")],
+            [new("gpt-oss-120b", "GPT OSS 120B"), new("qwen-3.8-27b", "Qwen 3.8 27B")],
             [CloudPostProcessingProvider.Mistral] =
             [new("mistral-small-latest", "Mistral Small"), new("mistral-medium-3.5", "Mistral Medium 3.5")],
         };
@@ -70,7 +70,8 @@ public static class PostProcessingModelCatalog
             "mixtral-8x7b-32768" or "llama-3.3-70b-versatile" or "llama-3.1-8b-instant" or
             "meta-llama/llama-4-scout-17b-16e-instruct" or "qwen/qwen3-32b" => "openai/gpt-oss-120b",
         "llama-3.3-70b" or "qwen-3-235b-a22b-instruct-2507" or "zai-glm-4.7" => "gpt-oss-120b",
-        "llama-3.1-8b" or "llama3.1-8b" => "gemma-4-31b",
+        // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
+        "gemma-4-31b" or "llama-3.1-8b" or "llama3.1-8b" => "qwen-3.8-27b",
         "grok-4-1-fast-non-reasoning" or "grok-4.1-fast-non-reasoning" or "grok-4-fast-non-reasoning" or
             "grok-4-1-fast-reasoning" or "grok-4-fast-reasoning" => "grok-4.3",
         "open-mistral-nemo" => "mistral-small-latest",

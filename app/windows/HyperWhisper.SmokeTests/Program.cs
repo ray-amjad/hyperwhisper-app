@@ -723,7 +723,10 @@ internal static class Program
                     ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
                     ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
-                    ("llama3.1-8b", "gemma-4-31b"),
+                    ("llama3.1-8b", "qwen-3.8-27b"),
+                    ("llama-3.1-8b", "qwen-3.8-27b"),
+                    // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
+                    ("gemma-4-31b", "qwen-3.8-27b"),
                     ("qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"),
                 };
 
@@ -960,8 +963,9 @@ internal static class Program
             //   app/shared-dotnet/HyperWhisper.TranscriptionRouting.Tests
             //   app/macos/hyperwhisperTests/DefaultModelConformanceVectorTests.swift
             //
-            // Windows kept a hand-written switch here and the catalog said
-            // something else for OpenAI — whisper-1 against gpt-4o-transcribe —
+            // Windows kept a hand-written switch and the catalog said something
+            // else for OpenAI — whisper-1, then gpt-transcribe after PR #597,
+            // against the catalog's gpt-4o-transcribe throughout —
             // so a mode with a blank model column ran a different model, at a
             // different capability set, depending on which head served it. The
             // row is asserted against the LITERAL in the file, never against a

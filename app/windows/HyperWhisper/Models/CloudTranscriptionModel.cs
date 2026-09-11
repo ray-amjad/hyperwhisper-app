@@ -67,32 +67,34 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.003m
         },
+        // The three rows below were deprecated by OpenAI on 2026-08-26 and shut
+        // down 2027-02-26. They still work, and a user who has one selected keeps
+        // working, so the rows stay for this release — but they are no longer
+        // promoted, and ResolveModelAlias now migrates them through the shared
+        // Rust table. Delete the rows once a build carrying it has shipped.
         new CloudTranscriptionModel
         {
             Id = "gpt-4o-transcribe",
             DisplayName = "GPT-4o Transcribe",
-            Description = "Most capable - best accuracy, handles complex audio",
+            Description = "Deprecated by OpenAI - retires 2027-02-26, use GPT Transcribe",
             Provider = CloudTranscriptionProvider.OpenAI,
-            PricePerMinute = 0.006m,
-            IsPopular = true
+            PricePerMinute = 0.006m
         },
         new CloudTranscriptionModel
         {
             Id = "gpt-4o-mini-transcribe",
             DisplayName = "GPT-4o Mini Transcribe",
-            Description = "Balanced - good accuracy at lower cost",
+            Description = "Deprecated by OpenAI - retires 2027-02-26, use the 2025-12-15 snapshot",
             Provider = CloudTranscriptionProvider.OpenAI,
-            PricePerMinute = 0.003m,
-            IsPopular = true
+            PricePerMinute = 0.003m
         },
         new CloudTranscriptionModel
         {
             Id = "whisper-1",
             DisplayName = "Whisper-1",
-            Description = "Classic Whisper model - cost-effective, reliable",
+            Description = "Deprecated by OpenAI - retires 2027-02-26, use GPT Transcribe",
             Provider = CloudTranscriptionProvider.OpenAI,
-            PricePerMinute = 0.006m,
-            IsPopular = true
+            PricePerMinute = 0.006m
         },
         new CloudTranscriptionModel
         {
@@ -739,9 +741,11 @@ public static class CloudTranscriptionModels
     /// The default model id comes from <c>cloud-stt-catalog.json</c> through the
     /// shared core, not from a switch here. This method used to carry its own
     /// table and it disagreed with the catalog for OpenAI — the catalog said
-    /// <c>gpt-4o-transcribe</c>, this said <c>whisper-1</c> — so the same blank
-    /// model column transcribed on a different model, at a different capability
-    /// set, depending on which head served the request (issue #580).
+    /// <c>gpt-4o-transcribe</c>, this said <c>whisper-1</c>, and after PR #597
+    /// moved this table (but not the catalog) off the deprecated ids, this said
+    /// <c>gpt-transcribe</c> — so the same blank model column transcribed on a
+    /// different model, at a different capability set and a different price,
+    /// depending on which head served the request (issue #580).
     /// <c>shared-conformance/default-model-vectors.json</c> pins the answer and
     /// every head replays it through its own resolver.
     ///
