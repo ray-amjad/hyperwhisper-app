@@ -10,7 +10,7 @@ function parseMarkdownLinks(text: string) {
   const parts: (string | ReactElement)[] = [];
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
   let lastIndex = 0;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
     // Add text before the link
