@@ -213,7 +213,9 @@ public class TranscriptionOrchestrator : IDisposable
         // post-processing warning carries it to the GUI subscriber.
         _currentCallSite.Value = callSite;
 
-        LoggingService.Info($"TranscriptionOrchestrator: Starting transcription (provider={mode.ProviderType}, mode={mode.Name}, callSite={callSite})");
+        LoggingService.Info(
+            "TranscriptionOrchestrator: Starting transcription " +
+            $"(provider={mode.ProviderType}, mode_preset={mode.Preset}, callSite={callSite})");
 
         // Determine language (null for auto-detect)
         string? language = mode.Language == "auto" ? null : mode.Language;

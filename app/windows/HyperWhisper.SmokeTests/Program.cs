@@ -2563,7 +2563,16 @@ internal static class Program
                     transcriptionProviderDisplayName: "HyperWhisper Cloud",
                     providerDiagnostics: provider,
                     exception: null,
-                    captureDeviceCount: 2);
+                    captureDeviceCount: 2,
+                    deviceSelection: TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
+                        selectedDevice: new AudioDeviceService.AudioDevice(4, "ToDesk Virtual Audio"),
+                        availableDevices:
+                        [
+                            new AudioDeviceService.AudioDevice(4, "ToDesk Virtual Audio"),
+                            new AudioDeviceService.AudioDevice(9, "Microphone Array")
+                        ],
+                        savedDeviceName: "Microphone Array",
+                        reason: AudioDeviceSelectionReason.StartupFirstAvailable));
 
                 foreach (var key in extras.Keys)
                 {
@@ -2584,12 +2593,57 @@ internal static class Program
                 Assert(tags["provider_attempt_source"] == TranscriptionAttemptSource.CloudInstrumented,
                     $"provider_attempt_source should carry the record's own source, got {tags["provider_attempt_source"]}");
                 Assert(tags["mode_language"] == "en", $"mode_language should be the mode's code, got {tags["mode_language"]}");
+                Assert(tags["capture_device_selection_reason"] == AudioDeviceSelectionReason.StartupFirstAvailable,
+                    $"capture_device_selection_reason should identify startup selection, got {tags["capture_device_selection_reason"]}");
+
+                // This is the exact question the current HYPERWHISPER-PA report
+                // cannot answer: did startup take the first device even though a
+                // different saved device was still present? Names are inputs to the
+                // comparison only. The payload carries booleans and a list position.
+                Assert((int)extras["capture_device_list_position"] == 0,
+                    $"expected the selected list position to be 0, got {extras["capture_device_list_position"]}");
+                Assert((bool)extras["capture_device_is_first_available"],
+                    "the first available device should be identified");
+                Assert((bool)extras["saved_capture_device_configured"],
+                    "the payload should say that a saved device was configured");
+                Assert((bool)extras["saved_capture_device_available"],
+                    "the payload should say that the saved device was available");
+                Assert(!(bool)extras["selected_capture_device_matches_saved"],
+                    "the payload should say that startup did not restore the saved device");
 
                 // mode_name carried whatever the user typed when they named a custom
                 // mode. It is user content and it is gone; mode_preset answers the same
                 // question without it.
                 Assert(!extras.ContainsKey("mode_name"), "mode_name is user-typed text and must not be reported");
                 Assert(extras.ContainsKey("mode_preset"), "mode_preset is missing");
+            });
+
+            Run("TranscriptionDiagnosticsService device selection: an explicit saved-device match is distinguishable from startup-first", () =>
+            {
+                var devices = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(4, "ToDesk Virtual Audio"),
+                    new(9, "Microphone Array")
+                };
+
+                var diagnostics = TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
+                    selectedDevice: devices[1],
+                    availableDevices: devices,
+                    savedDeviceName: "Microphone Array",
+                    reason: AudioDeviceSelectionReason.ExplicitSelection);
+
+                Assert(diagnostics.Reason == AudioDeviceSelectionReason.ExplicitSelection,
+                    $"expected explicit_selection, got {diagnostics.Reason}");
+                Assert(diagnostics.SelectedListPosition == 1,
+                    $"expected list position 1, got {diagnostics.SelectedListPosition}");
+                Assert(diagnostics.SelectedIsFirstAvailable == false,
+                    "the second device must not be reported as first available");
+                Assert(diagnostics.SavedDeviceConfigured,
+                    "the saved device should be reported as configured");
+                Assert(diagnostics.SavedDeviceAvailable == true,
+                    "the saved device should be reported as available");
+                Assert(diagnostics.SelectedMatchesSavedDevice == true,
+                    "the explicit selection should match the saved device");
             });
 
             Run("TranscriptionDiagnosticsService payload: a provider that reports nothing says unknown, never zero", () =>
