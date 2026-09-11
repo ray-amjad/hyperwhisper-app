@@ -953,6 +953,47 @@ internal static class Program
                 }
             });
 
+            // Replays shared-conformance/default-model-vectors.json through THIS
+            // head's own resolver (issue #580). The other three heads replay the
+            // same file through theirs:
+            //   shared-core-rs/crates/hw-net/tests/default_model_vectors.rs
+            //   app/shared-dotnet/HyperWhisper.TranscriptionRouting.Tests
+            //   app/macos/hyperwhisperTests/DefaultModelConformanceVectorTests.swift
+            //
+            // Windows kept a hand-written switch here and the catalog said
+            // something else for OpenAI — whisper-1 against gpt-4o-transcribe —
+            // so a mode with a blank model column ran a different model, at a
+            // different capability set, depending on which head served it. The
+            // row is asserted against the LITERAL in the file, never against a
+            // second call to the catalog: #566's assertion read the same
+            // function its guard read, which is how a four-way split survived.
+            Run("provider default-model vectors match this head's resolver", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "default-model-vectors.json");
+                Assert(File.Exists(vectorsPath), $"default-model-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("providers");
+                Assert(rows.GetArrayLength() >= 12, "default-model-vectors.json looks truncated");
+
+                foreach (var row in rows.EnumerateArray())
+                {
+                    var entryId = row.GetProperty("catalogEntryId").GetString()!;
+                    var identifier = row.GetProperty("providerIdentifier").GetString()!;
+                    var want = row.GetProperty("defaultModelId").GetString()!;
+
+                    var provider = CloudTranscriptionProviderExtensions.FromIdentifier(identifier);
+                    Assert(provider != CloudTranscriptionProvider.None,
+                        $"{identifier}: Windows does not map this provider identifier");
+                    Assert(CloudTranscriptionModels.GetDefault(provider)?.Id == want,
+                        $"{entryId}: Windows' default model is not '{want}'");
+                    // The default must also be a real row of this registry, or
+                    // the Mode editor cannot show the model it is about to run.
+                    Assert(CloudTranscriptionModels.GetById(want, provider) != null,
+                        $"{entryId}: the default model '{want}' is not in the Windows picker");
+                }
+            });
+
             // NATIVE CAPTURE (issue #277, phase 1a). Drives every
             // shared-conformance/backup-vectors.json modeNormalization row through the
             // SHIPPING Windows mode-import path — UniversalBackupMapper.MapToMode, which

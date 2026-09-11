@@ -10,7 +10,7 @@ use crate::helpers::keyword_boost_terms;
 use crate::providers::common::classify_http;
 
 use super::{
-    auth_header, filter_keyterm_words, request_params, DEFAULT_MODEL, MAX_KEYTERMS_DEFAULT,
+    auth_header, default_model, filter_keyterm_words, request_params, MAX_KEYTERMS_DEFAULT,
     MAX_KEYTERMS_PRO,
 };
 
@@ -23,10 +23,10 @@ fn base(params: &TranscribeParams) -> String {
 }
 
 /// The effective `speech_model` (after alias + `-medical` strip), defaulting
-/// empty/blank model to [`super::DEFAULT_MODEL`].
+/// empty/blank model to [`super::default_model`].
 fn speech_model_and_medical(params: &TranscribeParams) -> (String, bool) {
     let model = if params.model.trim().is_empty() {
-        DEFAULT_MODEL
+        default_model()
     } else {
         params.model.as_str()
     };

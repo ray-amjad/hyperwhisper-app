@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 12,
-  "updated": "2026-09-04",
+  "updated": "2026-09-11",
   "providers": [
     {
       "id": "groqWhisper",
@@ -275,9 +275,9 @@
       "sttProvider": "openai",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "gpt-4o-transcribe", "displayName": "GPT-4o Transcribe", "creditsPerMinute": 6.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gpt-4o-transcribe", "displayName": "GPT-4o Transcribe", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gpt-4o-mini-transcribe", "displayName": "GPT-4o Mini Transcribe", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gpt-transcribe", "displayName": "GPT Transcribe", "creditsPerMinute": 4.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gpt-live-transcribe", "displayName": "GPT Live Transcribe", "creditsPerMinute": 17.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],

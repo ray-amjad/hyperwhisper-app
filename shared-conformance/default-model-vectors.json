@@ -1,0 +1,90 @@
+{
+  "description": "Cross-platform conformance vectors for (cloud provider -> default transcription model id). Source of truth: shared-app-classification/cloud-stt-catalog.json, read through hw-catalog. FOUR heads replay these rows through their OWN resolver, not through one shared function: Rust (shared-core-rs/crates/hw-net/tests/default_model_vectors.rs, via each providers/*.rs `default_model()`), the portable .NET head (app/shared-dotnet/HyperWhisper.TranscriptionRouting.Tests, via ModeAwareTranscriptionRouter.DefaultCloudModelId), Windows (app/windows/HyperWhisper.SmokeTests, via CloudTranscriptionModels.GetDefault) and macOS (app/macos/hyperwhisperTests/DefaultModelConformanceVectorTests.swift, via CloudTranscriptionModels.defaultModel(for:)). Issue #580: before this file, three of those four carried a hand-written table and nothing compared them — OpenAI resolved to gpt-4o-transcribe on the portable head and whisper-1 everywhere else, so byte-identical audio and a byte-identical request body ran a different model depending on which head served it. The #566 test could not have caught it: its guard and its assertion called the same function. Asserting against a LITERAL here is the point; do not rewrite a row to call the resolver it is pinning. `creditsPerMinute` is the default model's own row and is carried so a default flip that also changes the price is visible in the diff. Regenerate after an intended catalog change with: cd shared-core-rs && cargo test -p hw-net --test default_model_vectors -- --ignored regenerate",
+  "notInCatalog": "Two providers the app models have NO cloud-stt-catalog entry and so no row here. `googleSpeech` (Chirp 3) lost its `googleChirp3` entry in catalog v8 when geminiTranscribe took Google's tier slot, and all three .NET/Swift heads pin `chirp_3` directly. `hyperwhisper` is a routing service rather than a catalog vendor — it dispatches on the mode's accuracy TIER, so its `X-STT-Model` comes from that tier's catalog entry (already covered by the row for that tier) and its BYOK-shaped default is never put on the wire. The three heads DO disagree about that unused value (Windows `default`, macOS `\"\"`, portable `nova-3-general`); that is tracked separately rather than converged here, because changing it changes what the Local API writes into a mode, which is a different change from this one.",
+  "providers": [
+    {
+      "catalogEntryId": "groqWhisper",
+      "providerIdentifier": "groq",
+      "defaultModelId": "whisper-large-v3-turbo",
+      "creditsPerMinute": 0.667,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "deepgramNova3",
+      "providerIdentifier": "deepgram",
+      "defaultModelId": "nova-3-general",
+      "creditsPerMinute": 5.5,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "grokStt",
+      "providerIdentifier": "grok",
+      "defaultModelId": "",
+      "creditsPerMinute": 1.67,
+      "byokRequestBuilder": false
+    },
+    {
+      "catalogEntryId": "azureMaiTranscribe",
+      "providerIdentifier": "microsoftAzureSpeech",
+      "defaultModelId": "mai-transcribe-2",
+      "creditsPerMinute": 1.67,
+      "byokRequestBuilder": false
+    },
+    {
+      "catalogEntryId": "geminiTranscribe",
+      "providerIdentifier": "geminiTranscribe",
+      "defaultModelId": "gemini-3.5-transcribe",
+      "creditsPerMinute": 5.5,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "elevenLabsScribeV2",
+      "providerIdentifier": "elevenlabs",
+      "defaultModelId": "scribe_v2",
+      "creditsPerMinute": 9.83,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "openaiWhisper",
+      "providerIdentifier": "openai",
+      "defaultModelId": "whisper-1",
+      "creditsPerMinute": 6.0,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "assemblyAI",
+      "providerIdentifier": "assemblyai",
+      "defaultModelId": "universal-3-5-pro",
+      "creditsPerMinute": 3.5,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "mistralVoxtral",
+      "providerIdentifier": "mistral",
+      "defaultModelId": "voxtral-mini-latest",
+      "creditsPerMinute": 3.0,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "soniox",
+      "providerIdentifier": "soniox",
+      "defaultModelId": "stt-async-v5",
+      "creditsPerMinute": 1.67,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "gemini",
+      "providerIdentifier": "gemini",
+      "defaultModelId": "gemini-2.5-flash",
+      "creditsPerMinute": 2.4,
+      "byokRequestBuilder": true
+    },
+    {
+      "catalogEntryId": "metaMuse",
+      "providerIdentifier": "meta",
+      "defaultModelId": "muse-voice-transcribe-1.0",
+      "creditsPerMinute": 3.0,
+      "byokRequestBuilder": true
+    }
+  ]
+}

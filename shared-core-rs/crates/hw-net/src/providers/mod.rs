@@ -8,6 +8,7 @@ pub mod assemblyai;
 pub mod azure_mai;
 pub(crate) mod common;
 pub mod deepgram;
+pub mod defaults;
 pub mod elevenlabs;
 pub mod gemini;
 pub mod gemini_transcribe;

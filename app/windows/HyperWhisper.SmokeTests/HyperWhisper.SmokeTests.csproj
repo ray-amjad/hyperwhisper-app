@@ -24,6 +24,10 @@
          project: the Linux backup harness runs the same file. -->
     <Content Include="../../../shared-conformance/backup-vectors.json"
              Link="backup-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Same arrangement for the (provider -> default model) vectors: Rust, the
+         portable head and macOS replay this very file. -->
+    <Content Include="../../../shared-conformance/default-model-vectors.json"
+             Link="default-model-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The LIVE Windows appcast, not a fixture: the AppcastService checks
          replay the very feed the shipped app fetches and pin the 15 releases it
          renders, so #353's move of the selection rules into the shared core is

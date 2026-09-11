@@ -702,28 +702,65 @@ public static class CloudTranscriptionModels
     }
 
     /// <summary>
+    /// The <c>cloud-stt-catalog.json</c> entry a provider's models live under —
+    /// the key the shared core answers <see cref="GetDefault"/> from.
+    /// </summary>
+    /// <remarks>
+    /// Two providers deliberately have no entry. <c>googleChirp3</c> was retired
+    /// in catalog v8 (geminiTranscribe took Google's tier slot) while the
+    /// standalone provider stayed, and HyperWhisper Cloud is a routing service
+    /// rather than a catalog vendor — it chooses by accuracy tier, and
+    /// <see cref="HyperWhisperCloudSentinel"/> is what persisted modes carry.
+    /// Both keep a pinned id in <see cref="GetDefault"/>. Mirrors the portable
+    /// head's <c>ModeAwareTranscriptionRouter.CatalogTier</c> and macOS
+    /// <c>CloudTranscriptionModels.catalogEntryId(for:)</c>.
+    /// </remarks>
+    private static string? CatalogEntryId(CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.OpenAI => "openaiWhisper",
+        CloudTranscriptionProvider.Groq => "groqWhisper",
+        CloudTranscriptionProvider.Deepgram => "deepgramNova3",
+        CloudTranscriptionProvider.AssemblyAI => "assemblyAI",
+        CloudTranscriptionProvider.ElevenLabs => "elevenLabsScribeV2",
+        CloudTranscriptionProvider.Mistral => "mistralVoxtral",
+        CloudTranscriptionProvider.Soniox => "soniox",
+        CloudTranscriptionProvider.Gemini => "gemini",
+        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        CloudTranscriptionProvider.Meta => "metaMuse",
+        CloudTranscriptionProvider.Grok => "grokStt",
+        CloudTranscriptionProvider.MicrosoftAzureSpeech => "azureMaiTranscribe",
+        _ => null
+    };
+
+    /// <summary>
     /// Gets the default model for a provider.
     /// </summary>
+    /// <remarks>
+    /// The default model id comes from <c>cloud-stt-catalog.json</c> through the
+    /// shared core, not from a switch here. This method used to carry its own
+    /// table and it disagreed with the catalog for OpenAI — the catalog said
+    /// <c>gpt-4o-transcribe</c>, this said <c>whisper-1</c> — so the same blank
+    /// model column transcribed on a different model, at a different capability
+    /// set, depending on which head served the request (issue #580).
+    /// <c>shared-conformance/default-model-vectors.json</c> pins the answer and
+    /// every head replays it through its own resolver.
+    ///
+    /// A provider with no catalog entry keeps a pinned id; see
+    /// <see cref="CatalogEntryId"/> for why those two exist. The trailing
+    /// <c>FirstOrDefault</c> is unchanged: it keeps the method total for a
+    /// provider whose catalog default is not a row of this registry.
+    /// </remarks>
     public static CloudTranscriptionModel? GetDefault(CloudTranscriptionProvider provider)
     {
-        var defaultModelId = provider switch
-        {
-            CloudTranscriptionProvider.OpenAI => "whisper-1",
-            CloudTranscriptionProvider.Groq => "whisper-large-v3-turbo",
-            CloudTranscriptionProvider.Deepgram => "nova-3-general",
-            CloudTranscriptionProvider.AssemblyAI => "universal-3-5-pro",
-            CloudTranscriptionProvider.ElevenLabs => "scribe_v2",
-            CloudTranscriptionProvider.Mistral => "voxtral-mini-latest",
-            CloudTranscriptionProvider.Soniox => "stt-async-v5",  // Parity with macOS + cloud default; v4 auto-routes to v5 upstream after 2026-06-30
-            CloudTranscriptionProvider.Gemini => "gemini-2.5-flash",
-            CloudTranscriptionProvider.GeminiTranscribe => "gemini-3.5-transcribe",
-            CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
-            CloudTranscriptionProvider.HyperWhisperCloud => HyperWhisperCloudSentinel.Id,
-            CloudTranscriptionProvider.Grok => "",
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-2",
-            CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
-            _ => null
-        };
+        var catalogEntryId = CatalogEntryId(provider);
+        var defaultModelId = catalogEntryId is not null
+            ? HyperwhisperCoreMethods.CloudSttDefaultModelId(catalogEntryId)
+            : provider switch
+            {
+                CloudTranscriptionProvider.HyperWhisperCloud => HyperWhisperCloudSentinel.Id,
+                CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
+                _ => null
+            };
 
         return GetById(defaultModelId, provider) ?? GetModelsForProvider(provider).FirstOrDefault();
     }

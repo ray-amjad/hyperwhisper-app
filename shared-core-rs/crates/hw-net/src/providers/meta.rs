@@ -18,7 +18,17 @@ use crate::helpers::{
 use crate::providers::common;
 
 pub const ENDPOINT: &str = "https://api.meta.ai/v1/asr/transcribe";
-pub const DEFAULT_MODEL: &str = "muse-voice-transcribe-1.0";
+
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "metaMuse";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
+
 pub const MAX_KEYWORDS: usize = 100;
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -57,7 +67,7 @@ pub fn build_transcribe_request(
     }
 
     let model = if params.model.trim().is_empty() {
-        DEFAULT_MODEL
+        default_model()
     } else {
         params.model.trim()
     };
@@ -184,7 +194,7 @@ mod tests {
     fn params() -> TranscribeParams {
         TranscribeParams {
             api_key: "test-key-not-a-secret".to_string(),
-            model: DEFAULT_MODEL.to_string(),
+            model: default_model().to_string(),
             audio_path: "/tmp/input.wav".to_string(),
             ..Default::default()
         }
@@ -237,7 +247,7 @@ mod tests {
     #[test]
     fn payload_defaults_and_omits_empty_options() {
         let payload = request_json(&build_transcribe_request(&params()).unwrap());
-        assert_eq!(payload["model"], DEFAULT_MODEL);
+        assert_eq!(payload["model"], default_model());
         assert_eq!(payload["audioEncoding"], "WAV");
         assert_eq!(payload["mode"], "PUSH_TO_TALK");
         assert!(payload.get("keywords").is_none());

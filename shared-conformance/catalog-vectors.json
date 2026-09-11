@@ -469,13 +469,13 @@
       "previewStatus": false,
       "migrateFrom": [],
       "legacyCloudProviderAliases": [],
-      "defaultModelId": "gpt-4o-transcribe",
+      "defaultModelId": "whisper-1",
       "models": [
         {
           "id": "gpt-4o-transcribe",
           "displayName": "GPT-4o Transcribe",
           "creditsPerMinute": 6.0,
-          "isDefault": true,
+          "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
@@ -493,7 +493,7 @@
           "id": "whisper-1",
           "displayName": "Whisper",
           "creditsPerMinute": 6.0,
-          "isDefault": false,
+          "isDefault": true,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null

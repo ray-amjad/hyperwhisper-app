@@ -46,9 +46,15 @@ use crate::providers::common::{self, Auth, OpenAiStyleSpec, VocabularyMode};
 /// Mistral transcription endpoint.
 pub const ENDPOINT: &str = "https://api.mistral.ai/v1/audio/transcriptions";
 
-/// Default model when the caller leaves `params.model` empty.
-/// PARITY: macOS + Windows both default to `voxtral-mini-latest`.
-pub const DEFAULT_MODEL: &str = "voxtral-mini-latest";
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "mistralVoxtral";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 /// Mistral caps `context_bias` at 100 phrases.
 pub const MAX_CONTEXT_BIAS_TERMS: usize = 100;
@@ -56,7 +62,7 @@ pub const MAX_CONTEXT_BIAS_TERMS: usize = 100;
 fn spec() -> OpenAiStyleSpec {
     OpenAiStyleSpec {
         endpoint: ENDPOINT,
-        default_model: DEFAULT_MODEL,
+        default_model: default_model(),
         // x-api-key, NOT Bearer — see module docs.
         auth: Auth::XApiKey,
         vocabulary: VocabularyMode::Terms {

@@ -65,9 +65,15 @@ pub use sync_flow::*;
 /// AssemblyAI API base. `params.base_url` overrides it (tests/staging).
 pub const BASE_URL: &str = "https://api.assemblyai.com/v2";
 
-/// Default model when the caller leaves `params.model` empty.
-/// PARITY: macOS `defaultModel(for: .assemblyAI)` / Windows default = `universal-3-5-pro`.
-pub const DEFAULT_MODEL: &str = "universal-3-5-pro";
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "assemblyAI";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`crate::providers::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    crate::providers::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 /// Max `keyterms_prompt` terms for `universal-3-5-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
 pub const MAX_KEYTERMS_PRO: usize = 1000;

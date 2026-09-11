@@ -42,10 +42,15 @@ pub const ENDPOINT: &str = "https://api.elevenlabs.io/v1/speech-to-text";
 /// Auth header name (NOT `Authorization`).
 pub const HEADER_API_KEY: &str = "xi-api-key";
 
-/// Default model when the caller leaves `params.model` empty.
-/// PARITY: macOS `CloudTranscriptionModels.defaultModel(.elevenLabs)` / Windows
-/// `ElevenLabsService` both default to `scribe_v2`.
-pub const DEFAULT_MODEL: &str = "scribe_v2";
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "elevenLabsScribeV2";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 /// The Scribe v2 model id (the only one that supports keyterm vocabulary).
 pub const SCRIBE_V2: &str = "scribe_v2";
@@ -55,7 +60,7 @@ pub fn build_transcribe_request(
     params: &TranscribeParams,
 ) -> Result<HttpRequest, TranscriptionError> {
     let model_id = if params.model.trim().is_empty() {
-        DEFAULT_MODEL.to_string()
+        default_model().to_string()
     } else {
         params.model.clone()
     };
