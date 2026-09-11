@@ -199,7 +199,11 @@ struct BackupConformanceVectorTests {
         // 132 → 134 when catalog v8 (#331) added the `googlechirp3` and `chirp_3`
         // tier aliases. The count is asserted here AND in the Rust suite; a row
         // may only be ADDED, and both counts move together, deliberately.
-        #expect(rows.count == 134, "the frozen modeNormalization row count changed")
+        //
+        // 134 → 136: OPENAI_ALIASES was added for the three OpenAI STT ids
+        // deprecated 2026-08-26, and two rows cover it (`whisper-1` and the mini
+        // id take different targets). No row was removed.
+        #expect(rows.count == 136, "the frozen modeNormalization row count changed")
 
         for row in rows {
             let label = Self.name(row)
