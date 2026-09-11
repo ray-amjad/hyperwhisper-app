@@ -2563,7 +2563,15 @@ internal static class Program
                     transcriptionProviderDisplayName: "HyperWhisper Cloud",
                     providerDiagnostics: provider,
                     exception: null,
-                    captureDeviceCount: 2);
+                    captureDeviceCount: 2,
+                    deviceSelection: TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
+                        selectedDevice: new AudioDeviceService.AudioDevice(4, "ToDesk Virtual Audio"),
+                        availableDevices:
+                        [
+                            new AudioDeviceService.AudioDevice(4, "ToDesk Virtual Audio"),
+                            new AudioDeviceService.AudioDevice(9, "Microphone Array")
+                        ],
+                        reason: AudioDeviceSelectionReason.StartupFirstAvailable));
 
                 foreach (var key in extras.Keys)
                 {
@@ -2584,12 +2592,46 @@ internal static class Program
                 Assert(tags["provider_attempt_source"] == TranscriptionAttemptSource.CloudInstrumented,
                     $"provider_attempt_source should carry the record's own source, got {tags["provider_attempt_source"]}");
                 Assert(tags["mode_language"] == "en", $"mode_language should be the mode's code, got {tags["mode_language"]}");
+                Assert(tags["capture_device_selection_reason"] == AudioDeviceSelectionReason.StartupFirstAvailable,
+                    $"capture_device_selection_reason should identify startup selection, got {tags["capture_device_selection_reason"]}");
+
+                // This is the exact question the current HYPERWHISPER-PA report
+                // cannot answer: did startup take the first enumerated device, or
+                // did an explicit or onboarding selection choose the input?
+                Assert((int)extras["capture_device_list_position"] == 0,
+                    $"expected the selected list position to be 0, got {extras["capture_device_list_position"]}");
 
                 // mode_name carried whatever the user typed when they named a custom
                 // mode. It is user content and it is gone; mode_preset answers the same
                 // question without it.
                 Assert(!extras.ContainsKey("mode_name"), "mode_name is user-typed text and must not be reported");
                 Assert(extras.ContainsKey("mode_preset"), "mode_preset is missing");
+            });
+
+            Run("TranscriptionDiagnosticsService device selection: explicit selection is distinguishable from startup-first", () =>
+            {
+                var devices = new List<AudioDeviceService.AudioDevice>
+                {
+                    new(4, "ToDesk Virtual Audio"),
+                    new(9, "Microphone Array")
+                };
+
+                var diagnostics = TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
+                    selectedDevice: devices[1],
+                    availableDevices: devices,
+                    reason: AudioDeviceSelectionReason.ExplicitSelection);
+
+                Assert(diagnostics.Reason == AudioDeviceSelectionReason.ExplicitSelection,
+                    $"expected explicit_selection, got {diagnostics.Reason}");
+                Assert(diagnostics.SelectedListPosition == 1,
+                    $"expected list position 1, got {diagnostics.SelectedListPosition}");
+
+                var unrecognized = TranscriptionDiagnosticsService.DescribeAudioDeviceSelection(
+                    selectedDevice: devices[0],
+                    availableDevices: devices,
+                    reason: "untrusted value");
+                Assert(unrecognized.Reason == AudioDeviceSelectionReason.Unknown,
+                    "an unrecognized selection reason must become the fixed unknown slug");
             });
 
             Run("TranscriptionDiagnosticsService payload: a provider that reports nothing says unknown, never zero", () =>
