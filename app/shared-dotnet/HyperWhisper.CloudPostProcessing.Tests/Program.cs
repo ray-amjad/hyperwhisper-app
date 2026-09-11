@@ -53,7 +53,9 @@ static Task TestModelRegistry()
     {
         [CloudPostProcessingProvider.OpenAi] = 11,
         [CloudPostProcessingProvider.Anthropic] = 4,
-        [CloudPostProcessingProvider.Groq] = 3,
+        // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
+        // dead gemma-4-31b was REPLACED by qwen-3.8-27b, not joined by it.
+        [CloudPostProcessingProvider.Groq] = 4,
         [CloudPostProcessingProvider.Grok] = 3,
         [CloudPostProcessingProvider.Gemini] = 11,
         [CloudPostProcessingProvider.Cerebras] = 2,

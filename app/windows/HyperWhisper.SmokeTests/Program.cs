@@ -723,7 +723,10 @@ internal static class Program
                     ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
                     ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
-                    ("llama3.1-8b", "gemma-4-31b"),
+                    ("llama3.1-8b", "qwen-3.8-27b"),
+                    ("llama-3.1-8b", "qwen-3.8-27b"),
+                    // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
+                    ("gemma-4-31b", "qwen-3.8-27b"),
                     ("qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"),
                 };
 
