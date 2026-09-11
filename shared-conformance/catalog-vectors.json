@@ -1850,20 +1850,20 @@
     },
     {
       "provider": "cerebras",
-      "id": "gemma-4-31b",
+      "id": "gpt-oss-120b",
       "kind": "text",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
     },
     {
       "provider": "cerebras",
-      "id": "gpt-oss-120b",
+      "id": "qwen-3.8-27b",
       "kind": "text",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": true,
+      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
       "voiceCapabilities": null
@@ -2397,6 +2397,16 @@
     {
       "provider": "groq",
       "id": "qwen/qwen3.6-27b",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "groq",
+      "id": "qwen/qwen3.8-27b",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,

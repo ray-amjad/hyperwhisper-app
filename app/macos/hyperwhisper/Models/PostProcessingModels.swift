@@ -246,6 +246,13 @@ struct PostProcessingModels {
             id: "qwen/qwen3.6-27b",
             displayName: "Qwen 3.6 27B",
             isAvailable: true,
+            description: "Capable Qwen, strong quality-to-speed ratio",
+            provider: .groq
+        ),
+        PostProcessingModel(
+            id: "qwen/qwen3.8-27b",
+            displayName: "Qwen 3.8 27B",
+            isAvailable: true,
             description: "Latest Qwen, strong quality-to-speed ratio",
             provider: .groq
         ),
@@ -282,8 +289,8 @@ struct PostProcessingModels {
             provider: .cerebras
         ),
         PostProcessingModel(
-            id: "gemma-4-31b",
-            displayName: "Gemma 4 31B",
+            id: "qwen-3.8-27b",
+            displayName: "Qwen 3.8 27B",
             isAvailable: true,
             description: "Fast, efficient general-purpose model",
             provider: .cerebras
@@ -361,8 +368,14 @@ struct PostProcessingModels {
         .cerebras: [
             // Deprecated 2026-02-16: llama-3.3-70b → gpt-oss-120b
             "llama-3.3-70b": "gpt-oss-120b",
-            "llama-3.1-8b": "gemma-4-31b",
-            "llama3.1-8b": "gemma-4-31b",
+            // Removed from Cerebras public endpoints 2026-09-03 (Dedicated
+            // Endpoints only). Cerebras names qwen-3.8-27b as the replacement.
+            // `resolvedModelId` only applies a mapping when the TARGET is still a
+            // live picker row, so these two had to move with the row — pointing
+            // them at gemma-4-31b would have made both redirects a silent no-op.
+            "gemma-4-31b": "qwen-3.8-27b",
+            "llama-3.1-8b": "qwen-3.8-27b",
+            "llama3.1-8b": "qwen-3.8-27b",
             "qwen-3-235b-a22b-instruct-2507": "gpt-oss-120b",
             // zai-glm-4.7 scheduled for deprecation 2026-08-17 (Cerebras
             // inference-docs.cerebras.ai/models/zai-glm-47 + change-log, checked

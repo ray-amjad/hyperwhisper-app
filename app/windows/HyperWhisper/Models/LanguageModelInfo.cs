@@ -79,7 +79,8 @@ public class LanguageModelInfo
         // Ultra-fast inference via specialized hardware
         new("openai/gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Groq, "Fast, high quality"),
         new("openai/gpt-oss-20b", "GPT OSS 20B", PostProcessingProvider.Groq, "Fast, lightweight"),
-        new("qwen/qwen3.6-27b", "Qwen 3.6 27B", PostProcessingProvider.Groq, "Latest Qwen, strong quality-to-speed ratio"),
+        new("qwen/qwen3.6-27b", "Qwen 3.6 27B", PostProcessingProvider.Groq, "Capable Qwen, strong quality-to-speed ratio"),
+        new("qwen/qwen3.8-27b", "Qwen 3.8 27B", PostProcessingProvider.Groq, "Latest Qwen, strong quality-to-speed ratio"),
 
         // xAI Grok Models
         new("grok-4.3", "Grok 4.3", PostProcessingProvider.Grok, "SpaceXAI Grok 4.3 with reasoning disabled for low-latency text enhancement"),
@@ -108,7 +109,7 @@ public class LanguageModelInfo
         // Cerebras Models
         // Ultra-fast inference on custom silicon
         new("gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Cerebras, "Fast, high quality"),
-        new("gemma-4-31b", "Gemma 4 31B", PostProcessingProvider.Cerebras, "Fast, efficient general-purpose model"),
+        new("qwen-3.8-27b", "Qwen 3.8 27B", PostProcessingProvider.Cerebras, "Fast, efficient general-purpose model"),
 
         // Local LLM Models
         // GGUF files managed by the local model catalog; IDs match the macOS local LLM model IDs.
@@ -153,8 +154,12 @@ public class LanguageModelInfo
         "qwen/qwen3-32b" => "openai/gpt-oss-120b",
         // Cerebras: migrate models absent from the current public catalog.
         "llama-3.3-70b" => "gpt-oss-120b",
-        "llama-3.1-8b" => "gemma-4-31b",
-        "llama3.1-8b" => "gemma-4-31b",
+        // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03; it
+        // stays on Dedicated Endpoints only. Cerebras names qwen-3.8-27b as the
+        // replacement, so the row moved and these two redirects moved with it.
+        "gemma-4-31b" => "qwen-3.8-27b",
+        "llama-3.1-8b" => "qwen-3.8-27b",
+        "llama3.1-8b" => "qwen-3.8-27b",
         "qwen-3-235b-a22b-instruct-2507" => "gpt-oss-120b",
         // Cerebras: zai-glm-4.7 deprecates 2026-08-17. Cerebras has NOT published an
         // official successor in the public Inference API catalog as of this writing —

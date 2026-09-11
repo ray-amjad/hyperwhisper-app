@@ -27,7 +27,10 @@ struct PostProcessingModelResolutionTests {
             ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
             ("gemini-2.0-flash", .gemini, "gemini-3.6-flash"),
             ("gemini-2.0-flash-lite", .gemini, "gemini-3.1-flash-lite"),
-            ("llama3.1-8b", .cerebras, "gemma-4-31b"),
+            ("llama3.1-8b", .cerebras, "qwen-3.8-27b"),
+            ("llama-3.1-8b", .cerebras, "qwen-3.8-27b"),
+            // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
+            ("gemma-4-31b", .cerebras, "qwen-3.8-27b"),
             ("qwen-3-235b-a22b-instruct-2507", .cerebras, "gpt-oss-120b"),
         ]
 
@@ -48,11 +51,16 @@ struct PostProcessingModelResolutionTests {
             "gpt-4.1-nano", "gemini-3-pro-preview",
             "gemini-3.1-flash-lite-preview", "llama3.1-8b",
             "qwen-3-235b-a22b-instruct-2507",
+            "gemma-4-31b",
         ])
         #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
         #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")
         #expect(PostProcessingModels.model(withId: "gpt-5-nano", provider: .openai) != nil)
-        #expect(PostProcessingModels.model(withId: "gemma-4-31b", provider: .cerebras) != nil)
+        #expect(PostProcessingModels.model(withId: "qwen-3.8-27b", provider: .cerebras) != nil)
+        #expect(PostProcessingModels.model(withId: "qwen/qwen3.8-27b", provider: .groq) != nil)
+        // Removing the Cerebras row must not move the provider default, which
+        // pickers resolve as `models(for:).first`.
+        #expect(PostProcessingModels.defaultModel(for: .cerebras)?.id == "gpt-oss-120b")
     }
 
     @Test func unknownIdIsLeftUnresolvedSoCallersFallBackToOptionsFirst() {

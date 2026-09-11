@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-06",
+  "lastUpdated": "2026-09-11",
   "models": [
     {
       "provider": "appleSpeech",
@@ -372,6 +372,15 @@
       "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
     },
     {
+      "provider": "groq",
+      "id": "qwen/qwen3.8-27b",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Preview tier in GroqCloud, like qwen/qwen3.6-27b."
+    },
+    {
       "provider": "cerebras",
       "id": "gpt-oss-120b",
       "kind": "text",
@@ -382,12 +391,12 @@
     },
     {
       "provider": "cerebras",
-      "id": "gemma-4-31b",
+      "id": "qwen-3.8-27b",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "notes": "Current public Cerebras catalog model. BYOK-only native-app addition."
+      "notes": "Current public Cerebras catalog model. BYOK-only native-app addition. Replaced gemma-4-31b, which Cerebras removed from the public endpoints 2026-09-03."
     },
     {
       "provider": "grok",
