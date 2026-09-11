@@ -205,7 +205,11 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   // ── New synchronous proxy providers ──
   openai: {
     id: 'openai',
-    defaultModel: 'gpt-4o-transcribe',
+    // gpt-4o-transcribe until 2026-09-11. OpenAI deprecated it on 2026-08-26
+    // (shutdown 2027-02-26) and names gpt-transcribe as the replacement, so the
+    // cloud STT default for OpenAI must not stay on it. gpt-transcribe is also
+    // cheaper here ($0.0045/min flat vs $0.009/min token-billed).
+    defaultModel: 'gpt-transcribe',
     fallbackChain: ['openai'],
     async: false,
     // gpt-4o-* are token-billed (input audio + OUTPUT transcript tokens), so the

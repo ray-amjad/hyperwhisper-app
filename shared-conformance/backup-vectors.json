@@ -1797,12 +1797,44 @@
       "mode": {
         "id": "00000000-0000-4000-8000-000000000116",
         "name": "vec-116",
+        "cloudProvider": "groq",
+        "cloudTranscriptionModel": "whisper-large-v3-turbo"
+      },
+      "expected": {
+        "cloudProvider": "groq",
+        "cloudTranscriptionModel": "whisper-large-v3-turbo",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: openai whisper-1 migrates to gpt-transcribe (deprecated 2026-08-26)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000135",
+        "name": "vec-135",
         "cloudProvider": "openai",
         "cloudTranscriptionModel": "whisper-1"
       },
       "expected": {
         "cloudProvider": "openai",
-        "cloudTranscriptionModel": "whisper-1",
+        "cloudTranscriptionModel": "gpt-transcribe",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: openai gpt-4o-mini-transcribe migrates to its dated snapshot, same price tier",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000136",
+        "name": "vec-136",
+        "cloudProvider": "openai",
+        "cloudTranscriptionModel": "gpt-4o-mini-transcribe"
+      },
+      "expected": {
+        "cloudProvider": "openai",
+        "cloudTranscriptionModel": "gpt-4o-mini-transcribe-2025-12-15",
         "cloudTranscriptionDomain": null,
         "cloudAccuracyTier": "elevenLabsScribeV2",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
