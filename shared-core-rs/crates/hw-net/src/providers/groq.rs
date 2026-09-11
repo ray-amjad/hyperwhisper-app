@@ -23,15 +23,20 @@ use crate::providers::common::{self, Auth, OpenAiStyleSpec, VocabularyMode};
 /// Groq transcription endpoint (OpenAI-compatible path).
 pub const ENDPOINT: &str = "https://api.groq.com/openai/v1/audio/transcriptions";
 
-/// Default model when the caller leaves `params.model` empty.
-/// PARITY: macOS `CloudTranscriptionModels.defaultModel(.groq)` / Windows
-/// `GroqWhisperService` both default to `whisper-large-v3-turbo`.
-pub const DEFAULT_MODEL: &str = "whisper-large-v3-turbo";
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "groqWhisper";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 fn spec() -> OpenAiStyleSpec {
     OpenAiStyleSpec {
         endpoint: ENDPOINT,
-        default_model: DEFAULT_MODEL,
+        default_model: default_model(),
         auth: Auth::Bearer,
         vocabulary: VocabularyMode::Prompt,
         send_model: true,

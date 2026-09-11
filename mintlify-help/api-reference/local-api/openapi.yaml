@@ -592,11 +592,15 @@ components:
             because it selects by the Mode's accuracy tier rather than by a model
             id: `engine: "cloud"` keeps the Mode's model only when that model
             belongs to the tier, and otherwise runs the tier's default — an
-            explicit `model` included. ONE KNOWN GAP, not fixed here. The
-            default a dropped model falls back to is read from a different table
-            per platform, so `engine: "openai"` with no `model` resolves to
-            `whisper-1` on Windows and macOS and to the catalog default
-            `gpt-4o-transcribe` on Linux.
+            explicit `model` included. The default a dropped model falls back to
+            is the same on every platform: every head reads it from
+            `cloud-stt-catalog.json`, and
+            `shared-conformance/default-model-vectors.json` pins the answer for
+            all of them, so `engine: "openai"` with no `model` resolves to
+            `gpt-transcribe` everywhere. The legacy engine names
+            `googlespeech` and `microsoftazurespeech` now fold onto the same
+            HyperWhisper Cloud accuracy tiers on every platform too, so neither
+            of the two gaps this paragraph used to list is still open.
         engine:
           type: string
           description: >-

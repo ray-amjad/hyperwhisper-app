@@ -76,8 +76,15 @@ pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
 /// current default revision is, which is not a stable contract.
 pub const API_REVISION: &str = "2026-05-20";
 
-/// Default pre-recorded model when the caller leaves `params.model` empty.
-pub const DEFAULT_MODEL: &str = "gemini-3.5-transcribe";
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "geminiTranscribe";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 /// The live (WebSocket) model id. It is **not** routable through
 /// [`build_transcribe_request`] — see [`is_live_model`].
@@ -129,7 +136,7 @@ fn root(params: &TranscribeParams) -> String {
 fn model(params: &TranscribeParams) -> String {
     let t = params.model.trim();
     if t.is_empty() {
-        DEFAULT_MODEL.to_string()
+        default_model().to_string()
     } else {
         t.to_string()
     }
@@ -737,7 +744,7 @@ mod tests {
     fn params() -> TranscribeParams {
         TranscribeParams {
             api_key: "test-key".to_string(),
-            model: DEFAULT_MODEL.to_string(),
+            model: default_model().to_string(),
             audio_path: "/tmp/speech.mp3".to_string(),
             ..Default::default()
         }
@@ -817,7 +824,7 @@ mod tests {
     fn body_has_the_verified_input_shape() {
         let req = build_transcribe_request(&params()).unwrap();
         let json = body_json(&req);
-        assert_eq!(json["model"], DEFAULT_MODEL);
+        assert_eq!(json["model"], default_model());
         assert_eq!(json["input"][0]["type"], "audio");
         // `resolve_mime` says `audio/mpeg` for `.mp3`; verified accepted by the
         // live endpoint (as is `audio/wav`).

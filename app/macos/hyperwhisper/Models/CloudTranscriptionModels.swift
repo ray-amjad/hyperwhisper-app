@@ -363,11 +363,9 @@ extension CloudTranscriptionModel {
 /// Central registry of all available cloud transcription models
 struct CloudTranscriptionModels {
     /// Default model to use when creating new modes with cloud transcription.
-    /// Was `whisper-1` until 2026-09-11; OpenAI deprecated that id on 2026-08-26
-    /// (shutdown 2027-02-26), so a new mode must not be created on it. OpenAI
-    /// names `gpt-transcribe` as the replacement and it is billed the same way —
-    /// flat per audio minute — at a lower rate ($0.0045/min vs $0.006/min).
-    static let defaultModelId = "gpt-transcribe"
+    /// Derived, not pinned: this was a fifth copy of OpenAI's default model id
+    /// (issue #580), and a literal here would drift from the catalog silently.
+    static let defaultModelId = defaultModel(for: .openai)
 
     /// Test seam for exercising a completed direct provider before the shared
     /// cross-platform catalog gate is activated. Production always reads the gate.
@@ -890,40 +888,58 @@ struct CloudTranscriptionModels {
     /// Get default model for a provider
     /// - Parameter provider: The cloud provider
     /// - Returns: The default model ID for that provider
+    ///
+    /// Read from `cloud-stt-catalog.json` through the shared core, not from a
+    /// switch here. This function used to carry its own table and it disagreed
+    /// with the catalog for OpenAI — the catalog said `gpt-4o-transcribe`, this
+    /// said `whisper-1`, and after PR #597 moved this table (but not the
+    /// catalog) off the deprecated ids, it said `gpt-transcribe` — so the same
+    /// blank `cloudTranscriptionModel` column
+    /// transcribed on a different model, at a different capability set,
+    /// depending on which head served the request (issue #580).
+    /// `shared-conformance/default-model-vectors.json` pins the answer and every
+    /// head replays it through its own resolver.
     static func defaultModel(for provider: CloudProvider) -> String {
+        guard let entryId = catalogEntryId(for: provider) else {
+            switch provider {
+            // HyperWhisper Cloud routes by accuracy tier; no client-side model.
+            case .hyperwhisper: return ""
+            // Chirp 3 lost its catalog entry in v8 but the provider stayed, so
+            // its default is pinned — a catalog lookup on the dead id is nil and
+            // we would post a request with an empty model.
+            case .googleSpeech: return "chirp_3"
+            default: return ""
+            }
+        }
+        // "" is a real answer for Grok (single implicit model, no `model` param).
+        return CloudSTTCatalog.shared.defaultModelId(forEntryId: entryId)
+    }
+
+    /// The `cloud-stt-catalog.json` entry a provider's models live under — the
+    /// key `defaultModel(for:)` answers from.
+    ///
+    /// Two providers deliberately have no entry. `googleChirp3` was retired in
+    /// catalog v8 (geminiTranscribe took Google's tier slot) while the standalone
+    /// provider stayed, and HyperWhisper Cloud is a routing service rather than a
+    /// catalog vendor — it chooses by accuracy tier, so it sends no client-side
+    /// model parameter at all. Mirrors Windows
+    /// `CloudTranscriptionModels.CatalogEntryId` and the portable head's
+    /// `ModeAwareTranscriptionRouter.CatalogTier`.
+    static func catalogEntryId(for provider: CloudProvider) -> String? {
         switch provider {
-        case .hyperwhisper:
-            return ""  // HyperWhisper Cloud routes by accuracy tier; no client-side model parameter
-        case .openai:
-            // whisper-1 deprecated 2026-08-26, shutdown 2027-02-26.
-            return "gpt-transcribe"
-        case .groq:
-            return "whisper-large-v3-turbo"
-        case .deepgram:
-            return "nova-3-general"  // Use latest Nova-3 as default
-        case .assemblyAI:
-            return "universal-3-5-pro"  // Highest accuracy, 18-language coverage; users can switch to universal-2
-        case .elevenLabs:
-            return "scribe_v2"
-        case .mistral:
-            return "voxtral-mini-latest"
-        case .soniox:
-            return "stt-async-v5"  // Matches cloud-stt-catalog default + SonioxProvider fallback
-        case .gemini:
-            return "gemini-2.5-flash"
-        case .grok:
-            return ""  // No model parameter — single implicit model
-        case .microsoftAzureSpeech:
-            return "mai-transcribe-2"
-        case .googleSpeech:
-            return "chirp_3"
-        case .geminiTranscribe:
-            // Matches hw-net `gemini_transcribe::DEFAULT_MODEL`. The live variant
-            // (`gemini-3.5-transcribe-live`) is WebSocket-only and must never be
-            // offered here — the REST builder rejects it with a 400.
-            return "gemini-3.5-transcribe"
-        case .meta:
-            return "muse-voice-transcribe-1.0"
+        case .openai: return "openaiWhisper"
+        case .groq: return "groqWhisper"
+        case .deepgram: return "deepgramNova3"
+        case .assemblyAI: return "assemblyAI"
+        case .elevenLabs: return "elevenLabsScribeV2"
+        case .mistral: return "mistralVoxtral"
+        case .soniox: return "soniox"
+        case .gemini: return "gemini"
+        case .geminiTranscribe: return "geminiTranscribe"
+        case .meta: return "metaMuse"
+        case .grok: return "grokStt"
+        case .microsoftAzureSpeech: return "azureMaiTranscribe"
+        case .hyperwhisper, .googleSpeech: return nil
         }
     }
 }

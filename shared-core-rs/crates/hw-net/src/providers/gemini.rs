@@ -50,9 +50,15 @@ use crate::providers::common::{filename_of, retry_after};
 /// Gemini API root. `params.base_url` overrides it (tests/staging).
 pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
 
-/// Default model when the caller leaves `params.model` empty.
-/// PARITY: macOS/Windows default = `gemini-2.5-flash`.
-pub const DEFAULT_MODEL: &str = "gemini-2.5-flash";
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "gemini";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 fn root(params: &TranscribeParams) -> String {
     params
@@ -64,7 +70,7 @@ fn root(params: &TranscribeParams) -> String {
 
 fn model(params: &TranscribeParams) -> String {
     if params.model.trim().is_empty() {
-        DEFAULT_MODEL.to_string()
+        default_model().to_string()
     } else {
         params.model.clone()
     }

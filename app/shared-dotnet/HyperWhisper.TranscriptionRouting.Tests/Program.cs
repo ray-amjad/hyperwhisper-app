@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Transcription;
@@ -18,6 +19,7 @@ try
     await TestParakeetCancellationAsync(root);
     await TestParakeetLiveProtocolAsync(root);
     TestCredentials();
+    TestDefaultModelVectors();
     Console.WriteLine("HyperWhisper.TranscriptionRouting tests passed.");
     return 0;
 }
@@ -470,6 +472,51 @@ static void TestCredentials()
     Assert(routed?.LicenseKey == "account-value" && routed.ApiKey is null, "account credential mapping changed");
     Assert(meta?.ApiKey == "meta-value" && meta.LicenseKey is null, "Meta credential mapping changed");
     Assert(store.ReadAccounts.SequenceEqual(["OpenAIApiKey", "LicenseKey", "MetaApiKey"]), "credential account names changed");
+}
+
+// Replays shared-conformance/default-model-vectors.json through THIS head's own
+// resolver (issue #580). The other three heads replay the same file through
+// theirs: shared-core-rs/crates/hw-net/tests/default_model_vectors.rs,
+// app/windows/HyperWhisper.SmokeTests/Program.cs and
+// app/macos/hyperwhisperTests/DefaultModelConformanceVectorTests.swift.
+//
+// The row is asserted against the LITERAL in the file, never against a second
+// call to the catalog. #566's assertion read the same function its guard read,
+// which is why a four-way disagreement survived it.
+static void TestDefaultModelVectors()
+{
+    var path = Path.Combine(AppContext.BaseDirectory, "default-model-vectors.json");
+    Assert(File.Exists(path), $"default-model-vectors.json not found at {path}");
+    using var document = JsonDocument.Parse(File.ReadAllText(path));
+    var rows = document.RootElement.GetProperty("providers").EnumerateArray().ToArray();
+    Assert(rows.Length >= 12, "default-model vectors look truncated");
+
+    foreach (var row in rows)
+    {
+        var identifier = row.GetProperty("providerIdentifier").GetString()!;
+        var entryId = row.GetProperty("catalogEntryId").GetString()!;
+        var want = row.GetProperty("defaultModelId").GetString()!;
+
+        Assert(ModeAwareTranscriptionRouter.TryMapProvider(identifier, out var provider),
+            $"{identifier}: the portable head does not map this provider identifier");
+        Assert(ModeAwareTranscriptionRouter.DefaultCloudModelId(provider) == want,
+            $"{entryId}: the portable head's default model is not '{want}'");
+
+        // The blank-model mode write path is what actually reaches a user: a
+        // Local API mode write and a backup restore both leave the column empty.
+        //
+        // No `|| provider == HyperWhisperCloud` escape hatch. Every row in the
+        // file is a BYOK entry — HyperWhisper Cloud selects by accuracy tier,
+        // not by a model id, and is excluded from the vectors on purpose (see
+        // the file's `notInCatalog` note and issue #600). An OR arm that is
+        // unreachable today would quietly disarm this assertion for the one row
+        // most likely to be added to the file by someone who did not read that
+        // note, so the exclusion is enforced here instead.
+        Assert(provider != CloudTranscriptionProvider.HyperWhisperCloud,
+            $"{entryId}: HyperWhisper Cloud selects by accuracy tier, not by a default model id — see issue #600");
+        Assert(ModeAwareTranscriptionRouter.DispatchedCloudModelId(provider, null, null) == want,
+            $"{entryId}: a blank model column does not dispatch '{want}'");
+    }
 }
 
 static void Assert(bool condition, string message)

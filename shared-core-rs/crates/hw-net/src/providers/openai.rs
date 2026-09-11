@@ -43,10 +43,21 @@ use crate::providers::common::{self, Auth, OpenAiStyleSpec, VocabularyMode};
 /// OpenAI transcription endpoint.
 pub const ENDPOINT: &str = "https://api.openai.com/v1/audio/transcriptions";
 
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "openaiWhisper";
+
 /// Default model when the caller leaves `params.model` empty.
-/// PARITY: macOS `CloudTranscriptionModels.defaultModel(.openai)` / Windows
-/// `OpenAIWhisperService` both default to `whisper-1`.
-pub const DEFAULT_MODEL: &str = "whisper-1";
+///
+/// Read from the shared catalog rather than pinned here (issue #580): this
+/// module used to carry a fourth copy of the value, and it was the copy that
+/// disagreed — the catalog said `gpt-4o-transcribe`, so the portable head
+/// dispatched a different model than macOS, Windows and this builder did for the
+/// same blank-model mode. PARITY is now structural, not textual; macOS
+/// `CloudTranscriptionModels.defaultModel(for:)` and Windows
+/// `CloudTranscriptionModels.GetDefault` read the same entry.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 /// Models that take a structured `keywords[]` list instead of vocabulary in the
 /// `prompt` field. Only `gpt-transcribe` documents it; `gpt-live-transcribe` is
@@ -57,7 +68,7 @@ pub const KEYWORDS_MODELS: &[&str] = &["gpt-transcribe"];
 fn spec() -> OpenAiStyleSpec {
     OpenAiStyleSpec {
         endpoint: ENDPOINT,
-        default_model: DEFAULT_MODEL,
+        default_model: default_model(),
         auth: Auth::Bearer,
         vocabulary: VocabularyMode::Prompt,
         send_model: true,
@@ -138,12 +149,16 @@ mod tests {
     }
 
     #[test]
-    fn empty_model_defaults_to_whisper_1() {
+    fn empty_model_defaults_to_the_catalog_default() {
         let mut p = params();
         p.model = "".to_string();
         let req = build_transcribe_request(&p).unwrap();
         if let Body::Multipart { parts, .. } = &req.body {
-            assert_eq!(field(parts, "model"), Some("whisper-1"));
+            // Asserted against the literal, not against `default_model()`:
+            // reading the same function the builder reads is the tautology
+            // issue #580 calls out. The cross-head agreement is pinned
+            // separately by `tests/default_model_vectors.rs`.
+            assert_eq!(field(parts, "model"), Some("gpt-transcribe"));
         } else {
             panic!("expected multipart");
         }

@@ -8,6 +8,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.TranscriptionRouting/HyperWhisper.TranscriptionRouting.csproj" />
+    <!-- The vectors are the cross-platform contract, not a fixture of this
+         project: Rust, Windows and macOS run the same file. -->
+    <Content Include="../../../shared-conformance/default-model-vectors.json"
+             Link="default-model-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
              Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
       <Link>libhyperwhisper_core.so</Link>

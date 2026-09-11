@@ -367,6 +367,28 @@ mod tests {
     use super::*;
     use crate::providers::assemblyai::test_support::params;
 
+    /// [`SYNC_DEFAULT_MODEL`] is deliberately NOT the catalog's default model
+    /// for `assemblyAI` — it is the sync endpoint's only supported model, a
+    /// different fact — so issue #580 left it a literal rather than folding it
+    /// into `providers::defaults`. That is only safe while the id still names a
+    /// model the catalog knows: if AssemblyAI retires it and the catalog drops
+    /// the row, this constant would keep posting a dead `X-AAI-Model` and every
+    /// sync call would 4xx into the async fallback, silently, at double the
+    /// latency. Pinning membership (not defaultness) catches that without
+    /// coupling the two facts.
+    #[test]
+    fn the_sync_model_is_still_a_model_the_catalog_lists() {
+        let catalog = hw_catalog::CloudSttCatalog::embedded().expect("the embedded catalog parses");
+        let entry_id = crate::providers::assemblyai::CATALOG_ENTRY_ID;
+        assert!(
+            catalog
+                .models(entry_id)
+                .iter()
+                .any(|model| model.id == SYNC_DEFAULT_MODEL),
+            "{SYNC_DEFAULT_MODEL} is not a model of the {entry_id} catalog entry"
+        );
+    }
+
     /// Sync requests need an explicit language AND a WAV container (see the
     /// module doc), so most shape/vocab/prompt tests below use this fixture
     /// instead of the bare `params()` default (which has neither — its

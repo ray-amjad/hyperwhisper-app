@@ -53,10 +53,15 @@ use crate::providers::common::{filename_of, retry_after};
 /// Soniox API base URL.
 pub const BASE_URL: &str = "https://api.soniox.com/v1";
 
-/// Default model when `params.model` is empty. PARITY: macOS and Windows both
-/// default to `stt-async-v5` as of the 2026-08 model watch reconciliation
-/// (Windows previously defaulted to `stt-async-v4`; that divergence is resolved).
-pub const DEFAULT_MODEL: &str = "stt-async-v5";
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "soniox";
+
+/// Default model when the caller leaves `params.model` empty. Read from the
+/// shared catalog, which macOS and Windows read too — see
+/// [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 /// Resolve the effective base URL (override via `params.base_url`).
 fn base(params: &TranscribeParams) -> String {
@@ -77,7 +82,7 @@ fn auth(params: &TranscribeParams) -> Header {
 fn resolve_model(model: &str) -> String {
     let t = model.trim();
     if t.is_empty() || t == "stt-async-v4" {
-        DEFAULT_MODEL.to_string()
+        default_model().to_string()
     } else {
         t.to_string()
     }

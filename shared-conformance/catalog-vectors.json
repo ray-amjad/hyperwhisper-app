@@ -469,13 +469,13 @@
       "previewStatus": false,
       "migrateFrom": [],
       "legacyCloudProviderAliases": [],
-      "defaultModelId": "gpt-4o-transcribe",
+      "defaultModelId": "gpt-transcribe",
       "models": [
         {
           "id": "gpt-4o-transcribe",
           "displayName": "GPT-4o Transcribe",
           "creditsPerMinute": 6.0,
-          "isDefault": true,
+          "isDefault": false,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
@@ -502,7 +502,7 @@
           "id": "gpt-transcribe",
           "displayName": "GPT Transcribe",
           "creditsPerMinute": 4.5,
-          "isDefault": false,
+          "isDefault": true,
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null

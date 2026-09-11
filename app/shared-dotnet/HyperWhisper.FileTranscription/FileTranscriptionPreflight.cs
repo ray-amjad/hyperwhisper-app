@@ -331,10 +331,25 @@ public sealed class PortableFileTranscriptionPreflight
     // Windows does not impose a hard file-import duration cap for these routes.
     // Duration is still validated when a metadata source supplies it; a future
     // authoritative provider bound can be added without changing this API.
+    //
+    // The DefaultModel column here is deliberately NOT read from
+    // cloud-stt-catalog.json, even though issue #580 single-sourced every other
+    // default-model table on it. This one is paired with a Models allow-list
+    // that is intentionally WIDER than the catalog — it accepts legacy and
+    // dated spellings a stored Mode may still carry
+    // (`gpt-4o-mini-transcribe-2025-12-15`, `universal-2-medical`) so that
+    // importing a file with an old Mode does not fail preflight. Deriving the
+    // default from the catalog while the allow-list stays hand-written would
+    // create a new failure mode: a catalog flip to a model absent from the
+    // list above would make preflight reject its own default. Converging the
+    // two lists is tracked separately; until then this column must be edited
+    // whenever cloud-stt-catalog.json's default moves, and the catalog is the
+    // value to copy.
+
     private static readonly IReadOnlyDictionary<CloudTranscriptionProvider, CloudTargetDescriptor> CloudCatalog =
         new Dictionary<CloudTranscriptionProvider, CloudTargetDescriptor>
         {
-            [CloudTranscriptionProvider.OpenAi] = Cloud(25L * 1024 * 1024, "whisper-1",
+            [CloudTranscriptionProvider.OpenAi] = Cloud(25L * 1024 * 1024, "gpt-transcribe",
                 ["gpt-4o-mini-transcribe-2025-12-15", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1", "gpt-transcribe"]),
             [CloudTranscriptionProvider.Groq] = Cloud(25L * 1024 * 1024, "whisper-large-v3-turbo",
                 ["whisper-large-v3-turbo", "whisper-large-v3"]),

@@ -259,7 +259,7 @@ export type DeviceModel = {
 export type Model = CloudModel | DeviceModel;
 
 /**
- * Mirrored from `cloud-stt-catalog.json` v12 (2026-09-04). Benchmark columns
+ * Mirrored from `cloud-stt-catalog.json` v12 (2026-09-11). Benchmark columns
  * from the Artificial Analysis non-streaming leaderboard, pulled 2026-08-19,
  * and 2026-08-28 for the `gemini-3.5-transcribe` row — a model that leaderboard
  * has not measured carries `wer: null` / `speedFactor: null` rather than a
@@ -308,10 +308,10 @@ const CLOUD_MODELS_RAW = [
   // — see the note above CLOUD_MODELS_RAW.
   { id: "geminiTranscribe:gemini-3.5-transcribe-live", name: "Gemini 3.5 Transcribe Live", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe-live", credits: 9.6, wer: null, speedFactor: null, languages: null, streaming: true, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "elevenLabsScribeV2:scribe_v2", name: "Scribe v2", vendorLabel: "ElevenLabs Scribe v2", vendor: "ElevenLabs", sttProvider: "elevenlabs", modelId: "scribe_v2", credits: 9.83, wer: 2.2, speedFactor: 57.0, languages: 99, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
-  { id: "openaiWhisper:gpt-4o-transcribe", name: "GPT-4o Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-transcribe", credits: 6.0, wer: 4.0, speedFactor: 38.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "openaiWhisper:gpt-4o-transcribe", name: "GPT-4o Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-transcribe", credits: 6.0, wer: 4.0, speedFactor: 38.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "openaiWhisper:gpt-4o-mini-transcribe", name: "GPT-4o Mini Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-mini-transcribe", credits: 3.0, wer: 4.5, speedFactor: 43.5, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "openaiWhisper:whisper-1", name: "Whisper", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "whisper-1", credits: 6.0, wer: 4.1, speedFactor: 29.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
-  { id: "openaiWhisper:gpt-transcribe", name: "GPT Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-transcribe", credits: 4.5, wer: 3.3, speedFactor: 39.9, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
+  { id: "openaiWhisper:gpt-transcribe", name: "GPT Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-transcribe", credits: 4.5, wer: 3.3, speedFactor: 39.9, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "openaiWhisper:gpt-live-transcribe", name: "GPT Live Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-live-transcribe", credits: 17.0, wer: null, speedFactor: null, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "assemblyAI:universal-3-5-pro", name: "Universal-3.5 Pro", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-3-5-pro", credits: 3.5, wer: 3.0, speedFactor: null, languages: 98, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "assemblyAI:universal-2", name: "Universal-2", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-2", credits: 2.5, wer: 3.8, speedFactor: 123.1, languages: 98, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },

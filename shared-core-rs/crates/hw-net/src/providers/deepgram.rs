@@ -55,10 +55,15 @@ use crate::providers::hyperwhisper_cloud::encode_query;
 /// Deepgram transcription endpoint.
 pub const ENDPOINT: &str = "https://api.deepgram.com/v1/listen";
 
+/// The `cloud-stt-catalog.json` entry this provider's models live under.
+pub const CATALOG_ENTRY_ID: &str = "deepgramNova3";
+
 /// Default model when the caller leaves `params.model` empty (and the resolved
-/// model is empty). PARITY: macOS `defaultModel(for: .deepgram)` / Windows
-/// `DeepgramService` both default to `nova-3-general`.
-pub const DEFAULT_MODEL: &str = "nova-3-general";
+/// model is empty). Read from the shared catalog, which macOS and Windows read
+/// too — see [`super::defaults`] and issue #580.
+pub fn default_model() -> &'static str {
+    super::defaults::default_model(CATALOG_ENTRY_ID)
+}
 
 /// Deepgram model IDs removed in the 2026-05 catalog cleanup; these migrate to
 /// `nova-3-general`. PARITY: macOS `CloudTranscriptionModels.removedDeepgramModelIds`
@@ -92,7 +97,7 @@ const REMOVED_MODEL_IDS: &[&str] = &[
 ];
 
 /// Resolve a (possibly removed) Deepgram model alias to its canonical ID, then
-/// fall back to [`DEFAULT_MODEL`] when empty. PARITY: macOS
+/// fall back to [`default_model`] when empty. PARITY: macOS
 /// `resolveDeepgramModelAlias` returns `nil`/passes through, and the call site
 /// falls back to `defaultModel` when the mode model is empty; we fold both steps.
 /// `pub(crate)` because [`crate::live::LiveSession`]'s Deepgram protocol needs
@@ -101,10 +106,10 @@ const REMOVED_MODEL_IDS: &[&str] = &[
 pub(crate) fn resolve_model(model: &str) -> String {
     let trimmed = model.trim();
     if trimmed.is_empty() {
-        return DEFAULT_MODEL.to_string();
+        return default_model().to_string();
     }
     if REMOVED_MODEL_IDS.contains(&trimmed) {
-        return DEFAULT_MODEL.to_string();
+        return default_model().to_string();
     }
     trimmed.to_string()
 }

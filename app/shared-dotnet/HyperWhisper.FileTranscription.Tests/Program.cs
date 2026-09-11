@@ -35,7 +35,9 @@ static async Task CloudByteLimits()
 {
     var cases = new[]
     {
-        new ProviderLimit(CloudTranscriptionProvider.OpenAi, "whisper-1", 25L * ByteSizes.MiB, false),
+        // gpt-transcribe, not whisper-1: OpenAI deprecated whisper-1 on
+        // 2026-08-26 (PR #597) and issue #580 moved the catalog default with it.
+        new ProviderLimit(CloudTranscriptionProvider.OpenAi, "gpt-transcribe", 25L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Groq, "whisper-large-v3-turbo", 25L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.Deepgram, "nova-3-general", 2L * ByteSizes.GiB, false),
         new ProviderLimit(CloudTranscriptionProvider.AssemblyAi, "universal-3-5-pro", 5L * ByteSizes.GiB, false),
