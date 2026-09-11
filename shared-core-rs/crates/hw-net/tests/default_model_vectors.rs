@@ -51,6 +51,10 @@ fn vectors_path() -> PathBuf {
 struct Document {
     description: String,
     not_in_catalog: String,
+    /// Why `creditsPerMinute` travels with the id: these entries double as
+    /// HyperWhisper Cloud accuracy tiers, so a default flip is a billing change
+    /// as well as a capability one.
+    cloud_tier_note: String,
     providers: Vec<ProviderVector>,
 }
 
@@ -213,15 +217,25 @@ fn regenerate() {
                     }),
                 credits_per_minute: entry.credits_per_minute_for_model(&default_model_id),
                 default_model_id,
-                byok_request_builder: rust_resolvers()
-                    .iter()
-                    .any(|(entry_id, _)| *entry_id == entry.id),
+                // Carried over, NOT recomputed from `rust_resolvers()`. Deriving
+                // it here would make [`every_byok_builder_row_has_a_rust_resolver`]
+                // compare `rust_resolvers()` with itself: delete a provider
+                // module's resolver, regenerate, and the flag would flip to
+                // false and the test would still pass, having silently agreed
+                // that hw-net no longer sends a model for that vendor. A new
+                // entry is given its flag by hand, like `providerIdentifier`.
+                byok_request_builder: previous
+                    .map(|p| p.byok_request_builder)
+                    .unwrap_or_else(|| {
+                        panic!("add a byokRequestBuilder for the new entry `{}`", entry.id)
+                    }),
             }
         })
         .collect();
     let doc = Document {
         description: existing.description,
         not_in_catalog: existing.not_in_catalog,
+        cloud_tier_note: existing.cloud_tier_note,
         providers,
     };
     let mut json = serde_json::to_string_pretty(&doc).expect("vectors must serialize");

@@ -504,8 +504,17 @@ static void TestDefaultModelVectors()
 
         // The blank-model mode write path is what actually reaches a user: a
         // Local API mode write and a backup restore both leave the column empty.
-        Assert(ModeAwareTranscriptionRouter.DispatchedCloudModelId(provider, null, null) == want
-            || provider == CloudTranscriptionProvider.HyperWhisperCloud,
+        //
+        // No `|| provider == HyperWhisperCloud` escape hatch. Every row in the
+        // file is a BYOK entry — HyperWhisper Cloud selects by accuracy tier,
+        // not by a model id, and is excluded from the vectors on purpose (see
+        // the file's `notInCatalog` note and issue #600). An OR arm that is
+        // unreachable today would quietly disarm this assertion for the one row
+        // most likely to be added to the file by someone who did not read that
+        // note, so the exclusion is enforced here instead.
+        Assert(provider != CloudTranscriptionProvider.HyperWhisperCloud,
+            $"{entryId}: HyperWhisper Cloud selects by accuracy tier, not by a default model id — see issue #600");
+        Assert(ModeAwareTranscriptionRouter.DispatchedCloudModelId(provider, null, null) == want,
             $"{entryId}: a blank model column does not dispatch '{want}'");
     }
 }

@@ -27,7 +27,10 @@ use hw_catalog::CloudSttCatalog;
 /// modelled as `Option` (matching [`crate::live`]'s reader) so a malformed
 /// catalog degrades to "no default" instead of panicking inside a request
 /// builder; [`tests::every_provider_resolves_a_default`] rules the case out.
-fn catalog() -> Option<&'static CloudSttCatalog> {
+/// `pub(crate)` rather than private because [`crate::live`] needs the same
+/// parsed catalog to derive its relay route. Two `OnceLock`s in one dylib would
+/// hold two full parses of the same embedded JSON for no benefit.
+pub(crate) fn catalog() -> Option<&'static CloudSttCatalog> {
     static CATALOG: OnceLock<Option<CloudSttCatalog>> = OnceLock::new();
     CATALOG
         .get_or_init(|| CloudSttCatalog::embedded().ok())

@@ -33,20 +33,17 @@ pub(super) const DEEPGRAM_STT: &str = "deepgram";
 /// The catalog entry id that resolves to [`DEEPGRAM_STT`].
 const DEFAULT_CLOUD_TIER: &str = "deepgramNova3";
 
-/// The embedded catalog, parsed once.
-///
-/// `connect` runs on every socket and every reconnect; re-parsing the whole
-/// `cloud-stt-catalog.json` there would be pure waste. A parse failure is not
-/// reachable in a shipped build — the JSON is compile-time embedded and
-/// `hw-catalog`'s own suite parses it — and the `None` it leaves behind is
-/// handled the same way an unknown tier is: fall back to Deepgram.
-fn catalog() -> Option<&'static hw_catalog::CloudSttCatalog> {
-    static CATALOG: std::sync::OnceLock<Option<hw_catalog::CloudSttCatalog>> =
-        std::sync::OnceLock::new();
-    CATALOG
-        .get_or_init(|| hw_catalog::CloudSttCatalog::embedded().ok())
-        .as_ref()
-}
+// The embedded catalog, parsed once.
+//
+// `connect` runs on every socket and every reconnect; re-parsing the whole
+// `cloud-stt-catalog.json` there would be pure waste. A parse failure is not
+// reachable in a shipped build — the JSON is compile-time embedded and
+// `hw-catalog`'s own suite parses it — and the `None` it leaves behind is
+// handled the same way an unknown tier is: fall back to Deepgram.
+//
+// The `OnceLock` itself lives in `crate::providers::defaults`, which needs the
+// same parse to resolve a BYOK default model. One parse, two readers.
+use crate::providers::defaults::catalog;
 
 /// Which upstream vendor the relay will use for `cloud_tier`.
 ///

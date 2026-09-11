@@ -96,10 +96,20 @@ public class TranscriptionProviderFactory : IDisposable
                 providerType.GetDisplayName());
         }
 
-        // Get default model if not specified
+        // Get default model if not specified.
+        //
+        // GetDefault reads shared-app-classification/cloud-stt-catalog.json
+        // through the shared core (issue #580). A second, hand-written fallback
+        // table used to sit behind it here, holding its own copy of the same
+        // default column — that is precisely the split #580 closes, so it is
+        // gone. GetDefault returns null only for a provider that has no models
+        // in the picker at all (CloudTranscriptionProvider.None, or one added to
+        // the enum but not to the catalog), and for that case the empty model id
+        // is the honest answer: guessing some other vendor's model id would send
+        // a request that is wrong rather than one that is merely unconfigured.
         var effectiveModelId = modelId
             ?? CloudTranscriptionModels.GetDefault(providerType)?.Id
-            ?? GetFallbackModelId(providerType);
+            ?? string.Empty;
 
         // Configure and return the provider
         return providerType switch
@@ -237,28 +247,6 @@ public class TranscriptionProviderFactory : IDisposable
         // No configuration needed - service gets fresh credentials from LicenseManager
         // on each request. This ensures license deactivation is immediately reflected.
         return service;
-    }
-
-    private static string GetFallbackModelId(CloudTranscriptionProvider provider)
-    {
-        return provider switch
-        {
-            CloudTranscriptionProvider.OpenAI => "whisper-1",
-            CloudTranscriptionProvider.Groq => "whisper-large-v3-turbo",
-            CloudTranscriptionProvider.Deepgram => "nova-3-general",
-            CloudTranscriptionProvider.AssemblyAI => "universal-3-5-pro",
-            CloudTranscriptionProvider.ElevenLabs => "scribe_v2",
-            CloudTranscriptionProvider.Mistral => "voxtral-mini-latest",
-            CloudTranscriptionProvider.Soniox => "stt-async-v5",
-            CloudTranscriptionProvider.Gemini => "gemini-2.5-flash",
-            CloudTranscriptionProvider.GeminiTranscribe => "gemini-3.5-transcribe",
-            CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
-            CloudTranscriptionProvider.HyperWhisperCloud => "",
-            CloudTranscriptionProvider.Grok => "",
-            CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-2",
-            CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
-            _ => "whisper-1"
-        };
     }
 
     // =========================================================================
