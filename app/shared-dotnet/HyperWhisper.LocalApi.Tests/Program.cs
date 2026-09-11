@@ -7,6 +7,7 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.SharedCore;
 using HyperWhisper.TranscriptionRouting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
@@ -47,6 +48,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("/transcribe runs the deterministic text passes", ApplicationBackendTextPasses)
     ,("/transcribe reports the cloud model that will run", ApplicationBackendCloudModelLabel)
     ,("/transcribe never runs another vendor's cloud model", ApplicationBackendForeignCloudModel)
+    ,("legacy engine aliases fold onto a HyperWhisper Cloud tier", ApplicationBackendLegacyEngineAliases)
+    ,("a written cloudProvider folds on create and on patch", ApplicationBackendModeWriteFoldsLegacyProvider)
     ,("size limits and rejection messages match the shared core", SharedSizeLimits)
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
@@ -1812,6 +1815,285 @@ static async Task ApplicationBackendForeignCloudModel()
     }
 }
 
+/// <summary>
+/// `engine: "googlespeech"` / `"microsoftazurespeech"` must fold onto a
+/// HyperWhisper Cloud TIER, the way Windows and macOS fold them (issue #575).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Both strings are <c>legacyCloudProviderAliases</c> in
+/// <c>cloud-stt-catalog.json</c>, and the native heads have always run the
+/// request's <c>engine</c> through <c>normalizeCloudProvider</c> before acting
+/// on it. This head re-cased them instead, so one documented request routed to
+/// a different vendor on the portable head than on the other two.
+/// </para>
+/// <para>
+/// The assertions read what the SEND PATH would really dispatch
+/// (<see cref="ModeAwareTranscriptionRouter.BuildCloudRequest"/>), not just the
+/// response labels, because the divergence is about which vendor runs. The
+/// <c>BaseUrl</c> assertion is the sharpest of them: the unfolded route left it
+/// empty, and hw-net's routed builder rejects an empty <c>base_url</c> before
+/// any I/O (<c>hyperwhisper_cloud.rs</c>, <c>missing_base_url_errors</c>), so
+/// those two engine values could not transcribe on this head at all.
+/// </para>
+/// <para>
+/// The tier ids are written out as literals rather than read back from
+/// <c>CloudSttNormalizeCloudProvider</c>. Deriving them from the same call the
+/// fix makes would assert nothing; pinning them means a catalog change that
+/// moves either fold cannot ship as a silent re-route. Same reasoning as the
+/// Meta literal in <see cref="ApplicationBackendForeignCloudModel"/>.
+/// </para>
+/// </remarks>
+static async Task ApplicationBackendLegacyEngineAliases()
+{
+    // One `{mode_id?, engine, model?}` request against a saved baseline mode,
+    // returning the response labels beside the mode the send path received.
+    static async Task<(string Engine, string Model, HyperWhisper.Data.Entities.Mode Mode, CloudTranscriptionRequest Wire)> Run(
+        string? engine,
+        string? model = null,
+        bool useStoredMode = false,
+        Action<HyperWhisper.Data.Entities.Mode>? seed = null)
+    {
+        using var paths = new TempPaths();
+        var database = new ApplicationDb(paths);
+        await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+        var history = new HistoryRepository(database);
+        var modes = new ModeRepository(database);
+        var stored = new HyperWhisper.Data.Entities.Mode
+        {
+            Name = "Stored", IsDefault = true, SortOrder = 1, Language = "en",
+            ProviderType = "cloud", Model = "cloud",
+            CloudProvider = "deepgram", CloudTranscriptionModel = "nova-3-general",
+        };
+        seed?.Invoke(stored);
+        await modes.UpsertAsync(stored);
+
+        var transcriber = new FixedTextTranscriber("ok");
+        using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), transcriber, history);
+        var backend = new ApplicationLocalApiBackend(
+            modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+        var result = await backend.TranscribeAsync(
+            new AudioUpload("a.wav", "audio/wav", new byte[] { 1 },
+                useStoredMode ? stored.Id.ToString() : null, engine, model, null),
+            CancellationToken.None);
+        var request = transcriber.Request!;
+        var mode = request.SelectedMode!;
+        Assert(ModeAwareTranscriptionRouter.TryMapProvider(mode.CloudProvider, out var provider),
+            $"engine '{engine}' produced an unroutable cloudProvider '{mode.CloudProvider}'");
+        return (result.Engine, result.Model, mode,
+            ModeAwareTranscriptionRouter.BuildCloudRequest("/tmp/none.wav", request, mode, provider));
+    }
+
+    // 1. THE ISSUE, in every spelling `openapi.yaml` accepts. Each alias folds
+    //    onto HyperWhisper Cloud plus its own tier, and the response says
+    //    `hyperwhisper` — the same answer Windows `ApplyEngineModel` and macOS
+    //    `applyEngineModel` give.
+    foreach (var (alias, tier, routed) in new[]
+    {
+        ("googlespeech", "geminiTranscribe", "gemini-transcribe"),
+        ("googleSpeech", "geminiTranscribe", "gemini-transcribe"),
+        ("microsoftazurespeech", "azureMaiTranscribe", "azure-mai"),
+        ("microsoftAzureSpeech", "azureMaiTranscribe", "azure-mai"),
+    })
+    {
+        var run = await Run(alias);
+        Assert(run.Mode.CloudProvider == "hyperwhisper",
+            $"engine '{alias}' still routes to cloudProvider '{run.Mode.CloudProvider}' (issue #575)");
+        Assert(run.Mode.CloudAccuracyTier == tier,
+            $"engine '{alias}' folded but left the tier at '{run.Mode.CloudAccuracyTier}' rather than '{tier}'");
+        Assert(run.Wire.Provider == CloudTranscriptionProvider.HyperWhisperCloud,
+            $"engine '{alias}' dispatched to {run.Wire.Provider}, not HyperWhisper Cloud");
+        Assert(run.Wire.RoutedProvider == routed,
+            $"engine '{alias}' asked the backend for '{run.Wire.RoutedProvider}' rather than '{routed}'");
+        // The unfolded route left BaseUrl null, and the routed builder refuses
+        // an empty one before any I/O — so this engine value could not
+        // transcribe at all on this head.
+        Assert(!string.IsNullOrEmpty(run.Wire.BaseUrl),
+            $"engine '{alias}' produced a request with no base URL, which hw-net rejects before sending");
+        Assert(run.Engine == "hyperwhisper",
+            $"engine '{alias}' answered engine '{run.Engine}', which no other head reports");
+        Assert(run.Model == (run.Wire.RoutedModel ?? run.Wire.Model),
+            $"engine '{alias}' reported '{run.Model}' but dispatched '{run.Wire.RoutedModel}'");
+    }
+
+    // 2. The mixed `{mode_id, engine}` form folds too, and the baseline's
+    //    Deepgram model does not survive onto a Gemini run.
+    var mixed = await Run("googlespeech", useStoredMode: true);
+    Assert(mixed.Mode.CloudProvider == "hyperwhisper" && mixed.Mode.CloudAccuracyTier == "geminiTranscribe",
+        "the {mode_id, engine} form did not fold the legacy alias");
+    Assert(mixed.Wire.RoutedModel != "nova-3-general",
+        $"a Gemini Transcribe run still carries Deepgram's model id '{mixed.Wire.RoutedModel}'");
+
+    // 3. THE #528 CORRECTION, first half: an explicit `model` inside the folded
+    //    tier is kept. `azureMaiTranscribe` has two models at different rates,
+    //    so writing the tier default here would change what runs and what it
+    //    costs.
+    var pinned = await Run("microsoftazurespeech", model: "mai-transcribe-1.5");
+    Assert(pinned.Wire.RoutedModel == "mai-transcribe-1.5" && pinned.Model == "mai-transcribe-1.5",
+        $"a sub-model pinned inside the folded tier became '{pinned.Wire.RoutedModel}' (issue #528)");
+
+    // 4. THE #528 CORRECTION, second half — the one the issue names. A mode
+    //    ALREADY on this tier with a pinned sub-model, re-asserting the engine
+    //    and sending no model, keeps its sub-model: the INFERRED tier must not
+    //    overwrite it.
+    var reasserted = await Run("microsoftazurespeech", useStoredMode: true, seed: mode =>
+    {
+        mode.CloudProvider = "hyperwhisper";
+        mode.CloudAccuracyTier = "azureMaiTranscribe";
+        mode.CloudTranscriptionModel = "mai-transcribe-1.5";
+    });
+    Assert(reasserted.Wire.RoutedModel == "mai-transcribe-1.5" && reasserted.Model == "mai-transcribe-1.5",
+        $"an inferred tier overwrote the caller's pinned sub-model with '{reasserted.Wire.RoutedModel}' (issue #528)");
+
+    // 5. A stale id the folded tier cannot serve still heals to that tier's
+    //    default, because `DispatchedCloudModelId` validates against the NEW
+    //    tier. This is why the arm can safely leave the column alone in 4.
+    var stale = await Run("microsoftazurespeech", useStoredMode: true, seed: mode =>
+        mode.CloudTranscriptionModel = "nova-3-general");
+    Assert(stale.Wire.RoutedModel != "nova-3-general" && stale.Model == stale.Wire.RoutedModel,
+        $"a foreign id survived into an Azure MAI run as '{stale.Wire.RoutedModel}'");
+
+    // 6. CONTROL. A provider id that is NOT a legacy alias is untouched by the
+    //    fold: it stays on its own vendor, keeps its own model and does not
+    //    acquire a tier. Without this the test would pass for a fix that folded
+    //    everything onto HyperWhisper Cloud.
+    var control = await Run("deepgram");
+    Assert(control.Mode.CloudProvider == "deepgram" && control.Engine == "deepgram",
+        $"a non-alias engine was folded to '{control.Mode.CloudProvider}'");
+    Assert(control.Wire.Provider == CloudTranscriptionProvider.Deepgram && control.Wire.Model == "nova-3-general",
+        $"the control engine dispatched {control.Wire.Provider}/'{control.Wire.Model}'");
+
+    // 7. `engine: "cloud"` keeps its own meaning. It is NOT a catalog alias, so
+    //    it must reach HyperWhisper Cloud without inferring any tier — the
+    //    baseline mode's tier is what runs.
+    var plain = await Run("cloud", useStoredMode: true, seed: mode =>
+        mode.CloudAccuracyTier = "elevenLabsScribeV2");
+    Assert(plain.Mode.CloudProvider == "hyperwhisper" && plain.Mode.CloudAccuracyTier == "elevenLabsScribeV2",
+        $"engine 'cloud' moved the mode's tier to '{plain.Mode.CloudAccuracyTier}'");
+}
+
+/// <summary>
+/// A written `cloudProvider` folds on create and on patch, the way both native
+/// heads fold it (issue #575, second half).
+/// </summary>
+/// <remarks>
+/// macOS <c>ModesEndpoint.swift:129</c>/<c>:516</c> and Windows
+/// <c>ModesEndpoints.cs:114</c>/<c>:485</c> both normalize a caller-supplied
+/// <c>cloudProvider</c>; this head stored the raw string, so a mode written
+/// through the Local API behaved differently from a folded one — and, on this
+/// head, could not transcribe at all (see
+/// <see cref="ApplicationBackendLegacyEngineAliases"/>).
+///
+/// The create/patch asymmetry pinned below is not this head's invention: both
+/// native heads prefer the INFERRED tier on create and an EXPLICIT one on patch.
+/// </remarks>
+static async Task ApplicationBackendModeWriteFoldsLegacyProvider()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var modes = new ModeRepository(database);
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+
+    static (string Provider, string Tier, string Id) Read(JsonElement mode) =>
+        (mode.GetProperty("cloudProvider").GetString() ?? "<null>",
+         mode.GetProperty("cloudAccuracyTier").GetString() ?? "<null>",
+         mode.GetProperty("id").GetString()!);
+
+    // 1. CREATE folds both aliases, in both spellings, and writes the tier.
+    //    Names are indexed because they are unique case-insensitively and the
+    //    two spellings of one alias are exactly a case-only pair.
+    (string Alias, string Tier)[] aliases =
+    [
+        ("googlespeech", "geminiTranscribe"),
+        ("googleSpeech", "geminiTranscribe"),
+        ("microsoftazurespeech", "azureMaiTranscribe"),
+        ("microsoftAzureSpeech", "azureMaiTranscribe"),
+    ];
+    for (var index = 0; index < aliases.Length; index++)
+    {
+        var (alias, tier) = aliases[index];
+        var created = Read(await backend.CreateModeAsync(
+            Json(ModeBody($"fold-{index}-{alias}", model: "cloud", extra:
+                $$""" "providerType":"cloud","cloudProvider":{{JsonSerializer.Serialize(alias)}} """)),
+            CancellationToken.None));
+        Assert(created.Provider == "hyperwhisper",
+            $"POST /modes stored cloudProvider '{created.Provider}' for '{alias}' (issue #575)");
+        Assert(created.Tier == tier,
+            $"POST /modes stored tier '{created.Tier}' for '{alias}' rather than '{tier}'");
+    }
+
+    // 2. CREATE prefers the inferred tier over one in the same body, which is
+    //    what both native heads do (`normalized.AccuracyTier ?? dto...`).
+    var conflicting = Read(await backend.CreateModeAsync(
+        Json(ModeBody("fold-create-conflict", model: "cloud", extra:
+            """ "providerType":"cloud","cloudProvider":"googlespeech","cloudAccuracyTier":"deepgramNova3" """)),
+        CancellationToken.None));
+    Assert(conflicting.Tier == "geminiTranscribe",
+        $"a create body's own tier beat the fold and stored '{conflicting.Tier}'");
+
+    // 3. A NON-alias id passes through, lowercased — the cross-platform storage
+    //    spelling `normalize_cloud_provider` exists to produce. Windows persists
+    //    camelCase and macOS parses case-sensitively, so the lowercase form is
+    //    the one both parsers accept.
+    var passthrough = Read(await backend.CreateModeAsync(
+        Json(ModeBody("fold-passthrough", model: "cloud", extra:
+            """ "providerType":"cloud","cloudProvider":"geminiTranscribe","cloudAccuracyTier":"deepgramNova3" """)),
+        CancellationToken.None));
+    Assert(passthrough.Provider == "geminitranscribe",
+        $"a non-alias provider was stored as '{passthrough.Provider}' rather than lowercased");
+    Assert(passthrough.Tier == "deepgramNova3",
+        $"a non-alias provider inferred a tier and overwrote the caller's '{passthrough.Tier}'");
+
+    // 4. PATCH folds too, and with no `cloudAccuracyTier` in the patch the
+    //    inferred tier lands.
+    var patched = Read((await backend.PatchModeAsync(
+        passthrough.Id, Json(""" {"cloudProvider":"microsoftazurespeech"} """), CancellationToken.None))!.Value);
+    Assert(patched.Provider == "hyperwhisper" && patched.Tier == "azureMaiTranscribe",
+        $"PATCH stored '{patched.Provider}'/'{patched.Tier}' for a legacy alias (issue #575)");
+
+    // 5. An EXPLICIT tier in the same PATCH wins over the inferred one, so a
+    //    client sending the pair lands as it wrote it. This is the half that is
+    //    opposite to create, and it matches both native heads.
+    var pair = Read((await backend.PatchModeAsync(
+        passthrough.Id, Json(""" {"cloudProvider":"googlespeech","cloudAccuracyTier":"deepgramNova3"} """),
+        CancellationToken.None))!.Value);
+    Assert(pair.Provider == "hyperwhisper" && pair.Tier == "deepgramNova3",
+        $"an explicit tier in the same PATCH lost to the fold and stored '{pair.Tier}'");
+
+    // 6. A mode ALREADY STORED with the raw alias — written by this head before
+    //    the fold, or by an install predating the catalog's cloud tiers — must
+    //    still accept an unrelated PATCH. That is why the two legacy ids stay in
+    //    `CloudProviders`: dropping them would make such a mode un-patchable
+    //    forever, naming a field the client never sent.
+    var legacy = new HyperWhisper.Data.Entities.Mode
+    {
+        Id = Guid.NewGuid(), Name = "Legacy raw", SortOrder = 50, Language = "en",
+        Preset = "hyper", ProviderType = "cloud", Model = "cloud",
+        CloudProvider = "googleSpeech", CloudAccuracyTier = "elevenLabsScribeV2",
+        CloudPostProcessingModel = "anthropic:claude-haiku-4-5",
+    };
+    await modes.UpsertAsync(legacy);
+    var renamed = (await backend.PatchModeAsync(
+        legacy.Id.ToString(), Json(""" {"name":"Legacy renamed"} """), CancellationToken.None))!.Value;
+    Assert(renamed.GetProperty("name").GetString() == "Legacy renamed",
+        "an unrelated PATCH on a mode stored with the raw alias was refused");
+    // AND it is NOT repaired on read: GET reports what is stored, because the
+    // GUI dictation path reads the same column and would still run Chirp. A
+    // read-time rewrite would make the API disagree with the app about one Mode.
+    Assert(renamed.GetProperty("cloudProvider").GetString() == "googleSpeech",
+        "a stored raw alias was rewritten on read, so /modes now reports a provider the mode does not dispatch on");
+
+    // 7. An explicit null still clears the column rather than folding.
+    var cleared = (await backend.PatchModeAsync(
+        legacy.Id.ToString(), Json(""" {"cloudProvider":null,"providerType":"local","localEngine":"whisper","model":"base"} """),
+        CancellationToken.None))!.Value;
+    Assert(cleared.GetProperty("cloudProvider").ValueKind == JsonValueKind.Null,
+        "an explicit null cloudProvider was not cleared");
+}
+
 static async Task ApplicationBackendModeValidation()
 {
     using var paths = new TempPaths();
@@ -1823,7 +2105,15 @@ static async Task ApplicationBackendModeValidation()
     var backend = new ApplicationLocalApiBackend(modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
     // Both Gemini ids: `gemini` (multimodal) and `geminiTranscribe` (BYOK Gemini
     // 3.5 Transcribe). The camelCase spelling is what Windows persists, so the
-    // allow-list must accept it as well as the lowercase one macOS writes.
+    // create path must ACCEPT it as well as the lowercase one macOS writes.
+    //
+    // What it STORES is a different question since issue #575: the value goes
+    // through `normalize_cloud_provider` first, so `geminiTranscribe` is stored
+    // lowercased and the two legacy aliases here (`microsoftAzureSpeech`,
+    // `googleSpeech`) are stored as `hyperwhisper` plus a tier. This list is
+    // still the right input set — it is the set of spellings a cross-platform
+    // client sends — and `ApplicationBackendModeWriteFoldsLegacyProvider` is
+    // where the stored result is pinned.
     string[] providers = ["openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral", "soniox", "hyperwhisper", "gemini", "geminiTranscribe", "geminitranscribe", "grok", "microsoftAzureSpeech", "googleSpeech", "meta"];
     // Mode names are unique case-insensitively, so index them: two spellings of
     // the same provider id are a legitimate pair of cases to accept.

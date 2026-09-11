@@ -31,6 +31,21 @@ public interface ILocalApiPostProcessor
 /// </summary>
 public sealed class ApplicationLocalApiBackend : ILocalApiBackend
 {
+    /// <summary>
+    /// Storage spellings <c>Mode.CloudProvider</c> may hold.
+    /// </summary>
+    /// <remarks>
+    /// <c>microsoftazurespeech</c> and <c>googlespeech</c> are LEGACY entries and
+    /// are no longer reachable from a request: both the <c>engine</c> field and a
+    /// written <c>cloudProvider</c> now fold onto <c>hyperwhisper</c> plus a tier
+    /// (issue #575). They stay because this set is also
+    /// <see cref="ValidateMode"/>'s bound on the MERGED entity, and a mode
+    /// already stored with the raw alias — by this head before the fold, or by a
+    /// Linux install predating the catalog's cloud tiers — must still accept an
+    /// unrelated <c>PATCH {"name": …}</c>. Dropping them would make such a mode
+    /// un-patchable forever, naming a field the client never sent, which is the
+    /// same fault the <c>sortOrder</c> note below warns about.
+    /// </remarks>
     private static readonly HashSet<string> CloudProviders = new(StringComparer.OrdinalIgnoreCase)
     {
         "openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral",
@@ -113,6 +128,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         var mode = new Mode { Id = Guid.NewGuid(), IsDefault = existing.Count == 0, CreatedDate = DateTime.UtcNow, ModifiedDate = DateTime.UtcNow };
         var facts = ApplyModeDocument(mode, document, allowIdentity: false);
         if (existing.Count == 0) mode.IsDefault = true;
+        ApplyInferredAccuracyTier(mode, facts, HwLocalApiModeOperation.Create);
         NormalizeMode(mode);
         ValidateMode(mode, facts, HwLocalApiModeOperation.Create);
         EnsureUniqueName(mode, existing, HwLocalApiModeOperation.Create);
@@ -135,6 +151,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         var wasDefault = mode.IsDefault;
         var storedName = mode.Name;
         var facts = ApplyModeDocument(mode, patch, allowIdentity: false);
+        ApplyInferredAccuracyTier(mode, facts, HwLocalApiModeOperation.Patch);
         NormalizeMode(mode);
         mode.ModifiedDate = DateTime.UtcNow;
         ValidateMode(mode, facts, HwLocalApiModeOperation.Patch);
@@ -490,12 +507,38 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             return;
         }
 
-        var cloud = normalizedEngine == "cloud" ? "hyperwhisper" : normalizedEngine switch
-        {
-            "microsoftazurespeech" => "microsoftAzureSpeech",
-            "googlespeech" => "googleSpeech",
-            _ => normalizedEngine,
-        };
+        // THE CLOUD HALF OF THE ONE ALIAS TABLE (issue #575). The two strings
+        // below used to be a literal `switch` that only re-cased them:
+        //
+        //     "microsoftazurespeech" => "microsoftAzureSpeech",
+        //     "googlespeech"         => "googleSpeech",
+        //
+        // Both are `legacyCloudProviderAliases` in `cloud-stt-catalog.json`, so
+        // `normalize_cloud_provider` folds them onto
+        // `(hyperwhisper, azureMaiTranscribe | geminiTranscribe)` — which is
+        // what Windows `ApplyEngineModel` and macOS `applyEngineModel` have
+        // always done with them. `openapi.yaml` carves out no platform, so one
+        // documented request used to route to a different vendor here than
+        // there.
+        //
+        // #575 describes the old behaviour as spending the caller's own API key.
+        // MEASURED, IT IS WORSE THAN THAT AND NOT BYOK AT ALL. Re-casing landed
+        // on `CloudTranscriptionProvider.GoogleChirp` / `AzureMai`, which
+        // `CloudCredentialSource.AccountFor` maps to `LicenseKey` — so the
+        // credential was already the HyperWhisper one. But
+        // `ModeAwareTranscriptionRouter.BuildCloudRequest` fills `BaseUrl` for
+        // `HyperWhisperCloud` ONLY, and both of those providers delegate to
+        // `hyperwhisper_cloud::build_routed_request`, which refuses an empty
+        // `base_url` before any I/O. Those two engine values therefore could not
+        // transcribe on this head at ALL: every request died as
+        // `INVALID_REQUEST` without leaving the process. (`googleChirp3` is also
+        // a tier catalog v8 retired, which is the same story from the data side.)
+        // Folding puts the request back on a route that has a base URL, and the
+        // test asserts exactly that.
+        var providerNormalization = HyperwhisperCoreMethods.CloudSttNormalizeCloudProvider(normalizedEngine);
+        var cloud = normalizedEngine == "cloud"
+            ? "hyperwhisper"
+            : providerNormalization.@provider ?? normalizedEngine;
         if (CloudProviders.Contains(cloud))
         {
             // Captured BEFORE the column is overwritten: deciding whether the
@@ -506,6 +549,32 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             mode.ProviderType = "cloud";
             mode.CloudProvider = cloud;
             mode.Model = "cloud";
+            if (!string.IsNullOrEmpty(providerNormalization.@accuracyTier))
+            {
+                // A FOLDED ENGINE ALSO CHOOSES THE TIER. HyperWhisper Cloud
+                // dispatches on `CloudAccuracyTier`, so folding the provider
+                // without the tier would route the request to whatever tier the
+                // baseline mode happened to carry — Scribe v2 for a transient
+                // mode — and `engine: "googlespeech"` would not run Gemini at
+                // all. This arm is where the tier is written, exactly as
+                // Windows writes it.
+                mode.CloudAccuracyTier = providerNormalization.@accuracyTier;
+                if (normalizedModel is not null) mode.CloudTranscriptionModel = normalizedModel;
+                // Otherwise LEAVE THE MODEL COLUMN ALONE — the #528 correction.
+                // Writing the tier default here would silently drop a sub-model
+                // the caller had pinned INSIDE the same tier, and
+                // `azureMaiTranscribe` carries two models at different rates, so
+                // that changed what ran and what it cost. Nothing stale leaks
+                // through: `DispatchedCloudModelId` validates the surviving id
+                // against the NEW tier on the send path and in `ModelLabel`, and
+                // falls back to the tier default when it does not belong.
+                //
+                // The foreign-model guard is deliberately NOT reached here.
+                // Provider is now HyperWhisper Cloud, which #566 exempts for the
+                // same reason: the tier resolution already heals the column, and
+                // a second opinion written here could disagree with the run.
+                return;
+            }
             if (normalizedModel is not null)
             {
                 mode.CloudTranscriptionModel = normalizedModel;
@@ -813,10 +882,18 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     /// <see cref="FormatException"/> and a bare HTTP 500 before this change —
     /// into an ordinary <c>INVALID_REQUEST</c> naming the bound.
     /// </remarks>
+    /// <param name="InferredAccuracyTier">
+    /// The tier the document's <c>cloudProvider</c> fold produced, or null when
+    /// the key was absent or was not a legacy alias (issue #575). Held here
+    /// rather than assigned during the walk because its precedence against a
+    /// <c>cloudAccuracyTier</c> in the same document depends on the operation —
+    /// see <see cref="ApplyInferredAccuracyTier"/>.
+    /// </param>
     private readonly record struct ModeDocumentFacts(
         List<string> PresentKeys,
         long? SortOrder,
-        long? PostProcessingMode);
+        long? PostProcessingMode,
+        string? InferredAccuracyTier);
 
     private static ModeDocumentFacts ApplyModeDocument(Mode mode, JsonElement document, bool allowIdentity)
     {
@@ -824,6 +901,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         var presentKeys = new List<string>();
         long? sortOrder = null;
         long? postProcessingMode = null;
+        string? inferredAccuracyTier = null;
         foreach (var property in document.EnumerateObject())
         {
             presentKeys.Add(property.Name);
@@ -837,7 +915,25 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                 case "model": mode.Model = OptionalString(property); mode.ModelType = mode.Model; break;
                 case "localEngine": mode.LocalEngine = RequiredString(property); break;
                 case "localParakeetModel": mode.LocalParakeetModel = OptionalString(property); break;
-                case "cloudProvider": mode.CloudProvider = OptionalString(property); break;
+                // FOLDED, LIKE THE `engine` FIELD (issue #575). Windows
+                // (`ModesEndpoints.cs:114`, `:485`) and macOS
+                // (`ModesEndpoint.swift:129`, `:516`) both run a caller-supplied
+                // `cloudProvider` through `normalizeCloudProvider` on create and
+                // on patch; this head stored the raw string. So
+                // `POST /modes {"cloudProvider": "googlespeech"}` saved a mode
+                // that dictates on a retired standalone tier here and on
+                // HyperWhisper Cloud there, from the same request body — and on
+                // this head that mode could not transcribe at all, for the
+                // base-URL reason `ApplyTranscriptionOverrides` records.
+                // The inferred tier is held rather than assigned, because its
+                // precedence against a `cloudAccuracyTier` in the SAME document
+                // depends on the operation — see `ApplyInferredAccuracyTier`.
+                case "cloudProvider":
+                    var suppliedProvider = OptionalString(property);
+                    var foldedProvider = HyperwhisperCoreMethods.CloudSttNormalizeCloudProvider(suppliedProvider);
+                    mode.CloudProvider = suppliedProvider is null ? null : foldedProvider.@provider;
+                    inferredAccuracyTier = foldedProvider.@accuracyTier;
+                    break;
                 case "cloudTranscriptionModel": mode.CloudTranscriptionModel = OptionalString(property); break;
                 case "cloudTranscriptionDomain": mode.CloudTranscriptionDomain = OptionalString(property); break;
                 case "providerType": mode.ProviderType = OptionalString(property); break;
@@ -886,7 +982,52 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                     break;
             }
         }
-        return new ModeDocumentFacts(presentKeys, sortOrder, postProcessingMode);
+        return new ModeDocumentFacts(presentKeys, sortOrder, postProcessingMode, inferredAccuracyTier);
+    }
+
+    /// <summary>
+    /// Write the tier a folded <c>cloudProvider</c> implies, with the precedence
+    /// the two native heads use (issue #575).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The two halves are asymmetric on Windows and macOS alike, and this head
+    /// mirrors them rather than picking one:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <b>Create</b> — the inferred tier WINS over one in the same body.
+    /// Windows: <c>normalized.AccuracyTier ?? dto.CloudAccuracyTier ?? "elevenLabsScribeV2"</c>
+    /// (<c>ModesEndpoints.cs:141</c>); macOS: <c>normalized.accuracyTier ?? dto.cloudAccuracyTier</c>
+    /// (<c>ModesEndpoint.swift:148</c>).
+    /// </description></item>
+    /// <item><description>
+    /// <b>Patch</b> — an explicit <c>cloudAccuracyTier</c> in the same PATCH
+    /// wins, so a client that sends the pair lands as it wrote it. Windows:
+    /// <c>patch.CloudAccuracyTier ?? inferredAccuracyTier</c>
+    /// (<c>ModesEndpoints.cs:497</c>); macOS: the <c>.omitted</c> arm of the
+    /// switch on <c>patch.$cloudAccuracyTier</c> (<c>ModesEndpoint.swift:531</c>).
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// The key SET is what makes the patch half work, not the value: macOS and
+    /// Windows can tell an omitted <c>cloudAccuracyTier</c> from a present one
+    /// because their patch DTOs are tri-state, and this head reads the same fact
+    /// off <see cref="ModeDocumentFacts.PresentKeys"/>.
+    /// </para>
+    /// <para>
+    /// It runs BEFORE <see cref="NormalizeMode"/>, so the tier is already set
+    /// when the blank-tier default (<c>elevenLabsScribeV2</c>) is considered and
+    /// a folded create cannot be overwritten by it.
+    /// </para>
+    /// </remarks>
+    private static void ApplyInferredAccuracyTier(
+        Mode mode, ModeDocumentFacts facts, HwLocalApiModeOperation operation)
+    {
+        if (string.IsNullOrEmpty(facts.InferredAccuracyTier)) return;
+        if (operation == HwLocalApiModeOperation.Patch
+            && facts.PresentKeys.Contains("cloudAccuracyTier", StringComparer.Ordinal)) return;
+        mode.CloudAccuracyTier = facts.InferredAccuracyTier;
     }
 
     private static void LogIgnoredModeKey(string key)

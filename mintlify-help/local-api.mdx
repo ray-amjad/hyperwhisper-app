@@ -263,8 +263,21 @@ Three rules follow:
 
 Read the response `model` field to see which rule applied. It names the model that ran. It is empty only for an engine that takes no model parameter, which the [OpenAPI reference](/api-reference/local-api/openapi.yaml) describes in full.
 
+### Two engine names are old names
+
+`googlespeech` and `microsoftazurespeech` are the old names of two providers that HyperWhisper Cloud now serves as accuracy tiers. Every platform accepts them, and every platform now folds them:
+
+| You send | The request runs on | The response reports |
+| --- | --- | --- |
+| `"engine": "googlespeech"` | HyperWhisper Cloud, tier Gemini 3.5 Transcribe | `"engine": "hyperwhisper"` |
+| `"engine": "microsoftazurespeech"` | HyperWhisper Cloud, tier MAI-Transcribe | `"engine": "hyperwhisper"` |
+
+Both spend HyperWhisper Cloud credits. Send an explicit `model` to choose a model inside the tier — `mai-transcribe-1.5` instead of `mai-transcribe-2`, for example. The response `engine` is `hyperwhisper`, and you can send that value back in the next request.
+
+The same fold applies to a Mode you write. `POST /modes` or `PATCH /modes/{id}` with `"cloudProvider": "googlespeech"` stores `"cloudProvider": "hyperwhisper"` and the matching `cloudAccuracyTier`, so read the Mode back to see what it holds. On create, the tier that the name implies wins over a `cloudAccuracyTier` in the same body. On patch, a `cloudAccuracyTier` in the same request wins.
+
 <Note>
-  Two engine names behave differently on Linux: `googlespeech` and `microsoftazurespeech`. These are old names for providers that Windows and macOS now serve through HyperWhisper Cloud, so those two platforms spend HyperWhisper Cloud credits. Linux still treats them as your own API key. Name the provider you want directly — `cloud` for HyperWhisper Cloud — until this is made the same everywhere.
+  A Mode that already holds `"cloudProvider": "googlespeech"` or `"microsoftazurespeech"` is not changed. `GET /modes` reports the value that is stored, because that value is what dictation acts on. Send a `PATCH` with the same `cloudProvider` to fold it.
 </Note>
 
 ### Mode write rules
