@@ -1888,12 +1888,18 @@ static async Task ApplicationBackendLegacyEngineAliases()
     //    onto HyperWhisper Cloud plus its own tier, and the response says
     //    `hyperwhisper` — the same answer Windows `ApplyEngineModel` and macOS
     //    `applyEngineModel` give.
-    foreach (var (alias, tier, routed) in new[]
+    //    The MODEL is pinned as a literal too, not only the tier. A run that
+    //    resolved Azure MAI to `mai-transcribe-1.5` instead of the tier default
+    //    `mai-transcribe-2`, or Gemini to the live variant, would satisfy every
+    //    inequality in this file while costing several times as much; the Meta
+    //    literal in `ApplicationBackendForeignCloudModel` is pinned for the
+    //    same reason.
+    foreach (var (alias, tier, routed, model) in new[]
     {
-        ("googlespeech", "geminiTranscribe", "gemini-transcribe"),
-        ("googleSpeech", "geminiTranscribe", "gemini-transcribe"),
-        ("microsoftazurespeech", "azureMaiTranscribe", "azure-mai"),
-        ("microsoftAzureSpeech", "azureMaiTranscribe", "azure-mai"),
+        ("googlespeech", "geminiTranscribe", "gemini-transcribe", "gemini-3.5-transcribe"),
+        ("googleSpeech", "geminiTranscribe", "gemini-transcribe", "gemini-3.5-transcribe"),
+        ("microsoftazurespeech", "azureMaiTranscribe", "azure-mai", "mai-transcribe-2"),
+        ("microsoftAzureSpeech", "azureMaiTranscribe", "azure-mai", "mai-transcribe-2"),
     })
     {
         var run = await Run(alias);
@@ -1914,6 +1920,8 @@ static async Task ApplicationBackendLegacyEngineAliases()
             $"engine '{alias}' answered engine '{run.Engine}', which no other head reports");
         Assert(run.Model == (run.Wire.RoutedModel ?? run.Wire.Model),
             $"engine '{alias}' reported '{run.Model}' but dispatched '{run.Wire.RoutedModel}'");
+        Assert(run.Wire.RoutedModel == model,
+            $"engine '{alias}' dispatched '{run.Wire.RoutedModel}' rather than the tier default '{model}'");
     }
 
     // 2. The mixed `{mode_id, engine}` form folds too, and the baseline's
@@ -1921,8 +1929,8 @@ static async Task ApplicationBackendLegacyEngineAliases()
     var mixed = await Run("googlespeech", useStoredMode: true);
     Assert(mixed.Mode.CloudProvider == "hyperwhisper" && mixed.Mode.CloudAccuracyTier == "geminiTranscribe",
         "the {mode_id, engine} form did not fold the legacy alias");
-    Assert(mixed.Wire.RoutedModel != "nova-3-general",
-        $"a Gemini Transcribe run still carries Deepgram's model id '{mixed.Wire.RoutedModel}'");
+    Assert(mixed.Wire.RoutedModel == "gemini-3.5-transcribe",
+        $"a Gemini Transcribe run dispatched '{mixed.Wire.RoutedModel}' — the baseline's Deepgram id survived, or the tier default moved");
 
     // 3. THE #528 CORRECTION, first half: an explicit `model` inside the folded
     //    tier is kept. `azureMaiTranscribe` has two models at different rates,
@@ -1950,8 +1958,8 @@ static async Task ApplicationBackendLegacyEngineAliases()
     //    tier. This is why the arm can safely leave the column alone in 4.
     var stale = await Run("microsoftazurespeech", useStoredMode: true, seed: mode =>
         mode.CloudTranscriptionModel = "nova-3-general");
-    Assert(stale.Wire.RoutedModel != "nova-3-general" && stale.Model == stale.Wire.RoutedModel,
-        $"a foreign id survived into an Azure MAI run as '{stale.Wire.RoutedModel}'");
+    Assert(stale.Wire.RoutedModel == "mai-transcribe-2" && stale.Model == stale.Wire.RoutedModel,
+        $"a foreign id in an Azure MAI run healed to '{stale.Wire.RoutedModel}', not the tier default");
 
     // 6. CONTROL. A provider id that is NOT a legacy alias is untouched by the
     //    fold: it stays on its own vendor, keeps its own model and does not
@@ -2080,13 +2088,35 @@ static async Task ApplicationBackendModeWriteFoldsLegacyProvider()
         legacy.Id.ToString(), Json(""" {"name":"Legacy renamed"} """), CancellationToken.None))!.Value;
     Assert(renamed.GetProperty("name").GetString() == "Legacy renamed",
         "an unrelated PATCH on a mode stored with the raw alias was refused");
-    // AND it is NOT repaired on read: GET reports what is stored, because the
-    // GUI dictation path reads the same column and would still run Chirp. A
-    // read-time rewrite would make the API disagree with the app about one Mode.
+    // AND it is NOT repaired on read. GET reports the column as stored, because
+    // the GUI dictation path reads that same column through the same router — so
+    // a read-time rewrite would have the API answer `hyperwhisper` for a Mode the
+    // app still routes to `GoogleChirp`, which is a reporting lie rather than a
+    // fix. (On this head that route reaches hw-net with a null `BaseUrl` and is
+    // rejected before any I/O, so the Mode does not dictate at all. The repair is
+    // a one-time STORAGE fold at startup, which Windows and macOS both have and
+    // this head does not; it is filed, not done here, because it rewrites user
+    // rows outside any API request.)
     Assert(renamed.GetProperty("cloudProvider").GetString() == "googleSpeech",
         "a stored raw alias was rewritten on read, so /modes now reports a provider the mode does not dispatch on");
 
-    // 7. An explicit null still clears the column rather than folding.
+    // 7. THE GET-ECHO SHAPE, pinned because it is the sharp edge of rule 5. A
+    //    client that fetches a Mode, edits one field and PATCHes the whole
+    //    document back is sending an explicit `cloudAccuracyTier` — the Mode's
+    //    current one — so the provider folds and the OLD tier stays. That is the
+    //    documented rule applied faithfully, not a special case, and it is the
+    //    reason `local-api.mdx` tells callers to patch only the keys they are
+    //    changing and to repair a legacy Mode with `cloudProvider` alone.
+    var echoSource = (await backend.GetModeAsync(legacy.Id.ToString(), CancellationToken.None))!.Value;
+    Assert(echoSource.GetProperty("cloudAccuracyTier").GetString() == "elevenLabsScribeV2",
+        "the echo fixture no longer carries the tier this case is about");
+    var echoed = (await backend.PatchModeAsync(legacy.Id.ToString(), echoSource, CancellationToken.None))!.Value;
+    Assert(echoed.GetProperty("cloudProvider").GetString() == "hyperwhisper",
+        "echoing a whole GET document back did not fold the provider");
+    Assert(echoed.GetProperty("cloudAccuracyTier").GetString() == "elevenLabsScribeV2",
+        "the echoed tier lost to the inferred one, which contradicts the documented patch rule");
+
+    // 8. An explicit null still clears the column rather than folding.
     var cleared = (await backend.PatchModeAsync(
         legacy.Id.ToString(), Json(""" {"cloudProvider":null,"providerType":"local","localEngine":"whisper","model":"base"} """),
         CancellationToken.None))!.Value;

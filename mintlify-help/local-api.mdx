@@ -276,8 +276,12 @@ Both spend HyperWhisper Cloud credits. Send an explicit `model` to choose a mode
 
 The same fold applies to a Mode you write. `POST /modes` or `PATCH /modes/{id}` with `"cloudProvider": "googlespeech"` stores `"cloudProvider": "hyperwhisper"` and the matching `cloudAccuracyTier`, so read the Mode back to see what it holds. On create, the tier that the name implies wins over a `cloudAccuracyTier` in the same body. On patch, a `cloudAccuracyTier` in the same request wins.
 
+<Warning>
+  Send a `PATCH` with only the keys you are changing. If you fetch a Mode with `GET`, edit one field, and send the whole document back, the document carries the Mode's current `cloudAccuracyTier` — and on patch that value wins. The provider folds to `hyperwhisper` and the old tier stays, which is a different vendor and a different price from the tier the name implies.
+</Warning>
+
 <Note>
-  A Mode that already holds `"cloudProvider": "googlespeech"` or `"microsoftazurespeech"` is not changed. `GET /modes` reports the value that is stored, because that value is what dictation acts on. Send a `PATCH` with the same `cloudProvider` to fold it.
+  A Mode that already holds `"cloudProvider": "googlespeech"` or `"microsoftazurespeech"` is not changed by these endpoints, and `GET /modes` reports the value that is stored. Windows and macOS fold such a Mode once when the app starts. Linux does not, and on Linux a Mode that still holds one of these two names cannot transcribe. Send a `PATCH` with only `cloudProvider`, set to the same value, to fold it.
 </Note>
 
 ### Mode write rules

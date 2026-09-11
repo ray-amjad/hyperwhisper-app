@@ -400,18 +400,23 @@ components:
           type: string
           nullable: true
           description: >-
-            The cloud vendor this Mode dictates on. Stored NORMALIZED, on every
-            platform: the value is lowercased, and the two LEGACY names
-            `googlespeech` and `microsoftazurespeech` (either casing) are folded
-            onto `hyperwhisper` plus the matching `cloudAccuracyTier`
-            (`geminiTranscribe`, `azureMaiTranscribe`) — those providers are
-            HyperWhisper Cloud accuracy tiers now, not standalone vendors. So a
-            Mode read back may not carry the string you sent. On CREATE the
-            folded tier wins over a `cloudAccuracyTier` in the same body; on
-            PATCH a `cloudAccuracyTier` in the same request wins. A Mode ALREADY
-            stored with a legacy name is left alone and is reported as stored,
-            because that stored value is what dictation acts on; patch the same
-            `cloudProvider` again to fold it.
+            The cloud vendor this Mode dictates on. A value you WRITE is
+            normalized before it is stored, on every platform: it is lowercased,
+            and the two LEGACY names `googlespeech` and `microsoftazurespeech`
+            (either casing) are folded onto `hyperwhisper` plus the matching
+            `cloudAccuracyTier` (`geminiTranscribe`, `azureMaiTranscribe`) —
+            those providers are HyperWhisper Cloud accuracy tiers now, not
+            standalone vendors. So a Mode read back may not carry the string you
+            sent. On CREATE the folded tier wins over a `cloudAccuracyTier` in
+            the same body; on PATCH a `cloudAccuracyTier` in the same request
+            wins — so PATCHING BACK A WHOLE DOCUMENT YOU FETCHED WITH `GET` folds
+            the provider but PINS the tier the Mode already had, which may not be
+            the tier the name implies. Send only the keys you are changing.
+            A Mode that ALREADY holds a legacy name is not rewritten by this
+            endpoint and is reported as stored. Windows and macOS fold such a row
+            once at app startup; Linux does not, and there a Mode still holding
+            one of these two names cannot transcribe at all. PATCH the same
+            `cloudProvider` back, on its own, to fold it.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -502,18 +507,23 @@ components:
           type: string
           nullable: true
           description: >-
-            The cloud vendor this Mode dictates on. Stored NORMALIZED, on every
-            platform: the value is lowercased, and the two LEGACY names
-            `googlespeech` and `microsoftazurespeech` (either casing) are folded
-            onto `hyperwhisper` plus the matching `cloudAccuracyTier`
-            (`geminiTranscribe`, `azureMaiTranscribe`) — those providers are
-            HyperWhisper Cloud accuracy tiers now, not standalone vendors. So a
-            Mode read back may not carry the string you sent. On CREATE the
-            folded tier wins over a `cloudAccuracyTier` in the same body; on
-            PATCH a `cloudAccuracyTier` in the same request wins. A Mode ALREADY
-            stored with a legacy name is left alone and is reported as stored,
-            because that stored value is what dictation acts on; patch the same
-            `cloudProvider` again to fold it.
+            The cloud vendor this Mode dictates on. A value you WRITE is
+            normalized before it is stored, on every platform: it is lowercased,
+            and the two LEGACY names `googlespeech` and `microsoftazurespeech`
+            (either casing) are folded onto `hyperwhisper` plus the matching
+            `cloudAccuracyTier` (`geminiTranscribe`, `azureMaiTranscribe`) —
+            those providers are HyperWhisper Cloud accuracy tiers now, not
+            standalone vendors. So a Mode read back may not carry the string you
+            sent. On CREATE the folded tier wins over a `cloudAccuracyTier` in
+            the same body; on PATCH a `cloudAccuracyTier` in the same request
+            wins — so PATCHING BACK A WHOLE DOCUMENT YOU FETCHED WITH `GET` folds
+            the provider but PINS the tier the Mode already had, which may not be
+            the tier the name implies. Send only the keys you are changing.
+            A Mode that ALREADY holds a legacy name is not rewritten by this
+            endpoint and is reported as stored. Windows and macOS fold such a row
+            once at app startup; Linux does not, and there a Mode still holding
+            one of these two names cannot transcribe at all. PATCH the same
+            `cloudProvider` back, on its own, to fold it.
         postProcessingMode:
           type: integer
           minimum: 0

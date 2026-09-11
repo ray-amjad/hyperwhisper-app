@@ -35,16 +35,27 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     /// Storage spellings <c>Mode.CloudProvider</c> may hold.
     /// </summary>
     /// <remarks>
-    /// <c>microsoftazurespeech</c> and <c>googlespeech</c> are LEGACY entries and
-    /// are no longer reachable from a request: both the <c>engine</c> field and a
-    /// written <c>cloudProvider</c> now fold onto <c>hyperwhisper</c> plus a tier
-    /// (issue #575). They stay because this set is also
-    /// <see cref="ValidateMode"/>'s bound on the MERGED entity, and a mode
-    /// already stored with the raw alias — by this head before the fold, or by a
-    /// Linux install predating the catalog's cloud tiers — must still accept an
-    /// unrelated <c>PATCH {"name": …}</c>. Dropping them would make such a mode
+    /// <c>microsoftazurespeech</c> and <c>googlespeech</c> are LEGACY entries. No
+    /// LOCAL API request can produce them any more: both the <c>engine</c> field
+    /// and a written <c>cloudProvider</c> now fold onto <c>hyperwhisper</c> plus
+    /// a tier (issue #575). They stay because this set is also
+    /// <see cref="ValidateMode"/>'s bound on the MERGED entity, and a mode that
+    /// already holds the raw alias must still accept an unrelated
+    /// <c>PATCH {"name": …}</c>. Dropping them would make such a mode
     /// un-patchable forever, naming a field the client never sent, which is the
     /// same fault the <c>sortOrder</c> note below warns about.
+    ///
+    /// THOSE ROWS ARE NOT ONLY HISTORICAL, and this head does not repair them.
+    /// <c>ModesViewModel.CloudProviders</c> still offers both ids to the GUI mode
+    /// editor and its save path writes the choice verbatim, so a Linux user can
+    /// create one today; and unlike Windows
+    /// (<c>ModeService.NormalizeLegacyCloudModeValues</c>, plus the EF migration
+    /// <c>20260608120000_NormalizeCloudProviderValues</c>) and macOS
+    /// (<c>PersistenceController.normalizeCloudProviderIfNeeded</c>), nothing
+    /// folds the stored column at startup. Such a mode cannot transcribe at all
+    /// here, for the base-URL reason
+    /// <see cref="ApplyTranscriptionOverrides"/> records. Both gaps are outside
+    /// the Local API and are filed rather than fixed here.
     /// </remarks>
     private static readonly HashSet<string> CloudProviders = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -928,6 +939,22 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                 // The inferred tier is held rather than assigned, because its
                 // precedence against a `cloudAccuracyTier` in the SAME document
                 // depends on the operation — see `ApplyInferredAccuracyTier`.
+                //
+                // The value is handed over RAW, not trimmed, because that is
+                // what both native heads hand their own normalizer
+                // (`NormalizeCloudProvider(dto.CloudProvider)`,
+                // `normalizeCloudProvider(dto.cloudProvider)`) — and this is a
+                // parity change, so it must not invent a third input rule. One
+                // consequence is worth knowing: the core TRIMS its legacy-alias
+                // needle but only lowercases the pass-through, so a padded
+                // `"  googlespeech  "` folds and is then accepted, while a
+                // padded `"  deepgram  "` still fails `ValidateMode`'s untrimmed
+                // membership test below. That asymmetry lives in the shared
+                // function and is now identical on all three heads; widening or
+                // narrowing it is a change to `normalize_cloud_provider`, not to
+                // this call site. `engine` is a different field with a different
+                // published rule — `openapi.yaml` says it is trimmed — and keeps
+                // its own `Trim()` above.
                 case "cloudProvider":
                     var suppliedProvider = OptionalString(property);
                     var foldedProvider = HyperwhisperCoreMethods.CloudSttNormalizeCloudProvider(suppliedProvider);
@@ -1010,10 +1037,27 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     /// </description></item>
     /// </list>
     /// <para>
-    /// The key SET is what makes the patch half work, not the value: macOS and
-    /// Windows can tell an omitted <c>cloudAccuracyTier</c> from a present one
-    /// because their patch DTOs are tri-state, and this head reads the same fact
-    /// off <see cref="ModeDocumentFacts.PresentKeys"/>.
+    /// The key SET is what makes the patch half work here. macOS really is
+    /// tri-state (<c>patch.$cloudAccuracyTier</c> is a property wrapper whose
+    /// <c>.value(nil)</c> case clears the column); WINDOWS IS NOT — its
+    /// <c>ModePatchDto.CloudAccuracyTier</c> is a plain <c>string?</c> and
+    /// <c>??</c> cannot tell an explicit JSON null from an omitted key. So
+    /// <c>PATCH {"cloudProvider": "googlespeech", "cloudAccuracyTier": null}</c>
+    /// is the one body where the three heads still disagree: Windows infers the
+    /// tier, macOS clears it, and this head refuses the request because
+    /// <c>cloudAccuracyTier</c> is parsed with <c>RequiredString</c>. Reading the
+    /// PRESENT-KEY set rather than the value is what makes this head agree with
+    /// both of them on every body where they agree with each other; the null
+    /// case is pre-existing and is not this issue's to reconcile.
+    /// </para>
+    /// <para>
+    /// The tier is written without asking whether the merged mode is a cloud
+    /// mode, which is what both native heads do:
+    /// <c>{"providerType": "local", "cloudProvider": "googlespeech",
+    /// "cloudAccuracyTier": "deepgramNova3"}</c> keeps the local engine and
+    /// stores the inferred tier over the caller's. That body is incoherent
+    /// either way, and gating on <c>ProviderType</c> here would be a fourth
+    /// answer to a question the other two heads already answer the same way.
     /// </para>
     /// <para>
     /// It runs BEFORE <see cref="NormalizeMode"/>, so the tier is already set
