@@ -67,32 +67,34 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.003m
         },
+        // The three rows below were deprecated by OpenAI on 2026-08-26 and shut
+        // down 2027-02-26. They still work, and a user who has one selected keeps
+        // working, so the rows stay for this release — but they are no longer
+        // promoted, and ResolveModelAlias now migrates them through the shared
+        // Rust table. Delete the rows once a build carrying it has shipped.
         new CloudTranscriptionModel
         {
             Id = "gpt-4o-transcribe",
             DisplayName = "GPT-4o Transcribe",
-            Description = "Most capable - best accuracy, handles complex audio",
+            Description = "Deprecated by OpenAI - retires 2027-02-26, use GPT Transcribe",
             Provider = CloudTranscriptionProvider.OpenAI,
-            PricePerMinute = 0.006m,
-            IsPopular = true
+            PricePerMinute = 0.006m
         },
         new CloudTranscriptionModel
         {
             Id = "gpt-4o-mini-transcribe",
             DisplayName = "GPT-4o Mini Transcribe",
-            Description = "Balanced - good accuracy at lower cost",
+            Description = "Deprecated by OpenAI - retires 2027-02-26, use the 2025-12-15 snapshot",
             Provider = CloudTranscriptionProvider.OpenAI,
-            PricePerMinute = 0.003m,
-            IsPopular = true
+            PricePerMinute = 0.003m
         },
         new CloudTranscriptionModel
         {
             Id = "whisper-1",
             DisplayName = "Whisper-1",
-            Description = "Classic Whisper model - cost-effective, reliable",
+            Description = "Deprecated by OpenAI - retires 2027-02-26, use GPT Transcribe",
             Provider = CloudTranscriptionProvider.OpenAI,
-            PricePerMinute = 0.006m,
-            IsPopular = true
+            PricePerMinute = 0.006m
         },
         new CloudTranscriptionModel
         {
@@ -708,7 +710,8 @@ public static class CloudTranscriptionModels
     {
         var defaultModelId = provider switch
         {
-            CloudTranscriptionProvider.OpenAI => "whisper-1",
+            // whisper-1 deprecated 2026-08-26, shutdown 2027-02-26. Matches macOS.
+            CloudTranscriptionProvider.OpenAI => "gpt-transcribe",
             CloudTranscriptionProvider.Groq => "whisper-large-v3-turbo",
             CloudTranscriptionProvider.Deepgram => "nova-3-general",
             CloudTranscriptionProvider.AssemblyAI => "universal-3-5-pro",

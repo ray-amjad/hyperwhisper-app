@@ -362,8 +362,12 @@ extension CloudTranscriptionModel {
 
 /// Central registry of all available cloud transcription models
 struct CloudTranscriptionModels {
-    /// Default model to use when creating new modes with cloud transcription
-    static let defaultModelId = "whisper-1"
+    /// Default model to use when creating new modes with cloud transcription.
+    /// Was `whisper-1` until 2026-09-11; OpenAI deprecated that id on 2026-08-26
+    /// (shutdown 2027-02-26), so a new mode must not be created on it. OpenAI
+    /// names `gpt-transcribe` as the replacement and it is billed the same way —
+    /// flat per audio minute — at a lower rate ($0.0045/min vs $0.006/min).
+    static let defaultModelId = "gpt-transcribe"
 
     /// Test seam for exercising a completed direct provider before the shared
     /// cross-platform catalog gate is activated. Production always reads the gate.
@@ -392,31 +396,33 @@ struct CloudTranscriptionModels {
             provider: .openai,
             pricePerSecond: 0.003 / 60.0
         ),
+        // The three rows below were deprecated by OpenAI on 2026-08-26 and shut
+        // down 2027-02-26. They still work, and a user who has one selected keeps
+        // working, so the rows stay for this release — but they are no longer
+        // promoted, and `resolve_openai_model_alias` now migrates them. Delete
+        // the rows once a build carrying that alias table has shipped.
         CloudTranscriptionModel(
             id: "gpt-4o-transcribe",
             displayName: "GPT-4o Transcribe",
             isAvailable: true,
-            description: "Advanced speech-to-text powered by GPT-4o. Higher accuracy with better context understanding.",
+            description: "Advanced speech-to-text powered by GPT-4o. Deprecated by OpenAI — retires 2027-02-26, use GPT Transcribe.",
             provider: .openai,
-            isPopular: true,
             pricePerSecond: 0.006 / 60.0
         ),
         CloudTranscriptionModel(
             id: "gpt-4o-mini-transcribe",
             displayName: "GPT-4o Mini Transcribe",
             isAvailable: true,
-            description: "Fast speech-to-text powered by GPT-4o Mini. Good balance of speed and accuracy.",
+            description: "Fast speech-to-text powered by GPT-4o Mini. Deprecated by OpenAI — retires 2027-02-26, use the 2025-12-15 snapshot.",
             provider: .openai,
-            isPopular: true,
             pricePerSecond: 0.003 / 60.0
         ),
         CloudTranscriptionModel(
             id: "whisper-1",
             displayName: "Whisper-1",
             isAvailable: true,
-            description: "General-purpose speech recognition model. Reliable and proven for all recording lengths.",
+            description: "General-purpose speech recognition model. Deprecated by OpenAI — retires 2027-02-26, use GPT Transcribe.",
             provider: .openai,
-            isPopular: true,
             pricePerSecond: 0.006 / 60.0
         ),
         CloudTranscriptionModel(
@@ -889,7 +895,8 @@ struct CloudTranscriptionModels {
         case .hyperwhisper:
             return ""  // HyperWhisper Cloud routes by accuracy tier; no client-side model parameter
         case .openai:
-            return "whisper-1"
+            // whisper-1 deprecated 2026-08-26, shutdown 2027-02-26.
+            return "gpt-transcribe"
         case .groq:
             return "whisper-large-v3-turbo"
         case .deepgram:

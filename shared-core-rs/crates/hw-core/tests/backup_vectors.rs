@@ -627,9 +627,16 @@ fn vector_groups_are_populated() {
     // 132 → 134: catalog v8 (#331) added the `googlechirp3` and `chirp_3` tier
     // aliases, and the rows cover the alias table exhaustively. The same merge
     // re-derived seven existing rows onto `geminiTranscribe`; it removed none.
+    //
+    // 134 → 136: OPENAI_ALIASES was added for the three OpenAI STT ids deprecated
+    // 2026-08-26, so two rows cover it (`whisper-1` and the mini id, which take
+    // different targets). No row was removed. Row 116 was re-pointed rather than
+    // added: it demonstrates "a provider with no alias table passes the model
+    // through" and used to say that with openai + `whisper-1`, which is exactly
+    // what stopped being true — it now uses groq, which still has no table.
     assert_eq!(
         rows("modeNormalization").len(),
-        134,
+        136,
         "the frozen modeNormalization row count changed; a row may only be ADDED, and the \
          count here must be updated deliberately when one is"
     );
