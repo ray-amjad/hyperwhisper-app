@@ -396,7 +396,27 @@ components:
         modifiedDate: { type: string, format: date-time, nullable: true }
         languageModel: { type: string, nullable: true }
         cloudTranscriptionModel: { type: string, nullable: true }
-        cloudProvider: { type: string, nullable: true }
+        cloudProvider:
+          type: string
+          nullable: true
+          description: >-
+            The cloud vendor this Mode dictates on. A value you WRITE is
+            normalized before it is stored, on every platform: it is lowercased,
+            and the two LEGACY names `googlespeech` and `microsoftazurespeech`
+            (either casing) are folded onto `hyperwhisper` plus the matching
+            `cloudAccuracyTier` (`geminiTranscribe`, `azureMaiTranscribe`) —
+            those providers are HyperWhisper Cloud accuracy tiers now, not
+            standalone vendors. So a Mode read back may not carry the string you
+            sent. On CREATE the folded tier wins over a `cloudAccuracyTier` in
+            the same body; on PATCH a `cloudAccuracyTier` in the same request
+            wins — so PATCHING BACK A WHOLE DOCUMENT YOU FETCHED WITH `GET` folds
+            the provider but PINS the tier the Mode already had, which may not be
+            the tier the name implies. Send only the keys you are changing.
+            A Mode that ALREADY holds a legacy name is not rewritten by this
+            endpoint and is reported as stored. Windows and macOS fold such a row
+            once at app startup; Linux does not, and there a Mode still holding
+            one of these two names cannot transcribe at all. PATCH the same
+            `cloudProvider` back, on its own, to fold it.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -483,7 +503,27 @@ components:
           description: "Every platform accepts values from -32768 through 32767."
         languageModel: { type: string, nullable: true }
         cloudTranscriptionModel: { type: string, nullable: true }
-        cloudProvider: { type: string, nullable: true }
+        cloudProvider:
+          type: string
+          nullable: true
+          description: >-
+            The cloud vendor this Mode dictates on. A value you WRITE is
+            normalized before it is stored, on every platform: it is lowercased,
+            and the two LEGACY names `googlespeech` and `microsoftazurespeech`
+            (either casing) are folded onto `hyperwhisper` plus the matching
+            `cloudAccuracyTier` (`geminiTranscribe`, `azureMaiTranscribe`) —
+            those providers are HyperWhisper Cloud accuracy tiers now, not
+            standalone vendors. So a Mode read back may not carry the string you
+            sent. On CREATE the folded tier wins over a `cloudAccuracyTier` in
+            the same body; on PATCH a `cloudAccuracyTier` in the same request
+            wins — so PATCHING BACK A WHOLE DOCUMENT YOU FETCHED WITH `GET` folds
+            the provider but PINS the tier the Mode already had, which may not be
+            the tier the name implies. Send only the keys you are changing.
+            A Mode that ALREADY holds a legacy name is not rewritten by this
+            endpoint and is reported as stored. Windows and macOS fold such a row
+            once at app startup; Linux does not, and there a Mode still holding
+            one of these two names cannot transcribe at all. PATCH the same
+            `cloudProvider` back, on its own, to fold it.
         postProcessingMode:
           type: integer
           minimum: 0
@@ -552,15 +592,11 @@ components:
             because it selects by the Mode's accuracy tier rather than by a model
             id: `engine: "cloud"` keeps the Mode's model only when that model
             belongs to the tier, and otherwise runs the tier's default — an
-            explicit `model` included. TWO KNOWN GAPS, neither fixed here. The
+            explicit `model` included. ONE KNOWN GAP, not fixed here. The
             default a dropped model falls back to is read from a different table
             per platform, so `engine: "openai"` with no `model` resolves to
             `whisper-1` on Windows and macOS and to the catalog default
-            `gpt-4o-transcribe` on Linux. And the legacy engine names
-            `googlespeech` and `microsoftazurespeech` are folded onto
-            HyperWhisper Cloud accuracy tiers on Windows and macOS — spending
-            credits — while Linux still routes them to the BYOK provider on your
-            own key.
+            `gpt-4o-transcribe` on Linux.
         engine:
           type: string
           description: >-
@@ -574,6 +610,21 @@ components:
             qwen; appleSpeech, apple, apple-speech, apple-speech-analyzer,
             speech-analyzer. So the engine a response reports can always be fed
             back into the next request, on any platform.
+
+            TWO CLOUD VALUES ARE LEGACY NAMES AND ARE FOLDED, on every platform.
+            `googlespeech` and `microsoftazurespeech` (either casing) name
+            providers that HyperWhisper Cloud now serves as accuracy tiers, so
+            the request runs on HyperWhisper Cloud — spending credits — with the
+            tier `geminiTranscribe` or `azureMaiTranscribe`, and the response
+            reports `engine: "hyperwhisper"`. Send an explicit `model` to pin a
+            model INSIDE that tier (`mai-transcribe-1.5` rather than the default
+            `mai-transcribe-2`); with no `model`, the Mode's own sub-model is
+            kept when the tier serves it and the tier default runs otherwise.
+            The fold replaces the Mode's provider and tier for this one call and
+            supersedes whatever `mode_id` held, so the model rules under
+            `mode_id` above are the HyperWhisper Cloud ones. `cloud` and
+            `hyperwhisper` are NOT legacy names: they select HyperWhisper Cloud
+            without changing the Mode's accuracy tier.
         model:
           type: string
           description: >-
