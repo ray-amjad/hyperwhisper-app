@@ -19,7 +19,7 @@ import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from
 import { GEMINI_TRANSCRIBE_INLINE_MAX_BYTES } from '../lib/constants';
 
 const originalFetch = globalThis.fetch;
-const ENV_KEYS = ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY'] as const;
+const ENV_KEYS = ['GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY', 'STT_PROVIDER_TIMEOUT_MS'] as const;
 const savedEnv: Record<string, string | undefined> = {};
 
 const audio = (bytes = 1_000) => new ArrayBuffer(bytes);
@@ -78,12 +78,11 @@ function errorResponse(status: number, text = 'upstream said no') {
   globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
 }
 
-/**
- * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
- * `utils.test.ts` — no spy library is used anywhere in this suite.
- */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+/** Capture one provider log event without adding a process-wide mock module. */
+async function captureProviderEvent(
+  eventName: string,
+  run: () => Promise<unknown>,
+): Promise<Record<string, unknown>> {
   const logged: unknown[][] = [];
   const originalLog = console.log;
   console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
@@ -92,9 +91,14 @@ async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record
   } finally {
     console.log = originalLog;
   }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
+  const event = logged.find((args) => args[0] === eventName);
+  if (!event) throw new Error(`${eventName} event was not logged`);
   return event[1] as Record<string, unknown>;
+}
+
+/** Return the details object from the adapter's no-speech event. */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  return captureProviderEvent('provider.no_speech', run);
 }
 
 describe('buildTranscriptionConfig — TRAP 2 (the mutual exclusion)', () => {
@@ -234,6 +238,32 @@ describe('transcribeWithGeminiTranscribe — request shape', () => {
       model: 'gemini-3.5-transcribe',
     });
     expect(captured.body?.model).toBe('gemini-3.5-transcribe');
+  });
+});
+
+describe('transcribeWithGeminiTranscribe — timeout contract', () => {
+  test('uses the 45-second cold-path budget instead of the shared provider timeout', async () => {
+    process.env.STT_PROVIDER_TIMEOUT_MS = '1';
+    captureRequest();
+
+    const requestStart = await captureProviderEvent(
+      'provider.request_start',
+      () => transcribeWithGeminiTranscribe(audio(), 'audio/mp3'),
+    );
+
+    expect(requestStart.timeoutMs).toBe(45_000);
+  });
+
+  test('classifies an aborted interactions request as a timeout with the full budget', async () => {
+    globalThis.fetch = mock(async () => {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }) as unknown as typeof fetch;
+
+    const thrown = await transcribeWithGeminiTranscribe(audio(), 'audio/mp3').catch((error) => error);
+
+    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
+    expect(thrown.kind).toBe('timeout');
+    expect(thrown.message).toContain('timeout after 45000ms');
   });
 });
 
