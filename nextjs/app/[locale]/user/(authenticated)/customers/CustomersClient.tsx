@@ -140,7 +140,7 @@ export default function CustomersClient() {
       // so jump back to page 1 — otherwise an admin on page 3+ sees no
       // visible change after granting.
       setPage(1);
-      refetch();
+      void refetch();
     },
   });
 
@@ -156,7 +156,7 @@ export default function CustomersClient() {
       refundTimerRef.current = setTimeout(() => {
         setRefundTarget(null);
         refundMutation.reset();
-        refetch();
+        void refetch();
       }, 1500);
     },
   });
@@ -175,7 +175,7 @@ export default function CustomersClient() {
     onSuccess: () => {
       setCreditTarget(null);
       setCreditAmount("");
-      refetch();
+      void refetch();
     },
   });
 
@@ -212,7 +212,7 @@ export default function CustomersClient() {
         next.add(variables.userId);
         return next;
       });
-      refetch();
+      void refetch();
     },
   });
 

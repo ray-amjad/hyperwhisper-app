@@ -7,6 +7,10 @@ import {
 import { licenseValidateRateLimiter } from "@/lib/rate-limit";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /**
  * License Activation API (legacy compatibility)
  *
@@ -62,7 +66,10 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { license_key } = (body ?? {}) as { license_key?: string };
+  const license_key =
+    isRecord(body) && typeof body.license_key === "string"
+      ? body.license_key
+      : undefined;
 
   if (!license_key) {
     return invalidLicenseResponse({

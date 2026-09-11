@@ -23,6 +23,103 @@ export type ProviderResult = { ok: true; models: Model[] } | { ok: false; error:
 /** One authenticated GET against a provider's model endpoint. */
 type ApiGet = (url: string, headers?: Record<string, string>) => Promise<unknown>;
 
+type BasicModelResponse = { data: Array<{ id: string }> };
+type AnthropicResponse = {
+  data: Array<{ id: string; display_name?: string }>;
+  has_more?: boolean;
+};
+type GeminiResponse = {
+  models: Array<{
+    name: string;
+    displayName?: string;
+    supportedGenerationMethods?: string[];
+  }>;
+  nextPageToken?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return isUnknownArray(value) && value.every((item) => typeof item === "string");
+}
+
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error("Invalid provider response");
+  return value;
+}
+
+function parseBasicModelResponse(value: unknown): BasicModelResponse {
+  if (!isRecord(value)) throw new Error("Invalid provider response");
+  if (value.data === undefined) return { data: [] };
+  if (!isUnknownArray(value.data)) throw new Error("Invalid provider response");
+
+  return {
+    data: value.data.map((item) => {
+      if (!isRecord(item) || typeof item.id !== "string") {
+        throw new Error("Invalid provider response");
+      }
+      return { id: item.id };
+    }),
+  };
+}
+
+function parseAnthropicResponse(value: unknown): AnthropicResponse {
+  if (!isRecord(value)) throw new Error("Invalid provider response");
+  if (value.data !== undefined && !isUnknownArray(value.data)) {
+    throw new Error("Invalid provider response");
+  }
+  if (value.has_more !== undefined && typeof value.has_more !== "boolean") {
+    throw new Error("Invalid provider response");
+  }
+
+  const data = (value.data ?? []).map((item) => {
+    if (!isRecord(item) || typeof item.id !== "string") {
+      throw new Error("Invalid provider response");
+    }
+    return { id: item.id, display_name: optionalString(item, "display_name") };
+  });
+
+  return { data, has_more: value.has_more };
+}
+
+function parseGeminiResponse(value: unknown): GeminiResponse {
+  if (!isRecord(value)) throw new Error("Invalid provider response");
+  if (value.models !== undefined && !isUnknownArray(value.models)) {
+    throw new Error("Invalid provider response");
+  }
+
+  const models = (value.models ?? []).map((item) => {
+    if (!isRecord(item) || typeof item.name !== "string") {
+      throw new Error("Invalid provider response");
+    }
+    const methods = item.supportedGenerationMethods;
+    if (
+      methods !== undefined &&
+      !isStringArray(methods)
+    ) {
+      throw new Error("Invalid provider response");
+    }
+    return {
+      name: item.name,
+      displayName: optionalString(item, "displayName"),
+      supportedGenerationMethods: methods,
+    };
+  });
+
+  return {
+    models,
+    nextPageToken: optionalString(value, "nextPageToken"),
+  };
+}
+
 function makeApiGet(fetchImpl: typeof fetch): ApiGet {
   return async function apiGet(url, headers = {}) {
     const res = await fetchImpl(url, {
@@ -53,9 +150,11 @@ function sortModels(models: Model[]): Model[] {
 }
 
 async function fetchOpenAI(key: string, apiGet: ApiGet): Promise<Model[]> {
-  const data = (await apiGet("https://api.openai.com/v1/models", {
-    Authorization: `Bearer ${key}`,
-  })) as { data?: Array<{ id: string }> };
+  const data = parseBasicModelResponse(
+    await apiGet("https://api.openai.com/v1/models", {
+      Authorization: `Bearer ${key}`,
+    }),
+  );
   const models: Model[] = [];
   for (const m of data.data ?? []) {
     const id = m.id.toLowerCase();
@@ -72,10 +171,7 @@ async function fetchAnthropic(key: string, apiGet: ApiGet): Promise<Model[]> {
   let url: string | null = "https://api.anthropic.com/v1/models?limit=1000";
   const headers = { "x-api-key": key, "anthropic-version": "2023-06-01" };
   while (url) {
-    const data = (await apiGet(url, headers)) as {
-      data?: Array<{ id: string; display_name?: string }>;
-      has_more?: boolean;
-    };
+    const data = parseAnthropicResponse(await apiGet(url, headers));
     for (const m of data.data ?? []) {
       all.push({ id: m.id, display_name: m.display_name ?? m.id });
     }
@@ -93,10 +189,7 @@ async function fetchGemini(key: string, apiGet: ApiGet): Promise<Model[]> {
   const all: Model[] = [];
   let url: string | null = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1000`;
   while (url) {
-    const data = (await apiGet(url)) as {
-      models?: Array<{ name: string; displayName?: string; supportedGenerationMethods?: string[] }>;
-      nextPageToken?: string;
-    };
+    const data = parseGeminiResponse(await apiGet(url));
     for (const m of data.models ?? []) {
       const methods = m.supportedGenerationMethods ?? [];
       if (!methods.includes("generateContent")) continue;
@@ -115,9 +208,11 @@ async function fetchGemini(key: string, apiGet: ApiGet): Promise<Model[]> {
 }
 
 async function fetchGroq(key: string, apiGet: ApiGet): Promise<Model[]> {
-  const data = (await apiGet("https://api.groq.com/openai/v1/models", {
-    Authorization: `Bearer ${key}`,
-  })) as { data?: Array<{ id: string }> };
+  const data = parseBasicModelResponse(
+    await apiGet("https://api.groq.com/openai/v1/models", {
+      Authorization: `Bearer ${key}`,
+    }),
+  );
   const models: Model[] = [];
   for (const m of data.data ?? []) {
     if (GROQ_EXCLUDE.some((ex) => m.id.toLowerCase().includes(ex))) continue;
@@ -127,9 +222,11 @@ async function fetchGroq(key: string, apiGet: ApiGet): Promise<Model[]> {
 }
 
 async function fetchXAI(key: string, apiGet: ApiGet): Promise<Model[]> {
-  const data = (await apiGet("https://api.x.ai/v1/models", {
-    Authorization: `Bearer ${key}`,
-  })) as { data?: Array<{ id: string }> };
+  const data = parseBasicModelResponse(
+    await apiGet("https://api.x.ai/v1/models", {
+      Authorization: `Bearer ${key}`,
+    }),
+  );
   const models: Model[] = [];
   for (const m of data.data ?? []) {
     const id = m.id.toLowerCase();
@@ -140,9 +237,11 @@ async function fetchXAI(key: string, apiGet: ApiGet): Promise<Model[]> {
 }
 
 async function fetchCerebras(key: string, apiGet: ApiGet): Promise<Model[]> {
-  const data = (await apiGet("https://api.cerebras.ai/v1/models", {
-    Authorization: `Bearer ${key}`,
-  })) as { data?: Array<{ id: string }> };
+  const data = parseBasicModelResponse(
+    await apiGet("https://api.cerebras.ai/v1/models", {
+      Authorization: `Bearer ${key}`,
+    }),
+  );
   return sortModels((data.data ?? []).map((m) => ({ id: m.id, display_name: m.id })));
 }
 

@@ -10,4 +10,7 @@ async function main() {
   process.exit(0);
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error("Database migration failed", error);
+  process.exitCode = 1;
+});

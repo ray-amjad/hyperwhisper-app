@@ -9,6 +9,10 @@ import {
 import { licenseValidateRateLimiter } from "@/lib/rate-limit";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /**
  * License Validation API
  *
@@ -97,14 +101,15 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { license_key, include_credits, device_id, device_name, probe_only } =
-    (body ?? {}) as {
-      license_key?: string;
-      include_credits?: boolean;
-      device_id?: string;
-      device_name?: string;
-      probe_only?: boolean;
-    };
+  const payload = isRecord(body) ? body : {};
+  const license_key =
+    typeof payload.license_key === "string" ? payload.license_key : undefined;
+  const include_credits = payload.include_credits === true;
+  const device_id =
+    typeof payload.device_id === "string" ? payload.device_id : undefined;
+  const device_name =
+    typeof payload.device_name === "string" ? payload.device_name : undefined;
+  const probe_only = payload.probe_only === true;
 
   if (!license_key) {
     return invalidLicenseResponse({
