@@ -80,7 +80,7 @@
                                     Click="OpenAITranscriptionShowButton_Click"/>
                             <Button x:Name="OpenAITranscriptionSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
                                     Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                    Click="OpenAITranscriptionSaveButton_Click"/>
+                                    Click="OpenAISaveButton_Click"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
@@ -125,7 +125,7 @@
                                     Click="GroqTranscriptionShowButton_Click"/>
                             <Button x:Name="GroqTranscriptionSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
                                     Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                    Click="GroqTranscriptionSaveButton_Click"/>
+                                    Click="GroqSaveButton_Click"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
@@ -485,7 +485,7 @@
                                     Click="GeminiTranscriptionShowButton_Click"/>
                             <Button x:Name="GeminiTranscriptionSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
                                     Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                    Click="GeminiTranscriptionSaveButton_Click"/>
+                                    Click="GeminiSharedSaveButton_Click"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
@@ -611,7 +611,7 @@
                                     Click="OpenAIPostShowButton_Click"/>
                             <Button x:Name="OpenAIPostSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
                                     Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                    Click="OpenAIPostSaveButton_Click"/>
+                                    Click="OpenAISaveButton_Click"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
@@ -701,7 +701,7 @@
                                     Click="GeminiShowButton_Click"/>
                             <Button x:Name="GeminiSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
                                     Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                    Click="GeminiSaveButton_Click"/>
+                                    Click="GeminiSharedSaveButton_Click"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
@@ -746,7 +746,7 @@
                                     Click="GroqPostShowButton_Click"/>
                             <Button x:Name="GroqPostSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
                                     Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                    Click="GroqPostSaveButton_Click"/>
+                                    Click="GroqSaveButton_Click"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
@@ -791,7 +791,7 @@
                                     Click="GrokPostShowButton_Click"/>
                             <Button x:Name="GrokPostSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
                                     Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
-                                    Click="GrokPostSaveButton_Click"/>
+                                    Click="GrokSaveButton_Click"/>
                         </Grid>
                         <TextBlock Margin="0,4,0,0" FontSize="11">
                             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
