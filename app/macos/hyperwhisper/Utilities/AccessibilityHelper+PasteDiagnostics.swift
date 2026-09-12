@@ -78,6 +78,36 @@ extension AccessibilityHelper {
         }
     }
 
+    /// What the single captured-target lookup observed before paste delivery.
+    ///
+    /// These raw values are stable diagnostic slugs. They do not change the
+    /// user-visible paste outcome or the confidentiality guard.
+    enum TargetResolutionOutcome: String {
+        case notAttempted = "not_attempted"
+        case processNotFound = "process_not_found"
+        case expectedBundleMissing = "expected_bundle_missing"
+        case resolvedBundleMissing = "resolved_bundle_missing"
+        case bundleMismatch = "bundle_mismatch"
+        case matched
+
+        /// Classify target resolution without requiring a live application.
+        static func classify(capturedPIDExists: Bool,
+                             resolvedApplicationExists: Bool,
+                             expectedBundleID: String?,
+                             resolvedBundleID: String?) -> Self {
+            guard capturedPIDExists else { return .notAttempted }
+            guard resolvedApplicationExists else { return .processNotFound }
+            guard let expectedBundleID else { return .expectedBundleMissing }
+            guard let resolvedBundleID else { return .resolvedBundleMissing }
+            return resolvedBundleID == expectedBundleID ? .matched : .bundleMismatch
+        }
+
+        /// Preserve the existing acceptance rule in a pure, testable value.
+        var allowsPasteTarget: Bool {
+            self == .expectedBundleMissing || self == .matched
+        }
+    }
+
     // MARK: - Attempt Metadata
 
     /// Metadata for one auto-paste attempt.
@@ -89,6 +119,10 @@ extension AccessibilityHelper {
         var targetBundleID: String?
         /// True when record-start captured a distinct target app.
         var hadCapturedTarget: Bool = false
+        /// Result of resolving and validating the captured target once.
+        var targetResolution: TargetResolutionOutcome = .notAttempted
+        /// Bundle identifier returned by that lookup, when one exists.
+        var resolvedTargetBundleID: String?
         /// True when the target is a remote-desktop client, which needs the
         /// longer clipboard-forwarding delay.
         var isRemoteDesktop: Bool = false
@@ -104,6 +138,13 @@ extension AccessibilityHelper {
         var elapsedMs: Int {
             Int(Date().timeIntervalSince(startedAt) * 1000)
         }
+
+        /// Store lookup evidence without changing the record-start target.
+        mutating func recordTargetResolution(_ outcome: TargetResolutionOutcome,
+                                             resolvedBundleID: String?) {
+            targetResolution = outcome
+            resolvedTargetBundleID = resolvedBundleID
+        }
     }
 
     // MARK: - Reporting
@@ -118,6 +159,7 @@ extension AccessibilityHelper {
     /// must never change what the caller returns.
     func reportPasteOutcome(_ outcome: PasteOutcome, attempt: PasteAttempt) {
         let target = attempt.targetBundleID ?? "unknown"
+        let resolvedTarget = attempt.resolvedTargetBundleID ?? "unknown"
         let elapsedMs = attempt.elapsedMs
 
         // Build the summary first: os.log privacy interpolation does not accept
@@ -125,6 +167,8 @@ extension AccessibilityHelper {
         let summary = """
             outcome=\(outcome.rawValue) target=\(target) \
             capturedTarget=\(attempt.hadCapturedTarget) \
+            targetResolution=\(attempt.targetResolution.rawValue) \
+            resolvedTarget=\(resolvedTarget) \
             remoteDesktop=\(attempt.isRemoteDesktop) \
             focusRetry=\(attempt.usedFocusRetry) \
             focusRetrySucceeded=\(attempt.focusRetrySucceeded) \
@@ -146,6 +190,8 @@ extension AccessibilityHelper {
             "paste_outcome": outcome.rawValue,
             "paste_target_bundle_id": target,
             "paste_had_captured_target": attempt.hadCapturedTarget,
+            "paste_target_resolution": attempt.targetResolution.rawValue,
+            "paste_resolved_target_bundle_id": resolvedTarget,
             "paste_is_remote_desktop": attempt.isRemoteDesktop,
             "paste_used_focus_retry": attempt.usedFocusRetry,
             "paste_focus_retry_succeeded": attempt.focusRetrySucceeded,
@@ -187,6 +233,7 @@ extension AccessibilityHelper {
                 "component": "auto_paste",
                 "paste_outcome": outcome.rawValue,
                 "paste_target_bundle_id": target,
+                "paste_target_resolution": attempt.targetResolution.rawValue,
             ],
             includeRecentLogs: false
         )

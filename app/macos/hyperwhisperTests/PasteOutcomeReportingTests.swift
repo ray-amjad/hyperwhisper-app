@@ -29,6 +29,67 @@ struct PasteOutcomeReportingTests {
         #expect(AccessibilityHelper.PasteOutcome.commandFailed.rawValue == "command_failed")
     }
 
+    /// Resolution slugs are Sentry fields used by saved queries.
+    @Test func targetResolutionSlugsAreStable() {
+        #expect(AccessibilityHelper.TargetResolutionOutcome.notAttempted.rawValue == "not_attempted")
+        #expect(AccessibilityHelper.TargetResolutionOutcome.processNotFound.rawValue == "process_not_found")
+        #expect(AccessibilityHelper.TargetResolutionOutcome.expectedBundleMissing.rawValue == "expected_bundle_missing")
+        #expect(AccessibilityHelper.TargetResolutionOutcome.resolvedBundleMissing.rawValue == "resolved_bundle_missing")
+        #expect(AccessibilityHelper.TargetResolutionOutcome.bundleMismatch.rawValue == "bundle_mismatch")
+        #expect(AccessibilityHelper.TargetResolutionOutcome.matched.rawValue == "matched")
+    }
+
+    /// The classifier distinguishes all states without a live application.
+    @Test func targetResolutionClassificationMatrix() {
+        typealias Resolution = AccessibilityHelper.TargetResolutionOutcome
+        let cases: [(Bool, Bool, String?, String?, Resolution)] = [
+            (false, false, nil, nil, .notAttempted),
+            (true, false, "com.example.expected", nil, .processNotFound),
+            (true, true, nil, "com.example.actual", .expectedBundleMissing),
+            (true, true, "com.example.expected", nil, .resolvedBundleMissing),
+            (true, true, "com.example.expected", "com.example.actual", .bundleMismatch),
+            (true, true, "com.example.expected", "com.example.expected", .matched),
+        ]
+
+        for (capturedPIDExists, resolvedApplicationExists, expected, resolved, outcome) in cases {
+            #expect(Resolution.classify(
+                capturedPIDExists: capturedPIDExists,
+                resolvedApplicationExists: resolvedApplicationExists,
+                expectedBundleID: expected,
+                resolvedBundleID: resolved
+            ) == outcome)
+        }
+    }
+
+    /// Missing record-start identity keeps the legacy PID-existence acceptance.
+    @Test func targetResolutionAcceptanceIsUnchanged() {
+        typealias Resolution = AccessibilityHelper.TargetResolutionOutcome
+        #expect(Resolution.expectedBundleMissing.allowsPasteTarget)
+        #expect(Resolution.matched.allowsPasteTarget)
+        #expect(Resolution.notAttempted.allowsPasteTarget == false)
+        #expect(Resolution.processNotFound.allowsPasteTarget == false)
+        #expect(Resolution.resolvedBundleMissing.allowsPasteTarget == false)
+        #expect(Resolution.bundleMismatch.allowsPasteTarget == false)
+    }
+
+    /// A PID-reuse report keeps expected and actual identities separate.
+    @Test func mismatchRetainsResolvedBundleWithoutReplacingExpectedBundle() {
+        let expected = "com.example.expected"
+        let resolved = "com.example.actual"
+        var attempt = AccessibilityHelper.PasteAttempt(targetBundleID: expected)
+        let outcome = AccessibilityHelper.TargetResolutionOutcome.classify(
+            capturedPIDExists: true,
+            resolvedApplicationExists: true,
+            expectedBundleID: expected,
+            resolvedBundleID: resolved
+        )
+        attempt.recordTargetResolution(outcome, resolvedBundleID: resolved)
+
+        #expect(attempt.targetResolution == .bundleMismatch)
+        #expect(attempt.targetBundleID == expected)
+        #expect(attempt.resolvedTargetBundleID == resolved)
+    }
+
     /// A deliberate refusal must never reach Sentry. A secure field, a focus the
     /// user moved away, a superseded paste and the onboarding gate are all
     /// normal, and all four are frequent enough to flood the issue stream.
@@ -68,6 +129,8 @@ struct PasteOutcomeReportingTests {
         #expect(attempt.characterCount == 11)
         #expect(attempt.targetBundleID == "com.apple.Safari")
         #expect(attempt.hadCapturedTarget == false)
+        #expect(attempt.targetResolution == .notAttempted)
+        #expect(attempt.resolvedTargetBundleID == nil)
         #expect(attempt.usedFocusRetry == false)
 
         // No field may carry the transcript. A new field named for the content
