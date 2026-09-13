@@ -14,7 +14,8 @@
  */
 
 /** Customer portal, linked from the support paragraph of every purchase email. */
-export const PORTAL_URL = "https://hyperwhisper.com/user";
+const PORTAL_URL = "https://hyperwhisper.com/user";
+
 /** Credit balance & history page, linked from the credit emails. */
 export const DASHBOARD_URL = "https://hyperwhisper.com/user/dashboard";
 
@@ -39,7 +40,7 @@ export const COMPANY_EMAIL = "hello@hyperwhisper.com";
  * table of the magic-link email (14 spaces). It changes the source only; the
  * rendered email is identical either way.
  */
-export const companyFooterHtml = (indent = "    ") =>
+const companyFooterHtml = (indent = "    ") =>
   `${indent}<p style="font-size: 11px; color: #9ca3af; text-align: center; margin: 24px 0 0 0; line-height: 1.5;">
 ${indent}    ${COMPANY_NAME}<br />
 ${indent}    ${COMPANY_ADDRESS}<br />
