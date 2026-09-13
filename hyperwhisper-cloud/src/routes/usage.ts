@@ -3,6 +3,7 @@
 
 import type { Context } from 'hono';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
+import { validateAuth } from '../middleware/auth';
 import { getClientIP } from '../lib/request-id';
 import { getCachedLicense, cacheLicense } from '../lib/redis';
 import { errorResponse, jsonResponse } from '../lib/responses';
@@ -21,60 +22,6 @@ export function readFiniteCredits(data: unknown): number | null {
   }
 
   return null;
-}
-
-async function validateLicenseAndGetCredits(licenseKey: string, forceRefresh: boolean): Promise<{ isValid: boolean; credits: number }> {
-  if (!forceRefresh) {
-    const cached = await getCachedLicense(licenseKey);
-    if (cached) {
-      return { isValid: cached.isValid, credits: cached.credits };
-    }
-  }
-
-  const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
-
-  try {
-    const response = await fetch(`${apiBase}/api/license/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ license_key: licenseKey, include_credits: true }),
-      signal: AbortSignal.timeout(LICENSE_API_TIMEOUT_MS),
-    });
-
-    const data = await response.json().catch(() => ({})) as { valid?: boolean; credits?: number };
-    const isValid = data.valid === true;
-    const credits = readFiniteCredits(data) ?? 0;
-
-    // Rate limits and server failures are transient, not authoritative invalid
-    // verdicts. Fail this request closed without replacing the shared Redis
-    // entry; otherwise a one-off licensing outage locks the account out for
-    // the full cache TTL.
-    if (response.status === 429 || response.status >= 500) {
-      return { isValid: false, credits: 0 };
-    }
-
-    // A non-success response cannot authorize a license, even if its body
-    // contradicts the HTTP status. Cache only the definitive invalid verdict.
-    if (!response.ok) {
-      await cacheLicense(licenseKey, {
-        isValid: false,
-        credits: 0,
-        cachedAt: new Date().toISOString(),
-      });
-
-      return { isValid: false, credits: 0 };
-    }
-
-    await cacheLicense(licenseKey, {
-      isValid,
-      credits,
-      cachedAt: new Date().toISOString(),
-    });
-
-    return { isValid, credits };
-  } catch {
-    return { isValid: false, credits: 0 };
-  }
 }
 
 async function getCreditsBalance(licenseKey: string): Promise<{ credits: number; error?: string }> {
@@ -132,22 +79,22 @@ export async function usageRoute(c: Context) {
       if (cached?.isValid) {
         const balanceResult = await getCreditsBalance(licenseKey);
         if (balanceResult.error) {
-          const validation = await validateLicenseAndGetCredits(licenseKey, true);
-          isValid = validation.isValid;
-          credits = validation.credits;
+          const validation = await validateAuth({ licenseKey }, true);
+          isValid = validation.ok;
+          credits = validation.ok ? validation.value.credits : 0;
         } else {
           isValid = true;
           credits = balanceResult.credits;
         }
       } else {
-        const validation = await validateLicenseAndGetCredits(licenseKey, true);
-        isValid = validation.isValid;
-        credits = validation.credits;
+        const validation = await validateAuth({ licenseKey }, true);
+        isValid = validation.ok;
+        credits = validation.ok ? validation.value.credits : 0;
       }
     } else {
-      const validation = await validateLicenseAndGetCredits(licenseKey, false);
-      isValid = validation.isValid;
-      credits = validation.credits;
+      const validation = await validateAuth({ licenseKey });
+      isValid = validation.ok;
+      credits = validation.ok ? validation.value.credits : 0;
     }
 
     if (!isValid) {

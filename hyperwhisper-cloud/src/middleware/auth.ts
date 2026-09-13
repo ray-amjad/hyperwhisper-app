@@ -22,7 +22,9 @@ export type AuthOutcome =
   | 'cached_invalid'
   | 'api_invalid'
   | 'api_invalid_json'
+  | 'api_status_body_mismatch'
   | 'api_transient_status'
+  | 'api_unexpected_status'
   | 'api_timeout'
   | 'api_network_error';
 
@@ -105,7 +107,9 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
       if (isRecord(parsed)) {
         data = {
           valid: typeof parsed.valid === 'boolean' ? parsed.valid : undefined,
-          credits: typeof parsed.credits === 'number' ? parsed.credits : undefined,
+          credits: typeof parsed.credits === 'number' && Number.isFinite(parsed.credits)
+            ? parsed.credits
+            : undefined,
         };
       } else {
         parsedResponse = false;
@@ -117,53 +121,47 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
     }
 
     const isValid = data.valid === true;
-    const credits = typeof data.credits === 'number' ? data.credits : 0;
+    const credits = data.credits ?? 0;
     const apiElapsedMs = Math.round(performance.now() - startedAt);
 
-    // A 429 or 5xx (rate limit, cold start, upstream timeout, internal error)
-    // is a transient failure, not proof the license is invalid — caching it
-    // would lock a paying user out for the full LICENSE_CACHE_TTL_SECONDS.
-    // Fail this request closed but leave the cache untouched so the next
-    // request retries the API. Other 4xx responses are definitive verdicts
-    // (revoked/not-found/malformed key → valid:false) and remain cacheable.
-    if (response.status === 429 || response.status >= 500) {
-      return {
-        isValid: false,
-        credits: 0,
-        outcome: 'api_transient_status',
-        elapsedMs: apiElapsedMs,
-        upstreamStatus: response.status,
-      };
-    }
+    const statusBodyMismatch = !response.ok && isValid;
+    const isTransientStatus = response.status === 429 || response.status >= 500;
+    const isAuthoritativeResponse = response.ok || response.status === 400;
+    const accepted = response.ok && isValid;
+    const verdict = {
+      isValid: accepted,
+      credits: accepted ? credits : 0,
+    };
 
-    // A non-success response cannot authorize a license, even if its body
-    // contradicts the HTTP status. Cache only the definitive invalid verdict.
-    if (!response.ok) {
+    // Only a successful validation response or the licensing API's definitive
+    // 400 rejection is authoritative. All other error statuses fail closed but
+    // remain uncached, so a later request can retry the licensing API.
+    if (isAuthoritativeResponse) {
       await cacheLicense(licenseKey, {
-        isValid: false,
-        credits: 0,
+        ...verdict,
         cachedAt: new Date().toISOString(),
       });
-
-      return {
-        isValid: false,
-        credits: 0,
-        outcome: parsedResponse ? 'api_invalid' : 'api_invalid_json',
-        elapsedMs: apiElapsedMs,
-        upstreamStatus: response.status,
-      };
     }
 
-    await cacheLicense(licenseKey, {
-      isValid,
-      credits,
-      cachedAt: new Date().toISOString(),
-    });
+    const outcome: AuthOutcome = statusBodyMismatch
+      ? 'api_status_body_mismatch'
+      : isTransientStatus
+        ? 'api_transient_status'
+        : !response.ok
+          ? response.status === 400 && !parsedResponse
+            ? 'api_invalid_json'
+            : response.status === 400
+              ? 'api_invalid'
+              : 'api_unexpected_status'
+          : accepted
+            ? 'accepted'
+            : parsedResponse
+              ? 'api_invalid'
+              : 'api_invalid_json';
 
     return {
-      isValid,
-      credits,
-      outcome: isValid ? 'accepted' : parsedResponse ? 'api_invalid' : 'api_invalid_json',
+      ...verdict,
+      outcome,
       elapsedMs: apiElapsedMs,
       upstreamStatus: response.status,
     };

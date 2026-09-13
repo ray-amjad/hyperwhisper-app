@@ -152,9 +152,9 @@ describe('validateAuth', () => {
     expect(receivedInit?.signal?.aborted).toBe(false);
   });
 
-  test('caches a definitive 4xx invalid verdict from the API', async () => {
+  test('caches the definitive 400 invalid verdict from the API', async () => {
     globalThis.fetch = mock(async () =>
-      Response.json({ valid: false, error: 'revoked' }, { status: 404 })
+      Response.json({ valid: false, error: 'invalid request' }, { status: 400 })
     ) as unknown as typeof fetch;
 
     const result = await validateAuth({ licenseKey: 'revoked-key' });
@@ -165,7 +165,7 @@ describe('validateAuth', () => {
       expect(result.diagnostics).toMatchObject({
         source: 'api',
         outcome: 'api_invalid',
-        upstreamStatus: 404,
+        upstreamStatus: 400,
       });
     }
     expect(cacheWrites).toHaveLength(1);
@@ -187,16 +187,12 @@ describe('validateAuth', () => {
         expect(firstResult.response.status).toBe(401);
         expect(firstResult.diagnostics).toMatchObject({
           source: 'api',
-          outcome: 'api_invalid',
+          outcome: 'api_status_body_mismatch',
           cacheHit: false,
           upstreamStatus,
         });
       }
-      expect(cacheWrites).toHaveLength(1);
-      expect(cacheWrites[0]).toMatchObject({
-        licenseKey,
-        license: { isValid: false, credits: 0 },
-      });
+      expect(cacheWrites).toHaveLength(0);
 
       const secondResult = await validateAuth({ licenseKey });
 
@@ -204,17 +200,39 @@ describe('validateAuth', () => {
       if (!secondResult.ok) {
         expect(secondResult.response.status).toBe(401);
         expect(secondResult.diagnostics).toMatchObject({
-          source: 'cache',
-          outcome: 'cached_invalid',
-          cacheHit: true,
+          source: 'api',
+          outcome: 'api_status_body_mismatch',
+          cacheHit: false,
+          upstreamStatus,
         });
       }
-      expect(apiFetch).toHaveBeenCalledTimes(1);
-      expect(cacheWrites).toHaveLength(1);
+      expect(apiFetch).toHaveBeenCalledTimes(2);
+      expect(cacheWrites).toHaveLength(0);
     });
   }
 
-  test('preserves the invalid JSON diagnostic for a malformed definitive 4xx response', async () => {
+  test('does not cache an unexpected non-success status with an invalid body', async () => {
+    const apiFetch = mock(async () =>
+      Response.json({ valid: false }, { status: 418 })
+    );
+    globalThis.fetch = apiFetch as unknown as typeof fetch;
+
+    const firstResult = await validateAuth({ licenseKey: 'unexpected-status-key' });
+    const secondResult = await validateAuth({ licenseKey: 'unexpected-status-key' });
+
+    expect(firstResult.ok).toBe(false);
+    expect(secondResult.ok).toBe(false);
+    if (!firstResult.ok) {
+      expect(firstResult.diagnostics).toMatchObject({
+        outcome: 'api_unexpected_status',
+        upstreamStatus: 418,
+      });
+    }
+    expect(apiFetch).toHaveBeenCalledTimes(2);
+    expect(cacheWrites).toHaveLength(0);
+  });
+
+  test('preserves the invalid JSON diagnostic for a malformed definitive 400 response', async () => {
     globalThis.fetch = mock(async () =>
       new Response('<html>not JSON</html>', { status: 400 })
     ) as unknown as typeof fetch;
@@ -278,7 +296,7 @@ describe('validateAuth', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.diagnostics.outcome).toBe('api_transient_status');
+      expect(result.diagnostics.outcome).toBe('api_status_body_mismatch');
       expect(result.diagnostics.upstreamStatus).toBe(503);
     }
     expect(cacheWrites).toHaveLength(0);
@@ -385,6 +403,22 @@ describe('validateAuth', () => {
       expect(result.value.credits).toBe(0);
     }
     expect(cacheWrites).toHaveLength(1);
+    expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 0 });
+  });
+
+  test('defaults non-finite credits to zero at the shared validation boundary', async () => {
+    globalThis.fetch = mock(async () =>
+      new Response('{"valid":true,"credits":1e400}', {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    ) as unknown as typeof fetch;
+
+    const result = await validateAuth({ licenseKey: 'non-finite-credits-key' });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.credits).toBe(0);
+    }
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 0 });
   });
 });
