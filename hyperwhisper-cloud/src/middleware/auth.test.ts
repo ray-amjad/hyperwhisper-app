@@ -14,6 +14,7 @@ mock.module('../lib/redis', () => ({
   getCachedLicense: async (_licenseKey: string) => cachedLicenseValue,
   cacheLicense: async (licenseKey: string, license: CachedLicense) => {
     cacheWrites.push({ licenseKey, license });
+    cachedLicenseValue = license;
   },
 }));
 
@@ -170,6 +171,48 @@ describe('validateAuth', () => {
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license.isValid).toBe(false);
   });
+
+  for (const upstreamStatus of [401, 403, 404]) {
+    test(`never accepts or caches a valid-looking payload from a ${upstreamStatus} response`, async () => {
+      const apiFetch = mock(async () =>
+        Response.json({ valid: true, credits: 1_000_000 }, { status: upstreamStatus })
+      );
+      globalThis.fetch = apiFetch as unknown as typeof fetch;
+      const licenseKey = `status-${upstreamStatus}-fixture`;
+
+      const firstResult = await validateAuth({ licenseKey });
+
+      expect(firstResult.ok).toBe(false);
+      if (!firstResult.ok) {
+        expect(firstResult.response.status).toBe(401);
+        expect(firstResult.diagnostics).toMatchObject({
+          source: 'api',
+          outcome: 'api_invalid',
+          cacheHit: false,
+          upstreamStatus,
+        });
+      }
+      expect(cacheWrites).toHaveLength(1);
+      expect(cacheWrites[0]).toMatchObject({
+        licenseKey,
+        license: { isValid: false, credits: 0 },
+      });
+
+      const secondResult = await validateAuth({ licenseKey });
+
+      expect(secondResult.ok).toBe(false);
+      if (!secondResult.ok) {
+        expect(secondResult.response.status).toBe(401);
+        expect(secondResult.diagnostics).toMatchObject({
+          source: 'cache',
+          outcome: 'cached_invalid',
+          cacheHit: true,
+        });
+      }
+      expect(apiFetch).toHaveBeenCalledTimes(1);
+      expect(cacheWrites).toHaveLength(1);
+    });
+  }
 
   test('fails closed on a transient 5xx without caching, so a retry hits the API again', async () => {
     globalThis.fetch = mock(async () => new Response('upstream down', { status: 503 })) as unknown as typeof fetch;

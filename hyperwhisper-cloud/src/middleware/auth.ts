@@ -136,6 +136,24 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
       };
     }
 
+    // A non-success response cannot authorize a license, even if its body
+    // contradicts the HTTP status. Cache only the definitive invalid verdict.
+    if (!response.ok) {
+      await cacheLicense(licenseKey, {
+        isValid: false,
+        credits: 0,
+        cachedAt: new Date().toISOString(),
+      });
+
+      return {
+        isValid: false,
+        credits: 0,
+        outcome: 'api_invalid',
+        elapsedMs: apiElapsedMs,
+        upstreamStatus: response.status,
+      };
+    }
+
     await cacheLicense(licenseKey, {
       isValid,
       credits,
