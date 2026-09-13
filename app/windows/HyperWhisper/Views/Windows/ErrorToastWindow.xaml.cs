@@ -13,7 +13,6 @@
 
 using System;
 using System.Windows;
-using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using HyperWhisper.Services;
 
@@ -105,7 +104,7 @@ public partial class ErrorToastWindow : Window
         var height = ActualHeight > 0 ? ActualHeight : MinHeight;
 
         // Try to find the recording overlay window and position above it
-        var recordingWindow = FindRecordingOverlayWindow();
+        var recordingWindow = ToastWindowBehavior.FindVisibleRecordingOverlay();
         var workArea = SystemParameters.WorkArea;
 
         if (recordingWindow != null && recordingWindow.IsVisible)
@@ -133,67 +132,19 @@ public partial class ErrorToastWindow : Window
         }
     }
 
-    private static Window? FindRecordingOverlayWindow()
-    {
-        foreach (Window window in System.Windows.Application.Current.Windows)
-        {
-            if (window is RecordingOverlayWindow && window.IsVisible)
-            {
-                return window;
-            }
-        }
-        return null;
-    }
-
     private void AnimateIn()
     {
-        var fadeIn = new DoubleAnimation
-        {
-            From = 0,
-            To = 1,
-            Duration = TimeSpan.FromMilliseconds(200),
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        var slideDown = new DoubleAnimation
-        {
-            From = Top - 10,
-            To = Top,
-            Duration = TimeSpan.FromMilliseconds(200),
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        MainBorder.BeginAnimation(OpacityProperty, fadeIn);
-        BeginAnimation(TopProperty, slideDown);
+        ToastWindowBehavior.AnimateIn(this, MainBorder, slideDistance: 10);
     }
 
     private void DismissWithAnimation()
     {
-        var fadeOut = new DoubleAnimation
-        {
-            From = 1,
-            To = 0,
-            Duration = TimeSpan.FromMilliseconds(150),
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
-        };
-
-        var slideUp = new DoubleAnimation
-        {
-            From = Top,
-            To = Top - 10,
-            Duration = TimeSpan.FromMilliseconds(150),
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
-        };
-
-        fadeOut.Completed += (s, e) =>
+        ToastWindowBehavior.AnimateOut(this, MainBorder, slideDistance: 10, () =>
         {
             Hide();
             Dismissed?.Invoke(this, EventArgs.Empty);
             LoggingService.Debug("ErrorToast: Dismissed");
-        };
-
-        MainBorder.BeginAnimation(OpacityProperty, fadeOut);
-        BeginAnimation(TopProperty, slideUp);
+        });
     }
 
     public void DismissImmediately()
