@@ -103,13 +103,16 @@ extension AccessibilityHelper {
             // Resolve the captured target PID (if any) to a running app exactly once,
             // then validate it against the bundle ID captured at record-start to guard
             // against PID reuse (see this method's doc comment).
-            let capturedApp = MainActorHangTrace.shared.withActive(
+            let targetResolution = MainActorHangTrace.shared.withActive(
                 flow: .autoPaste,
                 step: .resolveTarget
             ) {
                 self.resolveCapturedTarget(pid: previousAppPID,
                                            expectedBundleID: previousAppBundleID)
             }
+            attempt.recordTargetResolution(targetResolution.outcome,
+                                           resolvedBundleID: targetResolution.resolvedBundleID)
+            let capturedApp = targetResolution.acceptedApplication
             // True when we captured a distinct target PID but it is no longer running
             // (the app quit mid-recording) OR the resolved app failed bundle-ID
             // validation (PID reuse). In that case we never know which app is
@@ -353,23 +356,44 @@ extension AccessibilityHelper {
     /// - Parameters:
     ///   - pid: PID captured for the paste target at record-start (nil if none).
     ///   - expectedBundleID: Bundle ID captured for that target at record-start.
-    /// - Returns: The running app when it both resolves and (when known) matches the
-    ///   expected bundle ID; otherwise `nil`.
-    private func resolveCapturedTarget(pid: pid_t?, expectedBundleID: String?) -> NSRunningApplication? {
-        guard let pid = pid,
-              let resolved = NSRunningApplication(processIdentifier: pid) else {
-            return nil
+    /// - Returns: The accepted app and diagnostic evidence from the same lookup.
+    private func resolveCapturedTarget(pid: pid_t?, expectedBundleID: String?) -> TargetResolution {
+        guard let pid else {
+            return TargetResolution(acceptedApplication: nil,
+                                    outcome: .notAttempted,
+                                    resolvedBundleID: nil)
         }
+        guard let resolved = NSRunningApplication(processIdentifier: pid) else {
+            return TargetResolution(acceptedApplication: nil,
+                                    outcome: .processNotFound,
+                                    resolvedBundleID: nil)
+        }
+        let resolvedBundleID = resolved.bundleIdentifier
+        let outcome = TargetResolutionOutcome.classify(
+            capturedPIDExists: true,
+            resolvedApplicationExists: true,
+            expectedBundleID: expectedBundleID,
+            resolvedBundleID: resolvedBundleID
+        )
         // Reject whenever we have a concrete expectation and the resolved app does
         // NOT match it — including the case where the resolved app has NO bundle ID
         // (e.g. PID reused by a bundle-less command-line tool, daemon, or helper).
         // Only a nil expected bundle ID falls through to the legacy PID-existence
         // behaviour, so we never break paste for callers that captured no expectation.
-        if let expected = expectedBundleID,
-           resolved.bundleIdentifier != expected {
+        if !outcome.allowsPasteTarget {
             logger.warning("⚠️ Captured paste target identity did not match — likely PID reuse. Treating target as lost.")
-            return nil
         }
-        return resolved
+        return TargetResolution(
+            acceptedApplication: outcome.allowsPasteTarget ? resolved : nil,
+            outcome: outcome,
+            resolvedBundleID: resolvedBundleID
+        )
+    }
+
+    /// One target lookup and the evidence derived from that exact result.
+    private struct TargetResolution {
+        let acceptedApplication: NSRunningApplication?
+        let outcome: TargetResolutionOutcome
+        let resolvedBundleID: String?
     }
 }
