@@ -10,6 +10,7 @@ import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import { getLLMCompletionStatus } from '../lib/llm-completion';
 import { shouldFallback } from '../lib/llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
+import { LLMRequestError } from './llm-errors';
 
 // The Anthropic client talks to exactly one upstream over `fetch`, so the whole
 // module is exercised by swapping `globalThis.fetch`. Nothing here mocks a
@@ -240,8 +241,9 @@ describe('requestAnthropicChat', () => {
 
     const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
-    expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(LLMRequestError);
     expect((error as { status?: number }).status).toBe(529);
+    expect('provider' in error).toBe(false);
     expect((error as Error).message).toContain('529');
     expect(shouldFallback(error)).toBe(true);
   });
@@ -251,6 +253,7 @@ describe('requestAnthropicChat', () => {
 
     const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID).catch((e) => e);
 
+    expect(error).toBeInstanceOf(LLMRequestError);
     expect((error as { status?: number }).status).toBe(400);
     expect(shouldFallback(error)).toBe(false);
   });

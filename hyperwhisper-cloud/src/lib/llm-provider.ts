@@ -1,7 +1,8 @@
 // LLM PROVIDER SELECTION + RETRY
 
 import { retryWithBackoff } from './utils';
-import type { CorrectionRequestPayload } from '../providers/llm-contract';
+import { buildCorrectionRequest, type CorrectionRequestPayload } from '../providers/llm-contract';
+import { LLMRequestError } from '../providers/llm-errors';
 import { requestCerebrasChat } from '../providers/cerebras';
 import { requestGroqChat } from '../providers/groq-llm';
 import { requestAnthropicChat } from '../providers/anthropic';
@@ -172,34 +173,14 @@ export async function callWithRetry(
   );
 }
 
-function getErrorStatus(error: unknown): number | undefined {
-  if (!error || typeof error !== 'object') {
-    return undefined;
-  }
-
-  const status = (error as { status?: unknown }).status;
-  if (typeof status === 'number') {
-    return status;
-  }
-
-  const message = (error as { message?: unknown }).message;
-  if (typeof message === 'string') {
-    const match = message.match(/status\s+(\d{3})/i);
-    if (match) {
-      return Number(match[1]);
-    }
-  }
-
-  return undefined;
-}
-
 /**
  * Check if an error should trigger provider fallback (5xx).
  */
 export function shouldFallback(error: unknown): boolean {
-  const status = getErrorStatus(error);
-  return typeof status === 'number' && status >= 500 && status <= 599;
+  return error instanceof LLMRequestError && error.status >= 500 && error.status <= 599;
 }
+
+export { buildCorrectionRequest };
 
 /** Exported for the parity test only. */
 export const __tables = {

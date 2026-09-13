@@ -4,6 +4,7 @@
 import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
+import { LLMRequestError } from './llm-errors';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
@@ -69,9 +70,10 @@ export async function requestAnthropicChat(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
-    const error = new Error(`Anthropic API error: ${response.status} ${errorText.slice(0, 500)}`);
-    (error as { status?: number }).status = response.status;
-    throw error;
+    throw new LLMRequestError(
+      `Anthropic API error: ${response.status} ${errorText.slice(0, 500)}`,
+      response.status,
+    );
   }
 
   const data = await response.json() as {

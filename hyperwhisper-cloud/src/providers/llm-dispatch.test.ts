@@ -7,6 +7,7 @@ import {
   fallbackProviderFor,
   resolveLLMModel,
   servedLLMName,
+  shouldFallback,
   LLM_PROVIDER_NAMES,
   __tables,
   type LLMProvider,
@@ -17,6 +18,7 @@ import {
   computeOpenAIChatCost,
   type GroqUsage,
 } from '../lib/cost-calculator';
+import { LLMRequestError } from './llm-errors';
 
 const ALL_PROVIDERS: LLMProvider[] = ['cerebras', 'groq', 'anthropic', 'grok', 'openai', 'gemini', 'mistral'];
 
@@ -141,6 +143,25 @@ describe('fallback map', () => {
       expect(ALL_PROVIDERS).toContain(fallback);
       expect(fallback).not.toBe(provider);
     }
+  });
+});
+
+describe('shouldFallback', () => {
+  test('accepts only normalized 5xx request errors', () => {
+    expect(shouldFallback(new LLMRequestError('upstream failed', 500, 'openai'))).toBe(true);
+    expect(shouldFallback(new LLMRequestError('upstream failed', 599, 'openai'))).toBe(true);
+    expect(shouldFallback(new LLMRequestError('bad request', 400, 'openai'))).toBe(false);
+    expect(shouldFallback(new LLMRequestError('rate limited', 429, 'openai'))).toBe(false);
+  });
+
+  test('rejects arbitrary errors that look like provider failures', () => {
+    const structuralLookalike = Object.assign(new Error('upstream failed'), {
+      status: 503,
+      provider: 'openai',
+    });
+
+    expect(shouldFallback(structuralLookalike)).toBe(false);
+    expect(shouldFallback(new Error('upstream failed with status 503'))).toBe(false);
   });
 });
 

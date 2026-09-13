@@ -35,6 +35,7 @@ import {
 import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import { shouldFallback } from '../lib/llm-provider';
 import { buildCorrectionRequest, type CorrectionRequestPayload } from './llm-contract';
+import { LLMRequestError } from './llm-errors';
 import { requestGroqChat } from './groq-llm';
 import { requestCerebrasChat } from './cerebras';
 import { requestOpenAIChat } from './openai-llm';
@@ -411,6 +412,7 @@ describe('upstream error propagation', () => {
 
     const error = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
 
+    expect(error).toBeInstanceOf(LLMRequestError);
     expect(errorStatus(error)).toBe(status);
     expect(errorProvider(error)).toBe('cerebras');
     expect((error as Error).message).toBe(`Cerebras chat failed with status ${status}`);
@@ -498,6 +500,7 @@ describe('missing API key', () => {
 
       const error = await captureError(send);
 
+      expect(error).toBeInstanceOf(LLMRequestError);
       expect((error as Error).message).toBe(`${envName} not configured`);
       expect(errorStatus(error)).toBe(503);
       expect(errorProvider(error)).toBe(provider);

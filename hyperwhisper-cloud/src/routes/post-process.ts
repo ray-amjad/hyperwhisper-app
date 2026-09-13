@@ -2,11 +2,10 @@
 // POST /post-process - standalone text correction via LLM
 
 import type { Context } from 'hono';
-import { defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
+import { buildCorrectionRequest, defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
 import { readClientInfo } from '../lib/client-info';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
-import { buildCorrectionRequest } from '../providers/llm-contract';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
 import { errorResponse, invalidContentTypeResponse } from '../lib/responses';

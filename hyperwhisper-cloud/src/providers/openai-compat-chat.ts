@@ -11,6 +11,7 @@
 import { isRecord, safeReadText } from '../lib/utils';
 import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
+import { LLMRequestError } from './llm-errors';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
@@ -76,10 +77,11 @@ export async function requestOpenAICompatibleChat(
       statusText: response.statusText,
       errorText,
     });
-    const error = new Error(`${config.errorChatLabel} failed with status ${response.status}`);
-    (error as { status?: number; provider?: string }).status = response.status;
-    (error as { provider?: string }).provider = config.providerTag;
-    throw error;
+    throw new LLMRequestError(
+      `${config.errorChatLabel} failed with status ${response.status}`,
+      response.status,
+      config.providerTag,
+    );
   }
 
   const json = await response.json();
