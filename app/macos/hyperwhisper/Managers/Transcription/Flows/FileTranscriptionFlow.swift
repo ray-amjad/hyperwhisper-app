@@ -85,6 +85,20 @@ class FileTranscriptionFlow {
     /// Path to the copied file (for cleanup on cancellation)
     private var currentCopiedFilePath: String?
 
+    /// Paths of the intermediate files this import derived from the copied source.
+    ///
+    /// A video import extracts its audio track to `<name>.m4a`, and VAD writes
+    /// `<name>_<ext>_trimmed.wav` beside it — plus an `.m4a` of its own when that
+    /// artifact is large enough to need compressing for upload. None of them is
+    /// the file the history row points at, so an import that fails before that row
+    /// exists used to leave every one of them in the recordings folder (issue
+    /// #612). They are tracked here so the error and cancellation paths can remove
+    /// them with the copy they came from.
+    ///
+    /// Emptied once the history row is created: from that point the transcript
+    /// references the trimmed path, so these files must survive.
+    private var currentDerivedArtifactPaths: [String] = []
+
     /// Callback to open the main window, provided by the caller (SwiftUI view)
     ///
     /// **Purpose:**
@@ -153,7 +167,7 @@ class FileTranscriptionFlow {
     /// 1. Sets the cancelled flag on progress state
     /// 2. Cancels the running transcription task
     /// 3. Dismisses the progress popup
-    /// 4. Cleans up copied files if they exist
+    /// 4. Cleans up the copied file and everything derived from it
     /// 5. Resets app state
     ///
     /// **Thread Safety:**
@@ -171,8 +185,8 @@ class FileTranscriptionFlow {
         // Dismiss the progress popup
         FileTranscriptionPopupManager.shared.dismiss()
 
-        // Clean up copied file if it exists
-        cleanupCopiedFile(reason: "cancellation")
+        // Clean up the copied file and the files derived from it
+        cleanupImportArtifacts(reason: "cancellation")
 
         // Reset progress state
         progressState.reset()
@@ -360,6 +374,7 @@ class FileTranscriptionFlow {
 
                     // Use extracted audio for transcription
                     audioURL = extractedAudioURL
+                    currentDerivedArtifactPaths.append(extractedAudioURL.path)
                     progressState.animateProgress(to: 0.12, duration: 0.2)
                 } catch AudioError.noAudioTrack {
                     // Video has no audio track - show user-friendly error
@@ -389,6 +404,16 @@ class FileTranscriptionFlow {
             let finalAudioURL = vadResult.finalAudioURL
             let trimResult = vadResult.trimResult
 
+            // VAD writes its artifacts next to the input, and nothing references
+            // them until the history row below exists. Track them so a failure in
+            // between does not orphan them (issue #612).
+            if let trimResult {
+                currentDerivedArtifactPaths.append(trimResult.outputURL.path)
+                if finalAudioURL != trimResult.outputURL && finalAudioURL != audioURL {
+                    currentDerivedArtifactPaths.append(finalAudioURL.path)
+                }
+            }
+
             // Validate the artifact that will actually be uploaded. A long
             // source may become valid after VAD, while a stale cloud tier on a
             // BYOK mode must not apply another provider's limits.
@@ -415,8 +440,11 @@ class FileTranscriptionFlow {
                 mode: mode.name,
                 audioFilePath: copiedURL.path
             )
-            // The history row now owns the copied file for playback/retry.
+            // The history row now owns the copied file for playback/retry, and the
+            // trimmed artifact it is about to reference below. Neither is an orphan
+            // any more, so stop tracking both for deletion.
             currentCopiedFilePath = nil
+            currentDerivedArtifactPaths.removeAll()
 
             // STEP 5a: Save trimmed audio path if VAD was used
             // This allows users to toggle between original and trimmed audio in history view.
@@ -501,7 +529,7 @@ class FileTranscriptionFlow {
             // Handle known errors with appropriate UI
             FileTranscriptionPopupManager.shared.dismiss()
             progressState.reset()
-            cleanupCopiedFile(reason: "import error")
+            cleanupImportArtifacts(reason: "import error")
             currentTranscriptionTask = nil
             appState?.recordingState = .idle
             handleError(error)
@@ -509,7 +537,7 @@ class FileTranscriptionFlow {
             // Handle unexpected errors
             FileTranscriptionPopupManager.shared.dismiss()
             progressState.reset()
-            cleanupCopiedFile(reason: "unexpected error")
+            cleanupImportArtifacts(reason: "unexpected error")
             currentTranscriptionTask = nil
             AppLogger.transcription.error("❌ File transcription failed: \(error.localizedDescription)")
             showErrorAlert(
@@ -662,12 +690,24 @@ class FileTranscriptionFlow {
         RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
     }
 
-    private func cleanupCopiedFile(reason: String) {
-        guard let path = currentCopiedFilePath else { return }
+    /// Delete everything this import wrote into the recordings folder.
+    ///
+    /// That is the copy of the source file, plus the audio extracted from a video
+    /// and the VAD artifacts derived from it. All of them are only tracked while
+    /// no history row references them, so this never deletes a file a transcript
+    /// points at.
+    private func cleanupImportArtifacts(reason: String) {
+        if let path = currentCopiedFilePath {
+            try? FileManager.default.removeItem(atPath: path)
+            currentCopiedFilePath = nil
+            AppLogger.transcription.debug("🗑️ Cleaned up copied file after \(reason): \(path)")
+        }
 
-        try? FileManager.default.removeItem(atPath: path)
-        currentCopiedFilePath = nil
-        AppLogger.transcription.debug("🗑️ Cleaned up copied file after \(reason): \(path)")
+        for path in currentDerivedArtifactPaths {
+            try? FileManager.default.removeItem(atPath: path)
+            AppLogger.transcription.debug("🗑️ Cleaned up derived import file after \(reason): \(path)")
+        }
+        currentDerivedArtifactPaths.removeAll()
     }
 
     /// Gets the duration of an audio file
