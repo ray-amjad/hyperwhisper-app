@@ -18,15 +18,21 @@ import {
   licenseEmailHtml,
   licenseEmailText,
 } from "../lib/templates/license-email";
-import { magicLinkEmailHtml } from "../lib/templates/magic-link-email";
+import {
+  MAGIC_LINK_EXPIRY_SECONDS,
+  magicLinkEmailHtml,
+  magicLinkEmailText,
+} from "../lib/templates/magic-link-email";
 import {
   welcomeEmailHtml,
   welcomeEmailText,
 } from "../lib/templates/welcome-email";
 
-// The four transactional emails share one document shell (lib/templates/
-// email-layout.ts). These tests lock the parts that must stay on every email,
-// so a change to the shared shell cannot quietly drop them from one template.
+// All five emails share one document shell (lib/templates/email-layout.ts).
+// These tests lock the parts that must stay on every email, so a change to the
+// shared shell cannot quietly drop them from one template.
+
+const magicLinkUrl = "https://example.com/verify?token=abc";
 
 const base = {
   customerName: "Ada Lovelace",
@@ -46,14 +52,7 @@ const allEmails = () => [
     loomVideoUrl: "https://example.com/video",
     loomThumbnailUrl: "https://example.com/thumb.png",
   }),
-];
-
-// The magic-link email does NOT use the shared document shell — it has its own
-// dark table layout — so it is listed separately here. It must still carry the
-// same company block, which is the one thing all five emails share.
-const everyEmailIncludingMagicLink = () => [
-  ...allEmails(),
-  magicLinkEmailHtml({ url: "https://example.com/verify?token=abc" }),
+  magicLinkEmailHtml({ url: magicLinkUrl }),
 ];
 
 const allPlainText = () => [
@@ -66,6 +65,7 @@ const allPlainText = () => [
     loomVideoUrl: "https://example.com/video",
     loomThumbnailUrl: "https://example.com/thumb.png",
   }),
+  magicLinkEmailText({ url: magicLinkUrl }),
 ];
 
 test("every email renders the shared document shell", () => {
@@ -77,7 +77,7 @@ test("every email renders the shared document shell", () => {
 });
 
 test("every email carries the company address footer", () => {
-  for (const html of everyEmailIncludingMagicLink()) {
+  for (const html of allEmails()) {
     assert.ok(html.includes(COMPANY_NAME));
     assert.ok(html.includes(COMPANY_ADDRESS));
     assert.ok(html.includes(`mailto:${COMPANY_EMAIL}`));
@@ -85,7 +85,7 @@ test("every email carries the company address footer", () => {
 });
 
 test("the company footer is the last thing in every email body", () => {
-  for (const html of everyEmailIncludingMagicLink()) {
+  for (const html of allEmails()) {
     const afterFooter = html.slice(html.lastIndexOf(COMPANY_ADDRESS));
 
     assert.ok(!/<(p|h1|a|img|table)\b/i.test(afterFooter.replace(/<a [^>]*mailto:[^>]*>[^<]*<\/a>/i, "")));
@@ -101,9 +101,28 @@ test("every plain-text part carries the company address footer", () => {
   }
 });
 
-test("every email says who it was sent to", () => {
-  for (const html of allEmails()) {
+// The sign-in email is excluded: it is addressed to whoever asked to sign in,
+// and it has no customer record behind it, so it names no recipient.
+test("every email sent off a purchase says who it was sent to", () => {
+  const addressed = allEmails().filter(
+    (html) => !html.includes("Sign in to HyperWhisper"),
+  );
+
+  assert.equal(addressed.length, 4);
+  for (const html of addressed) {
     assert.match(html, /This email was sent to ada@example\.com/);
+  }
+});
+
+test("the sign-in email states the expiry the server enforces", () => {
+  const minutes = MAGIC_LINK_EXPIRY_SECONDS / 60;
+
+  for (const body of [
+    magicLinkEmailHtml({ url: magicLinkUrl }),
+    magicLinkEmailText({ url: magicLinkUrl }),
+  ]) {
+    assert.ok(body.includes(`expires in ${minutes} minutes`));
+    assert.ok(body.includes(magicLinkUrl));
   }
 });
 
