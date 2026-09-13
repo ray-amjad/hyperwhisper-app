@@ -24,15 +24,23 @@ import {
   creditTopUpEmailText,
 } from "../lib/templates/credit-topup-email";
 import { licenseEmailHtml, licenseEmailText } from "../lib/templates/license-email";
-import { magicLinkEmailHtml } from "../lib/templates/magic-link-email";
+import {
+  magicLinkEmailHtml,
+  magicLinkEmailText,
+} from "../lib/templates/magic-link-email";
 import { welcomeEmailHtml, welcomeEmailText } from "../lib/templates/welcome-email";
 import { escapeHtml } from "../lib/templates/escape-html";
+
+const MAGIC_LINK_URL =
+  "https://hyperwhisper.com/api/auth/magic-link/verify?token=sample";
 
 const sample = {
   customerName: "Ada Lovelace",
   customerEmail: "ada@example.com",
   productName: "HyperWhisper",
-  supportEmail: "support@hyperwhisper.com",
+  // The address `lib/services/stripe-webhook.ts` really passes. It is
+  // deliberately not the Resend `from` (support@) or the footer (hello@).
+  supportEmail: "hi@support.hyperwhisper.com",
   licenseKey: "HW-7QK2-4M9X-PD31",
 };
 
@@ -52,8 +60,8 @@ const previews: Preview[] = [
     id: "magic-link",
     subject: "Sign in to HyperWhisper",
     sentFrom: "src/lib/auth.ts — Better Auth magic-link plugin",
-    html: magicLinkEmailHtml({ url: "https://hyperwhisper.com/api/auth/magic-link/verify?token=sample" }),
-    text: null,
+    html: magicLinkEmailHtml({ url: MAGIC_LINK_URL }),
+    text: magicLinkEmailText({ url: MAGIC_LINK_URL }),
   },
   {
     id: "welcome",

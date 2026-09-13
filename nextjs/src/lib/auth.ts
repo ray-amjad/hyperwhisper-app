@@ -6,7 +6,11 @@ import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/src/db";
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
-import { magicLinkEmailHtml } from "@/lib/templates/magic-link-email";
+import {
+  MAGIC_LINK_EXPIRY_SECONDS,
+  magicLinkEmailHtml,
+  magicLinkEmailText,
+} from "@/lib/templates/magic-link-email";
 import { licenseKeyPlugin } from "./auth-license-key-plugin";
 
 export const auth = betterAuth({
@@ -76,12 +80,17 @@ export const auth = betterAuth({
   },
   plugins: [
     magicLink({
+      // Stated, not inherited. This was the plugin's 300-second default while
+      // the email promised 10 minutes, so a link could be dead before the
+      // stated deadline. The email copy is derived from this same constant.
+      expiresIn: MAGIC_LINK_EXPIRY_SECONDS,
       sendMagicLink: async ({ email, url }) => {
         await resend.emails.send({
           from: DEFAULT_FROM_EMAIL,
           to: email,
           subject: "Sign in to HyperWhisper",
           html: magicLinkEmailHtml({ url }),
+          text: magicLinkEmailText({ url }),
         });
       },
     }),
