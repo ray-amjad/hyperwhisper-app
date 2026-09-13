@@ -457,7 +457,18 @@ class SilenceTrimmer {
     /// - Sample rate: 16000 Hz
     /// - Channels: 1 (mono)
     /// - Bit depth: 16-bit PCM
-    /// - Format: WAV (LPCM)
+    /// - Format: WAV (LPCM) — the container comes from the URL's extension, which
+    ///   `generateOutputURL(for:)` pins to `.wav` so the name matches the data.
+    ///
+    /// CONTRACT: when this function returns, the file at `url` is COMPLETE.
+    /// `AVAudioFile` finalizes the container (RIFF/data chunk sizes for WAV,
+    /// the `moov` atom for MP4) only when the writer is released. Callers such
+    /// as `FileTranscriptionFlow.getAudioDuration` re-open the artifact on the
+    /// very next line, so the writer must be released BEFORE the continuation
+    /// resumes — otherwise they read a stub (issue #612: "Cannot Open" on an
+    /// `.m4a` artifact, a silent 0.0 s duration on a `.wav` one).
+    /// `AVAudioFile.close()` is macOS 15+; the deployment target is 14.6, so the
+    /// release is expressed as a scope.
     private func writeAudioFile(samples: [Float], to url: URL) async throws {
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -496,20 +507,26 @@ class SilenceTrimmer {
                         try FileManager.default.removeItem(at: url)
                     }
 
-                    // Create output file (AVFoundation will write as WAV)
-                    let audioFile = try AVAudioFile(
-                        forWriting: url,
-                        settings: [
-                            AVFormatIDKey: Int(kAudioFormatLinearPCM),
-                            AVSampleRateKey: self.sampleRate,
-                            AVNumberOfChannelsKey: 1,
-                            AVLinearPCMBitDepthKey: 16,
-                            AVLinearPCMIsFloatKey: false,
-                            AVLinearPCMIsBigEndianKey: false
-                        ]
-                    )
+                    // Create the output file, write it, and RELEASE the writer —
+                    // all inside this scope. The pool drains (and the writer is
+                    // disposed, finalizing the container on disk) before the
+                    // line after it runs. Keep `continuation.resume()` OUTSIDE
+                    // this scope; `SilenceTrimmerWriterCloseTests` pins the order.
+                    try autoreleasepool {
+                        let audioFile = try AVAudioFile(
+                            forWriting: url,
+                            settings: [
+                                AVFormatIDKey: Int(kAudioFormatLinearPCM),
+                                AVSampleRateKey: self.sampleRate,
+                                AVNumberOfChannelsKey: 1,
+                                AVLinearPCMBitDepthKey: 16,
+                                AVLinearPCMIsFloatKey: false,
+                                AVLinearPCMIsBigEndianKey: false
+                            ]
+                        )
 
-                    try audioFile.write(from: buffer)
+                        try audioFile.write(from: buffer)
+                    }
 
                     continuation.resume()
                 } catch {
