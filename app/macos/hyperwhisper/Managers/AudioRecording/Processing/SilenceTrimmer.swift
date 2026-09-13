@@ -458,6 +458,10 @@ class SilenceTrimmer {
     /// - Channels: 1 (mono)
     /// - Bit depth: 16-bit PCM
     /// - Format: WAV (LPCM)
+    ///
+    /// CONTRACT:
+    /// The file is complete and closed when this returns, so the caller may
+    /// re-open the URL on the next line.
     private func writeAudioFile(samples: [Float], to url: URL) async throws {
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -496,20 +500,36 @@ class SilenceTrimmer {
                         try FileManager.default.removeItem(at: url)
                     }
 
-                    // Create output file (AVFoundation will write as WAV)
-                    let audioFile = try AVAudioFile(
-                        forWriting: url,
-                        settings: [
-                            AVFormatIDKey: Int(kAudioFormatLinearPCM),
-                            AVSampleRateKey: self.sampleRate,
-                            AVNumberOfChannelsKey: 1,
-                            AVLinearPCMBitDepthKey: 16,
-                            AVLinearPCMIsFloatKey: false,
-                            AVLinearPCMIsBigEndianKey: false
-                        ]
-                    )
+                    // Create and write the output file, then CLOSE it.
+                    //
+                    // CRITICAL: the writer must be gone before the continuation
+                    // resumes. An audio container is only valid once its writer is
+                    // disposed — that is when the RIFF chunk sizes are written — so a
+                    // caller that resumes first and re-opens the URL gets a stub.
+                    // FileTranscriptionFlow does exactly that: it calls
+                    // getAudioDuration(finalAudioURL) on the line after VAD
+                    // processing, and read a 0-second file (issue #612), which
+                    // silently defeated the upload-duration guard.
+                    //
+                    // The scope releases `audioFile`, and the pool drains anything
+                    // AVFoundation autoreleased while writing. AVAudioFile.close()
+                    // would say this directly but is macOS 15; the deployment target
+                    // is 14.6.
+                    try autoreleasepool {
+                        let audioFile = try AVAudioFile(
+                            forWriting: url,
+                            settings: [
+                                AVFormatIDKey: Int(kAudioFormatLinearPCM),
+                                AVSampleRateKey: self.sampleRate,
+                                AVNumberOfChannelsKey: 1,
+                                AVLinearPCMBitDepthKey: 16,
+                                AVLinearPCMIsFloatKey: false,
+                                AVLinearPCMIsBigEndianKey: false
+                            ]
+                        )
 
-                    try audioFile.write(from: buffer)
+                        try audioFile.write(from: buffer)
+                    }
 
                     continuation.resume()
                 } catch {
