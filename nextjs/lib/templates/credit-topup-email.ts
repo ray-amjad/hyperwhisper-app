@@ -1,5 +1,6 @@
 import {
   card,
+  companyFooterText,
   DASHBOARD_URL,
   emailDocument,
   infoPanel,
@@ -74,5 +75,7 @@ These credits are valid for 12 months from this purchase. See your full balance 
 ${supportText(supportEmail)}
 
 ${purchaseFooterNote(data.customerEmail, productName)}
+
+${companyFooterText()}
 `;
 };

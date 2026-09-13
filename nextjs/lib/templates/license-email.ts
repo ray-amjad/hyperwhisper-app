@@ -1,6 +1,7 @@
 import {
   accountKeyBlock,
   card,
+  companyFooterText,
   downloadButton,
   emailDocument,
   infoPanel,
@@ -89,5 +90,7 @@ ${downloadUrl ? `Download ${productName}: ${downloadUrl}` : ""}
 ${supportText(supportEmail, " to manage your subscription")}
 
 ${purchaseFooterNote(data.customerEmail, productName)}
+
+${companyFooterText()}
 `;
 };

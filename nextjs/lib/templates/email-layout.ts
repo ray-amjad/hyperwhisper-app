@@ -18,6 +18,39 @@ export const PORTAL_URL = "https://hyperwhisper.com/user";
 /** Credit balance & history page, linked from the credit emails. */
 export const DASHBOARD_URL = "https://hyperwhisper.com/user/dashboard";
 
+/**
+ * Registered-company details. Every email HyperWhisper sends must identify the
+ * legal entity behind it and give a postal address — the same block the
+ * Agentic Coding School emails carry, so the two products read as one company.
+ *
+ * These are the single copy. Do not re-type the name or the address into a
+ * template; call [companyFooterHtml] or [companyFooterText].
+ */
+export const COMPANY_NAME = "Ray Amjad LTD";
+export const COMPANY_ADDRESS =
+  "Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA";
+export const COMPANY_EMAIL = "hello@hyperwhisper.com";
+
+/**
+ * The company block that closes every HTML email.
+ *
+ * `indent` is the leading whitespace of the opening tag, so the block can sit
+ * at the right depth in a plain document body (4 spaces) or inside the nested
+ * table of the magic-link email (14 spaces). It changes the source only; the
+ * rendered email is identical either way.
+ */
+export const companyFooterHtml = (indent = "    ") =>
+  `${indent}<p style="font-size: 11px; color: #9ca3af; text-align: center; margin: 24px 0 0 0; line-height: 1.5;">
+${indent}    ${COMPANY_NAME}<br />
+${indent}    ${COMPANY_ADDRESS}<br />
+${indent}    <a href="mailto:${COMPANY_EMAIL}" style="color: #9ca3af;">${COMPANY_EMAIL}</a>
+${indent}</p>`;
+
+/** Plain-text counterpart of [companyFooterHtml]. */
+export const companyFooterText = () => `${COMPANY_NAME}
+${COMPANY_ADDRESS}
+${COMPANY_EMAIL}`;
+
 const BODY_STYLE =
   "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;";
 
@@ -52,11 +85,7 @@ ${content}
 
     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
     <p style="color: #9ca3af; font-size: 12px; margin: 0;">${footerNote}</p>
-    <p style="font-size: 11px; color: #9ca3af; text-align: center; margin: 24px 0 0 0;">
-        Ray Amjad LTD<br />
-        Lytchett House, 13 Freeland Park, Wareham Road, Poole, Dorset, BH16 6FA<br />
-        <a href="mailto:hello@hyperwhisper.com" style="color: #9ca3af;">hello@hyperwhisper.com</a>
-    </p>
+${companyFooterHtml()}
 </body>
 </html>
 `;
@@ -91,9 +120,13 @@ export const accountKeyBlock = (licenseKey: string) =>
                 <p style="margin: 0; font-family: 'Courier New', monospace; font-size: 20px; font-weight: 700; color: #1e40af; letter-spacing: 2px; word-break: break-all; text-align: center;">${licenseKey}</p>
             </div>`;
 
-/** The blue call-to-action button. */
+/** The blue call-to-action button. One style for every email. */
+export const primaryButton = (href: string, label: string) =>
+  `<a href="${href}" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">${label}</a>`;
+
+/** The call-to-action of the purchase emails. */
 export const downloadButton = (downloadUrl: string, productName: string) =>
-  `<a href="${downloadUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">Download ${productName}</a>`;
+  primaryButton(downloadUrl, `Download ${productName}`);
 
 /**
  * The "Need help?" paragraph that closes the purchase emails. `portalNote` is

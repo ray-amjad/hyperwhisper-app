@@ -1,6 +1,7 @@
 import {
   accountKeyBlock,
   card,
+  companyFooterText,
   DASHBOARD_URL,
   emailDocument,
   infoPanel,
@@ -85,5 +86,7 @@ Credits are valid for 12 months from purchase. You can top up anytime from your 
 ${supportText(supportEmail)}
 
 ${purchaseFooterNote(data.customerEmail, productName)}
+
+${companyFooterText()}
 `;
 };
