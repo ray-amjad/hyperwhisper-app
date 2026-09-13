@@ -214,6 +214,25 @@ describe('validateAuth', () => {
     });
   }
 
+  test('preserves the invalid JSON diagnostic for a malformed definitive 4xx response', async () => {
+    globalThis.fetch = mock(async () =>
+      new Response('<html>not JSON</html>', { status: 400 })
+    ) as unknown as typeof fetch;
+
+    const result = await validateAuth({ licenseKey: 'malformed-request-key' });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.diagnostics).toMatchObject({
+        source: 'api',
+        outcome: 'api_invalid_json',
+        upstreamStatus: 400,
+      });
+    }
+    expect(cacheWrites).toHaveLength(1);
+    expect(cacheWrites[0]?.license).toMatchObject({ isValid: false, credits: 0 });
+  });
+
   test('fails closed on a transient 5xx without caching, so a retry hits the API again', async () => {
     globalThis.fetch = mock(async () => new Response('upstream down', { status: 503 })) as unknown as typeof fetch;
 

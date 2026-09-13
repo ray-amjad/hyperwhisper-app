@@ -148,7 +148,7 @@ async function validateLicenseViaApi(licenseKey: string): Promise<ApiValidationR
       return {
         isValid: false,
         credits: 0,
-        outcome: 'api_invalid',
+        outcome: parsedResponse ? 'api_invalid' : 'api_invalid_json',
         elapsedMs: apiElapsedMs,
         upstreamStatus: response.status,
       };
