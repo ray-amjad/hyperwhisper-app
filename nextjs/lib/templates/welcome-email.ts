@@ -1,4 +1,10 @@
-import { card, downloadButton, emailDocument, infoPanel } from "./email-layout";
+import {
+  card,
+  companyFooterText,
+  downloadButton,
+  emailDocument,
+  infoPanel,
+} from "./email-layout";
 import { escapeHtml } from "./escape-html";
 
 /**
@@ -84,5 +90,7 @@ Need a hand?
 ${supportEmail ? `Email us at ${supportEmail}` : "Reply to this message"}
 
 This email was sent to ${data.customerEmail} because you requested a ${productName} download link. There is no need to unsubscribe. If you didn't request this, simply delete the email.
+
+${companyFooterText()}
 `;
 };
