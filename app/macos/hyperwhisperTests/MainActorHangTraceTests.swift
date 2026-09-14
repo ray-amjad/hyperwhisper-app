@@ -62,6 +62,41 @@ struct MainActorHangTraceTests {
         trace.recordUIUpdateRequest(property: .showOnboarding, state: .booleanTrue)
 
         #expect(payloads.isEmpty)
+        #expect(trace.currentPayload()["main_actor_ui_properties"] as? [String] == [])
+    }
+
+    @Test func enablingErrorLoggingDoesNotPublishPreConsentUIWrites() {
+        var isEnabled = false
+        var payloads: [[String: Any]] = []
+        var nowValues: [Int64] = [200]
+        let trace = MainActorHangTrace(
+            errorLoggingEnabled: { isEnabled },
+            publisher: { payloads.append($0) },
+            nowMs: { nowValues.removeFirst() }
+        )
+
+        trace.recordUIUpdateRequest(property: .showOnboarding, state: .booleanTrue)
+        isEnabled = true
+        trace.recordUIUpdateRequest(property: .recordingState, state: .recording)
+
+        #expect(payloads.count == 1)
+        #expect(payloads[0]["main_actor_ui_properties"] as? [String] == ["recording_state"])
+        #expect(payloads[0]["main_actor_ui_states"] as? [String] == ["recording"])
+        #expect(payloads[0]["main_actor_ui_requested_at_ms"] as? [Int64] == [200])
+    }
+
+    @Test func disabledErrorLoggingClearsPreviouslyRetainedUIWrites() {
+        var isEnabled = true
+        let trace = MainActorHangTrace(
+            errorLoggingEnabled: { isEnabled },
+            publisher: { _ in }
+        )
+
+        trace.recordUIUpdateRequest(property: .showOnboarding, state: .booleanTrue)
+        isEnabled = false
+        trace.recordUIUpdateRequest(property: .recordingState, state: .recording)
+
+        #expect(trace.currentPayload()["main_actor_ui_properties"] as? [String] == [])
     }
 
     @Test func UIRequestDefaultsAreExplicitBeforeTheFirstRequest() {
@@ -99,20 +134,28 @@ struct MainActorHangTraceTests {
         #expect(payloads[1]["main_actor_ui_requested_at_ms"] as? [Int64] == [100, 250])
     }
 
-    @Test func UIWriteSequenceKeepsOnlyTheMostRecentBoundedEntries() {
+    @Test func latestPerPropertySnapshotCannotBeEvictedByAnotherPropertyBurst() {
         var nowMs: Int64 = 0
-        let trace = MainActorHangTrace(nowMs: {
-            nowMs += 1
-            return nowMs
-        })
+        let trace = MainActorHangTrace(
+            errorLoggingEnabled: { true },
+            publisher: { _ in },
+            nowMs: {
+                nowMs += 1
+                return nowMs
+            }
+        )
 
-        for _ in 0..<(MainActorHangTrace.maxUIUpdateRequests + 2) {
+        trace.recordUIUpdateRequest(property: .showOnboarding, state: .booleanTrue)
+        for _ in 0..<20 {
             trace.recordUIUpdateRequest(property: .recordingState, state: .processing)
         }
 
         let payload = trace.currentPayload()
-        #expect((payload["main_actor_ui_properties"] as? [String])?.count == MainActorHangTrace.maxUIUpdateRequests)
-        #expect(payload["main_actor_ui_requested_at_ms"] as? [Int64] == [3, 4, 5, 6, 7, 8, 9, 10])
+        #expect(payload["main_actor_ui_properties"] as? [String] == [
+            "recording_state", "show_onboarding"
+        ])
+        #expect(payload["main_actor_ui_states"] as? [String] == ["processing", "true"])
+        #expect(payload["main_actor_ui_requested_at_ms"] as? [Int64] == [21, 1])
     }
 
     @Test func activeToIdleBoundaryPublishesPreserveTheUIWriteSequence() {
@@ -267,6 +310,8 @@ struct MainActorHangTraceTests {
         #expect(Set(stepSlugs).count == stepSlugs.count)
         #expect(Set(propertySlugs).count == propertySlugs.count)
         #expect(Set(stateSlugs).count == stateSlugs.count)
+        let allSlugs = flowSlugs + stepSlugs + propertySlugs + stateSlugs
+        #expect(Set(allSlugs).count == allSlugs.count)
     }
 
     @Test func everySelectedAppStatePropertyRecordsFromWillSet() throws {
@@ -288,16 +333,54 @@ struct MainActorHangTraceTests {
         }
     }
 
-    @Test func associatedRecordingAndStreamingErrorTextNeverEntersTheMapping() throws {
-        let recording = try Self.appStatePublishedProperty(named: "recordingState")
-        let streaming = try Self.appStatePublishedProperty(named: "streamingConnectionState")
+    @Test func everyNavigationCaseMapsToItsDiagnosticState() {
+        let mappings: [(NavigationItem, MainActorUIState)] = [
+            (.home, .home),
+            (.modes, .modes),
+            (.vocabulary, .vocabulary),
+            (.modelLibrary, .modelLibrary),
+            (.streaming, .streaming),
+            (.history, .history),
+            (.settings, .settings)
+        ]
 
-        #expect(recording.contains("case .complete: state = .complete"))
-        #expect(recording.contains("case .error: state = .error"))
-        #expect(!recording.contains(".complete(let"))
-        #expect(!recording.contains(".error(let"))
-        #expect(streaming.contains("case .error: state = .error"))
-        #expect(!streaming.contains(".error(let"))
+        #expect(mappings.map(\.0) == NavigationItem.allCases)
+        for (value, expected) in mappings {
+            #expect(value.mainActorUIState == expected)
+        }
+    }
+
+    @Test func everyRecordingCaseMapsWithoutAssociatedUserText() {
+        let mappings: [(RecordingState, MainActorUIState)] = [
+            (.idle, .idle),
+            (.recording, .recording),
+            (.processing, .processing),
+            (.transcribing, .transcribing),
+            (.postProcessing, .postProcessing),
+            (.complete(""), .complete),
+            (.error(""), .error)
+        ]
+
+        for (value, expected) in mappings {
+            #expect(value.mainActorUIState == expected)
+        }
+    }
+
+    @Test func everyStreamingCaseUsesTheSharedDiagnosticMapping() {
+        let mappings: [(StreamingConnectionState, MainActorUIState)] = [
+            (.idle, .idle),
+            (.warmingUp, .warmingUp),
+            (.connecting, .connecting),
+            (.ready, .ready),
+            (.streaming, .streaming),
+            (.reconnecting, .reconnecting),
+            (.disconnecting, .disconnecting),
+            (.error(""), .error)
+        ]
+
+        for (value, expected) in mappings {
+            #expect(value.mainActorUIState == expected)
+        }
     }
 
     @Test func booleanPropertiesUseOneSharedStatePair() throws {

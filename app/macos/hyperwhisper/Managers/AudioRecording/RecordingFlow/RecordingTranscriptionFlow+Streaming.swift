@@ -504,7 +504,7 @@ extension RecordingTranscriptionFlow {
                         message: "Streaming connection state changed",
                         category: "audio.streaming",
                         data: [
-                            "state": self?.streamingConnectionStateLabel(state) ?? "unknown",
+                            "state": state.mainActorUIState.rawValue,
                             "provider": provider,
                             "attemptId": self?.currentRecordingAttemptId ?? "none"
                         ]
@@ -1243,24 +1243,4 @@ extension RecordingTranscriptionFlow {
         return terms.isEmpty ? nil : terms.joined(separator: ",")
     }
 
-    private func streamingConnectionStateLabel(_ state: StreamingConnectionState) -> String {
-        switch state {
-        case .idle:
-            return "idle"
-        case .warmingUp:
-            return "warmingUp"
-        case .connecting:
-            return "connecting"
-        case .ready:
-            return "ready"
-        case .streaming:
-            return "streaming"
-        case .reconnecting:
-            return "reconnecting"
-        case .disconnecting:
-            return "disconnecting"
-        case .error:
-            return "error"
-        }
-    }
 }

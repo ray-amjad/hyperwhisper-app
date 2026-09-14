@@ -287,34 +287,20 @@ class AppState: ObservableObject {
     /// Currently selected navigation item in the sidebar
     @Published var selectedNavigationItem: NavigationItem = .home {
         willSet {
-            let state: MainActorUIState
-            switch newValue {
-            case .home: state = .home
-            case .modes: state = .modes
-            case .vocabulary: state = .vocabulary
-            case .modelLibrary: state = .modelLibrary
-            case .streaming: state = .streaming
-            case .history: state = .history
-            case .settings: state = .settings
-            }
-            MainActorHangTrace.shared.recordUIUpdateRequest(property: .selectedNavigationItem, state: state)
+            MainActorHangTrace.shared.recordUIUpdateRequest(
+                property: .selectedNavigationItem,
+                state: newValue.mainActorUIState
+            )
         }
     }
     
     /// Current state of the recording process
     @Published var recordingState: RecordingState = .idle {
         willSet {
-            let state: MainActorUIState
-            switch newValue {
-            case .idle: state = .idle
-            case .recording: state = .active
-            case .processing: state = .processing
-            case .transcribing: state = .transcribing
-            case .postProcessing: state = .postProcessing
-            case .complete: state = .complete
-            case .error: state = .error
-            }
-            MainActorHangTrace.shared.recordUIUpdateRequest(property: .recordingState, state: state)
+            MainActorHangTrace.shared.recordUIUpdateRequest(
+                property: .recordingState,
+                state: newValue.mainActorUIState
+            )
         }
     }
     
@@ -491,18 +477,10 @@ class AppState: ObservableObject {
     /// This helps users know when they can start speaking (avoiding lost audio during connection setup)
     @Published var streamingConnectionState: StreamingConnectionState = .idle {
         willSet {
-            let state: MainActorUIState
-            switch newValue {
-            case .idle: state = .idle
-            case .warmingUp: state = .warmingUp
-            case .connecting: state = .connecting
-            case .ready: state = .ready
-            case .streaming: state = .streaming
-            case .reconnecting: state = .reconnecting
-            case .disconnecting: state = .disconnecting
-            case .error: state = .error
-            }
-            MainActorHangTrace.shared.recordUIUpdateRequest(property: .streamingConnectionState, state: state)
+            MainActorHangTrace.shared.recordUIUpdateRequest(
+                property: .streamingConnectionState,
+                state: newValue.mainActorUIState
+            )
         }
     }
 
@@ -999,7 +977,7 @@ class AppState: ObservableObject {
         }
         
         // Log the selection for debugging
-        AppLogger.ui.debug("Mode selected: persist=\(persist, privacy: .public)")
+        AppLogger.ui.debug("Mode selected: source=managed_object persist=\(persist, privacy: .public)")
     }
 
     /// Select a mode from a value snapshot without materializing a Core Data
@@ -1018,7 +996,7 @@ class AppState: ObservableObject {
             settingsManager.currentMode = snapshot.name
         }
 
-        AppLogger.ui.debug("Mode selected: persist=\(persist, privacy: .public)")
+        AppLogger.ui.debug("Mode selected: source=snapshot persist=\(persist, privacy: .public)")
     }
 
     /// Counterpart to `selectMode` for when the selected Mode no longer exists.
