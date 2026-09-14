@@ -28,6 +28,44 @@ enum MainActorHangStep: String, CaseIterable {
     case sendPasteCommand = "send_paste_command"
 }
 
+enum MainActorUISurface: String, CaseIterable {
+    case mainWindow = "main_window"
+    case recordingDialog = "recording_dialog"
+    case cancelConfirmation = "cancel_confirmation"
+    case onboarding
+    case streamingConnection = "streaming_connection"
+    case streamingPreview = "streaming_preview"
+}
+
+enum MainActorUITransition: String, CaseIterable {
+    case navigateHome = "navigate_home"
+    case navigateModes = "navigate_modes"
+    case navigateVocabulary = "navigate_vocabulary"
+    case navigateModelLibrary = "navigate_model_library"
+    case navigateStreaming = "navigate_streaming"
+    case navigateHistory = "navigate_history"
+    case navigateSettings = "navigate_settings"
+    case recordingIdle = "recording_idle"
+    case recordingActive = "recording_active"
+    case recordingProcessing = "recording_processing"
+    case recordingTranscribing = "recording_transcribing"
+    case recordingPostProcessing = "recording_post_processing"
+    case recordingComplete = "recording_complete"
+    case recordingError = "recording_error"
+    case streamingIdle = "streaming_idle"
+    case streamingWarmingUp = "streaming_warming_up"
+    case streamingConnecting = "streaming_connecting"
+    case streamingReady = "streaming_ready"
+    case streamingActive = "streaming_active"
+    case streamingReconnecting = "streaming_reconnecting"
+    case streamingDisconnecting = "streaming_disconnecting"
+    case streamingError = "streaming_error"
+    case present
+    case dismiss
+    case show
+    case hide
+}
+
 @MainActor
 final class MainActorHangTrace {
     static let shared = MainActorHangTrace()
@@ -56,12 +94,19 @@ final class MainActorHangTrace {
         let elapsedMs: Int
     }
 
+    private struct UIUpdateRequest {
+        let surface: MainActorUISurface
+        let transition: MainActorUITransition
+        let requestedAtMs: Int64
+    }
+
     private let errorLoggingEnabled: () -> Bool
     private let publisher: ExtrasPublisher
     private let nowMs: () -> Int64
     private let uptimeNs: () -> UInt64
     private var frames: [Frame] = []
     private var lastCompleted: CompletedFrame?
+    private var lastUIUpdateRequest: UIUpdateRequest?
 
     init(
         errorLoggingEnabled: @escaping () -> Bool = { AppLogger.isErrorLoggingEnabled },
@@ -119,6 +164,22 @@ final class MainActorHangTrace {
         payload(active: frames.last, lastCompleted: lastCompleted)
     }
 
+    func recordUIUpdateRequest(
+        surface: MainActorUISurface,
+        transition: MainActorUITransition
+    ) {
+        let requestedAtMs = nowMs()
+        lastUIUpdateRequest = UIUpdateRequest(
+            surface: surface,
+            transition: transition,
+            requestedAtMs: requestedAtMs
+        )
+        let surfaceSlug = surface.rawValue
+        let transitionSlug = transition.rawValue
+        AppLogger.ui.info("Main-actor UI update requested: surface=\(surfaceSlug, privacy: .public) transition=\(transitionSlug, privacy: .public) requested_at_ms=\(requestedAtMs, privacy: .public)")
+        publishCurrentState()
+    }
+
     private static func elapsedMs(from startNs: UInt64, to endNs: UInt64) -> Int {
         guard endNs >= startNs else { return 0 }
         return Int(((endNs - startNs) / 1_000_000))
@@ -139,7 +200,10 @@ final class MainActorHangTrace {
             "\(Self.keyPrefix)last_completed_operation_id": lastCompleted?.operationId ?? Self.slugNone,
             "\(Self.keyPrefix)last_completed_started_at_ms": lastCompleted?.startedAtMs ?? 0,
             "\(Self.keyPrefix)last_completed_at_ms": lastCompleted?.completedAtMs ?? 0,
-            "\(Self.keyPrefix)last_completed_elapsed_ms": lastCompleted?.elapsedMs ?? 0
+            "\(Self.keyPrefix)last_completed_elapsed_ms": lastCompleted?.elapsedMs ?? 0,
+            "main_actor_ui_surface": lastUIUpdateRequest?.surface.rawValue ?? Self.slugNone,
+            "main_actor_ui_transition": lastUIUpdateRequest?.transition.rawValue ?? Self.slugNone,
+            "main_actor_ui_requested_at_ms": lastUIUpdateRequest?.requestedAtMs ?? 0
         ]
     }
 
