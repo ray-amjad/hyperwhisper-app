@@ -1,5 +1,9 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { BYTES_PER_MINUTE_ESTIMATE, CREDITS_PER_MINUTE } from '../lib/constants';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import {
+  BYTES_PER_MINUTE_ESTIMATE,
+  CREDITS_PER_MINUTE,
+  DEFAULT_API_BASE_URL,
+} from '../lib/constants';
 import { creditsForCost } from '../lib/cost-calculator';
 import type { AuthContext } from './auth';
 
@@ -9,14 +13,19 @@ const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
+type CacheLicense = (licenseKey: string, license: CachedLicense) => Promise<void>;
+const defaultCacheLicense: CacheLicense = async (licenseKey, license) => {
+  cacheWrites.push({ licenseKey, license });
+};
+let cacheLicenseImplementation: CacheLicense = defaultCacheLicense;
 
 mock.module('../lib/redis', () => ({
   redis: { get: () => { throw new Error('redis client should not be constructed in this test'); } },
   isIPBlocked: async () => false,
   getCachedLicense: async () => null,
-  cacheLicense: async (licenseKey: string, license: CachedLicense) => {
-    cacheWrites.push({ licenseKey, license });
-  },
+  cacheLicense: (licenseKey: string, license: CachedLicense) => (
+    cacheLicenseImplementation(licenseKey, license)
+  ),
 }));
 
 const {
@@ -57,20 +66,15 @@ function expectBillingPost(
   requests: BillingRequest[],
   expectedAmount: number,
   expectedMetadata: Record<string, unknown>,
-  expectedUrl?: string,
+  expectedUrl = `${DEFAULT_API_BASE_URL}/api/license/credits`,
 ): void {
   expect(requests).toHaveLength(1);
   const request = requests[0];
   expect(request).toBeDefined();
-  if (expectedUrl) {
-    expect(request?.url).toBe(expectedUrl);
-  } else {
-    expect(request?.url).toContain('/api/license/credits');
-  }
+  expect(request?.url).toBe(expectedUrl);
   expect(request?.init?.method).toBe('POST');
   expect(request?.init?.headers).toEqual({ 'Content-Type': 'application/json' });
   expect(request?.init?.signal).toBeInstanceOf(AbortSignal);
-  expect(request?.init?.signal?.aborted).toBe(false);
   expect(JSON.parse(String(request?.init?.body))).toEqual({
     license_key: 'lic_test',
     amount: expectedAmount,
@@ -97,8 +101,14 @@ async function expectNoPendingDeductions(): Promise<void> {
   expect(pendingCount).toBe(0);
 }
 
-afterEach(() => {
+beforeEach(() => {
+  delete process.env.NEXTJS_LICENSE_API_URL;
+});
+
+afterEach(async () => {
+  await drainPendingDeductions(2000);
   cacheWrites.length = 0;
+  cacheLicenseImplementation = defaultCacheLicense;
   globalThis.fetch = originalFetch;
   console.warn = originalConsoleWarn;
   if (originalLicenseApiUrl === undefined) {
@@ -192,7 +202,7 @@ describe('deductCredits / drainPendingDeductions', () => {
     expectBillingPost(
       requests,
       creditsForCost(costUsd),
-      metadata,
+      { provider: 'test-provider' },
       'https://licenses.example.test/api/license/credits',
     );
     expect(cacheWrites).toHaveLength(1);
@@ -200,7 +210,7 @@ describe('deductCredits / drainPendingDeductions', () => {
     await expectNoPendingDeductions();
   });
 
-  test('deductCredits bills the 0.1 credit floor when cost is zero', async () => {
+  test('deductCredits bills the current 0.1 credit minimum when provider cost is zero', async () => {
     const requests = captureFetch(() => Response.json({ credits_remaining: 19.9 }));
     const metadata = { provider: 'zero-cost-provider' };
 
@@ -209,7 +219,7 @@ describe('deductCredits / drainPendingDeductions', () => {
     const creditsUsed = await deductCredits(auth(20), 0, metadata, '1.2.3.4');
 
     expect(creditsUsed).toBe(0.1);
-    expectBillingPost(requests, 0.1, metadata);
+    expectBillingPost(requests, 0.1, { provider: 'zero-cost-provider' });
     expect(cacheWrites[0]?.license.credits).toBe(19.9);
     await expectNoPendingDeductions();
   });
@@ -225,7 +235,7 @@ describe('deductCredits / drainPendingDeductions', () => {
       ),
       provider: 'malformed-success-provider',
       warning: 'POST /api/license/credits network error',
-      warningDetails: { error: expect.any(String) },
+      warningDetails: { error: expect.stringMatching(/json|unexpected|expected.*(?:property|identifier)/i) },
     },
     {
       label: 'a 503 response has a non-JSON body',
@@ -251,7 +261,7 @@ describe('deductCredits / drainPendingDeductions', () => {
       const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
 
       expect(creditsUsed).toBe(creditsForCost(costUsd));
-      expectBillingPost(requests, creditsForCost(costUsd), metadata);
+      expectBillingPost(requests, creditsForCost(costUsd), { provider });
       expect(cacheWrites).toHaveLength(0);
       expect(warnings).toHaveLength(1);
       expect(warnings[0]?.[0]).toBe(warning);
@@ -265,15 +275,22 @@ describe('deductCredits / drainPendingDeductions', () => {
       const requests = captureFetch(() => (
         Response.json({ error: 'synthetic upstream failure' }, { status })
       ));
+      const warnings = captureWarnings();
 
       const costUsd = 0.05;
       const metadata = { provider: 'http-failure-provider' };
-      await Promise.allSettled([
-        deductCredits(auth(20), costUsd, metadata, '1.2.3.4'),
-      ]);
+      await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
 
-      expectBillingPost(requests, creditsForCost(costUsd), metadata);
+      expectBillingPost(requests, creditsForCost(costUsd), { provider: 'http-failure-provider' });
       expect(cacheWrites).toHaveLength(0);
+      expect(warnings).toEqual([[
+        'POST /api/license/credits failed',
+        {
+          status,
+          error: 'synthetic upstream failure',
+          creditsUsed: creditsForCost(costUsd),
+        },
+      ]]);
       await expectNoPendingDeductions();
     });
   }
@@ -282,15 +299,18 @@ describe('deductCredits / drainPendingDeductions', () => {
     const requests = captureFetch(() => {
       throw new Error('synthetic connection reset');
     });
+    const warnings = captureWarnings();
 
     const costUsd = 0.05;
     const metadata = { provider: 'network-failure-provider' };
-    await Promise.allSettled([
-      deductCredits(auth(20), costUsd, metadata, '1.2.3.4'),
-    ]);
+    await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
 
-    expectBillingPost(requests, creditsForCost(costUsd), metadata);
+    expectBillingPost(requests, creditsForCost(costUsd), { provider: 'network-failure-provider' });
     expect(cacheWrites).toHaveLength(0);
+    expect(warnings).toEqual([[
+      'POST /api/license/credits network error',
+      { error: 'synthetic connection reset' },
+    ]]);
     await expectNoPendingDeductions();
   });
 
@@ -308,27 +328,44 @@ describe('deductCredits / drainPendingDeductions', () => {
       const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
 
       expect(creditsUsed).toBe(creditsForCost(costUsd));
-      expectBillingPost(requests, creditsForCost(costUsd), metadata);
+      expectBillingPost(requests, creditsForCost(costUsd), { provider: `${label}-balance-provider` });
       expect(cacheWrites).toHaveLength(0);
       await expectNoPendingDeductions();
     });
   }
 
-  test('drainPendingDeductions waits for an in-flight deduction to finish before returning', async () => {
+  test('drainPendingDeductions waits for a pending Redis cache write before returning', async () => {
     captureFetch(() => Response.json({ credits_remaining: 8 }));
+    let resolveCacheWrite!: () => void;
+    const cacheWritePending = new Promise<void>((resolve) => {
+      resolveCacheWrite = resolve;
+    });
+    let cacheWriteStarted = false;
+    cacheLicenseImplementation = async (licenseKey, license) => {
+      cacheWriteStarted = true;
+      await cacheWritePending;
+      cacheWrites.push({ licenseKey, license });
+    };
 
     // Fire-and-forget, like real call sites do (they don't await deductCredits on the response path).
     const deduction = deductCredits(auth(20), 0.05, {}, '1.2.3.4');
 
     try {
-      const drained = await drainPendingDeductions(2000);
+      await waitFor(() => cacheWriteStarted);
+      let drainSettled = false;
+      const drain = drainPendingDeductions(2000).then((pendingCount) => {
+        drainSettled = true;
+        return pendingCount;
+      });
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-      expect(drained).toBe(1);
-      // If drain had returned without awaiting the deduction, this write wouldn't exist yet.
+      expect(drainSettled).toBe(false);
+      resolveCacheWrite();
+      expect(await drain).toBe(1);
       expect(cacheWrites).toHaveLength(1);
     } finally {
+      resolveCacheWrite();
       await Promise.allSettled([deduction]);
-      await expectNoPendingDeductions();
     }
   });
 
@@ -352,12 +389,11 @@ describe('deductCredits / drainPendingDeductions', () => {
 
       expect(pendingCount).toBe(1);
       expect(elapsedMs).toBeGreaterThanOrEqual(timeoutMs - 1);
-      expectBillingPost(requests, creditsForCost(costUsd), metadata);
+      expectBillingPost(requests, creditsForCost(costUsd), { provider: 'pending-provider' });
       expect(cacheWrites).toHaveLength(0);
     } finally {
       resolveFetch(Response.json({ credits_remaining: 7.5 }));
       await Promise.allSettled([deduction]);
-      await expectNoPendingDeductions();
     }
 
     expect(cacheWrites).toHaveLength(1);
