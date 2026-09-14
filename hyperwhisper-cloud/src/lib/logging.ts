@@ -21,11 +21,14 @@ export function logEvent(
 // Parses Fly-Request-Start (unix ms or RFC1123 date) and returns proxy overhead ms.
 // Fly's edge sets this header when it accepts the connection; comparing to handler
 // start reveals time spent in the Fly proxy / queue before user code runs.
-export function flyProxyOverheadMs(header: string | undefined): number | undefined {
+export function flyProxyOverheadMs(
+  header: string | undefined,
+  nowMs: number = Date.now(),
+): number | undefined {
   if (!header) return undefined;
   const asNumber = Number(header);
   const proxyMs = Number.isFinite(asNumber) ? asNumber : Date.parse(header);
   if (!Number.isFinite(proxyMs)) return undefined;
-  const overhead = Date.now() - proxyMs;
+  const overhead = nowMs - proxyMs;
   return overhead >= 0 && overhead < 60_000 ? overhead : undefined;
 }
