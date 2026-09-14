@@ -4,6 +4,7 @@ import { creditsForCost } from '../lib/cost-calculator';
 import type { AuthContext } from './auth';
 
 const originalFetch = globalThis.fetch;
+const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 const cacheWrites: Array<{ licenseKey: string; license: CachedLicense }> = [];
@@ -38,13 +39,21 @@ function expectBillingPost(
   requests: BillingRequest[],
   expectedAmount: number,
   expectedMetadata: Record<string, unknown>,
+  expectedUrl?: string,
 ): void {
   expect(requests).toHaveLength(1);
   const request = requests[0];
   expect(request).toBeDefined();
-  expect(request?.url).toContain('/api/license/credits');
+  if (expectedUrl) {
+    expect(request?.url).toBe(expectedUrl);
+  } else {
+    expect(request?.url).toContain('/api/license/credits');
+  }
   expect(request?.init?.method).toBe('POST');
-  expect(JSON.parse(String(request?.init?.body))).toMatchObject({
+  expect(request?.init?.headers).toEqual({ 'Content-Type': 'application/json' });
+  expect(request?.init?.signal).toBeInstanceOf(AbortSignal);
+  expect(request?.init?.signal?.aborted).toBe(false);
+  expect(JSON.parse(String(request?.init?.body))).toEqual({
     license_key: 'lic_test',
     amount: expectedAmount,
     metadata: expectedMetadata,
@@ -73,6 +82,11 @@ async function expectNoPendingDeductions(): Promise<void> {
 afterEach(() => {
   cacheWrites.length = 0;
   globalThis.fetch = originalFetch;
+  if (originalLicenseApiUrl === undefined) {
+    delete process.env.NEXTJS_LICENSE_API_URL;
+  } else {
+    process.env.NEXTJS_LICENSE_API_URL = originalLicenseApiUrl;
+  }
 });
 
 describe('estimateAudioSecondsFromSize', () => {
@@ -146,23 +160,67 @@ describe('deductCredits / drainPendingDeductions', () => {
   });
 
   test('deductCredits records usage against the license API and resolves the charged credits', async () => {
-    let recordedBody: Record<string, unknown> | null = null;
-    globalThis.fetch = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      recordedBody = JSON.parse(String(init?.body));
+    process.env.NEXTJS_LICENSE_API_URL = 'https://licenses.example.test///';
+    const requests: BillingRequest[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), init });
       return Response.json({ credits_remaining: 12.3, credits_deducted: 1.2 });
     }) as unknown as typeof fetch;
 
     const costUsd = 0.05;
-    const creditsUsed = await deductCredits(auth(20), costUsd, { provider: 'test-provider' }, '1.2.3.4');
+    const metadata = { provider: 'test-provider' };
+    const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
 
     expect(creditsUsed).toBe(creditsForCost(costUsd));
-    expect(recordedBody).toMatchObject({
-      license_key: 'lic_test',
-      amount: creditsForCost(costUsd),
-      metadata: { provider: 'test-provider' },
-    });
+    expectBillingPost(
+      requests,
+      creditsForCost(costUsd),
+      metadata,
+      'https://licenses.example.test/api/license/credits',
+    );
     expect(cacheWrites).toHaveLength(1);
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 12.3 });
+    await expectNoPendingDeductions();
+  });
+
+  test('deductCredits resolves without replacing the cached balance when a successful response has malformed JSON', async () => {
+    const requests: BillingRequest[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), init });
+      return new Response('{malformed-json', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    const costUsd = 0.05;
+    const metadata = { provider: 'malformed-success-provider' };
+    const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+
+    expect(creditsUsed).toBe(creditsForCost(costUsd));
+    expectBillingPost(requests, creditsForCost(costUsd), metadata);
+    expect(cacheWrites).toHaveLength(0);
+    await expectNoPendingDeductions();
+  });
+
+  test('deductCredits resolves without a cache write after a non-JSON 5xx response', async () => {
+    const requests: BillingRequest[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), init });
+      return new Response('synthetic service failure', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }) as unknown as typeof fetch;
+
+    const costUsd = 0.05;
+    const metadata = { provider: 'non-json-failure-provider' };
+    const creditsUsed = await deductCredits(auth(20), costUsd, metadata, '1.2.3.4');
+
+    expect(creditsUsed).toBe(creditsForCost(costUsd));
+    expectBillingPost(requests, creditsForCost(costUsd), metadata);
+    expect(cacheWrites).toHaveLength(0);
+    await expectNoPendingDeductions();
   });
 
   for (const status of [429, 500]) {
