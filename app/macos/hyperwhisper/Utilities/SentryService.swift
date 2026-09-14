@@ -170,6 +170,18 @@ enum SentryService {
             // Follow docs: include IP (PII); gated by enableErrorLogging
             options.sendDefaultPii = true
 
+            // STRUCTURED LOGS
+            // The store behind `captureMessage` for a non-error level. A log is
+            // billed against the logs quota, not the error quota, and it is
+            // never grouped into an Issue, so a diagnostic that repeats does
+            // not push a real crash down the Issues list.
+            //
+            // Warning: leave this on. `SentrySDK.logger` builds its batcher once,
+            // at client start, and only when this flag was already true. With the
+            // flag off every `logger` call is dropped in silence, so the info and
+            // warning diagnostics in `captureMessage` would go nowhere at all.
+            options.experimental.enableLogs = true
+
             // HANG DETECTION CONFIGURATION
             // Increase AppHang timeout from default 2s to 10s to reduce false positives
             // from normal modal dialogs (NSAlert, NSOpenPanel) that wait for user input.
@@ -401,8 +413,97 @@ enum SentryService {
         #endif
     }
 
-    /// Capture a non-error diagnostic event with structured context.
-    /// Useful for slow-path warnings that succeeded but still need production visibility.
+    // MARK: - Where a diagnostic goes
+
+    /// The 2 stores a diagnostic can land in. They have different prices.
+    enum DiagnosticStore: Equatable {
+        /// The logs quota. Never grouped, never shown in the Issues list.
+        case log
+        /// The error quota. Grouped into an Issue somebody is meant to open.
+        case issue
+    }
+
+    /// Sentry's severity names as a type of our own.
+    ///
+    /// It exists so the routing table below can be pinned by a test. The test
+    /// target does not link the Sentry package, so a test cannot name
+    /// `SentryLevel` at all.
+    enum DiagnosticSeverity: String, CaseIterable {
+        case debug, info, warning, error, fatal
+    }
+
+    /// THE ROUTING POLICY, as one function with no side effects.
+    ///
+    /// If you change which severities are Issues, change it here, and the test
+    /// that pins this table will tell you what moved.
+    static func store(for severity: DiagnosticSeverity) -> DiagnosticStore {
+        switch severity {
+        case .debug, .info, .warning: return .log
+        case .error, .fatal: return .issue
+        }
+    }
+
+    #if canImport(Sentry)
+    /// Sentry's level as our severity. Nil for `.none`, the SDK's absent value:
+    /// nobody chose it, so it takes the conservative path and stays an Issue.
+    private static func severity(of level: SentryLevel) -> DiagnosticSeverity? {
+        switch level {
+        case .debug: return .debug
+        case .info: return .info
+        case .warning: return .warning
+        case .error: return .error
+        case .fatal: return .fatal
+        default: return nil
+        }
+    }
+
+    /// The log function for a level, or nil when the level must stay an Issue.
+    private static func logWriter(
+        for level: SentryLevel
+    ) -> ((String, [String: Any]) -> Void)? {
+        guard let severity = severity(of: level), store(for: severity) == .log else {
+            return nil
+        }
+        let logger = SentrySDK.logger
+        switch severity {
+        case .debug: return { logger.debug($0, attributes: $1) }
+        case .warning: return { logger.warn($0, attributes: $1) }
+        default: return { logger.info($0, attributes: $1) }
+        }
+    }
+
+    /// A log attribute carries a scalar. The transport keeps String, Bool and
+    /// the number types; anything else would be dropped without a word, so an
+    /// array or a struct is turned into its description here instead.
+    private static func logAttributeValue(_ value: Any) -> Any {
+        switch value {
+        case is String, is Bool, is NSNumber: return value
+        default: return String(describing: value)
+        }
+    }
+    #endif
+
+    /// Capture a diagnostic with structured context. THE LEVEL PICKS THE STORE.
+    ///
+    ///   .debug .info .warning   ->  a Sentry LOG. Logs quota. Not an Issue.
+    ///   .error .fatal           ->  a Sentry EVENT. Error quota. An Issue.
+    ///
+    /// The rule that decides the level is not "how loud is this". It is:
+    /// WOULD A PERSON OPEN THIS ONE OCCURRENCE AND DO SOMETHING? A cancelled
+    /// model load and a file the cleanup could not delete are things we want to
+    /// count and read in aggregate, so they are logs. They used to be Issues,
+    /// which is why an expected outcome could outrank a crash in the Issues list.
+    ///
+    /// Warning: do not raise a level to make a diagnostic easier to find. That
+    /// moves it back onto the error quota and back into the Issues list.
+    ///
+    /// `tags` and `extras` both become flat log attributes on the log path,
+    /// because a log has one attribute bag and no indexed/unindexed split. Keep
+    /// tag keys stable: they are what a log query filters on.
+    ///
+    /// `includeRecentLogs` applies to the EVENT path only. A 100-line log dump
+    /// is an attachment for something a person will open, and nobody opens a
+    /// single log line.
     static func captureMessage(
         _ message: String,
         level: SentryLevel = .info,
@@ -412,6 +513,17 @@ enum SentryService {
     ) {
         #if canImport(Sentry)
         guard isReportingEnabled else { return }
+
+        if let write = Self.logWriter(for: level) {
+            // One bag, and the tags go in last on purpose. A tag key is the
+            // stable thing a saved log query filters on, so where a key is in
+            // both, the tag value is the one that has to survive.
+            var attributes: [String: Any] = [:]
+            for (k, v) in extras { attributes[k] = Self.logAttributeValue(v) }
+            for (k, v) in tags { attributes[k] = v }
+            write(message, attributes)
+            return
+        }
 
         let event = Event()
         event.level = level
