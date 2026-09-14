@@ -26,8 +26,8 @@ struct MainActorHangTraceTests {
         "main_actor_flow_last_completed_started_at_ms",
         "main_actor_flow_last_completed_at_ms",
         "main_actor_flow_last_completed_elapsed_ms",
-        "main_actor_ui_surface",
-        "main_actor_ui_transition",
+        "main_actor_ui_properties",
+        "main_actor_ui_states",
         "main_actor_ui_requested_at_ms"
     ]
 
@@ -59,7 +59,7 @@ struct MainActorHangTraceTests {
         )
 
         trace.withActive(flow: .recordingWindow, step: .close) {}
-        trace.recordUIUpdateRequest(surface: .onboarding, transition: .present)
+        trace.recordUIUpdateRequest(property: .showOnboarding, state: .booleanTrue)
 
         #expect(payloads.isEmpty)
     }
@@ -68,13 +68,13 @@ struct MainActorHangTraceTests {
         let trace = MainActorHangTrace()
         let payload = trace.currentPayload()
 
-        #expect(payload["main_actor_ui_surface"] as? String == "none")
-        #expect(payload["main_actor_ui_transition"] as? String == "none")
-        #expect(payload["main_actor_ui_requested_at_ms"] as? Int64 == 0)
+        #expect(payload["main_actor_ui_properties"] as? [String] == [])
+        #expect(payload["main_actor_ui_states"] as? [String] == [])
+        #expect(payload["main_actor_ui_requested_at_ms"] as? [Int64] == [])
         #expect(Set(payload.keys) == Self.expectedKeys)
     }
 
-    @Test func aLaterUIRequestReplacesAllFieldsFromTheEarlierRequest() {
+    @Test func backToBackUIWritesRemainInOrder() {
         var payloads: [[String: Any]] = []
         var nowValues: [Int64] = [100, 250]
         let trace = MainActorHangTrace(
@@ -83,19 +83,39 @@ struct MainActorHangTraceTests {
             nowMs: { nowValues.removeFirst() }
         )
 
-        trace.recordUIUpdateRequest(surface: .mainWindow, transition: .navigateHistory)
-        trace.recordUIUpdateRequest(surface: .streamingPreview, transition: .show)
+        trace.recordUIUpdateRequest(property: .selectedNavigationItem, state: .history)
+        trace.recordUIUpdateRequest(property: .showStreamingPreview, state: .booleanTrue)
 
         #expect(payloads.count == 2)
-        #expect(payloads[0]["main_actor_ui_surface"] as? String == "main_window")
-        #expect(payloads[0]["main_actor_ui_transition"] as? String == "navigate_history")
-        #expect(payloads[0]["main_actor_ui_requested_at_ms"] as? Int64 == 100)
-        #expect(payloads[1]["main_actor_ui_surface"] as? String == "streaming_preview")
-        #expect(payloads[1]["main_actor_ui_transition"] as? String == "show")
-        #expect(payloads[1]["main_actor_ui_requested_at_ms"] as? Int64 == 250)
+        #expect(payloads[0]["main_actor_ui_properties"] as? [String] == ["selected_navigation_item"])
+        #expect(payloads[0]["main_actor_ui_states"] as? [String] == ["history"])
+        #expect(payloads[0]["main_actor_ui_requested_at_ms"] as? [Int64] == [100])
+        #expect(payloads[1]["main_actor_ui_properties"] as? [String] == [
+            "selected_navigation_item", "show_streaming_preview"
+        ])
+        #expect(payloads[1]["main_actor_ui_states"] as? [String] == [
+            "history", "true"
+        ])
+        #expect(payloads[1]["main_actor_ui_requested_at_ms"] as? [Int64] == [100, 250])
     }
 
-    @Test func activeToIdleBoundaryPublishesPreserveTheLastUIRequest() {
+    @Test func UIWriteSequenceKeepsOnlyTheMostRecentBoundedEntries() {
+        var nowMs: Int64 = 0
+        let trace = MainActorHangTrace(nowMs: {
+            nowMs += 1
+            return nowMs
+        })
+
+        for _ in 0..<(MainActorHangTrace.maxUIUpdateRequests + 2) {
+            trace.recordUIUpdateRequest(property: .recordingState, state: .processing)
+        }
+
+        let payload = trace.currentPayload()
+        #expect((payload["main_actor_ui_properties"] as? [String])?.count == MainActorHangTrace.maxUIUpdateRequests)
+        #expect(payload["main_actor_ui_requested_at_ms"] as? [Int64] == [3, 4, 5, 6, 7, 8, 9, 10])
+    }
+
+    @Test func activeToIdleBoundaryPublishesPreserveTheUIWriteSequence() {
         var payloads: [[String: Any]] = []
         var nowValues: [Int64] = [700, 1_000, 1_020]
         var uptimeValues: [UInt64] = [10_000_000, 12_000_000, 20_000_000]
@@ -106,14 +126,14 @@ struct MainActorHangTraceTests {
             uptimeNs: { uptimeValues.removeFirst() }
         )
 
-        trace.recordUIUpdateRequest(surface: .recordingDialog, transition: .recordingProcessing)
+        trace.recordUIUpdateRequest(property: .recordingState, state: .processing)
         trace.withActive(flow: .recordingWindow, step: .open) {}
 
         #expect(payloads.count == 3)
         for payload in payloads {
-            #expect(payload["main_actor_ui_surface"] as? String == "recording_dialog")
-            #expect(payload["main_actor_ui_transition"] as? String == "recording_processing")
-            #expect(payload["main_actor_ui_requested_at_ms"] as? Int64 == 700)
+            #expect(payload["main_actor_ui_properties"] as? [String] == ["recording_state"])
+            #expect(payload["main_actor_ui_states"] as? [String] == ["processing"])
+            #expect(payload["main_actor_ui_requested_at_ms"] as? [Int64] == [700])
         }
         #expect(payloads[1]["main_actor_flow_state"] as? String == "active")
         #expect(payloads[2]["main_actor_flow_state"] as? String == "idle")
@@ -236,35 +256,35 @@ struct MainActorHangTraceTests {
         let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789_")
         let flowSlugs = MainActorHangFlow.allCases.map(\.rawValue)
         let stepSlugs = MainActorHangStep.allCases.map(\.rawValue)
-        let surfaceSlugs = MainActorUISurface.allCases.map(\.rawValue)
-        let transitionSlugs = MainActorUITransition.allCases.map(\.rawValue)
+        let propertySlugs = MainActorUIProperty.allCases.map(\.rawValue)
+        let stateSlugs = MainActorUIState.allCases.map(\.rawValue)
 
-        for slug in flowSlugs + stepSlugs + surfaceSlugs + transitionSlugs {
+        for slug in flowSlugs + stepSlugs + propertySlugs + stateSlugs {
             #expect(!slug.isEmpty)
             #expect(slug.allSatisfy { allowed.contains($0) })
         }
         #expect(Set(flowSlugs).count == flowSlugs.count)
         #expect(Set(stepSlugs).count == stepSlugs.count)
-        #expect(Set(surfaceSlugs).count == surfaceSlugs.count)
-        #expect(Set(transitionSlugs).count == transitionSlugs.count)
+        #expect(Set(propertySlugs).count == propertySlugs.count)
+        #expect(Set(stateSlugs).count == stateSlugs.count)
     }
 
     @Test func everySelectedAppStatePropertyRecordsFromWillSet() throws {
-        let expectedSurfaces = [
-            "selectedNavigationItem": ".mainWindow",
-            "recordingState": ".recordingDialog",
-            "showRecordingDialog": ".recordingDialog",
-            "showCancelConfirmation": ".cancelConfirmation",
-            "showOnboarding": ".onboarding",
-            "streamingConnectionState": ".streamingConnection",
-            "showStreamingPreview": ".streamingPreview"
+        let expectedProperties = [
+            "selectedNavigationItem": ".selectedNavigationItem",
+            "recordingState": ".recordingState",
+            "showRecordingDialog": ".showRecordingDialog",
+            "showCancelConfirmation": ".showCancelConfirmation",
+            "showOnboarding": ".showOnboarding",
+            "streamingConnectionState": ".streamingConnectionState",
+            "showStreamingPreview": ".showStreamingPreview"
         ]
 
-        for (property, surface) in expectedSurfaces {
+        for (property, propertySlug) in expectedProperties {
             let declaration = try Self.appStatePublishedProperty(named: property)
             #expect(declaration.contains("willSet"), "\(property) must trace before @Published invalidates SwiftUI")
             #expect(declaration.contains("MainActorHangTrace.shared.recordUIUpdateRequest"))
-            #expect(declaration.contains("surface: \(surface)"))
+            #expect(declaration.contains("property: \(propertySlug)"))
         }
     }
 
@@ -272,12 +292,26 @@ struct MainActorHangTraceTests {
         let recording = try Self.appStatePublishedProperty(named: "recordingState")
         let streaming = try Self.appStatePublishedProperty(named: "streamingConnectionState")
 
-        #expect(recording.contains("case .complete: transition = .recordingComplete"))
-        #expect(recording.contains("case .error: transition = .recordingError"))
+        #expect(recording.contains("case .complete: state = .complete"))
+        #expect(recording.contains("case .error: state = .error"))
         #expect(!recording.contains(".complete(let"))
         #expect(!recording.contains(".error(let"))
-        #expect(streaming.contains("case .error: transition = .streamingError"))
+        #expect(streaming.contains("case .error: state = .error"))
         #expect(!streaming.contains(".error(let"))
+    }
+
+    @Test func booleanPropertiesUseOneSharedStatePair() throws {
+        let booleanProperties = [
+            "showRecordingDialog",
+            "showCancelConfirmation",
+            "showOnboarding",
+            "showStreamingPreview"
+        ]
+
+        for property in booleanProperties {
+            let declaration = try Self.appStatePublishedProperty(named: property)
+            #expect(declaration.contains("newValue ? .booleanTrue : .booleanFalse"))
+        }
     }
 
     private static func appStatePublishedProperty(named name: String) throws -> String {

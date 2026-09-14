@@ -287,34 +287,34 @@ class AppState: ObservableObject {
     /// Currently selected navigation item in the sidebar
     @Published var selectedNavigationItem: NavigationItem = .home {
         willSet {
-            let transition: MainActorUITransition
+            let state: MainActorUIState
             switch newValue {
-            case .home: transition = .navigateHome
-            case .modes: transition = .navigateModes
-            case .vocabulary: transition = .navigateVocabulary
-            case .modelLibrary: transition = .navigateModelLibrary
-            case .streaming: transition = .navigateStreaming
-            case .history: transition = .navigateHistory
-            case .settings: transition = .navigateSettings
+            case .home: state = .home
+            case .modes: state = .modes
+            case .vocabulary: state = .vocabulary
+            case .modelLibrary: state = .modelLibrary
+            case .streaming: state = .streaming
+            case .history: state = .history
+            case .settings: state = .settings
             }
-            MainActorHangTrace.shared.recordUIUpdateRequest(surface: .mainWindow, transition: transition)
+            MainActorHangTrace.shared.recordUIUpdateRequest(property: .selectedNavigationItem, state: state)
         }
     }
     
     /// Current state of the recording process
     @Published var recordingState: RecordingState = .idle {
         willSet {
-            let transition: MainActorUITransition
+            let state: MainActorUIState
             switch newValue {
-            case .idle: transition = .recordingIdle
-            case .recording: transition = .recordingActive
-            case .processing: transition = .recordingProcessing
-            case .transcribing: transition = .recordingTranscribing
-            case .postProcessing: transition = .recordingPostProcessing
-            case .complete: transition = .recordingComplete
-            case .error: transition = .recordingError
+            case .idle: state = .idle
+            case .recording: state = .active
+            case .processing: state = .processing
+            case .transcribing: state = .transcribing
+            case .postProcessing: state = .postProcessing
+            case .complete: state = .complete
+            case .error: state = .error
             }
-            MainActorHangTrace.shared.recordUIUpdateRequest(surface: .recordingDialog, transition: transition)
+            MainActorHangTrace.shared.recordUIUpdateRequest(property: .recordingState, state: state)
         }
     }
     
@@ -334,8 +334,8 @@ class AppState: ObservableObject {
     @Published var showRecordingDialog: Bool = false {
         willSet {
             MainActorHangTrace.shared.recordUIUpdateRequest(
-                surface: .recordingDialog,
-                transition: newValue ? .present : .dismiss
+                property: .showRecordingDialog,
+                state: newValue ? .booleanTrue : .booleanFalse
             )
         }
     }
@@ -344,8 +344,8 @@ class AppState: ObservableObject {
     @Published var showCancelConfirmation: Bool = false {
         willSet {
             MainActorHangTrace.shared.recordUIUpdateRequest(
-                surface: .cancelConfirmation,
-                transition: newValue ? .present : .dismiss
+                property: .showCancelConfirmation,
+                state: newValue ? .booleanTrue : .booleanFalse
             )
         }
     }
@@ -358,8 +358,8 @@ class AppState: ObservableObject {
     @Published var showOnboarding: Bool = false {
         willSet {
             MainActorHangTrace.shared.recordUIUpdateRequest(
-                surface: .onboarding,
-                transition: newValue ? .present : .dismiss
+                property: .showOnboarding,
+                state: newValue ? .booleanTrue : .booleanFalse
             )
         }
         didSet { TextDeliveryGate.setSuppressed(showOnboarding) }
@@ -491,18 +491,18 @@ class AppState: ObservableObject {
     /// This helps users know when they can start speaking (avoiding lost audio during connection setup)
     @Published var streamingConnectionState: StreamingConnectionState = .idle {
         willSet {
-            let transition: MainActorUITransition
+            let state: MainActorUIState
             switch newValue {
-            case .idle: transition = .streamingIdle
-            case .warmingUp: transition = .streamingWarmingUp
-            case .connecting: transition = .streamingConnecting
-            case .ready: transition = .streamingReady
-            case .streaming: transition = .streamingActive
-            case .reconnecting: transition = .streamingReconnecting
-            case .disconnecting: transition = .streamingDisconnecting
-            case .error: transition = .streamingError
+            case .idle: state = .idle
+            case .warmingUp: state = .warmingUp
+            case .connecting: state = .connecting
+            case .ready: state = .ready
+            case .streaming: state = .streaming
+            case .reconnecting: state = .reconnecting
+            case .disconnecting: state = .disconnecting
+            case .error: state = .error
             }
-            MainActorHangTrace.shared.recordUIUpdateRequest(surface: .streamingConnection, transition: transition)
+            MainActorHangTrace.shared.recordUIUpdateRequest(property: .streamingConnectionState, state: state)
         }
     }
 
@@ -512,8 +512,8 @@ class AppState: ObservableObject {
     @Published var showStreamingPreview: Bool = false {
         willSet {
             MainActorHangTrace.shared.recordUIUpdateRequest(
-                surface: .streamingPreview,
-                transition: newValue ? .show : .hide
+                property: .showStreamingPreview,
+                state: newValue ? .booleanTrue : .booleanFalse
             )
         }
     }

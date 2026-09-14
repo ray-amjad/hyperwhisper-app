@@ -28,42 +28,38 @@ enum MainActorHangStep: String, CaseIterable {
     case sendPasteCommand = "send_paste_command"
 }
 
-enum MainActorUISurface: String, CaseIterable {
-    case mainWindow = "main_window"
-    case recordingDialog = "recording_dialog"
-    case cancelConfirmation = "cancel_confirmation"
-    case onboarding
-    case streamingConnection = "streaming_connection"
-    case streamingPreview = "streaming_preview"
+enum MainActorUIProperty: String, CaseIterable {
+    case selectedNavigationItem = "selected_navigation_item"
+    case recordingState = "recording_state"
+    case showRecordingDialog = "show_recording_dialog"
+    case showCancelConfirmation = "show_cancel_confirmation"
+    case showOnboarding = "show_onboarding"
+    case streamingConnectionState = "streaming_connection_state"
+    case showStreamingPreview = "show_streaming_preview"
 }
 
-enum MainActorUITransition: String, CaseIterable {
-    case navigateHome = "navigate_home"
-    case navigateModes = "navigate_modes"
-    case navigateVocabulary = "navigate_vocabulary"
-    case navigateModelLibrary = "navigate_model_library"
-    case navigateStreaming = "navigate_streaming"
-    case navigateHistory = "navigate_history"
-    case navigateSettings = "navigate_settings"
-    case recordingIdle = "recording_idle"
-    case recordingActive = "recording_active"
-    case recordingProcessing = "recording_processing"
-    case recordingTranscribing = "recording_transcribing"
-    case recordingPostProcessing = "recording_post_processing"
-    case recordingComplete = "recording_complete"
-    case recordingError = "recording_error"
-    case streamingIdle = "streaming_idle"
-    case streamingWarmingUp = "streaming_warming_up"
-    case streamingConnecting = "streaming_connecting"
-    case streamingReady = "streaming_ready"
-    case streamingActive = "streaming_active"
-    case streamingReconnecting = "streaming_reconnecting"
-    case streamingDisconnecting = "streaming_disconnecting"
-    case streamingError = "streaming_error"
-    case present
-    case dismiss
-    case show
-    case hide
+enum MainActorUIState: String, CaseIterable {
+    case home
+    case modes
+    case vocabulary
+    case modelLibrary = "model_library"
+    case streaming
+    case history
+    case settings
+    case idle
+    case active
+    case processing
+    case transcribing
+    case postProcessing = "post_processing"
+    case complete
+    case error
+    case warmingUp = "warming_up"
+    case connecting
+    case ready
+    case reconnecting
+    case disconnecting
+    case booleanTrue = "true"
+    case booleanFalse = "false"
 }
 
 @MainActor
@@ -74,6 +70,7 @@ final class MainActorHangTrace {
     static let stateActive = "active"
     static let stateIdle = "idle"
     static let slugNone = "none"
+    static let maxUIUpdateRequests = 8
 
     typealias ExtrasPublisher = ([String: Any]) -> Void
 
@@ -95,8 +92,8 @@ final class MainActorHangTrace {
     }
 
     private struct UIUpdateRequest {
-        let surface: MainActorUISurface
-        let transition: MainActorUITransition
+        let property: MainActorUIProperty
+        let state: MainActorUIState
         let requestedAtMs: Int64
     }
 
@@ -106,7 +103,7 @@ final class MainActorHangTrace {
     private let uptimeNs: () -> UInt64
     private var frames: [Frame] = []
     private var lastCompleted: CompletedFrame?
-    private var lastUIUpdateRequest: UIUpdateRequest?
+    private var recentUIUpdateRequests: [UIUpdateRequest] = []
 
     init(
         errorLoggingEnabled: @escaping () -> Bool = { AppLogger.isErrorLoggingEnabled },
@@ -165,18 +162,21 @@ final class MainActorHangTrace {
     }
 
     func recordUIUpdateRequest(
-        surface: MainActorUISurface,
-        transition: MainActorUITransition
+        property: MainActorUIProperty,
+        state: MainActorUIState
     ) {
         let requestedAtMs = nowMs()
-        lastUIUpdateRequest = UIUpdateRequest(
-            surface: surface,
-            transition: transition,
+        recentUIUpdateRequests.append(UIUpdateRequest(
+            property: property,
+            state: state,
             requestedAtMs: requestedAtMs
-        )
-        let surfaceSlug = surface.rawValue
-        let transitionSlug = transition.rawValue
-        AppLogger.ui.info("Main-actor UI update requested: surface=\(surfaceSlug, privacy: .public) transition=\(transitionSlug, privacy: .public) requested_at_ms=\(requestedAtMs, privacy: .public)")
+        ))
+        if recentUIUpdateRequests.count > Self.maxUIUpdateRequests {
+            recentUIUpdateRequests.removeFirst(recentUIUpdateRequests.count - Self.maxUIUpdateRequests)
+        }
+        let propertySlug = property.rawValue
+        let stateSlug = state.rawValue
+        AppLogger.ui.info("Main-actor UI state write: property=\(propertySlug, privacy: .public) state=\(stateSlug, privacy: .public) requested_at_ms=\(requestedAtMs, privacy: .public)")
         publishCurrentState()
     }
 
@@ -201,9 +201,9 @@ final class MainActorHangTrace {
             "\(Self.keyPrefix)last_completed_started_at_ms": lastCompleted?.startedAtMs ?? 0,
             "\(Self.keyPrefix)last_completed_at_ms": lastCompleted?.completedAtMs ?? 0,
             "\(Self.keyPrefix)last_completed_elapsed_ms": lastCompleted?.elapsedMs ?? 0,
-            "main_actor_ui_surface": lastUIUpdateRequest?.surface.rawValue ?? Self.slugNone,
-            "main_actor_ui_transition": lastUIUpdateRequest?.transition.rawValue ?? Self.slugNone,
-            "main_actor_ui_requested_at_ms": lastUIUpdateRequest?.requestedAtMs ?? 0
+            "main_actor_ui_properties": recentUIUpdateRequests.map { $0.property.rawValue },
+            "main_actor_ui_states": recentUIUpdateRequests.map { $0.state.rawValue },
+            "main_actor_ui_requested_at_ms": recentUIUpdateRequests.map(\.requestedAtMs)
         ]
     }
 
