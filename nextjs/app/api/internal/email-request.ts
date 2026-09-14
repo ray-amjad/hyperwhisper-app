@@ -19,7 +19,7 @@ export async function parseInternalEmailRequest(
   try {
     const body: unknown = await request.json();
     let email = isRecord(body) && typeof body.email === "string" ? body.email : "";
-    if (!email || typeof email !== "string") {
+    if (!email) {
       return {
         response: NextResponse.json(
           { error: "email is required" },
