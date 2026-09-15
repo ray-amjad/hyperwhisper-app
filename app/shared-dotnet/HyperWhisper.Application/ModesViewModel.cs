@@ -126,6 +126,8 @@ public sealed class ModesViewModel : ViewModelBase
     private void LoadEditorFrom(Mode value)
     {
         {
+            // A fresh mode is a fresh BYOK model list: drop any id pinned for the previous mode.
+            ResetCloudModelsCache();
             Name = value.Name;
             Language = value.Language;
             Preset = string.IsNullOrWhiteSpace(value.Preset) ? "hyper" : value.Preset;
@@ -263,7 +265,17 @@ public sealed class ModesViewModel : ViewModelBase
     ///
     /// A mode written by another platform, or by a newer catalog, may hold an id this build does
     /// not list. Windows keeps such a value visible rather than silently reselecting index 0
-    /// (:479-489), and so does this: the current id is appended when the catalog does not have it.
+    /// (:494-505), and so does this: the out-of-catalog id is appended.
+    ///
+    /// The appended id is PINNED for the lifetime of the vendor, not of the selection (issue #645).
+    /// This used to key the cache on the CURRENT model id, so clicking an entry in the combo
+    /// dropped the appended id and handed back a SHORTER list in the middle of the selection
+    /// commit: the model setter notifies this property, and Avalonia's selection model then read
+    /// the clicked index out of the new, shorter list and took the whole process down with an
+    /// ArgumentOutOfRangeException. Windows cannot hit this because it rebuilds CloudModelCombo
+    /// only when the provider changes (ModeEditorWindow.xaml.cs:724), never on a model click.
+    /// Selecting an id that IS in the catalog now leaves the pin alone, so the getter returns the
+    /// same instance and the notification is a reference-equal no-op at the binding.
     /// </summary>
     public IReadOnlyList<string> CloudModels
     {
@@ -272,18 +284,45 @@ public sealed class ModesViewModel : ViewModelBase
             // Hand back the SAME list instance while the inputs are unchanged. Every reveal
             // notification re-reads this property, and a fresh list each time makes the bound
             // ComboBox drop and re-pick its selection on every keystroke elsewhere in the form.
-            var key = $"{_cloudProvider}\n{_transcriptionModel}";
-            if (_cloudModelsKey == key && _cloudModels is not null) return _cloudModels;
-            var ids = HyperWhisper.ModelReadiness.CloudSttModelCatalog.ForProvider(_cloudProvider)
-                .Select(entry => entry.Value).ToList();
-            if (_transcriptionModel.Length > 0 && !ids.Contains(_transcriptionModel, StringComparer.Ordinal))
-                ids.Add(_transcriptionModel);
-            _cloudModelsKey = key;
+            // The vendor is matched OrdinalIgnoreCase, as CloudSttModelCatalog keys it; model ids
+            // are matched Ordinal, as everywhere else in this file.
+            if (!string.Equals(_cloudModelsProvider, _cloudProvider, StringComparison.OrdinalIgnoreCase))
+            {
+                _cloudModelsProvider = _cloudProvider;
+                _cloudModelsPinnedId = null;
+                _cloudModels = null;
+            }
+            var catalog = HyperWhisper.ModelReadiness.CloudSttModelCatalog.ForProvider(_cloudProvider);
+            // Only ever GROW the pin, and never on a CloudModels selection commit: an id that the
+            // combo offered is by definition either in the catalog or already the pinned one.
+            if (_transcriptionModel.Length > 0
+                && !string.Equals(_cloudModelsPinnedId, _transcriptionModel, StringComparison.Ordinal)
+                && !catalog.Any(entry => string.Equals(entry.Value, _transcriptionModel, StringComparison.Ordinal)))
+            {
+                _cloudModelsPinnedId = _transcriptionModel;
+                _cloudModels = null;
+            }
+            if (_cloudModels is not null) return _cloudModels;
+            var ids = catalog.Select(entry => entry.Value).ToList();
+            if (_cloudModelsPinnedId is { Length: > 0 } pinned) ids.Add(pinned);
             return _cloudModels = ids;
         }
     }
 
-    private string? _cloudModelsKey;
+    /// <summary>
+    /// Drops the cached BYOK model list and its pinned out-of-catalog id. The Linux dialog binds
+    /// the shared, long-lived view model (ModeEditorWindow.axaml.cs:35-41), so without this an id
+    /// pinned for one mode would still be offered by the next mode on the same vendor.
+    /// </summary>
+    private void ResetCloudModelsCache()
+    {
+        _cloudModelsProvider = null;
+        _cloudModelsPinnedId = null;
+        _cloudModels = null;
+    }
+
+    private string? _cloudModelsProvider;
+    private string? _cloudModelsPinnedId;
     private IReadOnlyList<string>? _cloudModels;
 
     /// <summary>

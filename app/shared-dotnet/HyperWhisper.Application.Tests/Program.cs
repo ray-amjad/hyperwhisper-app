@@ -456,6 +456,33 @@ try
         Assert(!ReferenceEquals(whisperModels, shell.Modes.LocalModels),
             "LocalModels did not rebuild when the engine changed");
 
+        // Issue #645: picking any entry in the Linux Cloud Model combo killed the process. The
+        // stale HyperWhisper Cloud tier is appended to the BYOK vendor's list so it stays visible;
+        // keying the cached list on the CURRENT model id dropped that entry the instant the combo
+        // committed a selection, and Avalonia's selection model then read the clicked index out of
+        // the now-shorter list. The appended id is pinned per vendor, so the list keeps its
+        // identity across a selection change.
+        shell.Modes.Selected = null;
+        shell.Modes.IsHwCloudSource = true;
+        shell.Modes.TranscriptionModel = "scribe_v2";
+        shell.Modes.IsYourProviderSource = true;
+        var byokModels = shell.Modes.CloudModels;
+        Assert(byokModels.Count > 1 && byokModels[^1] == "scribe_v2"
+            && byokModels.Take(byokModels.Count - 1).Contains("gpt-4o-transcribe", StringComparer.Ordinal),
+            "CloudModels did not append the out-of-catalog model id after the vendor's own models");
+        Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
+            "CloudModels handed back a new list instance for an unchanged vendor and model");
+        shell.Modes.CloudTranscriptionModel = byokModels[0];
+        Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
+            "CloudModels changed instance while the combo committed a selection; the shorter list "
+            + "takes the Avalonia selection model out of range (issue #645)");
+        shell.Modes.CloudProvider = "deepgram";
+        var deepgramModels = shell.Modes.CloudModels;
+        Assert(!ReferenceEquals(byokModels, deepgramModels)
+            && deepgramModels.Contains("nova-3-general", StringComparer.Ordinal)
+            && !deepgramModels.Contains("scribe_v2", StringComparer.Ordinal),
+            "CloudModels kept the previous vendor's pinned model id after the vendor changed");
+
         cloudMode.ModelType = "linux-model-type";
         cloudMode.IsSystemProvided = true;
         cloudMode.CreatedDate = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
