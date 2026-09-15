@@ -215,7 +215,7 @@ public static class SentryService
     }
 
     /// <summary>
-    /// Whether <c>beforeSend</c> replaces this extra's value with <c>"[redacted]"</c>.
+    /// Whether the Sentry privacy filter replaces this extra's value with <c>"[redacted]"</c>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -439,20 +439,7 @@ public static class SentryService
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(dedupeKey))
-        {
-            lock (_diagnosticLock)
-            {
-                if (_capturedDiagnosticKeys.Count > 500)
-                    _capturedDiagnosticKeys.Clear();
-
-                if (!_capturedDiagnosticKeys.Add(dedupeKey))
-                {
-                    LoggingService.Debug($"SentryService: Skipping duplicate diagnostic event: {dedupeKey}");
-                    return;
-                }
-            }
-        }
+        if (ShouldSkipDiagnosticCapture(dedupeKey)) return;
 
         var mergedTags = tags != null
             ? new Dictionary<string, string>(tags, StringComparer.OrdinalIgnoreCase)
@@ -467,6 +454,99 @@ public static class SentryService
             tags: mergedTags,
             fingerprint: fingerprint ?? new[] { "diagnostic", message },
             level: SentryLevel.Warning);
+    }
+
+    /// <summary>
+    /// Capture a no-speech diagnostic as a Sentry transaction, not an Issue.
+    /// The transaction keeps the existing diagnostic fields without binding an
+    /// exception. Transaction data is sanitized here because <c>beforeSend</c>
+    /// only processes error events.
+    /// </summary>
+    public static void CaptureDiagnosticTransaction(
+        string message,
+        Dictionary<string, object>? extras = null,
+        Dictionary<string, string>? tags = null,
+        string[]? fingerprint = null,
+        string? dedupeKey = null)
+    {
+        if (!_isInitialized)
+        {
+            LoggingService.Debug("SentryService: Not initialized, skipping diagnostic capture");
+            return;
+        }
+
+        if (ShouldSkipDiagnosticCapture(dedupeKey)) return;
+
+        try
+        {
+            var transaction = SentrySdk.StartTransaction(message, "diagnostic.no_speech");
+            var (preparedTags, preparedData) = PrepareDiagnosticTransactionData(
+                message,
+                extras,
+                tags,
+                fingerprint);
+
+            foreach (var (key, value) in preparedTags)
+                transaction.SetTag(key, value);
+
+            foreach (var (key, value) in preparedData)
+                transaction.SetExtra(key, value);
+
+            transaction.Finish(SpanStatus.Ok);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"SentryService: Failed to capture diagnostic transaction: {ex.Message}");
+        }
+    }
+
+    // internal: test seam for HyperWhisper.SmokeTests.
+    internal static (Dictionary<string, string> Tags, Dictionary<string, object?> Data)
+        PrepareDiagnosticTransactionData(
+            string message,
+            Dictionary<string, object>? extras,
+            Dictionary<string, string>? tags,
+            string[]? fingerprint)
+    {
+        var preparedTags = tags != null
+            ? new Dictionary<string, string>(tags, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        preparedTags["event_type"] = "diagnostic";
+
+        var preparedData = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["diagnostic_message"] = message,
+            ["diagnostic_fingerprint"] = fingerprint ?? new[] { "diagnostic", message }
+        };
+
+        if (extras != null)
+        {
+            foreach (var (key, value) in extras)
+            {
+                preparedData[key] = IsRedactedExtraKey(key)
+                    ? "[redacted]"
+                    : value;
+            }
+        }
+
+        return (preparedTags, preparedData);
+    }
+
+    private static bool ShouldSkipDiagnosticCapture(string? dedupeKey)
+    {
+        if (string.IsNullOrWhiteSpace(dedupeKey)) return false;
+
+        lock (_diagnosticLock)
+        {
+            if (_capturedDiagnosticKeys.Count > 500)
+                _capturedDiagnosticKeys.Clear();
+
+            if (_capturedDiagnosticKeys.Add(dedupeKey)) return false;
+
+            LoggingService.Debug($"SentryService: Skipping duplicate diagnostic event: {dedupeKey}");
+            return true;
+        }
     }
 
     private sealed class DiagnosticEventException(string message) : Exception(message);

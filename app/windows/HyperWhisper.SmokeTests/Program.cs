@@ -2560,7 +2560,7 @@ internal static class Program
                     "a failed audio analysis should always be captured");
             });
 
-            Run("TranscriptionDiagnosticsService payload: no extra key is silently redacted by SentryService.beforeSend", () =>
+            Run("TranscriptionDiagnosticsService payload: transaction data is complete and privacy-safe", () =>
             {
                 // The bug this guards. SentryService.IsRedactedExtraKey matches on the
                 // KEY, as a substring, and replaces the value with "[redacted]". Three
@@ -2651,6 +2651,34 @@ internal static class Program
                 // question without it.
                 Assert(!extras.ContainsKey("mode_name"), "mode_name is user-typed text and must not be reported");
                 Assert(extras.ContainsKey("mode_preset"), "mode_preset is missing");
+
+                var fingerprint = TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech",
+                    "live_recording",
+                    "provider_no_speech",
+                    new Mode { Preset = "hyper" });
+                extras["raw_text"] = "must not leave the app";
+
+                var (transactionTags, transactionData) = SentryService.PrepareDiagnosticTransactionData(
+                    "Windows transcription no-speech diagnostic",
+                    extras,
+                    tags,
+                    fingerprint);
+
+                Assert(transactionTags["component"] == "transcription",
+                    "the transaction dropped a supplied diagnostic tag");
+                Assert(transactionTags["event_type"] == "diagnostic",
+                    "the transaction event_type tag is missing");
+                Assert(Equals(transactionData["audio_file_size_bytes"], extras["audio_file_size_bytes"]),
+                    "the transaction dropped a supplied diagnostic extra");
+                Assert((string)transactionData["raw_text"]! == "[redacted]",
+                    "the transaction sent a denied extra without redaction");
+                Assert(transactionData["diagnostic_fingerprint"] is string[] transactionFingerprint
+                        && transactionFingerprint.SequenceEqual(fingerprint),
+                    "the transaction did not retain the diagnostic fingerprint as data");
+                Assert((string)transactionData["diagnostic_message"]! ==
+                        "Windows transcription no-speech diagnostic",
+                    "the transaction did not retain the stable diagnostic message");
             });
 
             Run("TranscriptionDiagnosticsService device selection: explicit selection is distinguishable from startup-first", () =>

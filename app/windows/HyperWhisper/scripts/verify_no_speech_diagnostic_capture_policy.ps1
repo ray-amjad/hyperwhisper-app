@@ -12,6 +12,9 @@ $HarnessProgram = Join-Path $HarnessRoot "Program.cs"
 $HarnessStubs = Join-Path $HarnessRoot "HyperWhisperStubs.cs"
 $DiagnosticsSource = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Services\TranscriptionDiagnosticsService.cs"))
 $ProviderDiagnosticsSource = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Services\Transcription\TranscriptionProviderDiagnostics.cs"))
+$DeviceSelectionReasonSource = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Services\AudioDeviceSelectionReason.cs"))
+$SharedCoreProject = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "..\..\shared-dotnet\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj"))
+$RustCoreDll = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Resources\rust-core\x64\hyperwhisper_core.dll"))
 
 @"
 <Project Sdk="Microsoft.NET.Sdk">
@@ -24,8 +27,14 @@ $ProviderDiagnosticsSource = [System.Security.SecurityElement]::Escape((Join-Pat
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <ProjectReference Include="$SharedCoreProject" />
     <Compile Include="$DiagnosticsSource" Link="TranscriptionDiagnosticsService.cs" />
     <Compile Include="$ProviderDiagnosticsSource" Link="TranscriptionProviderDiagnostics.cs" />
+    <Compile Include="$DeviceSelectionReasonSource" Link="AudioDeviceSelectionReason.cs" />
+    <Content Include="$RustCoreDll" Condition="Exists('$RustCoreDll')">
+      <Link>hyperwhisper_core.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
 "@ | Set-Content -LiteralPath $HarnessProject -Encoding UTF8
@@ -39,6 +48,7 @@ namespace HyperWhisper.Data.Entities
         public string? CloudProvider { get; set; }
         public string? CloudAccuracyTier { get; set; }
         public string? LocalEngine { get; set; }
+        public string? Language { get; set; }
         public string? Name { get; set; }
         public string? Preset { get; set; }
     }
@@ -70,6 +80,11 @@ namespace HyperWhisper.Models
 
 namespace HyperWhisper.Services
 {
+    public sealed class AudioDeviceService
+    {
+        public sealed record AudioDevice(int DeviceNumber, string Name);
+    }
+
     public static class LoggingService
     {
         public static void Debug(string message) { }
@@ -77,7 +92,7 @@ namespace HyperWhisper.Services
 
     public static class SentryService
     {
-        public static void CaptureDiagnosticEvent(
+        public static void CaptureDiagnosticTransaction(
             string message,
             Dictionary<string, object>? extras = null,
             Dictionary<string, string>? tags = null,
@@ -127,13 +142,14 @@ static object AudioDiagnostics(
         rmsDbfs,
         nonSilentRatio,
         analysisError,
-        decodedSampleCount
+        decodedSampleCount,
+        null
     };
 
     // Pick the constructor by arity instead of letting Activator.CreateInstance go
     // through Type.DefaultBinder. The binder has no Nullable<T> handling -
     // typeof(long?).IsAssignableFrom(typeof(long)) is false - so a boxed System.Int64
-    // passed for the trailing "long? DecodedSampleCount" parameter makes BindToMethod
+    // passed for the trailing nullable count parameters makes BindToMethod
     // discard the only candidate constructor and throw MissingMethodException, which
     // would take out the very first assertion below and leave this script verifying
     // nothing. ConstructorInfo.Invoke instead goes through CheckValue, which DOES

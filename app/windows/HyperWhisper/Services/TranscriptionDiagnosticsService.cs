@@ -100,7 +100,7 @@ public static class TranscriptionDiagnosticsService
 
         var dedupeKey = $"{transcriptId}:{diagnosticStage}:{diagnosticSource}:{presentation.Name}";
 
-        SentryService.CaptureDiagnosticEvent(
+        SentryService.CaptureDiagnosticTransaction(
             message: presentation.Message,
             extras: extras,
             tags: tags,
@@ -114,7 +114,7 @@ public static class TranscriptionDiagnosticsService
     /// <remarks>
     /// Split out of <see cref="CaptureNoSpeechDiagnostic"/> so the smoke tests can
     /// read the payload this diagnostic actually sends. The specific thing they read
-    /// is the extras KEYS: <see cref="SentryService.IsRedactedExtraKey"/> replaces
+    /// is the extras KEYS: <see cref="SentryService.IsRedactedExtraKey"/> identifies
     /// the value of any key containing "transcript", "text", "prompt" or "path" with
     /// <c>"[redacted]"</c>, and three of these fields were named that way, so they
     /// arrived empty on every event of HYPERWHISPER-PA/-RM/-XR with nothing at the
