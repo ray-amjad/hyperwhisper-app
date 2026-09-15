@@ -109,6 +109,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse device change notifies once without re-entrant recursion", PulseDeviceChangeIsNotReentrant),
     ("Pulse nested refresh reuses the list the raising frame enumerated", PulseNestedRefreshReusesTheEnumeratedList),
     ("Pulse recursion stays bounded when the device set flaps", PulseDeviceFlapCannotRecurse),
+    ("Pulse guard stays armed while a second service raises", PulseGuardStaysArmedWhileASecondServiceRaises),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -1666,8 +1667,7 @@ static Task PulseDeviceFlapCannotRecurse()
     // if the guard fails — the only backstop is this queue, which runs dry after 256 rounds and lets
     // FakeDesktopCommandRunner throw into the blanket catch in GetAvailableDevices. So a regression
     // reports the depth it reached instead of overflowing the harness stack: it read 255 before the fix.
-    var rounds = Enumerable.Range(0, 256).Select(round => (round % 2 == 0 ? OneMic() : TwoMics(), "mic.one")).ToArray();
-    var runner = PactlRunner(rounds);
+    var runner = PactlRunner(FlapRounds(256));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var warmup = service.GetAvailableDevices();
     var raises = 0;
@@ -1687,6 +1687,33 @@ static Task PulseDeviceFlapCannotRecurse()
     Assert.Equal(1, deepest);
     Assert.Equal(1, raises);
     Assert.Equal(4, runner.Calls.Count);
+    return Task.CompletedTask;
+}
+
+static Task PulseGuardStaysArmedWhileASecondServiceRaises()
+{
+    // Two services, one thread, handlers pointing at each other: A -> B -> A. The guard slot is per
+    // INSTANCE, so A's slot is still armed while B publishes and A's re-entry is served from it. A
+    // process-wide slot that only saves and restores cannot do this: B's publication would displace A's
+    // for the duration of B's raise, A would enumerate again, raise again, and the chain would have no
+    // depth cap. 64 flapping rounds per service cap a regression instead of overflowing the harness.
+    var firstRunner = PactlRunner(FlapRounds(64));
+    var secondRunner = PactlRunner(FlapRounds(64));
+    using var first = new PulseAudioInputDeviceService(firstRunner, "/usr/bin/pactl");
+    using var second = new PulseAudioInputDeviceService(secondRunner, "/usr/bin/pactl");
+    Assert.True(first.GetAvailableDevices().IsSuccess);
+    Assert.True(second.GetAvailableDevices().IsSuccess);
+    var depth = 0;
+    var deepest = 0;
+    first.DevicesChanged += (_, _) => { depth++; deepest = Math.Max(deepest, depth); second.GetAvailableDevices(); depth--; };
+    second.DevicesChanged += (_, _) => { depth++; deepest = Math.Max(deepest, depth); first.GetAvailableDevices(); depth--; };
+    var changed = first.GetAvailableDevices();
+    Assert.True(changed.IsSuccess);
+    // A raises (depth 1), B enumerates and raises (depth 2), B's handler re-enters A and is served from
+    // A's still-armed slot without a pactl call. Two rounds each: the warm-up and one enumeration.
+    Assert.Equal(2, deepest);
+    Assert.Equal(4, firstRunner.Calls.Count);
+    Assert.Equal(4, secondRunner.Calls.Count);
     return Task.CompletedTask;
 }
 
@@ -2459,6 +2486,12 @@ static string PactlSources(params (string Name, string Description, int? SinkOf)
 static string OneMic() => PactlSources(("mic.one", "Microphone", null));
 
 static string TwoMics() => PactlSources(("mic.one", "Microphone", null), ("mic.two", "Headset", null));
+
+// A device set that never settles: the key differs at every level, so comparing each enumeration
+// against its immediate predecessor never reaches a fixed point. The finite length is the backstop
+// that turns a re-entrancy regression into a reported depth instead of a harness stack overflow.
+static (string Json, string DefaultId)[] FlapRounds(int count) =>
+    Enumerable.Range(0, count).Select(round => (round % 2 == 0 ? OneMic() : TwoMics(), "mic.one")).ToArray();
 
 static FakeDesktopCommandRunner PactlRunner(params (string Json, string DefaultId)[] rounds) =>
     new(rounds.SelectMany(round => new object[]
