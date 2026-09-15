@@ -56,8 +56,6 @@ struct SentryDiagnosticRoutingTests {
             ("Parakeet preparation rejected", .error, .issue),
             ("Auto-delete aborted: Core Data transaction failed", .error, .issue),
             ("Auto-delete could not remove some audio files", .warning, .log),
-            ("macOS transcription no-speech diagnostic", .warning, .log),
-            ("macOS transcription empty recording diagnostic", .warning, .log),
         ]
 
         for (name, severity, expected) in callSites {
@@ -66,5 +64,30 @@ struct SentryDiagnosticRoutingTests {
                 "\(name) moved between the two stores"
             )
         }
+    }
+
+    /// Pin the severity used by the production no-speech capture. This reads
+    /// the value the call site passes instead of repeating its message/level.
+    @Test func noSpeechDiagnosticsUseTheLogsStore() {
+        #expect(
+            SentryService.store(for: TranscriptionDiagnosticsService.sentrySeverity) == .log
+        )
+    }
+
+    /// Sentry Cocoa 8.x does not apply scope tags or extras to Logs. Pin the
+    /// wrapper's flattening, precedence and privacy behavior without a network.
+    @Test func logsKeepScopeContextAndRedactContentKeys() {
+        let attributes = SentryService.mergeLogAttributes(
+            scopeExtras: ["recording_stage": "captured", "prompt_body": "private"],
+            scopeTags: ["build_number": "100", "component": "scope"],
+            extras: ["duration_ms": 42, "component": "extra"],
+            tags: ["component": "transcription"]
+        )
+
+        #expect(attributes["recording_stage"] as? String == "captured")
+        #expect(attributes["build_number"] as? String == "100")
+        #expect(attributes["duration_ms"] as? Int == 42)
+        #expect(attributes["component"] as? String == "transcription")
+        #expect(attributes["prompt_body"] as? String == "[redacted]")
     }
 }

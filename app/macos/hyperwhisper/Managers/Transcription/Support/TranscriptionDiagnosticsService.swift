@@ -96,6 +96,14 @@ struct AudioAnalysisDiagnostics {
 
 enum TranscriptionDiagnosticsService {
 
+    /// The real severity used by the no-speech call site. Keeping it in the
+    /// SDK-independent routing type lets the test target pin this exact choice.
+    static let sentrySeverity: SentryService.DiagnosticSeverity = .warning
+
+    /// Stable telemetry identity for the only error that enters this service.
+    /// Do not use `NSError.code`: Swift synthesizes it from enum case position.
+    static let errorKind = "no_speech_detected"
+
     struct DiagnosticPayload {
         let tags: [String: String]
         let extras: [String: Any]
@@ -106,23 +114,17 @@ enum TranscriptionDiagnosticsService {
 
     // MARK: Presentation
 
-    /// The Sentry message, tag name and fingerprint root for an outcome. They
+    /// The Sentry message and tag name for an outcome. They
     /// travel together so an outcome can never be reported under another
     /// outcome's identity.
     struct DiagnosticPresentation {
         let name: String
         let message: String
-        let fingerprintRoot: String
     }
 
-    /// NOTE: these messages and fingerprint roots are deliberately NOT the
-    /// Windows strings, and #291's shared classifier deliberately does not
-    /// unify them. The Windows message is the group identity for eight live
-    /// issues (HYPERWHISPER-PA/-QB/-RM/-T6/-VY/-XB/-XR/-W7); reusing either
-    /// would merge macOS events into those Windows groups and destroy the
-    /// per-platform signal this exists to create. Only the fingerprint SHAPE is
-    /// shared. Both strings are group identity here too — keep them
-    /// character-identical.
+    /// NOTE: these messages are deliberately NOT the Windows strings. Logs are
+    /// queried by their message and attributes instead of grouped by an Issue
+    /// fingerprint, so the message keeps the platform-specific identity.
     static func presentation(for outcome: HwNoSpeechOutcome) -> DiagnosticPresentation? {
         switch outcome {
         case .skip:
@@ -130,13 +132,11 @@ enum TranscriptionDiagnosticsService {
         case .noSpeech:
             return DiagnosticPresentation(
                 name: "no_speech",
-                message: "macOS transcription no-speech diagnostic",
-                fingerprintRoot: "macos-transcription-no-speech")
+                message: "macOS transcription no-speech diagnostic")
         case .emptyRecording:
             return DiagnosticPresentation(
                 name: "empty_recording",
-                message: "macOS transcription empty recording diagnostic",
-                fingerprintRoot: "macos-transcription-empty-recording")
+                message: "macOS transcription empty recording diagnostic")
         }
     }
 
@@ -299,9 +299,9 @@ enum TranscriptionDiagnosticsService {
             logAttributes[key] = value
         }
 
-        SentryService.captureMessage(
+        SentryService.captureDiagnosticMessage(
             presentation.message,
-            level: .warning,
+            severity: sentrySeverity,
             extras: logAttributes,
             tags: payload.tags,
             includeRecentLogs: false
@@ -315,7 +315,7 @@ enum TranscriptionDiagnosticsService {
         return [
             "error_type": String(describing: type(of: error)),
             "error_domain": nsError.domain,
-            "error_code": nsError.code
+            "error_kind": errorKind
         ]
     }
 

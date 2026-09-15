@@ -16,12 +16,48 @@
 
 import Foundation
 #if canImport(Sentry)
-import Sentry
+@_spi(Private) import Sentry
 #endif
 
 // MARK: - SentryService
 
 enum SentryService {
+
+    /// Sentry Cocoa 8.x applies OS/device contexts to Logs, but it does not
+    /// apply the scope's tags or extras. Mirror only the context this wrapper
+    /// writes so the Log path carries the same app context as the Event path.
+    private final class LogScopeState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var tags: [String: String] = [:]
+        private var extras: [String: Any] = [:]
+
+        func reset(tags: [String: String]) {
+            lock.lock()
+            self.tags = tags
+            extras = [:]
+            lock.unlock()
+        }
+
+        func setTag(_ key: String, _ value: String) {
+            lock.lock()
+            tags[key] = value
+            lock.unlock()
+        }
+
+        func setExtras(_ values: [String: Any]) {
+            lock.lock()
+            for (key, value) in values { extras[key] = value }
+            lock.unlock()
+        }
+
+        func snapshot() -> (tags: [String: String], extras: [String: Any]) {
+            lock.lock()
+            defer { lock.unlock() }
+            return (tags, extras)
+        }
+    }
+
+    private static let logScopeState = LogScopeState()
 
     /// Rebuild an error with identifiers only. Error descriptions and NSError
     /// userInfo can contain paths, provider bodies, URLs, or credentials.
@@ -134,6 +170,18 @@ enum SentryService {
             #endif
         }()
 
+        let deviceTags: [String: String] = [
+            "macos_version": ProcessInfo.processInfo.operatingSystemVersionString,
+            "build_number": build,
+            #if arch(arm64)
+            "architecture": "apple_silicon",
+            #else
+            "architecture": "intel",
+            #endif
+            "cpu_cores": String(ProcessInfo.processInfo.processorCount)
+        ]
+        logScopeState.reset(tags: deviceTags)
+
         SentrySDK.start { options in
             options.dsn = dsn
             options.environment = resolvedEnv
@@ -235,27 +283,23 @@ enum SentryService {
                 event.extra = sanitized
                 return event
             }
+
+            // The Logs pipeline does not use `beforeSend`. Check the same
+            // privacy preference in its own last hook so work that started
+            // before opt-out cannot add a new log to the SDK batch afterwards.
+            options.beforeSendLog = { log in
+                guard AppLogger.isErrorLoggingEnabled else { return nil }
+                return log
+            }
         }
 
         // DEVICE/SYSTEM TAGS
         // Set global tags for filtering issues by hardware/software configuration
         // These tags appear on every event, making it easy to filter in Sentry UI
         SentrySDK.configureScope { scope in
-            // macOS version (e.g., "14.2.1")
-            scope.setTag(value: ProcessInfo.processInfo.operatingSystemVersionString, key: "macos_version")
-
-            // Build number for precise version tracking
-            scope.setTag(value: build, key: "build_number")
-
-            // CPU architecture - helps identify Apple Silicon vs Intel issues
-            #if arch(arm64)
-            scope.setTag(value: "apple_silicon", key: "architecture")
-            #else
-            scope.setTag(value: "intel", key: "architecture")
-            #endif
-
-            // Processor count - helps identify performance issues on low-core machines
-            scope.setTag(value: String(ProcessInfo.processInfo.processorCount), key: "cpu_cores")
+            for (key, value) in deviceTags {
+                scope.setTag(value: value, key: key)
+            }
         }
         #endif
     }
@@ -300,6 +344,11 @@ enum SentryService {
     /// tick, and it is the shutdown itself, not a diagnostic.
     static func shutdown() {
         #if canImport(Sentry)
+        // `close()` flushes the in-memory Logs batch before it closes the
+        // client. Release that batch first: an opt-out must discard it, not
+        // turn the SDK shutdown into its final upload.
+        SentrySDK.clearLogger()
+
         // Before the close, because the close flushes (see 2 above).
         purgeQueuedReports()
 
@@ -443,6 +492,37 @@ enum SentryService {
         }
     }
 
+    /// A log attribute carries a scalar. The transport keeps String, Bool and
+    /// the number types; anything else would be dropped without a word, so an
+    /// array or a struct is turned into its description here instead.
+    private static func logAttributeValue(_ value: Any) -> Any {
+        switch value {
+        case is String, is Bool, is NSNumber: return value
+        default: return String(describing: value)
+        }
+    }
+
+    /// Flatten scope and call-site context with the same precedence as an
+    /// Event: local values override inherited values, and searchable tags win
+    /// over extras when both use one key. Apply the Event path's redaction gate
+    /// because Sentry Logs do not pass through `beforeSend`.
+    static func mergeLogAttributes(
+        scopeExtras: [String: Any],
+        scopeTags: [String: String],
+        extras: [String: Any],
+        tags: [String: String]
+    ) -> [String: Any] {
+        var attributes: [String: Any] = [:]
+        for (key, value) in scopeExtras { attributes[key] = logAttributeValue(value) }
+        for (key, value) in scopeTags { attributes[key] = value }
+        for (key, value) in extras { attributes[key] = logAttributeValue(value) }
+        for (key, value) in tags { attributes[key] = value }
+        for key in attributes.keys where isRedactedExtraKey(key) {
+            attributes[key] = "[redacted]"
+        }
+        return attributes
+    }
+
     #if canImport(Sentry)
     /// Sentry's level as our severity. Nil for `.none`, the SDK's absent value:
     /// nobody chose it, so it takes the conservative path and stays an Issue.
@@ -472,16 +552,50 @@ enum SentryService {
         }
     }
 
-    /// A log attribute carries a scalar. The transport keeps String, Bool and
-    /// the number types; anything else would be dropped without a word, so an
-    /// array or a struct is turned into its description here instead.
-    private static func logAttributeValue(_ value: Any) -> Any {
-        switch value {
-        case is String, is Bool, is NSNumber: return value
-        default: return String(describing: value)
-        }
+    /// Add the scope context that Sentry Cocoa 8.x does not apply to Logs.
+    private static func mergedLogAttributes(
+        extras: [String: Any],
+        tags: [String: String]
+    ) -> [String: Any] {
+        let scope = logScopeState.snapshot()
+        return mergeLogAttributes(
+            scopeExtras: scope.extras,
+            scopeTags: scope.tags,
+            extras: extras,
+            tags: tags
+        )
     }
     #endif
+
+    /// Capture through the routing table without exposing the Sentry SDK's
+    /// level type. Call sites can pin their real severity in ordinary tests.
+    static func captureDiagnosticMessage(
+        _ message: String,
+        severity: DiagnosticSeverity,
+        extras: [String: Any] = [:],
+        tags: [String: String] = [:],
+        includeRecentLogs: Bool = true
+    ) {
+        #if canImport(Sentry)
+        let level: SentryLevel
+        switch severity {
+        case .debug: level = .debug
+        case .info: level = .info
+        case .warning: level = .warning
+        case .error: level = .error
+        case .fatal: level = .fatal
+        }
+        captureMessage(
+            message,
+            level: level,
+            extras: extras,
+            tags: tags,
+            includeRecentLogs: includeRecentLogs
+        )
+        #else
+        _ = (message, severity, extras, tags, includeRecentLogs)
+        #endif
+    }
 
     /// Capture a diagnostic with structured context. THE LEVEL PICKS THE STORE.
     ///
@@ -515,12 +629,7 @@ enum SentryService {
         guard isReportingEnabled else { return }
 
         if let write = Self.logWriter(for: level) {
-            // One bag, and the tags go in last on purpose. A tag key is the
-            // stable thing a saved log query filters on, so where a key is in
-            // both, the tag value is the one that has to survive.
-            var attributes: [String: Any] = [:]
-            for (k, v) in extras { attributes[k] = Self.logAttributeValue(v) }
-            for (k, v) in tags { attributes[k] = v }
+            let attributes = Self.mergedLogAttributes(extras: extras, tags: tags)
             write(message, attributes)
             return
         }
@@ -558,6 +667,7 @@ enum SentryService {
     static func setTag(_ key: String, _ value: String) {
         #if canImport(Sentry)
         guard isReportingEnabled else { return }
+        logScopeState.setTag(key, value)
         SentrySDK.configureScope { $0.setTag(value: value, key: key) }
         #else
         _ = (key, value)
@@ -570,6 +680,7 @@ enum SentryService {
     static func setExtras(_ extras: [String: Any]) {
         #if canImport(Sentry)
         guard isReportingEnabled else { return }
+        logScopeState.setExtras(extras)
         SentrySDK.configureScope { scope in
             for (key, value) in extras {
                 scope.setExtra(value: value, key: key)

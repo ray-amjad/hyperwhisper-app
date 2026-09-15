@@ -7,7 +7,7 @@
 //  fingerprint elements. It now delegates to the shared `hw-audio` core. These
 //  tests pin the parts that are deliberately NOT shared (the macOS Sentry
 //  identity) and the parts that must now match Windows exactly (the arms, the
-//  thresholds, the fingerprint shape).
+//  thresholds, and provider-axis tags).
 //
 
 import Foundation
@@ -38,33 +38,46 @@ struct NoSpeechDiagnosticsTests {
         )
     }
 
+    private func payload(
+        modeIdentity: NoSpeechModeIdentity?,
+        outcome: HwNoSpeechOutcome = .noSpeech
+    ) -> TranscriptionDiagnosticsService.DiagnosticPayload {
+        TranscriptionDiagnosticsService.buildPayload(
+            audio: audio(),
+            audioFileExists: true,
+            audioFileExtension: "wav",
+            modeIdentity: modeIdentity,
+            attemptDiagnostics: nil,
+            responseNoSpeechDetected: true,
+            diagnosticStage: "live_recording",
+            diagnosticSource: "provider_no_speech",
+            presentation: TranscriptionDiagnosticsService.presentation(for: outcome)!
+        )
+    }
+
     // MARK: - Sentry identity (deliberately NOT shared with Windows)
 
-    /// The messages and the fingerprint roots are macOS group identity. Sharing
-    /// the classifier must never have shared these — a Windows root here would
-    /// merge macOS events into eight live Windows issues.
-    @Test func macOSKeepsItsOwnMessagesAndFingerprintRoots() {
+    /// The messages are the stable query identity for the macOS Logs.
+    @Test func macOSKeepsItsOwnLogMessages() {
         let noSpeech = TranscriptionDiagnosticsService.presentation(for: .noSpeech)
         #expect(noSpeech?.name == "no_speech")
         #expect(noSpeech?.message == "macOS transcription no-speech diagnostic")
-        #expect(noSpeech?.fingerprintRoot == "macos-transcription-no-speech")
 
         let empty = TranscriptionDiagnosticsService.presentation(for: .emptyRecording)
         #expect(empty?.name == "empty_recording")
         #expect(empty?.message == "macOS transcription empty recording diagnostic")
-        #expect(empty?.fingerprintRoot == "macos-transcription-empty-recording")
 
         // Skip is filtered out before anything is reported, so it has no
         // presentation by design.
         #expect(TranscriptionDiagnosticsService.presentation(for: .skip) == nil)
     }
 
-    /// Every reportable outcome needs its own arm, its own name and its own root
-    /// — a new outcome that copies an existing identity is the mislabelling this
+    /// Every reportable outcome needs its own arm, name and message. A new
+    /// outcome that copies an existing identity is the mislabelling this
     /// diagnostic exists to fix.
     @Test func everyReportableOutcomeHasAUniqueIdentity() {
         var names = Set<String>()
-        var roots = Set<String>()
+        var messages = Set<String>()
 
         for outcome in [HwNoSpeechOutcome.skip, .emptyRecording, .noSpeech] {
             guard let presentation = TranscriptionDiagnosticsService.presentation(for: outcome) else {
@@ -72,11 +85,9 @@ struct NoSpeechDiagnosticsTests {
             }
             #expect(names.insert(presentation.name).inserted,
                     "duplicate diagnostic name '\(presentation.name)'")
-            #expect(roots.insert(presentation.fingerprintRoot).inserted,
-                    "duplicate fingerprint root '\(presentation.fingerprintRoot)'")
-            #expect(!presentation.message.isEmpty)
-            #expect(presentation.fingerprintRoot.hasPrefix("macos-"),
-                    "a macOS root must stay macOS-scoped, got '\(presentation.fingerprintRoot)'")
+            #expect(messages.insert(presentation.message).inserted,
+                    "duplicate diagnostic message '\(presentation.message)'")
+            #expect(presentation.message.hasPrefix("macOS "))
         }
     }
 
@@ -307,43 +318,33 @@ struct NoSpeechDiagnosticsTests {
 
         #expect(attributes["error_type"] as? String == "NSError")
         #expect(attributes["error_domain"] as? String == "HyperWhisper.Transcription")
-        #expect(attributes["error_code"] as? Int == 17)
+        #expect(attributes["error_kind"] as? String == "no_speech_detected")
+        #expect(attributes["error_code"] == nil)
         #expect(attributes.count == 3)
         #expect(!attributes.values.contains { String(describing: $0).contains("private") })
     }
 
-    // MARK: - Fingerprint (shape shared, root not)
+    // MARK: - Log dimensions
 
-    @Test func theFingerprintHasFiveElementsAndKeepsTheMacOSRoot() {
+    @Test func theRealPayloadKeepsTheDiagnosticAndProviderDimensions() {
         let identity = TranscriptionDiagnosticsService.modeIdentity(
             rawModel: "parakeet-tdt-0.6b-v3", cloudProvider: "groq")
-        let fingerprint = noSpeechFingerprint(
-            fingerprintRoot: "macos-transcription-no-speech",
-            diagnosticStage: "live_recording",
-            diagnosticSource: "provider_no_speech",
-            mode: HwModeIdentity(
-                providerType: identity.providerType,
-                cloudProvider: identity.cloudProvider,
-                localEngine: identity.localEngine))
+        let result = payload(modeIdentity: identity)
 
-        #expect(fingerprint.count == 5)
-        #expect(fingerprint[0] == "macos-transcription-no-speech")
-        #expect(fingerprint[1] == "live_recording")
-        #expect(fingerprint[2] == "provider_no_speech")
-        #expect(fingerprint[3] == "local")
-        // A local mode groups on its engine, never on the stale cloud vendor it
-        // kept from before the user switched it to local.
-        #expect(fingerprint[4] == "parakeet-tdt-0.6b-v3")
+        #expect(result.tags["diagnostic_name"] == "no_speech")
+        #expect(result.tags["diagnostic_stage"] == "live_recording")
+        #expect(result.tags["diagnostic_source"] == "provider_no_speech")
+        #expect(result.tags["provider_type"] == "local")
+        #expect(result.tags["local_engine"] == "parakeet-tdt-0.6b-v3")
     }
 
     @Test func anAbsentModeIsDistinguishableFromABlankOne() {
-        let noMode = noSpeechFingerprint(
-            fingerprintRoot: "macos-transcription-no-speech",
-            diagnosticStage: "live_recording",
-            diagnosticSource: "provider_no_speech",
-            mode: nil)
-        #expect(noMode[3] == "unknown")
-        #expect(noMode[4] == "none")
+        let noMode = payload(modeIdentity: nil)
+        let blankMode = payload(modeIdentity: TranscriptionDiagnosticsService.modeIdentity(
+            rawModel: "", cloudProvider: nil))
+
+        #expect(noMode.tags["provider_type"] == "unknown")
+        #expect(blankMode.tags["provider_type"] == "cloud")
     }
 
     // MARK: - Mode identity derivation
@@ -385,39 +386,30 @@ struct NoSpeechDiagnosticsTests {
         #expect(shouty.providerType == "local")
         #expect(shouty.localEngine == "parakeet-tdt-0.6b-v3")
 
-        func fingerprint(rawModel: String) -> String {
+        func engineTag(rawModel: String) -> String? {
             let identity = TranscriptionDiagnosticsService.modeIdentity(
                 rawModel: rawModel, cloudProvider: nil)
-            return noSpeechFingerprint(
-                fingerprintRoot: "macos-transcription-no-speech",
-                diagnosticStage: "live_recording",
-                diagnosticSource: "provider_no_speech",
-                mode: HwModeIdentity(
-                    providerType: identity.providerType,
-                    cloudProvider: identity.cloudProvider,
-                    localEngine: identity.localEngine)).joined(separator: "|")
+            return payload(modeIdentity: identity).tags["local_engine"]
         }
-        #expect(fingerprint(rawModel: "Parakeet") == fingerprint(rawModel: "parakeet"))
+        #expect(engineTag(rawModel: "Parakeet") == engineTag(rawModel: "parakeet"))
     }
 
     /// The production regression the provider axis exists to fix: two local
     /// modes on the same engine with different leftover cloud vendors are ONE
-    /// condition and must be one Sentry group.
+    /// condition and must have the same query dimensions.
     @Test func twoLocalModesWithDifferentStaleVendorsGroupTogether() {
-        func fingerprint(cloudProvider: String) -> String {
+        func providerTags(cloudProvider: String) -> [String: String] {
             let identity = TranscriptionDiagnosticsService.modeIdentity(
                 rawModel: "large-v3-turbo", cloudProvider: cloudProvider)
-            return noSpeechFingerprint(
-                fingerprintRoot: "macos-transcription-no-speech",
-                diagnosticStage: "live_recording",
-                diagnosticSource: "provider_no_speech",
-                mode: HwModeIdentity(
-                    providerType: identity.providerType,
-                    cloudProvider: identity.cloudProvider,
-                    localEngine: identity.localEngine)).joined(separator: "|")
+            let tags = payload(modeIdentity: identity).tags
+            return [
+                "provider_type": tags["provider_type"]!,
+                "cloud_provider": tags["cloud_provider"]!,
+                "local_engine": tags["local_engine"]!
+            ]
         }
 
-        #expect(fingerprint(cloudProvider: "groq") == fingerprint(cloudProvider: "gemini"))
+        #expect(providerTags(cloudProvider: "groq") == providerTags(cloudProvider: "gemini"))
 
         // ...and the cloud_provider tag must not report the stale vendor either.
         let stale = TranscriptionDiagnosticsService.modeIdentity(
@@ -429,20 +421,13 @@ struct NoSpeechDiagnosticsTests {
     }
 
     @Test func twoCloudVendorsKeepGroupingSeparately() {
-        func fingerprint(cloudProvider: String) -> String {
+        func cloudProviderTag(cloudProvider: String) -> String? {
             let identity = TranscriptionDiagnosticsService.modeIdentity(
                 rawModel: "cloud", cloudProvider: cloudProvider)
-            return noSpeechFingerprint(
-                fingerprintRoot: "macos-transcription-no-speech",
-                diagnosticStage: "live_recording",
-                diagnosticSource: "provider_no_speech",
-                mode: HwModeIdentity(
-                    providerType: identity.providerType,
-                    cloudProvider: identity.cloudProvider,
-                    localEngine: identity.localEngine)).joined(separator: "|")
+            return payload(modeIdentity: identity).tags["cloud_provider"]
         }
 
-        #expect(fingerprint(cloudProvider: "groq") != fingerprint(cloudProvider: "openai"))
+        #expect(cloudProviderTag(cloudProvider: "groq") != cloudProviderTag(cloudProvider: "openai"))
     }
 
     // MARK: - dBFS helpers
