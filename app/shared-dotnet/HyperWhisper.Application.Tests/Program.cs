@@ -463,6 +463,20 @@ try
         // the CURRENT model id dropped that entry the instant the combo committed a selection, and
         // Avalonia's selection model then read the clicked index out of the now-shorter list.
         //
+        // The dialog binds ItemsSource straight to CloudModels (ModeEditorWindow.axaml:147-148), so
+        // every PropertyChanged for it is a re-read of the getter — including the ones raised while
+        // LoadEditorFrom is still half-way through its fields. Nothing re-reads a property in a
+        // headless harness, so stand in for the binding here: without this, a pin taken inside the
+        // getter is invisible to the suite and the assertions below cannot see the fault at all.
+        var cloudModelsReads = 0;
+        void ReadCloudModelsLikeTheBinding(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+        {
+            if (!string.Equals(args.PropertyName, nameof(shell.Modes.CloudModels), StringComparison.Ordinal)) return;
+            cloudModelsReads++;
+            _ = shell.Modes.CloudModels;
+        }
+        shell.Modes.PropertyChanged += ReadCloudModelsLikeTheBinding;
+
         // Two BYOK modes on the SAME vendor, differing in language and in whether their model id is
         // in that vendor's catalog: one mode is the pin, the other proves the pin does not leak.
         shell.Modes.Selected = null;
@@ -500,6 +514,16 @@ try
         Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
             "CloudModels changed instance when the combo re-selected the pinned id (issue #645)");
 
+        // Round 1 of this fix derived the pin inside the getter, from whatever TranscriptionModel
+        // held at the instant of a read. Loading the next mode then re-pinned the OUTGOING mode's
+        // id: the language assignment notifies, the notification re-reads CloudModels, and the
+        // model field is still the previous mode's. The pin is derived once, after the fields.
+        shell.Modes.Selected = catalogByokMode;
+        var catalogModeModels = shell.Modes.CloudModels;
+        Assert(!catalogModeModels.Contains("whisper-1-legacy", StringComparer.Ordinal)
+            && catalogModeModels.Contains("gpt-4o-transcribe", StringComparer.Ordinal),
+            "CloudModels offered the previously loaded mode's out-of-catalog id under the next mode");
+
         // A vendor change releases the pin and never re-derives it. Windows refills its combo with
         // no preferred model on a provider change (ModeEditorWindow.xaml.cs:724); keeping the id
         // would offer one vendor's model under another, and SaveAsync strips only LOCAL ids.
@@ -515,6 +539,59 @@ try
         shell.Modes.CloudTranscriptionModel = "nova-3-general";
         Assert(ReferenceEquals(deepgramModels, shell.Modes.CloudModels),
             "CloudModels changed instance while the combo committed a selection on the new vendor (issue #645)");
+
+        // Cancel (RestoreEditorState) must put the list back, not just the fields. Clicking the
+        // On-device segment mid-edit assigns a local model id through NormalizeLocalModel, and the
+        // still-bound combo re-reads CloudModels while it is assigned.
+        shell.Modes.Selected = catalogByokMode;
+        var beforeDetourModels = shell.Modes.CloudModels;
+        var editorState = shell.Modes.CaptureEditorState();
+        shell.Modes.IsOnDeviceSource = true;
+        var localDetourId = shell.Modes.TranscriptionModel;
+        _ = shell.Modes.CloudModels;
+        shell.Modes.RestoreEditorState(editorState);
+        Assert(shell.Modes.CloudModels.SequenceEqual(beforeDetourModels, StringComparer.Ordinal),
+            $"CloudModels offered the on-device model id '{localDetourId}' as a BYOK model after the editor was cancelled");
+
+        // The same path the other way round: an abandoned edit that changed the VENDOR dropped the
+        // pin, so Cancel has to re-derive it or the combo has no entry for the value it restored.
+        shell.Modes.Selected = legacyByokMode;
+        var legacyState = shell.Modes.CaptureEditorState();
+        shell.Modes.CloudProvider = "deepgram";
+        shell.Modes.CloudTranscriptionModel = "nova-3-general";
+        shell.Modes.RestoreEditorState(legacyState);
+        var restoredLegacyModels = shell.Modes.CloudModels;
+        Assert(restoredLegacyModels[^1] == "whisper-1-legacy"
+            && !restoredLegacyModels.Contains("nova-3-general", StringComparer.Ordinal),
+            "CloudModels did not restore the cancelled mode's out-of-catalog model id");
+
+        // Create Mode seeds the on-device default `base` into the shared TranscriptionModel field
+        // before "Your provider" is ever clicked, and the create path never loads a mode. A local
+        // model id must never be offered as a BYOK cloud model: re-selecting it saves the mode with
+        // CloudTranscriptionModel=null and shows no error.
+        shell.Modes.NewCommand.Execute(null);
+        shell.Modes.IsYourProviderSource = true;
+        var createModeModels = shell.Modes.CloudModels;
+        Assert(!createModeModels.Contains("base", StringComparer.Ordinal)
+            && createModeModels.Contains("gpt-4o-transcribe", StringComparer.Ordinal),
+            "CloudModels offered the on-device default model id 'base' as a BYOK cloud model");
+
+        // The HyperWhisper Cloud segment edits the same TranscriptionModel field through its own
+        // tier model control, and its ids are not BYOK ids at all.
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Cloud medical");
+        Assert(!shell.Modes.CloudModels.Contains("mai-1.5", StringComparer.Ordinal),
+            "CloudModels pinned a HyperWhisper Cloud tier model id into the BYOK list");
+
+        // A mode persisted by an older build can hold a LOCAL id in its cloud column — the fault
+        // the cloud-column guard in SaveAsync fixes. Loading it must not pin that id either.
+        legacyByokMode.CloudTranscriptionModel = "base";
+        await new ModeRepository(database).UpsertAsync(legacyByokMode);
+        await shell.Modes.RefreshAsync();
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+        Assert(!shell.Modes.CloudModels.Contains("base", StringComparer.Ordinal),
+            "CloudModels pinned a local model id from a mode's cloud column into the BYOK list");
+        shell.Modes.PropertyChanged -= ReadCloudModelsLikeTheBinding;
+        Assert(cloudModelsReads > 0, "the CloudModels binding stand-in never re-read the property");
 
         cloudMode.ModelType = "linux-model-type";
         cloudMode.IsSystemProvided = true;
