@@ -1612,9 +1612,7 @@ static Task HostGpuEvidence()
 
 static Task PulseInputEnumeration()
 {
-    var json = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"sink.monitor","description":"Monitor","monitor_of_sink":1}]""";
-    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(json)),
-        new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
+    var runner = PactlRunner((PactlSources(("mic.one", "Microphone", null), ("sink.monitor", "Monitor", 1)), "mic.one"));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var result = service.GetAvailableDevices();
     Assert.True(result.IsSuccess);
@@ -1625,11 +1623,7 @@ static Task PulseInputEnumeration()
 
 static Task PulseDeviceChangeIsNotReentrant()
 {
-    var one = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null}]""";
-    var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
-    var runner = new FakeDesktopCommandRunner(
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(one)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
+    var runner = PactlRunner((OneMic(), "mic.one"), (TwoMics(), "mic.one"));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var warmup = service.GetAvailableDevices();
     var raises = 0;
@@ -1647,15 +1641,11 @@ static Task PulseDeviceChangeIsNotReentrant()
 
 static Task PulseNestedRefreshReusesTheEnumeratedList()
 {
-    var one = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null}]""";
-    var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
-    var runner = new FakeDesktopCommandRunner(
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(one)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
+    var runner = PactlRunner((OneMic(), "mic.one"), (TwoMics(), "mic.one"));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var warmup = service.GetAvailableDevices();
-    // The queue holds two rounds. A nested refresh that shelled out to pactl again would drain it and
-    // come back as a Failure, so an IsSuccess nested result proves it was served from memory.
+    // Only two rounds are queued, so a nested refresh that shelled out to pactl again would drain the
+    // queue and come back a Failure: an IsSuccess nested result proves it was served from memory.
     PlatformResult<IReadOnlyList<AudioInputDevice>>? nested = null;
     var callsBeforeNested = 0;
     service.DevicesChanged += (_, _) => { callsBeforeNested = runner.Calls.Count; nested = service.GetAvailableDevices(); };
@@ -1671,15 +1661,13 @@ static Task PulseNestedRefreshReusesTheEnumeratedList()
 
 static Task PulseDeviceFlapCannotRecurse()
 {
-    var one = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null}]""";
-    var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
-    var outcomes = new List<object>();
-    for (var round = 0; round < 256; round++)
-    {
-        outcomes.Add(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(round % 2 == 0 ? one : two)));
-        outcomes.Add(new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
-    }
-    var runner = new FakeDesktopCommandRunner(outcomes.ToArray());
+    // Issue #621's real shape: the device set never settles, so comparing each enumeration against its
+    // immediate predecessor never reaches a fixed point. Nothing in the production code caps the depth
+    // if the guard fails — the only backstop is this queue, which runs dry after 256 rounds and lets
+    // FakeDesktopCommandRunner throw into the blanket catch in GetAvailableDevices. So a regression
+    // reports the depth it reached instead of overflowing the harness stack: it read 255 before the fix.
+    var rounds = Enumerable.Range(0, 256).Select(round => (round % 2 == 0 ? OneMic() : TwoMics(), "mic.one")).ToArray();
+    var runner = PactlRunner(rounds);
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var warmup = service.GetAvailableDevices();
     var raises = 0;
@@ -2460,6 +2448,24 @@ static byte[] Frame(ushort code, int value)
     BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(20, 4), value);
     return frame;
 }
+
+// One pactl "round" is what a single PulseAudioInputDeviceService.GetAvailableDevices() consumes:
+// the `list sources` JSON, then the `get-default-source` id. This is the only place the field names
+// pactl emits are spelled out. `sinkOf` is the monitor_of_sink value; anything non-null is filtered.
+static string PactlSources(params (string Name, string Description, int? SinkOf)[] sources) =>
+    "[" + string.Join(',', sources.Select(source =>
+        $$"""{"name":"{{source.Name}}","description":"{{source.Description}}","monitor_of_sink":{{(source.SinkOf is null ? "null" : source.SinkOf.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))}}}""")) + "]";
+
+static string OneMic() => PactlSources(("mic.one", "Microphone", null));
+
+static string TwoMics() => PactlSources(("mic.one", "Microphone", null), ("mic.two", "Headset", null));
+
+static FakeDesktopCommandRunner PactlRunner(params (string Json, string DefaultId)[] rounds) =>
+    new(rounds.SelectMany(round => new object[]
+    {
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(round.Json)),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(round.DefaultId + "\n")),
+    }).ToArray());
 
 sealed class FakeEnvironment(string home, IReadOnlyDictionary<string, string> values) : IProcessEnvironment
 {
