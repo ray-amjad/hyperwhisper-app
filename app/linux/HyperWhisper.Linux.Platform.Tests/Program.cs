@@ -1609,21 +1609,38 @@ static Task HostGpuEvidence()
     return Task.CompletedTask;
 }
 
-// Measured `pactl 16.1 --format=json list sources` output (#627): a real source carries NO
-// `monitor_of_sink` key, which is why the documented field alone matched nothing. Each of the four
-// monitors carries exactly ONE marker, so no clause of the filter is proved by another clause's
-// coverage; each of the three real sources carries a DIFFERENT empty form of a marker, so no clause
-// may key off a key's mere presence. Do not reshape this JSON to fit the parser.
+// The first two rows are MEASURED. They were taken on 2026-09-15 from a live pulseaudio 16.1 server
+// (`pulseaudio --start`, then `module-null-sink` and `module-null-source`), by running
+// `pactl --format=json list sources`, and are copied verbatim except that keys this parser never
+// reads — volume, latency, channel_map, flags, formats, owner_module — were dropped for width. They
+// are the whole point of #627: a source carries NO `monitor_of_sink` key at all, which is why the
+// documented field alone matched nothing; a monitor carries BOTH surviving markers at once
+// (`monitor_source` naming its sink, and `device.class: "monitor"`); and a real source carries
+// `monitor_source: ""` with `device.class: "abstract"` — NOT "sound", so no clause may require that.
+//
+// Every other row is SYNTHETIC: shapes this parser tolerates, not shapes pactl 16.1 was observed to
+// emit. They exist so each clause of `IsMonitor` is proved by a row no other clause matches, and so
+// each empty form a server might report (`monitor_of_sink: null`, `monitor_source: ""`, the key
+// absent) is proved not to drop a real source. Keep them one-marker-per-row for that reason. If a
+// later measurement contradicts one, trust the measurement and replace the row.
 static IReadOnlyList<AudioInputDevice> EnumeratePulseInputs(string defaultSource)
 {
     const string json = """
-    [{"index":0,"name":"monitor.by_number","description":"Monitor of Legacy Sink","monitor_of_sink":2},
-     {"index":1,"name":"monitor.by_name","description":"Monitor of Named Sink","monitor_of_sink":"2"},
-     {"index":2,"name":"monitor.by_source","description":"Monitor of VirtualSpeaker","monitor_source":"speaker"},
-     {"index":3,"name":"monitor.by_class","description":"Monitor of Built-in Audio","properties":{"device.class":"monitor"}},
-     {"index":4,"name":"mic.null_sink","description":"Server Capture","monitor_of_sink":null},
-     {"index":5,"name":"mic.empty_source","description":"Virtual microphone","monitor_source":"","properties":{"device.class":"sound"}},
-     {"index":6,"name":"mic.no_markers","description":"Built-in Audio Analog Stereo"}]
+    [{"index":1,"state":"SUSPENDED","name":"VirtualSpeaker.monitor","description":"Monitor of Null_Output",
+      "driver":"module-null-sink.c","monitor_source":"VirtualSpeaker","properties":{
+      "device.description":"Monitor of Null_Output","device.class":"monitor",
+      "device.icon_name":"audio-input-microphone"},"ports":[],"active_port":null},
+     {"index":2,"state":"IDLE","name":"VirtualMic","description":"Null Input",
+      "driver":"module-null-source.c","monitor_source":"","properties":{
+      "device.description":"Null Input","device.class":"abstract",
+      "device.icon_name":"audio-input-microphone"},"ports":[],"active_port":null},
+     {"index":3,"name":"monitor.by_number","description":"Monitor of Legacy Sink","monitor_of_sink":2},
+     {"index":4,"name":"monitor.by_name","description":"Monitor of Named Sink","monitor_of_sink":"2"},
+     {"index":5,"name":"monitor.by_source","description":"Monitor of VirtualSpeaker","monitor_source":"speaker"},
+     {"index":6,"name":"monitor.by_class","description":"Monitor of Built-in Audio","properties":{"device.class":"monitor"}},
+     {"index":7,"name":"mic.null_sink","description":"Server Capture","monitor_of_sink":null},
+     {"index":8,"name":"mic.empty_source","description":"Virtual microphone","monitor_source":"","properties":{"device.class":"sound"}},
+     {"index":9,"name":"mic.no_markers","description":"Built-in Audio Analog Stereo"}]
     """;
     var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(json)),
         new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(defaultSource + "\n")));
@@ -1639,19 +1656,20 @@ static IReadOnlyList<AudioInputDevice> EnumeratePulseInputs(string defaultSource
 static Task PulseInputEnumeration()
 {
     var devices = EnumeratePulseInputs("mic.empty_source");
-    Assert.Equal("mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
-    Assert.Equal("False|True|False", string.Join('|', devices.Select(device => device.IsDefault)));
+    Assert.Equal("VirtualMic|mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
+    Assert.Equal("False|False|True|False", string.Join('|', devices.Select(device => device.IsDefault)));
     return Task.CompletedTask;
 }
 
 static Task PulseInputDefaultIsMonitor()
 {
-    // `pactl set-default-source <sink>.monitor` is ordinary on a headless or loopback box, and the
-    // filter drops that source. The first offerable microphone carries the flag instead, so the tray
+    // Not hypothetical: on the pulseaudio 16.1 server measured above, `pactl set-default-source
+    // VirtualSpeaker.monitor` is accepted and `pactl get-default-source` then prints that monitor.
+    // The filter drops it, so the first offerable microphone carries the flag instead and the tray
     // and the workflow cannot disagree about which device is in use.
-    var devices = EnumeratePulseInputs("monitor.by_class");
-    Assert.Equal("mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
-    Assert.Equal("True|False|False", string.Join('|', devices.Select(device => device.IsDefault)));
+    var devices = EnumeratePulseInputs("VirtualSpeaker.monitor");
+    Assert.Equal("VirtualMic|mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
+    Assert.Equal("True|False|False|False", string.Join('|', devices.Select(device => device.IsDefault)));
     return Task.CompletedTask;
 }
 
