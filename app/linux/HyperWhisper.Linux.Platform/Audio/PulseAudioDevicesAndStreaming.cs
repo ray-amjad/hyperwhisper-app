@@ -9,14 +9,29 @@ namespace HyperWhisper.Linux.Platform.Audio;
 
 public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
 {
+    // Set to (this, the list just enumerated) for exactly as long as this service is raising
+    // DevicesChanged, and only on the thread that is raising. [ThreadStatic] is the point: it stops the
+    // synchronous re-entry that issue #621 crashed on, and leaves a genuinely independent thread free to
+    // enumerate and raise. It is saved and restored rather than cleared, so one service raising inside
+    // another service's handler cannot disarm the outer service's guard.
+    [ThreadStatic] private static Publication? _publishing;
     private readonly IDesktopCommandRunner _runner;
     private readonly string? _pactl;
-    private DeviceSnapshot? _last;
+    private string? _lastDeviceKey;
     public PulseAudioInputDeviceService() : this(new DesktopCommandRunner(), CommandClipboardBackend.FindExecutable("pactl")) { }
     internal PulseAudioInputDeviceService(IDesktopCommandRunner runner, string? pactl) { _runner = runner; _pactl = pactl; }
     public event EventHandler? DevicesChanged;
     public PlatformResult<IReadOnlyList<AudioInputDevice>> GetAvailableDevices()
     {
+        // Re-entrant call (issue #621): our own DevicesChanged handler is on the stack, because
+        // TranscriptionWorkflow.OnDevicesChanged -> RefreshDevices -> GetAvailableDevices runs
+        // synchronously. Hand back the list the raising frame enumerated microseconds ago instead of
+        // shelling out to pactl a second time on the Avalonia UI thread. This returns before the key
+        // comparison and before RaiseDevicesChanged, so the nested frame can never raise and the
+        // recursion stops here whether the device set converges or flaps forever.
+        var publishing = _publishing;
+        if (publishing is not null && ReferenceEquals(publishing.Service, this))
+            return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(publishing.Values);
         if (_pactl is null) return PlatformResult<IReadOnlyList<AudioInputDevice>>.Failure("pulse_devices_unavailable", "pactl is unavailable.");
         try
         {
@@ -39,22 +54,17 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
                 values.Add(new AudioInputDevice(id, string.IsNullOrWhiteSpace(description) ? id : description, id == defaultId));
             }
             var key = string.Join('\n', values.Select(value => $"{value.Id}:{value.IsDefault}"));
-            var snapshot = new DeviceSnapshot(key, values);
-            var previous = _last;
-            // Publish BEFORE raising. The DevicesChanged handler re-enters this method synchronously
-            // (TranscriptionWorkflow.OnDevicesChanged -> RefreshDevices -> GetAvailableDevices), and a
-            // stale key made that nested call raise again, forever, until the stack ran out (issue #621).
-            _last = snapshot;
-            if (previous is null || previous.Key == key)
+            var previous = _lastDeviceKey;
+            // Publish the key BEFORE raising, so a concurrent enumeration on another thread — which the
+            // thread-local guard below deliberately does not suppress — does not raise for this same
+            // transition a second time.
+            _lastDeviceKey = key;
+            if (previous is null || previous == key)
                 return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
-            RaiseDevicesChanged();
-            // The handler ran to completion before this line. If it observed a NEWER device set than ours,
-            // `values` is already superseded: TranscriptionWorkflow.RefreshDevices captures our result
-            // BEFORE the raise and assigns it AFTER the handler's nested call assigned its own, so
-            // returning the older list would leave the workflow holding it. Return the newest set instead.
-            var latest = _last;
-            if (latest is not null && !ReferenceEquals(latest, snapshot))
-                return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(latest.Values);
+            var outer = _publishing;
+            _publishing = new Publication(this, values);
+            try { RaiseDevicesChanged(); }
+            finally { _publishing = outer; }
             return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
         }
         catch { return PlatformResult<IReadOnlyList<AudioInputDevice>>.Failure("pulse_devices_failed", "PulseAudio device enumeration failed."); }
@@ -62,7 +72,7 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
     private void RaiseDevicesChanged()
     { var handlers = DevicesChanged; if (handlers is null) return; foreach (EventHandler handler in handlers.GetInvocationList()) try { handler(this, EventArgs.Empty); } catch { } }
     public void Dispose() { DevicesChanged = null; }
-    private sealed record DeviceSnapshot(string Key, IReadOnlyList<AudioInputDevice> Values);
+    private sealed record Publication(PulseAudioInputDeviceService Service, IReadOnlyList<AudioInputDevice> Values);
 }
 
 internal interface IStreamingAudioSource : IAsyncDisposable

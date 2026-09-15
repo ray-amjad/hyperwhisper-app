@@ -107,7 +107,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("host GPU evidence never promotes software renderer", HostGpuEvidence),
     ("Pulse input enumeration parses sources and default", PulseInputEnumeration),
     ("Pulse device change notifies once without re-entrant recursion", PulseDeviceChangeIsNotReentrant),
-    ("Pulse enumeration returns the newest set a nested refresh observed", PulseDeviceChangeDuringHandlerWins),
+    ("Pulse nested refresh reuses the list the raising frame enumerated", PulseNestedRefreshReusesTheEnumeratedList),
+    ("Pulse recursion stays bounded when the device set flaps", PulseDeviceFlapCannotRecurse),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -1628,47 +1629,76 @@ static Task PulseDeviceChangeIsNotReentrant()
     var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
     var runner = new FakeDesktopCommandRunner(
         new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(one)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
         new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var warmup = service.GetAvailableDevices();
     var raises = 0;
     // TranscriptionWorkflow.OnDevicesChanged calls RefreshDevices, which calls GetAvailableDevices
-    // synchronously on this thread. The fuse keeps a regression from overflowing the harness stack.
-    service.DevicesChanged += (_, _) => { raises++; if (raises <= 4) service.GetAvailableDevices(); };
+    // synchronously on this thread.
+    service.DevicesChanged += (_, _) => { raises++; service.GetAvailableDevices(); };
     var changed = service.GetAvailableDevices();
     Assert.True(warmup.IsSuccess);
     Assert.True(changed.IsSuccess);
     Assert.Equal(1, raises);
-    Assert.Equal(6, runner.Calls.Count);
+    Assert.Equal(4, runner.Calls.Count);
     Assert.Equal(2, changed.Value!.Count);
     return Task.CompletedTask;
 }
 
-static Task PulseDeviceChangeDuringHandlerWins()
+static Task PulseNestedRefreshReusesTheEnumeratedList()
 {
     var one = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null}]""";
     var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
-    var three = """[{"name":"mic.three","description":"Replacement","monitor_of_sink":null}]""";
     var runner = new FakeDesktopCommandRunner(
         new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(one)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(three)), new ExternalProcessResult(0, "mic.three\n"u8.ToArray()),
-        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(three)), new ExternalProcessResult(0, "mic.three\n"u8.ToArray()));
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var warmup = service.GetAvailableDevices();
-    var raises = 0;
-    // The nested refresh observes a third device set, so the outer call's own list is superseded
-    // before it returns; the workflow assigns the outer result last, so it must carry the newest set.
-    service.DevicesChanged += (_, _) => { raises++; if (raises <= 4) service.GetAvailableDevices(); };
+    // The queue holds two rounds. A nested refresh that shelled out to pactl again would drain it and
+    // come back as a Failure, so an IsSuccess nested result proves it was served from memory.
+    PlatformResult<IReadOnlyList<AudioInputDevice>>? nested = null;
+    var callsBeforeNested = 0;
+    service.DevicesChanged += (_, _) => { callsBeforeNested = runner.Calls.Count; nested = service.GetAvailableDevices(); };
     var outer = service.GetAvailableDevices();
     Assert.True(warmup.IsSuccess);
     Assert.True(outer.IsSuccess);
-    Assert.Equal(1, outer.Value!.Count);
-    Assert.Equal("mic.three", outer.Value[0].Id);
-    Assert.True(outer.Value[0].IsDefault);
-    Assert.Equal(2, raises);
-    Assert.Equal(8, runner.Calls.Count);
+    Assert.True(nested is not null && nested.IsSuccess);
+    Assert.Equal(callsBeforeNested, runner.Calls.Count);
+    Assert.True(ReferenceEquals(outer.Value, nested!.Value));
+    Assert.Equal(2, nested.Value!.Count);
+    return Task.CompletedTask;
+}
+
+static Task PulseDeviceFlapCannotRecurse()
+{
+    var one = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null}]""";
+    var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
+    var outcomes = new List<object>();
+    for (var round = 0; round < 256; round++)
+    {
+        outcomes.Add(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(round % 2 == 0 ? one : two)));
+        outcomes.Add(new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
+    }
+    var runner = new FakeDesktopCommandRunner(outcomes.ToArray());
+    using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
+    var warmup = service.GetAvailableDevices();
+    var raises = 0;
+    var depth = 0;
+    var deepest = 0;
+    service.DevicesChanged += (_, _) =>
+    {
+        raises++;
+        depth++;
+        if (depth > deepest) deepest = depth;
+        service.GetAvailableDevices();
+        depth--;
+    };
+    var changed = service.GetAvailableDevices();
+    Assert.True(warmup.IsSuccess);
+    Assert.True(changed.IsSuccess);
+    Assert.Equal(1, deepest);
+    Assert.Equal(1, raises);
+    Assert.Equal(4, runner.Calls.Count);
     return Task.CompletedTask;
 }
 
