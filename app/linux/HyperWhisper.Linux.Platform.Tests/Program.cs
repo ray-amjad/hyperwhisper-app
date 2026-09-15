@@ -106,6 +106,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("GPU detector requires CUDA hardware evidence", GpuCudaEvidence),
     ("host GPU evidence never promotes software renderer", HostGpuEvidence),
     ("Pulse input enumeration drops sink monitors and marks the default", PulseInputEnumeration),
+    ("Pulse input enumeration promotes a microphone when the default is a monitor", PulseInputDefaultIsMonitor),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -1607,29 +1608,49 @@ static Task HostGpuEvidence()
     return Task.CompletedTask;
 }
 
-static Task PulseInputEnumeration()
+// Measured `pactl 16.1 --format=json list sources` output (#627): a real source carries NO
+// `monitor_of_sink` key, which is why the documented field alone matched nothing. Each of the four
+// monitors carries exactly ONE marker, so no clause of the filter is proved by another clause's
+// coverage; each of the three real sources carries a DIFFERENT empty form of a marker, so no clause
+// may key off a key's mere presence. Do not reshape this JSON to fit the parser.
+static IReadOnlyList<AudioInputDevice> EnumeratePulseInputs(string defaultSource)
 {
-    // Measured `pactl 16.1 --format=json list sources` output (#627): a source object carries NO
-    // `monitor_of_sink` key. Each monitor below carries exactly ONE marker so every clause of the
-    // filter is proved on its own. Do not reshape this JSON to fit the parser.
-    var json = """
-    [{"index":0,"name":"hw_mic.monitor","description":"Monitor of VirtualSpeaker","driver":"module-null-sink.c","state":"IDLE","monitor_source":"hw_mic","properties":{"device.description":"VirtualSpeaker"}},
-     {"index":1,"name":"pipewire.monitor","description":"Monitor of Built-in Audio","monitor_source":"","properties":{"device.class":"monitor"}},
-     {"index":2,"name":"legacy.monitor","description":"Monitor of Legacy Sink","monitor_of_sink":1},
-     {"index":3,"name":"VirtualMic","description":"Virtual microphone","driver":"module-null-sink.c","state":"RUNNING","monitor_source":"","properties":{"device.class":"sound"}},
-     {"index":4,"name":"alsa_input.pci-0000_00_1f.3.analog-stereo","description":"Built-in Audio Analog Stereo"}]
+    const string json = """
+    [{"index":0,"name":"monitor.by_number","description":"Monitor of Legacy Sink","monitor_of_sink":2},
+     {"index":1,"name":"monitor.by_name","description":"Monitor of Named Sink","monitor_of_sink":"2"},
+     {"index":2,"name":"monitor.by_source","description":"Monitor of VirtualSpeaker","monitor_source":"speaker"},
+     {"index":3,"name":"monitor.by_class","description":"Monitor of Built-in Audio","properties":{"device.class":"monitor"}},
+     {"index":4,"name":"mic.null_sink","description":"Server Capture","monitor_of_sink":null},
+     {"index":5,"name":"mic.empty_source","description":"Virtual microphone","monitor_source":"","properties":{"device.class":"sound"}},
+     {"index":6,"name":"mic.no_markers","description":"Built-in Audio Analog Stereo"}]
     """;
     var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(json)),
-        new ExternalProcessResult(0, "VirtualMic\n"u8.ToArray()));
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(defaultSource + "\n")));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var result = service.GetAvailableDevices();
     Assert.True(result.IsSuccess);
-    Assert.Equal(2, result.Value!.Count);
-    Assert.Equal("VirtualMic", result.Value[0].Id);
-    Assert.True(result.Value[0].IsDefault);
-    Assert.Equal("alsa_input.pci-0000_00_1f.3.analog-stereo", result.Value[1].Id);
-    foreach (var monitor in new[] { "hw_mic.monitor", "pipewire.monitor", "legacy.monitor" })
-        Assert.True(result.Value.All(device => device.Id != monitor));
+    return result.Value!;
+}
+
+// Both assertions below are whole-sequence: the id line is the only proof that every monitor was
+// dropped AND that no real source was, and the flag line pins the FALSE entries, so flagging every
+// device default cannot pass.
+static Task PulseInputEnumeration()
+{
+    var devices = EnumeratePulseInputs("mic.empty_source");
+    Assert.Equal("mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
+    Assert.Equal("False|True|False", string.Join('|', devices.Select(device => device.IsDefault)));
+    return Task.CompletedTask;
+}
+
+static Task PulseInputDefaultIsMonitor()
+{
+    // `pactl set-default-source <sink>.monitor` is ordinary on a headless or loopback box, and the
+    // filter drops that source. The first offerable microphone carries the flag instead, so the tray
+    // and the workflow cannot disagree about which device is in use.
+    var devices = EnumeratePulseInputs("monitor.by_class");
+    Assert.Equal("mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
+    Assert.Equal("True|False|False", string.Join('|', devices.Select(device => device.IsDefault)));
     return Task.CompletedTask;
 }
 
