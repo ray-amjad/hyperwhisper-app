@@ -64,11 +64,14 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
                 values.Add(new AudioInputDevice(id, string.IsNullOrWhiteSpace(description) ? id : description, id == defaultId));
             }
             var key = string.Join('\n', values.Select(value => $"{value.Id}:{value.IsDefault}"));
-            var previous = _lastDeviceKey;
             // Publish the key BEFORE raising, so a concurrent enumeration on another thread — which the
-            // thread-local guard below deliberately does not suppress — does not raise for this same
-            // transition a second time.
-            _lastDeviceKey = key;
+            // per-thread guard above deliberately does not suppress — does not raise for this same
+            // transition a second time. Interlocked, not `var previous = _lastDeviceKey; _lastDeviceKey
+            // = key;`, because that pair is a non-atomic read-modify-write: two threads that enumerate
+            // the same new device set can both read the old key before either writes, and then both
+            // raise. Claiming the property in a comment and not delivering it is worse than not
+            // claiming it, because the next maintainer reads the comment and does not add the fence.
+            var previous = Interlocked.Exchange(ref _lastDeviceKey, key);
             if (previous is null || previous == key)
                 return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
             _publishing.Value = values;
