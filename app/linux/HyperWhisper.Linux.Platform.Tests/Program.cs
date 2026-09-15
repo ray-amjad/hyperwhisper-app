@@ -109,6 +109,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse device change notifies once without re-entrant recursion", PulseDeviceChangeIsNotReentrant),
     ("Pulse nested refresh reuses the list the raising frame enumerated", PulseNestedRefreshReusesTheEnumeratedList),
     ("Pulse recursion stays bounded when the device set flaps", PulseDeviceFlapCannotRecurse),
+    ("Pulse refresh after a raise still enumerates", PulseRefreshAfterARaiseStillEnumerates),
     ("Pulse guard stays armed while a second service raises", PulseGuardStaysArmedWhileASecondServiceRaises),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
@@ -1662,12 +1663,20 @@ static Task PulseNestedRefreshReusesTheEnumeratedList()
 
 static Task PulseDeviceFlapCannotRecurse()
 {
-    // Issue #621's real shape: the device set never settles, so comparing each enumeration against its
-    // immediate predecessor never reaches a fixed point. Nothing in the production code caps the depth
-    // if the guard fails — the only backstop is this queue, which runs dry after 256 rounds and lets
+    // Issue #621's real shape: the device set never settles, so comparing each enumeration against a
+    // predecessor key never reaches a fixed point. Nothing in the production code caps the depth if the
+    // guard fails — the only backstop is this queue, which runs dry after 128 rounds and lets
     // FakeDesktopCommandRunner throw into the blanket catch in GetAvailableDevices. So a regression
-    // reports the depth it reached instead of overflowing the harness stack: it read 255 before the fix.
-    var runner = PactlRunner(FlapRounds(256));
+    // reports the depth it reached instead of overflowing the harness stack.
+    // MEASURED BASELINES, each with only this file's production counterpart reverted and the three
+    // assertions below collapsed into one so all three numbers are reported at once:
+    //   origin/main (raise, THEN publish the key)     -> deepest=127 raises=127 calls=257
+    //   860dd79c    (publish, then compare the key to
+    //                its immediate predecessor)       -> deepest=127 raises=127 calls=257
+    // Both headline assertions below are therefore load-bearing against BOTH baselines. They were NOT
+    // under the alternating device set this test used to queue: against main that version reported
+    // deepest=1 raises=1 and failed on the pactl count alone. See UnsettledRounds for why.
+    var runner = PactlRunner(UnsettledRounds(128));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var warmup = service.GetAvailableDevices();
     var raises = 0;
@@ -1690,6 +1699,36 @@ static Task PulseDeviceFlapCannotRecurse()
     return Task.CompletedTask;
 }
 
+static Task PulseRefreshAfterARaiseStillEnumerates()
+{
+    // The guard must be a guard and not a latch. Every other re-entrancy test here ends the moment the
+    // outer call returns, so all of them still pass with the `finally` that disarms the slot deleted —
+    // and in production that leak would arm the Avalonia UI thread's slot FOREVER, so every later
+    // refresh would be handed the list captured at the first device change and plugging a microphone in
+    // would never update the list again. This test is the one that calls the SAME service again on the
+    // SAME thread after a raise has completed, and demands a real re-enumeration.
+    var runner = PactlRunner(UnsettledRounds(3));
+    using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
+    var warmup = service.GetAvailableDevices();
+    var raises = 0;
+    service.DevicesChanged += (_, _) => { raises++; service.GetAvailableDevices(); };
+    var changed = service.GetAvailableDevices();
+    // The raise has now unwound. A third device set is waiting; the service must go and see it.
+    var later = service.GetAvailableDevices();
+    Assert.True(warmup.IsSuccess);
+    Assert.True(changed.IsSuccess);
+    Assert.True(later.IsSuccess);
+    Assert.Equal(1, warmup.Value!.Count);
+    Assert.Equal(2, changed.Value!.Count);
+    Assert.Equal(3, later.Value!.Count);
+    Assert.True(!ReferenceEquals(changed.Value, later.Value));
+    // Three real enumerations, two pactl calls each, and nothing extra from either nested refresh.
+    Assert.Equal(6, runner.Calls.Count);
+    // The third set is a change too, so the disarmed service is still able to notify about it.
+    Assert.Equal(2, raises);
+    return Task.CompletedTask;
+}
+
 static Task PulseGuardStaysArmedWhileASecondServiceRaises()
 {
     // Two services, one thread, handlers pointing at each other: A -> B -> A. The guard slot is per
@@ -1697,8 +1736,8 @@ static Task PulseGuardStaysArmedWhileASecondServiceRaises()
     // process-wide slot that only saves and restores cannot do this: B's publication would displace A's
     // for the duration of B's raise, A would enumerate again, raise again, and the chain would have no
     // depth cap. 64 flapping rounds per service cap a regression instead of overflowing the harness.
-    var firstRunner = PactlRunner(FlapRounds(64));
-    var secondRunner = PactlRunner(FlapRounds(64));
+    var firstRunner = PactlRunner(UnsettledRounds(64));
+    var secondRunner = PactlRunner(UnsettledRounds(64));
     using var first = new PulseAudioInputDeviceService(firstRunner, "/usr/bin/pactl");
     using var second = new PulseAudioInputDeviceService(secondRunner, "/usr/bin/pactl");
     Assert.True(first.GetAvailableDevices().IsSuccess);
@@ -2487,11 +2526,18 @@ static string OneMic() => PactlSources(("mic.one", "Microphone", null));
 
 static string TwoMics() => PactlSources(("mic.one", "Microphone", null), ("mic.two", "Headset", null));
 
-// A device set that never settles: the key differs at every level, so comparing each enumeration
-// against its immediate predecessor never reaches a fixed point. The finite length is the backstop
-// that turns a re-entrancy regression into a reported depth instead of a harness stack overflow.
-static (string Json, string DefaultId)[] FlapRounds(int count) =>
-    Enumerable.Range(0, count).Select(round => (round % 2 == 0 ? OneMic() : TwoMics(), "mic.one")).ToArray();
+// A device set that never settles and never repeats an earlier set: round j exposes mics 0..j.
+// NOT repeating is the load-bearing part, and an earlier alternating one-mic/two-mic version of this
+// helper was the reason these tests measured nothing against origin/main. Main raises BEFORE it
+// publishes the key, so every frame in a descent compares against the key the OUTEST frame came in
+// with; an alternating set hands that exact key back at the very next round, so main stopped at depth
+// 1 by accident and only its pactl call count was ever wrong. A set that only grows never hands it
+// back, so on any design that compares a key against a predecessor the depth reached is the queue
+// length. The finite length is the backstop that turns a re-entrancy regression into a reported depth
+// instead of a harness stack overflow.
+static (string Json, string DefaultId)[] UnsettledRounds(int count) =>
+    Enumerable.Range(0, count).Select(round => (PactlSources(Enumerable.Range(0, round + 1)
+        .Select(index => ($"mic.{index}", $"Microphone {index}", (int?)null)).ToArray()), "mic.0")).ToArray();
 
 static FakeDesktopCommandRunner PactlRunner(params (string Json, string DefaultId)[] rounds) =>
     new(rounds.SelectMany(round => new object[]
