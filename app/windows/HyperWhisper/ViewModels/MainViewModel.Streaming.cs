@@ -67,7 +67,9 @@ public partial class MainViewModel : ViewModelBase
         }
 
         _pasteService?.CaptureForegroundWindow();
-        _capturedApplicationContext = ApplicationContextService.Instance.GatherContext();
+        // Guarded: see TryCaptureApplicationContext in MainViewModel.cs
+        // (HYPERWHISPER-Y5). Streaming names the same optional assembly.
+        TryCaptureApplicationContext("start_streaming");
         _streamingFailureMessage = null;
         _streamingPastedFinalSegment = false;
         _streamingTargetLost = false;

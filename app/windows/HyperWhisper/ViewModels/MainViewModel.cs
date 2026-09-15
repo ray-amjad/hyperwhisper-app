@@ -1313,19 +1313,9 @@ public partial class MainViewModel : ViewModelBase
         // do not cancel pending clipboard restoration from the previous recording.
         _pasteService?.CaptureForegroundWindow();
 
-        // Capture application context BEFORE showing overlay (overlay steals focus)
-        _capturedApplicationContext = ApplicationContextService.Instance.GatherContext();
-
-        // Capture screen OCR text if enabled on this mode.
-        if (recordingMode.EnableScreenOCR && recordingMode.PostProcessingMode != 0)
-        {
-            _capturedApplicationContext ??= new HyperWhisper.Services.ApplicationContext();
-            _capturedApplicationContext.ScreenOCRText = await ScreenOCRCaptureService.Instance.CaptureAndOcrAsync();
-            if (_capturedApplicationContext.ScreenOCRText != null)
-            {
-                LoggingService.Info($"Screen OCR captured: {_capturedApplicationContext.ScreenOCRText.Length} characters");
-            }
-        }
+        // Capture application context BEFORE showing overlay (overlay steals focus).
+        // Guarded: see CaptureApplicationContextAsync (HYPERWHISPER-Y5).
+        await TryCaptureApplicationContextAsync(recordingMode, "start_recording");
 
         // CLOUD VS LOCAL MODEL LOADING
         // Cloud modes don't need a local model loaded - they use the API
@@ -1402,6 +1392,108 @@ public partial class MainViewModel : ViewModelBase
             CheckRecordingDurationLimit();
         };
         _durationTimer.Start();
+    }
+
+    // =========================================================================
+    // APPLICATION CONTEXT CAPTURE (HYPERWHISPER-Y5)
+    //
+    // Application context is an OPTIONAL enrichment for post-processing prompts.
+    // It is backed by HyperWhisper.AppClassification, which Windows Application
+    // Control can block on an individual machine. A blocked load used to take the
+    // whole recording start with it: ApplicationContext carries an AppType from
+    // that assembly, so naming the type in StartRecordingAsync made the CLR load
+    // the assembly while it PREPARED that method — before any `try` in it could
+    // run. The FileLoadException escaped the async void shortcut handler and the
+    // user could not record at all.
+    //
+    // The two Capture* methods below are the only ones in this flow that name a
+    // type from that assembly, they are NoInlining, and they are called only after
+    // the guard says the assembly loads. See Services/OptionalAssemblyGuard.cs.
+    // =========================================================================
+
+    /// <summary>
+    /// Captures the foreground application context and, when the mode asks for it,
+    /// the screen OCR text. Leaves the context unset when
+    /// HyperWhisper.AppClassification cannot load on this machine.
+    /// </summary>
+    private async Task TryCaptureApplicationContextAsync(Mode recordingMode, string stage)
+    {
+        if (!OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.AppClassificationAssembly))
+        {
+            LogApplicationContextSkipped(stage);
+            return;
+        }
+
+        try
+        {
+            await CaptureApplicationContextAsync(recordingMode);
+        }
+        catch (Exception ex) when (OptionalAssemblyGuard.IsLoadFailure(ex))
+        {
+            // Nothing to clear: the context can only ever have been set by the
+            // very assembly that just failed to load, so it is still null here.
+            OptionalAssemblyGuard.MarkUnavailable(
+                OptionalAssemblyGuard.AppClassificationAssembly, ex, stage);
+        }
+    }
+
+    /// <summary>
+    /// The same guard for a flow that captures no screen OCR text. Streaming used
+    /// to call <c>GatherContext</c> directly and had the same crash.
+    /// </summary>
+    private void TryCaptureApplicationContext(string stage)
+    {
+        if (!OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.AppClassificationAssembly))
+        {
+            LogApplicationContextSkipped(stage);
+            return;
+        }
+
+        try
+        {
+            CaptureApplicationContext();
+        }
+        catch (Exception ex) when (OptionalAssemblyGuard.IsLoadFailure(ex))
+        {
+            OptionalAssemblyGuard.MarkUnavailable(
+                OptionalAssemblyGuard.AppClassificationAssembly, ex, stage);
+        }
+    }
+
+    private static void LogApplicationContextSkipped(string stage) =>
+        LoggingService.Warn(
+            $"Application context skipped (stage={stage}, " +
+            $"assembly={OptionalAssemblyGuard.AppClassificationAssembly}, reason=unavailable)");
+
+    /// <summary>
+    /// Warning: do not inline this method and do not name
+    /// <c>ApplicationContext</c> in its callers. Both put the optional assembly
+    /// back into a method that must stay preparable on a machine that blocks it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void CaptureApplicationContext() =>
+        _capturedApplicationContext = ApplicationContextService.Instance.GatherContext();
+
+    /// <summary>
+    /// Warning: do not inline this method and do not name
+    /// <c>ApplicationContext</c> in its callers. See
+    /// <see cref="CaptureApplicationContext"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private async Task CaptureApplicationContextAsync(Mode recordingMode)
+    {
+        CaptureApplicationContext();
+
+        // Capture screen OCR text if enabled on this mode.
+        if (recordingMode.EnableScreenOCR && recordingMode.PostProcessingMode != 0)
+        {
+            _capturedApplicationContext ??= new HyperWhisper.Services.ApplicationContext();
+            _capturedApplicationContext.ScreenOCRText = await ScreenOCRCaptureService.Instance.CaptureAndOcrAsync();
+            if (_capturedApplicationContext.ScreenOCRText != null)
+            {
+                LoggingService.Info($"Screen OCR captured: {_capturedApplicationContext.ScreenOCRText.Length} characters");
+            }
+        }
     }
 
     private void CleanupFailedRecordingStart()

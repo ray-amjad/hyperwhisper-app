@@ -219,6 +219,60 @@ internal static class Program
                     "the trust probe exception evidence is missing");
             });
 
+            // HYPERWHISPER-Y5 / HYPERWHISPER-YF. Application Control blocked
+            // HyperWhisper.AppClassification.dll and HyperWhisper.Statistics.dll on
+            // real machines. The load failure surfaced while the CLR prepared the
+            // calling method, so the `try` inside that method never ran and the app
+            // crashed. The NoInlining assertions are the regression test: they fail
+            // if a later edit puts an optional assembly back into a method that must
+            // stay preparable on a machine that blocks it.
+            Run("OptionalAssemblyGuard keeps a blocked optional assembly off the recording path", () =>
+            {
+                Assert(OptionalAssemblyGuard.IsLoadFailure(new FileLoadException(
+                        "private message",
+                        @"C:\Users\private-user\HyperWhisper.Statistics.dll")),
+                    "a blocked assembly load is not classified as a load failure");
+                Assert(OptionalAssemblyGuard.IsLoadFailure(new FileNotFoundException()),
+                    "a missing assembly is not classified as a load failure");
+                Assert(OptionalAssemblyGuard.IsLoadFailure(new BadImageFormatException()),
+                    "a bad image is not classified as a load failure");
+                Assert(OptionalAssemblyGuard.IsLoadFailure(new TypeLoadException()),
+                    "a type load failure is not classified as a load failure");
+                Assert(OptionalAssemblyGuard.IsLoadFailure(
+                        new TypeInitializationException("T", new FileLoadException())),
+                    "a wrapped load failure is not unwrapped");
+                Assert(!OptionalAssemblyGuard.IsLoadFailure(
+                        new TypeInitializationException("T", new InvalidOperationException())),
+                    "an ordinary static-constructor fault is treated as a load failure");
+                Assert(!OptionalAssemblyGuard.IsLoadFailure(new InvalidOperationException()),
+                    "an ordinary fault is treated as a load failure");
+                Assert(!OptionalAssemblyGuard.IsLoadFailure(new OperationCanceledException()),
+                    "a cancellation is treated as a load failure");
+
+                Assert(OptionalAssemblyGuard.DescribeHResult(unchecked((int)0x800711C7)) == "0x800711C7",
+                    "the Application Control HRESULT is not rendered as 8 hex digits");
+                Assert(OptionalAssemblyGuard.DescribeHResult(null) == "unknown",
+                    "an absent HRESULT is not reported as unknown");
+
+                // The two assemblies ship beside the app, so the probe must find
+                // them. A false negative here would switch off both features for
+                // every user.
+                Assert(OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.AppClassificationAssembly),
+                    "the classifier assembly probe failed on a machine that carries it");
+                Assert(OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.StatisticsAssembly),
+                    "the statistics assembly probe failed on a machine that carries it");
+
+                // An assembly that cannot load answers false. It never throws, which
+                // is the whole point of the guard.
+                Assert(!OptionalAssemblyGuard.IsAvailable("HyperWhisper.NotShipped.Absent"),
+                    "an absent assembly was reported as available");
+
+                AssertNoInlining(typeof(MainViewModel), "CaptureApplicationContext");
+                AssertNoInlining(typeof(MainViewModel), "CaptureApplicationContextAsync");
+                AssertNoInlining(typeof(HyperWhisper.Views.Pages.HomePage), "LoadStatsBarAsync");
+                AssertNoInlining(typeof(HyperWhisper.Views.Pages.HomePage), "DetachStatsViewModel");
+            });
+
             Run("ApplicationContextService exception evidence is privacy-safe", () =>
             {
                 const string privatePath = @"C:\Users\private-user\Documents\spoken-note.txt";
@@ -14295,6 +14349,24 @@ internal static class Program
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    /// <summary>
+    /// Pins the Application Control boundary (HYPERWHISPER-Y5 / HYPERWHISPER-YF).
+    /// An inlinable boundary is prepared with its caller, which puts the optional
+    /// assembly straight back into the method that must survive without it.
+    /// </summary>
+    private static void AssertNoInlining(Type type, string methodName)
+    {
+        var method = type.GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
+        Assert(method != null,
+            $"{type.Name}.{methodName} is gone; the Application Control boundary lost a method");
+        Assert(method!.GetMethodImplementationFlags().HasFlag(MethodImplAttributes.NoInlining),
+            $"{type.Name}.{methodName} is inlinable again — a blocked optional assembly " +
+            "would fault its caller before any catch could run (HYPERWHISPER-Y5/YF)");
     }
 
     /// <summary>
