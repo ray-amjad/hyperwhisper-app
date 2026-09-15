@@ -293,6 +293,25 @@ struct NoSpeechDiagnosticsTests {
         #expect(payload.extras["audio_analysis_error"] == nil)
     }
 
+    @Test func errorIdentityContainsOnlyFixedSafeFields() {
+        let error = NSError(
+            domain: "HyperWhisper.Transcription",
+            code: 17,
+            userInfo: [
+                NSLocalizedDescriptionKey: "private words",
+                "private_field": "private value"
+            ]
+        )
+
+        let attributes = TranscriptionDiagnosticsService.errorIdentityAttributes(for: error)
+
+        #expect(attributes["error_type"] as? String == "NSError")
+        #expect(attributes["error_domain"] as? String == "HyperWhisper.Transcription")
+        #expect(attributes["error_code"] as? Int == 17)
+        #expect(attributes.count == 3)
+        #expect(!attributes.values.contains { String(describing: $0).contains("private") })
+    }
+
     // MARK: - Fingerprint (shape shared, root not)
 
     @Test func theFingerprintHasFiveElementsAndKeepsTheMacOSRoot() {

@@ -294,19 +294,29 @@ enum TranscriptionDiagnosticsService {
             micBoostFailed: micBoostFailed
         )
 
-        SentryService.capture(
-            error: error,
-            message: presentation.message,
-            extras: payload.extras,
+        var logAttributes = payload.extras
+        for (key, value) in errorIdentityAttributes(for: error) {
+            logAttributes[key] = value
+        }
+
+        SentryService.captureMessage(
+            presentation.message,
+            level: .warning,
+            extras: logAttributes,
             tags: payload.tags,
-            fingerprint: noSpeechFingerprint(
-                fingerprintRoot: presentation.fingerprintRoot,
-                diagnosticStage: diagnosticStage,
-                diagnosticSource: diagnosticSource,
-                mode: coreIdentity(modeIdentity)
-            ),
             includeRecentLogs: false
         )
+    }
+
+    /// Fixed error identity for a diagnostic Log. The localized description and
+    /// userInfo are deliberately excluded because they can contain user data.
+    static func errorIdentityAttributes(for error: Error) -> [String: Any] {
+        let nsError = error as NSError
+        return [
+            "error_type": String(describing: type(of: error)),
+            "error_domain": nsError.domain,
+            "error_code": nsError.code
+        ]
     }
 
     /// Build the exact metadata payload used by the capture path.

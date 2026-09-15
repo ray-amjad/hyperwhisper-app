@@ -46,7 +46,7 @@ struct SentryDiagnosticRoutingTests {
         }
     }
 
-    /// Every severity the 5 call sites pass today. If one of them moves between
+    /// Every severity the call sites pass today. If one of them moves between
     /// the stores, that is a change to the error quota, and it shows up here.
     @Test func theCallSitesLandWhereTheyAreMeantTo() {
         let callSites: [(String, SentryService.DiagnosticSeverity, SentryService.DiagnosticStore)] = [
@@ -56,6 +56,8 @@ struct SentryDiagnosticRoutingTests {
             ("Parakeet preparation rejected", .error, .issue),
             ("Auto-delete aborted: Core Data transaction failed", .error, .issue),
             ("Auto-delete could not remove some audio files", .warning, .log),
+            ("macOS transcription no-speech diagnostic", .warning, .log),
+            ("macOS transcription empty recording diagnostic", .warning, .log),
         ]
 
         for (name, severity, expected) in callSites {
