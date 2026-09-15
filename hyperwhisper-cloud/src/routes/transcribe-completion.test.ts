@@ -6,59 +6,84 @@
 // transcribe-success.test.ts. Nothing covered whether completion HONOURS that
 // decision — a route that deducted on every result would charge for silence,
 // and one that never deducted would serve a paid upstream for free.
+//
+// The seam here is globalThis.fetch, not mock.module: the billing POST that
+// middleware/credits sends is the real boundary, and a module mock of
+// '../middleware/credits' would stay installed for every LATER test file in the
+// same bun process and silence their deduction assertions.
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 
+import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
 import type { SttProviderId } from '../lib/stt-models';
 import type { TranscriptionResult } from '../providers/types';
+import { completeTranscription } from './transcribe-completion';
+import type { PreparedTranscriptionRequest } from './transcribe-preparation';
 
-interface DeductionCall {
-  auth: AuthContext;
-  costUsd: number;
+const LICENSE_API_BASE = 'http://license.invalid';
+
+const ACCOUNT: AuthContext = {
+  identifier: 'acct-under-test',
+  credits: 100,
+  licenseKey: 'acct-under-test',
+};
+
+const originalFetch = globalThis.fetch;
+const originalConsoleLog = console.log;
+const originalLicenseApiUrl = process.env.NEXTJS_LICENSE_API_URL;
+
+interface BillingPost {
+  url: string;
+  licenseKey: string;
+  amount: number;
   metadata: Record<string, unknown>;
-  clientIP: string;
 }
 
-const deductions: DeductionCall[] = [];
-
-// Mock at the billing boundary, not below it: the real deductCredits() posts to
-// the license API. credits.test.ts owns what it does with these arguments; this
-// file owns whether it is called, and with which.
-mock.module('../middleware/credits', () => ({
-  deductCredits: (
-    auth: AuthContext,
-    costUsd: number,
-    metadata: Record<string, unknown>,
-    clientIP: string,
-  ): Promise<number> => {
-    deductions.push({ auth, costUsd, metadata, clientIP });
-    return Promise.resolve(0);
-  },
-}));
-
-const { completeTranscription } = await import('./transcribe-completion');
-type PreparedTranscriptionRequest =
-  import('./transcribe-preparation').PreparedTranscriptionRequest;
-
-const originalConsoleLog = console.log;
+let billingPosts: BillingPost[] = [];
 let logLines: Array<Record<string, unknown>> = [];
 
 beforeEach(() => {
-  deductions.length = 0;
+  billingPosts = [];
   logLines = [];
+  process.env.NEXTJS_LICENSE_API_URL = LICENSE_API_BASE;
+
+  globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body)) as {
+      license_key: string;
+      amount: number;
+      metadata: Record<string, unknown>;
+    };
+    billingPosts.push({
+      url: String(input),
+      licenseKey: body.license_key,
+      amount: body.amount,
+      metadata: body.metadata,
+    });
+    // No `credits_remaining`, so the license cache is never written and no
+    // Upstash client is constructed.
+    return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }) as unknown as typeof fetch;
+
   console.log = (line: string) => {
     try {
-      logLines.push(JSON.parse(line));
+      logLines.push(JSON.parse(line) as Record<string, unknown>);
     } catch {
-      // A non-JSON line is not a logEvent line; ignore it.
+      // Not a logEvent line; ignore it.
     }
   };
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await drainPendingDeductions(2000);
+  globalThis.fetch = originalFetch;
   console.log = originalConsoleLog;
+  if (originalLicenseApiUrl === undefined) {
+    delete process.env.NEXTJS_LICENSE_API_URL;
+  } else {
+    process.env.NEXTJS_LICENSE_API_URL = originalLicenseApiUrl;
+  }
 });
 
 function requestDone(): Record<string, unknown> {
@@ -83,7 +108,7 @@ function preparation(
     mode: 'default',
     clientPlatform: 'macos',
     clientVersion: '2.43.0',
-    auth: { identifier: 'acct-under-test', credits: 100, licenseKey: 'acct-under-test' },
+    auth: ACCOUNT,
     audioBuffer: new ArrayBuffer(0),
     latencyOptOut: false,
     latencyReportable: true,
@@ -119,7 +144,10 @@ interface CompletionOverrides {
   }>;
 }
 
-/** Run completeTranscription inside a real Hono handler and read what it returned. */
+/**
+ * Run completeTranscription inside a real Hono handler, then wait for the
+ * billing POST it fires without awaiting.
+ */
 async function complete(overrides: CompletionOverrides = {}): Promise<Response> {
   const prepared = preparation(overrides.preparation);
   const result = overrides.result ?? transcript();
@@ -137,19 +165,21 @@ async function complete(overrides: CompletionOverrides = {}): Promise<Response> 
       attemptFailures: overrides.attemptFailures ?? [],
     }),
   );
-  return app.request('http://localhost/transcribe', { method: 'POST' });
+  const response = await app.request('http://localhost/transcribe', { method: 'POST' });
+  await drainPendingDeductions(2000);
+  return response;
 }
 
 describe('completeTranscription billing', () => {
   test('meters a billable transcript against the calling account', async () => {
     await complete();
 
-    expect(deductions).toHaveLength(1);
-    const [deduction] = deductions;
-    expect(deduction.auth.identifier).toBe('acct-under-test');
-    expect(deduction.costUsd).toBe(0.002);
-    expect(deduction.clientIP).toBe('203.0.113.7');
-    expect(deduction.metadata).toEqual({
+    expect(billingPosts).toHaveLength(1);
+    const [post] = billingPosts;
+    expect(post.url).toBe(`${LICENSE_API_BASE}/api/license/credits`);
+    expect(post.licenseKey).toBe('acct-under-test');
+    expect(post.amount).toBe(2);
+    expect(post.metadata).toEqual({
       audio_duration_seconds: 12,
       transcription_cost_usd: 0.002,
       language: 'en',
@@ -165,7 +195,9 @@ describe('completeTranscription billing', () => {
       result: transcript({ text: '', language: undefined, costUsd: 0, source: 'no_speech' }),
     });
 
-    expect(deductions).toHaveLength(0);
+    // A deduction of $0 would still post, at the 0.1 credit floor, so an empty
+    // list means the deduction was never started.
+    expect(billingPosts).toHaveLength(0);
     expect(response.headers.get('X-Credits-Used')).toBe('0.0');
     const body = await response.json();
     expect(body.no_speech_detected).toBe(true);
@@ -189,15 +221,16 @@ describe('completeTranscription billing', () => {
       servedBy: 'gemini-transcribe',
     });
 
-    expect(deductions).toHaveLength(1);
-    expect(deductions[0].costUsd).toBe(0.0004);
-    expect(deductions[0].metadata.stt_provider).toBe('gemini-transcribe/gemini-3.5-transcribe');
+    expect(billingPosts).toHaveLength(1);
+    expect(billingPosts[0].amount).toBe(0.4);
+    expect(billingPosts[0].metadata.transcription_cost_usd).toBe(0.0004);
+    expect(billingPosts[0].metadata.stt_provider).toBe('gemini-transcribe/gemini-3.5-transcribe');
     expect(response.headers.get('X-Credits-Used')).toBe('0.4');
     expect((await response.json()).no_speech_detected).toBe(true);
   });
 
   test('meters the model that actually ran, not the one the client asked for', async () => {
-    // AssemblyAI silently downgrades universal-3-5-pro → universal-2 for some
+    // AssemblyAI silently downgrades universal-3-5-pro to universal-2 for some
     // languages and bills at the model that ran.
     const response = await complete({
       preparation: { provider: 'assemblyai', model: 'universal-3-5-pro' },
@@ -206,8 +239,8 @@ describe('completeTranscription billing', () => {
       servedBy: 'assemblyai',
     });
 
-    expect(deductions[0].metadata.stt_model).toBe('universal-2');
-    expect(deductions[0].metadata.stt_provider).toBe('assemblyai/universal-2');
+    expect(billingPosts[0].metadata.stt_model).toBe('universal-2');
+    expect(billingPosts[0].metadata.stt_provider).toBe('assemblyai/universal-2');
     expect(response.headers.get('X-STT-Model')).toBe('universal-2');
   });
 
@@ -222,7 +255,7 @@ describe('completeTranscription billing', () => {
     });
 
     const label = 'deepgram/nova-3-general (fallback from elevenlabs/scribe_v2)';
-    expect(deductions[0].metadata.stt_provider).toBe(label);
+    expect(billingPosts[0].metadata.stt_provider).toBe(label);
     expect(response.headers.get('X-STT-Provider')).toBe(label);
     expect((await response.json()).metadata.stt_provider).toBe(label);
   });
@@ -233,7 +266,7 @@ describe('completeTranscription billing', () => {
       result: transcript({ language: undefined }),
     });
 
-    expect(deductions[0].metadata.language).toBe('ja');
+    expect(billingPosts[0].metadata.language).toBe('ja');
   });
 
   test("records 'auto' when neither the upstream nor the request named a language", async () => {
@@ -242,7 +275,7 @@ describe('completeTranscription billing', () => {
       result: transcript({ language: undefined }),
     });
 
-    expect(deductions[0].metadata.language).toBe('auto');
+    expect(billingPosts[0].metadata.language).toBe('auto');
   });
 });
 
@@ -273,7 +306,7 @@ describe('completeTranscription response', () => {
     expect(response.headers.get('X-STT-Model')).toBeNull();
     // grok is the one provider whose public label differs from its id.
     expect(response.headers.get('X-STT-Provider')).toBe('xai-grok');
-    expect(deductions[0].metadata.stt_model).toBeUndefined();
+    expect(billingPosts[0].metadata.stt_model).toBeUndefined();
   });
 });
 
