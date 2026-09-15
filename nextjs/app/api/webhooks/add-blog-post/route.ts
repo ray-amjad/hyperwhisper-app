@@ -207,7 +207,7 @@ function normalizeTags(tags: unknown): string[] {
   if (!Array.isArray(tags)) return [];
 
   return tags
-    .filter((tag): tag is string => typeof tag === "string")
+    .filter((tag: unknown): tag is string => typeof tag === "string")
     .map((tag) => tag.trim())
     .filter(Boolean)
     .slice(0, 12);

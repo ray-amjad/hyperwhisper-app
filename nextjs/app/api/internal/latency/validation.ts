@@ -231,7 +231,7 @@ export function validateBatch(
 
   const valid: ValidSample[] = [];
   const skipped: { index: number; reason: string }[] = [];
-  samples.forEach((raw, index) => {
+  samples.forEach((raw: unknown, index) => {
     const result = validateSample(raw, knownProviders);
     if ("sample" in result) {
       valid.push(result.sample);

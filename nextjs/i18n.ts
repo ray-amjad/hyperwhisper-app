@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getRequestConfig } from "next-intl/server";
 import { defaultLocale, isSupportedLocale, locales } from "./src/i18n/locales";
+import { loadMessages } from "./src/i18n/messages";
 
 export type Locale = (typeof locales)[number];
 export { defaultLocale, locales };
@@ -12,6 +13,6 @@ export default getRequestConfig(async ({ locale }) => {
 
   return {
     locale,
-    messages: (await import(`./messages/${locale}.json`)).default,
+    messages: await loadMessages(locale),
   };
 });

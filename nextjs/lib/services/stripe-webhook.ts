@@ -104,7 +104,7 @@ export async function handleLicensePurchase(
   console.log(`User ready for ${customerEmail}: ${user.id}`);
 
   // STEP 4: Store license in database
-  let insertedLicense;
+  let insertedLicense: Awaited<ReturnType<typeof insertAccountKey>>;
   try {
     insertedLicense = await insertAccountKey({
       key: licenseKey,
