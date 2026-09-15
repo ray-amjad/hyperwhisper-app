@@ -2,6 +2,43 @@ param()
 
 $ErrorActionPreference = "Stop"
 
+function Get-HarnessArchitecturePolicy {
+    param(
+        [Parameter(Mandatory)]
+        [System.Runtime.InteropServices.Architecture]$Architecture
+    )
+
+    switch ($Architecture) {
+        "X64" {
+            return @{
+                RustCoreDirectory = "x64"
+                RuntimeIdentifier = "win-x64"
+            }
+        }
+        "Arm64" {
+            return @{
+                RustCoreDirectory = "arm64"
+                RuntimeIdentifier = "win-arm64"
+            }
+        }
+        default {
+            throw "Unsupported Windows architecture for the no-speech diagnostic verifier: $Architecture."
+        }
+    }
+}
+
+$X64Policy = Get-HarnessArchitecturePolicy -Architecture X64
+if ($X64Policy.RustCoreDirectory -ne "x64" -or $X64Policy.RuntimeIdentifier -ne "win-x64") {
+    throw "The x64 no-speech verifier architecture policy is invalid."
+}
+
+$Arm64Policy = Get-HarnessArchitecturePolicy -Architecture Arm64
+if ($Arm64Policy.RustCoreDirectory -ne "arm64" -or $Arm64Policy.RuntimeIdentifier -ne "win-arm64") {
+    throw "The ARM64 no-speech verifier architecture policy is invalid."
+}
+
+$HarnessArchitecture = Get-HarnessArchitecturePolicy -Architecture ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)
+
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $HarnessRoot = Join-Path $env:TEMP "hyperwhisper-no-speech-diagnostic-policy-verifier"
 Remove-Item -LiteralPath $HarnessRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -14,7 +51,7 @@ $DiagnosticsSource = [System.Security.SecurityElement]::Escape((Join-Path $Proje
 $ProviderDiagnosticsSource = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Services\Transcription\TranscriptionProviderDiagnostics.cs"))
 $DeviceSelectionReasonSource = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Services\AudioDeviceSelectionReason.cs"))
 $SharedCoreProject = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "..\..\shared-dotnet\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj"))
-$RustCoreDllPath = Join-Path $ProjectRoot "Resources\rust-core\x64\hyperwhisper_core.dll"
+$RustCoreDllPath = Join-Path $ProjectRoot "Resources\rust-core\$($HarnessArchitecture.RustCoreDirectory)\hyperwhisper_core.dll"
 if (-not (Test-Path -LiteralPath $RustCoreDllPath -PathType Leaf)) {
     throw "Required native core DLL is missing: $RustCoreDllPath. Build the Windows Rust core before running this verifier."
 }
@@ -27,6 +64,7 @@ $RustCoreDll = [System.Security.SecurityElement]::Escape($RustCoreDllPath)
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RuntimeIdentifier>$($HarnessArchitecture.RuntimeIdentifier)</RuntimeIdentifier>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -296,7 +334,7 @@ Assert(
 Console.WriteLine("No-speech diagnostic capture policy verification passed.");
 '@ | Set-Content -LiteralPath $HarnessProgram -Encoding UTF8
 
-dotnet run --project $HarnessProject --nologo
+dotnet run --project $HarnessProject --runtime $HarnessArchitecture.RuntimeIdentifier --nologo
 if ($LASTEXITCODE -ne 0) {
     throw "No-speech diagnostic capture policy harness failed with exit code $LASTEXITCODE."
 }
