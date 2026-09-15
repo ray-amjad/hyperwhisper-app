@@ -43,7 +43,7 @@ These models run on your machine and make no network calls. After you download a
 | Model | Runs on | Languages | Why it is here |
 | --- | --- | --- | --- |
 | **Apple Speech** | macOS (built-in) | Auto-detect | No download, immediate, private. The fastest way to start dictation on a Mac, with nothing to install. |
-| **NVIDIA Parakeet** | macOS · Windows | English (V2) · 25 European (V3) | Fastest accurate on-device transcription for English and European languages. |
+| **NVIDIA Parakeet** | macOS · Windows | English (V2) · 25 European on macOS and 26 European on Windows (V3) | Fastest accurate on-device transcription for English and European languages. |
 | **NVIDIA Nemotron 3.5** | macOS · Windows | 6 Latin · ~30 including Chinese, Japanese, Korean, Arabic (macOS). Smaller English+Japanese streaming variant on Windows | Best on-device accuracy and the **broadest offline language coverage** on macOS. The only local option that goes beyond European languages. |
 | **Whisper** | macOS · Windows | 101 languages | The general-purpose model from OpenAI, in many sizes (Tiny to Large). The universal fallback. It runs on almost all hardware, including CPU-only and older machines. |
 | **Qwen3 ASR** | macOS · Windows | Multilingual | An additional multilingual on-device option for users who want the ASR model from Alibaba. Windows ships a smaller 0.6B variant with the sherpa-onnx daemon. |
@@ -78,12 +78,21 @@ The general-purpose multilingual models from OpenAI. The **VRAM** values give th
 
 NVIDIA Parakeet models are faster than Whisper models of an equivalent size. They are accurate for the languages that they support.
 
-| Model | Size | Languages | Best for |
-| --- | --- | --- | --- |
-| Parakeet V2 (English) | 474 MB | English only | Fastest accurate English transcription |
-| Parakeet V3 (Multilingual) | 494 MB | 25 European languages | Multilingual European dictation |
+| Model | Size (macOS) | Size (Windows) | Languages | Best for |
+| --- | --- | --- | --- | --- |
+| Parakeet V2 (English) | 474 MB | 661 MB | English only | Fastest accurate English transcription |
+| Parakeet V3 (Multilingual) | 494 MB | 671 MB | 25 European (macOS) · 26 European (Windows) | Multilingual European dictation |
 
-Parakeet V3 supports these languages: English, German, Spanish, French, Italian, Portuguese, Dutch, Polish, Russian, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Serbian, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian.
+**The Parakeet V3 language list is different on each platform.** Each app ships its own export of the model, and the two exports do not carry the same languages.
+
+| Platform | Count | Languages |
+| --- | --- | --- |
+| macOS | 25 | English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, **Russian**, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, **Serbian**, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian |
+| Windows | 26 | English, German, Spanish, French, Italian, Portuguese, Dutch, Polish, Romanian, Swedish, Danish, Finnish, Norwegian, Czech, Slovak, Hungarian, Croatian, Slovenian, Bulgarian, Ukrainian, **Greek**, Lithuanian, Latvian, Estonian, **Catalan**, **Basque** |
+
+<Warning>
+  Russian and Serbian are on macOS only. Greek, Catalan, and Basque are on Windows only. If you dictate one of these 5 languages with Parakeet V3, do not expect the same result on the other platform. Use Whisper or a cloud model when you need the same coverage on both.
+</Warning>
 
 <Note>
   On Windows, Parakeet runs on **x64 and ARM64**. Whisper runs on x64 only. Parakeet is the correct choice for a Snapdragon or ARM Windows device.
@@ -122,7 +131,7 @@ This table gives the best local model for the most common languages. For the ful
 | macOS, fastest start, no download | Apple Speech | — |
 
 <Note>
-  Parakeet and Whisper run on macOS and Windows with the same language coverage. Nemotron and Qwen3 ASR also run on both platforms. Their Windows variants are different from the macOS variants — they are smaller and support fewer languages. The sections above give the details.
+  Whisper runs on macOS and Windows with the same language coverage. Parakeet, Nemotron, and Qwen3 ASR also run on both platforms, but their macOS and Windows variants are different. Parakeet V3 carries 25 languages on macOS and 26 on Windows, and the two lists do not match. The Nemotron and the Qwen3 ASR variants on Windows are smaller and support fewer languages. The sections above give the details.
 </Note>
 
 ## HyperWhisper Cloud
@@ -223,7 +232,7 @@ You can use cloud post-processing through HyperWhisper Cloud with no key, or wit
 | **OpenAI** | Yes | GPT-4.1 and GPT-5 family. Fast and accurate |
 | **Anthropic (Claude)** | Yes | Claude Haiku and Sonnet. High-quality reasoning |
 | **Google Gemini** | Yes | Gemini Flash and Pro. Efficient and multilingual |
-| **Groq** | Yes | GPT OSS 120B and Qwen 3.6 27B and 3.8 27B models |
+| **Groq** | Yes | GPT OSS 120B, GPT OSS 20B, and Qwen 3.6 27B and 3.8 27B models |
 | **SpaceXAI (Grok)** | Yes | Grok 4.3, Grok 4.5, and Grok 4.6. High accuracy with low latency |
 | **Cerebras** | Yes | GPT OSS 120B and Qwen 3.8 27B models |
 | **Mistral** | Yes | Good for many languages. Mistral Small and Mistral Medium 3.5 |

@@ -227,9 +227,25 @@ Set the timeout of your own HTTP client higher than its default value. Many clie
 | POST | `/post-process` | Required | Rewrite text with a preset prompt or a custom prompt. |
 | GET | `/recordings/search` | Required | Substring search across past transcripts. |
 | GET | `/recordings/{id}` | Required | Single transcript row. |
-| GET | `/recordings` | Required | Windows only — undocumented alias for `/recordings/search`. |
+| GET | `/recordings` | Required | Windows and Linux only — an alias for `/recordings/search`. It uses the same handler and the same parameters. macOS does not serve it. |
+| POST | `/recording/toggle` | Required | Linux only — start the microphone, or stop it and transcribe. |
+| POST | `/recording/cancel` | Required | Linux only — stop the microphone and keep no transcript. |
 
 The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full request and response schemas.
+
+### The recording routes on Linux
+
+The Linux build serves two routes that drive the live microphone. The macOS and the Windows builds do not serve them. Neither route takes a body, and both answer with the state of the recorder:
+
+```json
+{ "ok": true, "recording": { "is_recording": true, "state": "recording" } }
+```
+
+`state` is one of `idle`, `recording`, `stopping`, `transcribing`, `retrying`, `completed`, `cancelled`, or `failed`.
+
+`POST /recording/toggle` starts the recorder when the recorder is idle. It stops the recorder and transcribes when the recorder is recording, and it waits for that transcription. The route accepts no `mode_id`, so it uses the current Mode. A toggle during the `stopping` or the `transcribing` state is refused with an HTTP 400 and the code `INVALID_REQUEST`, because a transcription is already in progress.
+
+`POST /recording/cancel` stops the recorder at any point and keeps no transcript.
 
 ### What `/transcribe` does to the text
 
