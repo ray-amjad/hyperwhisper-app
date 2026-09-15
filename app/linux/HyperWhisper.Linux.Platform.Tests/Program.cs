@@ -106,6 +106,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("GPU detector requires CUDA hardware evidence", GpuCudaEvidence),
     ("host GPU evidence never promotes software renderer", HostGpuEvidence),
     ("Pulse input enumeration parses sources and default", PulseInputEnumeration),
+    ("Pulse device change notifies once without re-entrant recursion", PulseDeviceChangeIsNotReentrant),
+    ("Pulse enumeration returns the newest set a nested refresh observed", PulseDeviceChangeDuringHandlerWins),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -1617,6 +1619,56 @@ static Task PulseInputEnumeration()
     Assert.True(result.IsSuccess);
     Assert.Equal(1, result.Value!.Count);
     Assert.True(result.Value[0].IsDefault);
+    return Task.CompletedTask;
+}
+
+static Task PulseDeviceChangeIsNotReentrant()
+{
+    var one = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null}]""";
+    var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(one)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
+    using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
+    var warmup = service.GetAvailableDevices();
+    var raises = 0;
+    // TranscriptionWorkflow.OnDevicesChanged calls RefreshDevices, which calls GetAvailableDevices
+    // synchronously on this thread. The fuse keeps a regression from overflowing the harness stack.
+    service.DevicesChanged += (_, _) => { raises++; if (raises <= 4) service.GetAvailableDevices(); };
+    var changed = service.GetAvailableDevices();
+    Assert.True(warmup.IsSuccess);
+    Assert.True(changed.IsSuccess);
+    Assert.Equal(1, raises);
+    Assert.Equal(6, runner.Calls.Count);
+    Assert.Equal(2, changed.Value!.Count);
+    return Task.CompletedTask;
+}
+
+static Task PulseDeviceChangeDuringHandlerWins()
+{
+    var one = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null}]""";
+    var two = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"mic.two","description":"Headset","monitor_of_sink":null}]""";
+    var three = """[{"name":"mic.three","description":"Replacement","monitor_of_sink":null}]""";
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(one)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(two)), new ExternalProcessResult(0, "mic.one\n"u8.ToArray()),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(three)), new ExternalProcessResult(0, "mic.three\n"u8.ToArray()),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(three)), new ExternalProcessResult(0, "mic.three\n"u8.ToArray()));
+    using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
+    var warmup = service.GetAvailableDevices();
+    var raises = 0;
+    // The nested refresh observes a third device set, so the outer call's own list is superseded
+    // before it returns; the workflow assigns the outer result last, so it must carry the newest set.
+    service.DevicesChanged += (_, _) => { raises++; if (raises <= 4) service.GetAvailableDevices(); };
+    var outer = service.GetAvailableDevices();
+    Assert.True(warmup.IsSuccess);
+    Assert.True(outer.IsSuccess);
+    Assert.Equal(1, outer.Value!.Count);
+    Assert.Equal("mic.three", outer.Value[0].Id);
+    Assert.True(outer.Value[0].IsDefault);
+    Assert.Equal(2, raises);
+    Assert.Equal(8, runner.Calls.Count);
     return Task.CompletedTask;
 }
 

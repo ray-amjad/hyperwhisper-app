@@ -11,7 +11,7 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
 {
     private readonly IDesktopCommandRunner _runner;
     private readonly string? _pactl;
-    private string? _lastDeviceKey;
+    private DeviceSnapshot? _last;
     public PulseAudioInputDeviceService() : this(new DesktopCommandRunner(), CommandClipboardBackend.FindExecutable("pactl")) { }
     internal PulseAudioInputDeviceService(IDesktopCommandRunner runner, string? pactl) { _runner = runner; _pactl = pactl; }
     public event EventHandler? DevicesChanged;
@@ -39,8 +39,22 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
                 values.Add(new AudioInputDevice(id, string.IsNullOrWhiteSpace(description) ? id : description, id == defaultId));
             }
             var key = string.Join('\n', values.Select(value => $"{value.Id}:{value.IsDefault}"));
-            if (_lastDeviceKey is not null && _lastDeviceKey != key) RaiseDevicesChanged();
-            _lastDeviceKey = key;
+            var snapshot = new DeviceSnapshot(key, values);
+            var previous = _last;
+            // Publish BEFORE raising. The DevicesChanged handler re-enters this method synchronously
+            // (TranscriptionWorkflow.OnDevicesChanged -> RefreshDevices -> GetAvailableDevices), and a
+            // stale key made that nested call raise again, forever, until the stack ran out (issue #621).
+            _last = snapshot;
+            if (previous is null || previous.Key == key)
+                return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
+            RaiseDevicesChanged();
+            // The handler ran to completion before this line. If it observed a NEWER device set than ours,
+            // `values` is already superseded: TranscriptionWorkflow.RefreshDevices captures our result
+            // BEFORE the raise and assigns it AFTER the handler's nested call assigned its own, so
+            // returning the older list would leave the workflow holding it. Return the newest set instead.
+            var latest = _last;
+            if (latest is not null && !ReferenceEquals(latest, snapshot))
+                return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(latest.Values);
             return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
         }
         catch { return PlatformResult<IReadOnlyList<AudioInputDevice>>.Failure("pulse_devices_failed", "PulseAudio device enumeration failed."); }
@@ -48,6 +62,7 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
     private void RaiseDevicesChanged()
     { var handlers = DevicesChanged; if (handlers is null) return; foreach (EventHandler handler in handlers.GetInvocationList()) try { handler(this, EventArgs.Empty); } catch { } }
     public void Dispose() { DevicesChanged = null; }
+    private sealed record DeviceSnapshot(string Key, IReadOnlyList<AudioInputDevice> Values);
 }
 
 internal interface IStreamingAudioSource : IAsyncDisposable
