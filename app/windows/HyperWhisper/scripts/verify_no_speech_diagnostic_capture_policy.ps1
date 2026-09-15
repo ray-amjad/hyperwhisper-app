@@ -14,7 +14,12 @@ $DiagnosticsSource = [System.Security.SecurityElement]::Escape((Join-Path $Proje
 $ProviderDiagnosticsSource = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Services\Transcription\TranscriptionProviderDiagnostics.cs"))
 $DeviceSelectionReasonSource = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Services\AudioDeviceSelectionReason.cs"))
 $SharedCoreProject = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "..\..\shared-dotnet\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj"))
-$RustCoreDll = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot "Resources\rust-core\x64\hyperwhisper_core.dll"))
+$RustCoreDllPath = Join-Path $ProjectRoot "Resources\rust-core\x64\hyperwhisper_core.dll"
+if (-not (Test-Path -LiteralPath $RustCoreDllPath -PathType Leaf)) {
+    throw "Required native core DLL is missing: $RustCoreDllPath. Build the Windows Rust core before running this verifier."
+}
+
+$RustCoreDll = [System.Security.SecurityElement]::Escape($RustCoreDllPath)
 
 @"
 <Project Sdk="Microsoft.NET.Sdk">
@@ -31,7 +36,7 @@ $RustCoreDll = [System.Security.SecurityElement]::Escape((Join-Path $ProjectRoot
     <Compile Include="$DiagnosticsSource" Link="TranscriptionDiagnosticsService.cs" />
     <Compile Include="$ProviderDiagnosticsSource" Link="TranscriptionProviderDiagnostics.cs" />
     <Compile Include="$DeviceSelectionReasonSource" Link="AudioDeviceSelectionReason.cs" />
-    <Content Include="$RustCoreDll" Condition="Exists('$RustCoreDll')">
+    <Content Include="$RustCoreDll">
       <Link>hyperwhisper_core.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
