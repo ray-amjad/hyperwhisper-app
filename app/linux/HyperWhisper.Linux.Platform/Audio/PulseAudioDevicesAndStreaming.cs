@@ -9,6 +9,15 @@ namespace HyperWhisper.Linux.Platform.Audio;
 
 public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
 {
+    // Holds the list just enumerated for exactly as long as this service is raising DevicesChanged, and
+    // only on the thread that is raising. The slot is per INSTANCE (a field) and per THREAD (a
+    // ThreadLocal), which is what makes the guard below scoped correctly by construction rather than by
+    // bookkeeping: another service that enumerates from inside our handler gets its own slot, so ours
+    // stays armed for the whole raise and an A -> B -> A chain terminates at A; and a genuinely
+    // independent thread gets its own slot, so it stays free to enumerate and raise. Nothing is saved
+    // and restored, because no frame of THIS instance on THIS thread can ever reach the assignment
+    // while the slot is already set — the guard returns first — so the slot is always null beforehand.
+    private readonly ThreadLocal<IReadOnlyList<AudioInputDevice>?> _publishing = new();
     private readonly IDesktopCommandRunner _runner;
     private readonly string? _pactl;
     private string? _lastDeviceKey;
@@ -17,9 +26,25 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
     public event EventHandler? DevicesChanged;
     public PlatformResult<IReadOnlyList<AudioInputDevice>> GetAvailableDevices()
     {
-        if (_pactl is null) return PlatformResult<IReadOnlyList<AudioInputDevice>>.Failure("pulse_devices_unavailable", "pactl is unavailable.");
+        // The whole method is inside the try so that a call racing Dispose() reports a failure instead of
+        // throwing ObjectDisposedException out of _publishing at an unlucky shutdown.
         try
         {
+            // Re-entrant call (issue #621): our own DevicesChanged handler is on the stack, because
+            // TranscriptionWorkflow.OnDevicesChanged -> RefreshDevices -> GetAvailableDevices runs
+            // synchronously. Hand back the list the raising frame enumerated microseconds ago instead of
+            // shelling out to pactl a second time on the Avalonia UI thread. This returns before the key
+            // comparison and before RaiseDevicesChanged, so the nested frame can never raise and the
+            // recursion stops here whether the device set converges or flaps forever.
+            // THE BOUND: a frame that raises holds its list in this instance's slot for THIS thread for
+            // the entire duration of the raise, and any call that finds that slot set returns here —
+            // before enumerating and before RaiseDevicesChanged — so no (instance, thread) pair can ever
+            // carry two raising frames at once. Depth is therefore capped at two frames per distinct
+            // service instance on the thread, which with the one instance LinuxDesktopServices builds is
+            // a cap of two. It is structural: it does not need the device set to converge, or a fuse.
+            if (_publishing.Value is { } publishing)
+                return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(publishing);
+            if (_pactl is null) return PlatformResult<IReadOnlyList<AudioInputDevice>>.Failure("pulse_devices_unavailable", "pactl is unavailable.");
             var sources = _runner.RunAsync(_pactl, ["--format=json", "list", "sources"], null, CancellationToken.None,
                 TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
             var fallback = sources.ExitCode == 0 ? sources : _runner.RunAsync(_pactl, ["-f", "json", "list", "sources"], null,
@@ -39,15 +64,29 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
                 values.Add(new AudioInputDevice(id, string.IsNullOrWhiteSpace(description) ? id : description, id == defaultId));
             }
             var key = string.Join('\n', values.Select(value => $"{value.Id}:{value.IsDefault}"));
-            if (_lastDeviceKey is not null && _lastDeviceKey != key) RaiseDevicesChanged();
-            _lastDeviceKey = key;
+            // Publish the key BEFORE raising, so a concurrent enumeration on another thread — which the
+            // per-thread guard above deliberately does not suppress — does not raise for this same
+            // transition a second time. Interlocked, not `var previous = _lastDeviceKey; _lastDeviceKey
+            // = key;`, because that pair is a non-atomic read-modify-write: two threads that enumerate
+            // the same new device set can both read the old key before either writes, and then both
+            // raise. Claiming the property in a comment and not delivering it is worse than not
+            // claiming it, because the next maintainer reads the comment and does not add the fence.
+            var previous = Interlocked.Exchange(ref _lastDeviceKey, key);
+            if (previous is null || previous == key)
+                return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
+            _publishing.Value = values;
+            // Disarming in finally is what keeps the guard a guard and not a latch: leave it armed and
+            // every later refresh on this thread would be served the list captured at this one device
+            // change, so plugging a microphone in would never update the list again.
+            try { RaiseDevicesChanged(); }
+            finally { _publishing.Value = null; }
             return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
         }
         catch { return PlatformResult<IReadOnlyList<AudioInputDevice>>.Failure("pulse_devices_failed", "PulseAudio device enumeration failed."); }
     }
     private void RaiseDevicesChanged()
     { var handlers = DevicesChanged; if (handlers is null) return; foreach (EventHandler handler in handlers.GetInvocationList()) try { handler(this, EventArgs.Empty); } catch { } }
-    public void Dispose() { DevicesChanged = null; }
+    public void Dispose() { DevicesChanged = null; _publishing.Dispose(); }
 }
 
 internal interface IStreamingAudioSource : IAsyncDisposable

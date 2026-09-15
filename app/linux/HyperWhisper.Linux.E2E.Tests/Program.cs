@@ -94,10 +94,66 @@ using (var workflow = new TranscriptionWorkflow(
     Assert(new FileInfo(row.AudioFilePath!).Length > 44, "The captured WAV has no PCM payload.");
 }
 
+AssertDeviceChangeDoesNotReenterTheDeviceService(history, paths);
+Console.WriteLine("PASS: real TranscriptionWorkflow + real PulseAudioInputDeviceService, device change, no re-entry");
+
 Console.WriteLine(live
     ? "PASS: private PipeWire virtual microphone -> production Pulse recorder -> local Whisper -> SQLite history -> safe injection"
     : "PASS: deterministic virtual-microphone harness, workflow, SQLite history, and safe injection seam");
 return 0;
+
+// Issue #621 end to end, with nothing standing in for either half of the pairing that crashed. Every
+// other fake in this repo declares an inert `DevicesChanged { add { } remove { } }`, so until this ran
+// the fix's premise -- that TranscriptionWorkflow.OnDevicesChanged -> RefreshDevices ->
+// GetAvailableDevices re-enters the provider synchronously -- was asserted only by an inline lambda in
+// the Linux platform harness. Here the real workflow subscribes to the real provider, and the provider
+// is the one the public constructor builds: it finds `pactl` on PATH exactly the way it does in
+// LinuxDesktopServices, and FakePactl puts a script there first. The subprocesses are real.
+static void AssertDeviceChangeDoesNotReenterTheDeviceService(HistoryRepository history, TestPaths paths)
+{
+    using var pactl = new FakePactl();
+    pactl.SetSources(("mic.0", "Built-in Microphone"));
+    var originalPath = Environment.GetEnvironmentVariable("PATH");
+    Environment.SetEnvironmentVariable("PATH", pactl.Root + Path.PathSeparator + originalPath);
+    try
+    {
+        using var recorder = new DeterministicRecorder(paths, "device re-entrancy scenario");
+        using var injection = new SafeInjectionTarget();
+        using var devices = new PulseAudioInputDeviceService();
+        using var workflow = new TranscriptionWorkflow(
+            recorder, devices, new DeterministicTranscriber("unused"), history, textInjection: injection);
+        var notifications = 0;
+        workflow.Changed += (_, _) => notifications++;
+
+        workflow.RefreshDevices();
+        Assert(workflow.Snapshot.AudioDevices.Count == 1, "The fake pactl did not reach the real device service.");
+        Assert(pactl.CallCount == 2, $"Expected 2 pactl invocations for the first refresh, saw {pactl.CallCount}.");
+        Assert(notifications == 1, $"Expected one workflow notification, saw {notifications}.");
+
+        // A microphone is plugged in. The next refresh sees a set that differs from the last one, so the
+        // provider raises DevicesChanged from inside GetAvailableDevices -- the shape issue #621 crashed
+        // on -- and the workflow re-enters the accessor synchronously from its own handler.
+        pactl.SetSources(("mic.0", "Built-in Microphone"), ("mic.1", "USB Headset"));
+        workflow.RefreshDevices();
+
+        // THREE notifications, not two. The middle one is the nested RefreshDevices, so this assertion
+        // is what proves the re-entry really happened and that the two below are not measuring nothing.
+        Assert(notifications == 3, notifications < 3
+            ? $"The real DevicesChanged -> RefreshDevices re-entry never happened, so nothing below is "
+              + $"measuring the fix: {notifications} workflow notifications, expected 3."
+            : $"The re-entry recursed: {notifications} workflow notifications, expected 3.");
+        // TWO more invocations, not four and not the whole budget. The nested GetAvailableDevices was
+        // served from the guard and shelled out to nothing, on what in the app is the Avalonia UI
+        // thread. Reverted to origin/main this runs the budget out instead.
+        Assert(pactl.CallCount == 4, $"The nested refresh re-enumerated: {pactl.CallCount} pactl invocations.");
+        var snapshot = workflow.Snapshot;
+        Assert(snapshot.AudioDevices.Count == 2 && snapshot.AudioDevices.Any(device => device.Id == "mic.1"),
+            "The plugged-in microphone did not reach the workflow.");
+        Assert(snapshot.SelectedAudioDeviceId == "mic.0",
+            $"The selected device moved to '{snapshot.SelectedAudioDeviceId}' when a second microphone appeared.");
+    }
+    finally { Environment.SetEnvironmentVariable("PATH", originalPath); }
+}
 
 static string RequireEnvironment(string name) =>
     Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
@@ -169,6 +225,52 @@ sealed class FixedInputDeviceService(string id) : IAudioInputDeviceService
     public PlatformResult<IReadOnlyList<AudioInputDevice>> GetAvailableDevices() =>
         PlatformResult<IReadOnlyList<AudioInputDevice>>.Success([new AudioInputDevice(id, "Isolated virtual microphone", true)]);
     public void Dispose() { }
+}
+
+// A `pactl` on PATH, so PulseAudioInputDeviceService can be driven through its PUBLIC constructor and
+// its real DesktopCommandRunner. Its internal test constructor is not visible to this assembly, and
+// widening InternalsVisibleTo would be a build-file change this PR must not make -- but a script on
+// PATH is the more honest seam anyway, because it leaves the subprocess plumbing in the test.
+sealed class FakePactl : IDisposable
+{
+    // If a re-entrancy regression lands, the recursion consumes invocations without bound. This budget
+    // ends it with a non-zero exit -- a clean enumeration failure -- instead of a stack overflow that
+    // would take the harness process down and report nothing.
+    private const int InvocationBudget = 24;
+
+    public FakePactl()
+    {
+        Root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-fake-pactl-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Root);
+        SourcesPath = Path.Combine(Root, "sources.json");
+        LogPath = Path.Combine(Root, "calls.log");
+        File.WriteAllText(LogPath, string.Empty);
+        var script = Path.Combine(Root, "pactl");
+        File.WriteAllText(script,
+            "#!/bin/sh\n" +
+            $"echo \"$*\" >> '{LogPath}'\n" +
+            $"if [ \"$(wc -l < '{LogPath}')\" -gt {InvocationBudget} ]; then exit 1; fi\n" +
+            "for argument in \"$@\"; do\n" +
+            "  if [ \"$argument\" = get-default-source ]; then echo mic.0; exit 0; fi\n" +
+            "done\n" +
+            $"cat '{SourcesPath}'\n");
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+
+    public string Root { get; }
+    private string SourcesPath { get; }
+    private string LogPath { get; }
+    public int CallCount => File.ReadAllLines(LogPath).Length;
+
+    public void SetSources(params (string Id, string Description)[] sources) =>
+        File.WriteAllText(SourcesPath, "[" + string.Join(',', sources.Select(source =>
+            $$"""{"name":"{{source.Id}}","description":"{{source.Description}}","monitor_of_sink":null}""")) + "]");
+
+    public void Dispose()
+    {
+        if (Directory.Exists(Root)) Directory.Delete(Root, recursive: true);
+    }
 }
 
 sealed class SafeInjectionTarget : ITextInjectionService
