@@ -456,6 +456,370 @@ try
         Assert(!ReferenceEquals(whisperModels, shell.Modes.LocalModels),
             "LocalModels did not rebuild when the engine changed");
 
+        // Issue #645: picking any entry in the Linux Cloud Model combo killed the process. A mode
+        // saved with an id the vendor's catalog does not list keeps that id visible, appended after
+        // the vendor's own models, exactly as Windows keeps the saved selection visible rather than
+        // falling through to index 0 (ModeEditorWindow.Load.cs:199-215). Keying the cached list on
+        // the CURRENT model id dropped that entry the instant the combo committed a selection, and
+        // Avalonia's selection model then read the clicked index out of the now-shorter list.
+        //
+        // The dialog binds ItemsSource straight to CloudModels (ModeEditorWindow.axaml:147-148), so
+        // every PropertyChanged for it is a re-read of the getter — including the ones raised while
+        // LoadEditorFrom is still half-way through its fields. Nothing re-reads a property in a
+        // headless harness, so stand in for the binding here: without this, a pin taken inside the
+        // getter is invisible to the suite and the assertions below cannot see the fault at all.
+        var cloudModelsReads = 0;
+        void ReadCloudModelsLikeTheBinding(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+        {
+            if (!string.Equals(args.PropertyName, nameof(shell.Modes.CloudModels), StringComparison.Ordinal)) return;
+            cloudModelsReads++;
+            _ = shell.Modes.CloudModels;
+        }
+        shell.Modes.PropertyChanged += ReadCloudModelsLikeTheBinding;
+
+        // THE INVARIANT THE VENDOR PATH BREAKS, and the one nothing asserted in review round 1.
+        // ModeEditorWindow.axaml:147-148 binds ItemsSource to CloudModels and SelectedItem to
+        // CloudTranscriptionModel. A selection that is not an ELEMENT of the list is one Avalonia
+        // clears; the CloudTranscriptionModel proxy then refuses the null write-back, so the combo
+        // reads blank while the field underneath keeps the old vendor's id — and SaveAsync, which
+        // strips only LOCAL ids, persists that id under the new vendor with a `Mode saved` status.
+        //
+        // Empty is the one legal exception, and only together: three vendor ids in CloudProviders
+        // have no BYOK model in the shared catalog (grok's single model carries an empty id because
+        // an xAI request names no model; microsoftazurespeech resolves to azure-mai, which is not
+        // byokEligible; googlespeech has no catalog vendor). An empty combo beside an empty
+        // selection saves null, which is what an implicit model means. An empty combo beside a
+        // DANGLING selection is the state this asserts against.
+        void AssertCloudSelectionIsListed(string where)
+        {
+            var list = shell.Modes.CloudModels;
+            var selected = shell.Modes.CloudTranscriptionModel ?? string.Empty;
+            var ok = list.Count == 0 ? selected.Length == 0 : list.Contains(selected, StringComparer.Ordinal);
+            Assert(ok, $"after {where} the Cloud Model combo's selection '{selected}' is not an element "
+                + $"of its own ItemsSource [{string.Join(", ", list)}] (issue #645)");
+        }
+
+        // Two BYOK modes on the SAME vendor, differing in language and in whether their model id is
+        // in that vendor's catalog: one mode is the pin, the other proves the pin does not leak.
+        shell.Modes.Selected = null;
+        shell.Modes.Name = "Byok legacy model";
+        shell.Modes.Language = "en";
+        shell.Modes.CloudProvider = "openai";
+        shell.Modes.ProviderType = "cloud";
+        shell.Modes.TranscriptionModel = "whisper-1-legacy";
+        await shell.Modes.SaveAsync();
+        shell.Modes.Selected = null;
+        shell.Modes.Name = "Byok catalog model";
+        shell.Modes.Language = "fr";
+        shell.Modes.CloudProvider = "openai";
+        shell.Modes.ProviderType = "cloud";
+        shell.Modes.TranscriptionModel = "gpt-4o-transcribe";
+        await shell.Modes.SaveAsync();
+        var legacyByokMode = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+        var catalogByokMode = shell.Modes.Items.Single(item => item.Name == "Byok catalog model");
+        Assert(legacyByokMode.CloudTranscriptionModel == "whisper-1-legacy"
+            && catalogByokMode.CloudTranscriptionModel == "gpt-4o-transcribe",
+            "a BYOK mode did not persist its cloud model id");
+
+        shell.Modes.Selected = legacyByokMode;
+        var byokModels = shell.Modes.CloudModels;
+        Assert(byokModels.Count > 1 && byokModels[^1] == "whisper-1-legacy"
+            && byokModels.Take(byokModels.Count - 1).Contains("gpt-4o-transcribe", StringComparer.Ordinal),
+            "CloudModels did not append the loaded mode's out-of-catalog model id after the vendor's own models");
+        Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
+            "CloudModels handed back a new list instance for an unchanged vendor and model");
+        shell.Modes.CloudTranscriptionModel = byokModels[0];
+        Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
+            "CloudModels changed instance while the combo committed a selection; the shorter list "
+            + "takes the Avalonia selection model out of range (issue #645)");
+        shell.Modes.CloudTranscriptionModel = "whisper-1-legacy";
+        Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
+            "CloudModels changed instance when the combo re-selected the pinned id (issue #645)");
+
+        // Round 1 of this fix derived the pin inside the getter, from whatever TranscriptionModel
+        // held at the instant of a read. Loading the next mode then re-pinned the OUTGOING mode's
+        // id: the language assignment notifies, the notification re-reads CloudModels, and the
+        // model field is still the previous mode's. The pin is derived once, after the fields.
+        shell.Modes.Selected = catalogByokMode;
+        var catalogModeModels = shell.Modes.CloudModels;
+        Assert(!catalogModeModels.Contains("whisper-1-legacy", StringComparer.Ordinal)
+            && catalogModeModels.Contains("gpt-4o-transcribe", StringComparer.Ordinal),
+            "CloudModels offered the previously loaded mode's out-of-catalog id under the next mode");
+        // An id the vendor DOES list is selected, never pinned. Without the membership test in
+        // ApplyLoadedCloudModel every loaded mode pins its own model and the combo draws that model
+        // twice — once from the catalog with its display name, once from the pin as a raw id.
+        Assert(catalogModeModels.Distinct(StringComparer.Ordinal).Count() == catalogModeModels.Count,
+            "CloudModels pinned a model the vendor already lists, so the combo offers it twice");
+        AssertCloudSelectionIsListed("loading a BYOK mode whose model is in its vendor's catalog");
+
+        // A vendor change releases the pin, and moves the SELECTION onto the new vendor's first
+        // model — Windows refills its combo with no preferred id on a provider change
+        // (ModeEditorWindow.xaml.cs:615-617 → :724) and ends at SelectedIndex = 0 (:532-534).
+        // Keeping the old id selected leaves it outside ItemsSource and SaveAsync, which strips
+        // only LOCAL ids, then writes one vendor's model under another.
+        shell.Modes.Selected = legacyByokMode;
+        Assert(shell.Modes.CloudModels.Contains("whisper-1-legacy", StringComparer.Ordinal),
+            "CloudModels lost the loaded mode's out-of-catalog model id");
+        shell.Modes.CloudProvider = "deepgram";
+        var deepgramModels = shell.Modes.CloudModels;
+        Assert(deepgramModels.Contains("nova-3-general", StringComparer.Ordinal)
+            && !deepgramModels.Contains("whisper-1-legacy", StringComparer.Ordinal)
+            && deepgramModels.Distinct(StringComparer.Ordinal).Count() == deepgramModels.Count,
+            "CloudModels kept the previous vendor's pinned model id after the vendor changed");
+        AssertCloudSelectionIsListed("changing the vendor from openai to deepgram");
+        Assert(shell.Modes.CloudTranscriptionModel == deepgramModels[0],
+            "a vendor change did not move the model selection to the new vendor's first model, as "
+            + "Windows does with CloudModelCombo.SelectedIndex = 0");
+        // Save it: the whole point of moving the selection is that the row cannot be written with
+        // the previous vendor's model id and a `Mode saved` status.
+        await shell.Modes.SaveAsync();
+        Assert(legacyByokMode.CloudProvider == "deepgram"
+            && legacyByokMode.CloudTranscriptionModel == "nova-3-general",
+            "saving after a vendor change persisted the previous vendor's model id "
+            + $"('{legacyByokMode.CloudProvider}' + '{legacyByokMode.CloudTranscriptionModel}')");
+        shell.Modes.CloudTranscriptionModel = "nova-2-medical";
+        Assert(ReferenceEquals(deepgramModels, shell.Modes.CloudModels),
+            "CloudModels changed instance while the combo committed a selection on the new vendor (issue #645)");
+
+        // Vendors whose BYOK catalog is EMPTY. `geminitranscribe` is a shipping vendor
+        // (LinuxLiveStreamingAdapters.cs:76) that drew a blank combo until CloudVendorModelIds
+        // reconciled the two spellings of its id; `grok` genuinely has no selectable model, so the
+        // combo is empty AND the selection is emptied with it, which saves null.
+        shell.Modes.CloudProvider = "geminitranscribe";
+        Assert(shell.Modes.CloudModels.Contains("gemini-3.5-transcribe", StringComparer.Ordinal),
+            "the geminitranscribe vendor drew an empty Cloud Model combo; its catalog is keyed "
+            + "`gemini-transcribe` and CloudProviders spells it `geminitranscribe`");
+        AssertCloudSelectionIsListed("changing the vendor to geminitranscribe");
+        foreach (var emptyVendor in new[] { "grok", "microsoftazurespeech", "googlespeech" })
+        {
+            shell.Modes.CloudProvider = emptyVendor;
+            Assert(shell.Modes.CloudModels.Count == 0 && shell.Modes.CloudTranscriptionModel == string.Empty,
+                $"vendor '{emptyVendor}' has no BYOK model in the catalog, so the combo and its "
+                + "selection must be empty together; a dangling selection over an empty list saves "
+                + "the previous vendor's model id");
+            AssertCloudSelectionIsListed($"changing the vendor to {emptyVendor}");
+        }
+        await shell.Modes.SaveAsync();
+        Assert(legacyByokMode.CloudTranscriptionModel is null,
+            "a vendor with no selectable model saved a model id anyway "
+            + $"('{legacyByokMode.CloudTranscriptionModel}')");
+
+        // Restore the mode's persisted state before the rest of the block reads it back.
+        legacyByokMode.CloudProvider = "openai";
+        legacyByokMode.CloudTranscriptionModel = "whisper-1-legacy";
+        await new ModeRepository(database).UpsertAsync(legacyByokMode);
+        await shell.Modes.RefreshAsync();
+        legacyByokMode = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+        catalogByokMode = shell.Modes.Items.Single(item => item.Name == "Byok catalog model");
+
+        // Cancel (RestoreEditorState) must put the list AND the selection back, not just the list.
+        // Clicking the On-device segment mid-edit assigns a local model id through
+        // NormalizeLocalModel, and the still-bound combo re-reads CloudModels while it is assigned.
+        //
+        // Review round 2: the assertion that used to stand here compared CloudModels against its
+        // own pre-detour contents, and it could not fail under any mutation — the vendor never
+        // changes during the detour, so the getter hands back the cached instance whatever the pin
+        // fields hold. What CAN break is the SELECTION: the detour overwrites the shared
+        // TranscriptionModel field with a local id, and the restore has to put the BYOK id back.
+        shell.Modes.Selected = catalogByokMode;
+        var beforeDetourModels = shell.Modes.CloudModels;
+        var editorState = shell.Modes.CaptureEditorState();
+        shell.Modes.IsOnDeviceSource = true;
+        var localDetourId = shell.Modes.TranscriptionModel;
+        _ = shell.Modes.CloudModels;
+        shell.Modes.RestoreEditorState(editorState);
+        Assert(shell.Modes.CloudModels.SequenceEqual(beforeDetourModels, StringComparer.Ordinal)
+            && shell.Modes.CloudTranscriptionModel == "gpt-4o-transcribe",
+            $"the on-device model id '{localDetourId}' survived a cancelled detour into the "
+            + "On-device segment as the BYOK model list or selection");
+        AssertCloudSelectionIsListed("cancelling a detour into the On-device segment");
+
+        // The same detour NOT cancelled — the user goes On-device and comes back. The segment is a
+        // different control from the model combo, so the list may change wholesale, but the
+        // selection may not be left dangling: the ProviderType guard drops the local id and the
+        // BYOK picker re-selects the vendor's first model, exactly as Windows does when the
+        // "your provider" segment is chosen (ModeEditorWindow.xaml.cs:1184-1186 → :532-534).
+        shell.Modes.Selected = catalogByokMode;
+        shell.Modes.IsOnDeviceSource = true;
+        shell.Modes.IsYourProviderSource = true;
+        AssertCloudSelectionIsListed("returning to the Your-provider segment from On-device");
+        Assert(shell.Modes.CloudTranscriptionModel == shell.Modes.CloudModels[0],
+            "returning to the BYOK segment left the on-device model id selected in the Cloud Model combo");
+
+        // The HyperWhisper Cloud segment shares the same TranscriptionModel field but has no BYOK
+        // list to fall back on, so the ProviderType guard is the only thing that stops an on-device
+        // id being carried into a cloud mode's model column.
+        shell.Modes.Selected = catalogByokMode;
+        shell.Modes.IsOnDeviceSource = true;
+        var carriedLocalId = shell.Modes.TranscriptionModel;
+        shell.Modes.IsHwCloudSource = true;
+        Assert(shell.Modes.TranscriptionModel.Length == 0,
+            $"switching from On-device to HyperWhisper Cloud kept the local model id '{carriedLocalId}' "
+            + "in the shared model field; SaveAsync would write it into the cloud column");
+
+        // The same path the other way round: an abandoned edit that changed the VENDOR dropped the
+        // pin, so Cancel has to re-derive it or the combo has no entry for the value it restored.
+        shell.Modes.Selected = legacyByokMode;
+        var legacyState = shell.Modes.CaptureEditorState();
+        shell.Modes.CloudProvider = "deepgram";
+        shell.Modes.CloudTranscriptionModel = "nova-3-general";
+        shell.Modes.RestoreEditorState(legacyState);
+        var restoredLegacyModels = shell.Modes.CloudModels;
+        Assert(restoredLegacyModels[^1] == "whisper-1-legacy"
+            && !restoredLegacyModels.Contains("nova-3-general", StringComparer.Ordinal),
+            "CloudModels did not restore the cancelled mode's out-of-catalog model id");
+        AssertCloudSelectionIsListed("cancelling an edit that changed the vendor");
+
+        // A vendor round trip inside ONE dialog session, then Save — review round 2 found this left
+        // the combo permanently blank. SaveAsync re-uses the same Mode instance and assigns
+        // `Selected = mode`, which the setter rejects as unchanged, so LoadEditorFrom never runs
+        // again; re-opening the gear on the same mode short-circuits the same way
+        // (MainWindow.axaml.cs) and ReloadSelected is unreachable in production
+        // (ModeEditorWindow.axaml.cs:133-134 calls it only when the snapshot is null, and both
+        // construction sites pass one). So the state the round trip leaves behind IS the state the
+        // user keeps. It has to be a listed selection, not a dropped pin over a rebuilt list.
+        shell.Modes.Selected = legacyByokMode;
+        shell.Modes.CloudProvider = "deepgram";
+        shell.Modes.CloudProvider = "openai";
+        AssertCloudSelectionIsListed("changing the vendor away from openai and back");
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.ErrorCode is null && legacyByokMode.CloudProvider == "openai"
+            && legacyByokMode.CloudTranscriptionModel == shell.Modes.CloudModels[0],
+            "a vendor round trip saved a model id the openai combo does not offer "
+            + $"('{legacyByokMode.CloudTranscriptionModel}')");
+        AssertCloudSelectionIsListed("saving after a vendor round trip");
+
+        // Create Mode seeds the on-device default `base` into the shared TranscriptionModel field
+        // before "Your provider" is ever clicked, and the create path never loads a mode. A local
+        // model id must never be offered as a BYOK cloud model: re-selecting it saves the mode with
+        // CloudTranscriptionModel=null and shows no error.
+        shell.Modes.NewCommand.Execute(null);
+        shell.Modes.IsYourProviderSource = true;
+        var createModeModels = shell.Modes.CloudModels;
+        Assert(!createModeModels.Contains("base", StringComparer.Ordinal)
+            && createModeModels.Contains("gpt-4o-transcribe", StringComparer.Ordinal),
+            "CloudModels offered the on-device default model id 'base' as a BYOK cloud model");
+        AssertCloudSelectionIsListed("Create Mode followed by the Your-provider segment");
+
+        // The HyperWhisper Cloud segment edits the same TranscriptionModel field through its own
+        // tier model control, and its ids are not BYOK ids at all.
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Cloud medical");
+        Assert(!shell.Modes.CloudModels.Contains("mai-1.5", StringComparer.Ordinal),
+            "CloudModels pinned a HyperWhisper Cloud tier model id into the BYOK list");
+
+        // A mode persisted by an older build can hold a LOCAL id in its cloud column — the fault
+        // the cloud-column guard in SaveAsync fixes. Loading it must not pin that id either.
+        //
+        // " base " is the same fault with two spaces round it, and it is reachable from outside the
+        // app: POST /modes with {"providerType":"cloud","cloudProvider":"openai",
+        // "cloudTranscriptionModel":" base "} persists the padded value verbatim — no write path
+        // trims that column (ApplicationLocalApiBackend.Modes.cs, NormalizeMode, ValidateMode,
+        // ModeRepository trims only Name, and hw-localapi/src/mode.rs has no value rule). Until the
+        // three copies of this predicate became one that trims, the padded id escaped the pin guard
+        // (which did not trim) but not SaveAsync's (which did), so the user picked a model that
+        // rendered as `base` and saving it wrote CloudTranscriptionModel = null with no error.
+        foreach (var localColumnValue in new[] { "base", " base " })
+        {
+            legacyByokMode.CloudProvider = "openai";
+            legacyByokMode.CloudTranscriptionModel = localColumnValue;
+            await new ModeRepository(database).UpsertAsync(legacyByokMode);
+            await shell.Modes.RefreshAsync();
+            shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+            Assert(!shell.Modes.CloudModels.Any(id => id.Trim() == "base"),
+                $"CloudModels pinned the local model id '{localColumnValue}' from a mode's cloud "
+                + "column into the BYOK list; selecting it saves CloudTranscriptionModel = null");
+        }
+
+        // Case. `Whisper-1` is what a mode POSTed to the Local API keeps — no write path folds that
+        // column's case — and the vendor lookup is OrdinalIgnoreCase while the pin's membership
+        // test used to be Ordinal. The id therefore missed the catalog row `whisper-1` and was
+        // pinned AFTER it, so one model drew two rows: the catalog row under its display name (the
+        // Label dictionary is Ordinal, so it matched only the catalog spelling) and the pinned row
+        // as the raw id. Windows folds instead, through ResolveModelAlias and an OrdinalIgnoreCase
+        // tag match (ModeEditorWindow.xaml.cs:473-475, :520-528), and so does this now.
+        legacyByokMode.CloudProvider = "openai";
+        legacyByokMode.CloudTranscriptionModel = "Whisper-1";
+        await new ModeRepository(database).UpsertAsync(legacyByokMode);
+        await shell.Modes.RefreshAsync();
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+        Assert(shell.Modes.CloudModels.Count(id => string.Equals(id, "whisper-1", StringComparison.OrdinalIgnoreCase)) == 1
+            && !shell.Modes.CloudModels.Contains("Whisper-1", StringComparer.Ordinal),
+            "a cloud model id that differs from the catalog's only in case was pinned beside the "
+            + $"catalog row, so the combo offers one model twice [{string.Join(", ", shell.Modes.CloudModels)}]");
+        AssertCloudSelectionIsListed("loading a mode whose model id differs from the catalog in case");
+
+        // VERIFY ROUND. A field run on a real X screen drove this dialog and found the Cloud Model
+        // combo BLANK after a vendor change, over a CloudTranscriptionModel that was correct and
+        // saved correctly. AssertCloudSelectionIsListed above cannot see that: it asserts the view
+        // model's invariant, and the view model's invariant held. The blank lives in the CONTROL,
+        // so the control is what this block stands in for (see BoundCloudModelCombo).
+        //
+        // The walk order is the lever, not the vendor. Every vendor change made from a combo that
+        // HAS a selection used to blank it, and every one made from an already-blank combo did not,
+        // so a walk alternated PASS/FAIL and the field's five vendors split 3/2 purely by where
+        // each landed. Both orders are walked here for that reason: a fix that only re-publishes
+        // the selection on alternate transitions passes one and fails the other.
+        legacyByokMode.CloudProvider = "openai";
+        legacyByokMode.CloudTranscriptionModel = "gpt-4o-transcribe";
+        await new ModeRepository(database).UpsertAsync(legacyByokMode);
+        await shell.Modes.RefreshAsync();
+        string[][] vendorWalks =
+        [
+            ["deepgram", "elevenlabs", "deepgram", "groq", "gemini", "meta", "geminitranscribe"],
+            ["elevenlabs", "deepgram", "gemini", "meta", "groq", "deepgram", "geminitranscribe"],
+        ];
+        foreach (var walk in vendorWalks)
+        {
+            // Opening the gear builds a fresh dialog, so the combo starts from the mode's own value.
+            shell.Modes.Selected = null;
+            shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+            var combo = new BoundCloudModelCombo(shell.Modes);
+            Assert(combo.SelectedItem == "gpt-4o-transcribe",
+                $"the Cloud Model combo did not open on the mode's own model id ('{combo.SelectedItem ?? "<blank>"}')");
+            foreach (var vendor in walk)
+            {
+                shell.Modes.CloudProvider = vendor;
+                Assert(combo.SelectedItem is not null
+                    && string.Equals(combo.SelectedItem, shell.Modes.CloudTranscriptionModel, StringComparison.Ordinal),
+                    $"after changing the Cloud Provider to '{vendor}' (walk [{string.Join(" -> ", walk)}]) the "
+                    + $"bound Cloud Model ComboBox reads '{combo.SelectedItem ?? "<blank>"}' while the mode holds "
+                    + $"'{shell.Modes.CloudTranscriptionModel}'; the list is [{string.Join(", ", combo.ItemsSource)}] "
+                    + "(issue #645, verify round)");
+            }
+            // The vendors with no BYOK model empty the combo AND the selection together, so the
+            // control is blank because there is nothing to show — not because a notification was
+            // swallowed. Asserted as a pair, exactly as AssertCloudSelectionIsListed does.
+            foreach (var emptyVendor in new[] { "grok", "microsoftazurespeech", "googlespeech" })
+            {
+                shell.Modes.CloudProvider = emptyVendor;
+                Assert(combo.ItemsSource.Count == 0 && combo.SelectedItem is null
+                    && shell.Modes.CloudTranscriptionModel == string.Empty,
+                    $"vendor '{emptyVendor}' left the Cloud Model combo showing "
+                    + $"'{combo.SelectedItem ?? "<blank>"}' over an empty list");
+            }
+            // Back to a real vendor, then the #645 path itself: clicking an entry in the MODEL
+            // combo must neither change the list instance nor lose the selection at the control.
+            shell.Modes.CloudProvider = "openai";
+            var listedAtTheControl = combo.ItemsSource;
+            shell.Modes.CloudTranscriptionModel = listedAtTheControl[2];
+            Assert(ReferenceEquals(listedAtTheControl, combo.ItemsSource)
+                && combo.SelectedItem == listedAtTheControl[2],
+                "committing a selection in the Cloud Model combo changed its own ItemsSource or "
+                + $"dropped the selection ('{combo.SelectedItem ?? "<blank>"}') (issue #645)");
+            // The On-device segment is the other NormalizeCloudModel call site, and it reaches the
+            // same seam through the ProviderType setter.
+            shell.Modes.IsOnDeviceSource = true;
+            shell.Modes.IsYourProviderSource = true;
+            Assert(combo.SelectedItem is not null
+                && string.Equals(combo.SelectedItem, shell.Modes.CloudTranscriptionModel, StringComparison.Ordinal),
+                "returning to the Your-provider segment from On-device left the bound Cloud Model "
+                + $"ComboBox reading '{combo.SelectedItem ?? "<blank>"}' over '{shell.Modes.CloudTranscriptionModel}'");
+            combo.Detach();
+        }
+
+        shell.Modes.PropertyChanged -= ReadCloudModelsLikeTheBinding;
+        Assert(cloudModelsReads > 0, "the CloudModels binding stand-in never re-read the property");
+
         cloudMode.ModelType = "linux-model-type";
         cloudMode.IsSystemProvided = true;
         cloudMode.CreatedDate = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
@@ -2180,6 +2544,75 @@ static async Task RunHistoryRetryTestsAsync(string root)
     var recoveredClaim = await claimStore.History.GetAsync(claim.Id);
     Assert(recoveredClaim is { Status: TranscriptStatus.Failed, FailedReason: "failed", Text: "failed", RetryCount: 1 },
         "startup recovery did not restore an interrupted retry's original failure details");
+}
+
+/// <summary>
+/// A stand-in for the Cloud Model ComboBox itself — ModeEditorWindow.axaml:147-148, where
+/// ItemsSource binds to <c>CloudModels</c> and SelectedItem two-way to
+/// <c>CloudTranscriptionModel</c>. The harness already re-reads <c>CloudModels</c> on every
+/// notification; that is only half of the control, and the half that cannot see a blank combo.
+///
+/// Three behaviours, every one of them MEASURED against a real Avalonia 12.1.1 ComboBox driven
+/// headlessly by the real ModesViewModel, not inferred from the source:
+///
+/// 1. Swapping ItemsSource for a DIFFERENT INSTANCE re-resolves the selection against the new
+///    source. An item the new list still holds survives; one it does not is cleared. The file's own
+///    <c>LocalModels</c> comment records the same observation from the Linux app.
+/// 2. A cleared selection is written back through the two-way binding as null, which the
+///    <c>CloudTranscriptionModel</c> proxy refuses — it must, or the hidden On-device combo would
+///    wipe the shared model field. The binding then RE-READS the property and records what it finds
+///    as the value it has already delivered to the control.
+/// 3. The binding deduplicates: a notification carrying the value it last recorded never reaches
+///    the control. This is what makes the blank permanent rather than transient, and it is why
+///    raising the notification twice does not help.
+///
+/// Together these say the list must be published while the field still holds the OUTGOING id. See
+/// <c>ModesViewModel.NormalizeCloudModel</c>.
+/// </summary>
+file sealed class BoundCloudModelCombo
+{
+    private readonly ModesViewModel _modes;
+    private IReadOnlyList<string> _itemsSource;
+    private string? _bindingValue;
+
+    public BoundCloudModelCombo(ModesViewModel modes)
+    {
+        _modes = modes;
+        _itemsSource = modes.CloudModels;
+        _bindingValue = modes.CloudTranscriptionModel;
+        SelectedItem = IsListed(_bindingValue) ? _bindingValue : null;
+        modes.PropertyChanged += OnPropertyChanged;
+    }
+
+    /// <summary>What the closed combo draws. Null is the blank box the field run photographed.</summary>
+    public string? SelectedItem { get; private set; }
+
+    public IReadOnlyList<string> ItemsSource => _itemsSource;
+
+    public void Detach() => _modes.PropertyChanged -= OnPropertyChanged;
+
+    private bool IsListed(string? value)
+        => value is { Length: > 0 } && _itemsSource.Contains(value, StringComparer.Ordinal);
+
+    private void OnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (string.Equals(args.PropertyName, nameof(ModesViewModel.CloudModels), StringComparison.Ordinal))
+        {
+            var list = _modes.CloudModels;
+            if (ReferenceEquals(list, _itemsSource)) return;
+            _itemsSource = list;
+            if (SelectedItem is null || IsListed(SelectedItem)) return;
+            SelectedItem = null;
+            _modes.CloudTranscriptionModel = null;
+            _bindingValue = _modes.CloudTranscriptionModel;
+            return;
+        }
+        if (!string.Equals(args.PropertyName, nameof(ModesViewModel.CloudTranscriptionModel), StringComparison.Ordinal)) return;
+        var value = _modes.CloudTranscriptionModel;
+        if (string.Equals(value, _bindingValue, StringComparison.Ordinal)) return;
+        _bindingValue = value;
+        SelectedItem = IsListed(value) ? value : null;
+    }
 }
 
 file sealed class TestPaths(string root) : IAppPaths
