@@ -748,6 +748,75 @@ try
             + $"catalog row, so the combo offers one model twice [{string.Join(", ", shell.Modes.CloudModels)}]");
         AssertCloudSelectionIsListed("loading a mode whose model id differs from the catalog in case");
 
+        // VERIFY ROUND. A field run on a real X screen drove this dialog and found the Cloud Model
+        // combo BLANK after a vendor change, over a CloudTranscriptionModel that was correct and
+        // saved correctly. AssertCloudSelectionIsListed above cannot see that: it asserts the view
+        // model's invariant, and the view model's invariant held. The blank lives in the CONTROL,
+        // so the control is what this block stands in for (see BoundCloudModelCombo).
+        //
+        // The walk order is the lever, not the vendor. Every vendor change made from a combo that
+        // HAS a selection used to blank it, and every one made from an already-blank combo did not,
+        // so a walk alternated PASS/FAIL and the field's five vendors split 3/2 purely by where
+        // each landed. Both orders are walked here for that reason: a fix that only re-publishes
+        // the selection on alternate transitions passes one and fails the other.
+        legacyByokMode.CloudProvider = "openai";
+        legacyByokMode.CloudTranscriptionModel = "gpt-4o-transcribe";
+        await new ModeRepository(database).UpsertAsync(legacyByokMode);
+        await shell.Modes.RefreshAsync();
+        string[][] vendorWalks =
+        [
+            ["deepgram", "elevenlabs", "deepgram", "groq", "gemini", "meta", "geminitranscribe"],
+            ["elevenlabs", "deepgram", "gemini", "meta", "groq", "deepgram", "geminitranscribe"],
+        ];
+        foreach (var walk in vendorWalks)
+        {
+            // Opening the gear builds a fresh dialog, so the combo starts from the mode's own value.
+            shell.Modes.Selected = null;
+            shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+            var combo = new BoundCloudModelCombo(shell.Modes);
+            Assert(combo.SelectedItem == "gpt-4o-transcribe",
+                $"the Cloud Model combo did not open on the mode's own model id ('{combo.SelectedItem ?? "<blank>"}')");
+            foreach (var vendor in walk)
+            {
+                shell.Modes.CloudProvider = vendor;
+                Assert(combo.SelectedItem is not null
+                    && string.Equals(combo.SelectedItem, shell.Modes.CloudTranscriptionModel, StringComparison.Ordinal),
+                    $"after changing the Cloud Provider to '{vendor}' (walk [{string.Join(" -> ", walk)}]) the "
+                    + $"bound Cloud Model ComboBox reads '{combo.SelectedItem ?? "<blank>"}' while the mode holds "
+                    + $"'{shell.Modes.CloudTranscriptionModel}'; the list is [{string.Join(", ", combo.ItemsSource)}] "
+                    + "(issue #645, verify round)");
+            }
+            // The vendors with no BYOK model empty the combo AND the selection together, so the
+            // control is blank because there is nothing to show — not because a notification was
+            // swallowed. Asserted as a pair, exactly as AssertCloudSelectionIsListed does.
+            foreach (var emptyVendor in new[] { "grok", "microsoftazurespeech", "googlespeech" })
+            {
+                shell.Modes.CloudProvider = emptyVendor;
+                Assert(combo.ItemsSource.Count == 0 && combo.SelectedItem is null
+                    && shell.Modes.CloudTranscriptionModel == string.Empty,
+                    $"vendor '{emptyVendor}' left the Cloud Model combo showing "
+                    + $"'{combo.SelectedItem ?? "<blank>"}' over an empty list");
+            }
+            // Back to a real vendor, then the #645 path itself: clicking an entry in the MODEL
+            // combo must neither change the list instance nor lose the selection at the control.
+            shell.Modes.CloudProvider = "openai";
+            var listedAtTheControl = combo.ItemsSource;
+            shell.Modes.CloudTranscriptionModel = listedAtTheControl[2];
+            Assert(ReferenceEquals(listedAtTheControl, combo.ItemsSource)
+                && combo.SelectedItem == listedAtTheControl[2],
+                "committing a selection in the Cloud Model combo changed its own ItemsSource or "
+                + $"dropped the selection ('{combo.SelectedItem ?? "<blank>"}') (issue #645)");
+            // The On-device segment is the other NormalizeCloudModel call site, and it reaches the
+            // same seam through the ProviderType setter.
+            shell.Modes.IsOnDeviceSource = true;
+            shell.Modes.IsYourProviderSource = true;
+            Assert(combo.SelectedItem is not null
+                && string.Equals(combo.SelectedItem, shell.Modes.CloudTranscriptionModel, StringComparison.Ordinal),
+                "returning to the Your-provider segment from On-device left the bound Cloud Model "
+                + $"ComboBox reading '{combo.SelectedItem ?? "<blank>"}' over '{shell.Modes.CloudTranscriptionModel}'");
+            combo.Detach();
+        }
+
         shell.Modes.PropertyChanged -= ReadCloudModelsLikeTheBinding;
         Assert(cloudModelsReads > 0, "the CloudModels binding stand-in never re-read the property");
 
@@ -2475,6 +2544,75 @@ static async Task RunHistoryRetryTestsAsync(string root)
     var recoveredClaim = await claimStore.History.GetAsync(claim.Id);
     Assert(recoveredClaim is { Status: TranscriptStatus.Failed, FailedReason: "failed", Text: "failed", RetryCount: 1 },
         "startup recovery did not restore an interrupted retry's original failure details");
+}
+
+/// <summary>
+/// A stand-in for the Cloud Model ComboBox itself — ModeEditorWindow.axaml:147-148, where
+/// ItemsSource binds to <c>CloudModels</c> and SelectedItem two-way to
+/// <c>CloudTranscriptionModel</c>. The harness already re-reads <c>CloudModels</c> on every
+/// notification; that is only half of the control, and the half that cannot see a blank combo.
+///
+/// Three behaviours, every one of them MEASURED against a real Avalonia 12.1.1 ComboBox driven
+/// headlessly by the real ModesViewModel, not inferred from the source:
+///
+/// 1. Swapping ItemsSource for a DIFFERENT INSTANCE re-resolves the selection against the new
+///    source. An item the new list still holds survives; one it does not is cleared. The file's own
+///    <c>LocalModels</c> comment records the same observation from the Linux app.
+/// 2. A cleared selection is written back through the two-way binding as null, which the
+///    <c>CloudTranscriptionModel</c> proxy refuses — it must, or the hidden On-device combo would
+///    wipe the shared model field. The binding then RE-READS the property and records what it finds
+///    as the value it has already delivered to the control.
+/// 3. The binding deduplicates: a notification carrying the value it last recorded never reaches
+///    the control. This is what makes the blank permanent rather than transient, and it is why
+///    raising the notification twice does not help.
+///
+/// Together these say the list must be published while the field still holds the OUTGOING id. See
+/// <c>ModesViewModel.NormalizeCloudModel</c>.
+/// </summary>
+file sealed class BoundCloudModelCombo
+{
+    private readonly ModesViewModel _modes;
+    private IReadOnlyList<string> _itemsSource;
+    private string? _bindingValue;
+
+    public BoundCloudModelCombo(ModesViewModel modes)
+    {
+        _modes = modes;
+        _itemsSource = modes.CloudModels;
+        _bindingValue = modes.CloudTranscriptionModel;
+        SelectedItem = IsListed(_bindingValue) ? _bindingValue : null;
+        modes.PropertyChanged += OnPropertyChanged;
+    }
+
+    /// <summary>What the closed combo draws. Null is the blank box the field run photographed.</summary>
+    public string? SelectedItem { get; private set; }
+
+    public IReadOnlyList<string> ItemsSource => _itemsSource;
+
+    public void Detach() => _modes.PropertyChanged -= OnPropertyChanged;
+
+    private bool IsListed(string? value)
+        => value is { Length: > 0 } && _itemsSource.Contains(value, StringComparer.Ordinal);
+
+    private void OnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (string.Equals(args.PropertyName, nameof(ModesViewModel.CloudModels), StringComparison.Ordinal))
+        {
+            var list = _modes.CloudModels;
+            if (ReferenceEquals(list, _itemsSource)) return;
+            _itemsSource = list;
+            if (SelectedItem is null || IsListed(SelectedItem)) return;
+            SelectedItem = null;
+            _modes.CloudTranscriptionModel = null;
+            _bindingValue = _modes.CloudTranscriptionModel;
+            return;
+        }
+        if (!string.Equals(args.PropertyName, nameof(ModesViewModel.CloudTranscriptionModel), StringComparison.Ordinal)) return;
+        var value = _modes.CloudTranscriptionModel;
+        if (string.Equals(value, _bindingValue, StringComparison.Ordinal)) return;
+        _bindingValue = value;
+        SelectedItem = IsListed(value) ? value : null;
+    }
 }
 
 file sealed class TestPaths(string root) : IAppPaths

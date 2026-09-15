@@ -330,6 +330,26 @@ public sealed class ModesViewModel : ViewModelBase
     /// Never while the editor is loading a mode or restoring a cancelled one: there the persisted
     /// id is the whole point, and <see cref="ApplyLoadedCloudModel"/> keeps it visible instead.
     /// Windows guards the same call with its own <c>_isLoading</c> (xaml.cs:615).
+    ///
+    /// ORDER MATTERS, and it is the whole of the verify-round fix. The list must reach the bound
+    /// ComboBox while this field still holds the OUTGOING id, never after the incoming one is in
+    /// place. Measured against a real Avalonia 12.1.1 ComboBox: when ItemsSource is swapped for a
+    /// different instance that does not contain the current SelectedItem, Avalonia clears the
+    /// selection and the two-way binding writes that null back; the
+    /// <see cref="CloudTranscriptionModel"/> proxy refuses a null (it has to — the hidden picker's
+    /// combo would otherwise wipe the shared field), and the binding then RE-READS the property and
+    /// records what it finds as the value it has already delivered. Assign first and that value is
+    /// the incoming id, so the <c>CloudTranscriptionModel</c> notification that follows carries a
+    /// value the binding believes it already published, is deduplicated, and never reaches the
+    /// control: the combo stays blank over a correct field for the rest of the dialog. Notify
+    /// first and the binding records the OUTGOING id, so the incoming one is a change it delivers.
+    ///
+    /// The field run on a real X screen read this as "Deepgram and Google Gemini go blank, the
+    /// three other vendors do not", and reasonably guessed at the two panel reveals those two
+    /// vendors share. It is not the reveals. Every vendor change made from a combo that HAS a
+    /// selection went blank and every one made from an already-blank combo did not, so the walk
+    /// alternated and the two vendors that happened to land on the failing beat were those two.
+    /// Reversing the walk order moves the blanks onto ElevenLabs and Groq.
     /// </summary>
     private void NormalizeCloudModel()
     {
@@ -338,6 +358,11 @@ public sealed class ModesViewModel : ViewModelBase
         // OrdinalIgnoreCase, as the vendor lookup is: a mode persisted with `Whisper-1` names the
         // catalog's `whisper-1` and must not be treated as a model openai does not offer.
         if (catalog.Any(id => string.Equals(id, _transcriptionModel, StringComparison.OrdinalIgnoreCase))) return;
+        // Hand the combo the new vendor's list BEFORE the new selection — see the order note above.
+        // The getter is a pure read, so this only releases the cache the vendor change invalidated;
+        // the CloudModels notification NotifyEditorReveals raises a moment later then finds the same
+        // instance and is a no-op at the control.
+        Notify(nameof(CloudModels));
         TranscriptionModel = catalog.Count > 0 ? catalog[0] : string.Empty;
     }
     public string TranscriptionModel
