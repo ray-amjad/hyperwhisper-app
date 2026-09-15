@@ -107,6 +107,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("host GPU evidence never promotes software renderer", HostGpuEvidence),
     ("Pulse input enumeration drops sink monitors and marks the default", PulseInputEnumeration),
     ("Pulse input enumeration promotes a microphone when the default is a monitor", PulseInputDefaultIsMonitor),
+    ("Pulse input enumeration reports an empty success when every source is a monitor", PulseInputAllMonitorsIsEmptySuccess),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -1623,9 +1624,9 @@ static Task HostGpuEvidence()
 // each empty form a server might report (`monitor_of_sink: null`, `monitor_source: ""`, the key
 // absent) is proved not to drop a real source. Keep them one-marker-per-row for that reason. If a
 // later measurement contradicts one, trust the measurement and replace the row.
-static IReadOnlyList<AudioInputDevice> EnumeratePulseInputs(string defaultSource)
+static string MeasuredPulseSources()
 {
-    const string json = """
+    return """
     [{"index":1,"state":"SUSPENDED","name":"VirtualSpeaker.monitor","description":"Monitor of Null_Output",
       "driver":"module-null-sink.c","monitor_source":"VirtualSpeaker","properties":{
       "device.description":"Monitor of Null_Output","device.class":"monitor",
@@ -1642,22 +1643,35 @@ static IReadOnlyList<AudioInputDevice> EnumeratePulseInputs(string defaultSource
      {"index":8,"name":"mic.empty_source","description":"Virtual microphone","monitor_source":"","properties":{"device.class":"sound"}},
      {"index":9,"name":"mic.no_markers","description":"Built-in Audio Analog Stereo"}]
     """;
+}
+
+// The source JSON is a parameter, not a baked-in constant: the state #627 newly makes reachable is a
+// box with no offerable source at all, and that cannot be reached by varying the default-source name.
+static PlatformResult<IReadOnlyList<AudioInputDevice>> EnumeratePulseInputs(string json, string defaultSource)
+{
     var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(json)),
         new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(defaultSource + "\n")));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
-    var result = service.GetAvailableDevices();
-    Assert.True(result.IsSuccess);
-    return result.Value!;
+    return service.GetAvailableDevices();
 }
 
-// Both assertions below are whole-sequence: the id line is the only proof that every monitor was
-// dropped AND that no real source was, and the flag line pins the FALSE entries, so flagging every
-// device default cannot pass.
+// Encodes the whole outcome in one string so a regression names itself: `Success([])` and
+// `Failure("pulse_devices_failed")` are different states that a bare count assertion cannot tell
+// apart, and the blanket catch in GetAvailableDevices turns any throw into the latter.
+static string DescribePulseInputs(PlatformResult<IReadOnlyList<AudioInputDevice>> result) =>
+    result.IsFailure
+        ? $"failure:{result.Error!.Code}"
+        : $"success:{string.Join('|', result.Value!.Select(device => $"{device.Id}:{device.IsDefault}"))}";
+
+// Each assertion below is whole-outcome: one string carries the success/failure state, every
+// surviving id IN ORDER, and every default flag. The id half is the only proof that every monitor was
+// dropped AND that no real source was; the flag half pins the FALSE entries, so flagging every device
+// default cannot pass.
 static Task PulseInputEnumeration()
 {
-    var devices = EnumeratePulseInputs("mic.empty_source");
-    Assert.Equal("VirtualMic|mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
-    Assert.Equal("False|False|True|False", string.Join('|', devices.Select(device => device.IsDefault)));
+    Assert.Equal(
+        "success:VirtualMic:False|mic.null_sink:False|mic.empty_source:True|mic.no_markers:False",
+        DescribePulseInputs(EnumeratePulseInputs(MeasuredPulseSources(), "mic.empty_source")));
     return Task.CompletedTask;
 }
 
@@ -1667,9 +1681,30 @@ static Task PulseInputDefaultIsMonitor()
     // VirtualSpeaker.monitor` is accepted and `pactl get-default-source` then prints that monitor.
     // The filter drops it, so the first offerable microphone carries the flag instead and the tray
     // and the workflow cannot disagree about which device is in use.
-    var devices = EnumeratePulseInputs("VirtualSpeaker.monitor");
-    Assert.Equal("VirtualMic|mic.null_sink|mic.empty_source|mic.no_markers", string.Join('|', devices.Select(device => device.Id)));
-    Assert.Equal("True|False|False|False", string.Join('|', devices.Select(device => device.IsDefault)));
+    Assert.Equal(
+        "success:VirtualMic:True|mic.null_sink:False|mic.empty_source:False|mic.no_markers:False",
+        DescribePulseInputs(EnumeratePulseInputs(MeasuredPulseSources(), "VirtualSpeaker.monitor")));
+    return Task.CompletedTask;
+}
+
+// A box whose only pactl sources are sink monitors — a headless or loopback machine, and the state the
+// #627 filter newly makes reachable, since before it every monitor was offered as a microphone. The
+// enumeration must report an EMPTY SUCCESS: the promotion step must not reach for values[0], because
+// the blanket catch in GetAvailableDevices would turn the IndexOutOfRangeException into
+// `pulse_devices_failed` and the picker would show a stale error instead of an honest empty list.
+// Nothing here can record: LinuxRecordingInputDeviceGate refuses both kinds with no device selected.
+static Task PulseInputAllMonitorsIsEmptySuccess()
+{
+    // The first row is the measured pulseaudio 16.1 monitor from MeasuredPulseSources; the second is
+    // synthetic, so the empty list is reached through more than one clause of the filter.
+    const string json = """
+    [{"index":1,"state":"SUSPENDED","name":"VirtualSpeaker.monitor","description":"Monitor of Null_Output",
+      "driver":"module-null-sink.c","monitor_source":"VirtualSpeaker","properties":{
+      "device.description":"Monitor of Null_Output","device.class":"monitor",
+      "device.icon_name":"audio-input-microphone"},"ports":[],"active_port":null},
+     {"index":2,"name":"monitor.by_number","description":"Monitor of Legacy Sink","monitor_of_sink":2}]
+    """;
+    Assert.Equal("success:", DescribePulseInputs(EnumeratePulseInputs(json, "VirtualSpeaker.monitor")));
     return Task.CompletedTask;
 }
 
