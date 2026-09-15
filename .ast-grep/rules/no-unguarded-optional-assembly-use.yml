@@ -1,0 +1,37 @@
+id: no-unguarded-optional-assembly-use
+language: csharp
+severity: error
+message: "Reach an optional satellite assembly through OptionalAssemblyGuard, not directly."
+note: |
+  Windows Application Control blocks an INDIVIDUAL DLL inside an installed app.
+  `HyperWhisper.AppClassification.dll` and `HyperWhisper.Statistics.dll` were both
+  blocked in production with HRESULT 0x800711C7 (HYPERWHISPER-Y5, HYPERWHISPER-YF).
+
+  The CLR resolves an assembly reference while it PREPARES a method, before that
+  method's own `try` block is entered. So a `catch` around the call site does NOT
+  help — `HomePage.OnLoaded` already had one and it never ran. The exception
+  escaped the async void handler and crashed the app.
+
+  Name one of these types only inside a `[MethodImpl(MethodImplOptions.NoInlining)]`
+  boundary method, and reach that method through
+  `OptionalAssemblyGuard.TryRun` / `TryRunAsync`. A method that is never called is
+  never prepared, so a blocked assembly cannot fault the caller.
+
+  The smoke suite can pin the boundary methods' `NoInlining` flag but cannot see
+  which METHOD a call site sits in, so this rule is what stops a new call site
+  reintroducing the crash.
+
+  A genuine new boundary method carries
+  `// ast-grep-ignore: no-unguarded-optional-assembly-use -- <why>` above the line,
+  so every exception states its reason in the code.
+files:
+  - "app/windows/**/*.cs"
+ignores:
+  - "**/obj/**"
+  - "**/bin/**"
+rule:
+  any:
+    - pattern: ApplicationContextService.Instance.GatherContext()
+    - pattern: new HyperWhisper.Services.ApplicationContext()
+    - pattern: new HomeStatisticsService($$$ARGS)
+    - pattern: new WindowsStatisticsTranscriptProvider()

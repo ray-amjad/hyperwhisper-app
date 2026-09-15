@@ -131,7 +131,14 @@ public partial class HomeStatsBarViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"HomeStatsBarViewModel: RecomputeAsync failed: {ex.Message}");
+            // The type and the HRESULT, never the message. Windows Application
+            // Control can block HyperWhisper.Statistics here, and the resulting
+            // FileLoadException message carries the installed path — which holds
+            // the user's Windows account name (HYPERWHISPER-YF).
+            LoggingService.Warn(
+                $"HomeStatsBarViewModel: RecomputeAsync failed " +
+                $"(exception_type={ex.GetType().FullName}, " +
+                $"hresult={OptionalAssemblyGuard.DescribeHResult(ex.HResult)})");
             return;
         }
 

@@ -33,34 +33,51 @@ public partial class HomePage : Page
     // See Services/OptionalAssemblyGuard.cs.
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (!OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.StatisticsAssembly))
-        {
-            StatsBar.Visibility = Visibility.Collapsed;
-            LoggingService.Warn(
-                $"HomePage: stats strip skipped (stage=home_page_loaded, " +
-                $"assembly={OptionalAssemblyGuard.StatisticsAssembly}, reason=unavailable)");
-            return;
-        }
+        // Loaded can re-fire on the same Page instance, and a failed load leaves a
+        // view-model subscribed to HistoryService. Release any prior one FIRST, so
+        // a blocked assembly cannot leave a subscription alive that recomputes —
+        // and fails again — on every later transcript.
+        ReleaseStatsViewModel();
 
+        OptionalAssemblyOutcome outcome;
         try
         {
-            await LoadStatsBarAsync();
-        }
-        catch (Exception ex) when (OptionalAssemblyGuard.IsLoadFailure(ex))
-        {
-            // Never `ex.Message` here: a FileLoadException message carries the
-            // installed path, and that path holds the user's account name.
-            OptionalAssemblyGuard.MarkUnavailable(
-                OptionalAssemblyGuard.StatisticsAssembly, ex, "home_page_loaded");
-            StatsBar.Visibility = Visibility.Collapsed;
+            outcome = await OptionalAssemblyGuard.TryRunAsync(
+                OptionalAssemblyGuard.StatisticsAssembly,
+                "home_page_loaded",
+                LoadStatsBarAsync);
         }
         catch (Exception ex)
         {
+            // An ordinary failure inside the stats strip. A load failure never
+            // reaches here; TryRunAsync answers LoadFailed for that.
             LoggingService.Warn($"HomePage: OnLoaded failed: {ex.Message}");
+            ReleaseStatsViewModel();
+            return;
         }
+
+        if (outcome == OptionalAssemblyOutcome.Completed)
+        {
+            return;
+        }
+
+        // Unavailable or LoadFailed: hide the strip and leave nothing subscribed.
+        StatsBar.Visibility = Visibility.Collapsed;
+        ReleaseStatsViewModel();
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e)
+    private void OnUnloaded(object sender, RoutedEventArgs e) => ReleaseStatsViewModel();
+
+    /// <summary>
+    /// Releases the stats view-model when there is one.
+    /// </summary>
+    /// <remarks>
+    /// The null test is load-bearing, not defensive: it keeps
+    /// <see cref="DetachStatsViewModel"/> unprepared on a machine that blocks
+    /// HyperWhisper.Statistics. On such a machine the field can only ever be null,
+    /// because nothing could construct the view-model in the first place.
+    /// </remarks>
+    private void ReleaseStatsViewModel()
     {
         if (_statsViewModel == null)
         {
@@ -79,11 +96,8 @@ public partial class HomePage : Page
     [MethodImpl(MethodImplOptions.NoInlining)]
     private async Task LoadStatsBarAsync()
     {
-        // Loaded can re-fire on the same Page instance; detach any prior
-        // view-model so we don't leak HistoryService event subscriptions.
-        _statsViewModel?.Detach();
-
         _statsViewModel = new HomeStatsBarViewModel(
+            // ast-grep-ignore: no-unguarded-optional-assembly-use -- this IS the guarded boundary, reached only through OptionalAssemblyGuard.TryRunAsync.
             new HomeStatisticsService(new WindowsStatisticsTranscriptProvider()),
             SettingsService.Instance);
         StatsBar.DataContext = _statsViewModel;

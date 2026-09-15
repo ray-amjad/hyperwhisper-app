@@ -251,8 +251,6 @@ internal static class Program
 
                 Assert(OptionalAssemblyGuard.DescribeHResult(unchecked((int)0x800711C7)) == "0x800711C7",
                     "the Application Control HRESULT is not rendered as 8 hex digits");
-                Assert(OptionalAssemblyGuard.DescribeHResult(null) == "unknown",
-                    "an absent HRESULT is not reported as unknown");
 
                 // The two assemblies ship beside the app, so the probe must find
                 // them. A false negative here would switch off both features for
@@ -262,10 +260,63 @@ internal static class Program
                 Assert(OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.StatisticsAssembly),
                     "the statistics assembly probe failed on a machine that carries it");
 
-                // An assembly that cannot load answers false. It never throws, which
-                // is the whole point of the guard.
-                Assert(!OptionalAssemblyGuard.IsAvailable("HyperWhisper.NotShipped.Absent"),
-                    "an absent assembly was reported as available");
+                // Deliberately NOT probed here: an assembly name that does not
+                // exist. That path reports to Sentry, and a release-CI run must not
+                // publish a diagnostic that is indistinguishable from a real user's
+                // blocked DLL in the very project routine 47 triages.
+
+                // The outcome table a caller degrades on. RunGuarded takes the
+                // availability answer and the failure reporter, so this drives every
+                // branch without probing a fake assembly name, without mutating the
+                // process-wide answer for the real ones, and without publishing a
+                // Sentry diagnostic a triage run could mistake for a real user.
+                var ran = 0;
+                Exception? reportedException = null;
+                var reportedStage = string.Empty;
+                Action<string, Exception, string> Record = (_, exception, stage) =>
+                {
+                    reportedException = exception;
+                    reportedStage = stage;
+                };
+
+                Assert(OptionalAssemblyGuard.RunGuarded(
+                        true, "HyperWhisper.Fake", "smoke", () => ran++, Record)
+                    == OptionalAssemblyOutcome.Completed,
+                    "an available assembly did not report Completed");
+                Assert(ran == 1, "the guarded work did not run for an available assembly");
+
+                Assert(OptionalAssemblyGuard.RunGuarded(
+                        false, "HyperWhisper.Fake", "smoke", () => ran++, Record)
+                    == OptionalAssemblyOutcome.Unavailable,
+                    "an unavailable assembly did not report Unavailable");
+                Assert(ran == 1, "the guarded work ran for an unavailable assembly");
+                Assert(reportedException == null,
+                    "an unavailable assembly reported a failure it never had");
+
+                var blocked = new FileLoadException(
+                    "private message", @"C:\Users\private-user\HyperWhisper.Fake.dll");
+                Assert(OptionalAssemblyGuard.RunGuarded(
+                        true, "HyperWhisper.Fake", "smoke", () => throw blocked, Record)
+                    == OptionalAssemblyOutcome.LoadFailed,
+                    "a load failure inside guarded work did not report LoadFailed");
+                Assert(ReferenceEquals(reportedException, blocked) && reportedStage == "smoke",
+                    "the load failure was not handed to the reporter with its stage");
+
+                // An ordinary fault is NOT the guard's business: it must keep
+                // escaping, so a real bug in the optional feature still reaches
+                // Sentry instead of being degraded away in silence.
+                var escaped = false;
+                try
+                {
+                    OptionalAssemblyGuard.RunGuarded(
+                        true, "HyperWhisper.Fake", "smoke",
+                        () => throw new InvalidOperationException("ordinary"), Record);
+                }
+                catch (InvalidOperationException)
+                {
+                    escaped = true;
+                }
+                Assert(escaped, "an ordinary exception was swallowed by the guard");
 
                 AssertNoInlining(typeof(MainViewModel), "CaptureApplicationContext");
                 AssertNoInlining(typeof(MainViewModel), "CaptureApplicationContextAsync");

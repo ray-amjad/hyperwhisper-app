@@ -12,22 +12,24 @@
 // Yet a blocked load took the whole flow down, because the CLR resolves an
 // assembly reference while it PREPARES a method — before that method's own `try`
 // block is entered. A `catch` inside the method therefore never runs, the
-// FileLoadException escapes the `async void` handler, and the global
+// FileLoadException escapes the async void handler, and the global
 // unhandled-UI-exception path reports it (HYPERWHISPER-Y5, HYPERWHISPER-YF).
 //
 // THE RULE THIS FILE ENFORCES
 // A call site must not name a type from an optional assembly in the SAME method
 // that decides whether to use it. Put every such reference in a separate
-// [MethodImpl(MethodImplOptions.NoInlining)] method, and call that method only
-// after `IsAvailable` says the assembly loads. A method that is never called is
-// never prepared, so a blocked assembly can no longer fault the caller.
+// [MethodImpl(MethodImplOptions.NoInlining)] method and hand that method to
+// TryRun or TryRunAsync. A method that is never called is never prepared, so a
+// blocked assembly can no longer fault the caller.
 //
 // `NoInlining` is load-bearing, not decoration: an inlined body is prepared with
 // its caller, which puts the reference straight back into the deciding method.
+// `.ast-grep/rules/no-unguarded-optional-assembly-use.yml` fails CI when a call
+// site names one of these constructors or services outside a guarded boundary.
 //
-// The `catch` at each call site stays as a second line of defence. A failure that
-// surfaces while preparing the CALLEE is thrown at the call instruction, which IS
-// inside the caller's `try`, so it is catchable there.
+// The `catch` inside TryRun stays as a second line of defence. A failure that
+// surfaces while preparing the CALLEE is thrown at the call instruction, which is
+// inside TryRun's own `try`, so it is catchable there.
 //
 // PRIVACY
 // A FileLoadException message and its FileName both carry the installed path, and
@@ -40,6 +42,19 @@ using System.IO;
 using System.Reflection;
 
 namespace HyperWhisper.Services;
+
+/// <summary>What a guarded call did. The caller uses this to degrade its UI.</summary>
+internal enum OptionalAssemblyOutcome
+{
+    /// <summary>The work ran to completion.</summary>
+    Completed,
+
+    /// <summary>The assembly does not load on this machine, so nothing ran.</summary>
+    Unavailable,
+
+    /// <summary>The work started and hit a load failure.</summary>
+    LoadFailed,
+}
 
 /// <summary>
 /// Decides whether an optional satellite assembly can be loaded on this machine,
@@ -71,6 +86,81 @@ internal static class OptionalAssemblyGuard
         Availability.GetOrAdd(simpleName, Probe);
 
     /// <summary>
+    /// Runs <paramref name="work"/> only when <paramref name="simpleName"/> loads.
+    /// </summary>
+    /// <remarks>
+    /// Warning: pass a method that carries
+    /// <c>[MethodImpl(MethodImplOptions.NoInlining)]</c>. An inlinable body is
+    /// prepared with its caller, which defeats the whole guard.
+    /// </remarks>
+    internal static OptionalAssemblyOutcome TryRun(string simpleName, string stage, Action work) =>
+        RunGuarded(IsAvailable(simpleName), simpleName, stage, work, MarkUnavailable);
+
+    /// <summary>The asynchronous form of <see cref="TryRun"/>.</summary>
+    /// <remarks>Warning: see <see cref="TryRun"/> about <c>NoInlining</c>.</remarks>
+    internal static Task<OptionalAssemblyOutcome> TryRunAsync(
+        string simpleName,
+        string stage,
+        Func<Task> work) =>
+        RunGuardedAsync(IsAvailable(simpleName), simpleName, stage, work, MarkUnavailable);
+
+    // The decision, with the availability answer and the failure reporter handed
+    // in. HyperWhisper.SmokeTests drives these so the outcome table is pinned
+    // without probing a fake assembly name or publishing a Sentry diagnostic that
+    // would be indistinguishable from a real user's blocked DLL. Same test seam
+    // as ApplicationControlDiagnostics.HandleFirstChanceException.
+    internal static OptionalAssemblyOutcome RunGuarded(
+        bool isAvailable,
+        string simpleName,
+        string stage,
+        Action work,
+        Action<string, Exception, string> onLoadFailure)
+    {
+        if (!isAvailable)
+        {
+            LogSkipped(simpleName, stage);
+            return OptionalAssemblyOutcome.Unavailable;
+        }
+
+        try
+        {
+            work();
+            return OptionalAssemblyOutcome.Completed;
+        }
+        catch (Exception exception) when (IsLoadFailure(exception))
+        {
+            onLoadFailure(simpleName, exception, stage);
+            return OptionalAssemblyOutcome.LoadFailed;
+        }
+    }
+
+    /// <summary>The asynchronous form of <see cref="RunGuarded"/>.</summary>
+    internal static async Task<OptionalAssemblyOutcome> RunGuardedAsync(
+        bool isAvailable,
+        string simpleName,
+        string stage,
+        Func<Task> work,
+        Action<string, Exception, string> onLoadFailure)
+    {
+        if (!isAvailable)
+        {
+            LogSkipped(simpleName, stage);
+            return OptionalAssemblyOutcome.Unavailable;
+        }
+
+        try
+        {
+            await work();
+            return OptionalAssemblyOutcome.Completed;
+        }
+        catch (Exception exception) when (IsLoadFailure(exception))
+        {
+            onLoadFailure(simpleName, exception, stage);
+            return OptionalAssemblyOutcome.LoadFailed;
+        }
+    }
+
+    /// <summary>
     /// Records that <paramref name="simpleName"/> failed at a real call site, so
     /// the next caller takes the degraded path without a second failure.
     /// </summary>
@@ -87,7 +177,8 @@ internal static class OptionalAssemblyGuard
     /// <remarks>
     /// Deliberately narrow. A call site catches only this shape and lets every
     /// other exception keep its existing handling, so this guard cannot swallow a
-    /// genuine bug in the feature it protects.
+    /// genuine bug in the feature it protects, and it cannot hide an unrelated
+    /// crash from Sentry.
     /// </remarks>
     internal static bool IsLoadFailure(Exception exception) => exception switch
     {
@@ -98,10 +189,9 @@ internal static class OptionalAssemblyGuard
         _ => false,
     };
 
-    /// <summary>The 8-digit hex HRESULT, or <c>unknown</c> when there is none.</summary>
-    internal static string DescribeHResult(int? value) => value.HasValue
-        ? $"0x{unchecked((uint)value.Value):X8}"
-        : "unknown";
+    /// <summary>The HRESULT as 8 hex digits.</summary>
+    internal static string DescribeHResult(int value) =>
+        $"0x{unchecked((uint)value):X8}";
 
     private static bool Probe(string simpleName)
     {
@@ -117,16 +207,21 @@ internal static class OptionalAssemblyGuard
         }
         catch (Exception exception)
         {
-            // An unexpected shape is not evidence that the assembly is blocked.
-            // Report it and treat the assembly as available, so a wrong guess here
-            // cannot disable a working feature.
-            LoggingService.Error(
-                $"OptionalAssemblyGuard: Probe failed for an unexpected reason " +
-                $"(assembly={simpleName}, exception_type={exception.GetType().FullName}, " +
-                $"hresult={DescribeHResult(exception.HResult)})");
+            // An unexpected shape is not evidence that the assembly is blocked, so
+            // the feature stays on: a wrong guess here must not disable something
+            // that works. It IS reported, because a block that arrives in a shape
+            // this guard does not know about would otherwise be invisible — the
+            // call site filter would miss it too, and the old crash would return
+            // with no breadcrumb.
+            Report(simpleName, exception, "probe_unexpected_shape");
             return true;
         }
     }
+
+    private static void LogSkipped(string simpleName, string stage) =>
+        LoggingService.Warn(
+            $"OptionalAssemblyGuard: Optional feature skipped " +
+            $"(assembly={simpleName}, stage={stage}, reason=unavailable)");
 
     private static void Report(string simpleName, Exception exception, string stage)
     {

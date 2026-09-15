@@ -101,6 +101,7 @@ public static class PromptBuilder
         // which also gathers when nil. (Windows HEAD passed null through, but the
         // `@hasApplicationContext` gate makes the assembled output equivalent.)
         var appContext = applicationContext
+            // ast-grep-ignore: no-unguarded-optional-assembly-use -- KNOWN GAP, not a boundary. Post-processing is not guarded yet (HYPERWHISPER-Y5 follow-up); both real call sites pass a context, so this branch is defensive.
             ?? ApplicationContextService.Instance.GatherContext();
 
         var preset = PresetFromNative(PresetTypeExtensions.FromString(mode.Preset));
