@@ -141,7 +141,7 @@
           <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowCloudModelPanel}">
             <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
                        Text="{ReflectionBinding [mode.editor.field.cloudModel], Source={StaticResource Localization}}"/>
-            <!-- Windows' CloudModelCombo (:229) is a pick list of the vendor's models labelled by
+            <!-- Windows' CloudModelCombo (:244) is a pick list of the vendor's models labelled by
                  display name. The free-text box that used to sit here showed the saved model id
                  raw, and let a user type an id the vendor does not have. -->
             <ComboBox x:Name="ModeCloudTranscriptionModel" HorizontalAlignment="Stretch"
