@@ -456,32 +456,65 @@ try
         Assert(!ReferenceEquals(whisperModels, shell.Modes.LocalModels),
             "LocalModels did not rebuild when the engine changed");
 
-        // Issue #645: picking any entry in the Linux Cloud Model combo killed the process. The
-        // stale HyperWhisper Cloud tier is appended to the BYOK vendor's list so it stays visible;
-        // keying the cached list on the CURRENT model id dropped that entry the instant the combo
-        // committed a selection, and Avalonia's selection model then read the clicked index out of
-        // the now-shorter list. The appended id is pinned per vendor, so the list keeps its
-        // identity across a selection change.
+        // Issue #645: picking any entry in the Linux Cloud Model combo killed the process. A mode
+        // saved with an id the vendor's catalog does not list keeps that id visible, appended after
+        // the vendor's own models, exactly as Windows keeps the saved selection visible rather than
+        // falling through to index 0 (ModeEditorWindow.Load.cs:199-215). Keying the cached list on
+        // the CURRENT model id dropped that entry the instant the combo committed a selection, and
+        // Avalonia's selection model then read the clicked index out of the now-shorter list.
+        //
+        // Two BYOK modes on the SAME vendor, differing in language and in whether their model id is
+        // in that vendor's catalog: one mode is the pin, the other proves the pin does not leak.
         shell.Modes.Selected = null;
-        shell.Modes.IsHwCloudSource = true;
-        shell.Modes.TranscriptionModel = "scribe_v2";
-        shell.Modes.IsYourProviderSource = true;
+        shell.Modes.Name = "Byok legacy model";
+        shell.Modes.Language = "en";
+        shell.Modes.CloudProvider = "openai";
+        shell.Modes.ProviderType = "cloud";
+        shell.Modes.TranscriptionModel = "whisper-1-legacy";
+        await shell.Modes.SaveAsync();
+        shell.Modes.Selected = null;
+        shell.Modes.Name = "Byok catalog model";
+        shell.Modes.Language = "fr";
+        shell.Modes.CloudProvider = "openai";
+        shell.Modes.ProviderType = "cloud";
+        shell.Modes.TranscriptionModel = "gpt-4o-transcribe";
+        await shell.Modes.SaveAsync();
+        var legacyByokMode = shell.Modes.Items.Single(item => item.Name == "Byok legacy model");
+        var catalogByokMode = shell.Modes.Items.Single(item => item.Name == "Byok catalog model");
+        Assert(legacyByokMode.CloudTranscriptionModel == "whisper-1-legacy"
+            && catalogByokMode.CloudTranscriptionModel == "gpt-4o-transcribe",
+            "a BYOK mode did not persist its cloud model id");
+
+        shell.Modes.Selected = legacyByokMode;
         var byokModels = shell.Modes.CloudModels;
-        Assert(byokModels.Count > 1 && byokModels[^1] == "scribe_v2"
+        Assert(byokModels.Count > 1 && byokModels[^1] == "whisper-1-legacy"
             && byokModels.Take(byokModels.Count - 1).Contains("gpt-4o-transcribe", StringComparer.Ordinal),
-            "CloudModels did not append the out-of-catalog model id after the vendor's own models");
+            "CloudModels did not append the loaded mode's out-of-catalog model id after the vendor's own models");
         Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
             "CloudModels handed back a new list instance for an unchanged vendor and model");
         shell.Modes.CloudTranscriptionModel = byokModels[0];
         Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
             "CloudModels changed instance while the combo committed a selection; the shorter list "
             + "takes the Avalonia selection model out of range (issue #645)");
+        shell.Modes.CloudTranscriptionModel = "whisper-1-legacy";
+        Assert(ReferenceEquals(byokModels, shell.Modes.CloudModels),
+            "CloudModels changed instance when the combo re-selected the pinned id (issue #645)");
+
+        // A vendor change releases the pin and never re-derives it. Windows refills its combo with
+        // no preferred model on a provider change (ModeEditorWindow.xaml.cs:724); keeping the id
+        // would offer one vendor's model under another, and SaveAsync strips only LOCAL ids.
+        shell.Modes.Selected = legacyByokMode;
+        Assert(shell.Modes.CloudModels.Contains("whisper-1-legacy", StringComparer.Ordinal),
+            "CloudModels lost the loaded mode's out-of-catalog model id");
         shell.Modes.CloudProvider = "deepgram";
         var deepgramModels = shell.Modes.CloudModels;
-        Assert(!ReferenceEquals(byokModels, deepgramModels)
-            && deepgramModels.Contains("nova-3-general", StringComparer.Ordinal)
-            && !deepgramModels.Contains("scribe_v2", StringComparer.Ordinal),
+        Assert(deepgramModels.Contains("nova-3-general", StringComparer.Ordinal)
+            && !deepgramModels.Contains("whisper-1-legacy", StringComparer.Ordinal)
+            && deepgramModels.Distinct(StringComparer.Ordinal).Count() == deepgramModels.Count,
             "CloudModels kept the previous vendor's pinned model id after the vendor changed");
+        shell.Modes.CloudTranscriptionModel = "nova-3-general";
+        Assert(ReferenceEquals(deepgramModels, shell.Modes.CloudModels),
+            "CloudModels changed instance while the combo committed a selection on the new vendor (issue #645)");
 
         cloudMode.ModelType = "linux-model-type";
         cloudMode.IsSystemProvided = true;

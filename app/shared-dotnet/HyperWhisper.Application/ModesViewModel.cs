@@ -126,8 +126,6 @@ public sealed class ModesViewModel : ViewModelBase
     private void LoadEditorFrom(Mode value)
     {
         {
-            // A fresh mode is a fresh BYOK model list: drop any id pinned for the previous mode.
-            ResetCloudModelsCache();
             Name = value.Name;
             Language = value.Language;
             Preset = string.IsNullOrWhiteSpace(value.Preset) ? "hyper" : value.Preset;
@@ -160,6 +158,11 @@ public sealed class ModesViewModel : ViewModelBase
             EnglishSpelling = value.EnglishSpelling ?? string.Empty;
             UserPromptEnabled = !string.IsNullOrWhiteSpace(value.UserSystemPrompt);
             LoadCustomEndpoint(value.PostProcessingProvider);
+            // AFTER the fields above, never before: the assignments each notify, every notification
+            // re-reads CloudModels, and the vendor and model this mode is pinned on are only final
+            // here. Windows pins at the same point, from the same persisted value
+            // (ModeEditorWindow.Load.cs:199-201).
+            PinOutOfCatalogCloudModel();
             NotifyEditorReveals();
         }
     }
@@ -265,60 +268,83 @@ public sealed class ModesViewModel : ViewModelBase
     ///
     /// A mode written by another platform, or by a newer catalog, may hold an id this build does
     /// not list. Windows keeps such a value visible rather than silently reselecting index 0
-    /// (:494-505), and so does this: the out-of-catalog id is appended.
+    /// (ModeEditorWindow.xaml.cs:494-505), and so does this: the id
+    /// <see cref="PinOutOfCatalogCloudModel"/> pinned is appended after the vendor's own models.
     ///
-    /// The appended id is PINNED for the lifetime of the vendor, not of the selection (issue #645).
-    /// This used to key the cache on the CURRENT model id, so clicking an entry in the combo
-    /// dropped the appended id and handed back a SHORTER list in the middle of the selection
-    /// commit: the model setter notifies this property, and Avalonia's selection model then read
-    /// the clicked index out of the new, shorter list and took the whole process down with an
-    /// ArgumentOutOfRangeException. Windows cannot hit this because it rebuilds CloudModelCombo
-    /// only when the provider changes (ModeEditorWindow.xaml.cs:724), never on a model click.
-    /// Selecting an id that IS in the catalog now leaves the pin alone, so the getter returns the
-    /// same instance and the notification is a reference-equal no-op at the binding.
+    /// This getter is a pure read of the vendor and that pin (issue #645). It used to key the cache
+    /// on the CURRENT model id, so clicking an entry in the combo dropped the appended id and
+    /// handed back a SHORTER list in the middle of the selection commit: the model setter notifies
+    /// this property, and Avalonia's selection model then read the clicked index out of the new,
+    /// shorter list and took the whole process down with an ArgumentOutOfRangeException. Windows
+    /// cannot hit this because a model click only redraws a description
+    /// (ModeEditorWindow.xaml.cs:564-599); the combo is refilled only when the provider changes
+    /// (:724) or a mode is loaded (ModeEditorWindow.Load.cs:199-215).
     /// </summary>
     public IReadOnlyList<string> CloudModels
     {
         get
         {
-            // Hand back the SAME list instance while the inputs are unchanged. Every reveal
-            // notification re-reads this property, and a fresh list each time makes the bound
-            // ComboBox drop and re-pick its selection on every keystroke elsewhere in the form.
-            // The vendor is matched OrdinalIgnoreCase, as CloudSttModelCatalog keys it; model ids
-            // are matched Ordinal, as everywhere else in this file.
+            // Hand back the SAME list instance while the vendor and the pin are unchanged. Every
+            // reveal notification re-reads this property, and a fresh list each time makes the
+            // bound ComboBox drop and re-pick its selection on every keystroke elsewhere in the
+            // form. The vendor is matched OrdinalIgnoreCase, as CloudSttModelCatalog keys it.
             if (!string.Equals(_cloudModelsProvider, _cloudProvider, StringComparison.OrdinalIgnoreCase))
             {
+                // A vendor change drops the pin along with the list: a pinned id belongs to the
+                // vendor it was pinned for, and leaving it would offer one vendor's model under
+                // another — which SaveAsync would then persist, as it strips only LOCAL ids
+                // (:835-839). It is NOT re-derived here; Windows likewise refills its combo with
+                // no preferred id on a provider change (ModeEditorWindow.xaml.cs:724).
                 _cloudModelsProvider = _cloudProvider;
                 _cloudModelsPinnedId = null;
                 _cloudModels = null;
             }
-            var catalog = HyperWhisper.ModelReadiness.CloudSttModelCatalog.ForProvider(_cloudProvider);
-            // Only ever GROW the pin, and never on a CloudModels selection commit: an id that the
-            // combo offered is by definition either in the catalog or already the pinned one.
-            if (_transcriptionModel.Length > 0
-                && !string.Equals(_cloudModelsPinnedId, _transcriptionModel, StringComparison.Ordinal)
-                && !catalog.Any(entry => string.Equals(entry.Value, _transcriptionModel, StringComparison.Ordinal)))
-            {
-                _cloudModelsPinnedId = _transcriptionModel;
-                _cloudModels = null;
-            }
             if (_cloudModels is not null) return _cloudModels;
-            var ids = catalog.Select(entry => entry.Value).ToList();
+            var ids = HyperWhisper.ModelReadiness.CloudSttModelCatalog.ForProvider(_cloudProvider)
+                .Select(entry => entry.Value).ToList();
             if (_cloudModelsPinnedId is { Length: > 0 } pinned) ids.Add(pinned);
             return _cloudModels = ids;
         }
     }
 
     /// <summary>
-    /// Drops the cached BYOK model list and its pinned out-of-catalog id. The Linux dialog binds
-    /// the shared, long-lived view model (ModeEditorWindow.axaml.cs:35-41), so without this an id
-    /// pinned for one mode would still be offered by the next mode on the same vendor.
+    /// Re-derives the out-of-catalog BYOK model id <see cref="CloudModels"/> appends, and drops the
+    /// cached list. Model ids are matched Ordinal, as everywhere else in this file.
+    ///
+    /// Called ONLY where the editor's BYOK state is established from persisted or restored data —
+    /// <see cref="LoadEditorFrom"/> and <see cref="RestoreEditorState"/>, after their fields are
+    /// assigned. Windows pins at exactly those points too: it passes the mode's saved id to
+    /// LoadCloudModels as preferredModelId when the editor opens (ModeEditorWindow.Load.cs:
+    /// 199-201) and passes none anywhere else (ModeEditorWindow.xaml.cs:724).
+    ///
+    /// Deriving the pin inside the getter instead (issue #645, review round 1) captured whatever
+    /// _transcriptionModel happened to hold at the instant of a read and never released it: the
+    /// OUTGOING mode's id while the next mode was still loading, the on-device default `base` while
+    /// the create dialog sat between its ProviderType and TranscriptionModel assignments (:86-87),
+    /// and a local id such as `tiny` that NormalizeLocalModel assigned during an On-device detour
+    /// the user then cancelled. Each stayed in the dropdown and could be re-selected; a foreign
+    /// vendor's id then saves under the wrong vendor and a local id saves as null (:835-839).
+    ///
+    /// NewCommand needs no call: it assigns CloudProvider="hyperwhisper" (:87), and a pin exists
+    /// only for the BYOK vendor it was derived for, so the vendor change in the getter drops it.
     /// </summary>
-    private void ResetCloudModelsCache()
+    private void PinOutOfCatalogCloudModel()
     {
-        _cloudModelsProvider = null;
+        _cloudModelsProvider = _cloudProvider;
         _cloudModelsPinnedId = null;
         _cloudModels = null;
+        // Only the BYOK picker draws this list, so only the BYOK state may pin into it. The
+        // HyperWhisper Cloud segment edits the same TranscriptionModel field through its own tier
+        // model control (ShowCloudAccuracyPanel), and On-device edits it through LocalModels.
+        if (!IsYourProviderSource || _transcriptionModel.Length == 0) return;
+        // A local model id is never a cloud model id, whatever a mode's cloud column holds: an
+        // older build persisted CloudTranscriptionModel="base" (:835-839), and the ProviderType
+        // guard (:201-202) drops such an id rather than showing it.
+        if (PortableModelCatalog.All.Any(model => model.Kind is ManagedModelKind.Whisper or ManagedModelKind.Parakeet
+            && string.Equals(model.Id, _transcriptionModel, StringComparison.Ordinal))) return;
+        if (HyperWhisper.ModelReadiness.CloudSttModelCatalog.ForProvider(_cloudProvider)
+            .Any(entry => string.Equals(entry.Value, _transcriptionModel, StringComparison.Ordinal))) return;
+        _cloudModelsPinnedId = _transcriptionModel;
     }
 
     private string? _cloudModelsProvider;
@@ -717,6 +743,11 @@ public sealed class ModesViewModel : ViewModelBase
         CustomEndpointName = state.CustomEndpointName; CustomEndpointUrl = state.CustomEndpointUrl;
         CustomEndpointModel = state.CustomEndpointModel; CustomEndpointApiKey = state.CustomEndpointApiKey;
         _customEndpointId = state.CustomEndpointId;
+        // Cancel must put the BYOK list back too, not just the fields: an abandoned edit can have
+        // changed the vendor (which drops the pin) or assigned a local id through the On-device
+        // segment. Re-derived here, after the restore, for the same reason LoadEditorFrom does it
+        // last — the vendor and the model are only final once every field is back.
+        PinOutOfCatalogCloudModel();
         NotifyEditorReveals();
     }
 
