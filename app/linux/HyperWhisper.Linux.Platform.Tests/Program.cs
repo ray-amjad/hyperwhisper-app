@@ -105,7 +105,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("GPU detector rejects software Vulkan renderer", GpuRejectsSoftwareRenderer),
     ("GPU detector requires CUDA hardware evidence", GpuCudaEvidence),
     ("host GPU evidence never promotes software renderer", HostGpuEvidence),
-    ("Pulse input enumeration parses sources and default", PulseInputEnumeration),
+    ("Pulse input enumeration drops sink monitors and marks the default", PulseInputEnumeration),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -1609,14 +1609,27 @@ static Task HostGpuEvidence()
 
 static Task PulseInputEnumeration()
 {
-    var json = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"sink.monitor","description":"Monitor","monitor_of_sink":1}]""";
+    // Measured `pactl 16.1 --format=json list sources` output (#627): a source object carries NO
+    // `monitor_of_sink` key. Each monitor below carries exactly ONE marker so every clause of the
+    // filter is proved on its own. Do not reshape this JSON to fit the parser.
+    var json = """
+    [{"index":0,"name":"hw_mic.monitor","description":"Monitor of VirtualSpeaker","driver":"module-null-sink.c","state":"IDLE","monitor_source":"hw_mic","properties":{"device.description":"VirtualSpeaker"}},
+     {"index":1,"name":"pipewire.monitor","description":"Monitor of Built-in Audio","monitor_source":"","properties":{"device.class":"monitor"}},
+     {"index":2,"name":"legacy.monitor","description":"Monitor of Legacy Sink","monitor_of_sink":1},
+     {"index":3,"name":"VirtualMic","description":"Virtual microphone","driver":"module-null-sink.c","state":"RUNNING","monitor_source":"","properties":{"device.class":"sound"}},
+     {"index":4,"name":"alsa_input.pci-0000_00_1f.3.analog-stereo","description":"Built-in Audio Analog Stereo"}]
+    """;
     var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(json)),
-        new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
+        new ExternalProcessResult(0, "VirtualMic\n"u8.ToArray()));
     using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
     var result = service.GetAvailableDevices();
     Assert.True(result.IsSuccess);
-    Assert.Equal(1, result.Value!.Count);
+    Assert.Equal(2, result.Value!.Count);
+    Assert.Equal("VirtualMic", result.Value[0].Id);
     Assert.True(result.Value[0].IsDefault);
+    Assert.Equal("alsa_input.pci-0000_00_1f.3.analog-stereo", result.Value[1].Id);
+    foreach (var monitor in new[] { "hw_mic.monitor", "pipewire.monitor", "legacy.monitor" })
+        Assert.True(result.Value.All(device => device.Id != monitor));
     return Task.CompletedTask;
 }
 

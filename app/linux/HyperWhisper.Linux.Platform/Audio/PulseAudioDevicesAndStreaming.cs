@@ -32,7 +32,7 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
             var values = new List<AudioInputDevice>();
             foreach (var source in document.RootElement.EnumerateArray())
             {
-                if (source.TryGetProperty("monitor_of_sink", out var monitor) && monitor.ValueKind != JsonValueKind.Null) continue;
+                if (IsMonitor(source)) continue;
                 var id = source.TryGetProperty("name", out var name) ? name.GetString() : null;
                 if (string.IsNullOrWhiteSpace(id)) continue;
                 var description = source.TryGetProperty("description", out var label) ? label.GetString() : null;
@@ -44,6 +44,19 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
             return PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(values);
         }
         catch { return PlatformResult<IReadOnlyList<AudioInputDevice>>.Failure("pulse_devices_failed", "PulseAudio device enumeration failed."); }
+    }
+    // A sink monitor is not a microphone (#627). pactl 16.1 emits no `monitor_of_sink` on a source, so that
+    // documented server field alone matched nothing: the markers that hold are `monitor_source` (the sink name
+    // on a monitor, empty on a real source) and `properties["device.class"] == "monitor"` on pipewire-pulse.
+    private static bool IsMonitor(JsonElement source)
+    {
+        if (source.TryGetProperty("monitor_of_sink", out var sink) && (sink.ValueKind == JsonValueKind.Number
+            || (sink.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(sink.GetString())))) return true;
+        if (source.TryGetProperty("monitor_source", out var monitor) && monitor.ValueKind == JsonValueKind.String
+            && !string.IsNullOrEmpty(monitor.GetString())) return true;
+        if (!source.TryGetProperty("properties", out var properties) || properties.ValueKind != JsonValueKind.Object) return false;
+        return properties.TryGetProperty("device.class", out var deviceClass) && deviceClass.ValueKind == JsonValueKind.String
+            && string.Equals(deviceClass.GetString(), "monitor", StringComparison.OrdinalIgnoreCase);
     }
     private void RaiseDevicesChanged()
     { var handlers = DevicesChanged; if (handlers is null) return; foreach (EventHandler handler in handlers.GetInvocationList()) try { handler(this, EventArgs.Empty); } catch { } }
