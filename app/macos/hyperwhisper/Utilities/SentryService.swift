@@ -170,14 +170,15 @@ enum SentryService {
             #endif
         }()
 
+        #if arch(arm64)
+        let architecture = "apple_silicon"
+        #else
+        let architecture = "intel"
+        #endif
         let deviceTags: [String: String] = [
             "macos_version": ProcessInfo.processInfo.operatingSystemVersionString,
             "build_number": build,
-            #if arch(arm64)
-            "architecture": "apple_silicon",
-            #else
-            "architecture": "intel",
-            #endif
+            "architecture": architecture,
             "cpu_cores": String(ProcessInfo.processInfo.processorCount)
         ]
         logScopeState.reset(tags: deviceTags)
