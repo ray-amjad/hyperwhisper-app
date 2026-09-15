@@ -38,6 +38,12 @@ public sealed class PulseAudioInputDeviceService : IAudioInputDeviceService
                 var description = source.TryGetProperty("description", out var label) ? label.GetString() : null;
                 values.Add(new AudioInputDevice(id, string.IsNullOrWhiteSpace(description) ? id : description, id == defaultId));
             }
+            // #627: `pactl get-default-source` can name a sink monitor, which the filter above drops, so no
+            // offerable device carries the flag. `IsDefault` is never rendered — its only two readers pick the
+            // device to use when nothing is chosen, and each then falls back to its own first element: the
+            // workflow to pactl order, the tray to Id order. Promote the first offerable source so both agree.
+            // This is a no-op for the recording path, which already lands on exactly this device.
+            if (values.Count > 0 && !values.Any(value => value.IsDefault)) values[0] = values[0] with { IsDefault = true };
             var key = string.Join('\n', values.Select(value => $"{value.Id}:{value.IsDefault}"));
             if (_lastDeviceKey is not null && _lastDeviceKey != key) RaiseDevicesChanged();
             _lastDeviceKey = key;
