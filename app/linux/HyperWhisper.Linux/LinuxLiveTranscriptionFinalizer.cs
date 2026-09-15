@@ -91,6 +91,34 @@ public static class LinuxLiveTranscriptionFinalizer
     }
 }
 
+/// <summary>
+/// Refuses to start a recording when no audio input device is selected (#627).
+/// </summary>
+/// <remarks>
+/// The batch path was already gated, inside <c>TranscriptionWorkflow</c>: with no selected device it
+/// fails <c>workflow.no_audio_device</c> and never reaches the recorder. The live streaming path had
+/// no equivalent gate. It fell back to the id <c>"default"</c>, which
+/// <c>ChildProcessStreamingAudioSourceFactory</c> reads as "omit <c>--device</c>", so <c>parec</c>
+/// binds whatever the PulseAudio server calls the default source. On a box whose only sources are
+/// sink monitors — the state the #627 filter newly makes reachable, because every source is now
+/// dropped from the list — that server default IS a monitor, so streaming would have transcribed
+/// desktop audio while the UI reported that no microphone was available.
+///
+/// The selection is the authority: <c>SelectedAudioDevice</c> is null exactly when the enumerated
+/// list is empty, so there is no id here that the user could have chosen. One gate covers both
+/// recording kinds, which is what keeps them from disagreeing again.
+/// </remarks>
+public static class LinuxRecordingInputDeviceGate
+{
+    /// <summary>The failure code the batch workflow already uses, so both kinds report one error.</summary>
+    public const string NoDeviceCode = "workflow.no_audio_device";
+
+    public static PlatformResult Check(string? selectedDeviceId) =>
+        string.IsNullOrWhiteSpace(selectedDeviceId)
+            ? PlatformResult.Failure(NoDeviceCode, "No audio input device is available.")
+            : PlatformResult.Success();
+}
+
 public static class LinuxRecordingAudioRestorer
 {
     public static async ValueTask RestoreAsync(

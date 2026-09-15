@@ -4,6 +4,7 @@ using HyperWhisper.Platform.Abstractions.Audio;
 using System.Runtime.Versioning;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Linux;
+using HyperWhisper.Linux.Overlay;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.LocalInference;
@@ -40,6 +41,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("production live sink forwards partial and final updates", LiveSinkForwardsUpdates),
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
+    ("recording refuses every kind when no input device is selected", RecordingRefusesWithoutInputDevice),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
     ("local and cloud live sessions select isolated engines", LiveEngineRoutingIsIsolated),
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
@@ -924,6 +926,27 @@ static async Task AudioRestorationIsNonCancelable()
     Assert(environment.RestoreCalls == 1 && !environment.ObservedCancellationCanBeCanceled,
         "audio environment restore received a caller cancellation token");
     Assert(volume.RestoreCalls == 1 && warm.ResumeCalls == 1, "audio restoration did not complete every step");
+}
+
+// #627. `LinuxInteractionRecordingSession` used to substitute the id "default" for an absent selection,
+// which makes parec omit --device and bind the PulseAudio server default source — a sink monitor on a
+// box whose only sources are monitors. The batch path was saved by TranscriptionWorkflow's own
+// `workflow.no_audio_device` check; streaming had none and recorded desktop audio. The gate below is
+// what both kinds now consult, and the failure CODE is load-bearing twice over: the overlay mapper
+// routes it to MicrophoneUnavailable by matching the substring "audio_device", and the batch workflow
+// reports the same code, so a user sees one error however they started.
+static Task RecordingRefusesWithoutInputDevice()
+{
+    foreach (var absent in new string?[] { null, "", "   " })
+        Assert(LinuxRecordingInputDeviceGate.Check(absent).Error?.Code == "workflow.no_audio_device",
+            $"the input device gate admitted an absent selection ({absent ?? "null"})");
+    Assert(LinuxRecordingOverlayErrorMapper.FromCode(LinuxRecordingInputDeviceGate.NoDeviceCode, transcription: false)
+        == LinuxRecordingOverlayError.MicrophoneUnavailable,
+        "the refusal code no longer reaches the microphone-unavailable overlay");
+    var selected = LinuxRecordingInputDeviceGate.Check("alsa_input.pci-0000_00_1f.3.analog-stereo");
+    Assert(selected.IsSuccess && selected.Error is null,
+        "the input device gate refused a real enumerated microphone");
+    return Task.CompletedTask;
 }
 
 static Task LiveModelsAreProviderSpecific()

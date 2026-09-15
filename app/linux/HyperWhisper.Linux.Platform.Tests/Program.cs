@@ -140,6 +140,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone volume boosts and restores every channel", MicrophoneVolumeRoundTrip),
     ("microphone volume reports pactl unsupported", MicrophoneVolumeUnsupported),
     ("microphone keep-warm suspends and resumes child", MicrophoneKeepWarmLifecycle),
+    ("microphone keep-warm never opens the server default source", MicrophoneKeepWarmNeedsASelectedDevice),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
@@ -2277,6 +2278,27 @@ static Task MicrophoneKeepWarmLifecycle()
     Assert.True(service.GetCapabilities().Available);
     service.Configure(true, "mic"); service.SuspendForRecording(); service.ResumeAfterRecording("mic2"); service.Dispose();
     Assert.Equal(2, factory.OpenCalls); Assert.Equal(1, first.TerminateCalls); Assert.Equal(1, second.TerminateCalls);
+    Assert.Equal("mic|mic2", string.Join('|', factory.Devices));
+    return Task.CompletedTask;
+}
+
+// #627: keep-warm used to substitute the id "default" when no device was selected, which makes the
+// capture child omit --device and bind the PulseAudio server default source. On a box whose only
+// sources are sink monitors — the state the monitor filter newly makes reachable, because the
+// enumerated list is then empty and nothing can be selected — that held an open capture stream on a
+// monitor, which the desktop shows to the user as HyperWhisper recording their speakers. With nothing
+// selected there is nothing to keep warm, so no source may be opened at all.
+static Task MicrophoneKeepWarmNeedsASelectedDevice()
+{
+    var factory = new CyclingStreamingSourceFactory(
+        new FakeStreamingAudioSource(new BlockingAudioStream()), new FakeStreamingAudioSource(new BlockingAudioStream()));
+    using var service = new LinuxMicrophoneKeepWarmService(factory);
+    service.Configure(true, null);
+    service.ResumeAfterRecording(null);
+    service.Configure(true, "   ");
+    Assert.Equal(0, factory.OpenCalls);
+    service.Configure(true, "mic");
+    Assert.Equal("mic", string.Join('|', factory.Devices));
     return Task.CompletedTask;
 }
 
@@ -2980,10 +3002,11 @@ sealed class CyclingStreamingSourceFactory(params FakeStreamingAudioSource[] sou
 {
     private readonly Queue<FakeStreamingAudioSource> _sources = new(sources);
     public int OpenCalls { get; private set; }
+    public List<string> Devices { get; } = [];
     public bool IsAvailable => true;
     public string Backend => "fake";
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options)
-    { OpenCalls++; return _sources.TryDequeue(out var source) ? PlatformResult<IStreamingAudioSource>.Success(source)
+    { OpenCalls++; Devices.Add(options.DeviceId); return _sources.TryDequeue(out var source) ? PlatformResult<IStreamingAudioSource>.Success(source)
         : PlatformResult<IStreamingAudioSource>.Failure("fake_empty", "test"); }
 }
 

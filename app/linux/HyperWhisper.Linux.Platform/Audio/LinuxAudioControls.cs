@@ -63,7 +63,13 @@ public sealed class LinuxMicrophoneKeepWarmService : IMicrophoneKeepWarmService
     public void ResumeAfterRecording(string? deviceId) { if (_disposed) return; _device = deviceId ?? _device; _suspended = false; if (_enabled) Start(); }
     private void Start()
     {
-        var opened = _factory.Open(new AudioRecordingOptions(_device ?? "default")); if (opened.IsFailure) return;
+        // #627: keep the SELECTED microphone warm, never the server default. `_device` is null exactly
+        // when no input device is enumerated, and the old `?? "default"` made the child omit `--device`,
+        // so on a monitor-only box this held a capture stream open on a sink monitor — visible to the
+        // user as HyperWhisper recording their desktop audio. With nothing selected there is nothing to
+        // keep warm, so do not open a source at all.
+        if (string.IsNullOrWhiteSpace(_device)) return;
+        var opened = _factory.Open(new AudioRecordingOptions(_device)); if (opened.IsFailure) return;
         var source = opened.Value!; var cancellation = new CancellationTokenSource();
         _source = source; _cancellation = cancellation; _drain = Task.Run(async () =>
         { try { await source.Output.CopyToAsync(Stream.Null, cancellation.Token); } catch { } });

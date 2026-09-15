@@ -113,6 +113,16 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed);
             return PlatformResult.Failure("interaction.mode_missing", "Create a transcription mode before recording.");
         }
+        // #627: refuse both recording kinds when nothing is selected, not just the batch one. See
+        // LinuxRecordingInputDeviceGate for why the streaming fallback recorded a sink monitor.
+        var selectedDeviceId = _viewModel.Recording?.SelectedAudioDevice?.Id;
+        var deviceGate = LinuxRecordingInputDeviceGate.Check(selectedDeviceId);
+        if (deviceGate.IsFailure)
+        {
+            await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Failed);
+            _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(deviceGate.Error!.Code, transcription: false));
+            return deviceGate;
+        }
 
         _cursorContext = MapCursorContext(
             await _services.InsertionContext.GetCursorContextAsync(cancellationToken));
@@ -135,7 +145,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
         if (_streaming) _overlay.StreamingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         else _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
-        var deviceId = _viewModel.Recording?.SelectedAudioDevice?.Id ?? "default";
+        // The gate above proved this is a real, enumerated, user-selectable source, so no `"default"`
+        // sentinel reaches PrepareAudio, parec, or `@DEFAULT_SOURCE@` from here.
+        var deviceId = selectedDeviceId!;
         PrepareAudio(deviceId);
         PlatformResult started;
         if (_streaming)
