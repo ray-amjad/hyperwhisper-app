@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.48.0</title>
+            <pubDate>Wed, 16 Sep 2026 01:49:33 +0000</pubDate>
+            <sparkle:version>118</sparkle:version>
+            <sparkle:shortVersionString>2.48.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.48.0.dmg" length="35426439" type="application/octet-stream" sparkle:edSignature="bmgJm+mYvtMa52wEm7gFaEoQT7n9Wq3Yi3rOD8ZxWNlv7hIYF+uT4qiRdHogeDz7cIOalkpNn8KynUDWzis2Ag=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Added Qwen 3.8 27B for AI cleanup on Groq and Cerebras</li><li>Moved default transcription off OpenAI's retired speech-to-text models, so older modes keep working</li><li>Local API applies your vocabulary rules to transcriptions and names the model that ran</li><li>Fixed file import failing, and leaving temporary files behind, when silence trimming was on</li><li>Fixed the status bar showing your old transcription source after onboarding</li><li>Turning off Error logging now stops error reporting immediately, not at the next launch</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.47.0</title>
             <pubDate>Mon, 07 Sep 2026 03:48:23 +0000</pubDate>
             <sparkle:version>117</sparkle:version>
