@@ -14,5 +14,6 @@
     <Compile Include="../HyperWhisper.Linux/Overlay/LinuxRecordingOverlayController.cs" Link="Production/LinuxRecordingOverlayController.cs" />
     <Compile Include="../HyperWhisper.Linux/Overlay/LinuxOverlayPlacement.cs" Link="Production/LinuxOverlayPlacement.cs" />
     <Compile Include="../HyperWhisper.Linux/Overlay/LinuxLivePreviewVisibilityPolicy.cs" Link="Production/LinuxLivePreviewVisibilityPolicy.cs" />
+    <Content Include="../HyperWhisper.Linux/Overlay/LinuxErrorToastWindow.axaml" Link="OverlaySurface/LinuxErrorToastWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

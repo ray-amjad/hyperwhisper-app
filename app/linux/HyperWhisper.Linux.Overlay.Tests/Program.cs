@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Globalization;
+using System.Xml.Linq;
 using HyperWhisper.Linux.Overlay;
 using HyperWhisper.Linux.Localization;
 using HyperWhisper.LiveStreaming;
@@ -27,6 +28,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("placement store failures are isolated", PlacementStoreFailuresAreIsolated),
     ("overlay interaction policy cannot activate or focus", OverlayDoesNotActivate),
     ("live preview remains ephemeral bounded and lifecycle-owned", LivePreviewIsEphemeral),
+    ("error toast message is readable in full", ErrorToastMessageIsFullyReadable),
 };
 
 var failed = 0;
@@ -329,6 +331,29 @@ static Task LivePreviewIsEphemeral()
     Assert(!LinuxLivePreviewVisibilityPolicy.ShouldShow(new("", "", "", true))
         && LinuxLivePreviewVisibilityPolicy.ShouldShow(new("", "partial", "partial", true)),
         "preview visibility policy opened empty or inactive content");
+    return Task.CompletedTask;
+}
+
+static Task ErrorToastMessageIsFullyReadable()
+{
+    XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+    var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "OverlaySurface",
+        "LinuxErrorToastWindow.axaml"));
+    var message = document.Root?.Descendants()
+        .FirstOrDefault(element => element.Attribute(x + "Name")?.Value == "ToastMessage");
+    Assert(message is not null, "the error toast has no ToastMessage element to show a failure in");
+    Assert(message?.Attribute("MaxWidth") is null,
+        "the error toast message is width-capped again, so \"A HyperWhisper account key is required.\""
+        + " renders clipped and the user cannot see what to do");
+    Assert(message?.Attribute("TextWrapping")?.Value == "Wrap",
+        "the error toast message does not wrap, so every failure longer than one line is cut off");
+    Assert(message?.Attribute("TextTrimming")?.Value == "CharacterEllipsis",
+        "the error toast message lost its ellipsis, so an extreme failure overflows the toast silently");
+    var maxHeight = message?.Attribute("MaxHeight")?.Value;
+    Assert(maxHeight is not null && double.TryParse(maxHeight, NumberStyles.Float,
+            CultureInfo.InvariantCulture, out var height) && height > 0 && height <= 130,
+        "the error toast message has no bounded MaxHeight, so a long failure grows the toast off the"
+        + " top of the screen -- PlaceOnScreen has no top clamp");
     return Task.CompletedTask;
 }
 

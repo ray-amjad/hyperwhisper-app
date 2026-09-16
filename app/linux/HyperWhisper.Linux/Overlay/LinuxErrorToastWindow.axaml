@@ -17,9 +17,10 @@
        dictate into another application.
 
        Sizes, colours and timings are the Windows ones: 360 wide, corner radius 20, #D9000000 over
-       a #1AFFFFFF hairline, 12,8 padding, an 18x18 warning triangle, an 11px message trimmed at
-       200px, a monospace countdown pill, and an optional "Open Settings" jump. 8 seconds, or at
-       least 12 when guidance text is present.
+       a #1AFFFFFF hairline, 12,8 padding, an 18x18 warning triangle, an 11px wrapping message, a
+       monospace countdown pill, and an optional "Open Settings" jump. 8 seconds, or at least 12
+       when guidance text is present. The message wraps instead of being capped to one short line
+       (#669; #489 is the same fix on Windows).
 
        ShowActivated is False where Windows leaves it True: on Linux the overlay policy is that a
        feedback surface must never become the keyboard target and displace the application that is
@@ -39,9 +40,16 @@
                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,2,0,0"/>
         </Grid>
 
+        <!-- No MaxWidth here. The star column already bounds the message to the 360-wide window,
+             and a narrower cap clipped every sentence to its first few words: "A HyperWhisper
+             account key is r..." told the user nothing about what to do (#669). MaxHeight is
+             load-bearing, not cosmetic. PlaceOnScreen subtracts the toast's own height from the
+             anchor's Y and has no top clamp, so an unbounded message walks off the top of the
+             screen. TextTrimming stays for the one message that outgrows even those ~6 lines. -->
         <TextBlock x:Name="ToastMessage" Grid.Column="1"
                    Foreground="#E6FFFFFF" FontSize="11" FontWeight="Medium"
-                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                   VerticalAlignment="Center" TextWrapping="Wrap" MaxHeight="90"
+                   TextTrimming="CharacterEllipsis"/>
 
         <Border Grid.Column="2" Background="#33FFFFFF" CornerRadius="8" Padding="6,2" Margin="8,0"
                 VerticalAlignment="Center">
