@@ -106,13 +106,16 @@ export default function FAQSection() {
                 />
               </button>
               <div
-                className={`overflow-hidden transition-all duration-300 ${
-                  openIndex === index ? "max-h-96" : "max-h-0"
-                }`}
+                className="grid transition-[grid-template-rows] duration-300 ease-out"
+                style={{
+                  gridTemplateRows: openIndex === index ? "1fr" : "0fr",
+                }}
               >
-                <p className="text-gray-400 px-6 pt-2 pb-6 whitespace-pre-line">
-                  {parseMarkdownLinks(t(`questions.${key}.answer`))}
-                </p>
+                <div className="overflow-hidden">
+                  <p className="text-gray-400 px-6 pt-2 pb-6 whitespace-pre-line">
+                    {parseMarkdownLinks(t(`questions.${key}.answer`))}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
