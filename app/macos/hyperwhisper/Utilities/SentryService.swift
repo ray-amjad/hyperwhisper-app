@@ -282,6 +282,39 @@ enum SentryService {
                     }
                 }
                 event.extra = sanitized
+
+                // APP HANG GROUPING (issue #683)
+                // An SDK-raised AppHang never reaches capture(error:), so this is
+                // the only hook that can fingerprint it. Without one, every hang
+                // with no HyperWhisper frame below HyperWhisperApp.$main merges
+                // into HYPERWHISPER-F7 — 191 events, 7 unrelated blocking sites.
+                // Both values are code identifiers read out of a stack frame, so
+                // neither can hold anything the user typed, said or named.
+                if event.exceptions?.first?.mechanism?.type == "AppHang" {
+                    let frames = event.exceptions?.first?.stacktrace?.frames ?? []
+                    let pairs: [(image: String, symbol: String)] = frames.map {
+                        (image: $0.package ?? "", symbol: $0.function ?? "")
+                    }
+                    let image: String
+                    let symbol: String
+                    if let site = Self.hangFingerprintComponents(imagesAndSymbols: pairs) {
+                        image = site.image
+                        symbol = site.symbol.isEmpty ? "unknown" : site.symbol
+                        event.fingerprint = ["{{ default }}", "app_hang", image, symbol]
+                    } else {
+                        // Issue step 6, verbatim: THREE elements, not four.
+                        image = "unknown"
+                        symbol = "unknown"
+                        event.fingerprint = ["{{ default }}", "app_hang", "unknown"]
+                    }
+                    // Copy-mutate-assign: `event.tags?[k] = v` is a silent no-op
+                    // when tags is nil, which it is on an SDK-raised event.
+                    var tags = event.tags ?? [:]
+                    tags["hang_image"] = image
+                    tags["hang_symbol"] = symbol
+                    event.tags = tags
+                }
+
                 return event
             }
 
@@ -368,6 +401,43 @@ enum SentryService {
     static func isRedactedExtraKey(_ key: String) -> Bool {
         let lower = key.lowercased()
         return lower.contains("transcript") || lower.contains("text") || lower.contains("prompt")
+    }
+
+    // MARK: - App hang grouping
+
+    /// The images at the bottom of a blocked main thread: the trap itself, not
+    /// the cause. Every app hang ends in one of these, so grouping on them
+    /// merges every hang into one Issue — which is the bug this splits.
+    private static let hangTrapImages: Set<String> = [
+        "libsystem_kernel.dylib",
+        "libsystem_pthread.dylib",
+        "libsystem_platform.dylib"
+    ]
+
+    /// The blocking site of an app hang, as the (image, symbol) pair to group on.
+    ///
+    /// `imagesAndSymbols` is the main thread's frames in Sentry's own order:
+    /// caller to callee, oldest first, so the frame the thread is *stopped in*
+    /// is LAST. See `SentryStacktraceBuilder.buildStacktraceFromFrames`, which
+    /// reverses the unwinder's output for exactly this reason.
+    ///
+    /// `image` may be a full path (`/usr/.../SkyLight`) or a bare name; the
+    /// basename is what comes back either way, and the basename is what the
+    /// trap list is matched against.
+    ///
+    /// Plain Strings on both sides on purpose: `hyperwhisperTests` does not link
+    /// the Sentry package, so a test cannot name `Frame` at all — the same split
+    /// `store(for:)` below uses. Nil means every frame was a trap frame; the
+    /// caller owns what to fingerprint then.
+    static func hangFingerprintComponents(
+        imagesAndSymbols: [(image: String, symbol: String)]
+    ) -> (image: String, symbol: String)? {
+        for frame in imagesAndSymbols.reversed() {
+            let basename = frame.image.split(separator: "/").last.map(String.init) ?? frame.image
+            if basename.isEmpty || hangTrapImages.contains(basename) { continue }
+            return (image: basename, symbol: frame.symbol)
+        }
+        return nil
     }
 
     // MARK: - Breadcrumbs
