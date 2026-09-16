@@ -3756,6 +3756,46 @@ public partial class MainWindow : Window
                     + "failure shown here is off the top of the screen and never seen.");
                 return true;
             }
+
+            // PLACEMENT against an overlay on a monitor ABOVE this one, which PlaceOnScreen
+            // deliberately does NOT clamp: such an overlay has a legitimately negative Y, and
+            // Windows leaves it alone rather than dragging the toast down onto this screen.
+            //
+            // This is the case the clamp above destroys if the clamp is applied unconditionally to
+            // every Position write instead of to the targets that asked for one. It needs no
+            // second monitor to drive: the branch turns on the anchor being above work.Y, not on
+            // Screens.ScreenCount. Without the distinction the toast is forced to work.Y with its
+            // X still centred over an overlay that is not on this screen — and because it can then
+            // never leave, the next placement re-reads this screen's top and pins it there.
+            var above = new PixelPoint(work.X, work.Y - 400);
+            anchor.Position = above;
+            await ToastSettledAsync(anchor);
+            if (anchor.Position != above)
+            {
+                Console.Error.WriteLine($"Smoke: the anchor overlay asked to sit at {above}, above "
+                    + $"the work area, and settled at {anchor.Position} — this platform will not "
+                    + "put a window above the work area, so the other-monitor case cannot be set "
+                    + "up here.");
+                return true;
+            }
+            toast.DismissImmediately();
+            toast.ShowError(failure, LinuxErrorToastAction.ApiKeys);
+            await ToastSettledAsync(toast);
+            height = (int)Math.Round(toast.Bounds.Height * scale);
+            // 12px above the anchor, exactly as on this screen. The anchor is 400px above work.Y
+            // and the toast is taller than nothing, so this is unambiguously above work.Y and a
+            // clamp to work.Y cannot produce it.
+            var expectedAbove = anchor.Position.Y - height - (int)Math.Round(12 * scale);
+            if (toast.Position.Y != expectedAbove)
+            {
+                Console.Error.WriteLine($"Smoke: the overlay sits {work.Y - anchor.Position.Y}px "
+                    + $"above the work area and the toast was placed at y={toast.Position.Y}, not "
+                    + $"at y={expectedAbove} — the deliberate skip of the top clamp for an anchor "
+                    + "on another monitor is being overruled"
+                    + $"{(toast.Position.Y == work.Y ? $" by a clamp to y={work.Y}" : "")}, so the "
+                    + "toast is stranded on this screen centred over an overlay that is not on it.");
+                return true;
+            }
             return false;
         }
         catch (Exception exception)

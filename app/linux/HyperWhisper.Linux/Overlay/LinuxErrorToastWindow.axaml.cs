@@ -81,12 +81,24 @@ internal sealed partial class LinuxErrorToastWindow : Window
     private bool _placed;
 
     /// <summary>
-    /// The top of the work area the toast was last placed against, in PIXELS, or
-    /// <see cref="int.MinValue"/> before the first placement -- which leaves the clamp in
-    /// <see cref="ApplyPosition"/> inert until a real screen has been read, rather than pinning the
-    /// toast to y=0 on a machine where no screen could be resolved at all.
+    /// The lowest Y <see cref="ApplyPosition"/> may write for the CURRENT <see cref="_target"/>, in
+    /// PIXELS -- or <see cref="int.MinValue"/> for "no floor", which is both the state before the
+    /// first placement and the state of a target <see cref="PlaceOnScreen"/> deliberately left
+    /// unclamped.
+    ///
+    /// The floor is decided in PlaceOnScreen, beside the target and by the same conditional, and
+    /// only ENFORCED in ApplyPosition. That split is what holds two properties at once that a
+    /// single unconditional clamp cannot: no writer of Position -- least of all the slide -- can
+    /// get under the floor, AND an overlay on a monitor ABOVE this one, whose negative Y Windows
+    /// leaves alone, is not dragged down onto this screen by the enforcement. A clamp that read
+    /// the work-area top directly here would undo that skip on every frame, and would then
+    /// re-latch to this screen's top at the next placement, pinning the toast there for good.
+    ///
+    /// int.MinValue before the first placement leaves the enforcement inert until a real screen
+    /// has been read, rather than pinning the toast to y=0 on a machine where no screen could be
+    /// resolved at all.
     /// </summary>
-    private int _workTop = int.MinValue;
+    private int _minY = int.MinValue;
 
     /// <summary>
     /// Where the window currently sits RELATIVE to <see cref="_target"/>: 0 at rest, -10 at the
@@ -253,7 +265,6 @@ internal sealed partial class LinuxErrorToastWindow : Window
             var height = (int)Math.Round(Bounds.Height * scale);
             if (width <= 0) width = (int)Math.Round(Width * scale);
             if (height <= 0) height = (int)Math.Round(MinHeight * scale);
-            _workTop = work.Y;
 
             if (FindRecordingOverlay() is { } overlay)
             {
@@ -268,13 +279,25 @@ internal sealed partial class LinuxErrorToastWindow : Window
                 // Conditional on the overlay being inside this work area, for the reason Windows
                 // gives: an overlay on a monitor ABOVE this one has a legitimately negative Y that
                 // must be left alone rather than dragged down onto the primary screen.
-                if (top < work.Y && overlay.Position.Y >= work.Y) top = work.Y;
+                //
+                // Windows spends that conditional on the target itself. Here it is spent on the
+                // FLOOR, and ApplyPosition does the one clamp -- which comes to the same placement
+                // by a shorter route, and keeps two properties a clamp on the target alone cannot.
+                // The slide cannot duck under the floor, because ApplyPosition is the only writer
+                // of Position. And the other-monitor skip survives the slide, because in that case
+                // there is no floor to enforce: this screen's top is not a bound on a toast that
+                // belongs above it. Clamping in both places would be neither -- the unconditional
+                // half would simply overrule the conditional half one frame later.
+                _minY = overlay.Position.Y >= work.Y ? work.Y : int.MinValue;
                 _target = new PixelPoint(overlay.Position.X + (overlayWidth - width) / 2, top);
             }
             else
             {
                 // Windows: Top = Math.Max(workArea.Top, workArea.Bottom - height - 80). No
-                // conditional here, because this branch has no other monitor's window to respect.
+                // conditional here, because this branch has no other monitor's window to respect:
+                // the toast is placed against its OWN screen's work area, so that work area is a
+                // real floor for the slide as well as for the placement.
+                _minY = work.Y;
                 _target = new PixelPoint(
                     work.X + (work.Width - width) / 2,
                     Math.Max(work.Y,
@@ -292,11 +315,16 @@ internal sealed partial class LinuxErrorToastWindow : Window
 
     /// <summary>
     /// The ONLY writer of <see cref="Window.Position"/>. Every path -- the first placement, the
-    /// re-place on a size settle, the slide in and the slide out -- lands here, so the work-area
-    /// clamp cannot be bypassed by an animation the way a clamp inside PlaceOnScreen alone could.
+    /// re-place on a size settle, the slide in and the slide out -- lands here, so the floor
+    /// cannot be bypassed by an animation the way a clamp inside PlaceOnScreen alone could.
+    ///
+    /// It ENFORCES <see cref="_minY"/> and never computes one. Deciding the floor here instead
+    /// would mean deciding it without the one fact that decides it -- whether the anchor is on
+    /// this screen at all -- and would overrule PlaceOnScreen's deliberate skip for an overlay on
+    /// a monitor above.
     ///
     /// The slide in starts 10px ABOVE the target, so against an overlay sitting at the very top of
-    /// the work area the clamp holds those frames at the top edge and the toast fades in without
+    /// the work area the floor holds those frames at the top edge and the toast fades in without
     /// sliding. That is deliberate: the alternative is drawing the first frames of an error
     /// message off the top of the screen.
     /// </summary>
@@ -304,7 +332,7 @@ internal sealed partial class LinuxErrorToastWindow : Window
     {
         _slideOffsetY = offsetY;
         var y = _target.Y + offsetY;
-        if (_workTop != int.MinValue && y < _workTop) y = _workTop;
+        if (_minY != int.MinValue && y < _minY) y = _minY;
         try { Position = new PixelPoint(_target.X, y); } catch { }
     }
 
