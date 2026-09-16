@@ -1471,17 +1471,18 @@ public partial class MainWindow : Window
 
         var modifierText = modifiers.Count == 0 ? string.Empty : string.Join(", ", modifiers);
 
-        if (key.Length == 0)
+        switch (LinuxShortcutRecorderRules.Evaluate(role.Tag, modifiers.Count, key))
         {
-            // Nothing held at all is not a capture yet.
-            if (modifiers.Count == 0) return;
-            // Windows rejects a SINGLE bare modifier -- it would steal ordinary typing -- but
-            // allows a deliberate multi-modifier chord such as Ctrl+Alt or Ctrl+Win.
-            if (modifiers.Count == 1)
-            {
+            case ShortcutRecorderVerdict.Ignore:
+                return;
+            case ShortcutRecorderVerdict.SingleModifier:
                 ShowShortcutError(box, L("linux.shortcuts.error.singleModifier"));
                 return;
-            }
+            case ShortcutRecorderVerdict.MissingModifier:
+                ShowShortcutError(box, L("linux.shortcuts.error.missingModifier"));
+                return;
+            default:
+                break;
         }
 
         if (FindShortcutDuplicate(role.Tag, modifierText, key) is { } duplicate)
@@ -4088,6 +4089,41 @@ internal sealed class LinuxTrayActionHandler : IDisposable
     public void Dispose()
     {
         _disposed = true;
+    }
+}
+
+internal enum ShortcutRecorderVerdict { Accept, Ignore, SingleModifier, MissingModifier }
+
+/// <summary>
+/// The recorder's verdict on a captured chord, kept free of Avalonia types so it can be exercised
+/// without a window. Windows runs the same judgement inside
+/// <c>ShortcutValidationService.ValidateActionShortcut</c>, which the Linux recorder had only half of.
+/// </summary>
+internal static class LinuxShortcutRecorderRules
+{
+    // Every role but cancel is handed to X11GlobalShortcutService / EvdevShortcutFilter and stays
+    // grabbed for as long as the app runs, so a bare key there is taken from every other
+    // application. Cancel is armed only for the length of a session
+    // (LinuxInteractionConfiguration.SessionCancelShortcut), which is exactly why bare Escape is
+    // legal in that one box -- see the note on LinuxInteractionConfiguration.Default.
+    internal static bool IsPersistentlyGrabbed(string roleTag) => roleTag != "cancel";
+
+    internal static ShortcutRecorderVerdict Evaluate(string roleTag, int modifierCount, string key)
+    {
+        if (key.Length == 0)
+        {
+            // Nothing held at all is not a capture yet.
+            if (modifierCount == 0) return ShortcutRecorderVerdict.Ignore;
+            // Windows rejects a SINGLE bare modifier -- it would steal ordinary typing -- but
+            // allows a deliberate multi-modifier chord such as Ctrl+Alt or Ctrl+Win.
+            return modifierCount == 1
+                ? ShortcutRecorderVerdict.SingleModifier
+                : ShortcutRecorderVerdict.Accept;
+        }
+        // A bare letter was accepted, saved and armed globally (#628), so every press of that
+        // letter in any application fired the action.
+        if (modifierCount == 0 && IsPersistentlyGrabbed(roleTag)) return ShortcutRecorderVerdict.MissingModifier;
+        return ShortcutRecorderVerdict.Accept;
     }
 }
 

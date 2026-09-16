@@ -52,6 +52,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
+    ("shortcut recorder refuses a bare key on persistently grabbed roles", ShortcutRecorderRefusesBareKey),
     ("diagnostic capabilities fail closed from platform evidence", DiagnosticCapabilitiesFailClosed),
     ("lifecycle diagnostics expose only fixed fields", LifecycleDiagnosticsAreContentFree),
     ("M4A storage performs a real private FFmpeg encode", M4aStorageEncodes),
@@ -564,6 +565,30 @@ static Task TrayMicrophoneSelectionIsDeterministic()
         "unknown selection did not recover from the default microphone");
     Assert(LinuxTrayMicrophoneSelector.SelectAdjacent([], null, 1) is null,
         "empty microphone list produced a selection");
+    return Task.CompletedTask;
+}
+
+static Task ShortcutRecorderRefusesBareKey()
+{
+    foreach (var role in new[] { "toggle", "changeMode", "streaming", "pushToTalk" })
+    {
+        Assert(LinuxShortcutRecorderRules.Evaluate(role, 0, "A") == ShortcutRecorderVerdict.MissingModifier,
+            $"a bare letter was accepted for the persistently grabbed {role} shortcut");
+    }
+    Assert(LinuxShortcutRecorderRules.Evaluate("toggle", 0, "Space") == ShortcutRecorderVerdict.MissingModifier,
+        "a bare Space was accepted for a persistently grabbed shortcut");
+    Assert(LinuxShortcutRecorderRules.Evaluate("streaming", 0, "F5") == ShortcutRecorderVerdict.MissingModifier,
+        "a bare function key was accepted for a persistently grabbed shortcut");
+    Assert(LinuxShortcutRecorderRules.Evaluate("cancel", 0, "Escape") == ShortcutRecorderVerdict.Accept,
+        "bare Escape is session-scoped and must stay recordable for cancel");
+    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 1, "A") == ShortcutRecorderVerdict.Accept,
+        "a key with one modifier was refused");
+    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 1, "") == ShortcutRecorderVerdict.SingleModifier,
+        "a single bare modifier stopped being refused");
+    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 2, "") == ShortcutRecorderVerdict.Accept,
+        "a deliberate multi-modifier chord was refused");
+    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 0, "") == ShortcutRecorderVerdict.Ignore,
+        "nothing held stopped being silently ignored");
     return Task.CompletedTask;
 }
 
