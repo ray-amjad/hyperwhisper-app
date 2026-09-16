@@ -104,6 +104,23 @@
       ],
       "licensed": false,
       "note": "UNLICENSED round: HYPERWHISPER_ACCOUNT_KEY is not in this box, so no real Cloud transcription ran; the cloud-failure paths are what the toast and licence findings came from. Local ggml-tiny.en.bin was installed in the scratch profile. Codex named 6 defects, 3 filed: 2 dropped as not-defects (a first Continue click only closing an open dropdown; the onboarding mode list holding one seeded cloud mode), 1 folded into #669. Output contract capped this run at 3 issues, not the skill's 5."
+    },
+    {
+      "at": "2026-09-16T07:55:58Z",
+      "platform": "win",
+      "commit": "71e93c11",
+      "routes": [
+        "modes",
+        "vocabulary",
+        "home-and-tray"
+      ],
+      "status": "1-filed-1-commented",
+      "issues": [
+        679,
+        637
+      ],
+      "licensed": false,
+      "note": "UNLICENSED round: HYPERWHISPER_ACCOUNT_KEY is not in this sandbox, and a rented Windows box has no audio device, so no Cloud transcription was tested. modes found nothing. vocabulary: stale 'That word already exists.' error survives Edit and a unique value -> #679 (windows twin of #634). home-and-tray: #637 still reproduces at 71e93c11, with the app log line as proof; the same helper works from the nav rail (Cloud), so the fault is specific to a deep link raised from a ContentFrame-hosted page. Codex's 'Start Recording marks itself All done' is NOT a defect - the Getting Started rows are a manual toggle (MainViewModel.GettingStarted.cs:67), already covered by #638. Not filed: VocabularyService.cs:117,144 hard-code the English error strings while the page next to them uses Loc.S (class of #516/#552)."
     }
   ]
 }
