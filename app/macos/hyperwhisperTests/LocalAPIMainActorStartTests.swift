@@ -17,19 +17,24 @@
 //  the panel itself is a WindowServer affordance no unit test can drive. What
 //  IS checkable is the wiring that keeps the blocking call off the main actor,
 //  and the orderings the fix depends on — so most of these read the production
-//  source, the last resort documented in `ProductionSource`. The one predicate
-//  that could be lifted into a pure function was, and is tested by calling it.
+//  source, the last resort documented in `ProductionSource`. The two rules that
+//  could be lifted into pure functions were — `serverIsLiveOrStarting` and
+//  `nextTokenOwner` — and both are tested by calling them.
 //
 //  Read them as one statement about the window the fix opened. The blocking
 //  read is never called directly (1). The token is still assigned before any
-//  socket is bound (2), and the continuation that assigns it is gated on its
-//  OWN identity, not on a flag (3), so a newer start cannot be bound by an
-//  older one's token. Nothing else may run a Keychain token operation beside
-//  those (4, 5) — one item, one chain — and a regeneration retires the old
-//  credential before it waits rather than after (5). And every hook that used
-//  to read `server == nil` as "not starting" now asks the one predicate that
-//  knows better (6, 7, 8), including `stop()`, which must reach
-//  `deletePortFile()` for a start that never got a socket (9).
+//  socket is bound (2). Whoever claimed `bearerToken` last owns it, and a
+//  superseded continuation publishes nothing and binds nothing (3, 4, 5) — so a
+//  Regenerate click cannot have the credential it just retired re-published by
+//  a start whose Keychain read was still in flight. Regenerations, and only
+//  regenerations, are serialized over the one Keychain item (6), and a
+//  regeneration rebinds with the token it already holds rather than reading the
+//  item a second time (7), and retires the old credential before it waits
+//  rather than after (8). And every hook that used to read `server == nil` as
+//  "not starting" now asks the one predicate that knows better (9, 10),
+//  including `stop()`, which must reach `deletePortFile()` for a start that
+//  never got a socket (11) — and a bind that finally succeeds retires the error
+//  the bind before it failed with (12).
 //
 //  What no test at this seam can prove: that the app actually finishes
 //  bootstrap while the consent panel is up. That needs a real Mac with a
@@ -80,7 +85,7 @@ struct LocalAPIMainActorStartTests {
             """)
     }
 
-    // MARK: - 2-3. The token arrives before the socket, for the right start
+    // MARK: - 2. The token arrives before the socket
 
     /// The token is still assigned before any socket is bound.
     ///
@@ -139,52 +144,198 @@ struct LocalAPIMainActorStartTests {
         )
     }
 
-    /// The continuation checks its own identity, not merely that one exists.
+    // MARK: - 3-5. Whoever claimed the token last owns it, and only they publish
+
+    /// Each claim supersedes the last one.
     ///
-    /// `restart()` is `stop(); start()`, so two starts can have their token
-    /// loads in flight in sequence. A `pendingStartID != nil` test — or no test
-    /// at all — lets the OLDER load see the NEWER start's marker, clear it, and
-    /// bind with a token the newer start never asked for. That is the
-    /// flag-instead-of-identity bug the field on `pendingStartID` warns about,
-    /// and until this test existed, weakening the comparison to `!= nil` or
-    /// deleting it left every test in this file green.
-    @Test func theStartContinuationIsGuardedByItsOwnIdentity() throws {
+    /// The one assertion in this group that calls production code rather than
+    /// reading it, which is the rule `ProductionSource` states. The whole
+    /// ownership discipline rests on a claim never colliding with the claim
+    /// before it, including at the wrap point — an id that repeated would let a
+    /// superseded continuation pass the very guard written to stop it.
+    @Test func eachTokenClaimSupersedesTheLastOne() {
+        #expect(
+            LocalAPIServer.nextTokenOwner(after: 0) != 0,
+            "the first claim must not collide with the unclaimed initial value"
+        )
+        #expect(
+            LocalAPIServer.nextTokenOwner(after: 7) == 8,
+            "claims are monotonic, so a later claim is always distinguishable from an earlier one"
+        )
+        #expect(
+            LocalAPIServer.nextTokenOwner(after: .max) != .max,
+            """
+            the claim must still change at the wrap point. If it did not, the operation holding \
+            UInt64.max would keep the right to publish a token a later operation had already \
+            retired — the exact defect the claim exists to prevent (issue #655).
+            """
+        )
+    }
+
+    /// A start's continuation may publish only if it still owns the token.
+    ///
+    /// **This is the defect round 2 of the review was called for.** A Regenerate
+    /// click lands while a `start()` token read is still in flight. It sets
+    /// `bearerToken = ""` synchronously, because the button promises the old
+    /// credential is dead on the click. Then the start's read returns — and
+    /// unless that continuation re-reads who owns the token, it re-publishes the
+    /// credential the user just invalidated, and `bindAndRun()` writes that
+    /// credential into local-api.json for the whole of the regeneration's own
+    /// indefinite Keychain wait.
+    ///
+    /// Ordering cannot fix it, and round 1's serial chain made it worse: the
+    /// regeneration was queued BEHIND the read it was supposed to supersede, so
+    /// the stale continuation was guaranteed to resume first. What fixes it is a
+    /// claim taken synchronously on the click and re-read by the continuation
+    /// before it touches `bearerToken` — so the assertions here are positional
+    /// on BOTH sides of the await.
+    @Test func aSupersededStartCannotPublishTheTokenARegenerationRetired() throws {
         let prologue = try ProductionSource.slice(
             of: Self.serverPath,
             from: "func start(",
             to: "private func bindAndRun"
         )
 
-        guard let mint = prologue.range(of: "pendingStartID = id") else {
-            Issue.record("start() must record the identity of the start whose token load is in flight (issue #655)")
-            return
-        }
-        guard let check = prologue.range(of: "self.pendingStartID == id") else {
+        guard let claim = prologue.range(of: "claimTokenOwnership()") else {
             Issue.record("""
-                start()'s continuation must re-read pendingStartID and compare it to its OWN id. A \
-                `!= nil` check, or no check, lets an older start's token load bind on behalf of a \
-                newer one — see the comment on the pendingStartID field (issue #655).
+                start() must claim ownership of bearerToken before it issues its Keychain read. \
+                Without a claim there is nothing for the continuation to check, and a Regenerate \
+                click that lands during the read is silently undone (issue #655).
                 """)
             return
         }
+        guard let read = prologue.range(of: "loadOrCreateTokenOffMainActor()") else {
+            Issue.record("start()'s off-main-actor read was renamed — update this anchor rather than deleting the check")
+            return
+        }
+        guard let ownershipCheck = prologue.range(of: "self.tokenOwner == owner") else {
+            Issue.record("""
+                start()'s continuation must re-read tokenOwner and compare it to its OWN claim. \
+                Without that compare, a read that resumes after a Regenerate click re-publishes the \
+                retired credential and bindAndRun() advertises it in local-api.json (issue #655).
+                """)
+            return
+        }
+        guard let publish = prologue.range(of: "self.bearerToken = token") else {
+            Issue.record("start() must publish the token it loaded (issue #655)")
+            return
+        }
+
         #expect(
-            mint.lowerBound < check.lowerBound,
-            "start() must mint the identity before the continuation compares against it"
+            claim.lowerBound < read.lowerBound,
+            """
+            start() claims ownership of the token AFTER it issues the Keychain read. A Regenerate \
+            click that lands in between then claims first and is immediately superseded by the \
+            start it was supposed to supersede — the claim has to be synchronous, on the click.
+            """
+        )
+        #expect(
+            read.upperBound <= ownershipCheck.lowerBound,
+            """
+            start() checks ownership BEFORE it awaits the Keychain, which proves nothing: the whole \
+            hazard is a claim that lands during the await. The check has to be re-read on the far \
+            side of the suspension.
+            """
+        )
+        #expect(
+            ownershipCheck.lowerBound < publish.lowerBound,
+            """
+            start()'s continuation assigns bearerToken before it checks whether it still owns it, \
+            so a token a Regenerate click already retired is republished (issue #655, round 2).
+            """
+        )
+        #expect(
+            !prologue.contains("tokenOwner != 0"),
+            """
+            start() tests that SOME claim exists rather than that the claim is its own. That is the \
+            flag-instead-of-identity shape the tokenOwner field warns about: it passes for a start \
+            a regeneration has already superseded.
+            """
         )
     }
 
-    // MARK: - 4-5. One Keychain item, one chain
-
-    /// Every Keychain token operation is queued on the one chain.
+    /// Only the operation that owns the bind performs it.
     ///
-    /// `loadOrCreateToken()` and `regenerateToken()` are read-modify-write
-    /// sequences over a single Keychain item, and `offMainActor` promises no
-    /// serialization — its own doc says so. Two overlapping runs race, and the
-    /// loser's `SecItemAdd` returns `errSecDuplicateItem`, which
-    /// `loadOrCreateToken` logs and swallows: it still returns the token it
-    /// generated, so the caller publishes a token the Keychain does not hold.
-    /// Dropping either call back to a bare `Task { }` restores exactly that.
-    @Test func everyKeychainTokenOperationIsQueuedOnOneChain() throws {
+    /// `tokenOwner` says who may publish; `pendingBindOwner` says who may bind,
+    /// and carries the same id so the two questions cannot drift apart. A
+    /// superseded start must not bind — but something has to, or a server the
+    /// user just switched on never comes up, so a regeneration that lands on a
+    /// pending start adopts the duty under its OWN id.
+    @Test func onlyTheOperationThatOwnsTheBindPerformsIt() throws {
+        let prologue = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "func start(",
+            to: "private func bindAndRun"
+        )
+
+        guard let mint = prologue.range(of: "pendingBindOwner = owner") else {
+            Issue.record("start() must record that it owes this server a bind (issue #655)")
+            return
+        }
+        guard let check = prologue.range(of: "self.pendingBindOwner == owner") else {
+            Issue.record("""
+                start()'s continuation must compare pendingBindOwner to its OWN claim before it \
+                binds. A `!= nil` check, or no check, lets a superseded start bind on behalf of the \
+                operation that superseded it, with the token that operation retired (issue #655).
+                """)
+            return
+        }
+        guard let bind = prologue.range(of: "self.bindAndRun()") else {
+            Issue.record("start()'s hand-off to the bind step was renamed — update this anchor rather than deleting the check")
+            return
+        }
+        #expect(mint.lowerBound < check.lowerBound, "start() must mint the bind claim before the continuation compares against it")
+        #expect(
+            check.lowerBound < bind.lowerBound,
+            "start() binds before it checks that the bind is still its to perform (issue #655)"
+        )
+        #expect(
+            !prologue.contains("pendingBindOwner != nil"),
+            "start() must compare the bind claim to its own id, not merely test that one exists"
+        )
+
+        let regenerateBody = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "func regenerateBearerToken(",
+            to: "func handleSystemWillSleep("
+        )
+        #expect(
+            regenerateBody.contains("pendingBindOwner = isLiveOrStarting ? owner : nil"),
+            """
+            regenerateBearerToken() must adopt the bind duty of whatever was live or on its way up \
+            when the click landed. The claim it takes supersedes any pending start, so that start \
+            will not bind itself — without this line the Local API the user just switched on never \
+            comes up at all (issue #655, round 2).
+            """
+        )
+        #expect(
+            regenerateBody.contains("self.pendingBindOwner == owner"),
+            "regenerateBearerToken() must bind only if the duty is still its own — a stop() in between withdraws it"
+        )
+    }
+
+    // MARK: - 6-8. One Keychain item; a narrow chain, and a claim
+
+    /// Regenerations are serialized over the one Keychain item. Starts are not,
+    /// and that is deliberate.
+    ///
+    /// `regenerateToken()` is a Keychain delete followed by a create and a
+    /// write over a single item, and `offMainActor` promises no serialization —
+    /// its own doc says so. Two overlapping runs race, and the loser's
+    /// `SecItemAdd` returns `errSecDuplicateItem`, which `loadOrCreateToken`
+    /// logs and swallows: it still returns the token it generated, so the caller
+    /// publishes a token the Keychain does not hold. That is what the chain is
+    /// for, and dropping the call back to a bare `Task { }` restores it.
+    ///
+    /// `start()` must NOT join that chain. Its `loadOrCreateToken()` writes only
+    /// when the item is ABSENT, which is the one case that raises no consent
+    /// panel and can mint no duplicate; otherwise a start is a pure read and
+    /// corrupts nothing. Putting it on the chain bought that nothing and cost
+    /// the thing issue #655 is about — a start that waits on the chain inherits
+    /// every earlier Keychain call's wait, so one `SecItemCopyMatching` stuck
+    /// behind the consent panel holds up every later start for the process
+    /// lifetime and toggling the Local API off and on cannot even try again.
+    @Test func regenerationsAreSerializedAndAStartIsDeliberatelyNot() throws {
         let startBody = try ProductionSource.slice(
             of: Self.serverPath,
             from: "func start(",
@@ -197,20 +348,8 @@ struct LocalAPIMainActorStartTests {
         )
 
         #expect(
-            startBody.contains("enqueueTokenWork {"),
-            "start() must queue its token load on the shared chain, not fire it independently"
-        )
-        #expect(
-            regenerateBody.contains("enqueueTokenWork {"),
-            "regenerateBearerToken() must queue its Keychain work on the shared chain"
-        )
-        #expect(
-            !startBody.contains("Task {"),
-            """
-            start() opens a bare Task for its token load. That is the unserialized shape: it can run \
-            its Keychain read while a regeneration is inside its own delete+read+write over the same \
-            item. Route it through enqueueTokenWork (issue #655).
-            """
+            regenerateBody.contains("enqueueRegeneration {"),
+            "regenerateBearerToken() must queue its Keychain work on the regeneration chain"
         )
         #expect(
             !regenerateBody.contains("Task {"),
@@ -219,6 +358,75 @@ struct LocalAPIMainActorStartTests {
             delete+read+write sequences over one Keychain item, and the loser's swallowed \
             errSecDuplicateItem leaves the UI publishing a token the Keychain does not hold.
             """
+        )
+        #expect(
+            startBody.contains("loadOrCreateTokenOffMainActor()"),
+            "start() must still read the token through the off-main-actor wrapper (issue #655)"
+        )
+        #expect(
+            !startBody.contains("enqueueRegeneration"),
+            """
+            start() queues its token read on the regeneration chain. It then inherits every earlier \
+            Keychain call's wait, so one SecItemCopyMatching stuck behind the consent panel holds up \
+            every later start for the process lifetime — and the user's natural recovery, toggling \
+            the Local API off and on, cannot even issue a fresh attempt. Ordering a start against a \
+            regeneration is tokenOwner's job (issue #655, round 2).
+            """
+        )
+
+        let checks = regenerateBody.components(separatedBy: "self.tokenOwner == owner").count - 1
+        #expect(
+            checks >= 2,
+            """
+            regenerateBearerToken() must check ownership on BOTH sides of its Keychain call. \
+            Checking only afterwards means a regeneration superseded while it sat in the queue \
+            still spends a delete-and-read on a token nobody may publish — and behind the consent \
+            panel that is another panel, for nothing (issue #655).
+            """
+        )
+        guard let firstCheck = regenerateBody.range(of: "self.tokenOwner == owner"),
+              let keychain = regenerateBody.range(of: "regenerateTokenOffMainActor()") else {
+            Issue.record("regenerateBearerToken()'s ownership check or Keychain call was renamed — update these anchors")
+            return
+        }
+        #expect(
+            firstCheck.lowerBound < keychain.lowerBound,
+            "the first ownership check must precede the Keychain call, so superseded queued work costs no Keychain call at all"
+        )
+    }
+
+    /// A regeneration rebinds with the token it already holds.
+    ///
+    /// `regenerateBearerToken()` has the fresh token in hand when it wants the
+    /// server back. Going through `restart()` sends it back into `start()`,
+    /// which performs a SECOND full `loadOrCreateTokenOffMainActor()` read of
+    /// the same Keychain item — doubling the number of `SecItemCopyMatching`
+    /// calls that can meet the consent panel this whole fix exists to get off
+    /// the main actor. `bindAndRun()` was split out of `start()` precisely so a
+    /// caller holding the token can re-enter the bind step; this is that caller.
+    @Test func aRegenerationRebindsWithTheTokenItAlreadyHolds() throws {
+        let body = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "func regenerateBearerToken(",
+            to: "func handleSystemWillSleep("
+        )
+
+        #expect(
+            body.contains("self.bindAndRun()"),
+            "regenerateBearerToken() must re-enter the bind step directly with the token it already holds"
+        )
+        #expect(
+            !body.contains("self.restart()"),
+            """
+            regenerateBearerToken() calls restart(), which goes back through start() and reads the \
+            same Keychain item a second time with the fresh token already in hand — a second \
+            SecItemCopyMatching that can meet the consent panel, on the one path that has no need \
+            of it (issue #655, round 2).
+            """
+        )
+        #expect(
+            !body.contains("loadOrCreateTokenOffMainActor"),
+            "regenerateBearerToken() must not issue a second load of the item it has just regenerated"
         )
     }
 
@@ -260,7 +468,7 @@ struct LocalAPIMainActorStartTests {
         )
     }
 
-    // MARK: - 6-9. A pending start is visible to every lifecycle hook
+    // MARK: - 9-12. A pending start is visible to every lifecycle hook
 
     /// The "live or on its way up" predicate counts a pending start.
     ///
@@ -343,7 +551,7 @@ struct LocalAPIMainActorStartTests {
     ///
     /// The ordering is the inverse of the one round 1 asserted, and
     /// deliberately so. With the guard asking `isLiveOrStarting`, clearing
-    /// `pendingStartID` first would make the predicate false again for a
+    /// `pendingBindOwner` first would make the predicate false again for a
     /// pending-only stop and put the early return straight back.
     @Test func aStartWaitingOnItsTokenIsCancelledByStop() throws {
         let body = try ProductionSource.slice(
@@ -360,16 +568,24 @@ struct LocalAPIMainActorStartTests {
                 """)
             return
         }
-        guard let orphan = body.range(of: "pendingStartID = nil") else {
-            Issue.record("stop() must clear pendingStartID so an in-flight start cannot bind (issue #655)")
+        guard let orphan = body.range(of: "pendingBindOwner = nil") else {
+            Issue.record("stop() must clear pendingBindOwner so an in-flight start cannot bind (issue #655)")
             return
         }
         #expect(
             earlyReturn.lowerBound < orphan.lowerBound,
             """
-            stop() clears pendingStartID BEFORE the guard that reads it. For a start that is pending \
-            with no socket, isLiveOrStarting is then false, the guard returns, and stop() skips \
-            deletePortFile() — the stale local-api.json is back.
+            stop() clears pendingBindOwner BEFORE the guard that reads it. For a start that is \
+            pending with no socket, isLiveOrStarting is then false, the guard returns, and stop() \
+            skips deletePortFile() — the stale local-api.json is back.
+            """
+        )
+        #expect(
+            !body.contains("claimTokenOwnership()"),
+            """
+            stop() claims token ownership. Switching the server off does not invalidate the token \
+            the Settings pane is showing, and claiming here would silence a regeneration the user \
+            asked for moments earlier — stop() withdraws the bind duty and nothing else (issue #655).
             """
         )
         #expect(

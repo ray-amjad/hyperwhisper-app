@@ -64,24 +64,50 @@ final class LocalAPIServer: ObservableObject {
     /// during the fallback retry when the persisted port is taken so we know
     /// what to overwrite in UserDefaults.
     private var preferredPort: UInt16 = 0
-    /// Identifies the `start()` whose token load is in flight, so `stop()`
-    /// (or a newer `start()`) can orphan it before it binds a socket. An
-    /// identity rather than a Bool because `restart()` is `stop(); start()`:
-    /// a flag would let the OLDER load see the NEWER start's flag and bind.
-    /// Same shape as `LicenseManager.networkFailureRetryID`.
-    private var pendingStartID: UUID?
-    /// Tail of the serial chain every Keychain token operation runs on.
+    /// Monotonic id of the token operation allowed to publish `bearerToken`.
     ///
-    /// `loadOrCreateToken()` and `regenerateToken()` are read-modify-write
-    /// sequences over ONE Keychain item, and `offMainActor` explicitly offers
+    /// Both `start()` and `regenerateBearerToken()` end in a Keychain call that
+    /// can take arbitrarily long — indefinitely, behind the consent panel that
+    /// is issue #655 — and both want to publish what comes back. Whoever claims
+    /// LAST wins, and claims synchronously, on the click, before any await:
+    /// `claimTokenOwnership()`. Every continuation re-reads this before it
+    /// touches `bearerToken`, so a superseded operation publishes nothing and
+    /// binds nothing.
+    ///
+    /// This is what makes `regenerateBearerToken()`'s synchronous
+    /// `bearerToken = ""` stick. Round 1 of the review ordered the two
+    /// operations on one serial chain instead, and ordering is not ownership: a
+    /// Regenerate click that landed while a `start()` token read was in flight
+    /// was queued BEHIND that read, so the start's continuation resumed first
+    /// and re-published the very credential the user had just asked to
+    /// invalidate — which `bindAndRun()` then wrote into local-api.json.
+    private var tokenOwner: UInt64 = 0
+    /// Identifies the operation that still owes this server a bind, so `stop()`
+    /// (or a newer operation) can orphan it before it binds a socket.
+    ///
+    /// An identity rather than a Bool because `restart()` is `stop(); start()`:
+    /// a flag would let the OLDER start see the NEWER start's flag and bind.
+    /// It carries a `tokenOwner` id rather than a UUID of its own so that "who
+    /// may publish the token" and "who may bind with it" are one number. Two
+    /// independent identities is precisely what let a regeneration retire the
+    /// token while a stale start still held the right to publish the old one.
+    ///
+    /// Invariant: `nil`, or equal to `tokenOwner`. `stop()` clears it without
+    /// disturbing `tokenOwner`, because switching the server off does not
+    /// invalidate the token the Settings pane is showing.
+    private var pendingBindOwner: UInt64?
+    /// Tail of the serial chain REGENERATIONS run on — and only regenerations.
+    ///
+    /// `LocalAPIAuth.regenerateToken()` is a Keychain delete followed by a
+    /// create and a write over ONE item, and `offMainActor` explicitly offers
     /// no serialization. Two overlapping runs race: the loser's `SecItemAdd`
     /// comes back `errSecDuplicateItem`, which `loadOrCreateToken` logs and
     /// swallows — it still returns the token it generated, so the caller would
     /// publish a token the Keychain does not hold. Chaining is what makes the
-    /// overlap impossible, and it is one mechanism rather than two because
-    /// `start()` and `regenerateBearerToken()` contend for that same item and
-    /// for `bearerToken`; ordering them settles both races at once.
-    private var tokenWork: Task<Void, Never>?
+    /// overlap impossible.
+    ///
+    /// `start()` is deliberately NOT on this chain; see `enqueueRegeneration`.
+    private var regenerationWork: Task<Void, Never>?
 
     private init() {}
 
@@ -114,8 +140,32 @@ final class LocalAPIServer: ObservableObject {
         Self.serverIsLiveOrStarting(
             isRunning: isRunning,
             hasServer: server != nil,
-            hasPendingStart: pendingStartID != nil
+            hasPendingStart: pendingBindOwner != nil
         )
+    }
+
+    // MARK: - Token ownership
+
+    /// The next owner id after `current`.
+    ///
+    /// Pure and `static` so it can be tested by calling it rather than by
+    /// scraping this file — the rule `ProductionSource` states, and the same
+    /// shape as `serverIsLiveOrStarting`. Wrapping addition, because trapping
+    /// would be a crash eighteen quintillion clicks in; the only property that
+    /// matters is that the id CHANGES, so no operation already in flight can be
+    /// mistaken for the one that has just claimed.
+    nonisolated static func nextTokenOwner(after current: UInt64) -> UInt64 {
+        current &+ 1
+    }
+
+    /// Take ownership of `bearerToken` for the operation about to run.
+    ///
+    /// Synchronous, and before any await, always. Whoever held ownership is
+    /// superseded from this line on: their continuation may no longer publish
+    /// and may no longer bind.
+    private func claimTokenOwnership() -> UInt64 {
+        tokenOwner = Self.nextTokenOwner(after: tokenOwner)
+        return tokenOwner
     }
 
     // MARK: - Configuration
@@ -146,17 +196,33 @@ final class LocalAPIServer: ObservableObject {
 
     // MARK: - Lifecycle
 
-    /// Run `work` after every token operation already queued, and become the
-    /// one the next operation waits for.
+    /// Run `work` after every regeneration already queued, and become the one
+    /// the next regeneration waits for.
     ///
     /// The await is a suspension, never a block: a Keychain call stuck behind
-    /// the consent panel holds up the next token operation and nothing else,
-    /// which is the whole point of issue #655. Enqueuing never awaits, so
-    /// calling this from inside queued work — `regenerateBearerToken()` does,
-    /// via `restart()` — appends to the chain instead of deadlocking on it.
-    private func enqueueTokenWork(_ work: @escaping @Sendable @MainActor () async -> Void) {
-        let previous = tokenWork
-        tokenWork = Task { @MainActor in
+    /// the consent panel holds up the next regeneration and nothing else, which
+    /// is the whole point of issue #655. Enqueuing never awaits, so calling this
+    /// from inside queued work appends to the chain instead of deadlocking on it.
+    ///
+    /// `start()` does NOT come through here, and that is the round-2 change.
+    /// Round 1 put both token operations on one chain, which cost more than it
+    /// bought:
+    ///
+    /// - It bought nothing. `loadOrCreateToken()` writes only when the Keychain
+    ///   item is ABSENT, and an absent item is the one case that raises no
+    ///   consent panel and can mint no `errSecDuplicateItem`. On every other
+    ///   path a start is a pure read, and a pure read corrupts nothing.
+    /// - It cost recovery. A start that waits here inherits every earlier
+    ///   operation's wait, so one Keychain call that never returns would hold up
+    ///   every later start for the process lifetime — the user could not even
+    ///   toggle the Local API off and on to try again.
+    /// - And ordering a start against a regeneration was the wrong tool for the
+    ///   job anyway: it decides who goes FIRST, when the question is who
+    ///   publishes LAST. `tokenOwner` answers that one, synchronously, on the
+    ///   click, with no wait at all.
+    private func enqueueRegeneration(_ work: @escaping @Sendable @MainActor () async -> Void) {
+        let previous = regenerationWork
+        regenerationWork = Task { @MainActor in
             await previous?.value
             await work()
         }
@@ -174,13 +240,21 @@ final class LocalAPIServer: ObservableObject {
         // just no longer read on the main actor. `SecItemCopyMatching` can
         // block forever behind a Keychain consent panel, and on the main
         // actor that took the whole bootstrap with it (issue #655).
-        let id = UUID()
-        pendingStartID = id
-        enqueueTokenWork { [weak self] in
+        //
+        // The claim is synchronous, on this line, before the read is issued.
+        // Anything that claims after it — a Regenerate click, a later start —
+        // takes the right to publish away from the continuation below, which
+        // then returns having touched nothing.
+        let owner = claimTokenOwnership()
+        pendingBindOwner = owner
+        // Its own task, never the regeneration chain: a start must not inherit
+        // an earlier Keychain call's wait. See `enqueueRegeneration`.
+        Task { [weak self] in
             let token = await LocalAPIAuth.loadOrCreateTokenOffMainActor()
-            guard let self, self.pendingStartID == id else { return }
-            self.pendingStartID = nil
+            guard let self, self.tokenOwner == owner else { return }
             self.bearerToken = token
+            guard self.pendingBindOwner == owner else { return }
+            self.pendingBindOwner = nil
             self.bindAndRun()
         }
     }
@@ -273,8 +347,16 @@ final class LocalAPIServer: ObservableObject {
                         // Reset state then re-enter the bind step so the next
                         // bind uses port 0. Deliberately NOT start(): the token
                         // is already in hand, so a second Keychain read would be
-                        // wasted, and the new in-flight guard would turn it away
-                        // anyway (issue #655).
+                        // wasted — and that read is the one issue #655 is about.
+                        //
+                        // Not because start() would refuse. It might not: the
+                        // line below clears `server`, and a stop() that landed
+                        // in this failed-bind window has already cleared the
+                        // rest, so `isLiveOrStarting` can be false by the time
+                        // start() asks. That this retry rebinds after such a
+                        // stop() is a pre-existing hole, recorded in the PR body
+                        // and out of scope here — do not read this comment as a
+                        // claim that the in-flight guard closes it.
                         self.server = nil
                         self.runTask?.cancel()
                         self.runTask = nil
@@ -303,7 +385,12 @@ final class LocalAPIServer: ObservableObject {
         // AFTER the guard has read it, never before: clearing first would put
         // `isLiveOrStarting` back to false for a pending-only stop and send us
         // out of the early return again, losing deletePortFile().
-        pendingStartID = nil
+        //
+        // The bind duty is withdrawn here; ownership of the token is NOT.
+        // Switching the server off does not invalidate the token, and the
+        // Settings pane still shows it, so a read already in flight may still
+        // publish what it finds — it simply has nothing left to bind.
+        pendingBindOwner = nil
 
         Task { [server, runTask] in
             await server?.stop(timeout: 1.0)
@@ -318,15 +405,22 @@ final class LocalAPIServer: ObservableObject {
         AppLogger.network.info("LocalAPI server stopped")
     }
 
-    /// Convenience used when the user toggles the Settings switch — restarts
-    /// the server if needed so dependency changes take effect.
+    /// Stop and start again, so dependency changes take effect.
+    ///
+    /// Nothing in the app calls this today: the Settings switch calls `start()`
+    /// and `stop()` directly, and `regenerateBearerToken()` deliberately does
+    /// not use it — it already holds the fresh token, and coming back through
+    /// `start()` would read the same Keychain item a second time. Kept as the
+    /// honest spelling of "stop then start" for a caller that has no token in
+    /// hand; anything that does have one should call `stop()` and re-enter the
+    /// bind step instead (issue #655).
     func restart() {
         stop()
         start()
     }
 
-    /// Wipe and regenerate the bearer token, then restart the server so the
-    /// new token gets written into local-api.json. Used by Settings →
+    /// Wipe and regenerate the bearer token, then rebind the server so the new
+    /// token gets written into local-api.json. Used by Settings →
     /// "Regenerate token".
     func regenerateBearerToken() {
         // Same Keychain hazard as start(): a delete followed by the same
@@ -334,6 +428,11 @@ final class LocalAPIServer: ObservableObject {
         // published value is refreshed on every path so the UI keeps showing
         // the latest token whether or not the server is up (issue #655).
         //
+        // Claim ownership FIRST. A start whose token read is still in flight is
+        // superseded by this line, so it can no longer re-publish the very
+        // credential the next line retires — which is what it did while the two
+        // operations were merely ordered on a queue rather than owned.
+        let owner = claimTokenOwnership()
         // Retire the old credential HERE, synchronously on the click, before
         // any await. The button's own help text promises the current token is
         // invalidated immediately, and `hw_localapi::authorize` denies every
@@ -342,15 +441,34 @@ final class LocalAPIServer: ObservableObject {
         // wait — indefinitely, if that wait is the consent panel — which is
         // the one case where "regenerate" has to be believed.
         bearerToken = ""
+        // If anything was up, or on its way up, when the click landed then this
+        // regeneration now owes it a bind. A running server has to be rebound so
+        // local-api.json carries the new token; a start still waiting on its own
+        // token read was superseded two lines ago and will not bind itself, so
+        // without this the server the user switched on a moment ago would never
+        // come up at all. Recorded under THIS owner id, never the superseded one.
+        pendingBindOwner = isLiveOrStarting ? owner : nil
         // Queued, not fired: two rapid clicks would otherwise run two
         // delete+read+write sequences over the same Keychain item at once.
-        enqueueTokenWork { [weak self] in
+        enqueueRegeneration { [weak self] in
+            // Checked before the Keychain call, not only after it. A
+            // regeneration superseded while it sat in the queue must not spend a
+            // second delete-and-read on a token nobody may publish — behind the
+            // consent panel that is a second panel, for nothing.
+            guard let self, self.tokenOwner == owner else { return }
             let token = await LocalAPIAuth.regenerateTokenOffMainActor()
-            guard let self else { return }
+            guard self.tokenOwner == owner else { return }
             self.bearerToken = token
-            if self.isRunning {
-                self.restart()
-            }
+            guard self.pendingBindOwner == owner else { return }
+            self.pendingBindOwner = nil
+            // Re-enter the BIND step rather than restart(). The fresh token is
+            // already in hand, so restart() → start() would read the same
+            // Keychain item a second time: exactly the call issue #655 is about,
+            // and a second chance for the consent panel to appear. `stop()` is
+            // idempotent and returns at its own guard when nothing is bound,
+            // which is the adopted-pending-start case.
+            self.stop()
+            self.bindAndRun()
         }
     }
 

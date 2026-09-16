@@ -58,8 +58,12 @@ enum LocalAPIAuth {
     /// `Task.detached` inside the helper is what leaves the main thread.
     ///
     /// The helper offers no serialization, deliberately. `LocalAPIServer` owns
-    /// that, because these two entry points are read-modify-write sequences
-    /// over one Keychain item — see its `tokenWork` chain.
+    /// that, and owns it narrowly. `regenerateToken()` is a delete followed by a
+    /// create and a write over one item, so two of those are serialized on its
+    /// `regenerationWork` chain. `loadOrCreateToken()` writes only when the item
+    /// is ABSENT — the one case that raises no consent panel — so a start runs
+    /// on its own task and is ordered against a regeneration by ownership
+    /// (`LocalAPIServer.tokenOwner`) rather than by queueing behind it.
     static func loadOrCreateTokenOffMainActor() async -> String {
         await offMainActor { loadOrCreateToken() }
     }
