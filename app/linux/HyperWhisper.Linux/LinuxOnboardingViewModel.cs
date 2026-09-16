@@ -53,6 +53,9 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         _selectMode = selectMode;
         _selectDevice = selectDevice;
         _text = text;
+        // The resting state of the status line, and the only place the not-started string is named.
+        // Not string.Empty: with the gate open and no test yet run this seed IS what the user reads,
+        // so an empty seed leaves the Test step's only explanation blank.
         _testStatus = text("linux.onboarding.test.not_started");
     }
 
@@ -110,6 +113,13 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         string.Equals(SelectedMode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
             ? "linux.onboarding.provider.unavailable.cloud"
             : "linux.onboarding.provider.unavailable");
+    /// <summary>
+    /// Warning: nothing reads this. Its last reader was <c>CanGoNext</c>'s
+    /// <c>Test =&gt; IsTestReady &amp;&amp; TestSucceeded</c> arm, removed in 7a24b379 (#482) when the Test
+    /// step stopped being a gate — so a wrong value here has no symptom and fails no test. It is
+    /// kept only because retiring it also reaches the <c>succeeded:</c> argument at five call sites
+    /// in MainWindow.axaml.cs, which is a separate change from issue #671.
+    /// </summary>
     public bool TestSucceeded { get => _testSucceeded; private set => Set(ref _testSucceeded, value); }
     /// <summary>
     /// The status line follows the gate, not the click. The Test step's only button binds
