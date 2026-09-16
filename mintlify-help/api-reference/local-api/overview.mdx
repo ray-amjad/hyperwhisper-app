@@ -4,7 +4,8 @@ description: HTTP API that HyperWhisper.app serves on 127.0.0.1 after you turn i
 ---
 
 HyperWhisper contains an HTTP server. You can turn on this server from
-**Settings → API Server** on macOS, or **Settings → Local API** on Windows.
+**Settings → API Server** on macOS, from **Settings → Local API** on Windows,
+and from the **Local API** section of **Settings** on Linux.
 The server listens on `127.0.0.1` only. It never
 listens on the LAN. The server writes the bound port and a bearer token to a
 discovery file on disk. MCP wrappers, benchmark scripts, and shell automation
@@ -15,6 +16,7 @@ read this file to find the server, and they need no configuration.
 ```
 macOS:   ~/Library/Application Support/HyperWhisper/local-api.json
 Windows: %LOCALAPPDATA%\HyperWhisper\local-api.json
+Linux:   ${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/local-api.json
 ```
 
 The file has `chmod 600` permissions on macOS. It has this JSON shape:
@@ -41,9 +43,13 @@ Authorization: Bearer <token>
 The server makes the token at the first start (32 random bytes,
 base64-url-encoded). On macOS, the server keeps the token in the Keychain. On
 Windows, it keeps the token in a DPAPI-protected blob at
-`%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. You can make a new token
-from **Settings → API Server** (macOS) or **Settings → Local API** (Windows).
-The previous token then becomes invalid immediately.
+`%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. On Linux, it keeps the token
+in an owner-only file at
+`${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/local-api-token`. The Linux
+server refuses to start when that file is readable by another user. You can
+make a new token from **Settings → API Server** (macOS), **Settings → Local
+API** (Windows), or the **Regenerate** button in the **Local API** section of
+**Settings** (Linux). The previous token then becomes invalid immediately.
 
 ## Response envelope
 
@@ -162,8 +168,38 @@ cannot read an envelope that contains it. Read the `code`, not the status.
 | POST | `/post-process` | Rewrites text with a preset or a free-form prompt. |
 | GET | `/recordings/search?q=&since=&until=&limit=` | Searches past transcripts for a substring. |
 | GET | `/recordings/{id}` | Gets one transcript row. |
+| GET | `/recordings` | The same handler and the same parameters as `/recordings/search`. **Windows and Linux only.** |
+| POST | `/recording/toggle` | Starts the microphone, or stops it and transcribes. **Linux only.** |
+| POST | `/recording/cancel` | Stops the microphone and keeps no transcript. **Linux only.** |
 
 The full schema is in [`openapi.yaml`](./openapi.yaml).
+
+### The recording routes
+
+`POST /recording/toggle` and `POST /recording/cancel` drive the live microphone
+of the app, and `POST /transcribe` reads a file that exists. The Linux build
+serves these two routes. The macOS and the Windows builds do not serve them.
+
+Neither route takes a body. Both answer with the state of the recorder:
+
+```json
+{ "ok": true, "recording": { "is_recording": true, "state": "recording" } }
+```
+
+`state` is one of `idle`, `recording`, `stopping`, `transcribing`, `retrying`,
+`completed`, `cancelled`, or `failed`. `is_recording` is `true` for the
+`recording` state only.
+
+`POST /recording/toggle` starts the recorder when the recorder is idle. It
+stops the recorder and transcribes when the recorder is recording. It waits for
+that transcription, so the call is as slow as a `/transcribe` call. The route
+uses the current Mode, because it accepts no `mode_id`. A toggle during the
+`stopping` or the `transcribing` state is refused, because a transcription is
+already in progress. The refusal is an **HTTP 400** with the code
+`INVALID_REQUEST`.
+
+`POST /recording/cancel` stops the recorder at any point and keeps no
+transcript.
 
 ## Next: MCP
 

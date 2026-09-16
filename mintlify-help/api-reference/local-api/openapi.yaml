@@ -220,6 +220,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/RecordingsListResponse'
 
+  /recordings:
+    get:
+      summary: Search past transcripts (alias)
+      description: |
+        Windows and Linux only. The same handler and the same query parameters
+        as `/recordings/search`. macOS does not serve this path.
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          description: Substring matched against text / postProcessedText / transcribedText.
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+        - in: query
+          name: until
+          schema: { type: string, format: date-time }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+      responses:
+        '200':
+          description: Matching recordings, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingsListResponse'
+
   /recordings/{id}:
     get:
       summary: Fetch one recording
@@ -235,6 +263,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecordingResponse'
+
+  /recording/toggle:
+    post:
+      summary: Start the microphone, or stop it and transcribe
+      description: |
+        Linux only. macOS and Windows do not serve this path. The route takes no
+        request body and no `mode_id`, so it uses the current Mode.
+
+        When the recorder is idle, the call starts it. When the recorder is
+        recording, the call stops it and transcribes, and it waits for that
+        transcription — so it is as slow as a `/transcribe` call.
+
+        A call during the `stopping` or the `transcribing` state is refused with
+        HTTP 400 and the code `INVALID_REQUEST`, because a transcription is
+        already in progress.
+      responses:
+        '200':
+          description: Recorder state after the toggle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingStateResponse'
+        '400':
+          description: A transcription is already in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /recording/cancel:
+    post:
+      summary: Stop the microphone and keep no transcript
+      description: |
+        Linux only. macOS and Windows do not serve this path. The route takes no
+        request body. It stops the recorder at any point and writes no
+        transcript.
+      responses:
+        '200':
+          description: Recorder state after the cancel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingStateResponse'
 
 components:
   securitySchemes:
@@ -763,3 +834,20 @@ components:
       properties:
         ok: { type: boolean }
         recording: { $ref: '#/components/schemas/RecordingDTO' }
+
+    RecordingState:
+      type: object
+      description: State of the live recorder. Linux only.
+      properties:
+        is_recording:
+          type: boolean
+          description: True for the `recording` state only.
+        state:
+          type: string
+          enum: [idle, recording, stopping, transcribing, retrying, completed, cancelled, failed]
+
+    RecordingStateResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        recording: { $ref: '#/components/schemas/RecordingState' }

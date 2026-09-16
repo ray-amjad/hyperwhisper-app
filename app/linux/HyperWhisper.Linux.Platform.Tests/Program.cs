@@ -105,7 +105,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("GPU detector rejects software Vulkan renderer", GpuRejectsSoftwareRenderer),
     ("GPU detector requires CUDA hardware evidence", GpuCudaEvidence),
     ("host GPU evidence never promotes software renderer", HostGpuEvidence),
-    ("Pulse input enumeration parses sources and default", PulseInputEnumeration),
+    ("Pulse input enumeration drops sink monitors and marks the default", PulseInputEnumeration),
+    ("Pulse input enumeration promotes a microphone when the default is a monitor", PulseInputDefaultIsMonitor),
+    ("Pulse input enumeration reports an empty success when every source is a monitor", PulseInputAllMonitorsIsEmptySuccess),
     ("Pulse device change notifies once without re-entrant recursion", PulseDeviceChangeIsNotReentrant),
     ("Pulse nested refresh reuses the list the raising frame enumerated", PulseNestedRefreshReusesTheEnumeratedList),
     ("Pulse recursion stays bounded when the device set flaps", PulseDeviceFlapCannotRecurse),
@@ -144,6 +146,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone volume boosts and restores every channel", MicrophoneVolumeRoundTrip),
     ("microphone volume reports pactl unsupported", MicrophoneVolumeUnsupported),
     ("microphone keep-warm suspends and resumes child", MicrophoneKeepWarmLifecycle),
+    ("microphone keep-warm never opens the server default source", MicrophoneKeepWarmNeedsASelectedDevice),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
@@ -1612,14 +1615,101 @@ static Task HostGpuEvidence()
     return Task.CompletedTask;
 }
 
+// The first two rows are MEASURED. They were taken on 2026-09-15 from a live pulseaudio 16.1 server
+// (`pulseaudio --start`, then `module-null-sink` and `module-null-source`), by running
+// `pactl --format=json list sources`, and are copied verbatim except that keys this parser never
+// reads — volume, latency, channel_map, flags, formats, owner_module — were dropped for width. They
+// are the whole point of #627: a source carries NO `monitor_of_sink` key at all, which is why the
+// documented field alone matched nothing; a monitor carries BOTH surviving markers at once
+// (`monitor_source` naming its sink, and `device.class: "monitor"`); and a real source carries
+// `monitor_source: ""` with `device.class: "abstract"` — NOT "sound", so no clause may require that.
+//
+// Every other row is SYNTHETIC: shapes this parser tolerates, not shapes pactl 16.1 was observed to
+// emit. They exist so each clause of `IsMonitor` is proved by a row no other clause matches, and so
+// each empty form a server might report (`monitor_of_sink: null`, `monitor_source: ""`, the key
+// absent) is proved not to drop a real source. Keep them one-marker-per-row for that reason. If a
+// later measurement contradicts one, trust the measurement and replace the row.
+static string MeasuredPulseSources()
+{
+    return """
+    [{"index":1,"state":"SUSPENDED","name":"VirtualSpeaker.monitor","description":"Monitor of Null_Output",
+      "driver":"module-null-sink.c","monitor_source":"VirtualSpeaker","properties":{
+      "device.description":"Monitor of Null_Output","device.class":"monitor",
+      "device.icon_name":"audio-input-microphone"},"ports":[],"active_port":null},
+     {"index":2,"state":"IDLE","name":"VirtualMic","description":"Null Input",
+      "driver":"module-null-source.c","monitor_source":"","properties":{
+      "device.description":"Null Input","device.class":"abstract",
+      "device.icon_name":"audio-input-microphone"},"ports":[],"active_port":null},
+     {"index":3,"name":"monitor.by_number","description":"Monitor of Legacy Sink","monitor_of_sink":2},
+     {"index":4,"name":"monitor.by_name","description":"Monitor of Named Sink","monitor_of_sink":"2"},
+     {"index":5,"name":"monitor.by_source","description":"Monitor of VirtualSpeaker","monitor_source":"speaker"},
+     {"index":6,"name":"monitor.by_class","description":"Monitor of Built-in Audio","properties":{"device.class":"monitor"}},
+     {"index":7,"name":"mic.null_sink","description":"Server Capture","monitor_of_sink":null},
+     {"index":8,"name":"mic.empty_source","description":"Virtual microphone","monitor_source":"","properties":{"device.class":"sound"}},
+     {"index":9,"name":"mic.no_markers","description":"Built-in Audio Analog Stereo"}]
+    """;
+}
+
+// The source JSON is a parameter, not a baked-in constant: the state #627 newly makes reachable is a
+// box with no offerable source at all, and that cannot be reached by varying the default-source name.
+static PlatformResult<IReadOnlyList<AudioInputDevice>> EnumeratePulseInputs(string json, string defaultSource)
+{
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(json)),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(defaultSource + "\n")));
+    using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
+    return service.GetAvailableDevices();
+}
+
+// Encodes the whole outcome in one string so a regression names itself: `Success([])` and
+// `Failure("pulse_devices_failed")` are different states that a bare count assertion cannot tell
+// apart, and the blanket catch in GetAvailableDevices turns any throw into the latter.
+static string DescribePulseInputs(PlatformResult<IReadOnlyList<AudioInputDevice>> result) =>
+    result.IsFailure
+        ? $"failure:{result.Error!.Code}"
+        : $"success:{string.Join('|', result.Value!.Select(device => $"{device.Id}:{device.IsDefault}"))}";
+
+// Each assertion below is whole-outcome: one string carries the success/failure state, every
+// surviving id IN ORDER, and every default flag. The id half is the only proof that every monitor was
+// dropped AND that no real source was; the flag half pins the FALSE entries, so flagging every device
+// default cannot pass.
 static Task PulseInputEnumeration()
 {
-    var runner = PactlRunner((PactlSources(("mic.one", "Microphone", null), ("sink.monitor", "Monitor", 1)), "mic.one"));
-    using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
-    var result = service.GetAvailableDevices();
-    Assert.True(result.IsSuccess);
-    Assert.Equal(1, result.Value!.Count);
-    Assert.True(result.Value[0].IsDefault);
+    Assert.Equal(
+        "success:VirtualMic:False|mic.null_sink:False|mic.empty_source:True|mic.no_markers:False",
+        DescribePulseInputs(EnumeratePulseInputs(MeasuredPulseSources(), "mic.empty_source")));
+    return Task.CompletedTask;
+}
+
+static Task PulseInputDefaultIsMonitor()
+{
+    // Not hypothetical: on the pulseaudio 16.1 server measured above, `pactl set-default-source
+    // VirtualSpeaker.monitor` is accepted and `pactl get-default-source` then prints that monitor.
+    // The filter drops it, so the first offerable microphone carries the flag instead and the tray
+    // and the workflow cannot disagree about which device is in use.
+    Assert.Equal(
+        "success:VirtualMic:True|mic.null_sink:False|mic.empty_source:False|mic.no_markers:False",
+        DescribePulseInputs(EnumeratePulseInputs(MeasuredPulseSources(), "VirtualSpeaker.monitor")));
+    return Task.CompletedTask;
+}
+
+// A box whose only pactl sources are sink monitors — a headless or loopback machine, and the state the
+// #627 filter newly makes reachable, since before it every monitor was offered as a microphone. The
+// enumeration must report an EMPTY SUCCESS: the promotion step must not reach for values[0], because
+// the blanket catch in GetAvailableDevices would turn the IndexOutOfRangeException into
+// `pulse_devices_failed` and the picker would show a stale error instead of an honest empty list.
+// Nothing here can record: LinuxRecordingInputDeviceGate refuses both kinds with no device selected.
+static Task PulseInputAllMonitorsIsEmptySuccess()
+{
+    // The first row is the measured pulseaudio 16.1 monitor from MeasuredPulseSources; the second is
+    // synthetic, so the empty list is reached through more than one clause of the filter.
+    const string json = """
+    [{"index":1,"state":"SUSPENDED","name":"VirtualSpeaker.monitor","description":"Monitor of Null_Output",
+      "driver":"module-null-sink.c","monitor_source":"VirtualSpeaker","properties":{
+      "device.description":"Monitor of Null_Output","device.class":"monitor",
+      "device.icon_name":"audio-input-microphone"},"ports":[],"active_port":null},
+     {"index":2,"name":"monitor.by_number","description":"Monitor of Legacy Sink","monitor_of_sink":2}]
+    """;
+    Assert.Equal("success:", DescribePulseInputs(EnumeratePulseInputs(json, "VirtualSpeaker.monitor")));
     return Task.CompletedTask;
 }
 
@@ -2379,6 +2469,27 @@ static Task MicrophoneKeepWarmLifecycle()
     Assert.True(service.GetCapabilities().Available);
     service.Configure(true, "mic"); service.SuspendForRecording(); service.ResumeAfterRecording("mic2"); service.Dispose();
     Assert.Equal(2, factory.OpenCalls); Assert.Equal(1, first.TerminateCalls); Assert.Equal(1, second.TerminateCalls);
+    Assert.Equal("mic|mic2", string.Join('|', factory.Devices));
+    return Task.CompletedTask;
+}
+
+// #627: keep-warm used to substitute the id "default" when no device was selected, which makes the
+// capture child omit --device and bind the PulseAudio server default source. On a box whose only
+// sources are sink monitors — the state the monitor filter newly makes reachable, because the
+// enumerated list is then empty and nothing can be selected — that held an open capture stream on a
+// monitor, which the desktop shows to the user as HyperWhisper recording their speakers. With nothing
+// selected there is nothing to keep warm, so no source may be opened at all.
+static Task MicrophoneKeepWarmNeedsASelectedDevice()
+{
+    var factory = new CyclingStreamingSourceFactory(
+        new FakeStreamingAudioSource(new BlockingAudioStream()), new FakeStreamingAudioSource(new BlockingAudioStream()));
+    using var service = new LinuxMicrophoneKeepWarmService(factory);
+    service.Configure(true, null);
+    service.ResumeAfterRecording(null);
+    service.Configure(true, "   ");
+    Assert.Equal(0, factory.OpenCalls);
+    service.Configure(true, "mic");
+    Assert.Equal("mic", string.Join('|', factory.Devices));
     return Task.CompletedTask;
 }
 
@@ -3113,10 +3224,11 @@ sealed class CyclingStreamingSourceFactory(params FakeStreamingAudioSource[] sou
 {
     private readonly Queue<FakeStreamingAudioSource> _sources = new(sources);
     public int OpenCalls { get; private set; }
+    public List<string> Devices { get; } = [];
     public bool IsAvailable => true;
     public string Backend => "fake";
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options)
-    { OpenCalls++; return _sources.TryDequeue(out var source) ? PlatformResult<IStreamingAudioSource>.Success(source)
+    { OpenCalls++; Devices.Add(options.DeviceId); return _sources.TryDequeue(out var source) ? PlatformResult<IStreamingAudioSource>.Success(source)
         : PlatformResult<IStreamingAudioSource>.Failure("fake_empty", "test"); }
 }
 
