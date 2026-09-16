@@ -290,23 +290,25 @@ enum SentryService {
                 // into HYPERWHISPER-F7 — 191 events, 7 unrelated blocking sites.
                 // Both values are code identifiers read out of a stack frame, so
                 // neither can hold anything the user typed, said or named.
-                if event.exceptions?.first?.mechanism?.type == "AppHang" {
-                    let frames = event.exceptions?.first?.stacktrace?.frames ?? []
-                    let pairs: [(image: String, symbol: String)] = frames.map {
+                //
+                // EVERY decision is `hangGrouping`'s, including whether to write
+                // anything at all — it returns nil for an event that is not an
+                // app hang. The guard is an argument, not an `if` wrapped round
+                // the call, so a unit test can execute it; `beforeSend` is a
+                // closure inside `initialize()` that needs the Sentry package, a
+                // DSN and a live SDK, so no test can execute this. What is left
+                // here is two reads and two writes.
+                let hangFrames: [(image: String, symbol: String)] =
+                    (event.exceptions?.first?.stacktrace?.frames ?? []).map {
                         (image: $0.package ?? "", symbol: $0.function ?? "")
                     }
-                    // Every VALUE below is decided by `hangGrouping`, which is a
-                    // pure function the test target calls directly. All that is
-                    // left here is reading the frames off the event and writing
-                    // the answer back onto it.
-                    let grouping = Self.hangGrouping(imagesAndSymbols: pairs)
+                if let grouping = Self.hangGrouping(
+                    mechanismType: event.exceptions?.first?.mechanism?.type,
+                    imagesAndSymbols: hangFrames,
+                    existingTags: event.tags
+                ) {
                     event.fingerprint = grouping.fingerprint
-                    // Copy-mutate-assign: `event.tags?[k] = v` is a silent no-op
-                    // when tags is nil, which it is on an SDK-raised event.
-                    var tags = event.tags ?? [:]
-                    tags["hang_image"] = grouping.image
-                    tags["hang_symbol"] = grouping.symbol
-                    event.tags = tags
+                    event.tags = grouping.tags
                 }
 
                 return event
@@ -408,6 +410,23 @@ enum SentryService {
         "libsystem_platform.dylib"
     ]
 
+    /// The exception mechanism the SDK stamps on an app-hang event, and the
+    /// only mechanism this grouping applies to.
+    private static let appHangMechanism = "AppHang"
+
+    /// Symbol strings that name nothing, and must not reach a tag or a
+    /// fingerprint element.
+    ///
+    /// `""` is this file's own `$0.function ?? ""`. `"<redacted>"` is the SDK's:
+    /// `SentryFrame.m` assigns `self.function = @"<redacted>"` in `init`, and
+    /// `SentryCrashStackEntryMapper.m` overwrites it only when the unwinder
+    /// produced a `symbolName`. Symbolication is off on device — the ANR stack
+    /// is built with `stacktraceBuilder.symbolicate = options.debug` and
+    /// `initialize()` never sets `debug` — so the literal string `"<redacted>"`,
+    /// neither nil nor empty, is what a production hang frame actually carries.
+    /// An empty check alone therefore never fires in the field.
+    private static let unreadableHangSymbols: Set<String> = ["", "<redacted>"]
+
     /// The blocking site of an app hang, as the (image, symbol) pair to group on.
     ///
     /// `imagesAndSymbols` is the main thread's frames in Sentry's own order:
@@ -434,8 +453,9 @@ enum SentryService {
         return nil
     }
 
-    /// The whole Sentry grouping decision for one app hang: the `fingerprint`
-    /// array to set on the event, and the two tag values that go with it.
+    /// The whole `beforeSend` decision for one event: the `fingerprint` to put
+    /// on it and the complete `tags` dictionary to put on it — or nil, meaning
+    /// write nothing and leave the event exactly as it arrived.
     ///
     /// This exists so the decision is reachable from `hyperwhisperTests`.
     /// `beforeSend` is a closure inside `initialize()` that needs the Sentry
@@ -444,30 +464,60 @@ enum SentryService {
     /// left every test green while every hang re-merged into one Issue. The
     /// values live here, the wiring stays there, and both are pinned.
     ///
-    /// The two shapes are NOT a tidy-up candidate. Issue #683 step 4 specifies
-    /// four elements for a found site and step 6 specifies three, verbatim, for
-    /// the fallback; a four-element fallback hashes to a different Sentry group
-    /// than the issue asked for. Both tags are set either way, because step 5
-    /// wants `hang_image:unknown` searchable before the regroup lands.
+    /// **`mechanismType` is a PARAMETER, not an `if` around the call.** That is
+    /// the load-bearing part of the shape. `beforeSend` sees every event the SDK
+    /// sends, and six other sites set a deliberate custom fingerprint —
+    /// `capture(error:)` below, `AppLogger.swift`, `LocalModelManager.swift`,
+    /// `HyperWhisperCloudProvider.swift` and `StreamingTranscriptionClient.swift`
+    /// (twice). A hang fingerprint that escaped the mechanism check would
+    /// overwrite all of them on every event. With the check inside this
+    /// function, "a non-hang event is left alone" is a case a unit test runs,
+    /// rather than a shape a reader has to eyeball in a closure nothing calls.
+    ///
+    /// **`existingTags` is `event.tags`, and the result MERGES into it.** Not
+    /// because `event.tags` is nil — it usually is not. `SentryClient.m:797`
+    /// applies the scope to the event, and only then, at `:860`, calls
+    /// `beforeSend`. So by the time this runs `event.tags` already carries the
+    /// four device tags `initialize()` set on the scope: `macos_version`,
+    /// `build_number`, `architecture`, `cpu_cores`. Building a fresh two-key
+    /// dictionary here — the obvious "simplification" — would silently drop all
+    /// four from every hang event, which is the one class of event where the OS
+    /// version and the CPU matter most. The `?? [:]` is only for the case where
+    /// no tag has been set at all.
+    ///
+    /// The two fingerprint shapes are NOT a tidy-up candidate. Issue #683 step 4
+    /// specifies four elements for a found site and step 6 specifies three,
+    /// verbatim, for the fallback; a four-element fallback hashes to a different
+    /// Sentry group than the issue asked for. Both tags are set either way,
+    /// because step 5 wants `hang_image:unknown` searchable before the regroup
+    /// lands.
     static func hangGrouping(
-        imagesAndSymbols: [(image: String, symbol: String)]
-    ) -> (fingerprint: [String], image: String, symbol: String) {
-        guard let site = hangFingerprintComponents(imagesAndSymbols: imagesAndSymbols) else {
+        mechanismType: String?,
+        imagesAndSymbols: [(image: String, symbol: String)],
+        existingTags: [String: String]?
+    ) -> (fingerprint: [String], tags: [String: String])? {
+        guard mechanismType == appHangMechanism else { return nil }
+
+        let fingerprint: [String]
+        let image: String
+        let symbol: String
+        if let site = hangFingerprintComponents(imagesAndSymbols: imagesAndSymbols) {
+            image = site.image
+            // Symbolication is off on device, so the symbol arrives as the SDK's
+            // own `"<redacted>"` placeholder — see `unreadableHangSymbols`.
+            symbol = unreadableHangSymbols.contains(site.symbol) ? "unknown" : site.symbol
+            fingerprint = ["{{ default }}", "app_hang", image, symbol]
+        } else {
             // Issue step 6, verbatim: THREE elements, not four.
-            return (
-                fingerprint: ["{{ default }}", "app_hang", "unknown"],
-                image: "unknown",
-                symbol: "unknown"
-            )
+            image = "unknown"
+            symbol = "unknown"
+            fingerprint = ["{{ default }}", "app_hang", "unknown"]
         }
-        // Symbolication is off on device (G3), so `symbol` is routinely empty.
-        // An empty 4th fingerprint element and an empty tag are both unreadable.
-        let symbol = site.symbol.isEmpty ? "unknown" : site.symbol
-        return (
-            fingerprint: ["{{ default }}", "app_hang", site.image, symbol],
-            image: site.image,
-            symbol: symbol
-        )
+
+        var tags = existingTags ?? [:]
+        tags["hang_image"] = image
+        tags["hang_symbol"] = symbol
+        return (fingerprint: fingerprint, tags: tags)
     }
 
     // MARK: - Breadcrumbs
