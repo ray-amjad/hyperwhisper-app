@@ -12,6 +12,7 @@ using System;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Platform;
 
 namespace HyperWhisper.Utilities;
 
@@ -40,39 +41,24 @@ public static class TextFieldContextHelper
 
     /// <summary>
     /// Probe the focused text element for cursor context.
-    /// Runs UIA calls on the WPF dispatcher with a 200ms timeout (UIA can
-    /// hang on misbehaving apps; reuse the SmartPasteService pattern).
+    /// Runs the UIA calls on <see cref="UiaProbeHost"/>'s STA thread with a
+    /// 200ms timeout.
     ///
-    /// Returns Unknown on any failure: no dispatcher, no focused element,
-    /// non-text element, no TextPattern, or read failure. Callers should
-    /// treat Unknown as "leave the text alone".
+    /// NOT on the WPF dispatcher (issue #672). The caller is the UI thread, and
+    /// a UIA call that hangs there freezes the keyboard for the whole desktop —
+    /// both WH_KEYBOARD_LL hooks are delivered to that same thread. A
+    /// Dispatcher.Invoke timeout does not bound a delegate that has already
+    /// started, so the probe has to run somewhere it is allowed to hang.
+    ///
+    /// Returns Unknown on any failure: no STA thread, timeout, no focused
+    /// element, non-text element, no TextPattern, or read failure. Callers
+    /// should treat Unknown as "leave the text alone".
     /// </summary>
     public static TextFieldContext GetFocusedElementContext()
-    {
-        try
-        {
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            if (dispatcher == null) return TextFieldContext.Unknown;
-
-            // Run the UIA probe on the dispatcher with a 200ms cap; matches the
-            // pattern in SmartPasteService.DetectFocusedField().
-            var result = dispatcher.Invoke(
-                new Func<TextFieldContext>(ProbeFocusedElement),
-                TimeSpan.FromMilliseconds(200));
-
-            return (TextFieldContext)(result ?? TextFieldContext.Unknown);
-        }
-        catch (TimeoutException)
-        {
-            LoggingService.Debug("TextFieldContextHelper: UIA call timed out (200ms)");
-            return TextFieldContext.Unknown;
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"TextFieldContextHelper: UIA read failed: {ex.Message}");
-            return TextFieldContext.Unknown;
-        }
-    }
+        => UiaProbeHost.Probe(
+            "TextFieldContextHelper.GetFocusedElementContext",
+            ProbeFocusedElement,
+            fallback: TextFieldContext.Unknown);
 
     private static TextFieldContext ProbeFocusedElement()
     {

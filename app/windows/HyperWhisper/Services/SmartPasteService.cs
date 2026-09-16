@@ -1034,61 +1034,43 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
 
     /// <summary>
     /// Detects whether the focused UI element is a text field or password field
-    /// using UI Automation. Runs on the UI thread with a 200ms timeout.
+    /// using UI Automation. Runs on <see cref="UiaProbeHost"/>'s STA thread with
+    /// a 200ms timeout.
     ///
-    /// Returns (isTextField, isPassword). On any failure returns (false, false)
-    /// to fall back to blind paste.
+    /// NOT on the UI thread (issue #672). SmartPaste runs on the UI thread, and
+    /// the UI thread is where both WH_KEYBOARD_LL hooks live — a UIA call that
+    /// hangs there freezes the keyboard for the whole desktop, not just for this
+    /// app. A Dispatcher.Invoke timeout does not bound a delegate that has
+    /// already started, so the probe has to run somewhere it is allowed to hang.
+    ///
+    /// Returns (isTextField, isPassword). On timeout or any failure returns
+    /// (false, false) to fall back to blind paste.
     /// </summary>
     private static (bool isTextField, bool isPassword) DetectFocusedField()
-    {
-        try
-        {
-            // Run UIA call with timeout via Dispatcher.Invoke
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            if (dispatcher == null) return (false, false);
-
-            var result = dispatcher.Invoke(() =>
+        => UiaProbeHost.Probe(
+            "SmartPasteService.DetectFocusedField",
+            static () =>
             {
+                var focused = AutomationElement.FocusedElement;
+                if (focused == null) return (false, false);
+
+                var controlType = focused.Current.ControlType;
+                bool isTextField = controlType.Id == ControlType.Edit.Id ||
+                                   controlType.Id == ControlType.Document.Id;
+
+                bool isPassword = false;
                 try
                 {
-                    var focused = AutomationElement.FocusedElement;
-                    if (focused == null) return (false, false);
-
-                    var controlType = focused.Current.ControlType;
-                    bool isTextField = controlType.Id == ControlType.Edit.Id ||
-                                       controlType.Id == ControlType.Document.Id;
-
-                    bool isPassword = false;
-                    try
-                    {
-                        isPassword = (bool)focused.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty);
-                    }
-                    catch
-                    {
-                        // IsPassword not supported for this element
-                    }
-
-                    return (isTextField, isPassword);
+                    isPassword = (bool)focused.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty);
                 }
                 catch
                 {
-                    return (false, false);
+                    // IsPassword not supported for this element
                 }
-            }, TimeSpan.FromMilliseconds(200));
 
-            return ((bool, bool))result;
-        }
-        catch (TimeoutException)
-        {
-            LoggingService.Debug("SmartPasteService: Focus detection timed out (200ms)");
-            return (false, false);
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"SmartPasteService: Focus detection failed: {ex.Message}");
-            return (false, false);
-        }
-    }
+                return (isTextField, isPassword);
+            },
+            fallback: (false, false));
 
     // =========================================================================
     // PRIVATE HELPERS

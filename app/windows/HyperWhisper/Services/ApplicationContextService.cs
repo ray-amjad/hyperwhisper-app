@@ -3,7 +3,7 @@
 // app category) for LLM post-processing prompt enrichment.
 //
 // DESIGN:
-// - Singleton with dedicated STA thread for UI Automation calls
+// - Singleton; UI Automation calls run on the shared UiaProbeHost STA thread
 // - Win32 P/Invoke for fast window/process info (always works)
 // - UIA for focused element type (200ms timeout, graceful degradation)
 // - Self-detection: returns null if foreground is HyperWhisper
@@ -19,7 +19,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Automation;
-using System.Windows.Threading;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.Platform;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
@@ -87,8 +86,8 @@ public class ApplicationContext
 ///
 /// LIFECYCLE:
 ///   - Instance is created lazily on first access
-///   - STA thread starts immediately and persists for the app lifetime
-///   - Call Dispose() on app shutdown to clean up the STA thread
+///   - UIA probes run on UiaProbeHost's shared STA thread, never on the UI thread
+///   - Dispose() stops further probes; the shared STA thread ends with the process
 /// </summary>
 public class ApplicationContextService : IDisposable, PlatformContracts.IApplicationContextProvider
 {
@@ -282,60 +281,20 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     // INSTANCE FIELDS
     // =========================================================================
 
-    private Thread? _staThread;
-    private Dispatcher? _staDispatcher;
-    private readonly ManualResetEventSlim _staReady = new(false);
     private bool _disposed;
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
+    /// <summary>
+    /// This service used to own its own STA thread. Since issue #672 every UIA
+    /// probe in the app shares one, <see cref="UiaProbeHost"/>, which starts on
+    /// first use. The two probes below were already correct — they ran off the UI
+    /// thread — so nothing changes here except who owns the thread.
+    /// </summary>
     private ApplicationContextService()
     {
-        StartStaThread();
-    }
-
-    /// <summary>
-    /// Starts the persistent STA background thread with a Dispatcher message pump.
-    /// The thread stays alive for the app lifetime to avoid repeated thread creation.
-    /// </summary>
-    private void StartStaThread()
-    {
-        _staThread = new Thread(() =>
-        {
-            try
-            {
-                // Capture the dispatcher for this STA thread
-                _staDispatcher = Dispatcher.CurrentDispatcher;
-                _staReady.Set();
-
-                // Run the message pump — blocks until Dispatcher.InvokeShutdown() is called
-                Dispatcher.Run();
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Error(
-                    $"ApplicationContextService: STA thread crashed ({DescribeExceptionEvidence(ex)})");
-            }
-        })
-        {
-            Name = "ApplicationContextService-STA",
-            IsBackground = true,
-        };
-
-        _staThread.SetApartmentState(ApartmentState.STA);
-        _staThread.Start();
-
-        // Wait for the STA thread to be ready (Dispatcher created)
-        if (!_staReady.Wait(TimeSpan.FromSeconds(5)))
-        {
-            LoggingService.Warn("ApplicationContextService: STA thread did not start within 5 seconds");
-        }
-        else
-        {
-            LoggingService.Info("ApplicationContextService: STA thread started successfully");
-        }
     }
 
     // =========================================================================
@@ -669,29 +628,15 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     {
         if (!category.Equals("Web Browser", StringComparison.OrdinalIgnoreCase)
             || !BrowserProcessNames.Contains(processName)
-            || _staDispatcher == null
             || _disposed)
         {
             return null;
         }
 
-        try
-        {
-            return (string?)_staDispatcher.Invoke(() =>
-            {
-                return ExtractBrowserHostOnStaThread(hwnd, processName);
-            }, TimeSpan.FromMilliseconds(200));
-        }
-        catch (TimeoutException)
-        {
-            LoggingService.Debug("ApplicationContextService: Browser host UIA scan timed out (200ms)");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"ApplicationContextService: Browser host extraction failed ({DescribeExceptionEvidence(ex, includeStack: false)})");
-            return null;
-        }
+        return UiaProbeHost.Probe<string?>(
+            "ApplicationContextService.ExtractBrowserHost",
+            () => ExtractBrowserHostOnStaThread(hwnd, processName),
+            fallback: null);
     }
 
     private static string? ExtractBrowserHostOnStaThread(IntPtr hwnd, string processName)
@@ -774,29 +719,13 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     /// </summary>
     private FocusedElementResult? GetFocusedElementInfo(string processName)
     {
-        if (_staDispatcher == null || _disposed)
-        {
-            LoggingService.Debug("ApplicationContextService: STA dispatcher not available");
+        if (_disposed)
             return null;
-        }
 
-        try
-        {
-            return (FocusedElementResult?)_staDispatcher.Invoke(() =>
-            {
-                return GetFocusedElementInfoOnStaThread(processName);
-            }, TimeSpan.FromMilliseconds(200));
-        }
-        catch (TimeoutException)
-        {
-            LoggingService.Debug("ApplicationContextService: UIA call timed out (200ms)");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"ApplicationContextService: GetFocusedElementInfo failed ({DescribeExceptionEvidence(ex, includeStack: false)})");
-            return null;
-        }
+        return UiaProbeHost.Probe<FocusedElementResult?>(
+            "ApplicationContextService.GetFocusedElementInfo",
+            () => GetFocusedElementInfoOnStaThread(processName),
+            fallback: null);
     }
 
     /// <summary>
@@ -1026,37 +955,11 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
         if (_disposed)
             return;
 
+        // _disposed is the only teardown this service has now: it stops the two
+        // probe helpers from queueing more work. The STA thread belongs to
+        // UiaProbeHost, is shared, and is a background thread that ends with the
+        // process — so it is deliberately NOT stopped here.
         _disposed = true;
-
-        try
-        {
-            // Shut down the STA thread's Dispatcher, which will cause Dispatcher.Run() to return
-            _staDispatcher?.InvokeShutdown();
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"ApplicationContextService: Error shutting down STA dispatcher ({DescribeExceptionEvidence(ex, includeStack: false)})");
-        }
-
-        try
-        {
-            // Wait for the STA thread to finish
-            if (_staThread != null && _staThread.IsAlive)
-            {
-                if (!_staThread.Join(TimeSpan.FromSeconds(2)))
-                {
-                    LoggingService.Warn("ApplicationContextService: STA thread did not stop within 2 seconds");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"ApplicationContextService: Error joining STA thread ({DescribeExceptionEvidence(ex, includeStack: false)})");
-        }
-
-        _staDispatcher = null;
-        _staThread = null;
-        _staReady.Dispose();
 
         LoggingService.Info("ApplicationContextService: Disposed");
 

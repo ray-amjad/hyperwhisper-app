@@ -24,6 +24,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data;
@@ -14350,6 +14351,72 @@ internal static class Program
                     "a later pass rebinds both badges");
                 Assert(changed.Contains(nameof(GettingStartedItem.ShortcutText)),
                     "and it raises PropertyChanged, or the Home badge keeps painting the old chord");
+            });
+
+            // ------------------------------------------------------------------
+            // UiaProbeHost — issue #672
+            //
+            // The support ticket: the app and the whole keyboard freeze for about
+            // 10 seconds after a dictation. Cause: a UI Automation probe ran on
+            // the WPF UI thread, where both WH_KEYBOARD_LL hooks live, and the
+            // Dispatcher.Invoke timeout that was supposed to bound it does not
+            // bound a delegate that has already started running.
+            //
+            // These four cases pin the two properties the fix depends on: the
+            // probe does NOT run on the caller's thread, and a probe that hangs
+            // does NOT hold the caller. Put the probe body back on the caller's
+            // thread and cases 1 and 2 both fail.
+            // ------------------------------------------------------------------
+            Run("uia: a probe that hangs returns the fallback without holding the caller — issue #672", () =>
+            {
+                var watch = Stopwatch.StartNew();
+                var answer = UiaProbeHost.Probe(
+                    "smoke.hang",
+                    () => { Thread.Sleep(TimeSpan.FromSeconds(3)); return "provider answered"; },
+                    TimeSpan.FromMilliseconds(200),
+                    fallback: "fallback");
+                watch.Stop();
+
+                Assert(answer == "fallback",
+                    $"a probe that overran its timeout must give the fallback, got '{answer}'");
+                // The caller is the UI thread in the app. 1s is generous slack for
+                // a loaded CI runner and still an order of magnitude under the 3s
+                // probe, so an inline run cannot pass this.
+                Assert(watch.ElapsedMilliseconds < 1000,
+                    $"the caller waited {watch.ElapsedMilliseconds}ms for a 200ms timeout — it ran the probe inline");
+            });
+
+            Run("uia: a probe never runs on the calling thread, and runs STA — issue #672", () =>
+            {
+                var callerId = Environment.CurrentManagedThreadId;
+                var observed = UiaProbeHost.Probe(
+                    "smoke.thread",
+                    () => (Id: Environment.CurrentManagedThreadId,
+                           Apartment: Thread.CurrentThread.GetApartmentState()),
+                    (Id: callerId, Apartment: ApartmentState.Unknown));
+
+                Assert(observed.Id != callerId,
+                    "the probe ran on the caller's thread — on the UI thread that is the freeze in #672");
+                Assert(observed.Apartment == ApartmentState.STA,
+                    $"UIA needs an STA thread, the probe ran on {observed.Apartment}");
+                Assert(UiaProbeHost.StaThreadId == observed.Id,
+                    "the probe did not run on the host's own STA thread");
+            });
+
+            Run("uia: a probe that answers returns its own value — issue #672", () =>
+            {
+                var answer = UiaProbeHost.Probe("smoke.value", () => 42, fallback: -1);
+                Assert(answer == 42, $"a probe that answers must win over the fallback, got {answer}");
+            });
+
+            Run("uia: a probe that throws returns the fallback — issue #672", () =>
+            {
+                var answer = UiaProbeHost.Probe<string>(
+                    "smoke.throw",
+                    () => throw new InvalidOperationException("provider refused"),
+                    fallback: "fallback");
+                Assert(answer == "fallback",
+                    $"a throwing probe must give the fallback, got '{answer}'");
             });
 
             Console.WriteLine(_failures == 0
