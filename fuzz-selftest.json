@@ -24,6 +24,17 @@
       "status": "selftest",
       "issues": [],
       "licensed": false
+    },
+    {
+      "at": "2026-09-16T00:28:03.293Z",
+      "platform": "mac",
+      "commit": null,
+      "routes": [
+        "updates"
+      ],
+      "status": "selftest-2",
+      "issues": [],
+      "licensed": false
     }
   ]
 }
