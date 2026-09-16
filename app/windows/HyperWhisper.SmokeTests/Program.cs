@@ -14367,23 +14367,10 @@ internal static class Program
             // does NOT hold the caller. Put the probe body back on the caller's
             // thread and cases 1 and 2 both fail.
             // ------------------------------------------------------------------
-            Run("uia: a probe that hangs returns the fallback without holding the caller — issue #672", () =>
+            Run("uia: a probe that answers returns its own value — issue #672", () =>
             {
-                var watch = Stopwatch.StartNew();
-                var answer = UiaProbeHost.Probe(
-                    "smoke.hang",
-                    () => { Thread.Sleep(TimeSpan.FromSeconds(3)); return "provider answered"; },
-                    TimeSpan.FromMilliseconds(200),
-                    fallback: "fallback");
-                watch.Stop();
-
-                Assert(answer == "fallback",
-                    $"a probe that overran its timeout must give the fallback, got '{answer}'");
-                // The caller is the UI thread in the app. 1s is generous slack for
-                // a loaded CI runner and still an order of magnitude under the 3s
-                // probe, so an inline run cannot pass this.
-                Assert(watch.ElapsedMilliseconds < 1000,
-                    $"the caller waited {watch.ElapsedMilliseconds}ms for a 200ms timeout — it ran the probe inline");
+                var answer = UiaProbeHost.Probe("smoke.value", () => 42, fallback: -1);
+                Assert(answer == 42, $"a probe that answers must win over the fallback, got {answer}");
             });
 
             Run("uia: a probe never runs on the calling thread, and runs STA — issue #672", () =>
@@ -14403,12 +14390,6 @@ internal static class Program
                     "the probe did not run on the host's own STA thread");
             });
 
-            Run("uia: a probe that answers returns its own value — issue #672", () =>
-            {
-                var answer = UiaProbeHost.Probe("smoke.value", () => 42, fallback: -1);
-                Assert(answer == 42, $"a probe that answers must win over the fallback, got {answer}");
-            });
-
             Run("uia: a probe that throws returns the fallback — issue #672", () =>
             {
                 var answer = UiaProbeHost.Probe<string>(
@@ -14417,6 +14398,48 @@ internal static class Program
                     fallback: "fallback");
                 Assert(answer == "fallback",
                     $"a throwing probe must give the fallback, got '{answer}'");
+            });
+
+            // LAST of the four on purpose. A released probe still occupies the STA
+            // thread until it returns, and a probe queued behind it takes its own
+            // fallback — that IS the documented degradation, so this case holds the
+            // thread and then proves it drains again.
+            Run("uia: a probe that hangs returns the fallback without holding the caller — issue #672", () =>
+            {
+                var release = new ManualResetEventSlim(false);
+                try
+                {
+                    var watch = Stopwatch.StartNew();
+                    var answer = UiaProbeHost.Probe(
+                        "smoke.hang",
+                        () => { release.Wait(TimeSpan.FromSeconds(30)); return "provider answered"; },
+                        TimeSpan.FromMilliseconds(200),
+                        fallback: "fallback");
+                    watch.Stop();
+
+                    Assert(answer == "fallback",
+                        $"a probe that overran its timeout must give the fallback, got '{answer}'");
+                    // The caller is the UI thread in the app. 2s is generous slack
+                    // for a loaded CI runner, and the probe below does not return
+                    // until this thread releases it — so an inline run cannot pass.
+                    Assert(watch.ElapsedMilliseconds < 2000,
+                        $"the caller waited {watch.ElapsedMilliseconds}ms for a 200ms timeout — it ran the probe inline");
+
+                    // Let the hung probe finish, then prove the host still serves.
+                    // This also makes the case safe to reorder and safe to dispose.
+                    release.Set();
+                    var drained = UiaProbeHost.Probe(
+                        "smoke.drain",
+                        () => "drained",
+                        TimeSpan.FromSeconds(10),
+                        fallback: "stuck");
+                    Assert(drained == "drained",
+                        "the STA thread never drained after the hung probe was released");
+                }
+                finally
+                {
+                    release.Dispose();
+                }
             });
 
             Console.WriteLine(_failures == 0
