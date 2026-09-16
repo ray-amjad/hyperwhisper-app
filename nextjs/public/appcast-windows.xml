@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.13.1 -->
+<!-- ================================================================== -->
+
+<!-- 1.13.1 - ARM64 -->
+<item>
+<title>1.13.1 (ARM64)</title>
+<pubDate>Wed, 16 Sep 2026 15:12:17 +0000</pubDate>
+<sparkle:version>1.13.1</sparkle:version>
+<sparkle:shortVersionString>1.13.1</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.13.1-arm64-Setup.exe"
+length="145225416"
+type="application/octet-stream"
+sparkle:edSignature="gIVVuT77bujQdTlCsfO9CLVHVOpEfApW/xdea6tGE2aOuAV5Pshpc8C4xZpfKvb2cSUJVsakp9KCTGtsoiyhDg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.13.1</h2>
+<ul>
+<li>Fixed a freeze where the app and the Ctrl+Alt hotkey stopped responding for several seconds after a few dictations.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.13.1 - x64 -->
+<item>
+<title>1.13.1 (x64)</title>
+<pubDate>Wed, 16 Sep 2026 15:12:17 +0000</pubDate>
+<sparkle:version>1.13.1</sparkle:version>
+<sparkle:shortVersionString>1.13.1</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.13.1-x64-Setup.exe"
+length="188222416"
+type="application/octet-stream"
+sparkle:edSignature="W1Wrxom0LgL1vMjDLRr5sN8tzLblApPT+YU1WLSiqP3uJ7Jrcd17VgyxAyPTEN+CLXVehwXUBxV1wSiHdcxfBg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.13.1</h2>
+<ul>
+<li>Fixed a freeze where the app and the Ctrl+Alt hotkey stopped responding for several seconds after a few dictations.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.13.0 -->
 <!-- ================================================================== -->
 
