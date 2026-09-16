@@ -3680,9 +3680,21 @@ public partial class MainWindow : Window
             // So prove positioning is honoured BEFORE asserting anything that rests on it, with a
             // point no placement rule here would produce. A check that CANNOT run is reported as
             // exactly that: it is not a pass, and it is not a failure of the code under test.
+            //
+            // A window that never stopped moving must NOT reach that conclusion: it reads as "the
+            // position is not what was asked for" and would skip the placement half on a platform
+            // that does honour placement, silently, and only on the loaded runs. A timeout is a
+            // failure of this check, not a property of the compositor.
             var poke = new PixelPoint(work.X + 17, work.Y + 23);
             toast.Position = poke;
-            await ToastSettledAsync(toast);
+            if (!await ToastSettledAsync(toast))
+            {
+                Console.Error.WriteLine($"Smoke: the toast was still moving when the settle budget "
+                    + $"ran out — it is at {toast.Position} having asked for {poke}, which cannot "
+                    + "be told apart from a compositor that places windows itself. Failing rather "
+                    + "than skipping the placement checks on a guess.");
+                return true;
+            }
             var placeable = toast.Position == poke;
             if (!placeable)
             {
@@ -3813,7 +3825,11 @@ public partial class MainWindow : Window
         finally
         {
             try { toast.DismissImmediately(); toast.Close(); } catch { }
-            try { anchor?.Close(); } catch { }
+            // Dispose, not Close. Moving the anchor fires PositionChanged -> SavePosition ->
+            // SaveDebounced, which arms a 350ms timer; only LinuxRecordingOverlayWindow's
+            // IDisposable tears that down, and it Closes the window itself. A bare Close leaves
+            // the timer to flush a placement for a window that is already gone.
+            try { (anchor as IDisposable)?.Dispose(); } catch { }
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
         }
     }
@@ -3902,8 +3918,30 @@ public partial class MainWindow : Window
         }
 
         // VERTICAL. The message wraps, so the remaining question is whether every line it wrapped
-        // onto was drawn. MaxHeight is the cap that decides, and one too small for the message
-        // ellipsizes it — the same clip #669 was, arriving the other way round.
+        // onto was drawn — up to the cap, because unlike the width cap #669 was, the HEIGHT cap is
+        // this fix's own and is deliberate: it is what bounds how far a long failure pushes the
+        // toast up the screen. Asserting past it would make this check report the fix as the bug.
+        // The two are only in agreement today because the probe's sentence happens to fit in the
+        // cap; a longer failure, added guidance, or a locale whose "Open Settings" is wider —
+        // which narrows the star column, so the message wraps onto more lines — would make the
+        // drawn height saturate while the wanted height ran past it, and this would have exited 25
+        // blaming #669 for the bound #669's own fix introduced. A regressed MaxWidth is caught by
+        // the horizontal check above, which is where a width bug belongs.
+        //
+        // The cap is read off the real block, so a MaxHeight arriving by ANY of the four routes is
+        // the one compared against — and is then held to the value this fix ships, because a cap
+        // of 9 would otherwise satisfy the comparison as easily as a cap of 90 while clipping the
+        // message to a sliver. The Overlay suite pins the same 90 in the markup; this catches it
+        // changed from a style Setter or the constructor, which markup cannot see.
+        const double intendedMaxHeight = 90;
+        if (message.MaxHeight != intendedMaxHeight)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the message is capped at "
+                + $"{(double.IsInfinity(message.MaxHeight) ? "nothing" : $"{message.MaxHeight}px")}"
+                + $", not the {intendedMaxHeight}px this fix ships — a smaller cap clips the "
+                + "failure to a sliver, a larger one lets it walk off the top of the screen.");
+            return true;
+        }
         var wrapped = TextProbe(message, message.Bounds.Width);
         var oneLine = TextProbe(message, double.PositiveInfinity).Height;
         if (wrapped.Height <= oneLine + 0.5)
@@ -3913,11 +3951,27 @@ public partial class MainWindow : Window
                 + "check proves nothing.");
             return true;
         }
-        if (message.Bounds.Height + 0.5 < wrapped.Height)
+        // A shortfall against what the text wants is only a DEFECT when the cap was not the thing
+        // that caused it. The test is therefore not "did it draw every line" but "was there room
+        // for one more line and it drew fewer anyway", which is the same question the horizontal
+        // check asks about the column.
+        //
+        // Stated at whole-line granularity because the cap admits whole lines only, and because
+        // the exact pixel is not reconstructible from a probe: measured here, a message wanting
+        // 132px inside the 90px cap draws 88px — six lines of the theme's 14.6311 LineHeight,
+        // ceil'd — so comparing against 90 reports that 2px as the message being cut off, and
+        // comparing against a cap rebuilt from the one-line probe's 15px reports the same, since
+        // a single line is ceil'd to 15 and six are not ceil'd to 90. Asking whether ANOTHER LINE
+        // would have fitted needs neither the ceil nor the exact pitch to be modelled.
+        var linePitch = double.IsNaN(message.LineHeight) || message.LineHeight <= 0.5
+            ? oneLine : message.LineHeight;
+        if (message.Bounds.Height + 0.5 < wrapped.Height
+            && message.Bounds.Height + linePitch <= intendedMaxHeight)
         {
             Console.Error.WriteLine($"Smoke: {label}: the toast drew {message.Bounds.Height:F1}px of "
-                + $"a failure that needs {wrapped.Height:F1}px to be read — the message is being cut "
-                + "off vertically (#669).");
+                + $"a failure that needs {wrapped.Height:F1}px to be read, with room for another "
+                + $"{linePitch:F1}px line inside the {intendedMaxHeight}px cap — the message is "
+                + "being cut off vertically (#669).");
             return true;
         }
         return false;
@@ -3939,8 +3993,12 @@ public partial class MainWindow : Window
     /// size settle, and the slide in runs for 200ms after that — none of which has happened by
     /// the time the dispatcher next goes idle. Polls until the size and the position have both
     /// stopped moving rather than sleeping a fixed amount.
+    ///
+    /// Returns FALSE when the budget ran out with the window still moving, so a caller can tell
+    /// "this is what the platform decided" from "this run never finished". They are not the same
+    /// answer, and the difference is invisible in the reading alone.
     /// </summary>
-    private static async Task ToastSettledAsync(Window window)
+    private static async Task<bool> ToastSettledAsync(Window window)
     {
         var last = (window.Bounds.Height, window.Position.Y);
         var stable = 0;
@@ -3952,6 +4010,7 @@ public partial class MainWindow : Window
             stable = now == last ? stable + 1 : 0;
             last = now;
         }
+        return stable >= 6;
     }
 
     /// <summary>
