@@ -334,6 +334,18 @@ static Task LivePreviewIsEphemeral()
     return Task.CompletedTask;
 }
 
+/// <summary>
+/// The CHEAP half of #669's guard, and deliberately not the whole of it. This suite has no
+/// display, so it can only read the markup; the measured guard — which is what catches a cap
+/// arriving from a style, from a child element, from the constructor, or from the Grid column
+/// beside the message — is ErrorToastLayoutFailureAsync in MainWindow, run by
+/// app/linux/scripts/run-ui-smoke.sh. What this still earns its place for is the mistake that
+/// harness cannot report clearly: the attribute simply being deleted, named here so the failure
+/// says which attribute and what it was set to instead of a pixel measurement.
+///
+/// Every clause is its own assertion, and every one prints the offending value: a MaxHeight of 9
+/// and a MaxHeight of 130 are different mistakes from a MaxHeight that is missing.
+/// </summary>
 static Task ErrorToastMessageIsFullyReadable()
 {
     XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
@@ -350,10 +362,17 @@ static Task ErrorToastMessageIsFullyReadable()
     Assert(message?.Attribute("TextTrimming")?.Value == "CharacterEllipsis",
         "the error toast message lost its ellipsis, so an extreme failure overflows the toast silently");
     var maxHeight = message?.Attribute("MaxHeight")?.Value;
-    Assert(maxHeight is not null && double.TryParse(maxHeight, NumberStyles.Float,
-            CultureInfo.InvariantCulture, out var height) && height > 0 && height <= 130,
-        "the error toast message has no bounded MaxHeight, so a long failure grows the toast off the"
-        + " top of the screen -- PlaceOnScreen has no top clamp");
+    Assert(maxHeight is not null,
+        "the error toast message has no MaxHeight at all, so a runaway provider exception grows the"
+        + " toast without limit instead of ellipsizing its last line");
+    Assert(double.TryParse(maxHeight, NumberStyles.Float, CultureInfo.InvariantCulture,
+            out var height), $"the error toast message's MaxHeight is not a number: \"{maxHeight}\"");
+    // Pinned, not bounded. A range accepts both of this attribute's real failure modes: a typo of
+    // 9 for 90 clips the message to a sliver -- strictly worse than the 200px width cap #669
+    // removed -- and drift upwards breaks the Windows parity this file's header asserts.
+    // app/windows/HyperWhisper/Views/Windows/ErrorToastWindow.xaml ships MaxHeight="90".
+    Assert(height == 90, $"the error toast message caps its height at {height}, not the 90 Windows"
+        + " ships: below that a failure is clipped to a sliver, above it the two heads disagree");
     return Task.CompletedTask;
 }
 

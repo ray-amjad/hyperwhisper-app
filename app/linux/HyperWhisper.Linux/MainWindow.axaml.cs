@@ -3291,6 +3291,14 @@ public partial class MainWindow : Window
             if (_viewModel.History.Items.Count == 0
                 || _viewModel.Vocabulary.Items.Count == 0
                 || _viewModel.Modes.Items.Count == 0) return 6;
+
+            // The error toast is the only surface ~25 failure sites reach, its message is free
+            // text of any length, and both its readability and its placement are MEASURED in the
+            // real window. Run BEFORE the overlay below is ever shown: the fallback branch of the
+            // toast's placement is the one that applies while no overlay is on screen, and the
+            // probe brings its own anchor for the other branch.
+            if (await ErrorToastLayoutFailureAsync()) return 25;
+
             _overlay.RecordingStarted(LinuxOverlayModeLabel.Create("Smoke Mode"));
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Recording, IsVisible: true }) return 13;
@@ -3587,6 +3595,307 @@ public partial class MainWindow : Window
         };
         probe.Measure(Size.Infinity);
         return probe.DesiredSize.Width;
+    }
+
+    /// <summary>
+    /// Issue #669's regression guard, the error-toast sibling of #526's check above. The toast is
+    /// the only surface the app's ~25 failure sites become visible on, and its message was capped
+    /// to 200px: "A HyperWhisper account key is required. Open Settings to…" reached the user as
+    /// "A HyperWhisper account key is r…", which says nothing about what to do.
+    ///
+    /// MEASURED in a REAL LinuxErrorToastWindow, not grepped, for #526's two reasons and for a
+    /// third this bug has of its own: the cap can come back from at least four directions that an
+    /// assertion on the message's XAML attributes cannot see at all — a style Setter, a
+    /// &lt;TextBlock.MaxWidth&gt; child element, a "_message.MaxWidth = 200" in the constructor
+    /// (this window already sets SizeToContent from C#, to dodge the localization regex), and the
+    /// Grid's star column changed to Auto. Every comparison below is against the size the string
+    /// itself wants, so no pixel number is hard-coded and a font change cannot fake it.
+    ///
+    /// It measures the PLACEMENT as well, because the wrapped message is what made the toast's
+    /// height a per-message value: both branches of PlaceOnScreen subtract that height from a
+    /// downward anchor, the window is RE-USED across failures (MainWindow caches one and
+    /// DismissImmediately only hides it), and the overlay it anchors to is draggable to the very
+    /// top of the screen. So the second message must be placed with ITS OWN height, and no
+    /// message may be placed above the top of the work area, where the user would see no error
+    /// feedback at all.
+    ///
+    /// Returns true when the check FAILED, so the caller can bail with a smoke exit code.
+    ///
+    /// The window is built and shown here rather than through MainWindow.ShowErrorToast, which
+    /// early-returns under --smoke-test. Both windows this opens are closed again in the finally,
+    /// and the anchor is a LOCAL overlay with an in-memory placement store: run-ui-smoke.sh runs
+    /// against the developer's own profile, and moving the app's own overlay would persist a new
+    /// position into it.
+    /// </summary>
+    private async Task<bool> ErrorToastLayoutFailureAsync()
+    {
+        // The issue's own string, not lorem: this is the sentence the 200px cap cut to five words.
+        const string failure = "A HyperWhisper account key is required. Open Settings to sign in to "
+            + "HyperWhisper Cloud, or switch this mode to a local model.";
+        // Deliberately one short line, shown FIRST and on the SAME window, so that the measured
+        // message below is the second one a re-used toast has had to size itself for.
+        const string firstFailure = "Microphone unavailable.";
+
+        var toast = new LinuxErrorToastWindow();
+        LinuxRecordingOverlayWindow? anchor = null;
+        try
+        {
+            toast.ShowError(firstFailure);
+            await ToastSettledAsync(toast);
+            var firstHeight = toast.Bounds.Height;
+
+            // BOTH configurations of the row, because the Open Settings button is what makes the
+            // budget tight and the two cases fail differently. Measured: the button takes 82px of
+            // a 334px row, so the message is offered 191px beside it and 273px without it. A
+            // MaxWidth of 200 — the exact cap #669 was — therefore clips NOTHING in the first case
+            // and a third of the sentence in the second. A check that only ever looked at the
+            // button case would pass the bug straight through. The Windows suite loops the
+            // equivalent pair on the status bar, and #526's check above does the same.
+            foreach (var (label, action) in new[]
+                     { ("notice only", LinuxErrorToastAction.None),
+                       ("with Open Settings", LinuxErrorToastAction.ApiKeys) })
+            {
+                toast.DismissImmediately();
+                toast.ShowError(failure, action);
+                await ToastSettledAsync(toast);
+                if (ErrorToastMessageFailure(toast, failure, label, action)) return true;
+            }
+
+            // PLACEMENT, with no overlay on screen yet: the fallback branch, which sits the toast
+            // FallbackBottomMarginDip above the bottom of the work area. Measured against the
+            // height of THIS message, which is what a re-used window gets wrong.
+            if ((toast.Screens.ScreenFromWindow(toast) ?? toast.Screens.Primary) is not { } screen)
+            {
+                Console.Error.WriteLine("Smoke: the toast is on no screen, so its placement cannot "
+                    + "be measured.");
+                return true;
+            }
+            var scale = screen.Scaling <= 0 ? 1 : screen.Scaling;
+            var work = screen.WorkingArea.Width > 0 && screen.WorkingArea.Height > 0
+                ? screen.WorkingArea : screen.Bounds;
+            var height = (int)Math.Round(toast.Bounds.Height * scale);
+            if (toast.Bounds.Height <= firstHeight)
+            {
+                Console.Error.WriteLine($"Smoke: the second failure made the toast "
+                    + $"{toast.Bounds.Height:F1}px against the first one's {firstHeight:F1}px, so a "
+                    + "stale height would be indistinguishable and this check proves nothing.");
+                return true;
+            }
+            var expected = Math.Max(work.Y, work.Bottom - height - (int)Math.Round(80 * scale));
+            if (Math.Abs(toast.Position.Y - expected) > 1)
+            {
+                Console.Error.WriteLine($"Smoke: the toast sits at y={toast.Position.Y} where a "
+                    + $"{height}px toast belongs at y={expected} — it was placed with a height that "
+                    + "is not this message's.");
+                return true;
+            }
+
+            // PLACEMENT against an overlay dragged to the very top of the work area, which the
+            // user can do: the overlay's position is persisted as a ratio clamped to [0,1], so 0
+            // puts it at exactly work.Y. Without a clamp the toast lands entirely off the top of
+            // the screen and the failure is never seen at all.
+            anchor = new LinuxRecordingOverlayWindow(new LinuxRecordingOverlayViewModel(),
+                new InMemoryOverlayPlacementStore());
+            anchor.Show();
+            anchor.Position = new PixelPoint(work.X, work.Y);
+            await ToastSettledAsync(anchor);
+            toast.DismissImmediately();
+            toast.ShowError(failure, LinuxErrorToastAction.ApiKeys);
+            await ToastSettledAsync(toast);
+            height = (int)Math.Round(toast.Bounds.Height * scale);
+            var unclamped = anchor.Position.Y - height - (int)Math.Round(12 * scale);
+            if (anchor.Position.Y != work.Y || unclamped >= work.Y)
+            {
+                Console.Error.WriteLine($"Smoke: the anchor overlay sits at y={anchor.Position.Y} "
+                    + $"against a work area starting at y={work.Y}, so an unclamped toast would "
+                    + $"land at y={unclamped} and still be on screen — this check proves nothing.");
+                return true;
+            }
+            if (toast.Position.Y != work.Y)
+            {
+                Console.Error.WriteLine($"Smoke: with the overlay at the top of the work area the "
+                    + $"toast was placed at y={toast.Position.Y}, not clamped to y={work.Y} — a "
+                    + "failure shown here is off the top of the screen and never seen.");
+                return true;
+            }
+            return false;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Smoke: the error toast check threw: {exception}");
+            return true;
+        }
+        finally
+        {
+            try { toast.DismissImmediately(); toast.Close(); } catch { }
+            try { anchor?.Close(); } catch { }
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
+    /// <summary>
+    /// Measures ONE configuration of the toast's row: is the whole failure on screen, and is it
+    /// using the room the pill gives it? Returns true when the check FAILED.
+    /// </summary>
+    private static bool ErrorToastMessageFailure(Window toast, string failure, string label,
+        LinuxErrorToastAction action)
+    {
+        if (Descendant<TextBlock>(toast, "ToastMessage") is not { } message
+            || Descendant<Border>(toast, "ToastBorder") is not { } border
+            || Descendant<TextBlock>(toast, "ToastCountdown") is not { } countdown
+            || Descendant<Button>(toast, "ToastSettingsButton") is not { } settings
+            || countdown.Parent is not Border pill
+            || message.Parent is not Grid row
+            || Grid.GetColumn(message) >= row.ColumnDefinitions.Count)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the error toast is no longer the icon/message/"
+                + "countdown/button Grid this check knows how to measure.");
+            return true;
+        }
+        // The row is untouched by the fix: the toast must still carry the WHOLE failure, so that a
+        // screen reader and any copy of it are right even where the pill is not.
+        if (message.Text != failure)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the toast bound {message.Text?.Length} "
+                + $"characters of a {failure.Length}-character failure — it is being truncated in "
+                + "data, which is not the fix.");
+            return true;
+        }
+        if (!message.IsEffectivelyVisible
+            || settings.IsEffectivelyVisible != (action != LinuxErrorToastAction.None))
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the message is "
+                + $"{(message.IsEffectivelyVisible ? "visible" : "hidden")} and Open Settings is "
+                + $"{(settings.IsEffectivelyVisible ? "visible" : "hidden")}, so this case is not "
+                + "the configuration it claims to be.");
+            return true;
+        }
+
+        // HORIZONTAL. The star column hands the message every pixel between the warning triangle
+        // and the countdown pill, and the message must take all of them. A MaxWidth — from the
+        // markup, from a style Setter, from a child element or from the constructor — shows up
+        // here and only here, as a message rendered narrower than the column it sits in.
+        var allotted = row.ColumnDefinitions[Grid.GetColumn(message)].ActualWidth;
+        if (message.Bounds.Width + 0.5 < allotted)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the message rendered {message.Bounds.Width:F1}px "
+                + $"inside the {allotted:F1}px column it was given — it is width-capped again, so a "
+                + "failure reaches the user clipped (#669).");
+            return true;
+        }
+        // Prove the case exercises the overflow at all: were the pill ever wide enough for the
+        // whole sentence on one line, everything here would pass while proving nothing. This is
+        // also what catches the star column being changed to Auto, which measures the message
+        // against infinity, so it never wraps and simply runs out of the toast instead.
+        var wanted = TextProbe(message, double.PositiveInfinity).Width;
+        if (message.Bounds.Width <= 0 || wanted <= message.Bounds.Width + 0.5)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the failure wanted {wanted:F0}px on one line "
+                + $"and was given {message.Bounds.Width:F0}px, so it never had to wrap and this "
+                + "check proves nothing.");
+            return true;
+        }
+        // Nothing may be pushed out of the pill by the message beside it.
+        foreach (var (name, control) in new[]
+                 { ("the message", (Control)message), ("the countdown", pill),
+                   ("Open Settings", settings) })
+        {
+            if (!control.IsEffectivelyVisible) continue;
+            if (control.TranslatePoint(new Point(control.Bounds.Width, control.Bounds.Height), border)
+                is not { } corner)
+            {
+                Console.Error.WriteLine($"Smoke: {label}: {name} is not inside the toast border.");
+                return true;
+            }
+            if (corner.X > border.Bounds.Width + 0.5 || corner.Y > border.Bounds.Height + 0.5)
+            {
+                Console.Error.WriteLine($"Smoke: {label}: {name} ends at {corner.X:F1},{corner.Y:F1} "
+                    + $"in a {border.Bounds.Width:F1}x{border.Bounds.Height:F1} toast — it runs past "
+                    + "the edge of the pill and is cut off there.");
+                return true;
+            }
+        }
+
+        // VERTICAL. The message wraps, so the remaining question is whether every line it wrapped
+        // onto was drawn. MaxHeight is the cap that decides, and one too small for the message
+        // ellipsizes it — the same clip #669 was, arriving the other way round.
+        var wrapped = TextProbe(message, message.Bounds.Width);
+        var oneLine = TextProbe(message, double.PositiveInfinity).Height;
+        if (wrapped.Height <= oneLine + 0.5)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the failure occupies {wrapped.Height:F1}px "
+                + $"against a {oneLine:F1}px line, so it never wrapped onto a second line and this "
+                + "check proves nothing.");
+            return true;
+        }
+        if (message.Bounds.Height + 0.5 < wrapped.Height)
+        {
+            Console.Error.WriteLine($"Smoke: {label}: the toast drew {message.Bounds.Height:F1}px of "
+                + $"a failure that needs {wrapped.Height:F1}px to be read — the message is being cut "
+                + "off vertically (#669).");
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>Nothing is written anywhere, so the probe above leaves no placement behind.</summary>
+    private sealed class InMemoryOverlayPlacementStore : ILinuxOverlayPlacementStore
+    {
+        private LinuxOverlayPlacement? _placement;
+        public LinuxOverlayPlacement? Load() => _placement;
+        public void Save(LinuxOverlayPlacement placement) => _placement = placement;
+    }
+
+    private static T? Descendant<T>(Visual root, string name) where T : Control
+        => root.GetLogicalDescendants().OfType<T>().FirstOrDefault(control => control.Name == name);
+
+    /// <summary>
+    /// Waits for the platform to answer. The toast is SizeToContent, its placement follows the
+    /// size settle, and the slide in runs for 200ms after that — none of which has happened by
+    /// the time the dispatcher next goes idle. Polls until the size and the position have both
+    /// stopped moving rather than sleeping a fixed amount.
+    /// </summary>
+    private static async Task ToastSettledAsync(Window window)
+    {
+        var last = (window.Bounds.Height, window.Position.Y);
+        var stable = 0;
+        for (var attempt = 0; attempt < 150 && stable < 6; attempt++)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            await Task.Delay(10);
+            var now = (window.Bounds.Height, window.Position.Y);
+            stable = now == last ? stable + 1 : 0;
+            last = now;
+        }
+    }
+
+    /// <summary>
+    /// The size this TextBlock's own text wants at a given width, measured through a copy that
+    /// carries every property the layout of the text depends on — including LineHeight, which the
+    /// app's theme sets on every TextBlock and a bare copy would therefore measure short.
+    /// Comparing that against the arranged size is how the check above tells "it fits" from "it
+    /// was cut", with no hard-coded pixel number for a font change to invalidate.
+    /// </summary>
+    private static Size TextProbe(TextBlock block, double width)
+    {
+        var probe = new TextBlock
+        {
+            Text = block.Text,
+            FontFamily = block.FontFamily,
+            FontSize = block.FontSize,
+            FontWeight = block.FontWeight,
+            FontStyle = block.FontStyle,
+            FontStretch = block.FontStretch,
+            LineHeight = block.LineHeight,
+            LetterSpacing = block.LetterSpacing,
+            TextAlignment = block.TextAlignment,
+            // The measurement is of the text the fix asks for: wrapped, and never trimmed or
+            // capped, so that a MaxHeight or a TextTrimming on the real block shows up as a
+            // shortfall against this rather than being reproduced by it.
+            TextWrapping = double.IsInfinity(width) ? TextWrapping.NoWrap : TextWrapping.Wrap,
+        };
+        probe.Measure(new Size(width, double.PositiveInfinity));
+        return probe.DesiredSize;
     }
 
     /// <summary>
