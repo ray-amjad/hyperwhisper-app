@@ -1964,8 +1964,11 @@ public partial class MainWindow : Window
     /// text also disables the spinner buttons (ButtonSpinner.SetButtonUsage). Measured on a real
     /// screen at e137b474: typing 70000 and clicking the up arrow left the field reading "7000"
     /// over a server still bound to 51671, committed nowhere. This is the last moment the user's
-    /// own number exists. The raw entry is still kept as well, for the spin paths that are NOT
-    /// gated by those buttons — the mouse wheel and the Up/Down keys both reach OnSpin directly.
+    /// own number exists. The raw entry is kept as well, for a spin that does NOT come through
+    /// those buttons: ButtonSpinner also raises OnSpin straight from the mouse wheel, ungated by
+    /// ValidSpinDirection. Measured on this window, the wheel never gets that far today, because
+    /// ComboWheelGuard suppresses it over a NumericUpDown — so the disabled button is the live
+    /// route and the held entry is what keeps the other one shut.
     /// </summary>
     private void OnLocalApiPortBoxLostFocus(object? sender, RoutedEventArgs e)
     {
@@ -2008,10 +2011,11 @@ public partial class MainWindow : Window
     /// committing Value here bound the prefix the issue reported. Whatever the user typed wins
     /// whenever it is still pending.
     ///
-    /// Reading the box at this point is not enough on its own. When the click moved focus out of
-    /// the box first, NumericUpDown.OnLostFocus has already rewritten it from Value; when it did
-    /// not (the wheel, a click that leaves focus where it is), the box still holds the raw entry
-    /// and nothing captured it. So both are tried, in that order.
+    /// Reading the box at this point is not enough on its own. When the spin came after a focus
+    /// move, NumericUpDown.OnLostFocus has already rewritten the box from Value; when it came
+    /// without one — the wheel, or any caller that raises the spin directly, neither of which the
+    /// disabled buttons gate — the box still holds the raw entry and nothing captured it. So both
+    /// are tried, in that order.
     /// </summary>
     private void OnLocalApiPortSpinned(object? sender, SpinEventArgs e)
     {
@@ -4439,10 +4443,11 @@ public partial class MainWindow : Window
             //     alive through the one path the text handlers cannot see, and it is why the spin
             //     commits what was TYPED rather than Value: NumericUpDown swallows "70000"
             //     (ConvertTextToValue throws through ValidateMinMax into a catch), leaves Value on
-            //     the last in-range prefix 7000 and sets ValidSpinDirection to None so the click
-            //     cannot even move it, and a spin then committed 7000 — the exact port the issue
-            //     reported binding — while Enter and blur on the same text clamped to 65535.
-            //     Driven with focus still in the box, which is where a real click leaves it.
+            //     the last in-range prefix 7000, and a spin then committed 7000 — the exact port
+            //     the issue reported binding — while Enter and blur on the same text clamped to
+            //     65535. Raised on the spinner, which is the entry point the DISABLED buttons do
+            //     not gate: ButtonSpinner.OnPointerWheelChanged reaches it straight from the mouse
+            //     wheel. Step 12 drives the button click, which is gated and fails differently.
             box.Focus();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             await TypePortAsync(box, "7", "70", "700", "7000", "70000");
