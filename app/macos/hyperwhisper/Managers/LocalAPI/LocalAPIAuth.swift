@@ -49,14 +49,25 @@ enum LocalAPIAuth {
     /// indefinitely behind the consent panel macOS raises when the item's ACL
     /// does not match the running binary's signature; on the main actor that
     /// froze app bootstrap before `setupGlobalHotkeys()` (issue #655).
-    nonisolated static func loadOrCreateTokenOffMainActor() async -> String {
-        await Task.detached(priority: .userInitiated) { loadOrCreateToken() }.value
+    ///
+    /// `offMainActor` is the shared helper, and its doc asks to be used rather
+    /// than re-derived — this is the call site it was written for. No
+    /// `nonisolated`: the helper's doc is explicit that the decoration removes
+    /// the actor hop and not the thread hop, so on a blocking call it reads as
+    /// the fix while doing nothing, and nothing else in this enum carries it.
+    /// `Task.detached` inside the helper is what leaves the main thread.
+    ///
+    /// The helper offers no serialization, deliberately. `LocalAPIServer` owns
+    /// that, because these two entry points are read-modify-write sequences
+    /// over one Keychain item — see its `tokenWork` chain.
+    static func loadOrCreateTokenOffMainActor() async -> String {
+        await offMainActor { loadOrCreateToken() }
     }
 
     /// `regenerateToken()` off the main actor, for the same reason: it is a
     /// Keychain delete followed by the same read.
-    nonisolated static func regenerateTokenOffMainActor() async -> String {
-        await Task.detached(priority: .userInitiated) { regenerateToken() }.value
+    static func regenerateTokenOffMainActor() async -> String {
+        await offMainActor { regenerateToken() }
     }
 
     /// Remove the stored token entirely — used by tests / a future
