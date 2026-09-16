@@ -69,6 +69,23 @@
       ],
       "licensed": false,
       "note": "Rotation reached win at last. Codex named 6 defects; 2 were real and both already had OPEN issues (637, 638), so the round commented instead of filing. 1 was FALSE — the History search box \"clearing\" is the RDP split-step reset, disproved by re-driving the type and the filter click in one session. The other 3 were the same Getting Started toggle as 638. The fuzz-coverage CLI does not exist in the sandbox image; this entry was appended through the GitHub API by hand."
+    },
+    {
+      "at": "2026-09-16T03:48:03Z",
+      "platform": "mac",
+      "commit": "4afafa7",
+      "routes": [
+        "updates",
+        "local-api",
+        "streaming"
+      ],
+      "status": "1-filed-1-commented",
+      "issues": [
+        662,
+        641
+      ],
+      "licensed": false,
+      "note": "Ran UNLICENSED (no HYPERWHISPER_ACCOUNT_KEY): on-device Whisper Base, real transcription confirmed. updates + streaming clean. local-api reproduced #641 on 2.48.0 with a ONE-click minimal trigger. Filed #662 (cosmetic onboarding focus ring). fuzz-drive still needs 'cp ~/bin/gui ~/bin/gui.mjs' before the first call or step 0 dies with MODULE_NOT_FOUND. Telling Codex in --goal that pickers and menu bars never open over VNC removed the 4 false mac defects of 2026-09-15."
     }
   ]
 }
