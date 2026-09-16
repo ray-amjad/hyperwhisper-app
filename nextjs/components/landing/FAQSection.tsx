@@ -93,7 +93,10 @@ export default function FAQSection() {
           {faqKeys.map((key, index) => (
             <div key={key} className="border-b border-gray-800 last:border-b-0">
               <button
+                aria-controls={`faq-panel-${key}`}
+                aria-expanded={openIndex === index}
                 className="w-full px-6 py-4 text-left hover:bg-gray-800/50 transition-colors flex items-center justify-between"
+                id={`faq-trigger-${key}`}
                 onClick={() => toggleFAQ(index)}
               >
                 <span className="text-gray-200 font-medium">
@@ -106,7 +109,11 @@ export default function FAQSection() {
                 />
               </button>
               <div
+                aria-labelledby={`faq-trigger-${key}`}
                 className="grid transition-[grid-template-rows] duration-300 ease-out"
+                id={`faq-panel-${key}`}
+                inert={openIndex !== index}
+                role="region"
                 style={{
                   gridTemplateRows: openIndex === index ? "1fr" : "0fr",
                 }}
