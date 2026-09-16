@@ -264,34 +264,71 @@ static void SettingsPagesMatchWindowsSurface()
 
 /// <summary>
 /// The cheap half of #692's guard. The real one is the smoke probe, which TYPES into the field in a
-/// real window (MainWindow.axaml.cs, exit code 26); this one costs nothing, runs in CI without an X
-/// server, and names the attribute that went missing rather than the number that came out wrong.
-/// Parsed as XML, not grepped: the three clauses live on one element, and a grep for
-/// "ClipValueToMinMax" would be satisfied by the attribute sitting on any other control on the page.
+/// real window (MainWindow.axaml.cs, exit codes 26 and 27); this one costs nothing, runs in CI
+/// without an X server, and names the piece of wiring that went missing rather than the number that
+/// came out wrong.
+///
+/// Parsed as XML, not grepped: the clauses live on one element, and a grep for "Mode=OneWay" would
+/// be satisfied by the attribute sitting on any other control on the page. Numbers are compared as
+/// numbers and the binding is matched with a pattern, so an equivalent spelling — "65535.0",
+/// "Mode = OneWay" — is not a failure on a field that behaves exactly as intended.
 /// </summary>
 static void LocalApiPortCommitsOnceAndClamps()
 {
-    var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory,
-        "LocalizationSurface", "MainWindow.axaml"));
+    var surface = Path.Combine(AppContext.BaseDirectory, "LocalizationSurface");
+    var document = XDocument.Load(Path.Combine(surface, "MainWindow.axaml"));
     XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
     var port = document.Descendants().FirstOrDefault(element =>
         element.Name.LocalName == "NumericUpDown"
         && (string?)element.Attribute(xaml + "Name") == "SettingsLocalApiPort");
     True(port is not null, "the Local API preferred port is no longer a named NumericUpDown");
 
-    // The bounds are the clamp. Raising Maximum to let the view model's own Math.Clamp do the work
-    // reintroduces the bug: ViewModelBase.Set raises no PropertyChanged when the clamp lands on the
-    // value already stored, so the field would again disagree with the port the server bound.
-    Equal("0", (string?)port!.Attribute("Minimum"), "preferred port Minimum");
-    Equal("65535", (string?)port.Attribute("Maximum"), "preferred port Maximum");
-    // False — the default — makes NumericUpDown throw ValidateMinMax on an out-of-range parse and
-    // swallow it, leaving Value on the last good prefix: 70000 became 7000, silently.
-    Equal("True", (string?)port.Attribute("ClipValueToMinMax"), "preferred port ClipValueToMinMax");
-    // Without this the source commits on every keystroke, and the source is what the Local API
-    // restart chain listens to, so a five-digit port restarted the server four times.
-    Contains("UpdateSourceTrigger=LostFocus", (string?)port.Attribute("Value") ?? "",
-        "preferred port Value binding");
+    // The bounds the spinner counts inside. Do not raise Maximum to let the view model's own
+    // Math.Clamp do the work: ViewModelBase.Set raises no PropertyChanged when the clamp lands on
+    // the value already stored, so nothing would come back down a OneWay binding and the field
+    // would again disagree with the port the server bound.
+    True(ParsedAttribute(port!, "Minimum") == 0m, "the preferred port's Minimum is no longer 0");
+    True(ParsedAttribute(port!, "Maximum") == 65535m, "the preferred port's Maximum is no longer 65535");
+
+    // OneWay is the fix. A two-way binding writes Settings.LocalApiPort while the digits are still
+    // going in, and that property is what the Local API restart chain listens to, so a partial
+    // number could be bound and written into local-api.json. The path is asserted too: a binding
+    // retargeted at another property with the same mode is not this field.
+    var value = (string?)port!.Attribute("Value") ?? string.Empty;
+    Contains("Settings.LocalApiPort", value, "the preferred port's Value binding path");
+    True(Regex.IsMatch(value, @"Mode\s*=\s*OneWay"),
+        $"the preferred port's Value binding is no longer OneWay, so it commits while typing: '{value}'");
+
+    // ClipValueToMinMax must stay OFF. It clamps at BOTH ends, so "-1" became a committed port 0 —
+    // and 0 is not a refused port, it makes the Local API bind a random one on every launch.
+    // CommitLocalApiPort clamps the high end and refuses the low end instead.
+    True(port.Attribute("ClipValueToMinMax") is null,
+        "ClipValueToMinMax is back on the preferred port: it turns a negative entry into port 0");
+
+    // Every way of finishing an edit has to be wired, because no binding trigger reaches them.
+    Equal("OnLocalApiPortTemplateApplied", (string?)port.Attribute("TemplateApplied"),
+        "the preferred port's Enter/blur wiring (TemplateApplied)");
+    Equal("OnLocalApiPortLostFocus", (string?)port.Attribute("LostFocus"),
+        "the preferred port's commit when focus leaves from the spinner (LostFocus)");
+    Equal("OnLocalApiPortSpinned", (string?)port.Attribute("Spinned"),
+        "the preferred port's commit on a spin (Spinned)");
+
+    // ...and the fourth way is code, not markup: a port typed and left focused dies with the
+    // window unless OnClosing commits it while the settings store is still usable.
+    var code = File.ReadAllText(Path.Combine(surface, "MainWindow.axaml.cs"));
+    var closing = Regex.Match(code, @"private async void OnClosing\(.*?_lifetime\.Cancel\(\);",
+        RegexOptions.Singleline);
+    True(closing.Success, "OnClosing no longer cancels the lifetime, so the close-path guard cannot be placed");
+    Contains("CommitPendingSettingsEdits();", closing.Value,
+        "OnClosing must commit a still-focused settings edit before it cancels the lifetime");
+    Contains("OnLocalApiPortBoxKeyDown", code,
+        "the preferred port no longer commits on Enter");
 }
+
+/// <summary>A XAML numeric attribute read as a number, so an equivalent spelling still passes.</summary>
+static decimal? ParsedAttribute(XElement element, string name)
+    => decimal.TryParse((string?)element.Attribute(name), System.Globalization.NumberStyles.Number,
+        System.Globalization.CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
 
 static void TrayLabelsAreCatalogued()
 {
