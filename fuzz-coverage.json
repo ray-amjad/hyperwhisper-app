@@ -154,6 +154,23 @@
       ],
       "licensed": false,
       "note": "unlicensed round: HYPERWHISPER_ACCOUNT_KEY is not in this box, so Cloud transcription was not walked; the mode was pointed at local whisper base.en. onboarding and streaming found nothing. local-api: preferred port commits per keystroke and drops an out-of-range value (#692). Codex also claimed the cURL snippet omits .json — FALSE, the string is right and the box clips it (#693). On this Linux image the app must run as user hw and /root needs chmod 755, or the exe is Permission denied."
+    },
+    {
+      "at": "2026-09-16T22:03:28Z",
+      "platform": "win",
+      "commit": "602deebc",
+      "routes": [
+        "core-settings",
+        "licence",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        704,
+        649
+      ],
+      "licensed": false,
+      "note": "Ran UNLICENSED: no HYPERWHISPER_ACCOUNT_KEY in the sandbox, so no Cloud transcription was tried. Codex named 4 defects and 3 died on a hand check: each fuzz-drive STEP is its own RDP connection, and a reconnect sends Settings back to General, so 'the control did nothing' and 'Tab jumped to General' were artifacts. Re-drive every suspect click in ONE gui drive script. The tray needs a RIGHT click for its menu and gui has no rclick verb, so the tray menu was never opened; tray single click is inert BY DESIGN (MainWindow.xaml.cs:696 binds DoubleClick only) and double click does restore the window. Filed #704 from a hand check plus the app log, not from a Codex step."
     }
   ]
 }
