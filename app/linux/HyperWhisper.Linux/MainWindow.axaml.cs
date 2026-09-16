@@ -3640,9 +3640,10 @@ public partial class MainWindow : Window
         LinuxRecordingOverlayWindow? anchor = null;
         try
         {
+            // Shown first and never measured, so that every check below runs against a RE-USED
+            // window — which is the only kind this app ever has.
             toast.ShowError(firstFailure);
             await ToastSettledAsync(toast);
-            var firstHeight = toast.Bounds.Height;
 
             // BOTH configurations of the row, because the Open Settings button is what makes the
             // budget tight and the two cases fail differently. Measured: the button takes 82px of
@@ -3673,12 +3674,49 @@ public partial class MainWindow : Window
             var scale = screen.Scaling <= 0 ? 1 : screen.Scaling;
             var work = screen.WorkingArea.Width > 0 && screen.WorkingArea.Height > 0
                 ? screen.WorkingArea : screen.Bounds;
-            var height = (int)Math.Round(toast.Bounds.Height * scale);
-            if (toast.Bounds.Height <= firstHeight)
+
+            // Can a window be placed on this platform AT ALL? Under Weston — the compositor
+            // run-ui-smoke-xwayland.sh runs, and the second of the two legs CI runs — the
+            // compositor places X11 toplevels itself and discards the client's request: it centres
+            // this toast on the output, 205px from where it asked to be. Wayland gives a client no
+            // say over its own toplevel's position, so that is a platform fact and not something
+            // the toast can fix or work around.
+            //
+            // So prove positioning is honoured BEFORE asserting anything that rests on it, with a
+            // point no placement rule here would produce. A check that CANNOT run is reported as
+            // exactly that: it is not a pass, and it is not a failure of the code under test.
+            var poke = new PixelPoint(work.X + 17, work.Y + 23);
+            toast.Position = poke;
+            await ToastSettledAsync(toast);
+            var placeable = toast.Position == poke;
+            if (!placeable)
             {
-                Console.Error.WriteLine($"Smoke: the second failure made the toast "
-                    + $"{toast.Bounds.Height:F1}px against the first one's {firstHeight:F1}px, so a "
-                    + "stale height would be indistinguishable and this check proves nothing.");
+                Console.Error.WriteLine($"Smoke: this compositor put the toast at {toast.Position} "
+                    + $"when it asked for {poke}, so it places windows itself and the toast's "
+                    + "placement is not the app's to measure here. The readability checks above "
+                    + "ran; the placement checks are skipped.");
+                return false;
+            }
+
+            // The stale-height case, set up in the order that produces it and measured at the one
+            // moment it is visible: settle the window on a ONE-LINE failure, then hand it the long
+            // one. The height it is placed with must be the height it has now, not the height it
+            // had a moment ago. Anything that re-shows the long message first — including the poke
+            // above — sizes the window for it in advance and quietly stops testing this at all.
+            toast.DismissImmediately();
+            toast.ShowError(firstFailure);
+            await ToastSettledAsync(toast);
+            var shortHeight = toast.Bounds.Height;
+            toast.DismissImmediately();
+            toast.ShowError(failure, LinuxErrorToastAction.ApiKeys);
+            await ToastSettledAsync(toast);
+
+            var height = (int)Math.Round(toast.Bounds.Height * scale);
+            if (toast.Bounds.Height <= shortHeight)
+            {
+                Console.Error.WriteLine($"Smoke: the long failure made the toast "
+                    + $"{toast.Bounds.Height:F1}px against the one-line failure's {shortHeight:F1}px, "
+                    + "so a stale height would be indistinguishable and this check proves nothing.");
                 return true;
             }
             var expected = Math.Max(work.Y, work.Bottom - height - (int)Math.Round(80 * scale));
