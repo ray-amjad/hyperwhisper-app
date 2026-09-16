@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -1873,6 +1874,25 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// The one case ClipValueToMinMax cannot cover (#692): an EMPTY box. NumericUpDown maps empty
+    /// text to a null Value, and a null cannot be written into the int behind it, so the field
+    /// would sit blank against a port the server is still using. Windows' DaysOld_LostFocus
+    /// restores the stored figure the same way (StorageSettingsPage.xaml.cs:146-162), and
+    /// OnAutoDeleteDaysLostFocus above is this head's copy of it.
+    ///
+    /// Null-only on purpose. The Value binding commits on LostFocus too, and the order of the two
+    /// handlers on the same element is not specified: writing only when the control has NO value
+    /// makes both orders converge. Unconditional within that branch, because ViewModelBase.Set
+    /// raises nothing when the value it is given is the one already stored, so a round trip
+    /// through the view model would leave the box blank.
+    /// </summary>
+    private void OnLocalApiPortLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is NumericUpDown port && port.Value is null)
+            port.Value = _viewModel.Settings.LocalApiPort;
+    }
+
     private void OnOpenLocalApiDocs(object? sender, RoutedEventArgs e)
         => OpenSafeUri(new Uri("https://hyperwhisper.com/docs/api-reference/local-api/overview"));
 
@@ -3279,6 +3299,12 @@ public partial class MainWindow : Window
                     }
             }
 
+            // The preferred port is the one field on this head whose value leaves the process: it
+            // is what the Local API server binds and what local-api.json advertises to every MCP
+            // client. #692 had it committing per keystroke and swallowing an out-of-range entry,
+            // so the field and the running server disagreed with nothing on screen to say so.
+            // Typed into the REAL control, for the reasons in the probe's own summary.
+            if (await LocalApiPortCommitFailureAsync()) return 26;
 
             _viewModel.Navigate("account");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
@@ -3831,6 +3857,189 @@ public partial class MainWindow : Window
             // IDisposable tears that down, and it Closes the window itself. A bare Close leaves
             // the timer to flush a placement for a window that is already gone.
             try { (anchor as IDisposable)?.Dispose(); } catch { }
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+    }
+
+    /// <summary>
+    /// Types a five-digit, out-of-range port into the REAL Settings -> Local API field and asks the
+    /// two questions #692 answered wrongly: how many times did the source change while the digits
+    /// were going in, and what does the field hold once the edit is committed?
+    ///
+    /// Driven through the templated TextBox and a REAL focus move, not by assigning Value: the
+    /// whole fault lives in NumericUpDown's own text path — ConvertTextToValue clamps only when
+    /// ClipValueToMinMax is set and otherwise throws through ValidateMinMax into a swallowing
+    /// catch — and a direct Value assignment never reaches it. Counting SOURCE property changes
+    /// rather than server restarts keeps the check off the wall clock: the restart chain hangs off
+    /// Settings.LocalApiPort through a 500ms auto-save timer, so the property is the cause and the
+    /// restart is only its consequence.
+    ///
+    /// The starting port is set explicitly. On a profile that already stored 65535 every write
+    /// below would land on the value already held, ViewModelBase.Set would raise nothing, and a
+    /// counter-based check would pass without the fix.
+    ///
+    /// The server is NOT enabled here. LocalApiTabsRoot is shown directly for the duration — an
+    /// invisible control cannot take focus — and the local value is cleared afterwards, which
+    /// leaves its IsVisible binding to Settings.LocalApiEnabled in charge. Enabling the setting
+    /// instead would bind a real socket and rewrite local-api.json in the developer's own profile.
+    ///
+    /// Returns true when the check FAILED, so the caller can bail with a smoke exit code.
+    /// </summary>
+    private async Task<bool> LocalApiPortCommitFailureAsync()
+    {
+        _viewModel.Navigate("localapi");
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+        if (FindNamed<NumericUpDown>("SettingsLocalApiPort") is not { } port
+            || FindNamed<StackPanel>("LocalApiTabsRoot") is not { } tabs
+            || FindNamed<CheckBox>("SettingsLocalApiEnabled") is not { } elsewhere)
+        {
+            Console.Error.WriteLine("Smoke: the Local API preferred-port row is not on the page, so "
+                + "the port commit cannot be measured.");
+            return true;
+        }
+
+        const int start = 51671;
+        var settings = _viewModel.Settings;
+        var original = settings.LocalApiPort;
+        var commits = 0;
+        void CountCommit(object? sender, PropertyChangedEventArgs e)
+        {
+            if (string.Equals(e.PropertyName, nameof(SettingsViewModel.LocalApiPort), StringComparison.Ordinal))
+                commits++;
+        }
+
+        try
+        {
+            tabs.IsVisible = true;
+            settings.LocalApiPort = start;
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            port.ApplyTemplate();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (port.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is not { } box)
+            {
+                Console.Error.WriteLine("Smoke: the preferred-port field has no templated text box, "
+                    + "so nothing can be typed into it.");
+                return true;
+            }
+            box.Focus();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!box.IsFocused)
+            {
+                Console.Error.WriteLine("Smoke: the preferred-port field would not take focus, so a "
+                    + "commit-on-blur check cannot run — reporting that rather than passing on a guess.");
+                return true;
+            }
+
+            // The issue's own walk: Ctrl+A then 70000, one digit at a time, with a render tick
+            // between the digits so every partial number gets the chance to commit that it had.
+            settings.PropertyChanged += CountCommit;
+            foreach (var typed in new[] { "7", "70", "700", "7000", "70000" })
+            {
+                box.Text = typed;
+                box.CaretIndex = typed.Length;
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            }
+            if (commits != 0)
+            {
+                Console.Error.WriteLine($"Smoke: typing 70000 into the preferred port moved "
+                    + $"Settings.LocalApiPort {commits} time(s) before the edit was committed — it is "
+                    + $"now {settings.LocalApiPort}, and each move restarts the Local API server on a "
+                    + "partial number and rewrites local-api.json with a port that is already dead.");
+                return true;
+            }
+
+            elsewhere.Focus();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (settings.LocalApiPort != 65535 || port.Value != 65535m || box.Text != "65535")
+            {
+                Console.Error.WriteLine($"Smoke: 70000 was committed as port {settings.LocalApiPort} "
+                    + $"with the field reading '{box.Text}' (Value={port.Value}) — expected 65535 "
+                    + "everywhere. The field and the running server disagree, which is the silent "
+                    + "truncation #692 reported.");
+                return true;
+            }
+            if (commits != 1)
+            {
+                Console.Error.WriteLine($"Smoke: committing 70000 moved Settings.LocalApiPort "
+                    + $"{commits} time(s), not once.");
+                return true;
+            }
+
+            // Again, now that the stored port IS the ceiling. This is the case that decides WHERE
+            // the clamp lives, and the only one that tells the two candidate fixes apart. Leaning
+            // on SettingsViewModel.LocalApiPort's own Math.Clamp instead — by raising Maximum above
+            // 65535 and letting 70000 reach the setter — looks identical above, because the clamped
+            // source is pushed back down the two-way binding. It is not identical here: the setter
+            // clamps 70000 to the 65535 already stored, ViewModelBase.Set raises no PropertyChanged
+            // for a value that did not move, nothing is pushed back, and the field is left reading
+            // 70000 over a server bound to 65535 — #692 exactly, in a narrower window.
+            foreach (var typed in new[] { "7", "70", "700", "7000", "70000" })
+            {
+                box.Text = typed;
+                box.CaretIndex = typed.Length;
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            }
+            box.Focus();
+            elsewhere.Focus();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (port.Value != 65535m || box.Text != "65535" || settings.LocalApiPort != 65535)
+            {
+                Console.Error.WriteLine($"Smoke: retyping 70000 over a stored port of 65535 left the "
+                    + $"field reading '{box.Text}' (Value={port.Value}) against a stored port of "
+                    + $"{settings.LocalApiPort} — the out-of-range entry is only being caught after "
+                    + "the field, so a clamp that changes nothing puts nothing back on screen.");
+                return true;
+            }
+            if (commits != 1)
+            {
+                Console.Error.WriteLine($"Smoke: retyping 70000 over a stored port of 65535 moved "
+                    + $"Settings.LocalApiPort again — {commits} change(s) in all, not the one edit "
+                    + "that actually changed the port.");
+                return true;
+            }
+
+            // Clearing the box makes NumericUpDown's Value null, which no int source can take.
+            // Without OnLocalApiPortLostFocus the field is left blank over a port that is still
+            // in use, which is the same divergence with the sides swapped.
+            box.Text = string.Empty;
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            box.Focus();
+            elsewhere.Focus();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (port.Value != 65535m || box.Text != "65535" || settings.LocalApiPort != 65535)
+            {
+                Console.Error.WriteLine($"Smoke: emptying the preferred port left the field reading "
+                    + $"'{box.Text}' (Value={port.Value}) against a stored port of "
+                    + $"{settings.LocalApiPort} — expected the stored 65535 back in the box.");
+                return true;
+            }
+
+            // ...and the restored figure must still be BOUND, not a local value that replaced the
+            // binding: a later edit has to reach the view model.
+            settings.LocalApiPort = start;
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (port.Value != start)
+            {
+                Console.Error.WriteLine($"Smoke: after the empty edit the preferred-port field reads "
+                    + $"{port.Value} while the view model holds {settings.LocalApiPort} — the "
+                    + "write-back replaced the binding instead of going through it.");
+                return true;
+            }
+            return false;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Smoke: the Local API port commit check threw: {exception}");
+            return true;
+        }
+        finally
+        {
+            settings.PropertyChanged -= CountCommit;
+            settings.LocalApiPort = original;
+            tabs.ClearValue(Visual.IsVisibleProperty);
+            // The port writes above armed the 500ms settings auto-save; the smoke run saves once at
+            // the end and nothing here should reach the Local API restart chain on a timer.
+            _settingsAutoSave?.Stop();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
         }
     }

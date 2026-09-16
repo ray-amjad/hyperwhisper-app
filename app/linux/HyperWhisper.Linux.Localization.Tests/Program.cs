@@ -4,6 +4,7 @@ using Avalonia.Media;
 using HyperWhisper.Localization;
 using HyperWhisper.Linux.Localization;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -21,6 +22,7 @@ var tests = new (string Name, Action Run)[]
     ("production XAML contains no localizable literals", ProductionXamlHasNoLocalizableLiterals),
     ("production code uses catalogued user feedback", ProductionCodeUsesCataloguedFeedback),
     ("settings pages carry no Windows-only control or copy", SettingsPagesMatchWindowsSurface),
+    ("the Local API preferred port commits once and clamps", LocalApiPortCommitsOnceAndClamps),
     ("tray labels are catalogued with RTL metadata", TrayLabelsAreCatalogued),
     ("startup culture selection is bounded", StartupCultureSelectionIsBounded),
 };
@@ -258,6 +260,37 @@ static void SettingsPagesMatchWindowsSurface()
     Contains("clipboard history", subtitle, "clipboard subtitle");
     True(!subtitle.Contains("Windows", StringComparison.OrdinalIgnoreCase),
         "the Linux clipboard subtitle still names Windows");
+}
+
+/// <summary>
+/// The cheap half of #692's guard. The real one is the smoke probe, which TYPES into the field in a
+/// real window (MainWindow.axaml.cs, exit code 26); this one costs nothing, runs in CI without an X
+/// server, and names the attribute that went missing rather than the number that came out wrong.
+/// Parsed as XML, not grepped: the three clauses live on one element, and a grep for
+/// "ClipValueToMinMax" would be satisfied by the attribute sitting on any other control on the page.
+/// </summary>
+static void LocalApiPortCommitsOnceAndClamps()
+{
+    var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory,
+        "LocalizationSurface", "MainWindow.axaml"));
+    XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+    var port = document.Descendants().FirstOrDefault(element =>
+        element.Name.LocalName == "NumericUpDown"
+        && (string?)element.Attribute(xaml + "Name") == "SettingsLocalApiPort");
+    True(port is not null, "the Local API preferred port is no longer a named NumericUpDown");
+
+    // The bounds are the clamp. Raising Maximum to let the view model's own Math.Clamp do the work
+    // reintroduces the bug: ViewModelBase.Set raises no PropertyChanged when the clamp lands on the
+    // value already stored, so the field would again disagree with the port the server bound.
+    Equal("0", (string?)port!.Attribute("Minimum"), "preferred port Minimum");
+    Equal("65535", (string?)port.Attribute("Maximum"), "preferred port Maximum");
+    // False — the default — makes NumericUpDown throw ValidateMinMax on an out-of-range parse and
+    // swallow it, leaving Value on the last good prefix: 70000 became 7000, silently.
+    Equal("True", (string?)port.Attribute("ClipValueToMinMax"), "preferred port ClipValueToMinMax");
+    // Without this the source commits on every keystroke, and the source is what the Local API
+    // restart chain listens to, so a five-digit port restarted the server four times.
+    Contains("UpdateSourceTrigger=LostFocus", (string?)port.Attribute("Value") ?? "",
+        "preferred port Value binding");
 }
 
 static void TrayLabelsAreCatalogued()

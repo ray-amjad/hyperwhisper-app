@@ -1465,12 +1465,27 @@
             </Grid>
             <Border Classes="divider tight"/>
             <!-- Linux-only: the preferred port the server tries before falling back. It takes the
-                 same 11px secondary label as the rows above so it does not shout over them. -->
+                 same 11px secondary label as the rows above so it does not shout over them.
+
+                 Both attributes on the binding are load-bearing (#692). A plain two-way Value
+                 binding commits every keystroke, so typing a five-digit port restarted the server
+                 four times and rewrote local-api.json each time; UpdateSourceTrigger=LostFocus
+                 leaves the control parsing as you type but holds the SOURCE — the only thing the
+                 restart chain listens to — until the edit is committed. ClipValueToMinMax is the
+                 other half: left at its default False, NumericUpDown.ConvertTextToValue calls
+                 ValidateMinMax, which THROWS for an out-of-range parse, and SyncTextAndValueProperties
+                 swallows it, so "70000" silently left Value on the last good prefix, 7000, while
+                 the box still read 70000. True clamps at parse time instead, and the LostFocus
+                 commit writes the clamped 65535 back into the box. Keep Maximum at 65535: raising
+                 it to lean on the view model's own clamp puts the divergence back, because
+                 ViewModelBase.Set raises no PropertyChanged when the clamp lands on the stored
+                 value. -->
             <Grid ColumnDefinitions="100,*,Auto">
               <TextBlock Classes="smallLabel" VerticalAlignment="Center"
                          Text="{ReflectionBinding [linux.ui.preferred.port.falls.back.to.an.available.loopback.port], Source={StaticResource Localization}}"/>
               <NumericUpDown Grid.Column="2" x:Name="SettingsLocalApiPort" Width="140" Minimum="0" Maximum="65535"
-                             Value="{Binding Settings.LocalApiPort}"/>
+                             ClipValueToMinMax="True" LostFocus="OnLocalApiPortLostFocus"
+                             Value="{Binding Settings.LocalApiPort, UpdateSourceTrigger=LostFocus}"/>
             </Grid>
             <TextBlock Classes="smallLabel" Margin="0,12,0,0"
                        Text="{ReflectionBinding [settings.localApi.helperAuth], Source={StaticResource Localization}}"/>
