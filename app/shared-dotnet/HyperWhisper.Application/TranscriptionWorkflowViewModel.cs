@@ -81,11 +81,27 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     /// </remarks>
     public event EventHandler? DevicesChanged;
 
+    /// <summary>
+    /// The microphone the next recording will use.
+    /// </summary>
+    /// <remarks>
+    /// Warning: a null written here is discarded while <see cref="AudioDevices"/> is not empty.
+    ///
+    /// A picker bound two-way to this property writes null when the view that holds it is torn
+    /// down — on the Linux head, every time the user leaves the Home page. The user chose nothing,
+    /// but the null reached the workflow, so the next recording refused with "No audio input device
+    /// is available." until the microphone was picked again by hand. The picker cannot offer "no
+    /// microphone" while it has entries, so a null from it is never a choice.
+    ///
+    /// A genuinely empty device list still clears the selection: <see cref="ApplySnapshot"/>
+    /// assigns the backing field, not this property.
+    /// </remarks>
     public AudioInputDevice? SelectedAudioDevice
     {
         get => _selectedAudioDevice;
         set
         {
+            if (value is null && AudioDevices.Count > 0) return;
             if (!Set(ref _selectedAudioDevice, value)) return;
             _workflow.SelectDevice(value?.Id);
         }

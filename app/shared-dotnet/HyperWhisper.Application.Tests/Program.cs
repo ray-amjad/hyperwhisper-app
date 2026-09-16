@@ -2322,10 +2322,21 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
             "the view model filled its device list without notifying, so a bound view cannot show it");
         Assert(refills == 1, "the refill signal a copying view needs was not raised exactly once");
 
+        // A picker bound two-way writes null when its view is torn down — on Linux, every time the
+        // user leaves the Home page. That is not a choice, and letting it through left the workflow
+        // with no device, so the next recording refused with "No audio input device is available."
+        viewModel.SelectedAudioDevice = null;
+        Assert(viewModel.SelectedAudioDevice?.Id == "mic-1",
+            "a torn-down picker cleared the chosen microphone");
+        Assert(workflow.Snapshot.SelectedAudioDeviceId == "mic-1",
+            "a torn-down picker left the workflow unable to record");
+
         devices.Available = [];
         workflow.RefreshDevices();
         Assert(!viewModel.HasAudioDevices && refills == 2,
             "an unplugged microphone did not reach the view model");
+        Assert(viewModel.SelectedAudioDevice is null,
+            "an unplugged microphone stayed selected");
     }
 }
 
