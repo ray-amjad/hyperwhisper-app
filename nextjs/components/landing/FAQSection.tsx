@@ -48,52 +48,8 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const t = useTranslations("faq");
 
-  // Collapsing the open answer above the clicked question pulls that question
-  // up by the answer's full height, which can drop it off screen now that the
-  // panel is no longer capped. Hold the clicked trigger at the viewport
-  // position it had, for as long as the 300ms transition runs.
-  //
-  // The hold always loses to the user: the first real input ends it on that
-  // very frame, and every listener comes off however the hold ends, so nothing
-  // it installed outlives the click.
-  const toggleFAQ = (index: number, trigger: HTMLElement) => {
-    const closingSelf = openIndex === index;
-    const somethingWasOpen = openIndex !== null;
-
-    setOpenIndex(closingSelf ? null : index);
-
-    if (closingSelf || !somethingWasOpen) return;
-
-    const anchor = trigger.getBoundingClientRect().top;
-    const userInput = ["wheel", "touchstart", "keydown", "pointerdown"];
-    let startedAt: number | null = null;
-    let frame = 0;
-
-    const release = () => {
-      cancelAnimationFrame(frame);
-      frame = 0;
-      for (const type of userInput) {
-        window.removeEventListener(type, release, true);
-      }
-    };
-    const hold = (now: number) => {
-      frame = 0;
-      startedAt ??= now;
-
-      if (!trigger.isConnected || now - startedAt >= 400) {
-        release();
-      } else {
-        const drift = trigger.getBoundingClientRect().top - anchor;
-
-        if (drift !== 0) window.scrollBy({ top: drift, behavior: "instant" });
-        frame = requestAnimationFrame(hold);
-      }
-    };
-
-    for (const type of userInput) {
-      window.addEventListener(type, release, { capture: true, passive: true });
-    }
-    frame = requestAnimationFrame(hold);
+  const toggleFAQ = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
   };
 
   const faqKeys = [
@@ -141,7 +97,7 @@ export default function FAQSection() {
                 aria-expanded={openIndex === index}
                 className="w-full px-6 py-4 text-left hover:bg-gray-800/50 transition-colors flex items-center justify-between"
                 id={`faq-trigger-${key}`}
-                onClick={(event) => toggleFAQ(index, event.currentTarget)}
+                onClick={() => toggleFAQ(index)}
               >
                 <span className="text-gray-200 font-medium">
                   {t(`questions.${key}.question`)}
