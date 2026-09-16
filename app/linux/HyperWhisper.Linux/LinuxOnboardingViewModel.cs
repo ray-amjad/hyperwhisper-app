@@ -116,9 +116,15 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     /// <summary>
     /// Warning: nothing reads this. Its last reader was <c>CanGoNext</c>'s
     /// <c>Test =&gt; IsTestReady &amp;&amp; TestSucceeded</c> arm, removed in 7a24b379 (#482) when the Test
-    /// step stopped being a gate — so a wrong value here has no symptom and fails no test. It is
-    /// kept only because retiring it also reaches the <c>succeeded:</c> argument at five call sites
-    /// in MainWindow.axaml.cs, which is a separate change from issue #671.
+    /// step stopped being a gate — so a wrong value here has no symptom and fails no test.
+    ///
+    /// Retiring it is a SMALL change, and this doc used to claim otherwise. It reaches the five
+    /// writes below, the <c>succeeded</c> parameter of <see cref="SetTestStatus"/>, and exactly ONE
+    /// caller that passes that argument: MainWindow.axaml.cs:797, the saved-transcript handler. The
+    /// other three <c>SetTestStatus</c> calls there (:783 transcribing, :789 recording, :793 failed)
+    /// pass no <c>succeeded:</c> at all. It is left standing only because deleting state is not what
+    /// issue #671 asked for — #671 is about the status LINE. Retire it under its own issue, and do
+    /// not give it a reader in the meantime.
     /// </summary>
     public bool TestSucceeded { get => _testSucceeded; private set => Set(ref _testSucceeded, value); }
     /// <summary>
@@ -143,8 +149,21 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     /// The stored message therefore outlives a gate that shuts and reopens. That is deliberate: the
     /// transcription-saved handler is wired for the whole app, so a test that really ran can land
     /// while an awaited readiness lookup has the gate momentarily shut, and its result must not be
-    /// thrown away. It is also why a selection change leaves the message alone — the recorder is
-    /// still running, and this line is the user's only account of it.
+    /// thrown away.
+    ///
+    /// A selection change leaves the message alone for the same reason, and that choice has a real
+    /// cost. Warning: do not read the old justification here — "the recorder is still running" — as
+    /// a statement of fact. It is only SOMETIMES true, and this view model cannot tell which time it
+    /// is in: it never observes recorder state. Nothing on the selection path stops the recorder
+    /// (<c>TranscriptionWorkflow.SelectDevice</c> only reassigns the device id), so clearing the
+    /// message would relabel a live recording "Ready for a test dictation." and would also discard a
+    /// result that landed while the gate was shut. Keeping it puts the opposite fault on screen:
+    /// after a test that COMPLETED, the line can still read "Test dictation succeeded and was saved
+    /// to History." for a microphone that was never tested. Keeping it is the lesser fault, not a
+    /// correct one — a relabelled recording invites a click that stops the test the user just
+    /// started, while a stale result misreports and nothing more. Telling the two cases apart needs
+    /// this view model to follow recorder state, which is larger than issue #671 and wants its own
+    /// issue.
     /// </remarks>
     public string TestStatus
     {
