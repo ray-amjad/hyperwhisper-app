@@ -64,6 +64,16 @@
 //  matters because toggling off and on is the only recovery the issue leaves
 //  users, and it reaches the same race by the same road.
 //
+//  #641 asked for two things, and tests 23-25 are the second one: what a person
+//  reads when a bind really does fail. The pane printed the words the kernel
+//  used — `SocketError. kqueue kevent(9): Bad file descriptor` — under a toggle
+//  that still said "Server enabled" beside a subtitle that still said
+//  "Starting…", four minutes after there was anything left to start. So there is
+//  one sentence for that now, which names the state and the only recovery that
+//  exists (23); both publish sites go through it while the raw text keeps
+//  reaching the unified log unredacted (24); and the subtitle stops claiming a
+//  start is in progress once a failure has been recorded (25).
+//
 //  What no test at this seam can prove: that the app actually finishes
 //  bootstrap while the consent panel is up. That needs a real Mac with a
 //  mismatched ACL — see the PR body.
@@ -1078,7 +1088,7 @@ struct LocalAPIMainActorStartTests {
             "UserDefaults.standard.removeObject",
             "self.server = nil",
             "self.bindAndRun()",
-            "self.lastError = error.localizedDescription"
+            "self.lastError = Self.userFacingServerError("
         ] {
             guard let site = waiter.range(of: reaction) else {
                 Issue.record("""
@@ -1161,6 +1171,145 @@ struct LocalAPIMainActorStartTests {
             """
         )
     }
+
+    // MARK: - 23-25. What a user is shown when a bind really does fail
+
+    /// No raw socket text reaches the Settings pane.
+    ///
+    /// Fed the exact string issue #641 was filed with. `lastError` is read
+    /// straight into a `Text` under the toggle, so every one of these needles was
+    /// on screen, in a settings window, naming nothing the reader could act on.
+    ///
+    /// Called rather than scraped, which is the rule `ProductionSource` states.
+    /// The two anti-vacuity assertions are the point of the test as much as the
+    /// needles are: a pass-through implementation fails on `shown != raw`, and
+    /// returning `""` — which silences the row entirely by leaving `lastError`
+    /// non-nil and blank — fails on `isEmpty`.
+    @Test func theSettingsPaneNeverShowsRawSocketText() {
+        let raw = "SocketError. kqueue kevent(9): Bad file descriptor"
+        let shown = LocalAPIServer.userFacingServerError(raw)
+
+        for jargon in ["SocketError", "kqueue", "kevent", "file descriptor"] {
+            #expect(
+                !shown.contains(jargon),
+                """
+                the Settings pane is still being handed '\(jargon)'. That text is a BSD socket \
+                diagnostic: it belongs in the unified log, where both call sites already send it \
+                in full, and not under a toggle in a settings window (issue #641).
+                """
+            )
+        }
+        #expect(
+            !shown.isEmpty,
+            """
+            an empty string is not a message. lastError stays non-nil, so the error row appears \
+            with nothing in it and the status line reads "Not running" with no reason given.
+            """
+        )
+        #expect(
+            shown != raw,
+            """
+            userFacingServerError() returns its input. A pass-through satisfies nothing this \
+            function exists for — it is the behaviour issue #641 reported.
+            """
+        )
+    }
+
+    /// Both publish sites translate, and both still log the original.
+    ///
+    /// The other half of 23, which on its own constrains a function nothing is
+    /// obliged to call. `lastError` has exactly two writers that carry an
+    /// underlying error — the waiter's final `catch` and the run task's failure
+    /// path — and a translation applied to one of them leaves the other printing
+    /// kqueue text.
+    ///
+    /// The second assertion in each pair is the one that keeps this a *move*
+    /// rather than a deletion: the raw `localizedDescription` must still reach
+    /// `AppLogger.network.error` as `.public`, or the socket error that told us
+    /// what actually failed is gone from the machine entirely.
+    ///
+    /// `bindAndRun()`'s address-construction failure is deliberately not included.
+    /// It already writes a sentence of its own and never held raw socket text.
+    @Test func bothFailurePathsShowTheSentenceAndLogTheError() throws {
+        let waiter = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "try await httpServer.waitUntilListening()",
+            to: "func stop("
+        )
+        let runFailure = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "private func handleRunFailure(",
+            to: "private static func extractPort("
+        )
+
+        for (site, body) in [("the waiter's catch", waiter), ("handleRunFailure()", runFailure)] {
+            #expect(
+                body.contains("self.lastError = Self.userFacingServerError("),
+                """
+                \(site) publishes an underlying error to the Settings pane without translating it. \
+                That is how `SocketError. kqueue kevent(9): Bad file descriptor` reached a user \
+                (issue #641).
+                """
+            )
+            #expect(
+                body.contains("\\(error.localizedDescription, privacy: .public)"),
+                """
+                \(site) no longer logs the underlying error in full. The raw text was MOVED to the \
+                unified log, not deleted — without it nothing on the machine records what the \
+                socket actually did, and the sentence on screen names no cause at all.
+                """
+            )
+        }
+    }
+
+    /// The status line stops saying "Starting…" once a bind has failed.
+    ///
+    /// The contradiction in the issue's own screenshot: *Server enabled*,
+    /// subtitle `Starting...`, Port `—`, and a socket error printed underneath —
+    /// four minutes after anything was starting. The toggle reflects
+    /// `@AppStorage`, which is the user's setting and correctly still on; the
+    /// subtitle is the line that has to tell the truth about the server.
+    ///
+    /// Position is asserted, not membership: `return "Starting…"` is the fallback
+    /// at the bottom of the property, so a failure branch written below it is
+    /// unreachable and would restore the screenshot exactly.
+    @Test func theStatusLineDoesNotClaimAFailedServerIsStarting() throws {
+        let statusLine = try ProductionSource.slice(
+            of: Self.settingsPanePath,
+            from: "private var statusLine",
+            to: "private var tabBar"
+        )
+
+        guard let failure = statusLine.range(of: "server.lastError != nil") else {
+            Issue.record("""
+                the Local API status line does not look at lastError. A server whose bind failed \
+                then reads "Starting…" forever, beside the error row that says it is not, which is \
+                the screenshot issue #641 was filed with.
+                """)
+            return
+        }
+        guard let starting = statusLine.range(of: "\"Starting…\"") else {
+            Issue.record("""
+                the "Starting…" fallback was renamed — update this anchor rather than deleting the \
+                check.
+                """)
+            return
+        }
+        #expect(
+            failure.lowerBound < starting.lowerBound,
+            """
+            the failure branch sits below the "Starting…" fallback, so it never runs: the property \
+            returns at the fallback first. A branch after the return that shadows it is not a fix.
+            """
+        )
+        #expect(
+            statusLine.contains("Not running"),
+            """
+            a failed server must say so in the subtitle. "Server enabled" above it is the user's \
+            setting and stays; the line underneath is the only one that can report the socket.
+            """
+        )
+    }
 }
 
 // MARK: - Production-source fixtures
@@ -1174,6 +1323,12 @@ extension LocalAPIMainActorStartTests {
 
     fileprivate static let serverPath =
         "app/macos/hyperwhisper/Managers/LocalAPI/LocalAPIServer.swift"
+
+    /// The Settings pane that reads `lastError`, `isRunning` and `listeningPort`
+    /// back out. The only view this suite scrapes, and only for the one property
+    /// that decides what the toggle's subtitle says.
+    fileprivate static let settingsPanePath =
+        "app/macos/hyperwhisper/Views/Settings/APIServerSettingsSection.swift"
 
     fileprivate static var repoRoot: URL { ProductionSource.repoRoot }
 

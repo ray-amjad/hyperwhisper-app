@@ -298,6 +298,38 @@ final class LocalAPIServer: ObservableObject {
         return bindGeneration
     }
 
+    // MARK: - User-facing failure text
+
+    /// What the Settings pane says when a bind, or a running server, fails.
+    ///
+    /// `lastError` is read straight into a `Text` in Settings → Local API, so
+    /// whatever BSD threw went on screen verbatim. The dead state in issue #641
+    /// printed `SocketError. kqueue kevent(9): Bad file descriptor` under the
+    /// toggle: it names nothing the person reading it can act on, it reads as a
+    /// crash, and the one thing that would have helped — that the server is down
+    /// and that the toggle brings it back — is the one thing it does not say.
+    ///
+    /// `raw` is deliberately not interpolated into the result, and just as
+    /// deliberately not thrown away: both call sites log it on the line beside
+    /// this one, unredacted and `.public`, which is where a socket-level
+    /// diagnostic belongs and where `log show` can find it. It stays a parameter
+    /// rather than nothing so the call site reads as a translation of that
+    /// particular failure rather than as a constant nobody had to think about.
+    ///
+    /// The second sentence is a promise, so it has to be true. Neither call site
+    /// re-binds on its own, there is no retry control on the pane, and by the
+    /// time either one runs `server` is nil — so the toggle genuinely is the
+    /// recovery, and it is the one the reporter found by hand. Nothing here may
+    /// say "retrying" unless something is.
+    ///
+    /// An English literal, like every other string in that pane — there is no
+    /// `Localizable.strings` entry for the Local API section and this must not
+    /// become the first one. Pure and `static` so it can be tested by calling it
+    /// rather than by scraping this file, the rule `ProductionSource` states.
+    nonisolated static func userFacingServerError(_ raw: String) -> String {
+        "The Local API server is not running because of a network error. Switch it off and on again to restart it."
+    }
+
     // MARK: - Configuration
 
     /// Inject dependencies. Called once during `applicationDidFinishLaunching`
@@ -554,7 +586,13 @@ final class LocalAPIServer: ObservableObject {
                     return
                 }
                 await MainActor.run {
-                    self.lastError = error.localizedDescription
+                    // The pane gets the sentence, the log gets the socket error.
+                    // This is the end of the line for a bind — the preferred port
+                    // was already 0, so there is nothing left to fall back to —
+                    // and what the user got told about it was the raw kqueue text
+                    // (issue #641). The `.public` interpolation below is
+                    // unchanged and still carries the whole of it.
+                    self.lastError = Self.userFacingServerError(error.localizedDescription)
                     AppLogger.network.error("LocalAPI server failed to start · \(error.localizedDescription, privacy: .public)")
                 }
             }
@@ -951,7 +989,11 @@ final class LocalAPIServer: ObservableObject {
                 AppLogger.network.info("LocalAPI server: superseded bind attempt reported a run failure; leaving the current server alone")
                 return
             }
-            self.lastError = error.localizedDescription
+            // Same division as the waiter's failure path: a sentence for the
+            // pane, the unredacted error for the unified log at the bottom of
+            // this block. `SocketError. kqueue kevent(9): Bad file descriptor` is
+            // this line's output, and it is the string the issue was filed with.
+            self.lastError = Self.userFacingServerError(error.localizedDescription)
             self.isRunning = false
             self.listeningPort = 0
             // Drop the broken HTTPServer + run-task references so the next

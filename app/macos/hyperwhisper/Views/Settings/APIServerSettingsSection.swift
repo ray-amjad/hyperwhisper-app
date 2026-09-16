@@ -107,6 +107,14 @@ struct APIServerSettingsSection: View {
             let tokenSuffix = server.bearerToken.suffix(4)
             return "\(portText) · token ••••\(tokenSuffix)"
         }
+        // A server that failed is not a server that is starting. `isRunning` is
+        // settled by the branch above, so an error recorded at this point means
+        // the socket is down and nothing is bringing it back on its own — and
+        // "Server enabled / Starting…" sat over exactly that for four minutes in
+        // issue #641, directly above the error row that said otherwise. The row
+        // in the Connection tab carries the sentence and the recovery; this line
+        // only has to stop contradicting it.
+        if server.lastError != nil { return "Not running" }
         return "Starting…"
     }
 
