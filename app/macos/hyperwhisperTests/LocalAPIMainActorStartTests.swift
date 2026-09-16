@@ -49,24 +49,42 @@ struct LocalAPIMainActorStartTests {
 
     // MARK: - 1. The blocking read is never called directly
 
-    /// Nothing in the Local API calls the blocking Keychain read directly.
+    /// Nothing in the macOS app calls the blocking Keychain read directly.
     ///
-    /// The ban is on the *synchronous* entry points. `LocalAPIAuth.swift` is
-    /// exempt because it declares them and wraps them; every other file in the
-    /// tree must go through the `OffMainActor` wrappers, which hop the call
-    /// onto a detached task before `SecItemCopyMatching` runs.
+    /// The ban is on the *synchronous* entry points, and it is the whole app
+    /// target, not the Local API directory. `LocalAPIAuth` is `internal`, so
+    /// every file in the target can reach `loadOrCreateToken()` — and the files
+    /// that would hurt most are the ones OUTSIDE `Managers/LocalAPI`:
+    /// `hyperwhisperApp.swift` and `AppDelegate.swift` are the bootstrap that
+    /// issue #655 froze, and `APIServerSettingsSection.swift` is the Settings
+    /// pane whose buttons drive this server. A call added in any of those brings
+    /// the freeze straight back, and while this walk covered only
+    /// `Managers/LocalAPI` it did so with this guard still green.
+    ///
+    /// `Managers/LocalAPI/LocalAPIAuth.swift` is the one exemption, by path
+    /// rather than by filename, because it declares the synchronous entry points
+    /// and wraps them; everything else must go through the `OffMainActor`
+    /// wrappers, which hop the call onto a detached task before
+    /// `SecItemCopyMatching` runs.
     ///
     /// The needles include the open paren deliberately:
     /// `LocalAPIAuth.loadOrCreateToken` is a prefix of
     /// `LocalAPIAuth.loadOrCreateTokenOffMainActor`, so a paren-less needle
     /// would flag the fix itself.
     @Test func theLocalApiNeverReadsTheKeychainOnTheMainActor() throws {
-        let directory = Self.repoRoot.appendingPathComponent("app/macos/hyperwhisper/Managers/LocalAPI")
-        let files = try Self.swiftFiles(under: directory)
-        #expect(files.count >= 12, "the Local API source tree was not found where this test expects it")
+        let appSourceRoot = Self.repoRoot.appendingPathComponent("app/macos/hyperwhisper")
+        let files = try Self.swiftFiles(under: appSourceRoot)
+        // Two anti-vacuity checks, because a walk that finds nothing passes.
+        // The count catches a moved directory; the membership catches a walk
+        // that somehow reaches the tree but misses the subject of the ban.
+        #expect(files.count >= 200, "the macOS app source tree was not found where this test expects it")
+        #expect(
+            files.contains { $0.path.hasSuffix("Managers/LocalAPI/LocalAPIServer.swift") },
+            "the widened walk must still cover the Local API itself"
+        )
 
         var offenders: [String] = []
-        for file in files where file.lastPathComponent != "LocalAPIAuth.swift" {
+        for file in files where !file.path.hasSuffix("Managers/LocalAPI/LocalAPIAuth.swift") {
             let source = try Self.contents(of: file)
             for (offset, line) in source.components(separatedBy: .newlines).enumerated() {
                 // Prose about the ban is not a violation of it.
@@ -602,6 +620,14 @@ struct LocalAPIMainActorStartTests {
     /// `bindAndRun()`: `handleRunFailure()` sets `lastError` from the run task
     /// and can land *after* the retry has re-entered, so a clear at the top
     /// would be overwritten by the very failure being retried.
+    ///
+    /// That last sentence is the claim, so it is the claim that has to go red.
+    /// "Before the retry" did not do it — a clear at the top of `bindAndRun()`
+    /// is before the retry too, and the version of this test that asserted only
+    /// that passed for the placement its own prose argues against. What pins
+    /// the clear inside the listening branch is its position BETWEEN two
+    /// statements that are only reached when the socket came up: the
+    /// `isRunning` assignment above it and the discovery-file write below it.
     @Test func aSuccessfulBindRetiresTheEarlierBindError() throws {
         let bindStep = try ProductionSource.slice(
             of: Self.serverPath,
@@ -609,7 +635,7 @@ struct LocalAPIMainActorStartTests {
             to: "func stop("
         )
 
-        guard bindStep.contains("self.isRunning = port > 0") else {
+        guard let listening = bindStep.range(of: "self.isRunning = port > 0") else {
             Issue.record("bindAndRun()'s listening branch was renamed — update this anchor rather than deleting the check")
             return
         }
@@ -621,10 +647,31 @@ struct LocalAPIMainActorStartTests {
                 """)
             return
         }
+        guard let write = bindStep.range(of: "self.writePortFile(port: port)") else {
+            Issue.record("the discovery-file write was renamed — update this anchor rather than deleting the check")
+            return
+        }
         guard let retry = bindStep.range(of: "self.bindAndRun()") else {
             Issue.record("the EADDRINUSE retry must re-enter bindAndRun() — update this anchor if it was renamed")
             return
         }
+        #expect(
+            listening.lowerBound < cleared.lowerBound,
+            """
+            lastError is cleared at the TOP of bindAndRun() rather than on the listening path. \
+            handleRunFailure() sets lastError from the run task and can land AFTER the retry has \
+            re-entered, so a clear up there is overwritten by the very failure being retried and \
+            the stale "Address already in use" survives the successful rebind (issue #655).
+            """
+        )
+        #expect(
+            cleared.lowerBound < write.lowerBound,
+            """
+            the clear must sit inside the listening branch, above the discovery-file write. Below \
+            it — or outside the branch — it is no longer gated on the bind having succeeded, and a \
+            failed bind would quietly retire its own error message.
+            """
+        )
         #expect(
             cleared.lowerBound < retry.lowerBound,
             "lastError must be cleared on the listening path, which precedes the retry path in this function"
