@@ -326,21 +326,58 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
         ApplySnapshot(snapshot);
     }
 
+    /// <summary>
+    /// Brings <see cref="AudioDevices"/> in line with <paramref name="incoming"/> in place, and
+    /// reports whether anything moved.
+    /// </summary>
+    /// <remarks>
+    /// Warning: do not replace this with Clear-then-refill.
+    ///
+    /// Clearing makes every bound picker drop its selection, on every snapshot — and a snapshot
+    /// arrives for each step of a recording or a file transcription. The device list is the same
+    /// list almost every time, so the common case must not touch the collection at all.
+    /// <c>AudioInputDevice</c> is a record, which is what makes the comparison below cheap.
+    /// </remarks>
+    private bool SyncAudioDevices(IReadOnlyList<AudioInputDevice> incoming)
+    {
+        var changed = false;
+        for (var index = 0; index < incoming.Count; index++)
+        {
+            if (index >= AudioDevices.Count) { AudioDevices.Add(incoming[index]); changed = true; }
+            else if (!Equals(AudioDevices[index], incoming[index])) { AudioDevices[index] = incoming[index]; changed = true; }
+        }
+        while (AudioDevices.Count > incoming.Count)
+        {
+            AudioDevices.RemoveAt(AudioDevices.Count - 1);
+            changed = true;
+        }
+        return changed;
+    }
+
     private void ApplySnapshot(TranscriptionWorkflowSnapshot snapshot)
     {
         var completedNow = snapshot.State == TranscriptionWorkflowState.Completed
             && !string.Equals(State, nameof(TranscriptionWorkflowState.Completed), StringComparison.Ordinal);
-        // Warning: the refill below empties the collection first, and a bound picker answers that
-        // by writing null back through its two-way selection binding. The null-while-not-empty
-        // guard on SelectedAudioDevice cannot catch this one, because the list IS empty at that
-        // instant. Without the flag the workflow loses its device on every refresh.
+        // Warning: a bound picker writes null back when the collection it lists is emptied. The
+        // null-while-not-empty guard on SelectedAudioDevice cannot catch that one, because the
+        // list IS empty at that instant. Without the flag the workflow loses its device on every
+        // refresh — and every file transcription raises several.
         _applyingSnapshot = true;
         try
         {
-            AudioDevices.Clear();
-            foreach (var device in snapshot.AudioDevices) AudioDevices.Add(device);
-            Notify(nameof(HasAudioDevices));
-            _selectedAudioDevice = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
+            var listChanged = SyncAudioDevices(snapshot.AudioDevices);
+            if (listChanged) Notify(nameof(HasAudioDevices));
+            var selected = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
+            if (listChanged && Equals(selected, _selectedAudioDevice))
+            {
+                // The picker dropped its selection when the collection moved under it, and this
+                // view model's value did not change — so notifying it again publishes a value the
+                // binding has already sent, and the picker stays blank. Publish null first, so the
+                // notification that follows carries a value the binding has to push.
+                _selectedAudioDevice = null;
+                Notify(nameof(SelectedAudioDevice));
+            }
+            _selectedAudioDevice = selected;
             Notify(nameof(SelectedAudioDevice));
         }
         finally { _applyingSnapshot = false; }

@@ -167,8 +167,16 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public void SetDevices(IEnumerable<AudioInputDevice> devices, AudioInputDevice? selectedDevice)
     {
         ArgumentNullException.ThrowIfNull(devices);
-        Devices.Clear();
-        foreach (var device in devices) Devices.Add(device);
+        // Warning: reconcile in place, never Clear-then-refill. The shell calls this on every
+        // device snapshot, and clearing would make this step's own picker drop its selection each
+        // time. AudioInputDevice is a record, so an unchanged list costs a comparison per device.
+        var incoming = devices as IReadOnlyList<AudioInputDevice> ?? [.. devices];
+        for (var index = 0; index < incoming.Count; index++)
+        {
+            if (index >= Devices.Count) Devices.Add(incoming[index]);
+            else if (!Equals(Devices[index], incoming[index])) Devices[index] = incoming[index];
+        }
+        while (Devices.Count > incoming.Count) Devices.RemoveAt(Devices.Count - 1);
         // Keep a choice the user already made. Replace it only when it is gone from the new list.
         var keep = _selectedDevice is not null
             && Devices.Any(item => string.Equals(item.Id, _selectedDevice.Id, StringComparison.Ordinal));

@@ -2328,10 +2328,13 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
             "the view model filled its device list without notifying, so a bound view cannot show it");
         Assert(refills == 1, "the refill signal a copying view needs was not raised exactly once");
 
-        // The refill empties the collection before it fills it, and the picker answers the empty
-        // list with a null. That null arrives while the list IS empty, so only the snapshot flag
-        // can stop it: every refresh otherwise left the workflow with no device.
+        // A refresh that finds the same microphones must not move the collection at all. Clearing
+        // and refilling makes every bound picker drop its selection, and the view model's value
+        // does not change, so no notification can put it back — the picker just goes blank.
+        var moves = 0;
+        viewModel.AudioDevices.CollectionChanged += (_, _) => moves++;
         workflow.RefreshDevices();
+        Assert(moves == 0, "an unchanged device list still moved, which blanks every bound picker");
         Assert(viewModel.SelectedAudioDevice?.Id == "mic-1" && workflow.Snapshot.SelectedAudioDeviceId == "mic-1",
             "a refresh let the picker's transient null clear the chosen microphone");
 
