@@ -42,10 +42,19 @@
 
         <!-- No MaxWidth here. The star column already bounds the message to the 360-wide window,
              and a narrower cap clipped every sentence to its first few words: "A HyperWhisper
-             account key is r..." told the user nothing about what to do (#669). MaxHeight is
-             load-bearing, not cosmetic. PlaceOnScreen subtracts the toast's own height from the
-             anchor's Y and has no top clamp, so an unbounded message walks off the top of the
-             screen. TextTrimming stays for the one message that outgrows even those ~6 lines. -->
+             account key is r..." told the user nothing about what to do (#669).
+
+             MaxHeight is load-bearing, not cosmetic, and 90 is asserted twice: the Overlay suite
+             reads it here, and the UI smoke reads it off the built control, where a cap arriving
+             from a style Setter or from the constructor is also visible.
+
+             Its reason is NOT that PlaceOnScreen has no top clamp. It has one, and the toast is
+             held inside the work area whatever this message costs. The reason is that the clamp's
+             only move is to stop the toast going UP: once it is against the top of the work area,
+             a taller message grows downward instead, over the very recording overlay it is meant
+             to float above, while the user is dictating into another application. ~6 lines is the
+             bound on how much of the screen one error may take. TextTrimming stays for the one
+             message that outgrows even those. -->
         <TextBlock x:Name="ToastMessage" Grid.Column="1"
                    Foreground="#E6FFFFFF" FontSize="11" FontWeight="Medium"
                    VerticalAlignment="Center" TextWrapping="Wrap" MaxHeight="90"
