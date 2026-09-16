@@ -110,13 +110,12 @@ export default function FAQSection() {
               </button>
               <div
                 aria-labelledby={`faq-trigger-${key}`}
-                className="grid transition-[grid-template-rows] duration-300 ease-out"
+                className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                  openIndex === index ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                }`}
                 id={`faq-panel-${key}`}
                 inert={openIndex !== index}
                 role="region"
-                style={{
-                  gridTemplateRows: openIndex === index ? "1fr" : "0fr",
-                }}
               >
                 <div className="overflow-hidden">
                   <p className="text-gray-400 px-6 pt-2 pb-6 whitespace-pre-line">
