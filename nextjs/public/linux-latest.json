@@ -1,8 +1,8 @@
 {
-  "version": "1.12.0",
-  "releasedAt": "2026-09-07T04:31:12Z",
-  "deb": "https://builds.hyperwhisper.com/hyperwhisper_1.12.0_amd64.deb",
+  "version": "1.13.0",
+  "releasedAt": "2026-09-16T04:00:07Z",
+  "deb": "https://builds.hyperwhisper.com/hyperwhisper_1.13.0_amd64.deb",
   "aptArchive": null,
-  "checksums": "https://builds.hyperwhisper.com/hyperwhisper-linux-1.12.0-SHA256SUMS",
-  "releasePage": "https://github.com/ray-amjad/hyperwhisper-app/releases/tag/linux%2Fv1.12.0"
+  "checksums": "https://builds.hyperwhisper.com/hyperwhisper-linux-1.13.0-SHA256SUMS",
+  "releasePage": "https://github.com/ray-amjad/hyperwhisper-app/releases/tag/linux%2Fv1.13.0"
 }
