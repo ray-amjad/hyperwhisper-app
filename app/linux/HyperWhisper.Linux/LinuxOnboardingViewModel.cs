@@ -26,6 +26,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     private LinuxOnboardingStep _step;
     private bool _isVisible;
     private bool _testSucceeded;
+    private bool _testAttempted;
     private bool _selectedModeAvailable;
     private string _testStatus;
     private Mode? _selectedMode;
@@ -111,7 +112,29 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
             ? "linux.onboarding.provider.unavailable.cloud"
             : "linux.onboarding.provider.unavailable");
     public bool TestSucceeded { get => _testSucceeded; private set => Set(ref _testSucceeded, value); }
-    public string TestStatus { get => _testStatus; private set => Set(ref _testStatus, value); }
+    /// <summary>
+    /// The status line follows the gate, not the click. The Test step's only button binds
+    /// <see cref="IsTestReady"/>, so on a fresh install — every seeded mode is a cloud mode with no
+    /// credential — it is disabled while this line still read "Ready for a test dictation." The
+    /// string that explains the block was written only inside that disabled button's own Click
+    /// handler, so it could never run.
+    /// </summary>
+    /// <remarks>
+    /// Three states, in order: the gate is shut, so say so whatever is stored; the gate is open and
+    /// no test has run, so offer one; otherwise the stored message from a test that actually ran.
+    /// The middle state is what keeps the guard branch's own write (MainWindow.axaml.cs:774, which
+    /// fires only when the gate is shut) from being read back once the gate opens.
+    /// </remarks>
+    public string TestStatus
+    {
+        get
+        {
+            if (!IsTestReady) return _text("linux.onboarding.test.not_ready");
+            if (!_testAttempted) return _text("linux.onboarding.test.not_started");
+            return _testStatus;
+        }
+        private set => Set(ref _testStatus, value);
+    }
     public Mode? SelectedMode
     {
         get => _selectedMode;
@@ -119,7 +142,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         {
             if (!Set(ref _selectedMode, value)) return;
             _selectedModeAvailable = false;
-            TestSucceeded = false;
+            ResetTestOutcome();
             _selectMode(value);
             NotifyReadiness();
         }
@@ -130,7 +153,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         set
         {
             if (!Set(ref _selectedDevice, value)) return;
-            TestSucceeded = false;
+            ResetTestOutcome();
             _selectDevice(value);
             NotifyReadiness();
         }
@@ -147,6 +170,9 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public void Skip() => Complete(skipped: true);
     public void SetTestStatus(string status, bool succeeded = false)
     {
+        // Read the gate; never hard-code true. The guard branch at MainWindow.axaml.cs:774 calls
+        // this exactly when the gate is shut, so that call must not count as a test run.
+        _testAttempted = IsTestReady;
         TestStatus = status;
         TestSucceeded = succeeded;
         Notify(nameof(CanGoNext));
@@ -181,7 +207,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         var keep = _selectedDevice is not null
             && Devices.Any(item => string.Equals(item.Id, _selectedDevice.Id, StringComparison.Ordinal));
         if (!keep && Set(ref _selectedDevice, selectedDevice ?? Devices.FirstOrDefault(), nameof(SelectedDevice)))
-            TestSucceeded = false;
+            ResetTestOutcome();
         Notify(nameof(HasNoMicrophone));
         NotifyReadiness();
     }
@@ -189,8 +215,19 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public void SetSelectedModeAvailable(bool available)
     {
         _selectedModeAvailable = available;
-        if (!available) TestSucceeded = false;
+        if (!available) ResetTestOutcome();
         NotifyReadiness();
+    }
+
+    /// <summary>
+    /// The user changed a selection, so the last test's outcome is no longer about what is on
+    /// screen. Both halves of the test state move together: leaving <c>_testAttempted</c> set would
+    /// let a stale message reappear when the gate closes and opens again.
+    /// </summary>
+    private void ResetTestOutcome()
+    {
+        _testAttempted = false;
+        TestSucceeded = false;
     }
 
     private void Complete(bool skipped)
@@ -206,7 +243,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     private void NotifyReadiness()
     {
         Notify(nameof(IsSelectedModeAvailable)); Notify(nameof(IsTestReady)); Notify(nameof(CanGoNext));
-        Notify(nameof(UnavailableMessage));
+        Notify(nameof(UnavailableMessage)); Notify(nameof(TestStatus));
     }
 }
 

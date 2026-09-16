@@ -139,6 +139,43 @@ static Task OnboardingStateMachine()
     unavailable.Skip();
     Assert(!unavailable.IsVisible && decisions.SequenceEqual([false, true]), "skip was not durably requested");
 
+    // Issue #671. The Test step's only control binds IsTestReady, so on a fresh install — every
+    // seeded mode is a cloud mode with no credential — it is disabled, while the line beside it
+    // read "Ready for a test dictation." and named no reason. The string that explains the block
+    // was written only inside that disabled button's own Click handler. These assertions need the
+    // English text, not the key, so they run a real catalogue rather than this file's key => key.
+    using var strings = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
+    var gated = new LinuxOnboardingViewModel(
+        new(true, true, false, false, false, true, false),
+        [new Mode { Id = Guid.NewGuid(), Name = "Hyper", ProviderType = "cloud", CloudProvider = "hyperwhisper" }],
+        null, [microphone], microphone, selectedModeAvailable: false,
+        _ => true, _ => { }, _ => { }, key => strings.GetRequired(key));
+    // Nothing in this Exe re-reads a property when PropertyChanged fires, so a bare read of
+    // TestStatus would pass even if the notification were missing and the real TextBlock never
+    // repainted. Stand in for the binding: re-read on every notification, and assert on that.
+    var painted = gated.TestStatus;
+    gated.PropertyChanged += (_, args) =>
+    {
+        if (args.PropertyName == nameof(LinuxOnboardingViewModel.TestStatus)) painted = gated.TestStatus;
+    };
+    gated.Show(); gated.Next(); gated.Next(); gated.Next(); gated.Next();
+    Assert(gated.IsTest, "onboarding did not reach the test step with a mode and a microphone chosen");
+    Assert(!gated.IsTestReady && gated.TestStatus == "Select an available mode and microphone first.",
+        "the only control on the test step was disabled while the line still read 'Ready for a test dictation.'");
+
+    gated.SetSelectedModeAvailable(true);
+    Assert(gated.IsTestReady && painted == "Ready for a test dictation.",
+        "TestStatus was not raised beside IsTestReady, so the bound line kept the blocked message after the mode became available");
+
+    // The guard branch in MainWindow.axaml.cs still writes the blocked message on a programmatic
+    // click, and it fires only while the gate is shut. That write must not be mistaken for a test
+    // run, or the blocked message would survive the mode becoming available.
+    gated.SetSelectedModeAvailable(false);
+    gated.SetTestStatus(strings.GetRequired("linux.onboarding.test.not_ready"));
+    gated.SetSelectedModeAvailable(true);
+    Assert(gated.IsTestReady && painted == "Ready for a test dictation.",
+        "a rejected click left the status line blocked after the mode became available");
+
     // Issue #626. The constructor COPIES the device list, and the shell enumerates microphones on a
     // background thread and posts the result to the UI context — so the copy is normally taken while
     // the list is still empty. The microphone step then showed an empty picker and "Microphone
