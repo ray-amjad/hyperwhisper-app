@@ -48,8 +48,30 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const t = useTranslations("faq");
 
-  const toggleFAQ = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
+  // Collapsing the open answer above the clicked question pulls that question
+  // up by the answer's full height, which can drop it off screen now that the
+  // panel is no longer capped. Hold the clicked trigger at the viewport
+  // position it had, for as long as the 300ms transition runs.
+  const toggleFAQ = (index: number, trigger: HTMLElement) => {
+    const closingSelf = openIndex === index;
+    const somethingWasOpen = openIndex !== null;
+
+    setOpenIndex(closingSelf ? null : index);
+
+    if (closingSelf || !somethingWasOpen) return;
+
+    const anchor = trigger.getBoundingClientRect().top;
+    let startedAt: number | null = null;
+    const hold = (now: number) => {
+      if (!trigger.isConnected) return;
+      startedAt ??= now;
+      const drift = trigger.getBoundingClientRect().top - anchor;
+
+      if (drift !== 0) window.scrollBy({ top: drift, behavior: "instant" });
+      if (now - startedAt < 400) requestAnimationFrame(hold);
+    };
+
+    requestAnimationFrame(hold);
   };
 
   const faqKeys = [
@@ -97,7 +119,7 @@ export default function FAQSection() {
                 aria-expanded={openIndex === index}
                 className="w-full px-6 py-4 text-left hover:bg-gray-800/50 transition-colors flex items-center justify-between"
                 id={`faq-trigger-${key}`}
-                onClick={() => toggleFAQ(index)}
+                onClick={(event) => toggleFAQ(index, event.currentTarget)}
               >
                 <span className="text-gray-200 font-medium">
                   {t(`questions.${key}.question`)}
