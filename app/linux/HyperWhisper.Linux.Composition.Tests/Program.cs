@@ -52,6 +52,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
+    ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
     ("shortcut recorder rules judge the key, not the role", ShortcutRecorderRulesJudgeTheKey),
@@ -758,6 +759,47 @@ static Task ModeCyclingIsDeterministic()
     Assert(ReferenceEquals(LinuxModeCycler.Next(modes, new Mode { Id = Guid.NewGuid() }), first),
         "unknown selection did not recover at the first mode");
     Assert(LinuxModeCycler.Next(Array.Empty<Mode>(), null) is null, "empty mode list produced a selection");
+    return Task.CompletedTask;
+}
+
+/// <summary>
+/// #692's numbers, pinned where they can be checked without an X server. The markup guard can only
+/// assert that the field is WIRED and the smoke probe needs a real window, so before this the clamp
+/// could be raised to 655350, or a negative entry turned into a committed port 0, with the whole
+/// cheap suite still green.
+/// </summary>
+static Task LocalApiPortEntryRules()
+{
+    var german = CultureInfo.GetCultureInfo("de-DE").NumberFormat;
+    var english = CultureInfo.GetCultureInfo("en-US").NumberFormat;
+
+    // The fault itself: "70000" bound 7000 because the control swallowed it. The nearest legal
+    // port is what commits, and it is what goes back on screen.
+    Assert(LocalApiPortEntry.Committed(70000m) == 65535, "an out-of-range port no longer clamps to 65535");
+    Assert(LocalApiPortEntry.Committed(65536m) == 65535, "one past the ceiling no longer clamps");
+    Assert(LocalApiPortEntry.Committed(65535m) == 65535, "the ceiling itself is no longer accepted");
+    Assert(LocalApiPortEntry.Committed(51671m) == 51671, "an ordinary port no longer commits unchanged");
+
+    // Refusals restore the stored port. Clamping the low end instead lands on 0, which is a
+    // different feature: the server binds an ephemeral port and rewrites local-api.json on every
+    // launch, so a stray minus sign would quietly break every MCP client pinned to the old number.
+    Assert(LocalApiPortEntry.Committed(-1m) is null, "a negative port is no longer refused");
+    Assert(LocalApiPortEntry.Committed(null) is null, "an unreadable or empty entry is no longer refused");
+
+    // ...but a typed 0 is NOT a refusal. Minimum="0" is in the markup, the row's label offers the
+    // fallback, and the host binds an ephemeral port for it on purpose.
+    Assert(LocalApiPortEntry.Committed(0m) == 0, "port 0 is no longer the documented ephemeral bind");
+
+    // The entry is read the way the CONTROL reads it, NumberStyles.Any against its own format.
+    // Anything narrower silently reverts text the field accepted before #692 was fixed.
+    Assert(LocalApiPortEntry.Parse("8.080", german) == 8080m, "a group-separated German entry no longer reads as 8080");
+    Assert(LocalApiPortEntry.Parse("8,080", english) == 8080m, "a group-separated English entry no longer reads as 8080");
+    Assert(LocalApiPortEntry.Parse(" 8080 ", english) == 8080m, "a padded entry no longer reads");
+    Assert(LocalApiPortEntry.Parse("-1", english) == -1m, "a negative entry no longer keeps its sign for the refusal");
+    Assert(LocalApiPortEntry.Parse("", english) is null, "an empty entry no longer reads as refused");
+    Assert(LocalApiPortEntry.Parse("八千", english) is null, "an unreadable entry no longer reads as refused");
+    Assert(LocalApiPortEntry.Committed(LocalApiPortEntry.Parse("70000", english)) == 65535,
+        "the two halves no longer meet on the issue's own entry");
     return Task.CompletedTask;
 }
 

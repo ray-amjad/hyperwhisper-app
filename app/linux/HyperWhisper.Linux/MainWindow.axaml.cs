@@ -1903,6 +1903,28 @@ public partial class MainWindow : Window
     private TextBox? _localApiPortBox;
 
     /// <summary>
+    /// The raw entry the control has NOT accepted, held from the last moment it exists until the
+    /// next commit consumes it.
+    ///
+    /// NumericUpDown refuses an out-of-range entry silently — ConvertTextToValue throws through
+    /// ValidateMinMax into a swallowing catch — so after "70000" its Value is still the last
+    /// in-range prefix, 7000, and its text is rewritten to "7000" the instant focus leaves the box
+    /// for the spinner buttons. Both of those are #692's own number. Whatever the user actually
+    /// typed has to outlive them, or a spin commits the prefix.
+    /// </summary>
+    private string? _localApiPortEntry;
+
+    /// <summary>
+    /// How many times CommitLocalApiPort has run. Read only by the xvfb smoke probe, which pins
+    /// ONE commit per finished edit: two handlers see the same bubbling LostFocus, and an equal
+    /// second commit is invisible to a counter on Settings.LocalApiPort (ViewModelBase.Set raises
+    /// nothing for a value that did not move). Without this the commit would be silently required
+    /// to stay idempotent forever, and the first status message or restart added inside it would
+    /// fire twice on every blur with every gate still green.
+    /// </summary>
+    private int _localApiPortCommits;
+
+    /// <summary>
     /// Wires Enter and blur onto the templated text box rather than onto the NumericUpDown.
     /// It has to be the inner box: NumericUpDown's own class handlers (OnKeyDown -> CommitInput,
     /// OnLostFocus -> CommitInput(forceTextUpdate: true)) run as the event bubbles UP to the
@@ -1922,6 +1944,7 @@ public partial class MainWindow : Window
         }
         _localApiPortField = port;
         _localApiPortBox = e.NameScope.Find<TextBox>("PART_TextBox");
+        _localApiPortEntry = null;
         if (_localApiPortBox is not { } box) return;
         box.AddHandler(InputElement.LostFocusEvent, OnLocalApiPortBoxLostFocus,
             RoutingStrategies.Bubble, handledEventsToo: true);
@@ -1934,10 +1957,19 @@ public partial class MainWindow : Window
     /// text box and bubbles, so it also fires when focus moves to the spinner buttons a few pixels
     /// away, which is a click the user made to keep editing. Committing there wrote the stored
     /// port back over a box the user had just cleared.
+    ///
+    /// Nothing is committed on that inside-the-field move, but the raw entry IS taken: the very
+    /// next thing to run is NumericUpDown.OnLostFocus -> CommitInput(forceTextUpdate: true), which
+    /// rewrites the box from Value and turns "70000" into "7000" before the spin that the click
+    /// was for. That is the last moment the user's own number exists.
     /// </summary>
     private void OnLocalApiPortBoxLostFocus(object? sender, RoutedEventArgs e)
     {
-        if (_localApiPortField is { IsKeyboardFocusWithin: true }) return;
+        if (_localApiPortField is { IsKeyboardFocusWithin: true })
+        {
+            CaptureLocalApiPortEntry();
+            return;
+        }
         CommitLocalApiPort(ParseLocalApiPort((sender as TextBox)?.Text));
     }
 
@@ -1953,64 +1985,83 @@ public partial class MainWindow : Window
     /// never fires and the edit would commit nowhere. Measured: without this, clearing the box,
     /// clicking the spinner and clicking away left the field blank over a live port.
     ///
-    /// This one reads Value, not text, and that is correct here: NumericUpDown's own OnLostFocus
-    /// has already run by this point and rewritten the text from Value, so there is no raw entry
-    /// left to read. When focus left from the text box the handler above has already committed the
-    /// raw entry, and this second pass lands on the same number and changes nothing.
+    /// A blur that came FROM the text box is not this case and is skipped: the same bubbling
+    /// event has already reached the handler above, which committed it, and running again here
+    /// committed every ordinary blur twice. Idempotence made that invisible rather than harmless.
     /// </summary>
     private void OnLocalApiPortLostFocus(object? sender, RoutedEventArgs e)
     {
         if (sender is not NumericUpDown port || port.IsKeyboardFocusWithin) return;
-        CommitLocalApiPort(port.Value is { } value ? (long)value : null);
+        if (ReferenceEquals(e.Source, _localApiPortBox)) return;
+        CommitLocalApiPort(_localApiPortEntry is { } pending ? ParseLocalApiPort(pending) : port.Value);
     }
 
     /// <summary>
     /// A spinner click is a finished edit of its own: it moves Value without ever touching the
-    /// text, so the text path above never sees it. NumericUpDown has already clamped the new
-    /// value to Minimum/Maximum by the time this runs.
+    /// text, so the text path above never sees it — and it is the path #692 survived through.
+    /// NumericUpDown swallows an out-of-range entry, so after "70000" its Value is still 7000 and
+    /// committing Value here bound the prefix the issue reported. Whatever the user typed wins
+    /// whenever it is still pending.
+    ///
+    /// Reading the box at this point is not enough on its own. When the click moved focus out of
+    /// the box first, NumericUpDown.OnLostFocus has already rewritten it from Value; when it did
+    /// not (the wheel, a click that leaves focus where it is), the box still holds the raw entry
+    /// and nothing captured it. So both are tried, in that order.
     /// </summary>
     private void OnLocalApiPortSpinned(object? sender, SpinEventArgs e)
     {
-        if (sender is NumericUpDown port)
-            CommitLocalApiPort(port.Value is { } value ? (long)value : null);
+        if (sender is not NumericUpDown port) return;
+        if (_localApiPortEntry is null) CaptureLocalApiPortEntry();
+        CommitLocalApiPort(_localApiPortEntry is { } pending ? ParseLocalApiPort(pending) : port.Value);
     }
 
     /// <summary>
-    /// Null for anything that is not a plain integer. NumberStyles.Integer keeps the sign, so a
-    /// negative entry arrives as a negative number and is REJECTED below rather than clamped.
+    /// Holds the box's text when the control has not accepted it — when it differs from the text
+    /// the control's own Value would produce — and drops anything held when it has. Set-or-clear,
+    /// so an entry taken on the way to the spinner cannot outlive the edit it belongs to.
     /// </summary>
-    private static long? ParseLocalApiPort(string? text)
-        => long.TryParse((text ?? string.Empty).Trim(), System.Globalization.NumberStyles.Integer,
-            System.Globalization.CultureInfo.CurrentCulture, out var value) ? value : null;
+    private void CaptureLocalApiPortEntry()
+    {
+        if (_localApiPortField is not { } port || _localApiPortBox is not { } box) return;
+        var typed = box.Text ?? string.Empty;
+        _localApiPortEntry = string.Equals(typed, LocalApiPortValueText(port), StringComparison.Ordinal)
+            ? null
+            : typed;
+    }
+
+    /// <summary>What the control itself would put in the box for the value it currently holds.</summary>
+    private static string LocalApiPortValueText(NumericUpDown port)
+        => port.Value is { } value ? value.ToString(port.FormatString, port.NumberFormat) : string.Empty;
 
     /// <summary>
-    /// The single commit path for the preferred port.
-    ///
-    /// Above 65535 the entry is CLAMPED and the clamped number is put on screen: that is #692's
-    /// fault — "70000" bound 7000 while the box still read 70000 — and 65535 is the unambiguous
-    /// nearest legal port. Below 0, unparseable or empty, the entry is REJECTED and the stored
-    /// port is restored. Clamping the low end instead would land on port 0, which the Local API
-    /// does not treat as a rejected port: LocalApiHost passes it straight to Listen, so the server
-    /// takes a random ephemeral port and rewrites local-api.json on every launch. A stray minus
-    /// sign must not buy that, and before #692 it did not — the control refused the parse and kept
-    /// the stored port. That refusal is preserved here.
+    /// Reads an entry the way the CONTROL reads it, through the field's own NumberFormat. A
+    /// narrower parse refuses text the field accepted before #692 — "8.080" is 8080 on a German
+    /// locale — and the entry would then be silently reverted to the stored port.
+    /// </summary>
+    private decimal? ParseLocalApiPort(string? text)
+        => LocalApiPortEntry.Parse(text, _localApiPortField?.NumberFormat);
+
+    /// <summary>
+    /// The single commit path for the preferred port. Which entries are clamped, which are
+    /// refused, and why 0 is neither, are all in LocalApiPortEntry.Committed.
     ///
     /// Both the value and the text are written back with SetCurrentValue, which changes the
     /// property without tearing down the OneWay binding, and unconditionally: SettingsViewModel's
     /// setter raises no PropertyChanged when the clamp lands on the port already stored, so
-    /// nothing would come back down the binding to correct the box.
+    /// nothing would come back down the binding to correct the box. Two writes and no more — the
+    /// control copies NumericUpDown.Text into the templated box synchronously, so a third write
+    /// straight onto PART_TextBox never had anything to do.
     /// </summary>
-    private void CommitLocalApiPort(long? entered)
+    private void CommitLocalApiPort(decimal? entered)
     {
         if (_localApiPortField is not { } port) return;
+        _localApiPortEntry = null;
+        _localApiPortCommits++;
         var settings = _viewModel.Settings;
-        if (entered is { } value && value >= 0) settings.LocalApiPort = (int)Math.Min(value, 65535);
+        if (LocalApiPortEntry.Committed(entered) is { } accepted) settings.LocalApiPort = accepted;
         var committed = settings.LocalApiPort;
-        var text = committed.ToString(System.Globalization.CultureInfo.CurrentCulture);
         port.SetCurrentValue(NumericUpDown.ValueProperty, (decimal)committed);
-        port.SetCurrentValue(NumericUpDown.TextProperty, text);
-        if (_localApiPortBox is { } box && !string.Equals(box.Text, text, StringComparison.Ordinal))
-            box.Text = text;
+        port.SetCurrentValue(NumericUpDown.TextProperty, committed.ToString(port.FormatString, port.NumberFormat));
     }
 
     /// <summary>
@@ -4005,6 +4056,25 @@ public partial class MainWindow : Window
     /// xvfb-run with no window manager — so yield a few times before giving up. The caller then
     /// reports "the probe could not run" rather than "#692 is back".
     /// </summary>
+    /// <summary>
+    /// The three controls the port probe drives, once they are all on the page. Retried for the
+    /// same reason the templated text box is: the Local API page is a DataTemplate and one Render
+    /// yield is not a promise that it has been built, and a lookup that loses that race must not
+    /// be reported as the #692 regression.
+    /// </summary>
+    private async Task<(NumericUpDown Port, StackPanel Tabs, CheckBox Elsewhere)?> LocalApiPortRowAsync()
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (FindNamed<NumericUpDown>("SettingsLocalApiPort") is { } port
+                && FindNamed<StackPanel>("LocalApiTabsRoot") is { } tabs
+                && FindNamed<CheckBox>("SettingsLocalApiEnabled") is { } elsewhere)
+                return (port, tabs, elsewhere);
+        }
+        return null;
+    }
+
     private static async Task<TextBox?> TemplatedPortBoxAsync(NumericUpDown port)
     {
         for (var attempt = 0; attempt < 20; attempt++)
@@ -4054,13 +4124,18 @@ public partial class MainWindow : Window
     /// below would land on the value already held, ViewModelBase.Set would raise nothing, and a
     /// counter-based check would pass without the fix.
     ///
-    /// Nothing here may touch the developer's own profile. The server is NOT enabled; the settings
-    /// listener is detached for the duration, so no probe write arms the 500ms auto-save; a save
-    /// that was already armed is stopped so it cannot tick mid-probe and persist the test port,
-    /// and it is re-armed on the way out.
+    /// Nothing here may outlive the probe on the developer's own profile. The settings listener is
+    /// detached for the duration, so no probe write arms the 500ms auto-save; a save that was
+    /// already armed is stopped so it cannot tick mid-probe and persist the test port, and it is
+    /// re-armed on the way out. Step 8 does flush ONE real save, because that is the half of the
+    /// close path the issue is about and nothing else can prove it runs; the window's own settings
+    /// fan-out is detached around it so the flush cannot restart a live Local API host on the
+    /// probe's port, and the original port is saved back before the fan-out returns.
     ///
-    /// Returns 0 when the field behaves, 26 for the #692 regression, and 27 when the probe could
-    /// not be set up at all — an environment fault, which must not read as the regression.
+    /// Returns 0 when the field behaves and 26 for the #692 regression, which is only ever
+    /// returned by an explicit check with its own message. Everything else — a control torn down
+    /// mid-run, a page that never appeared, a save its own validation refused — returns 27, "the
+    /// probe could not run". An environment fault must never read as the regression.
     /// </summary>
     private async Task<int> LocalApiPortCommitFailureAsync()
     {
@@ -4069,29 +4144,39 @@ public partial class MainWindow : Window
         const int start = 51671;
 
         _viewModel.Navigate("localapi");
-        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-        if (FindNamed<NumericUpDown>("SettingsLocalApiPort") is not { } port
-            || FindNamed<StackPanel>("LocalApiTabsRoot") is not { } tabs
-            || FindNamed<CheckBox>("SettingsLocalApiEnabled") is not { } elsewhere)
+        if (await LocalApiPortRowAsync() is not { } row)
         {
-            Console.Error.WriteLine("Smoke: the Local API preferred-port row is not on the page, so "
-                + "the port commit could not be measured. Setup failure, not the #692 regression.");
+            Console.Error.WriteLine("Smoke: the Local API preferred-port row never appeared on the "
+                + "page, so the port commit could not be measured. Setup failure, not the #692 "
+                + "regression.");
             return cannotRun;
         }
+        var (port, tabs, elsewhere) = row;
 
         var settings = _viewModel.Settings;
         var original = settings.LocalApiPort;
         var enabled = settings.LocalApiEnabled;
         var saveWasArmed = _settingsAutoSave is { IsEnabled: true };
         var commits = 0;
+        var saves = 0;
         void CountCommit(object? sender, PropertyChangedEventArgs e)
         {
             if (string.Equals(e.PropertyName, nameof(SettingsViewModel.LocalApiPort), StringComparison.Ordinal))
                 commits++;
         }
+        void CountSave(object? sender, EventArgs e) => saves++;
 
         _settingsAutoSave?.Stop();
         settings.PropertyChanged -= OnSettingsPropertyChanged;
+        // Step 8 flushes a REAL save, because that is the half of the close path #692 is about and
+        // the only way to prove it runs. The window's own fan-out is detached while it does: the
+        // flush raises LocalApiSettingsChanged, and on a profile with the server enabled that
+        // would restart the live host on the probe's port and rewrite local-api.json.
+        settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
+        settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
+        settings.StorageSettingsChanged -= OnStorageSettingsChanged;
+        settings.TelemetrySettingsChanged += CountSave;
         try
         {
             // SetCurrentValue, not a plain assignment: a local value REPLACES the IsVisible
@@ -4127,6 +4212,7 @@ public partial class MainWindow : Window
             // 1. The issue's own walk: Ctrl+A then 70000, one digit at a time. Nothing may reach
             //    the source until the edit is finished, and what lands must be the clamped port,
             //    in the box as well as behind it.
+            var commitCalls = _localApiPortCommits;
             await TypePortAsync(box, "7", "70", "700", "7000", "70000");
             if (commits != 0)
             {
@@ -4150,6 +4236,19 @@ public partial class MainWindow : Window
             {
                 Console.Error.WriteLine($"Smoke: committing 70000 moved Settings.LocalApiPort "
                     + $"{commits} time(s), not once.");
+                return regression;
+            }
+            // ...and ONE commit, not one visible commit. Two handlers see the same bubbling
+            // LostFocus — the one on the templated text box and the one on the NumericUpDown — and
+            // a second commit of the same number moves nothing, raises no PropertyChanged and is
+            // invisible to the counter above. Counting the calls is what makes the commit's
+            // idempotence a tested promise instead of a silent requirement.
+            if (_localApiPortCommits - commitCalls != 1)
+            {
+                Console.Error.WriteLine($"Smoke: one blur out of the preferred port ran "
+                    + $"CommitLocalApiPort {_localApiPortCommits - commitCalls} time(s), not once. "
+                    + "Every non-idempotent step ever added to the commit — a clamp message, a "
+                    + "counter, an explicit restart — would fire that many times per focus change.");
                 return regression;
             }
 
@@ -4274,8 +4373,8 @@ public partial class MainWindow : Window
             // 8. Quitting with the caret still in the field. This is the path a binding trigger
             //    cannot reach at all: there is no focus change, so the source never sees the port
             //    and OnClosing shuts the host down on the old one. CommitPendingSettingsEdits is
-            //    what OnClosing calls, and it also flushes the debounced save — which is inert
-            //    here, because the settings listener is detached and no save is armed.
+            //    what OnClosing calls, and it also flushes the debounced save that the commit
+            //    itself arms — a save that can never tick, because the window is going.
             box.Focus();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             await TypePortAsync(box, "9", "90", "900", "9000");
@@ -4285,13 +4384,36 @@ public partial class MainWindow : Window
                     + $"edit was finished ({commits} change(s) in all, expected 4).");
                 return regression;
             }
+            //    The save is ARMED first, the way a real edit arms it. Without that the flush half
+            //    of CommitPendingSettingsEdits returns at its own `IsEnabled` guard and this step
+            //    measures only that the port reached the view model: the flush could be deleted
+            //    with every gate still green, and a port typed at quit would reach the view model
+            //    and never be written to disk — the original complaint, one layer down.
+            OnSettingsPropertyChanged(settings, new PropertyChangedEventArgs(nameof(SettingsViewModel.LocalApiPort)));
+            if (_settingsAutoSave is not { IsEnabled: true })
+            {
+                Console.Error.WriteLine("Smoke: the settings auto-save would not arm, so the close "
+                    + "path's flush cannot be measured. Setup failure, not the #692 regression.");
+                return cannotRun;
+            }
             CommitPendingSettingsEdits();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-            if (settings.LocalApiPort != 9000 || commits != 5)
+            if (saves == 0 && settings.Status.HasError)
+            {
+                Console.Error.WriteLine("Smoke: the flushed save was refused by its own validation "
+                    + $"({settings.Status.ErrorCode}), so the close path could not be measured. "
+                    + "Setup failure, not the #692 regression.");
+                return cannotRun;
+            }
+            if (settings.LocalApiPort != 9000 || commits != 5 || saves != 1
+                || _settingsAutoSave is not { IsEnabled: false })
             {
                 Console.Error.WriteLine($"Smoke: closing the window with 9000 still under the caret "
                     + $"left the preferred port on {settings.LocalApiPort} after {commits} "
-                    + "change(s) — a typed port must survive quitting the app.");
+                    + $"change(s) and {saves} save(s), with the debounced save "
+                    + $"{(_settingsAutoSave is { IsEnabled: true } ? "still armed" : "stopped")} — "
+                    + "a typed port must survive quitting the app, and the 500ms save the commit "
+                    + "arms can never tick once the window has gone.");
                 return regression;
             }
 
@@ -4308,7 +4430,54 @@ public partial class MainWindow : Window
                 return regression;
             }
 
-            // 10. And the probe leaves the page as it found it. The Local API body was opened to
+            // 10. The spin again, and now on an entry the control REFUSED. This is #692 itself,
+            //     alive through the one path the text handlers cannot see, and it is why the spin
+            //     commits what was TYPED rather than Value: NumericUpDown swallows "70000"
+            //     (ConvertTextToValue throws through ValidateMinMax into a catch), leaves Value on
+            //     the last in-range prefix 7000 and sets ValidSpinDirection to None so the click
+            //     cannot even move it, and a spin then committed 7000 — the exact port the issue
+            //     reported binding — while Enter and blur on the same text clamped to 65535.
+            //     Driven with focus still in the box, which is where a real click leaves it.
+            box.Focus();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            await TypePortAsync(box, "7", "70", "700", "7000", "70000");
+            if (commits != 6)
+            {
+                Console.Error.WriteLine($"Smoke: typing 70000 before a spin moved "
+                    + $"Settings.LocalApiPort ({commits} change(s) in all, expected 6).");
+                return regression;
+            }
+            spinner.RaiseEvent(new SpinEventArgs(Spinner.SpinEvent, SpinDirection.Increase));
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (settings.LocalApiPort != 65535 || box.Text != "65535" || port.Value != 65535m || commits != 7)
+            {
+                Console.Error.WriteLine($"Smoke: clicking the spinner after typing 70000 committed "
+                    + $"port {settings.LocalApiPort} with the field reading '{box.Text}' "
+                    + $"(Value={port.Value}) after {commits} change(s) — expected 65535 everywhere. "
+                    + "The swallowed prefix is what #692 reported binding, and the spinner is the "
+                    + "one way of finishing an edit that can still reach it.");
+                return regression;
+            }
+
+            // 11. ...and the same click after a NEGATIVE entry must not land on port 1. Clamping
+            //     the low end would spin "-1" up from a committed port 0; the refusal has to
+            //     survive the spin exactly as it survives a blur, so the stored port comes back.
+            box.Focus();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            await TypePortAsync(box, "-", "-1");
+            spinner.RaiseEvent(new SpinEventArgs(Spinner.SpinEvent, SpinDirection.Increase));
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (settings.LocalApiPort != 65535 || box.Text != "65535" || port.Value != 65535m || commits != 7)
+            {
+                Console.Error.WriteLine($"Smoke: clicking the spinner after typing -1 left the "
+                    + $"preferred port on {settings.LocalApiPort} with the field reading "
+                    + $"'{box.Text}' (Value={port.Value}) after {commits} change(s) — expected the "
+                    + "stored 65535 back, refused. Port 0 and port 1 are both different features "
+                    + "from the port the user was editing.");
+                return regression;
+            }
+
+            // 12. And the probe leaves the page as it found it. The Local API body was opened to
             //     get at the field — an invisible control cannot take focus — and putting it back
             //     is not free: a plain assignment overrides the IsVisible binding to
             //     Settings.LocalApiEnabled, and ClearValue does NOT restore it, so the tab strip,
@@ -4329,17 +4498,33 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"Smoke: the Local API port commit check threw: {exception}");
-            return regression;
+            // NOT the regression code. Every #692 regression this probe can prove is proved by an
+            // explicit check above, each with its own message; an exception here is a control torn
+            // down mid-run, a dispatcher shutting down, a focus call on a window that lost its
+            // X connection. Reporting those as "#692 is back" reddens unrelated pull requests with
+            // a sentence that is not true.
+            Console.Error.WriteLine($"Smoke: the Local API port check could not finish: {exception} "
+                + "Setup failure, not the #692 regression.");
+            return cannotRun;
         }
         finally
         {
             settings.PropertyChanged -= CountCommit;
+            settings.TelemetrySettingsChanged -= CountSave;
             settings.LocalApiPort = original;
             RestoreLocalApiTabs(tabs, enabled);
+            // Step 8 flushed a REAL save, so the profile on disk is holding the probe's port.
+            // Put the original back the same way, while the window's own fan-out is still
+            // detached, so nothing restarts on a port this probe invented.
+            if (saves > 0 && settings.SaveCommand.CanExecute(null)) settings.SaveCommand.Execute(null);
+            settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+            settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
+            settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
+            settings.StorageSettingsChanged += OnStorageSettingsChanged;
             settings.PropertyChanged += OnSettingsPropertyChanged;
             // Give back the save this probe interrupted. Its own writes are not saved: the
             // listener was detached while they happened and the original port is back.
+            _settingsAutoSave?.Stop();
             if (saveWasArmed) _settingsAutoSave?.Start();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
         }

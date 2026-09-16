@@ -22,7 +22,7 @@ var tests = new (string Name, Action Run)[]
     ("production XAML contains no localizable literals", ProductionXamlHasNoLocalizableLiterals),
     ("production code uses catalogued user feedback", ProductionCodeUsesCataloguedFeedback),
     ("settings pages carry no Windows-only control or copy", SettingsPagesMatchWindowsSurface),
-    ("the Local API preferred port commits once and clamps", LocalApiPortCommitsOnceAndClamps),
+    ("the Local API preferred port is wired to commit once, on every path", LocalApiPortCommitWiringIsIntact),
     ("tray labels are catalogued with RTL metadata", TrayLabelsAreCatalogued),
     ("startup culture selection is bounded", StartupCultureSelectionIsBounded),
 };
@@ -263,17 +263,19 @@ static void SettingsPagesMatchWindowsSurface()
 }
 
 /// <summary>
-/// The cheap half of #692's guard. The real one is the smoke probe, which TYPES into the field in a
-/// real window (MainWindow.axaml.cs, exit codes 26 and 27); this one costs nothing, runs in CI
-/// without an X server, and names the piece of wiring that went missing rather than the number that
-/// came out wrong.
+/// The cheap half of #692's guard: is every commit path still WIRED. The numbers a commit produces
+/// are not asserted here and the name does not claim they are — they are pinned for real by
+/// LocalApiPortEntry's own test in the composition harness, which calls the rules, and by the smoke
+/// probe, which TYPES into the field in a real window (MainWindow.axaml.cs, exit codes 26 and 27).
+/// This one costs nothing, runs in CI without an X server, and names the piece of wiring that went
+/// missing.
 ///
 /// Parsed as XML, not grepped: the clauses live on one element, and a grep for "Mode=OneWay" would
 /// be satisfied by the attribute sitting on any other control on the page. Numbers are compared as
 /// numbers and the binding is matched with a pattern, so an equivalent spelling — "65535.0",
 /// "Mode = OneWay" — is not a failure on a field that behaves exactly as intended.
 /// </summary>
-static void LocalApiPortCommitsOnceAndClamps()
+static void LocalApiPortCommitWiringIsIntact()
 {
     var surface = Path.Combine(AppContext.BaseDirectory, "LocalizationSurface");
     var document = XDocument.Load(Path.Combine(surface, "MainWindow.axaml"));
@@ -321,8 +323,32 @@ static void LocalApiPortCommitsOnceAndClamps()
     True(closing.Success, "OnClosing no longer cancels the lifetime, so the close-path guard cannot be placed");
     Contains("CommitPendingSettingsEdits();", closing.Value,
         "OnClosing must commit a still-focused settings edit before it cancels the lifetime");
-    Contains("OnLocalApiPortBoxKeyDown", code,
-        "the preferred port no longer commits on Enter");
+
+    // The close path has TWO halves and the second one is the one that reaches the disk: the
+    // commit only moves the port into the view model, where it arms a 500ms save that can never
+    // tick, because the window is going. Asserted on the method's own body — a bare mention of
+    // the name is satisfied by the declaration itself.
+    var flush = Regex.Match(code, @"private void CommitPendingSettingsEdits\(\)\r?\n    \{.*?\r?\n    \}",
+        RegexOptions.Singleline);
+    True(flush.Success, "CommitPendingSettingsEdits is gone, so the close path commits nothing");
+    Contains("CommitLocalApiPort(", flush.Value,
+        "the close path must commit a still-focused preferred port");
+    Contains("SaveCommand.Execute(null)", flush.Value,
+        "the close path must FLUSH the debounced save; without it the typed port reaches the view "
+        + "model at quit and is never written to disk");
+
+    // Enter and blur are wired in code, on the TEMPLATED text box. A bare identifier grep is
+    // satisfied by an unreferenced private declaration — the registration is what makes Enter
+    // commit rather than dead code, and an unreferenced private method raises no compiler
+    // diagnostic, so nothing else would notice it going.
+    True(Regex.IsMatch(code, @"AddHandler\(\s*InputElement\.KeyDownEvent,\s*OnLocalApiPortBoxKeyDown,"
+            + @"\s*\r?\n?\s*RoutingStrategies\.Tunnel,\s*handledEventsToo:\s*true\)"),
+        "the preferred port no longer commits on Enter: the tunnel-phase KeyDown handler is not "
+        + "registered on the templated text box");
+    True(Regex.IsMatch(code, @"AddHandler\(\s*InputElement\.LostFocusEvent,\s*OnLocalApiPortBoxLostFocus,"
+            + @"\s*\r?\n?\s*RoutingStrategies\.Bubble,\s*handledEventsToo:\s*true\)"),
+        "the preferred port no longer commits the RAW text on blur: the LostFocus handler is not "
+        + "registered on the templated text box");
 }
 
 /// <summary>A XAML numeric attribute read as a number, so an equivalent spelling still passes.</summary>

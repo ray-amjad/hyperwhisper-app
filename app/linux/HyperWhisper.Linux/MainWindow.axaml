@@ -1485,13 +1485,22 @@
                  OnLocalApiPortTemplateApplied, so both read the RAW text before NumericUpDown's own
                  commit rewrites it), focus leaving from the spinner buttons through LostFocus here,
                  a spin through Spinned, and a still-focused edit at quit through OnClosing. A
-                 binding trigger cannot reach the last four.
+                 binding trigger cannot reach the last four. Each of them commits ONCE: the blur
+                 handler here skips an event that came from the text box, which the box's own
+                 handler has already committed.
+
+                 The spin commits what was TYPED when an entry is still pending, not Value. The
+                 control swallows an out-of-range entry and leaves Value on the last in-range
+                 prefix, so a spin after "70000" committed 7000 — #692's own number — while Enter
+                 and blur clamped correctly.
 
                  ClipValueToMinMax is deliberately ABSENT. It clamps at parse time at BOTH ends, so
-                 "-1" became a committed port 0 — which is not a rejected port, it is "bind a random
-                 port on every launch". The commit method clamps the high end (70000 -> 65535, the
-                 #692 fault) and REJECTS anything below 0 or unparseable by restoring the stored
-                 port, which is what this field did before #692 was fixed.
+                 "-1" became a committed port 0. The commit method clamps the high end (70000 ->
+                 65535, the #692 fault) and REFUSES anything below 0 or unparseable by restoring
+                 the stored port, which is what this field did before #692 was fixed. A typed 0 is
+                 NOT refused: Minimum="0", this row's own label says the port falls back to an
+                 available loopback port, and the host binds an ephemeral port for 0 on purpose.
+                 See LocalApiPortEntry.Committed.
 
                  Maximum bounds the SPINNER, and nothing else now that the clamp is in C# — measured:
                  raising it to 99999 leaves every behaviour above intact, so the markup guard's
