@@ -27,6 +27,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     private bool _canCancel;
     private bool _canTranscribeFile;
     private bool _isImporting;
+    private bool _applyingSnapshot;
     private double _importProgress;
     private CancellationTokenSource? _importCancellation;
     private bool _disposed;
@@ -93,6 +94,10 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     /// is available." until the microphone was picked again by hand. The picker cannot offer "no
     /// microphone" while it has entries, so a null from it is never a choice.
     ///
+    /// The picker writes null a second way, and the guard above cannot see it: a refill clears the
+    /// collection first, so the list IS empty at that instant. <see cref="ApplySnapshot"/> raises
+    /// <c>_applyingSnapshot</c> for exactly that window.
+    ///
     /// A genuinely empty device list still clears the selection: <see cref="ApplySnapshot"/>
     /// assigns the backing field, not this property.
     /// </remarks>
@@ -101,6 +106,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
         get => _selectedAudioDevice;
         set
         {
+            if (_applyingSnapshot) return;
             if (value is null && AudioDevices.Count > 0) return;
             if (!Set(ref _selectedAudioDevice, value)) return;
             _workflow.SelectDevice(value?.Id);
@@ -324,11 +330,20 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     {
         var completedNow = snapshot.State == TranscriptionWorkflowState.Completed
             && !string.Equals(State, nameof(TranscriptionWorkflowState.Completed), StringComparison.Ordinal);
-        AudioDevices.Clear();
-        foreach (var device in snapshot.AudioDevices) AudioDevices.Add(device);
-        Notify(nameof(HasAudioDevices));
-        _selectedAudioDevice = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
-        Notify(nameof(SelectedAudioDevice));
+        // Warning: the refill below empties the collection first, and a bound picker answers that
+        // by writing null back through its two-way selection binding. The null-while-not-empty
+        // guard on SelectedAudioDevice cannot catch this one, because the list IS empty at that
+        // instant. Without the flag the workflow loses its device on every refresh.
+        _applyingSnapshot = true;
+        try
+        {
+            AudioDevices.Clear();
+            foreach (var device in snapshot.AudioDevices) AudioDevices.Add(device);
+            Notify(nameof(HasAudioDevices));
+            _selectedAudioDevice = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
+            Notify(nameof(SelectedAudioDevice));
+        }
+        finally { _applyingSnapshot = false; }
         DevicesChanged?.Invoke(this, EventArgs.Empty);
         if (!_isImporting)
         {

@@ -2311,6 +2311,12 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         var refills = 0;
         viewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
         viewModel.DevicesChanged += (_, _) => refills++;
+        // Stand in for the bound picker: a ComboBox answers an emptied ItemsSource by writing null
+        // back through its two-way selection binding, in the middle of the refill.
+        viewModel.AudioDevices.CollectionChanged += (_, _) =>
+        {
+            if (viewModel.AudioDevices.Count == 0) viewModel.SelectedAudioDevice = null;
+        };
         Assert(!viewModel.HasAudioDevices && viewModel.AudioDevices.Count == 0,
             "the view model reported a microphone before the input service offered one");
 
@@ -2321,6 +2327,13 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         Assert(notifications.Contains(nameof(TranscriptionWorkflowViewModel.HasAudioDevices)),
             "the view model filled its device list without notifying, so a bound view cannot show it");
         Assert(refills == 1, "the refill signal a copying view needs was not raised exactly once");
+
+        // The refill empties the collection before it fills it, and the picker answers the empty
+        // list with a null. That null arrives while the list IS empty, so only the snapshot flag
+        // can stop it: every refresh otherwise left the workflow with no device.
+        workflow.RefreshDevices();
+        Assert(viewModel.SelectedAudioDevice?.Id == "mic-1" && workflow.Snapshot.SelectedAudioDeviceId == "mic-1",
+            "a refresh let the picker's transient null clear the chosen microphone");
 
         // A picker bound two-way writes null when its view is torn down — on Linux, every time the
         // user leaves the Home page. That is not a choice, and letting it through left the workflow
@@ -2333,7 +2346,7 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
 
         devices.Available = [];
         workflow.RefreshDevices();
-        Assert(!viewModel.HasAudioDevices && refills == 2,
+        Assert(!viewModel.HasAudioDevices && refills == 3,
             "an unplugged microphone did not reach the view model");
         Assert(viewModel.SelectedAudioDevice is null,
             "an unplugged microphone stayed selected");
