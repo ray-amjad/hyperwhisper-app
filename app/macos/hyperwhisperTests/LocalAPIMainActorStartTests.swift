@@ -37,8 +37,8 @@
 //  never got a socket (11) — and a bind that finally succeeds retires the error
 //  the bind before it failed with (12).
 //
-//  One line of that fix then turned out to be a defect of its own, and the last
-//  four tests are about it. A regeneration discharges what it adopted WITHOUT
+//  One line of that fix then turned out to be a defect of its own, and tests
+//  13-16 are about it. A regeneration discharges what it adopted WITHOUT
 //  touching the socket (13, 14, 15), and the `stop()` that used to stand in
 //  front of the rebind cannot come back (16). A live server authorizes against
 //  `bearerToken` on every request, so the credential the regeneration has just
@@ -47,6 +47,22 @@
 //  the old, still-draining socket was holding. One click on Regenerate, and the
 //  Local API never came back — no port file, nothing listening, and a raw kqueue
 //  error printed into the Settings pane (issue #641).
+//
+//  That click had a second half, and tests 17-22 are about that one. The bind
+//  attempt is the third actor in this file with state to own, and it was the one
+//  with no identity at all: `bindAndRun()` spawns a run task and a listening
+//  waiter, and either can resume long after the attempt that spawned it was
+//  replaced by another bind or retired by a `stop()`. A superseded attempt could
+//  therefore publish a port for a socket nobody owns — or, the line that made
+//  #641 PERMANENT rather than merely ugly, clear `server`, cancel the live
+//  `runTask` and delete the discovery file on its way past, killing the bind that
+//  had just replaced it. So there is a generation now: minted once per attempt
+//  and never mistaken for its successor (17, 18), carried into the run task's
+//  failure path (19), checked before the waiter publishes anything (20) and
+//  before it retries anything (21) — and retired by `stop()`, so nothing binds a
+//  socket back up behind a switch the user has turned off (22). That last one
+//  matters because toggling off and on is the only recovery the issue leaves
+//  users, and it reaches the same race by the same road.
 //
 //  What no test at this seam can prove: that the app actually finishes
 //  bootstrap while the consent panel is up. That needs a real Mac with a
@@ -808,6 +824,340 @@ struct LocalAPIMainActorStartTests {
             A regeneration on a live server must republish local-api.json on the port it is already \
             listening on. Without that write the file keeps advertising the token the user has just \
             invalidated, and every MCP client that reads it gets a 401.
+            """
+        )
+    }
+
+    // MARK: - 17-22. A superseded bind attempt publishes nothing and destroys nothing
+
+    /// Only the attempt whose generation is current owns the server.
+    ///
+    /// Called rather than scraped, which is the rule `ProductionSource` states.
+    /// The predicate is an equality and has to stay one: every guard added below
+    /// is only as good as this answer, and a `!= 0` or a Bool-flag rewrite makes
+    /// all four of them vacuously true the moment any bind has ever been made.
+    @Test func aSupersededBindAttemptOwnsNothing() {
+        #expect(
+            LocalAPIServer.bindAttemptStillOwnsServer(attempt: 0, current: 0),
+            "the first attempt owns the server it just bound"
+        )
+        #expect(
+            LocalAPIServer.bindAttemptStillOwnsServer(attempt: 7, current: 7),
+            "an attempt nothing has superseded still owns the server"
+        )
+        #expect(
+            LocalAPIServer.bindAttemptStillOwnsServer(attempt: .max, current: .max),
+            "ownership is an equality, so it holds at the wrap point too"
+        )
+        #expect(
+            !LocalAPIServer.bindAttemptStillOwnsServer(attempt: 7, current: 8),
+            """
+            an attempt that a later bind superseded must own nothing. This is the one that matters: \
+            it is the stale run task and the stale waiter of issue #641, and letting either through \
+            is what cleared the server that had just replaced them.
+            """
+        )
+        #expect(
+            !LocalAPIServer.bindAttemptStillOwnsServer(attempt: 8, current: 7),
+            """
+            the comparison must be an equality, not a `<=`. Nothing should ever hold an id ahead of \
+            the current generation, and a predicate that tolerates one is not reading an identity.
+            """
+        )
+        #expect(
+            !LocalAPIServer.bindAttemptStillOwnsServer(attempt: .max, current: 0),
+            "an attempt superseded across the wrap point owns nothing either"
+        )
+        #expect(
+            !LocalAPIServer.bindAttemptStillOwnsServer(attempt: 0, current: .max),
+            "and the same the other way round"
+        )
+    }
+
+    /// Minting a bind generation always changes it.
+    ///
+    /// Called rather than scraped, and the anti-vacuity test for every guard in
+    /// this group. A mint that returned `current` — or clamped with a `max(…)` —
+    /// would leave `bindAttemptStillOwnsServer` answering `true` for every stale
+    /// attempt in the process, and each of the four guards below would read as
+    /// present and do nothing at all.
+    ///
+    /// `.max` is in here because the addition has to WRAP. A trapping `+ 1` would
+    /// crash rather than roll over, and a crash is not a recovery.
+    @Test func mintingABindGenerationAlwaysChangesIt() {
+        #expect(
+            LocalAPIServer.nextBindGeneration(after: 0) == 1,
+            "the first mint must not collide with the unclaimed initial value"
+        )
+        #expect(
+            LocalAPIServer.nextBindGeneration(after: .max) == 0,
+            """
+            the mint must wrap rather than trap. Trapping addition turns the eighteen-quintillionth \
+            bind into a crash; wrapping only has to guarantee that the id CHANGES.
+            """
+        )
+        let generations: [UInt64] = [0, 1, .max]
+        for generation in generations {
+            #expect(
+                !LocalAPIServer.bindAttemptStillOwnsServer(
+                    attempt: generation,
+                    current: LocalAPIServer.nextBindGeneration(after: generation)
+                ),
+                """
+                a mint must supersede the attempt it was minted after — at 0, at 1 and at the wrap \
+                point alike. If it does not, every guard written against this predicate passes for \
+                the stale attempt it exists to stop, and issue #641 is back with the guards still \
+                in the file.
+                """
+            )
+        }
+    }
+
+    /// A stale run failure cannot clear the server that replaced it.
+    ///
+    /// **This is the line that made issue #641 permanent.** One failed bind has
+    /// two independent reactions racing onto the main actor: the run task's
+    /// `catch`, and the waiter's. When the waiter won and installed a second
+    /// `HTTPServer`, `handleRunFailure()` landed afterwards knowing nothing about
+    /// which server it was reporting on — and set `self.server = nil`, cancelled
+    /// the live `runTask` and deleted the discovery file, killing the bind that
+    /// was about to rescue the situation.
+    ///
+    /// Both halves are asserted, because either alone is satisfiable without the
+    /// fix: the run task has to hand its attempt over, and `handleRunFailure()`
+    /// has to check it BEFORE the damage rather than after. A membership check
+    /// would pass for a guard placed under the teardown, which is no guard.
+    @Test func aStaleRunFailureCannotClearTheLiveServer() throws {
+        let bindStep = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "private func bindAndRun",
+            to: "func stop("
+        )
+        #expect(
+            bindStep.contains("handleRunFailure(error, from: attempt)"),
+            """
+            the run task must tell handleRunFailure() which bind attempt it belongs to. Without the \
+            attempt there is nothing for the guard below to compare, and a run task that fails after \
+            its bind was superseded tears down the server that replaced it (issue #641).
+            """
+        )
+
+        let failureBody = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "private func handleRunFailure(",
+            to: "private static func extractPort("
+        )
+        guard let ownership = failureBody.range(of: "bindAttemptStillOwnsServer") else {
+            Issue.record("""
+                handleRunFailure() must check that the attempt reporting the failure still owns the \
+                server before it touches anything. Unguarded, it is the single line that turned one \
+                EADDRINUSE into a Local API that never came back (issue #641).
+                """)
+            return
+        }
+        for damage in [
+            "self.lastError",
+            "self.server = nil",
+            "self.runTask?.cancel()",
+            "self.deletePortFile()"
+        ] {
+            guard let site = failureBody.range(of: damage) else {
+                Issue.record("""
+                    handleRunFailure() no longer contains an expected teardown line — update this \
+                    anchor rather than deleting the check.
+                    """)
+                continue
+            }
+            #expect(
+                ownership.lowerBound < site.lowerBound,
+                """
+                handleRunFailure() tears state down before it checks whether the attempt reporting \
+                the failure still owns it. A guard below the damage is not a guard: the server the \
+                retry had just installed is already nil, its run task already cancelled and \
+                local-api.json already deleted by the time the check runs (issue #641).
+                """
+            )
+        }
+    }
+
+    /// A superseded waiter publishes nothing.
+    ///
+    /// The success side, which is the half that is easy to miss: a waiter is
+    /// suspended inside `waitUntilListening()` while a `stop()`, a retry or a
+    /// regeneration's bind replaces it, then resolves and writes a port,
+    /// `isRunning`, a cleared `lastError`, local-api.json and the persisted-port
+    /// default — all for a socket nobody owns, and all over the live attempt's
+    /// own. Behind a toggle the user switched off it is worse still: a listener
+    /// and a discovery file reappear with the switch showing off.
+    ///
+    /// The first assertion is what keeps the check ON the main actor. A read
+    /// taken before the hop and acted on after it is the same read-then-act
+    /// window the guard exists to close.
+    @Test func aSupersededWaiterPublishesNothing() throws {
+        let listeningPath = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "try await httpServer.waitUntilListening()",
+            to: "} catch {"
+        )
+
+        guard let hop = listeningPath.range(of: "await MainActor.run") else {
+            Issue.record("the waiter's main-actor hop was renamed — update this anchor rather than deleting the check")
+            return
+        }
+        guard let ownership = listeningPath.range(of: "bindAttemptStillOwnsServer") else {
+            Issue.record("""
+                the waiter must check that its bind attempt still owns the server before it \
+                publishes anything. Without it, a waiter for a bind that was replaced — or stopped \
+                — advertises a dead socket in local-api.json and flips isRunning back on \
+                (issue #641).
+                """)
+            return
+        }
+        #expect(
+            hop.lowerBound < ownership.lowerBound,
+            """
+            the ownership check is read before the main-actor hop. bindGeneration is main-actor \
+            state, and a check taken off the actor and acted on after it re-opens the very \
+            read-then-act window this guard exists to close.
+            """
+        )
+        for publication in [
+            "self.listeningPort = port",
+            "self.isRunning = port > 0",
+            "self.lastError = nil",
+            "self.writePortFile(port: port)",
+            "LocalAPIServerPersistedPortKey"
+        ] {
+            guard let site = listeningPath.range(of: publication) else {
+                Issue.record("""
+                    the waiter no longer contains an expected publication line — update this anchor \
+                    rather than deleting the check.
+                    """)
+                continue
+            }
+            #expect(
+                ownership.lowerBound < site.lowerBound,
+                """
+                the waiter publishes before it checks whether its bind attempt still owns the \
+                server. A guard after the publish is not a guard — the stale port, the stale \
+                isRunning, the cleared lastError and the rewritten local-api.json have all already \
+                landed on top of the live attempt's own (issue #641).
+                """
+            )
+        }
+    }
+
+    /// A superseded waiter neither retries nor records an error.
+    ///
+    /// The failure side. Unguarded it wipes `LocalAPIServerPersistedPortKey` out
+    /// from under the attempt that had just written it — which costs the stable
+    /// port on the next launch — re-enters `bindAndRun()` after a `stop()`, so a
+    /// socket comes up behind a switch the user turned off, and writes a
+    /// `lastError` for a bind nobody is waiting for.
+    ///
+    /// Ownership and `preferredPort` are read in ONE hop on purpose: the existing
+    /// code already hopped for `preferredPort`, and folding the predicate into
+    /// that hop keeps the count at one and makes the two facts consistent with
+    /// each other.
+    @Test func aSupersededWaiterDoesNotRetryOrRecordAnError() throws {
+        let waiter = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "try await httpServer.waitUntilListening()",
+            to: "func stop("
+        )
+
+        guard let ownership = waiter.range(of: "guard stillOwns") else {
+            Issue.record("""
+                the waiter's catch must guard on ownership before it reacts to the failure at all. \
+                Without it a superseded attempt rebinds after a stop() and wipes the persisted-port \
+                preference on the way (issue #641).
+                """)
+            return
+        }
+        for reaction in [
+            "UserDefaults.standard.removeObject",
+            "self.server = nil",
+            "self.bindAndRun()",
+            "self.lastError = error.localizedDescription"
+        ] {
+            guard let site = waiter.range(of: reaction) else {
+                Issue.record("""
+                    the waiter's failure path no longer contains an expected line — update this \
+                    anchor rather than deleting the check.
+                    """)
+                continue
+            }
+            #expect(
+                ownership.lowerBound < site.lowerBound,
+                """
+                the waiter's catch acts on a failed bind before it checks whether that bind is still \
+                the one that owns the server. A guard below any of these is not a guard: the \
+                preference is already wiped, the rebind already issued behind a toggle the user \
+                switched off, or the error already on screen for an attempt nobody is waiting for \
+                (issue #641).
+                """
+            )
+        }
+    }
+
+    /// Stopping the server invalidates the bind that is still in flight.
+    ///
+    /// The toggle-off case, and the reason this is not only about the Regenerate
+    /// button. `stop()` clears `server`, `isRunning` and the discovery file in one
+    /// synchronous block, but a waiter suspended inside `waitUntilListening()`
+    /// knows nothing about it — it lands afterwards and publishes a port, or
+    /// re-enters `bindAndRun()`, leaving a listener and a local-api.json behind a
+    /// switch the user has turned off. Bumping the generation withdraws its right
+    /// to do either.
+    ///
+    /// Position against the guard is load-bearing: a bump above `guard
+    /// isLiveOrStarting` would fire on an idempotent no-op stop and retire a bind
+    /// that nothing had stopped. Position against the teardown lines below is
+    /// NOT: everything after the guard is one synchronous main-actor block with
+    /// no await in it, so asserting an order within it would only be brittle.
+    /// Hence membership there, and a position here.
+    @Test func stoppingTheServerInvalidatesTheBindInFlight() throws {
+        let body = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "func stop(",
+            to: "func restart("
+        )
+
+        guard let earlyReturn = body.range(of: "guard isLiveOrStarting else") else {
+            Issue.record("stop()'s early return was renamed — update this anchor rather than deleting the check")
+            return
+        }
+        guard let invalidation = body.range(of: "claimBindGeneration()") else {
+            Issue.record("""
+                stop() must retire the current bind generation. Without it, a waiter suspended in \
+                waitUntilListening() when the user switched the Local API off lands on the far side \
+                of the toggle and publishes a port — or rebinds — behind a switch that reads off \
+                (issue #641).
+                """)
+            return
+        }
+        #expect(
+            earlyReturn.lowerBound < invalidation.lowerBound,
+            """
+            stop() retires the bind generation ABOVE its early return, so an idempotent no-op stop \
+            invalidates a bind attempt nothing asked it to stop — the next successful bind would \
+            then refuse to publish its own port.
+            """
+        )
+        #expect(
+            body.contains("pendingBindOwner = nil"),
+            """
+            stop() must still orphan a start that is only pending. The generation covers a bind \
+            already in flight; pendingBindOwner covers one that has not reached bindAndRun() yet, \
+            and dropping either leaves half the window open (issue #655).
+            """
+        )
+        #expect(
+            !body.contains("tokenOwner"),
+            """
+            stop() touches tokenOwner. Switching the server off does not invalidate the token the \
+            Settings pane is showing, and the bind generation exists as its own counter precisely so \
+            that this withdrawal cannot be smuggled into the token identity (issue #655).
             """
         )
     }

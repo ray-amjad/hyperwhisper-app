@@ -121,6 +121,34 @@ final class LocalAPIServer: ObservableObject {
     /// disturbing `tokenOwner`, because switching the server off does not
     /// invalidate the token the Settings pane is showing.
     private var pendingBindOwner: UInt64?
+    /// Monotonic id of the bind attempt allowed to publish this server's state.
+    ///
+    /// The third actor in this file with something to own, and the last one to be
+    /// given an identity. `bindAndRun()` spawns two children — the run task and
+    /// the listening waiter — and either can outlive the attempt that spawned it:
+    /// a `stop()`, the EADDRINUSE retry, or a regeneration that adopted a pending
+    /// start can replace or retire that attempt while a child is still suspended
+    /// inside `run()` or `waitUntilListening()`.
+    ///
+    /// Whoever mints LAST owns all of `server`, `runTask`, `isRunning`,
+    /// `listeningPort`, `lastError`, `local-api.json` and the
+    /// `LocalAPIServerPersistedPortKey` default. An older attempt may still read
+    /// them; it may publish and destroy none of them. That is the whole rule, and
+    /// its absence is what turned one failed bind into a Local API that never
+    /// came back in issue #641 — a stale run failure cleared the `server` the
+    /// retry had just installed, and the retry's own waiter then gave up for good.
+    ///
+    /// A generation counter rather than `self.server === failedServer`: FlyingFox
+    /// is resolved from SPM and nothing here pins `HTTPServer` to a class, so an
+    /// identity comparison is a compile error waiting on a package update. A
+    /// counter is immune, and it is the idiom `tokenOwner` already established.
+    ///
+    /// Its OWN counter, deliberately, even though `nextBindGeneration(after:)` has
+    /// the same body as `nextTokenOwner(after:)`. "Who may publish the token" and
+    /// "who owns the socket" are different questions with different lifetimes, and
+    /// `stop()` answers them opposite ways: it withdraws the socket and leaves the
+    /// token alone, because the Settings pane is still showing that token.
+    private var bindGeneration: UInt64 = 0
     /// Tail of the serial chain REGENERATIONS run on — and only regenerations.
     ///
     /// `LocalAPIAuth.regenerateToken()` is a Keychain delete followed by a
@@ -225,6 +253,49 @@ final class LocalAPIServer: ObservableObject {
     private func claimTokenOwnership() -> UInt64 {
         tokenOwner = Self.nextTokenOwner(after: tokenOwner)
         return tokenOwner
+    }
+
+    // MARK: - Bind ownership
+
+    /// The next bind-attempt id after `current`.
+    ///
+    /// Pure and `static` so it can be tested by calling it rather than by
+    /// scraping this file — the rule `ProductionSource` states, and the same
+    /// shape as `nextTokenOwner`. Wrapping addition for the same reason: trapping
+    /// would be a crash eighteen quintillion binds in, and the only property that
+    /// matters is that the id CHANGES, so no attempt already in flight can be
+    /// mistaken for the one that has just claimed.
+    ///
+    /// A separate function from `nextTokenOwner(after:)` on purpose, identical
+    /// body and all. Two independent identities minted by one function read as
+    /// one identity, and `pendingBindOwner`'s own doc comment is where sharing a
+    /// counter IS the point — there the two questions are the same question. Here
+    /// they are not, and `stop()` is the proof: it retires the bind and leaves the
+    /// token alone.
+    nonisolated static func nextBindGeneration(after current: UInt64) -> UInt64 {
+        current &+ 1
+    }
+
+    /// Whether the bind attempt `attempt` is still the one that owns the server.
+    ///
+    /// Pure and `static` so it can be tested by calling it rather than by
+    /// scraping this file. An equality against the current generation, never a
+    /// `!= 0` or a Bool flag: a flag passes for every attempt once any attempt has
+    /// been made, which is precisely the flag-instead-of-identity shape
+    /// `pendingBindOwner` is documented to reject.
+    nonisolated static func bindAttemptStillOwnsServer(attempt: UInt64, current: UInt64) -> Bool {
+        attempt == current
+    }
+
+    /// Take ownership of the server's runtime state for the bind about to run.
+    ///
+    /// The exact shape of `claimTokenOwnership()`: synchronous, on the main
+    /// actor, before any await. Whoever held ownership is superseded from this
+    /// line on — their run task and their waiter may still resume, and may
+    /// publish nothing when they do.
+    private func claimBindGeneration() -> UInt64 {
+        bindGeneration = Self.nextBindGeneration(after: bindGeneration)
+        return bindGeneration
     }
 
     // MARK: - Configuration
@@ -339,6 +410,15 @@ final class LocalAPIServer: ObservableObject {
             AppLogger.network.error("LocalAPI server: bind address error · \(error.localizedDescription, privacy: .public)")
             return
         }
+        // Mint the identity of THIS bind attempt here, and nowhere else.
+        //
+        // After the address `do`/`catch` above, which returns having spawned
+        // nothing: a bump up there would retire an attempt that is genuinely in
+        // flight on behalf of a bind that never happened. And before both child
+        // tasks below, with no await in between, so the run task and the waiter
+        // capture the same number in the same tick. Everything either of them
+        // publishes or destroys is checked against it first (issue #641).
+        let attempt = claimBindGeneration()
         // Transcription/post-processing jobs can run much longer than the
         // FlyingFox default (15s) — a large-v3 pass on a 30s clip or a slow
         // cloud LLM round-trip routinely takes 30-90s. Allow up to 10 min
@@ -359,7 +439,10 @@ final class LocalAPIServer: ObservableObject {
             } catch is CancellationError {
                 // Normal shutdown
             } catch {
-                await self?.handleRunFailure(error)
+                // Carries the attempt it belongs to. A run task that fails after
+                // its bind has been superseded must not tear down the server that
+                // replaced it — see `handleRunFailure`.
+                await self?.handleRunFailure(error, from: attempt)
             }
         }
 
@@ -375,6 +458,29 @@ final class LocalAPIServer: ObservableObject {
                 try await httpServer.waitUntilListening()
                 let port = await Self.extractPort(from: httpServer)
                 await MainActor.run {
+                    // First statement inside the hop, before a single line of
+                    // this is published, and read on the main actor rather than
+                    // before it — a check taken off the actor and acted on after
+                    // it is the same read-then-act window this guard exists to
+                    // close.
+                    //
+                    // A waiter whose attempt has been superseded — by the
+                    // EADDRINUSE retry, by a regeneration's bind, or by a stop()
+                    // — would otherwise publish a port for a socket nobody owns,
+                    // flip `isRunning` back on behind a switch the user had just
+                    // turned off, retire the live attempt's `lastError`, and
+                    // rewrite both local-api.json and the persisted-port default
+                    // to that dead socket (issue #641).
+                    //
+                    // It suppresses publishing only. The socket this attempt
+                    // opened is not orphaned by returning here: whoever
+                    // superseded the attempt already owns its teardown — stop()
+                    // awaits `server?.stop(timeout:)` on this very server, and
+                    // the retry cancels this very run task.
+                    guard Self.bindAttemptStillOwnsServer(attempt: attempt, current: self.bindGeneration) else {
+                        AppLogger.network.info("LocalAPI server: superseded bind attempt finished listening; not publishing")
+                        return
+                    }
                     self.listeningPort = port
                     self.isRunning = port > 0
                     if port > 0 {
@@ -398,7 +504,29 @@ final class LocalAPIServer: ObservableObject {
                 // Most common cause: persisted port is already taken on this
                 // machine. Wipe the preference and let the next start() pick
                 // an ephemeral port.
-                let preferred = await MainActor.run { self.preferredPort }
+                //
+                // Ownership and the preferred port are read in ONE main-actor
+                // hop, not two: the existing code already hopped for
+                // `preferredPort`, and folding the predicate into the same hop
+                // keeps the count at one and makes the two facts consistent with
+                // each other.
+                let (stillOwns, preferred) = await MainActor.run {
+                    return (Self.bindAttemptStillOwnsServer(attempt: attempt, current: self.bindGeneration), self.preferredPort)
+                }
+                // Nothing below this line may run on behalf of a bind attempt
+                // that has been superseded or switched off. It would wipe
+                // LocalAPIServerPersistedPortKey out from under the attempt that
+                // had just written it — costing the stable port on the next
+                // launch — re-enter bindAndRun() after a stop() and bring a
+                // socket up behind a toggle the user turned off, or record an
+                // error for a bind nobody is waiting for (issue #641).
+                //
+                // Publishing is suppressed; teardown is not. Whoever superseded
+                // this attempt owns its server and its run task and stops both.
+                guard stillOwns else {
+                    AppLogger.network.info("LocalAPI server: superseded bind attempt failed; not retrying")
+                    return
+                }
                 if preferred != 0 {
                     UserDefaults.standard.removeObject(forKey: LocalAPIServerPersistedPortKey)
                     AppLogger.network.info("LocalAPI server: persisted port \(preferred, privacy: .public) unavailable; clearing preference and retrying with ephemeral port")
@@ -412,10 +540,12 @@ final class LocalAPIServer: ObservableObject {
                         // line below clears `server`, and a stop() that landed
                         // in this failed-bind window has already cleared the
                         // rest, so `isLiveOrStarting` can be false by the time
-                        // start() asks. That this retry rebinds after such a
-                        // stop() is a pre-existing hole, recorded in the PR body
-                        // and out of scope here — do not read this comment as a
-                        // claim that the in-flight guard closes it.
+                        // start() asks. That this retry could rebind after such
+                        // a stop() WAS a hole, and it is closed now — not here,
+                        // but at the `guard stillOwns` above: stop() bumps
+                        // `bindGeneration`, so a retry for an attempt the user
+                        // switched off has already returned and never reaches
+                        // this block at all.
                         self.server = nil
                         self.runTask?.cancel()
                         self.runTask = nil
@@ -450,6 +580,25 @@ final class LocalAPIServer: ObservableObject {
         // Settings pane still shows it, so a read already in flight may still
         // publish what it finds — it simply has nothing left to bind.
         pendingBindOwner = nil
+        // And the same withdrawal one step further down the lifecycle, for a
+        // bind that is no longer pending but already in flight. The waiter for
+        // the server being torn down below is very likely suspended inside
+        // `waitUntilListening()` right now; without this bump it lands on the
+        // far side of the toggle and publishes a port, an `isRunning`, a
+        // local-api.json and a persisted-port default for a socket the user has
+        // just switched off — or, on the failure side, re-enters `bindAndRun()`
+        // and brings a listener back up behind that switch. Bumping the
+        // generation costs it the right to do any of that (issue #641).
+        //
+        // Also after the guard, for the same reason `pendingBindOwner` is: an
+        // idempotent no-op stop must change nothing at all, and a bump above the
+        // guard would fire on one.
+        //
+        // The result is discarded on purpose. `stop()` is not claiming the
+        // server for itself; it is retiring whoever held it. And it touches
+        // `tokenOwner` not at all — switching the server off does not invalidate
+        // the token the Settings pane is showing.
+        _ = claimBindGeneration()
 
         Task { [server, runTask] in
             await server?.stop(timeout: 1.0)
@@ -777,8 +926,31 @@ final class LocalAPIServer: ObservableObject {
 
     // MARK: - Helpers
 
-    private func handleRunFailure(_ error: Error) async {
+    /// The run task's failure path, checked against the bind attempt it belongs
+    /// to.
+    ///
+    /// Unguarded, this was the line that made issue #641 permanent. One failed
+    /// bind has two independent reactions racing onto the main actor: this one,
+    /// and the waiter's `catch`. When the waiter won and installed a second
+    /// `HTTPServer`, this landed afterwards and — knowing nothing about which
+    /// server it was reporting on — cleared `server`, cancelled the LIVE run task
+    /// and deleted the discovery file, killing the socket that was about to
+    /// rescue the situation. The retry's own waiter then failed too, on a
+    /// preference this path had already wiped, and gave up for good: pane stuck
+    /// on "Server enabled / Starting…", a raw kqueue error printed into it,
+    /// nothing listening, and no recovery but a toggle.
+    ///
+    /// `attempt` is the generation minted by the bind this run task was spawned
+    /// by. If it is no longer current, some other attempt owns every field below
+    /// and owns the teardown of this one too, so there is nothing here to do.
+    private func handleRunFailure(_ error: Error, from attempt: UInt64) async {
         await MainActor.run {
+            // First statement inside the hop, before `lastError` and before any
+            // of the teardown. Read on the main actor, never before it.
+            guard Self.bindAttemptStillOwnsServer(attempt: attempt, current: self.bindGeneration) else {
+                AppLogger.network.info("LocalAPI server: superseded bind attempt reported a run failure; leaving the current server alone")
+                return
+            }
             self.lastError = error.localizedDescription
             self.isRunning = false
             self.listeningPort = 0
