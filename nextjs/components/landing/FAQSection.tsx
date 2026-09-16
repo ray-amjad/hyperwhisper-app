@@ -136,6 +136,9 @@ export default function FAQSection() {
                 }`}
                 id={`faq-panel-${key}`}
               >
+                {/* overflow-hidden is load-bearing: it takes this grid item out of
+                    automatic-minimum-size sizing, which is what lets the 0fr track
+                    resolve to 0. Without it every closed panel keeps its full height. */}
                 <div className="overflow-hidden">
                   <p className="text-gray-400 px-6 pt-2 pb-6 whitespace-pre-line">
                     {parseMarkdownLinks(t(`questions.${key}.answer`))}
