@@ -45,6 +45,20 @@ enum LocalAPIAuth {
         return loadOrCreateToken()
     }
 
+    /// The Keychain read, off the main actor. `SecItemCopyMatching` blocks
+    /// indefinitely behind the consent panel macOS raises when the item's ACL
+    /// does not match the running binary's signature; on the main actor that
+    /// froze app bootstrap before `setupGlobalHotkeys()` (issue #655).
+    nonisolated static func loadOrCreateTokenOffMainActor() async -> String {
+        await Task.detached(priority: .userInitiated) { loadOrCreateToken() }.value
+    }
+
+    /// `regenerateToken()` off the main actor, for the same reason: it is a
+    /// Keychain delete followed by the same read.
+    nonisolated static func regenerateTokenOffMainActor() async -> String {
+        await Task.detached(priority: .userInitiated) { regenerateToken() }.value
+    }
+
     /// Remove the stored token entirely — used by tests / a future
     /// "reset all" affordance.
     static func deleteToken() {

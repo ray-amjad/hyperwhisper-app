@@ -64,6 +64,12 @@ final class LocalAPIServer: ObservableObject {
     /// during the fallback retry when the persisted port is taken so we know
     /// what to overwrite in UserDefaults.
     private var preferredPort: UInt16 = 0
+    /// Identifies the `start()` whose token load is in flight, so `stop()`
+    /// (or a newer `start()`) can orphan it before it binds a socket. An
+    /// identity rather than a Bool because `restart()` is `stop(); start()`:
+    /// a flag would let the OLDER load see the NEWER start's flag and bind.
+    /// Same shape as `LicenseManager.networkFailureRetryID`.
+    private var pendingStartID: UUID?
 
     private init() {}
 
@@ -97,16 +103,31 @@ final class LocalAPIServer: ObservableObject {
 
     /// Starts the server if it isn't already running. Idempotent.
     func start() {
-        guard !isRunning, server == nil else {
+        guard !isRunning, server == nil, pendingStartID == nil else {
             AppLogger.network.debug("LocalAPIServer.start() called while already running")
             return
         }
 
         lastError = nil
-        // Load (or generate-and-store) the bearer token before any sockets are
-        // bound — every non-/health request needs it.
-        self.bearerToken = LocalAPIAuth.loadOrCreateToken()
+        // The bearer token is still set before any socket is bound — it is
+        // just no longer read on the main actor. `SecItemCopyMatching` can
+        // block forever behind a Keychain consent panel, and on the main
+        // actor that took the whole bootstrap with it (issue #655).
+        let id = UUID()
+        pendingStartID = id
+        Task { [weak self] in
+            let token = await LocalAPIAuth.loadOrCreateTokenOffMainActor()
+            guard let self, self.pendingStartID == id else { return }
+            self.pendingStartID = nil
+            self.bearerToken = token
+            self.bindAndRun()
+        }
+    }
 
+    /// Everything from address construction to the discovery-file write.
+    /// Split out of `start()` so the EADDRINUSE retry can re-enter the BIND
+    /// step with the token already loaded (issue #655).
+    private func bindAndRun() {
         // Bind IPv4 127.0.0.1 explicitly. FlyingFox's `.loopback(port:)` is
         // IPv6 (`[::1]`) which means clients hitting `http://127.0.0.1:PORT`
         // get connection-refused — there's nothing on the IPv4 side. We
@@ -175,12 +196,15 @@ final class LocalAPIServer: ObservableObject {
                     UserDefaults.standard.removeObject(forKey: LocalAPIServerPersistedPortKey)
                     AppLogger.network.info("LocalAPI server: persisted port \(preferred, privacy: .public) unavailable; clearing preference and retrying with ephemeral port")
                     await MainActor.run {
-                        // Reset state then re-enter start() so the next bind
-                        // uses port 0.
+                        // Reset state then re-enter the bind step so the next
+                        // bind uses port 0. Deliberately NOT start(): the token
+                        // is already in hand, so a second Keychain read would be
+                        // wasted, and the new in-flight guard would turn it away
+                        // anyway (issue #655).
                         self.server = nil
                         self.runTask?.cancel()
                         self.runTask = nil
-                        self.start()
+                        self.bindAndRun()
                     }
                     return
                 }
@@ -194,6 +218,10 @@ final class LocalAPIServer: ObservableObject {
 
     /// Stops the server if running. Idempotent.
     func stop() {
+        // A start() still waiting on its token has no `server` yet, so the
+        // guard below would let its bind land after the user switched the
+        // toggle off. Orphan it first (issue #655).
+        pendingStartID = nil
         guard server != nil else { return }
 
         Task { [server, runTask] in
@@ -220,13 +248,17 @@ final class LocalAPIServer: ObservableObject {
     /// new token gets written into local-api.json. Used by Settings →
     /// "Regenerate token".
     func regenerateBearerToken() {
-        LocalAPIAuth.regenerateToken()
-        if isRunning {
-            restart()
-        } else {
-            // Refresh the published value even when offline so the UI keeps
-            // showing the latest token.
-            self.bearerToken = LocalAPIAuth.loadOrCreateToken()
+        // Same Keychain hazard as start(): a delete followed by the same
+        // blocking read, here on the main actor from a Settings button. The
+        // published value is refreshed on every path so the UI keeps showing
+        // the latest token whether or not the server is up (issue #655).
+        Task { [weak self] in
+            let token = await LocalAPIAuth.regenerateTokenOffMainActor()
+            guard let self else { return }
+            self.bearerToken = token
+            if self.isRunning {
+                self.restart()
+            }
         }
     }
 
