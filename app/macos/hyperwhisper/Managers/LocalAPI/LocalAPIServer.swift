@@ -85,6 +85,39 @@ final class LocalAPIServer: ObservableObject {
 
     private init() {}
 
+    // MARK: - Lifecycle predicate
+
+    /// Whether the server is live, or on its way up.
+    ///
+    /// Before the token load moved off the main actor, `start()` assigned
+    /// `server` synchronously and so `server == nil` implied "not starting".
+    /// It no longer does: between the click and the bind there is now a window
+    /// in which the server has no socket, is not `isRunning`, and is still
+    /// very much on its way up. Every lifecycle hook that used to ask one of
+    /// those two questions has to ask this one instead, or it acts on a
+    /// pending start as though nothing were happening (issue #655).
+    ///
+    /// Pure and `static` so it can be tested by calling it rather than by
+    /// scraping this file — the rule `ProductionSource` states. `nonisolated`
+    /// because it touches no state at all; the caller supplies the three
+    /// facts, and this decides what they mean.
+    nonisolated static func serverIsLiveOrStarting(
+        isRunning: Bool,
+        hasServer: Bool,
+        hasPendingStart: Bool
+    ) -> Bool {
+        isRunning || hasServer || hasPendingStart
+    }
+
+    /// `serverIsLiveOrStarting` applied to this instance's own state.
+    private var isLiveOrStarting: Bool {
+        Self.serverIsLiveOrStarting(
+            isRunning: isRunning,
+            hasServer: server != nil,
+            hasPendingStart: pendingStartID != nil
+        )
+    }
+
     // MARK: - Configuration
 
     /// Inject dependencies. Called once during `applicationDidFinishLaunching`
@@ -131,7 +164,7 @@ final class LocalAPIServer: ObservableObject {
 
     /// Starts the server if it isn't already running. Idempotent.
     func start() {
-        guard !isRunning, server == nil, pendingStartID == nil else {
+        guard !isLiveOrStarting else {
             AppLogger.network.debug("LocalAPIServer.start() called while already running")
             return
         }
@@ -211,6 +244,19 @@ final class LocalAPIServer: ObservableObject {
                 await MainActor.run {
                     self.listeningPort = port
                     self.isRunning = port > 0
+                    if port > 0 {
+                        // A bind that succeeded retires whatever the last one
+                        // failed with. `start()` clears `lastError` on the
+                        // click, but the EADDRINUSE fallback re-enters
+                        // bindAndRun() directly and never passes through
+                        // start() again — so without this the retry's healthy
+                        // "Running" row sits next to a stale "Address already
+                        // in use". Clearing it here rather than at the top of
+                        // bindAndRun() also settles the race with
+                        // handleRunFailure(), which sets lastError from the
+                        // run task and can land after the retry has begun.
+                        self.lastError = nil
+                    }
                     self.writePortFile(port: port)
                     UserDefaults.standard.set(Int(port), forKey: LocalAPIServerPersistedPortKey)
                     AppLogger.network.info("LocalAPI server listening on 127.0.0.1:\(port, privacy: .public)")
@@ -246,11 +292,18 @@ final class LocalAPIServer: ObservableObject {
 
     /// Stops the server if running. Idempotent.
     func stop() {
-        // A start() still waiting on its token has no `server` yet, so the
-        // guard below would let its bind land after the user switched the
-        // toggle off. Orphan it first (issue #655).
+        // The early return asks `isLiveOrStarting`, not `server != nil`. A
+        // start() still waiting on its token has no `server` yet, so the old
+        // guard returned before everything below it: the orphan never
+        // happened and the pending bind landed after the user switched the
+        // toggle off, and `deletePortFile()` was never reached either, so a
+        // quit in that window left a stale local-api.json advertising the
+        // previous launch's port and token (issue #655).
+        guard isLiveOrStarting else { return }
+        // AFTER the guard has read it, never before: clearing first would put
+        // `isLiveOrStarting` back to false for a pending-only stop and send us
+        // out of the early return again, losing deletePortFile().
         pendingStartID = nil
-        guard server != nil else { return }
 
         Task { [server, runTask] in
             await server?.stop(timeout: 1.0)
@@ -304,14 +357,17 @@ final class LocalAPIServer: ObservableObject {
     // MARK: - Sleep / wake hooks (called from AppDelegate observers)
 
     func handleSystemWillSleep() {
-        guard isRunning else { return }
+        // Not `isRunning`: a start that is still waiting on its Keychain read
+        // would otherwise sail through sleep and bind a socket on the far
+        // side, which is the one thing this hook exists to prevent (#655).
+        guard isLiveOrStarting else { return }
         AppLogger.network.info("LocalAPI server stopping for system sleep")
         stop()
     }
 
     func handleSystemDidWake() {
         let enabled = UserDefaults.standard.bool(forKey: LocalAPIServerEnabledKey)
-        guard enabled, !isRunning else { return }
+        guard enabled, !isLiveOrStarting else { return }
         AppLogger.network.info("LocalAPI server resuming after system wake")
         start()
     }
