@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.13.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.13.0 - ARM64 -->
+<item>
+<title>1.13.0 (ARM64)</title>
+<pubDate>Wed, 16 Sep 2026 02:09:21 +0000</pubDate>
+<sparkle:version>1.13.0</sparkle:version>
+<sparkle:shortVersionString>1.13.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.13.0-arm64-Setup.exe"
+length="145205944"
+type="application/octet-stream"
+sparkle:edSignature="AFV5hpYujdMrZI53Fs30FckDQ9SgtJVebdT1WUApRjL6AJk0+Bcgv1P4cbnJlni/89/oWSelh6ARFJ51dytQAA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.13.0</h2>
+<ul>
+<li>HyperWhisper now speaks your language: German, French, Spanish, Portuguese, Italian, Dutch, Russian, Japanese and Simplified Chinese are fully translated, and the Home and Settings layouts adapt to longer words instead of clipping them.</li><li>Added Microsoft MAI-Transcribe 2 as a new HyperWhisper Cloud transcription option.</li><li>Added Gemini 3.8 Flash and Qwen 3.8 27B as AI post-processing models, and retired a model that had stopped responding.</li><li>Fixed a crash on PCs where security software blocks part of the app, which could stop the Home page loading or a recording starting.</li><li>Fixed long mode names overflowing the status bar, the mode card, the tray menu and History.</li><li>Fixed the shortcut recorder saving a half-finished shortcut while you were still pressing the keys.</li><li>Custom endpoints now say why they cannot be saved, and no longer show Connected before they have ever connected.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.13.0 - x64 -->
+<item>
+<title>1.13.0 (x64)</title>
+<pubDate>Wed, 16 Sep 2026 02:09:21 +0000</pubDate>
+<sparkle:version>1.13.0</sparkle:version>
+<sparkle:shortVersionString>1.13.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.13.0-x64-Setup.exe"
+length="188219024"
+type="application/octet-stream"
+sparkle:edSignature="gdWB7q/ySiWXe20/QH5WSaVLdcEkaiArNZnTTWS7jvBjBNeoW9V0xbFZtFpniaxgOhZeU4fA4r/+Xu3/1JIkCg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.13.0</h2>
+<ul>
+<li>HyperWhisper now speaks your language: German, French, Spanish, Portuguese, Italian, Dutch, Russian, Japanese and Simplified Chinese are fully translated, and the Home and Settings layouts adapt to longer words instead of clipping them.</li><li>Added Microsoft MAI-Transcribe 2 as a new HyperWhisper Cloud transcription option.</li><li>Added Gemini 3.8 Flash and Qwen 3.8 27B as AI post-processing models, and retired a model that had stopped responding.</li><li>Fixed a crash on PCs where security software blocks part of the app, which could stop the Home page loading or a recording starting.</li><li>Fixed long mode names overflowing the status bar, the mode card, the tray menu and History.</li><li>Fixed the shortcut recorder saving a half-finished shortcut while you were still pressing the keys.</li><li>Custom endpoints now say why they cannot be saved, and no longer show Connected before they have ever connected.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.12.0 -->
 <!-- ================================================================== -->
 
