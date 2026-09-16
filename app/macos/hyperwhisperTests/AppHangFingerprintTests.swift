@@ -6,17 +6,18 @@
 //  never got a fingerprint. Every hang with no HyperWhisper frame below
 //  `HyperWhisperApp.$main` therefore merged into one Sentry issue —
 //  HYPERWHISPER-F7, 191 events from 40 users, holding seven unrelated blocking
-//  sites. `SentryService.hangFingerprintComponents(imagesAndSymbols:)` picks the
-//  site to group on, and this file pins it. Issue #683.
+//  sites. Two pure functions split it: `hangFingerprintComponents` picks the
+//  frame to group on, and `hangGrouping` turns that frame into the fingerprint
+//  array and the tag pair. This file pins both. Issue #683.
 //
 //  It pins the DECISION only. It starts no SDK, so it needs no DSN and no
-//  network. The helper takes plain Strings for the same reason
+//  network. Both functions take plain Strings for the same reason
 //  `store(for:)` takes a `DiagnosticSeverity`: this target does not link the
 //  Sentry package, so a test cannot name `Frame` at all.
 //
-//  The one thing here that is read off disk instead of called is case 3b — see
-//  its own comment for why, and for why that is the last resort and not the
-//  first.
+//  The only thing read off disk instead of called is the last case, which pins
+//  the `beforeSend` wiring — see its own comment for why that is the last
+//  resort and not the first.
 //
 
 import Foundation
@@ -103,39 +104,135 @@ struct AppHangFingerprintTests {
         #expect(SentryService.hangFingerprintComponents(imagesAndSymbols: empty) == nil)
     }
 
-    /// The caller turns the helper's `nil` into the issue's `"unknown"` bucket.
+    /// A found site fingerprints on FOUR elements — image and symbol appended
+    /// to Sentry's own default component — and tags the same pair.
     ///
-    /// Source-scraping, which `ProductionSource`'s own header calls the LAST
-    /// RESORT: it proves a symbol is *mentioned*, never that it is used
-    /// correctly. Everything that can be lifted into a callable pure function
-    /// already has been — that is `hangFingerprintComponents`, and the other
-    /// cases call it. What is left is wiring inside a closure this target cannot
-    /// invoke: `beforeSend` lives in `initialize()` and needs the Sentry package
-    /// this target does not link, a DSN and a live SDK. `## Done when` names it
-    /// anyway, so it is read.
-    @Test func theCallerFallsBackToUnknownWhenNoFrameSurvives() throws {
-        let body = try Self.beforeSendBody()
+    /// This is the case the whole issue exists for, and it was the one nothing
+    /// pinned: with the array literal written inline in `beforeSend`, deleting
+    /// the assignment left all five tests green while every hang re-merged into
+    /// HYPERWHISPER-F7. Delete or reorder the success `fingerprint` in
+    /// `hangGrouping` and this case fails.
+    @Test func aFoundSiteFingerprintsOnImageAndSymbol() {
+        let frames: [(image: String, symbol: String)] = [
+            ("/Applications/HyperWhisper.app/Contents/MacOS/HyperWhisper", "HyperWhisperApp.$main"),
+            ("/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight",
+             "SLSDisplayGetTiming"),
+            ("/usr/lib/system/libsystem_kernel.dylib", "mach_msg2_trap")
+        ]
 
-        #expect(body.contains("mechanism?.type == \"AppHang\""),
-                "the AppHang branch must be inside beforeSend — nothing else on the event reaches it")
-        #expect(body.contains("Self.hangFingerprintComponents(imagesAndSymbols:"),
-                "beforeSend must call the tested helper, not a second inline copy of the walk")
-        #expect(body.contains("[\"{{ default }}\", \"app_hang\", \"unknown\"]"),
-                "the no-survivor fallback is the issue's step 6 literal, three elements")
-        #expect(body.contains("tags[\"hang_image\"]") && body.contains("tags[\"hang_symbol\"]"),
-                "both tags are set on every AppHang branch, including the unknown one")
+        let grouping = SentryService.hangGrouping(imagesAndSymbols: frames)
+
+        #expect(grouping.fingerprint == ["{{ default }}", "app_hang", "SkyLight", "SLSDisplayGetTiming"])
+        #expect(grouping.fingerprint.count == 4)
+        #expect(grouping.image == "SkyLight")
+        #expect(grouping.symbol == "SLSDisplayGetTiming")
     }
 
-    /// An unsymbolicated frame still groups by its image.
+    /// Two blocking sites under one in-app stack get two different fingerprints.
+    ///
+    /// The issue's `## Done when`, at the level this target can execute: these
+    /// two vectors share every frame Sentry's own grouping looks at, which is
+    /// precisely why all 191 events merged.
+    @Test func twoBlockingSitesGetTwoFingerprints() {
+        let swiftUI: [(image: String, symbol: String)] = [
+            ("/Applications/HyperWhisper.app/Contents/MacOS/HyperWhisper", "HyperWhisperApp.$main"),
+            ("/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI", "Set.contains"),
+            ("/usr/lib/system/libsystem_kernel.dylib", "mach_msg2_trap")
+        ]
+        let skyLight: [(image: String, symbol: String)] = [
+            ("/Applications/HyperWhisper.app/Contents/MacOS/HyperWhisper", "HyperWhisperApp.$main"),
+            ("/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight",
+             "SLSGetRealtimeDisplayInfoShmem"),
+            ("/usr/lib/system/libsystem_kernel.dylib", "mach_msg2_trap")
+        ]
+
+        let a = SentryService.hangGrouping(imagesAndSymbols: swiftUI)
+        let b = SentryService.hangGrouping(imagesAndSymbols: skyLight)
+
+        #expect(a.fingerprint != b.fingerprint)
+        #expect(a.fingerprint == ["{{ default }}", "app_hang", "SwiftUI", "Set.contains"])
+        #expect(b.fingerprint == ["{{ default }}", "app_hang", "SkyLight", "SLSGetRealtimeDisplayInfoShmem"])
+    }
+
+    /// An empty symbol becomes `"unknown"`, in the fingerprint AND in the tag —
+    /// and the array is still the FOUR-element found-site shape.
     ///
     /// This is the ORDINARY production shape, not an edge case: the ANR stack is
     /// captured with `symbolicate = options.debug`, `SentryService.initialize`
     /// never sets `options.debug`, and the SDK default is `NO`. So
     /// `frame.function` is nil on device and `frame.package` is not — the symbol
     /// names in an issue's stack trace are Sentry's server-side symbolication,
-    /// produced long after `beforeSend` ran. The split that ships is by image.
-    /// The caller's `symbol.isEmpty ? "unknown" : symbol` is what makes the
-    /// empty string below readable in the `hang_symbol` tag.
+    /// produced long after `beforeSend` ran. Drop the
+    /// `symbol.isEmpty ? "unknown" : symbol` substitution in `hangGrouping` and
+    /// this case fails; the shipped split is by image, with a readable symbol
+    /// slot rather than an empty one.
+    @Test func anEmptySymbolBecomesUnknownWithoutFallingBackToTheThreeElementShape() {
+        let frames: [(image: String, symbol: String)] = [
+            ("/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight", ""),
+            ("libsystem_kernel.dylib", "")
+        ]
+
+        let grouping = SentryService.hangGrouping(imagesAndSymbols: frames)
+
+        #expect(grouping.fingerprint == ["{{ default }}", "app_hang", "SkyLight", "unknown"])
+        #expect(grouping.symbol == "unknown")
+        #expect(grouping.image == "SkyLight")
+    }
+
+    /// No surviving frame is the issue's step 6 literal: THREE elements, and
+    /// both tags still set so the bucket is searchable.
+    @Test func aKernelOnlyStackFallsBackToTheUnknownBucket() {
+        let frames: [(image: String, symbol: String)] = [
+            ("/usr/lib/system/libsystem_pthread.dylib", "_pthread_cond_wait"),
+            ("/usr/lib/system/libsystem_kernel.dylib", "mach_msg2_trap")
+        ]
+
+        let grouping = SentryService.hangGrouping(imagesAndSymbols: frames)
+
+        #expect(grouping.fingerprint == ["{{ default }}", "app_hang", "unknown"])
+        #expect(grouping.fingerprint.count == 3)
+        #expect(grouping.image == "unknown")
+        #expect(grouping.symbol == "unknown")
+    }
+
+    /// `beforeSend` puts that decision on the event — and on nothing else.
+    ///
+    /// Source-scraping, which `ProductionSource`'s own header calls the LAST
+    /// RESORT: it proves a symbol is *mentioned*, never that it is used
+    /// correctly. Everything that can be lifted into a callable pure function
+    /// now has been — `hangFingerprintComponents` picks the frame,
+    /// `hangGrouping` decides the values, and the cases above call both. What is
+    /// left is wiring inside a closure this target cannot invoke: `beforeSend`
+    /// lives in `initialize()` and needs the Sentry package this target does not
+    /// link, a DSN and a live SDK. So the four things extraction MOVED the risk
+    /// onto are read here: the AppHang guard, the frame read, the call, and the
+    /// two assignments. Delete any one of them and this case fails.
+    @Test func beforeSendWritesTheGroupingOntoTheEvent() throws {
+        let body = try Self.beforeSendBody()
+
+        #expect(body.contains("mechanism?.type == \"AppHang\""),
+                "the AppHang branch must be inside beforeSend — nothing else on the event reaches it")
+        #expect(body.contains("(image: $0.package ?? \"\", symbol: $0.function ?? \"\")"),
+                "frames feed the helper as (package, function); `module` is nil for every Cocoa frame")
+        #expect(body.contains("Self.hangGrouping(imagesAndSymbols:"),
+                "beforeSend must call the tested decision, not a second inline copy of it")
+        #expect(body.contains("event.fingerprint = grouping.fingerprint"),
+                "the fingerprint must reach the event — without this line every hang re-merges")
+        #expect(body.contains("tags[\"hang_image\"] = grouping.image"),
+                "the image tag carries the grouping's own image")
+        #expect(body.contains("tags[\"hang_symbol\"] = grouping.symbol"),
+                "the symbol tag carries the grouping's own symbol")
+        #expect(body.contains("event.tags = tags"),
+                "tags are copy-mutate-assign; `event.tags?[k] = v` is a no-op when tags is nil")
+    }
+
+    /// An unsymbolicated frame still groups by its image.
+    ///
+    /// The frame-picking half of the production shape: with symbolication off on
+    /// device, `frame.function` is nil, so an empty symbol must NOT disqualify a
+    /// frame — only a trap image does. The empty string that comes back here is
+    /// what `hangGrouping` then rewrites to `"unknown"`; that rewrite is pinned
+    /// by `anEmptySymbolBecomesUnknownWithoutFallingBackToTheThreeElementShape`.
     @Test func unsymbolicatedFrameStillGroupsByImage() {
         let frames: [(image: String, symbol: String)] = [
             ("/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight", ""),
