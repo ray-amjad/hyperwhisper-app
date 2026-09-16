@@ -137,6 +137,23 @@
       ],
       "licensed": false,
       "note": "Unlicensed by design (macOS Debug build points at Cloud staging); HYPERWHISPER_ACCOUNT_KEY was also absent from the box. Codex named 2 defects and BOTH died on a re-drive: (1) 'no error after an invalid Cloud activation' - the app does show an inline red 'License key not found' plus an Operation Failed alert, Codex only waited 700 ms; (2) 'the locked Groq row does nothing' - the unlock control is the 28pt provider ICON (ModelRow.swift:81), and clicking it opens the Connect Groq sheet; the row body is inert by design. Own checks, all clean: a backup exported with 'Include API Keys' OFF holds no key (grep count 0), the Auto update toggle persists, a junk OpenAI key is marked Invalid. #680 came from the app's own updates.log, not from a click. NOT walked: the global hotkey and the app-menu 'Check for Updates' - a SwiftUI menu never opens over VNC. Driver note: gui's key verb is 'enter', not 'Return'; a 'Return' types the literal letter R. The Go-to-Folder popover inside an NSOpenPanel got stuck and ate esc and every click - that is the driver, not the app, so do not file it."
+    },
+    {
+      "at": "2026-09-16T15:50:19Z",
+      "platform": "linux",
+      "commit": "5b0b67cf",
+      "routes": [
+        "local-api",
+        "streaming",
+        "onboarding"
+      ],
+      "status": "2-filed",
+      "issues": [
+        692,
+        693
+      ],
+      "licensed": false,
+      "note": "unlicensed round: HYPERWHISPER_ACCOUNT_KEY is not in this box, so Cloud transcription was not walked; the mode was pointed at local whisper base.en. onboarding and streaming found nothing. local-api: preferred port commits per keystroke and drops an out-of-range value (#692). Codex also claimed the cURL snippet omits .json — FALSE, the string is right and the box clips it (#693). On this Linux image the app must run as user hw and /root needs chmod 755, or the exe is Permission denied."
     }
   ]
 }
