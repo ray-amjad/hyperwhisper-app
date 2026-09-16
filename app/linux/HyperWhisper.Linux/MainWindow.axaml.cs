@@ -771,11 +771,11 @@ public partial class MainWindow : Window
 
     private async void OnOnboardingTestDictation(object? sender, RoutedEventArgs e)
     {
-        if (_onboarding is null || !_onboarding.IsTestReady)
-        {
-            _onboarding?.SetTestStatus(L("linux.onboarding.test.not_ready"));
-            return;
-        }
+        // The button binds IsTestReady, so this arm is defensive only. Do NOT write a status here:
+        // LinuxOnboardingViewModel.TestStatus renders the blocked message from the gate itself, and
+        // a write would store a gate-shut message that outlived the gate and reappeared once it
+        // opened — the very staleness this handler's own status line exists to report.
+        if (_onboarding is null || !_onboarding.IsTestReady) return;
         try
         {
             if (_recordingSession.IsActive)

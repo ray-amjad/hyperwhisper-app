@@ -26,7 +26,6 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     private LinuxOnboardingStep _step;
     private bool _isVisible;
     private bool _testSucceeded;
-    private bool _testAttempted;
     private bool _selectedModeAvailable;
     private string _testStatus;
     private Mode? _selectedMode;
@@ -117,22 +116,29 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     /// <see cref="IsTestReady"/>, so on a fresh install — every seeded mode is a cloud mode with no
     /// credential — it is disabled while this line still read "Ready for a test dictation." The
     /// string that explains the block was written only inside that disabled button's own Click
-    /// handler, so it could never run.
+    /// handler, so it could never run. The gate owns that string now; no caller writes it.
     /// </summary>
     /// <remarks>
-    /// Three states, in order: the gate is shut, so say so whatever is stored; the gate is open and
-    /// no test has run, so offer one; otherwise the stored message from a test that actually ran.
-    /// The middle state is what keeps the guard branch's own write (MainWindow.axaml.cs:774, which
-    /// fires only when the gate is shut) from being read back once the gate opens.
+    /// Warning: exactly TWO inputs decide this line — the gate, and the last message the app stored.
+    /// Keep it at two.
+    ///
+    /// Notification rides on <c>Set</c>, which is silent when the stored string is unchanged. That
+    /// is only sound because an unchanged store cannot change what is rendered: the stored message
+    /// is rendered verbatim while the gate is open, and is not rendered at all while it is shut.
+    /// Every move of the gate goes through <see cref="NotifyReadiness"/>, which raises this property
+    /// beside <see cref="IsTestReady"/>. A THIRD input — an "a test was attempted" flag, say — would
+    /// change the rendered line while the stored string stood still, and the line would go stale
+    /// with no PropertyChanged at all; add one and the notification must stop riding on <c>Set</c>.
+    ///
+    /// The stored message therefore outlives a gate that shuts and reopens. That is deliberate: the
+    /// transcription-saved handler is wired for the whole app, so a test that really ran can land
+    /// while an awaited readiness lookup has the gate momentarily shut, and its result must not be
+    /// thrown away. It is also why a selection change leaves the message alone — the recorder is
+    /// still running, and this line is the user's only account of it.
     /// </remarks>
     public string TestStatus
     {
-        get
-        {
-            if (!IsTestReady) return _text("linux.onboarding.test.not_ready");
-            if (!_testAttempted) return _text("linux.onboarding.test.not_started");
-            return _testStatus;
-        }
+        get => IsTestReady ? _testStatus : _text("linux.onboarding.test.not_ready");
         private set => Set(ref _testStatus, value);
     }
     public Mode? SelectedMode
@@ -142,7 +148,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         {
             if (!Set(ref _selectedMode, value)) return;
             _selectedModeAvailable = false;
-            ResetTestOutcome();
+            TestSucceeded = false;
             _selectMode(value);
             NotifyReadiness();
         }
@@ -153,7 +159,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         set
         {
             if (!Set(ref _selectedDevice, value)) return;
-            ResetTestOutcome();
+            TestSucceeded = false;
             _selectDevice(value);
             NotifyReadiness();
         }
@@ -170,9 +176,6 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public void Skip() => Complete(skipped: true);
     public void SetTestStatus(string status, bool succeeded = false)
     {
-        // Read the gate; never hard-code true. The guard branch at MainWindow.axaml.cs:774 calls
-        // this exactly when the gate is shut, so that call must not count as a test run.
-        _testAttempted = IsTestReady;
         TestStatus = status;
         TestSucceeded = succeeded;
         Notify(nameof(CanGoNext));
@@ -207,7 +210,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         var keep = _selectedDevice is not null
             && Devices.Any(item => string.Equals(item.Id, _selectedDevice.Id, StringComparison.Ordinal));
         if (!keep && Set(ref _selectedDevice, selectedDevice ?? Devices.FirstOrDefault(), nameof(SelectedDevice)))
-            ResetTestOutcome();
+            TestSucceeded = false;
         Notify(nameof(HasNoMicrophone));
         NotifyReadiness();
     }
@@ -215,19 +218,8 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public void SetSelectedModeAvailable(bool available)
     {
         _selectedModeAvailable = available;
-        if (!available) ResetTestOutcome();
+        if (!available) TestSucceeded = false;
         NotifyReadiness();
-    }
-
-    /// <summary>
-    /// The user changed a selection, so the last test's outcome is no longer about what is on
-    /// screen. Both halves of the test state move together: leaving <c>_testAttempted</c> set would
-    /// let a stale message reappear when the gate closes and opens again.
-    /// </summary>
-    private void ResetTestOutcome()
-    {
-        _testAttempted = false;
-        TestSucceeded = false;
     }
 
     private void Complete(bool skipped)

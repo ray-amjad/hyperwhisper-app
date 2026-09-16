@@ -167,14 +167,45 @@ static Task OnboardingStateMachine()
     Assert(gated.IsTestReady && painted == "Ready for a test dictation.",
         "TestStatus was not raised beside IsTestReady, so the bound line kept the blocked message after the mode became available");
 
-    // The guard branch in MainWindow.axaml.cs still writes the blocked message on a programmatic
-    // click, and it fires only while the gate is shut. That write must not be mistaken for a test
-    // run, or the blocked message would survive the mode becoming available.
+    // Every read above happens before any test has run, so the branch that renders a real test's
+    // own message needs its own assertions — without them a getter that ignores the stored string
+    // entirely, and shows "Ready for a test dictation." through recording, transcription, success
+    // and failure alike, passes this file. Read it through `painted`, so a stored message that
+    // changes the line without raising PropertyChanged fails here too.
+    var recordingMessage = strings.GetRequired("linux.onboarding.test.recording");
+    var failedMessage = strings.GetRequired("linux.onboarding.test.failed");
+    var succeededMessage = strings.GetRequired("linux.onboarding.test.succeeded");
+    gated.SetTestStatus(recordingMessage);
+    Assert(painted == recordingMessage, "the line did not repaint with the message of a test that ran");
+
+    // Nothing on the selection path stops the recorder — TranscriptionWorkflow.SelectDevice only
+    // reassigns the device id — so relabelling a live recording "Ready for a test dictation."
+    // invites the user to start a test that is already running, and their next click takes the STOP
+    // arm and jumps to "Transcribing…". The message is theirs until a new one replaces it.
+    gated.SelectedDevice = new AudioInputDevice("mic-2", "Second microphone", false);
+    Assert(painted == recordingMessage, "a selection change relabelled a recording that was still running");
+
+    // A second failed test writes the SAME string as the first, so nothing may rely on that write
+    // changing the stored value to repaint the line: the rendered text must be a function of what
+    // is stored and the gate alone. Otherwise the line still reads "Ready for a test dictation."
+    // after a test the user just watched fail.
+    gated.SetTestStatus(failedMessage);
+    Assert(painted == failedMessage, "the first failure never reached the line");
+    gated.SelectedDevice = microphone;
+    gated.SetTestStatus(failedMessage);
+    Assert(painted == failedMessage, "a repeated failure after a selection change left a stale line");
+
+    // The transcription-saved handler is wired for the whole app, not scoped to onboarding, and the
+    // mode setter shuts the gate synchronously while the readiness lookup is still awaiting — so a
+    // test that really ran can finish while the gate is momentarily shut. The shut gate still owns
+    // the line, but the result must not be discarded, or the user is never told the test passed.
     gated.SetSelectedModeAvailable(false);
-    gated.SetTestStatus(strings.GetRequired("linux.onboarding.test.not_ready"));
+    gated.SetTestStatus(succeededMessage, succeeded: true);
+    Assert(painted == "Select an available mode and microphone first.",
+        "a stored message outranked a shut gate");
     gated.SetSelectedModeAvailable(true);
-    Assert(gated.IsTestReady && painted == "Ready for a test dictation.",
-        "a rejected click left the status line blocked after the mode became available");
+    Assert(gated.IsTestReady && painted == succeededMessage,
+        "a test that finished while the gate was shut had its result swallowed for good");
 
     // Issue #626. The constructor COPIES the device list, and the shell enumerates microphones on a
     // background thread and posts the result to the UI context — so the copy is normally taken while
