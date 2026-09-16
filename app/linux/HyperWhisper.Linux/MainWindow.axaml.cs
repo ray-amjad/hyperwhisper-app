@@ -3736,19 +3736,31 @@ public partial class MainWindow : Window
             toast.ShowError(failure, LinuxErrorToastAction.ApiKeys);
             await ToastSettledAsync(toast);
             height = (int)Math.Round(toast.Bounds.Height * scale);
+            // Where the toast would land with no clamp. That it is off screen is ARITHMETIC, not
+            // something to assert: the anchor is at work.Y, and the gate above already proved this
+            // message is taller than the one-line one, so this is work.Y less a positive height
+            // less the gap. An earlier form of this guard asserted it anyway, as a second
+            // disjunct — which could only be reached when the first disjunct was false, i.e. when
+            // anchor.Position.Y == work.Y, which is precisely when the arithmetic makes it
+            // impossible. It never fired, and a clause that cannot fire is not evidence that the
+            // clamp is load-bearing. The value is printed below instead, where it says something.
             var unclamped = anchor.Position.Y - height - (int)Math.Round(12 * scale);
-            if (anchor.Position.Y != work.Y || unclamped >= work.Y)
+            // What genuinely is NOT settled: whether the anchor went where it was put. The poke
+            // above proves this platform honours a position for the TOAST; the overlay is a
+            // different window, with its own placement restore on Opened, so it is checked here.
+            if (anchor.Position.Y != work.Y)
             {
-                Console.Error.WriteLine($"Smoke: the anchor overlay sits at y={anchor.Position.Y} "
-                    + $"against a work area starting at y={work.Y}, so an unclamped toast would "
-                    + $"land at y={unclamped} and still be on screen — this check proves nothing.");
+                Console.Error.WriteLine($"Smoke: the anchor overlay was put at y={work.Y}, the top "
+                    + $"of the work area, and settled at y={anchor.Position.Y} — the overlay is not "
+                    + "where this case needs it, so nothing below is a measurement of the clamp.");
                 return true;
             }
             if (toast.Position.Y != work.Y)
             {
                 Console.Error.WriteLine($"Smoke: with the overlay at the top of the work area the "
-                    + $"toast was placed at y={toast.Position.Y}, not clamped to y={work.Y} — a "
-                    + "failure shown here is off the top of the screen and never seen.");
+                    + $"toast was placed at y={toast.Position.Y}, not clamped to y={work.Y} — "
+                    + $"unclamped it belongs at y={unclamped}, so a failure shown here is off the "
+                    + "top of the screen and never seen.");
                 return true;
             }
 
