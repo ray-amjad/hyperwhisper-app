@@ -1958,16 +1958,21 @@ public partial class MainWindow : Window
     /// away, which is a click the user made to keep editing. Committing there wrote the stored
     /// port back over a box the user had just cleared.
     ///
-    /// Nothing is committed on that inside-the-field move, but the raw entry IS taken: the very
-    /// next thing to run is NumericUpDown.OnLostFocus -> CommitInput(forceTextUpdate: true), which
-    /// rewrites the box from Value and turns "70000" into "7000" before the spin that the click
-    /// was for. That is the last moment the user's own number exists.
+    /// An entry the control REFUSED is the exception, and it commits here. The very next thing to
+    /// run is NumericUpDown.OnLostFocus -> CommitInput(forceTextUpdate: true), which rewrites the
+    /// box from the prefix the control kept — and the click cannot even spin, because refusing UI
+    /// text also disables the spinner buttons (ButtonSpinner.SetButtonUsage). Measured on a real
+    /// screen at e137b474: typing 70000 and clicking the up arrow left the field reading "7000"
+    /// over a server still bound to 51671, committed nowhere. This is the last moment the user's
+    /// own number exists. The raw entry is still kept as well, for the spin paths that are NOT
+    /// gated by those buttons — the mouse wheel and the Up/Down keys both reach OnSpin directly.
     /// </summary>
     private void OnLocalApiPortBoxLostFocus(object? sender, RoutedEventArgs e)
     {
         if (_localApiPortField is { IsKeyboardFocusWithin: true })
         {
             CaptureLocalApiPortEntry();
+            if (_localApiPortEntry is { } pending) CommitLocalApiPort(ParseLocalApiPort(pending));
             return;
         }
         CommitLocalApiPort(ParseLocalApiPort((sender as TextBox)?.Text));
@@ -4477,7 +4482,42 @@ public partial class MainWindow : Window
                 return regression;
             }
 
-            // 12. And the probe leaves the page as it found it. The Local API body was opened to
+            // 12. And the click on the spinner BUTTONS, which is a different path again. The
+            //     control disables those buttons while it is refusing UI text
+            //     (ButtonSpinner.SetButtonUsage), so that click cannot spin at all — but it still
+            //     moves focus out of the text box, and NumericUpDown then rewrites the box from
+            //     the prefix it kept. Measured on a real screen at e137b474: typing 70000 over a
+            //     stored 51671 and clicking the up arrow left the field reading "7000" over a
+            //     server still bound to 51671, committed nowhere. Driven here as what it is, a
+            //     focus move to something inside the field.
+            settings.LocalApiPort = start;
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            box.Focus();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            await TypePortAsync(box, "7", "70", "700", "7000", "70000");
+            var movedInside = spinner.Focus()
+                || (spinner.GetVisualDescendants().OfType<Button>().FirstOrDefault(button => button.IsEnabled)
+                    is { } spinButton && spinButton.Focus());
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!movedInside || !port.IsKeyboardFocusWithin)
+            {
+                Console.Error.WriteLine("Smoke: nothing inside the preferred-port field would take "
+                    + "focus away from its text box, so a click on the spinner cannot be driven. "
+                    + "Setup failure, not the #692 regression.");
+                return cannotRun;
+            }
+            if (settings.LocalApiPort != 65535 || box.Text != "65535" || commits != 9)
+            {
+                Console.Error.WriteLine($"Smoke: clicking the spinner with 70000 under the caret "
+                    + $"left the preferred port on {settings.LocalApiPort} with the field reading "
+                    + $"'{box.Text}' after {commits} change(s) — expected 65535 in both. A refused "
+                    + "entry is about to be rewritten from the prefix the control kept, so it has "
+                    + "to commit on the way out of the box, not be left on screen over a server "
+                    + "bound to something else.");
+                return regression;
+            }
+
+            // 13. And the probe leaves the page as it found it. The Local API body was opened to
             //     get at the field — an invisible control cannot take focus — and putting it back
             //     is not free: a plain assignment overrides the IsVisible binding to
             //     Settings.LocalApiEnabled, and ClearValue does NOT restore it, so the tab strip,
