@@ -3579,23 +3579,18 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The width this TextBlock's own text wants with nothing constraining it. Comparing that
-    /// against the arranged width is how a layout check tells "it fits" from "it was cut",
-    /// without a hard-coded pixel number that a font or a theme change would invalidate.
+    /// The width this TextBlock's own text wants on ONE line, with nothing constraining it.
+    /// Comparing that against the arranged width is how a layout check tells "it fits" from "it
+    /// was cut", without a hard-coded pixel number that a font or a theme change would invalidate.
+    ///
+    /// One line of <see cref="TextProbe"/>, not a second probe of its own. It carried four font
+    /// properties where TextProbe carries eight, so the two measured the same TextBlock
+    /// differently -- LetterSpacing alone is enough to make this one report a string NARROWER
+    /// than it renders, which understates every "did it fit" comparison below. There is one
+    /// definition of what the text wants, and a property added to it reaches every check at once.
     /// </summary>
     private static double UnconstrainedTextWidth(TextBlock block)
-    {
-        var probe = new TextBlock
-        {
-            Text = block.Text,
-            FontFamily = block.FontFamily,
-            FontSize = block.FontSize,
-            FontWeight = block.FontWeight,
-            FontStyle = block.FontStyle,
-        };
-        probe.Measure(Size.Infinity);
-        return probe.DesiredSize.Width;
-    }
+        => TextProbe(block, double.PositiveInfinity).Width;
 
     /// <summary>
     /// Issue #669's regression guard, the error-toast sibling of #526's check above. The toast is
