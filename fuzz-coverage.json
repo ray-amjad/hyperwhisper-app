@@ -1,0 +1,57 @@
+{
+  "app": "ray-amjad/hyperwhisper-app",
+  "routes": [
+    "onboarding",
+    "home-and-tray",
+    "modes",
+    "vocabulary",
+    "core-settings",
+    "provider-settings",
+    "history-and-backup",
+    "updates",
+    "local-api",
+    "streaming",
+    "licence"
+  ],
+  "rounds": [
+    {
+      "at": "2026-09-15T02:01:00Z",
+      "platform": "linux",
+      "commit": "82638a46",
+      "routes": [
+        "onboarding",
+        "modes",
+        "core-settings"
+      ],
+      "status": "5-filed",
+      "issues": [
+        626,
+        627,
+        628,
+        629,
+        630
+      ],
+      "licensed": false,
+      "note": "Backfilled from the Slack report. Hit the 5-issue cap exactly."
+    },
+    {
+      "at": "2026-09-15T03:17:00Z",
+      "platform": "linux",
+      "commit": "82638a46",
+      "routes": [
+        "onboarding",
+        "modes",
+        "vocabulary"
+      ],
+      "status": "4-filed-1-commented",
+      "issues": [
+        632,
+        633,
+        634,
+        635
+      ],
+      "licensed": false,
+      "note": "Backfilled from the Slack report. This round OWED win — it re-walked linux because the marker lookup read the channel, not the threads. That fault is what the fuzz-coverage command replaces."
+    }
+  ]
+}
