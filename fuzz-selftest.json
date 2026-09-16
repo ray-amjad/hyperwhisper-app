@@ -1,0 +1,29 @@
+{
+  "app": "ray-amjad/hyperwhisper-app",
+  "routes": [
+    "onboarding",
+    "home-and-tray",
+    "modes",
+    "vocabulary",
+    "core-settings",
+    "provider-settings",
+    "history-and-backup",
+    "updates",
+    "local-api",
+    "streaming",
+    "licence"
+  ],
+  "rounds": [
+    {
+      "at": "2026-09-16T00:27:56.840Z",
+      "platform": "win",
+      "commit": "deadbeef",
+      "routes": [
+        "licence"
+      ],
+      "status": "selftest",
+      "issues": [],
+      "licensed": false
+    }
+  ]
+}
