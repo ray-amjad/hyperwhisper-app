@@ -185,15 +185,38 @@ static Task OnboardingStateMachine()
     gated.SelectedDevice = new AudioInputDevice("mic-2", "Second microphone", false);
     Assert(painted == recordingMessage, "a selection change relabelled a recording that was still running");
 
-    // A second failed test writes the SAME string as the first, so nothing may rely on that write
-    // changing the stored value to repaint the line: the rendered text must be a function of what
-    // is stored and the gate alone. Otherwise the line still reads "Ready for a test dictation."
-    // after a test the user just watched fail.
+    // A second failed test writes the SAME string as the first, and `Set` is silent when the stored
+    // string is unchanged — so that write repaints nothing at all. Relying on that is sound only
+    // while the rendered text is a function of the stored message and the gate ALONE. Reading the
+    // line straight after the repeat proves none of that: it already reads the string the repeat
+    // writes, so the read holds for the correct view model, for one that drops the write, and for
+    // one carrying a third input the write was supposed to restore. Move the gate under the message
+    // instead — a readiness lookup can shut it while the second test is still running — and reach
+    // the same two endpoints by two routes, where a third input has room to diverge.
     gated.SetTestStatus(failedMessage);
     Assert(painted == failedMessage, "the first failure never reached the line");
     gated.SelectedDevice = microphone;
+
+    // Route 1: the gate shuts and reopens with no test in between. What the user is owed is still
+    // the first failure, so a view model that drops the message on a momentary gate blip loses a
+    // result this property's own contract promises to keep.
+    gated.SetSelectedModeAvailable(false);
+    gated.SetSelectedModeAvailable(true);
+    Assert(painted == failedMessage && gated.TestStatus == failedMessage,
+        "a failure did not outlive a gate that shut and reopened with no test in between");
+
+    // Route 2: the same two endpoints, with the second failure — the IDENTICAL string — landing
+    // while the gate is shut. Both routes must render the same line, because both leave the same
+    // stored message and the same gate. A third input keyed to the store CHANGING (an "a test was
+    // attempted" flag assigned from `Set`'s own result, say) passes route 1 and every assertion
+    // above, and puts "Ready for a test dictation." here, after a test the user just watched fail.
+    // Read the property directly as well as through `painted`: a suppressed write raises nothing,
+    // so the stand-in alone cannot see a rendered value that went stale in place.
+    gated.SetSelectedModeAvailable(false);
     gated.SetTestStatus(failedMessage);
-    Assert(painted == failedMessage, "a repeated failure after a selection change left a stale line");
+    gated.SetSelectedModeAvailable(true);
+    Assert(painted == failedMessage && gated.TestStatus == failedMessage,
+        "a repeated failure after a selection change left a stale line");
 
     // The transcription-saved handler is wired for the whole app, not scoped to onboarding, and the
     // mode setter shuts the gate synchronously while the readiness lookup is still awaiting — so a
