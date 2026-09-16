@@ -106,6 +106,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
         get => _selectedAudioDevice;
         set
         {
+            Console.Error.WriteLine("HWTRACE set value=" + (value?.Id ?? "NUL") + " applying=" + _applyingSnapshot + " count=" + AudioDevices.Count);
             if (_applyingSnapshot) return;
             if (value is null && AudioDevices.Count > 0) return;
             if (!Set(ref _selectedAudioDevice, value)) return;
@@ -341,6 +342,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             foreach (var device in snapshot.AudioDevices) AudioDevices.Add(device);
             Notify(nameof(HasAudioDevices));
             _selectedAudioDevice = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
+            Console.Error.WriteLine("HWTRACE apply state=" + snapshot.State + " count=" + AudioDevices.Count + " snapId=" + (snapshot.SelectedAudioDeviceId ?? "NUL") + " vm=" + (_selectedAudioDevice?.Id ?? "NUL"));
             Notify(nameof(SelectedAudioDevice));
         }
         finally { _applyingSnapshot = false; }
