@@ -1473,8 +1473,14 @@
                  above already uses.
 
                  Mode=OneWay is the load-bearing half: the control never writes Settings.LocalApiPort
-                 by itself, so the digits of a half-typed port never reach the source the Local API
-                 restart chain listens to. Every way of finishing an edit then lands on one method,
+                 by itself, so the digits of a half-typed port never reach the source. Be exact about
+                 what that buys — the restart is NOT one per keystroke. Nothing subscribes to this
+                 property; a change arms the 500ms settings auto-save, whose tick calls
+                 SettingsViewModel.Save(), which raises LocalApiSettingsChanged for ANY saved setting
+                 (the theme and the recordings folder restart the host just as readily). So typing at
+                 speed already collapsed into one restart, and it was a PAUSE between digits that
+                 bound a partial number and rewrote local-api.json with a port that was about to die.
+                 Every way of finishing an edit then lands on one method,
                  CommitLocalApiPort: Enter and blur through the templated text box (wired in
                  OnLocalApiPortTemplateApplied, so both read the RAW text before NumericUpDown's own
                  commit rewrites it), focus leaving from the spinner buttons through LostFocus here,
@@ -1487,10 +1493,16 @@
                  #692 fault) and REJECTS anything below 0 or unparseable by restoring the stored
                  port, which is what this field did before #692 was fixed.
 
-                 Keep Maximum at 65535: it bounds the spinner. Do not raise it to lean on
-                 SettingsViewModel.LocalApiPort's own Math.Clamp — ViewModelBase.Set raises no
-                 PropertyChanged when the clamp lands on the value already stored, so nothing would
-                 come back down a OneWay binding and the box would keep reading 70000. -->
+                 Maximum bounds the SPINNER, and nothing else now that the clamp is in C# — measured:
+                 raising it to 99999 leaves every behaviour above intact, so the markup guard's
+                 Maximum clause is a consistency check and not a #692 regression guard. Do not raise
+                 it in order to lean on SettingsViewModel.LocalApiPort's own Math.Clamp instead:
+                 ViewModelBase.Set raises no PropertyChanged when the clamp lands on the value
+                 already stored, so nothing would come back down a OneWay binding and the box would
+                 keep reading 70000.
+
+                 FormatString="0" keeps the box showing an integer. Increment is a decimal, so a spin
+                 leaves Value at 60001.0, and without a format the box read "4001.0". -->
             <Grid ColumnDefinitions="100,*,Auto">
               <TextBlock Classes="smallLabel" VerticalAlignment="Center"
                          Text="{ReflectionBinding [linux.ui.preferred.port.falls.back.to.an.available.loopback.port], Source={StaticResource Localization}}"/>

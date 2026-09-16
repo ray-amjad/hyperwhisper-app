@@ -4016,6 +4016,14 @@ public partial class MainWindow : Window
         return null;
     }
 
+    /// <summary>
+    /// Puts LocalApiTabsRoot back where its IsVisible binding wants it. SetCurrentValue, not
+    /// ClearValue: the probe's override has to be undone by writing the bound value, because a
+    /// cleared override leaves the last value the property held until the source next changes.
+    /// </summary>
+    private static void RestoreLocalApiTabs(StackPanel tabs, bool enabled)
+        => tabs.SetCurrentValue(Visual.IsVisibleProperty, enabled);
+
     /// <summary>One typed prefix per render tick, so every partial number gets the chance to
     /// commit that it had before #692 was fixed.</summary>
     private static async Task TypePortAsync(TextBox box, params string[] steps)
@@ -4300,20 +4308,21 @@ public partial class MainWindow : Window
                 return regression;
             }
 
-            // 10. And the probe has not damaged the page it borrowed. Showing the Local API body
-            //     must not replace its IsVisible binding, or every panel below stays on screen for
-            //     the rest of the smoke run. Toggling the source is safe here: the settings
-            //     listener is detached, so nothing reaches Save() or starts a server.
-            settings.LocalApiEnabled = !enabled;
+            // 10. And the probe leaves the page as it found it. The Local API body was opened to
+            //     get at the field — an invisible control cannot take focus — and putting it back
+            //     is not free: a plain assignment overrides the IsVisible binding to
+            //     Settings.LocalApiEnabled, and ClearValue does NOT restore it, so the tab strip,
+            //     the connection rows, the token, the discovery path and both snippets would stay
+            //     on screen for the rest of the smoke run. Asserted here rather than left to the
+            //     finally below, which only repeats the same restore as a safety net.
+            RestoreLocalApiTabs(tabs, enabled);
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-            var followed = tabs.IsVisible == !enabled;
-            settings.LocalApiEnabled = enabled;
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-            if (!followed || tabs.IsVisible != enabled)
+            if (tabs.IsVisible != enabled)
             {
-                Console.Error.WriteLine("Smoke: opening the Local API body for the port probe "
-                    + "replaced its IsVisible binding, so the tab strip, the token, the discovery "
-                    + "path and both snippets stay on screen for the rest of the run.");
+                Console.Error.WriteLine($"Smoke: the port probe left the Local API body "
+                    + $"{(tabs.IsVisible ? "expanded" : "collapsed")} against a server that is "
+                    + $"{(enabled ? "on" : "off")} — every panel it opened is still on screen for "
+                    + "the rest of the run.");
                 return regression;
             }
             return 0;
@@ -4327,7 +4336,7 @@ public partial class MainWindow : Window
         {
             settings.PropertyChanged -= CountCommit;
             settings.LocalApiPort = original;
-            tabs.SetCurrentValue(Visual.IsVisibleProperty, enabled);
+            RestoreLocalApiTabs(tabs, enabled);
             settings.PropertyChanged += OnSettingsPropertyChanged;
             // Give back the save this probe interrupted. Its own writes are not saved: the
             // listener was detached while they happened and the original port is back.
