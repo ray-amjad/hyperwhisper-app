@@ -121,6 +121,22 @@
       ],
       "licensed": false,
       "note": "UNLICENSED round: HYPERWHISPER_ACCOUNT_KEY is not in this sandbox, and a rented Windows box has no audio device, so no Cloud transcription was tested. modes found nothing. vocabulary: stale 'That word already exists.' error survives Edit and a unique value -> #679 (windows twin of #634). home-and-tray: #637 still reproduces at 71e93c11, with the app log line as proof; the same helper works from the nav rail (Cloud), so the fault is specific to a deep link raised from a ContentFrame-hosted page. Codex's 'Start Recording marks itself All done' is NOT a defect - the Getting Started rows are a manual toggle (MainViewModel.GettingStarted.cs:67), already covered by #638. Not filed: VocabularyService.cs:117,144 hard-code the English error strings while the page next to them uses Loc.S (class of #516/#552)."
+    },
+    {
+      "at": "2026-09-16T09:53:57Z",
+      "platform": "mac",
+      "commit": "83297d0",
+      "routes": [
+        "provider-settings",
+        "history-and-backup",
+        "updates"
+      ],
+      "status": "1-filed",
+      "issues": [
+        680
+      ],
+      "licensed": false,
+      "note": "Unlicensed by design (macOS Debug build points at Cloud staging); HYPERWHISPER_ACCOUNT_KEY was also absent from the box. Codex named 2 defects and BOTH died on a re-drive: (1) 'no error after an invalid Cloud activation' - the app does show an inline red 'License key not found' plus an Operation Failed alert, Codex only waited 700 ms; (2) 'the locked Groq row does nothing' - the unlock control is the 28pt provider ICON (ModelRow.swift:81), and clicking it opens the Connect Groq sheet; the row body is inert by design. Own checks, all clean: a backup exported with 'Include API Keys' OFF holds no key (grep count 0), the Auto update toggle persists, a junk OpenAI key is marked Invalid. #680 came from the app's own updates.log, not from a click. NOT walked: the global hotkey and the app-menu 'Check for Updates' - a SwiftUI menu never opens over VNC. Driver note: gui's key verb is 'enter', not 'Return'; a 'Return' types the literal letter R. The Go-to-Folder popover inside an NSOpenPanel got stuck and ate esc and every click - that is the driver, not the app, so do not file it."
     }
   ]
 }
