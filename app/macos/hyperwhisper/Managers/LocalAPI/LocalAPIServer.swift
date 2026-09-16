@@ -70,6 +70,18 @@ final class LocalAPIServer: ObservableObject {
     /// a flag would let the OLDER load see the NEWER start's flag and bind.
     /// Same shape as `LicenseManager.networkFailureRetryID`.
     private var pendingStartID: UUID?
+    /// Tail of the serial chain every Keychain token operation runs on.
+    ///
+    /// `loadOrCreateToken()` and `regenerateToken()` are read-modify-write
+    /// sequences over ONE Keychain item, and `offMainActor` explicitly offers
+    /// no serialization. Two overlapping runs race: the loser's `SecItemAdd`
+    /// comes back `errSecDuplicateItem`, which `loadOrCreateToken` logs and
+    /// swallows — it still returns the token it generated, so the caller would
+    /// publish a token the Keychain does not hold. Chaining is what makes the
+    /// overlap impossible, and it is one mechanism rather than two because
+    /// `start()` and `regenerateBearerToken()` contend for that same item and
+    /// for `bearerToken`; ordering them settles both races at once.
+    private var tokenWork: Task<Void, Never>?
 
     private init() {}
 
@@ -101,6 +113,22 @@ final class LocalAPIServer: ObservableObject {
 
     // MARK: - Lifecycle
 
+    /// Run `work` after every token operation already queued, and become the
+    /// one the next operation waits for.
+    ///
+    /// The await is a suspension, never a block: a Keychain call stuck behind
+    /// the consent panel holds up the next token operation and nothing else,
+    /// which is the whole point of issue #655. Enqueuing never awaits, so
+    /// calling this from inside queued work — `regenerateBearerToken()` does,
+    /// via `restart()` — appends to the chain instead of deadlocking on it.
+    private func enqueueTokenWork(_ work: @escaping @Sendable @MainActor () async -> Void) {
+        let previous = tokenWork
+        tokenWork = Task { @MainActor in
+            await previous?.value
+            await work()
+        }
+    }
+
     /// Starts the server if it isn't already running. Idempotent.
     func start() {
         guard !isRunning, server == nil, pendingStartID == nil else {
@@ -115,7 +143,7 @@ final class LocalAPIServer: ObservableObject {
         // actor that took the whole bootstrap with it (issue #655).
         let id = UUID()
         pendingStartID = id
-        Task { [weak self] in
+        enqueueTokenWork { [weak self] in
             let token = await LocalAPIAuth.loadOrCreateTokenOffMainActor()
             guard let self, self.pendingStartID == id else { return }
             self.pendingStartID = nil
@@ -252,7 +280,18 @@ final class LocalAPIServer: ObservableObject {
         // blocking read, here on the main actor from a Settings button. The
         // published value is refreshed on every path so the UI keeps showing
         // the latest token whether or not the server is up (issue #655).
-        Task { [weak self] in
+        //
+        // Retire the old credential HERE, synchronously on the click, before
+        // any await. The button's own help text promises the current token is
+        // invalidated immediately, and `hw_localapi::authorize` denies every
+        // request when the expected token is empty. Without this line a
+        // running server keeps honouring the old bearer for the whole Keychain
+        // wait — indefinitely, if that wait is the consent panel — which is
+        // the one case where "regenerate" has to be believed.
+        bearerToken = ""
+        // Queued, not fired: two rapid clicks would otherwise run two
+        // delete+read+write sequences over the same Keychain item at once.
+        enqueueTokenWork { [weak self] in
             let token = await LocalAPIAuth.regenerateTokenOffMainActor()
             guard let self else { return }
             self.bearerToken = token
