@@ -17,9 +17,10 @@
 //  the panel itself is a WindowServer affordance no unit test can drive. What
 //  IS checkable is the wiring that keeps the blocking call off the main actor,
 //  and the orderings the fix depends on — so most of these read the production
-//  source, the last resort documented in `ProductionSource`. The two rules that
-//  could be lifted into pure functions were — `serverIsLiveOrStarting` and
-//  `nextTokenOwner` — and both are tested by calling them.
+//  source, the last resort documented in `ProductionSource`. The three rules
+//  that could be lifted into pure functions were — `serverIsLiveOrStarting`,
+//  `nextTokenOwner` and `regenerationOutcome` — and all three are tested by
+//  calling them.
 //
 //  Read them as one statement about the window the fix opened. The blocking
 //  read is never called directly (1). The token is still assigned before any
@@ -35,6 +36,17 @@
 //  including `stop()`, which must reach `deletePortFile()` for a start that
 //  never got a socket (11) — and a bind that finally succeeds retires the error
 //  the bind before it failed with (12).
+//
+//  One line of that fix then turned out to be a defect of its own, and the last
+//  four tests are about it. A regeneration discharges what it adopted WITHOUT
+//  touching the socket (13, 14, 15), and the `stop()` that used to stand in
+//  front of the rebind cannot come back (16). A live server authorizes against
+//  `bearerToken` on every request, so the credential the regeneration has just
+//  published is already in force and only the discovery file is stale; stopping
+//  and rebinding in the same tick instead re-asked the kernel for the very port
+//  the old, still-draining socket was holding. One click on Regenerate, and the
+//  Local API never came back — no port file, nothing listening, and a raw kqueue
+//  error printed into the Settings pane (issue #641).
 //
 //  What no test at this seam can prove: that the app actually finishes
 //  bootstrap while the consent panel is up. That needs a real Mac with a
@@ -675,6 +687,128 @@ struct LocalAPIMainActorStartTests {
         #expect(
             cleared.lowerBound < retry.lowerBound,
             "lastError must be cleared on the listening path, which precedes the retry path in this function"
+        )
+    }
+
+    // MARK: - 13-16. A regeneration republishes the discovery file; it does not rebind
+
+    /// A regeneration that finds the server listening rewrites the discovery
+    /// file and leaves the socket alone.
+    ///
+    /// **This is issue #641 itself.** The old code ran `stop(); bindAndRun()`
+    /// here. `stop()` fires the real shutdown into a detached task and returns
+    /// in the same tick, so the bind that followed it immediately asked the
+    /// kernel for the persisted port the old socket was still draining —
+    /// EADDRINUSE, two recoveries racing onto the main actor, and from one click
+    /// a pane stuck on "Server enabled / Starting…" with `SocketError. kqueue
+    /// kevent(9): Bad file descriptor` printed into it, no `local-api.json`, and
+    /// nothing listening.
+    ///
+    /// None of that work was ever needed. `authorized()` reads `bearerToken` off
+    /// the live instance on every request and the routes capture `[weak self]`
+    /// rather than a token, so the new credential is in force the moment it is
+    /// assigned; `writePortFile(port:)` reads the token at call time. The file
+    /// is the only stale thing, so the file is the whole job — and the port
+    /// survives, which is what every MCP client and Shortcut is pointed at.
+    ///
+    /// Called rather than scraped, which is the rule `ProductionSource` states:
+    /// the decision is liftable, so it was lifted.
+    @Test func aRegenerationOnALiveServerRepublishesTheFileInsteadOfRebinding() {
+        #expect(
+            LocalAPIServer.regenerationOutcome(isRunning: true, hasServer: true) == .republishDiscoveryFile,
+            """
+            A regeneration on a running server must rewrite local-api.json and nothing else. Any \
+            outcome that tears the socket down re-binds the port the closing socket still holds, \
+            which is the single click that killed the Local API for good in issue #641.
+            """
+        )
+    }
+
+    /// A regeneration that lands while a bind is in flight binds nothing.
+    ///
+    /// `server != nil` with `isRunning == false` is a `bindAndRun()` whose
+    /// `waitUntilListening()` has not resolved yet. That waiter writes the
+    /// discovery file itself when it lands, and reads `bearerToken` *then* —
+    /// which is already the regenerated one. Binding a second `HTTPServer`
+    /// beside it would leak a socket and hand the first one EADDRINUSE on the
+    /// persisted port, which is the same collision as #641 by another route.
+    @Test func aRegenerationDuringABindInFlightBindsNothing() {
+        #expect(
+            LocalAPIServer.regenerationOutcome(isRunning: false, hasServer: true) == .awaitBindInFlight,
+            """
+            A regeneration that completes while a bind is still in flight must do nothing at all. \
+            The in-flight bind's own waiter publishes the port and writes local-api.json with the \
+            token it reads at that moment, which is the new one; a second bind here is a leaked \
+            HTTPServer racing the first for the same port.
+            """
+        )
+    }
+
+    /// A regeneration that adopted a pending start still binds.
+    ///
+    /// The anti-vacuity case, and a live #655 regression guard. A regeneration
+    /// claims ownership synchronously on the click, which supersedes a `start()`
+    /// whose Keychain read is still in flight — that start will therefore not
+    /// bind itself. Nothing is bound and nothing is binding, so the duty the
+    /// regeneration adopted at `pendingBindOwner = isLiveOrStarting ? owner : nil`
+    /// is a real socket, and it has to be discharged here or the Local API the
+    /// user switched on a moment ago never comes up at all.
+    ///
+    /// Without this assertion an "always republish" implementation would pass
+    /// the two above and still ship that regression.
+    @Test func aRegenerationThatAdoptedAPendingStartStillBinds() {
+        #expect(
+            LocalAPIServer.regenerationOutcome(isRunning: false, hasServer: false) == .bind,
+            """
+            A regeneration that superseded a pending start() must still bind. That start will not \
+            bind itself — the claim taken on the Regenerate click withdrew its right to — so \
+            skipping the bind here leaves the server the user just switched on permanently down \
+            (issue #655).
+            """
+        )
+    }
+
+    /// A regeneration never stops a live server.
+    ///
+    /// The regression guard for the exact two-line pair, because the three
+    /// assertions above constrain the *decision* and not the code that acts on
+    /// it: a `regenerationOutcome` that answers `.republishDiscoveryFile` is no
+    /// use if a future edit puts `self.stop()` back above the switch.
+    ///
+    /// `slice` strips comments, so the prose in `regenerateBearerToken()` that
+    /// explains the ban does not satisfy the ban.
+    @Test func aRegenerationNeverStopsALiveServer() throws {
+        let body = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "func regenerateBearerToken(",
+            to: "func handleSystemWillSleep("
+        )
+
+        #expect(
+            !body.contains("self.stop()"),
+            """
+            regenerateBearerToken() stops the server. stop() hands the real shutdown to a detached \
+            task and returns in the same tick, so whatever binds after it races the closing socket \
+            for the persisted port — and it deletes local-api.json on the way past. That pair is \
+            issue #641: one click on Regenerate, and the Local API is down until the user toggles \
+            it off and on. A live server needs no rebind at all; rewrite the discovery file.
+            """
+        )
+        #expect(
+            body.contains("Self.regenerationOutcome("),
+            """
+            regenerateBearerToken() must route its three end states through regenerationOutcome(), \
+            which is the decision the tests above call directly. Inlining the branches here puts \
+            them back out of reach of everything but a source scrape.
+            """
+        )
+        #expect(
+            body.contains("self.writePortFile(port: self.listeningPort)"),
+            """
+            A regeneration on a live server must republish local-api.json on the port it is already \
+            listening on. Without that write the file keeps advertising the token the user has just \
+            invalidated, and every MCP client that reads it gets a 401.
+            """
         )
     }
 }

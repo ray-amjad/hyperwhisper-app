@@ -23,6 +23,31 @@ let LocalAPIServerEnabledKey = "localAPIServerEnabled"
 /// back to ephemeral binding and overwrite the preference.
 let LocalAPIServerPersistedPortKey = "localAPIServerPersistedPort"
 
+/// What a completed bearer-token regeneration owes the server it adopted.
+///
+/// File scope rather than a member of `LocalAPIServer` on purpose: that class is
+/// `@MainActor`, and both this type and the decision that returns it are
+/// deliberately isolated to nothing, so a test can compare two outcomes with
+/// `==` from anywhere. Named with the `LocalAPI` prefix the rest of this
+/// module's free types use (`LocalAPIPortFile`, `LocalAPIOriginGuard`).
+///
+/// Spelled `: Equatable` rather than left to synthesis. Swift does synthesise it
+/// for an enum with no associated values, so this is belt and braces — but the
+/// tests compare outcomes with `==`, and a later case carrying a payload would
+/// otherwise break them at the test rather than here.
+enum LocalAPIRegenerationOutcome: Equatable {
+    /// A socket is up. It already authorizes with the new token, so the only
+    /// stale thing left is `local-api.json` — rewrite it, in place, same port.
+    case republishDiscoveryFile
+    /// Nothing is bound and nothing is binding: the regeneration superseded a
+    /// pending `start()`, which will therefore not bind itself. Bind.
+    case bind
+    /// A bind is already in flight. Its own waiter writes the discovery file
+    /// when it lands, and reads `bearerToken` then — which is the new one by
+    /// that point. Do nothing; binding again would leak a second socket.
+    case awaitBindInFlight
+}
+
 @MainActor
 final class LocalAPIServer: ObservableObject {
 
@@ -142,6 +167,40 @@ final class LocalAPIServer: ObservableObject {
             hasServer: server != nil,
             hasPendingStart: pendingBindOwner != nil
         )
+    }
+
+    /// What a regeneration that has just published a new token owes the server
+    /// it adopted, given the state the Keychain wait returned to.
+    ///
+    /// A regeneration needs no rebind at all, and believing otherwise is issue
+    /// #641. `authorized()` reads `bearerToken` off this live instance on every
+    /// request, and the route closures registered in `registerRoutes` capture
+    /// `[weak self]` rather than a token, so the new credential is in force the
+    /// instant `bearerToken` is assigned. The only thing left stale is
+    /// `local-api.json`, and `writePortFile(port:)` reads the token at call
+    /// time — so rewriting that one file is the whole job.
+    ///
+    /// What the `stop(); bindAndRun()` pair did instead: `stop()` fires the real
+    /// shutdown into a detached task and returns in the same tick, so the bind
+    /// that followed it immediately re-asked the kernel for the persisted port
+    /// the old, still-draining socket was holding. EADDRINUSE, two independent
+    /// recoveries racing onto the main actor, and a pane stuck on "Starting…"
+    /// with a raw kqueue error printed into it — from one click, with no port
+    /// file and nothing listening. Not rebinding also keeps the port stable, so
+    /// every MCP client and Shortcut pointed at it survives a regeneration, and
+    /// drops no request that is already in flight.
+    ///
+    /// Pure and `static` so it can be tested by calling it rather than by
+    /// scraping this file — the rule `ProductionSource` states, and the same
+    /// shape as `serverIsLiveOrStarting`. `nonisolated` because it touches no
+    /// state at all; the caller supplies the two facts, and this decides what
+    /// they mean.
+    nonisolated static func regenerationOutcome(
+        isRunning: Bool,
+        hasServer: Bool
+    ) -> LocalAPIRegenerationOutcome {
+        if isRunning { return .republishDiscoveryFile }
+        return hasServer ? .awaitBindInFlight : .bind
     }
 
     // MARK: - Token ownership
@@ -419,9 +478,15 @@ final class LocalAPIServer: ObservableObject {
         start()
     }
 
-    /// Wipe and regenerate the bearer token, then rebind the server so the new
-    /// token gets written into local-api.json. Used by Settings →
+    /// Wipe and regenerate the bearer token, then republish local-api.json so
+    /// MCP clients and curl scripts pick the new one up. Used by Settings →
     /// "Regenerate token".
+    ///
+    /// It does NOT stop the server and it does NOT rebind. A live server
+    /// authorizes against `bearerToken` on every request, so the new credential
+    /// is already in force; tearing the socket down to publish a file is what
+    /// killed the Local API for good on one click in issue #641. See
+    /// `regenerationOutcome` for the three states this can end in.
     func regenerateBearerToken() {
         // Same Keychain hazard as start(): a delete followed by the same
         // blocking read, here on the main actor from a Settings button. The
@@ -442,11 +507,14 @@ final class LocalAPIServer: ObservableObject {
         // the one case where "regenerate" has to be believed.
         bearerToken = ""
         // If anything was up, or on its way up, when the click landed then this
-        // regeneration now owes it a bind. A running server has to be rebound so
-        // local-api.json carries the new token; a start still waiting on its own
-        // token read was superseded two lines ago and will not bind itself, so
-        // without this the server the user switched on a moment ago would never
-        // come up at all. Recorded under THIS owner id, never the superseded one.
+        // regeneration now owes it something. Not necessarily a bind: a server
+        // that is already listening owes only a rewritten local-api.json, which
+        // is the whole of issue #641. But a start still waiting on its own token
+        // read was superseded two lines ago and will not bind itself, so without
+        // this the server the user switched on a moment ago would never come up
+        // at all. Recorded under THIS owner id, never the superseded one;
+        // `regenerationOutcome` decides which of the duties it actually is, on
+        // the far side of the Keychain wait rather than here.
         pendingBindOwner = isLiveOrStarting ? owner : nil
         // Queued, not fired: two rapid clicks would otherwise run two
         // delete+read+write sequences over the same Keychain item at once.
@@ -461,14 +529,33 @@ final class LocalAPIServer: ObservableObject {
             self.bearerToken = token
             guard self.pendingBindOwner == owner else { return }
             self.pendingBindOwner = nil
-            // Re-enter the BIND step rather than restart(). The fresh token is
-            // already in hand, so restart() → start() would read the same
-            // Keychain item a second time: exactly the call issue #655 is about,
-            // and a second chance for the consent panel to appear. `stop()` is
-            // idempotent and returns at its own guard when nothing is bound,
-            // which is the adopted-pending-start case.
-            self.stop()
-            self.bindAndRun()
+            // Discharge the duty adopted on the click, against the state the
+            // Keychain wait returned to rather than the state it left.
+            switch Self.regenerationOutcome(isRunning: self.isRunning, hasServer: self.server != nil) {
+            case .republishDiscoveryFile:
+                // The socket is untouched and stays untouched. It already
+                // authorizes with the token published above, and
+                // writePortFile(port:) reads `bearerToken` at call time, so this
+                // one write is the entire job — same port, same listener, no
+                // in-flight request dropped, and the discovery file never
+                // deleted. Rebinding here instead is issue #641.
+                self.writePortFile(port: self.listeningPort)
+            case .bind:
+                // Nothing is bound and nothing is binding: this regeneration
+                // superseded a pending start(), which will not bind itself, so
+                // the socket is owed here. Re-enter the BIND step rather than
+                // restart(): the fresh token is already in hand, so restart() →
+                // start() would read the same Keychain item a second time —
+                // exactly the call issue #655 is about, and a second chance for
+                // the consent panel to appear.
+                self.bindAndRun()
+            case .awaitBindInFlight:
+                // A bind is in flight. Its own waiter writes the discovery file
+                // when it lands and reads `bearerToken` then, which is already
+                // the new one, so there is nothing left to do. Binding again
+                // would leak a second HTTPServer onto the same port.
+                break
+            }
         }
     }
 
