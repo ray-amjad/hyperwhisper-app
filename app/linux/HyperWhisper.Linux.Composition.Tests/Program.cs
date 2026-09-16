@@ -134,6 +134,41 @@ static Task OnboardingStateMachine()
     Assert(!unavailable.CanGoNext, "the provider step advanced with no mode chosen");
     unavailable.Skip();
     Assert(!unavailable.IsVisible && decisions.SequenceEqual([false, true]), "skip was not durably requested");
+
+    // Issue #626. The constructor COPIES the device list, and the shell enumerates microphones on a
+    // background thread and posts the result to the UI context — so the copy is normally taken while
+    // the list is still empty. The microphone step then showed an empty picker and "Microphone
+    // capture is unavailable" for the whole flow, on a desktop with a working microphone.
+    AudioInputDevice? late = null;
+    var lateArrival = new LinuxOnboardingViewModel(
+        new(true, true, false, false, false, true, false),
+        [mode], mode, [], null, selectedModeAvailable: true,
+        _ => true, _ => { }, value => late = value, key => key);
+    var changed = new List<string?>();
+    lateArrival.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+    Assert(lateArrival.HasNoMicrophone && lateArrival.Devices.Count == 0,
+        "an empty onboarding device list did not report a missing microphone");
+
+    lateArrival.SetDevices([microphone], microphone);
+    Assert(lateArrival.Devices.Count == 1 && !lateArrival.HasNoMicrophone,
+        "a microphone that arrived after onboarding was built never reached the picker");
+    Assert(lateArrival.SelectedDevice?.Id == microphone.Id,
+        "a late microphone left the picker with nothing selected");
+    Assert(changed.Contains(nameof(LinuxOnboardingViewModel.HasNoMicrophone)),
+        "the unavailable warning was not notified, so it stays on screen beside a filled picker");
+
+    // A choice the user already made survives a later refill; the callback is the shell's own
+    // selection path and must not fire again for a device the user did not pick.
+    var second = new AudioInputDevice("mic-2", "Second microphone", false);
+    lateArrival.SelectedDevice = second;
+    late = null;
+    lateArrival.SetDevices([microphone, second], microphone);
+    Assert(lateArrival.SelectedDevice?.Id == "mic-2" && late is null,
+        "a refill overwrote the microphone the user had already chosen");
+
+    lateArrival.SetDevices([], null);
+    Assert(lateArrival.HasNoMicrophone && lateArrival.SelectedDevice is null,
+        "an unplugged microphone stayed selected in onboarding");
     return Task.CompletedTask;
 }
 

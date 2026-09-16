@@ -118,20 +118,6 @@ public sealed class LanguageDisplayNameConverter : IValueConverter
 /// The two are mutually exclusive, which is why one converter answers for both with a parameter
 /// naming the half being drawn.
 /// </summary>
-/// <summary>
-/// True when a collection has at least one item. The Home audio-input row binds its visibility
-/// here: on a machine with no capture device the combo rendered as an empty 60x28 box holding
-/// nothing but a chevron, which reads as a broken control rather than as "no microphone".
-/// </summary>
-public sealed class AnyItemsConverter : IValueConverter
-{
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value is System.Collections.ICollection { Count: > 0 };
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
-}
-
 public sealed class ModeProviderLineConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

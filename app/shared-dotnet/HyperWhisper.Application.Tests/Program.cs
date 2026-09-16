@@ -2292,6 +2292,41 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
     var repaired = await orphanStore.History.GetAsync(orphan.Id);
     Assert(repaired?.Status == TranscriptStatus.Failed && repaired.FailedReason?.Length > 0,
         "orphan processing row remained non-terminal");
+
+    // Issue #626. `AudioDevices` is a get-only property over one collection instance that is
+    // refilled in place, so it raises no PropertyChanged and a converter binding over it reads an
+    // empty list once and never again. The Linux head hid its whole audio-input row that way: every
+    // microphone was enumerated and the app still offered none, for the life of the process.
+    var deviceStore = await CreateStoreAsync(root, "workflow-device-notify");
+    var deviceAudio = Path.Combine(root, "devices.wav");
+    await File.WriteAllBytesAsync(deviceAudio, [1, 2, 3]);
+    using (var recorder = new FakeRecorder(deviceAudio))
+    using (var devices = new SwitchableDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder, devices, new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("ok", "Test Whisper"))), deviceStore.History))
+    using (var viewModel = new TranscriptionWorkflowViewModel(
+        workflow, () => new TranscriptionWorkflowRequest()))
+    {
+        var notifications = new List<string?>();
+        var refills = 0;
+        viewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
+        viewModel.DevicesChanged += (_, _) => refills++;
+        Assert(!viewModel.HasAudioDevices && viewModel.AudioDevices.Count == 0,
+            "the view model reported a microphone before the input service offered one");
+
+        devices.Available = [new AudioInputDevice("mic-1", "Test microphone", true)];
+        workflow.RefreshDevices();
+        Assert(viewModel.AudioDevices.Count == 1 && viewModel.HasAudioDevices,
+            "an enumerated microphone did not reach the view model");
+        Assert(notifications.Contains(nameof(TranscriptionWorkflowViewModel.HasAudioDevices)),
+            "the view model filled its device list without notifying, so a bound view cannot show it");
+        Assert(refills == 1, "the refill signal a copying view needs was not raised exactly once");
+
+        devices.Available = [];
+        workflow.RefreshDevices();
+        Assert(!viewModel.HasAudioDevices && refills == 2,
+            "an unplugged microphone did not reach the view model");
+    }
 }
 
 static async Task RunHistoryRetryTestsAsync(string root)
@@ -2798,6 +2833,15 @@ file sealed class DelayedHttpHandler : HttpMessageHandler
         await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         throw new InvalidOperationException("unreachable");
     }
+}
+
+file sealed class SwitchableDevices : IAudioInputDeviceService
+{
+    public event EventHandler? DevicesChanged { add { } remove { } }
+    public IReadOnlyList<AudioInputDevice> Available { get; set; } = [];
+    public PlatformResult<IReadOnlyList<AudioInputDevice>> GetAvailableDevices() =>
+        PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(Available);
+    public void Dispose() { }
 }
 
 file sealed class FakeDevices : IAudioInputDeviceService

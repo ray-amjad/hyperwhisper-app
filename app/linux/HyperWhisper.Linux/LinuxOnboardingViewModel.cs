@@ -152,6 +152,32 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         Notify(nameof(CanGoNext));
     }
 
+    /// <summary>
+    /// Replaces the device list with the one the shell now holds.
+    /// </summary>
+    /// <remarks>
+    /// Warning: the constructor copies the device list, so it is a snapshot of one instant.
+    ///
+    /// The shell enumerates microphones on a background thread and posts the result to the UI
+    /// context, while onboarding is built on the UI context — so the copy is normally taken BEFORE
+    /// the first result lands. The microphone step then showed an empty picker and "Microphone
+    /// capture is unavailable" on a desktop with a working microphone, for the whole flow, with no
+    /// way to recover (issue #626). The shell calls this on every refill.
+    /// </remarks>
+    public void SetDevices(IEnumerable<AudioInputDevice> devices, AudioInputDevice? selectedDevice)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        Devices.Clear();
+        foreach (var device in devices) Devices.Add(device);
+        // Keep a choice the user already made. Replace it only when it is gone from the new list.
+        var keep = _selectedDevice is not null
+            && Devices.Any(item => string.Equals(item.Id, _selectedDevice.Id, StringComparison.Ordinal));
+        if (!keep && Set(ref _selectedDevice, selectedDevice ?? Devices.FirstOrDefault(), nameof(SelectedDevice)))
+            TestSucceeded = false;
+        Notify(nameof(HasNoMicrophone));
+        NotifyReadiness();
+    }
+
     public void SetSelectedModeAvailable(bool available)
     {
         _selectedModeAvailable = available;

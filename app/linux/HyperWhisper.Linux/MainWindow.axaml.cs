@@ -296,6 +296,7 @@ public partial class MainWindow : Window
         PropertyChanged -= OnWindowPropertyChanged;
         _shuttingDown = true;
         _lifetime.Cancel();
+        if (_viewModel.Recording is { } recording) recording.DevicesChanged -= OnRecordingDevicesChanged;
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
@@ -709,8 +710,23 @@ public partial class MainWindow : Window
             mode => _viewModel.Modes.Selected = mode,
             device => { if (_viewModel.Recording is not null) _viewModel.Recording.SelectedAudioDevice = device; },
             L);
+        // The list above is a snapshot, and it is normally taken before the first enumeration
+        // lands — the shell enumerates on a background thread and posts the result here. Track
+        // every later refill, or the microphone step shows an empty picker for the whole flow
+        // on a desktop with a working microphone (issue #626).
+        if (_viewModel.Recording is { } recording)
+        {
+            recording.DevicesChanged += OnRecordingDevicesChanged;
+            _onboarding.SetDevices(recording.AudioDevices, recording.SelectedAudioDevice);
+        }
         OnboardingOverlay.DataContext = _onboarding;
         _onboarding.Show();
+    }
+
+    private void OnRecordingDevicesChanged(object? sender, EventArgs e)
+    {
+        if (sender is not TranscriptionWorkflowViewModel recording) return;
+        _onboarding?.SetDevices(recording.AudioDevices, recording.SelectedAudioDevice);
     }
 
     private bool IsOnboardingEngineAvailable(Mode mode) =>

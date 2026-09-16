@@ -263,8 +263,16 @@
         <TextBlock Text="{ReflectionBinding [linux.ui.record.and.transcribe], Source={StaticResource Localization}}" Classes="sectionTitle"/>
         <Border Classes="card">
           <StackPanel Spacing="12">
+            <!-- Warning: do not put a value converter back on the AudioDevices binding here.
+                 `Recording.AudioDevices` is a get-only property over one collection instance that
+                 is refilled in place, so it never raises PropertyChanged. A converter binding read
+                 it once, at bind time, when the list was still empty, and never again — so this
+                 whole row stayed hidden for the life of the process even though every microphone
+                 was enumerated, and "Refresh devices" could not recover it (issue #626). Bind the
+                 notifying `HasAudioDevices` instead. The fallbacks keep the row hidden while
+                 `Recording` is still null, because an unresolved binding leaves IsVisible true. -->
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"
-                  IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.AudioDevices, Converter={StaticResource AnyItemsConverter}}"><TextBlock Text="{ReflectionBinding [linux.ui.audio.input], Source={StaticResource Localization}}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" ItemsSource="{ReflectionBinding $parent[Window].DataContext.Recording.AudioDevices}" SelectedItem="{ReflectionBinding $parent[Window].DataContext.Recording.SelectedAudioDevice, Mode=TwoWay}"><ComboBox.ItemTemplate><DataTemplate x:DataType="platform:AudioInputDevice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid>
+                  IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.HasAudioDevices, FallbackValue=False, TargetNullValue=False}"><TextBlock Text="{ReflectionBinding [linux.ui.audio.input], Source={StaticResource Localization}}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" ItemsSource="{ReflectionBinding $parent[Window].DataContext.Recording.AudioDevices}" SelectedItem="{ReflectionBinding $parent[Window].DataContext.Recording.SelectedAudioDevice, Mode=TwoWay}"><ComboBox.ItemTemplate><DataTemplate x:DataType="platform:AudioInputDevice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid>
             <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="HomeStopRecordingButton" Content="{ReflectionBinding [linux.ui.stop.and.transcribe], Source={StaticResource Localization}}" Click="OnStopRecording"/><Button x:Name="HomeCancelRecordingButton" Content="{ReflectionBinding [common.cancel], Source={StaticResource Localization}}" Click="OnCancelRecording"/><Button Content="{ReflectionBinding [linux.ui.refresh.devices], Source={StaticResource Localization}}" Command="{ReflectionBinding $parent[Window].DataContext.Recording.RefreshDevicesCommand}"/></StackPanel>
             <TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.State, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter=linux.format.state.value}" Classes="caption"/><TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.Message}" TextWrapping="Wrap" Classes="caption"/><TextBlock Text="{ReflectionBinding $parent[Window].DataContext.Recording.ErrorCode}" IsVisible="{ReflectionBinding $parent[Window].DataContext.Recording.ShowErrorCode}" Classes="caption"/>
             <Separator/>

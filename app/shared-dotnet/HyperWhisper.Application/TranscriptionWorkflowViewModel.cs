@@ -51,6 +51,36 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     }
 
     public ObservableCollection<AudioInputDevice> AudioDevices { get; } = new();
+
+    /// <summary>
+    /// Whether the input service offers at least one microphone.
+    /// </summary>
+    /// <remarks>
+    /// Warning: never bind a view to <see cref="AudioDevices"/> through a value converter.
+    ///
+    /// <see cref="AudioDevices"/> is a get-only property over one collection instance that is
+    /// refilled in place, so it never raises <c>PropertyChanged</c>. A converter binding reads it
+    /// exactly once, at bind time, when the list is still empty — and never again. A list binding
+    /// is fine, because that subscribes to <c>CollectionChanged</c>.
+    ///
+    /// The Linux head hid its whole "Audio input" row behind such a converter binding. Every
+    /// microphone was enumerated and the row stayed hidden for the life of the process, so the app
+    /// offered no microphone at all and "Refresh devices" could not recover it (issue #626). This
+    /// property is the binding target instead, and <see cref="ApplySnapshot"/> notifies it.
+    /// </remarks>
+    public bool HasAudioDevices => AudioDevices.Count > 0;
+
+    /// <summary>
+    /// Raised once after <see cref="AudioDevices"/> has been refilled, on the UI context.
+    /// </summary>
+    /// <remarks>
+    /// A view that copies the device list — the Linux onboarding step does, because it owns its own
+    /// picker — needs one signal per refill. <c>CollectionChanged</c> is not that signal: the refill
+    /// clears the collection first, so a copy driven by it sees an empty list and then one partial
+    /// list per device.
+    /// </remarks>
+    public event EventHandler? DevicesChanged;
+
     public AudioInputDevice? SelectedAudioDevice
     {
         get => _selectedAudioDevice;
@@ -280,8 +310,10 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             && !string.Equals(State, nameof(TranscriptionWorkflowState.Completed), StringComparison.Ordinal);
         AudioDevices.Clear();
         foreach (var device in snapshot.AudioDevices) AudioDevices.Add(device);
+        Notify(nameof(HasAudioDevices));
         _selectedAudioDevice = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
         Notify(nameof(SelectedAudioDevice));
+        DevicesChanged?.Invoke(this, EventArgs.Empty);
         if (!_isImporting)
         {
             State = snapshot.State.ToString();
