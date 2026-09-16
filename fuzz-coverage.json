@@ -52,6 +52,23 @@
       ],
       "licensed": false,
       "note": "Backfilled from the Slack report. This round OWED win — it re-walked linux because the marker lookup read the channel, not the threads. That fault is what the fuzz-coverage command replaces."
+    },
+    {
+      "at": "2026-09-16T01:48:24Z",
+      "platform": "win",
+      "commit": "bc1bf480",
+      "routes": [
+        "home-and-tray",
+        "provider-settings",
+        "history-and-backup"
+      ],
+      "status": "2-commented",
+      "issues": [
+        637,
+        638
+      ],
+      "licensed": false,
+      "note": "Rotation reached win at last. Codex named 6 defects; 2 were real and both already had OPEN issues (637, 638), so the round commented instead of filing. 1 was FALSE — the History search box \"clearing\" is the RDP split-step reset, disproved by re-driving the type and the filter click in one session. The other 3 were the same Getting Started toggle as 638. The fuzz-coverage CLI does not exist in the sandbox image; this entry was appended through the GitHub API by hand."
     }
   ]
 }
