@@ -4,7 +4,9 @@ using HyperWhisper.Platform.Abstractions.Audio;
 using System.Runtime.Versioning;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Linux;
+using HyperWhisper.Linux.Localization;
 using HyperWhisper.Linux.Overlay;
+using System.Globalization;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.LocalInference;
@@ -52,7 +54,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
-    ("shortcut recorder refuses a bare key on persistently grabbed roles", ShortcutRecorderRefusesBareKey),
+    ("shortcut recorder rules follow the role's grab scope", ShortcutRecorderRulesFollowGrabScope),
+    ("shortcut recorder verdicts all carry a catalogued message", ShortcutRecorderVerdictsCarryMessages),
+    ("shortcut roles declare their own recorder policy", ShortcutRolesDeclareRecorderPolicy),
     ("diagnostic capabilities fail closed from platform evidence", DiagnosticCapabilitiesFailClosed),
     ("lifecycle diagnostics expose only fixed fields", LifecycleDiagnosticsAreContentFree),
     ("M4A storage performs a real private FFmpeg encode", M4aStorageEncodes),
@@ -568,27 +572,103 @@ static Task TrayMicrophoneSelectionIsDeterministic()
     return Task.CompletedTask;
 }
 
-static Task ShortcutRecorderRefusesBareKey()
+static Task ShortcutRecorderRulesFollowGrabScope()
 {
-    foreach (var role in new[] { "toggle", "changeMode", "streaming", "pushToTalk" })
-    {
-        Assert(LinuxShortcutRecorderRules.Evaluate(role, 0, "A") == ShortcutRecorderVerdict.MissingModifier,
-            $"a bare letter was accepted for the persistently grabbed {role} shortcut");
-    }
-    Assert(LinuxShortcutRecorderRules.Evaluate("toggle", 0, "Space") == ShortcutRecorderVerdict.MissingModifier,
-        "a bare Space was accepted for a persistently grabbed shortcut");
-    Assert(LinuxShortcutRecorderRules.Evaluate("streaming", 0, "F5") == ShortcutRecorderVerdict.MissingModifier,
-        "a bare function key was accepted for a persistently grabbed shortcut");
-    Assert(LinuxShortcutRecorderRules.Evaluate("cancel", 0, "Escape") == ShortcutRecorderVerdict.Accept,
-        "bare Escape is session-scoped and must stay recordable for cancel");
-    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 1, "A") == ShortcutRecorderVerdict.Accept,
+    // PersistentGrab: XGrabKey consumes the press for the whole session, so a real key needs a
+    // modifier. This is #628 -- Escape is in the list because nothing is exempt on these roles.
+    foreach (var key in new[] { "A", "Space", "F5", "Enter", "Escape" })
+        Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.PersistentGrab, 0, key) == ShortcutRecorderVerdict.MissingModifier,
+            $"a bare {key} was accepted for a persistently grabbed shortcut");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.PersistentGrab, 1, "A") == ShortcutRecorderVerdict.Accept,
         "a key with one modifier was refused");
-    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 1, "") == ShortcutRecorderVerdict.SingleModifier,
-        "a single bare modifier stopped being refused");
-    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 2, "") == ShortcutRecorderVerdict.Accept,
-        "a deliberate multi-modifier chord was refused");
-    Assert(LinuxShortcutRecorderRules.Evaluate("changeMode", 0, "") == ShortcutRecorderVerdict.Ignore,
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.PersistentGrab, 0, "") == ShortcutRecorderVerdict.Ignore,
         "nothing held stopped being silently ignored");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.PersistentGrab, 1, "") == ShortcutRecorderVerdict.SingleModifier,
+        "a single bare modifier stopped being refused");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.PersistentGrab, 2, "") == ShortcutRecorderVerdict.Accept,
+        "a deliberate multi-modifier chord was refused");
+
+    // SessionScoped: bare Escape is the shipped default and stays recordable; every OTHER bare key
+    // is stolen from the desktop for the length of a recording, so it is refused the same way.
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.SessionScoped, 0, "Escape") == ShortcutRecorderVerdict.Accept,
+        "bare Escape stopped being recordable for the session-scoped cancel shortcut");
+    foreach (var key in new[] { "A", "Space", "Enter", "F5" })
+        Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.SessionScoped, 0, key) == ShortcutRecorderVerdict.MissingModifier,
+            $"a bare {key} was accepted for the session-scoped cancel shortcut; XGrabKey takes it from every application while a recording runs");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.SessionScoped, 1, "A") == ShortcutRecorderVerdict.Accept,
+        "a session-scoped key with one modifier was refused");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.SessionScoped, 0, "") == ShortcutRecorderVerdict.Ignore,
+        "nothing held stopped being silently ignored on the session-scoped role");
+    // LinuxInteractionCoordinator.Validate refuses a modifier-only SessionCancelShortcut BEFORE it
+    // registers anything, so accepting one here would disarm every shortcut on the next launch.
+    foreach (var count in new[] { 1, 2, 3 })
+        Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.SessionScoped, count, "") == ShortcutRecorderVerdict.KeyRequired,
+            $"a {count}-modifier chord with no key was accepted for the session-scoped cancel shortcut, which LinuxInteractionCoordinator.Validate rejects outright");
+
+    // Unguarded (push-to-talk): a held bare key is a legitimate push-to-talk, so the new rule is
+    // deliberately not applied. This pins the narrowing -- behaviour here matches main.
+    foreach (var key in new[] { "A", "F13", "Escape", "Space" })
+        Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.Unguarded, 0, key) == ShortcutRecorderVerdict.Accept,
+            $"a bare {key} was refused for push-to-talk; LinuxPushToTalkMonitor registers one and Windows commits one, so refusing it is a regression");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.Unguarded, 0, "") == ShortcutRecorderVerdict.Ignore,
+        "nothing held stopped being silently ignored on push-to-talk");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.Unguarded, 1, "") == ShortcutRecorderVerdict.SingleModifier,
+        "a single bare modifier stopped being refused for push-to-talk");
+    Assert(LinuxShortcutRecorderRules.Evaluate(ShortcutRecorderPolicy.Unguarded, 2, "") == ShortcutRecorderVerdict.Accept,
+        "a deliberate multi-modifier push-to-talk chord was refused");
+    return Task.CompletedTask;
+}
+
+static Task ShortcutRecorderVerdictsCarryMessages()
+{
+    // OnShortcutBoxKeyDown has no per-verdict arm any more: it refuses everything that is not
+    // Accept and asks ErrorMessageKey what to paint. That only fails safely if every rejecting
+    // verdict names a key AND the key is in the catalogue, so enumerate the enum rather than
+    // hand-listing the members a future change would forget to extend.
+    using var strings = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
+    foreach (var verdict in Enum.GetValues<ShortcutRecorderVerdict>())
+    {
+        var messageKey = LinuxShortcutRecorderRules.ErrorMessageKey(verdict);
+        if (verdict is ShortcutRecorderVerdict.Accept or ShortcutRecorderVerdict.Ignore)
+        {
+            Assert(messageKey is null,
+                $"{verdict} writes or ignores the chord and must paint nothing, but it names {messageKey}");
+            continue;
+        }
+        Assert(messageKey is not null,
+            $"the {verdict} verdict refuses a chord with no message, so the recorder would refuse silently; add a key to LinuxShortcutRecorderRules.ErrorMessageKey");
+        var message = strings.GetRequired(messageKey!);
+        Assert(!string.IsNullOrWhiteSpace(message), $"{verdict} maps to blank catalogue entry {messageKey}");
+        // The user is told what to press, not told to press a modifier on its own: Evaluate judges
+        // every KeyDown alone, so "hold Ctrl and press the key again" walks the user into the
+        // singleModifier refusal on the very next press.
+        Assert(!message.Contains("again", StringComparison.OrdinalIgnoreCase),
+            $"{messageKey} asks for a second press; every KeyDown is judged on its own, so that instruction paints a contradictory refusal");
+    }
+    return Task.CompletedTask;
+}
+
+static Task ShortcutRolesDeclareRecorderPolicy()
+{
+    // The rule reads a column, not the tag, so renaming a tag cannot reclassify a role. This is
+    // the only place the two are tied together, so it is where the tie is pinned.
+    var expected = new Dictionary<string, ShortcutRecorderPolicy>(StringComparer.Ordinal)
+    {
+        ["toggle"] = ShortcutRecorderPolicy.PersistentGrab,
+        ["changeMode"] = ShortcutRecorderPolicy.PersistentGrab,
+        ["streaming"] = ShortcutRecorderPolicy.PersistentGrab,
+        ["cancel"] = ShortcutRecorderPolicy.SessionScoped,
+        ["pushToTalk"] = ShortcutRecorderPolicy.Unguarded,
+    };
+    Assert(MainWindow.ShortcutRoles.Length == expected.Count,
+        $"a recorder role was added or removed; state its ShortcutRecorderPolicy here too ({MainWindow.ShortcutRoles.Length} rows, {expected.Count} expected)");
+    foreach (var role in MainWindow.ShortcutRoles)
+    {
+        Assert(expected.TryGetValue(role.Tag, out var policy),
+            $"recorder role {role.Tag} has no expected policy");
+        Assert(role.Policy == policy,
+            $"recorder role {role.Tag} is {role.Policy}, expected {policy}");
+    }
     return Task.CompletedTask;
 }
 

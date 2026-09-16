@@ -169,7 +169,8 @@
   <data name="linux.ui.column.model.name" xml:space="preserve"><value>Model name</value></data>
   <data name="linux.ui.column.type" xml:space="preserve"><value>Type</value></data>
   <data name="linux.shortcuts.error.singleModifier" xml:space="preserve"><value>Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win.</value></data>
-  <data name="linux.shortcuts.error.missingModifier" xml:space="preserve"><value>A global shortcut needs at least one modifier. Hold Ctrl, Alt, Shift, or Win and press the key again.</value></data>
+  <data name="linux.shortcuts.error.missingModifier" xml:space="preserve"><value>A global shortcut needs at least one modifier, or it is taken from every other application. Press the key together with Ctrl, Alt, Shift, or Win.</value></data>
+  <data name="linux.shortcuts.error.keyRequired" xml:space="preserve"><value>This shortcut needs a key, not modifiers on their own. Press Esc, or a key together with Ctrl, Alt, Shift, or Win.</value></data>
   <data name="linux.shortcuts.error.duplicate" xml:space="preserve"><value>This shortcut is already used for {0} ({1})</value></data>
   <data name="linux.settings.general.shareSpeedData.subtitle" xml:space="preserve"><value>Times cloud providers for a public speed comparison. Never sends audio, text or keys.</value></data>
   <data name="linux.settings.general.errorLogging.subtitle" xml:space="preserve"><value>Sends crash reports only. Your transcriptions are never sent.</value></data>

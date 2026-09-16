@@ -1385,13 +1385,18 @@ public partial class MainWindow : Window
     // page template is rebuilt on navigation, so the boxes are filled from the view model
     // each time the page loads rather than bound.
     // =====================================================================================
-    private static readonly (string Tag, string Modifiers, string Key, string Box)[] ShortcutRoles =
+    // The Policy column is the role's OWN statement of what the recorder may accept for it. It is
+    // a column and not a lookup keyed on Tag because the tag is a settings/call-site identifier
+    // that can be renamed: a `roleTag != "cancel"` test would silently reclassify this whole table
+    // the day "cancel" becomes "sessionCancel", and the shipped default Escape would stop being
+    // recordable. A new row here cannot compile without choosing a policy.
+    internal static readonly (string Tag, string Modifiers, string Key, string Box, ShortcutRecorderPolicy Policy)[] ShortcutRoles =
     [
-        ("toggle", nameof(SettingsViewModel.ToggleShortcutModifiers), nameof(SettingsViewModel.ToggleShortcutKey), "SettingsToggleKey"),
-        ("cancel", nameof(SettingsViewModel.CancelShortcutModifiers), nameof(SettingsViewModel.CancelShortcutKey), "SettingsCancelKey"),
-        ("changeMode", nameof(SettingsViewModel.ChangeModeShortcutModifiers), nameof(SettingsViewModel.ChangeModeShortcutKey), "SettingsChangeModeKey"),
-        ("streaming", nameof(SettingsViewModel.StreamingShortcutModifiers), nameof(SettingsViewModel.StreamingShortcutKey), "SettingsStreamingShortcutKey"),
-        ("pushToTalk", nameof(SettingsViewModel.PushToTalkShortcutModifiers), nameof(SettingsViewModel.PushToTalkShortcutKey), "SettingsPushToTalkCustomKey"),
+        ("toggle", nameof(SettingsViewModel.ToggleShortcutModifiers), nameof(SettingsViewModel.ToggleShortcutKey), "SettingsToggleKey", ShortcutRecorderPolicy.PersistentGrab),
+        ("cancel", nameof(SettingsViewModel.CancelShortcutModifiers), nameof(SettingsViewModel.CancelShortcutKey), "SettingsCancelKey", ShortcutRecorderPolicy.SessionScoped),
+        ("changeMode", nameof(SettingsViewModel.ChangeModeShortcutModifiers), nameof(SettingsViewModel.ChangeModeShortcutKey), "SettingsChangeModeKey", ShortcutRecorderPolicy.PersistentGrab),
+        ("streaming", nameof(SettingsViewModel.StreamingShortcutModifiers), nameof(SettingsViewModel.StreamingShortcutKey), "SettingsStreamingShortcutKey", ShortcutRecorderPolicy.PersistentGrab),
+        ("pushToTalk", nameof(SettingsViewModel.PushToTalkShortcutModifiers), nameof(SettingsViewModel.PushToTalkShortcutKey), "SettingsPushToTalkCustomKey", ShortcutRecorderPolicy.Unguarded),
     ];
 
     private void UpdateShortcutsUi()
@@ -1471,18 +1476,18 @@ public partial class MainWindow : Window
 
         var modifierText = modifiers.Count == 0 ? string.Empty : string.Join(", ", modifiers);
 
-        switch (LinuxShortcutRecorderRules.Evaluate(role.Tag, modifiers.Count, key))
+        // Fails CLOSED, and deliberately has no per-verdict arm to forget: anything that is not an
+        // explicit Accept stops here, before WriteSetting, so a verdict added to the enum later
+        // cannot fall through and be armed globally. Ignore is the one silent refusal -- nothing
+        // held yet is not a capture -- and ErrorMessageKey returns null only for that and Accept;
+        // the "shortcut recorder verdicts all carry a catalogued message" test enumerates the enum
+        // and fails if any other verdict has no message.
+        var verdict = LinuxShortcutRecorderRules.Evaluate(role.Policy, modifiers.Count, key);
+        if (verdict != ShortcutRecorderVerdict.Accept)
         {
-            case ShortcutRecorderVerdict.Ignore:
-                return;
-            case ShortcutRecorderVerdict.SingleModifier:
-                ShowShortcutError(box, L("linux.shortcuts.error.singleModifier"));
-                return;
-            case ShortcutRecorderVerdict.MissingModifier:
-                ShowShortcutError(box, L("linux.shortcuts.error.missingModifier"));
-                return;
-            default:
-                break;
+            if (LinuxShortcutRecorderRules.ErrorMessageKey(verdict) is { } errorKey)
+                ShowShortcutError(box, L(errorKey));
+            return;
         }
 
         if (FindShortcutDuplicate(role.Tag, modifierText, key) is { } duplicate)
@@ -4092,39 +4097,114 @@ internal sealed class LinuxTrayActionHandler : IDisposable
     }
 }
 
-internal enum ShortcutRecorderVerdict { Accept, Ignore, SingleModifier, MissingModifier }
+internal enum ShortcutRecorderVerdict { Accept, Ignore, SingleModifier, MissingModifier, KeyRequired }
+
+/// <summary>
+/// How far a recorded chord reaches once it is saved, which is the only thing that decides what the
+/// recorder may accept for a role. The value is a column on <c>MainWindow.ShortcutRoles</c>.
+/// </summary>
+internal enum ShortcutRecorderPolicy
+{
+    /// <summary>
+    /// The chord is handed to <c>X11GlobalShortcutService</c> / <c>EvdevShortcutFilter</c> and is
+    /// grabbed for the whole time the app is configured for it. On Xorg that grab is
+    /// <c>XGrabKey(..., ownerEvents: false)</c> on the root window
+    /// (X11GlobalShortcutService.cs:293), which CONSUMES the press: no other application sees it.
+    /// A bare key here is therefore taken from the whole desktop, which is #628.
+    /// </summary>
+    PersistentGrab,
+
+    /// <summary>
+    /// The chord is saved as <c>LinuxInteractionConfiguration.SessionCancelShortcut</c> and is
+    /// armed only for the length of one recording, so bare Escape is legal here and nowhere else
+    /// -- see the note on <c>LinuxInteractionConfiguration.Default</c>. Two limits still apply:
+    /// the chord must carry a real key, and any OTHER bare key is the same theft as #628 for as
+    /// long as a recording runs.
+    /// </summary>
+    SessionScoped,
+
+    /// <summary>
+    /// Not graded by this class, deliberately. Push-to-talk is the only such role: a held bare key
+    /// is a legitimate push-to-talk on every head (<c>LinuxPushToTalkMonitor.Start</c> registers
+    /// one, <c>LinuxInteractionCoordinator.Validate</c> refuses only a modifier-only custom
+    /// push-to-talk, and the Windows recorder commits one), and it is not in
+    /// <c>LinuxInteractionCoordinator.Bindings</c> at all. Refusing it here would be a regression
+    /// against main that #628 never asked for. The empty-chord rules below still apply.
+    /// </summary>
+    Unguarded,
+}
 
 /// <summary>
 /// The recorder's verdict on a captured chord, kept free of Avalonia types so it can be exercised
-/// without a window. Windows runs the same judgement inside
-/// <c>ShortcutValidationService.ValidateActionShortcut</c>, which the Linux recorder had only half of.
+/// without a window.
+///
+/// This is NOT Windows parity. <c>ShortcutValidationService.ValidateActionShortcut</c> carries no
+/// missing-modifier rule -- it refuses a single bare modifier and nothing else, which the Linux
+/// recorder already did in full -- and the Windows recorder DOES commit a bare key
+/// (ShortcutRecorderBox.xaml.cs:228-243). The reason the same chord is safe there and unsafe here
+/// is the platform asymmetry: Windows routes a bare key through a NON-CONSUMING low-level keyboard
+/// hook (KeyboardShortcutService.cs:321-326), so the press still reaches the focused application,
+/// whereas X11's <c>XGrabKey</c> (X11GlobalShortcutService.cs:293, <c>ownerEvents: false</c> on the
+/// root window) has no non-consuming equivalent and swallows the press.
 /// </summary>
 internal static class LinuxShortcutRecorderRules
 {
-    // Every role but cancel is handed to X11GlobalShortcutService / EvdevShortcutFilter and stays
-    // grabbed for as long as the app runs, so a bare key there is taken from every other
-    // application. Cancel is armed only for the length of a session
-    // (LinuxInteractionConfiguration.SessionCancelShortcut), which is exactly why bare Escape is
-    // legal in that one box -- see the note on LinuxInteractionConfiguration.Default.
-    internal static bool IsPersistentlyGrabbed(string roleTag) => roleTag != "cancel";
+    // The one bare key a session-scoped role may keep. It is the shipped default
+    // (SettingsViewModel.cs:348 "Escape") and the chord the session scope was built for.
+    private const string SessionScopedBareKey = "Escape";
 
-    internal static ShortcutRecorderVerdict Evaluate(string roleTag, int modifierCount, string key)
+    internal static ShortcutRecorderVerdict Evaluate(ShortcutRecorderPolicy policy, int modifierCount, string key)
     {
         if (key.Length == 0)
         {
             // Nothing held at all is not a capture yet.
             if (modifierCount == 0) return ShortcutRecorderVerdict.Ignore;
-            // Windows rejects a SINGLE bare modifier -- it would steal ordinary typing -- but
-            // allows a deliberate multi-modifier chord such as Ctrl+Alt or Ctrl+Win.
+            // A modifier-only chord cannot be a session cancel shortcut:
+            // LinuxInteractionCoordinator.Validate refuses SessionCancelShortcut when it IsEmpty
+            // or IsModifierOnly (LinuxInteractionCoordinator.cs:216-220), and that Validate runs
+            // BEFORE RegisterShortcuts, so one such value saved here would leave the next launch
+            // with EVERY shortcut dead and only a status banner. Refuse it in the box, where the
+            // user can still see which chord was rejected.
+            if (policy == ShortcutRecorderPolicy.SessionScoped) return ShortcutRecorderVerdict.KeyRequired;
+            // A SINGLE bare modifier would steal ordinary typing, but a deliberate multi-modifier
+            // chord such as Ctrl+Alt or Ctrl+Win is a real shortcut -- and Ctrl+Alt is the product
+            // default toggle chord, so it has to stay recordable.
             return modifierCount == 1
                 ? ShortcutRecorderVerdict.SingleModifier
                 : ShortcutRecorderVerdict.Accept;
         }
-        // A bare letter was accepted, saved and armed globally (#628), so every press of that
-        // letter in any application fired the action.
-        if (modifierCount == 0 && IsPersistentlyGrabbed(roleTag)) return ShortcutRecorderVerdict.MissingModifier;
-        return ShortcutRecorderVerdict.Accept;
+
+        if (modifierCount > 0) return ShortcutRecorderVerdict.Accept;
+
+        return policy switch
+        {
+            // #628: a bare letter was accepted, saved and grabbed for the whole session, so every
+            // press of that letter in any application fired the action and never reached the app.
+            ShortcutRecorderPolicy.PersistentGrab => ShortcutRecorderVerdict.MissingModifier,
+            // Bare Escape only. A bare letter in the Cancel box is passively grabbed away from
+            // every application for the length of each recording -- the same harm as #628, merely
+            // shorter -- so it gets the same refusal.
+            ShortcutRecorderPolicy.SessionScoped => string.Equals(key, SessionScopedBareKey, StringComparison.Ordinal)
+                ? ShortcutRecorderVerdict.Accept
+                : ShortcutRecorderVerdict.MissingModifier,
+            _ => ShortcutRecorderVerdict.Accept,
+        };
     }
+
+    /// <summary>
+    /// The catalogue key a verdict paints, or null when the verdict paints nothing. Accept writes
+    /// the chord and Ignore is not a capture yet, so those two are the only silent outcomes; every
+    /// other verdict refuses a chord and owes the user a sentence. Keeping the map here rather
+    /// than in the key-down handler is what lets a test enumerate the enum and fail when a new
+    /// rejecting verdict arrives with no message.
+    /// </summary>
+    internal static string? ErrorMessageKey(ShortcutRecorderVerdict verdict) => verdict switch
+    {
+        ShortcutRecorderVerdict.SingleModifier => "linux.shortcuts.error.singleModifier",
+        ShortcutRecorderVerdict.MissingModifier => "linux.shortcuts.error.missingModifier",
+        ShortcutRecorderVerdict.KeyRequired => "linux.shortcuts.error.keyRequired",
+        _ => null,
+    };
 }
 
 internal static class LinuxTrayMicrophoneSelector
