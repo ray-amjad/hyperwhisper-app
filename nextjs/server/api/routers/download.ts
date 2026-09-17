@@ -21,7 +21,6 @@ import { upsertEmail } from "@/src/lib/db-layer";
 import { disposableDomains } from "@/lib/disposable_domains";
 import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
-import { getCountryFromIP } from "@/lib/services/geolocation";
 import { getClientIPFromHeaders } from "./download-ip";
 import { createDisposableDomainCache } from "./download-disposable-domains";
 
@@ -148,22 +147,11 @@ export const downloadRouter = createTRPCRouter({
           });
         }
 
-        // Geolocate the IP for social proof display
-        let country: string | null = null;
-        try {
-          country = await getCountryFromIP(clientIP);
-        } catch {
-          // Geolocation is best-effort; don't block the download
-        }
-
         // Store email in database (ignore if already exists)
         try {
           await upsertEmail({
             email: input.email,
             source: "hyperwhisper-download",
-            ipAddress: clientIP !== "unknown" ? clientIP : null,
-            userAgent: ctx.headers.get("user-agent") || null,
-            country,
           });
         } catch (insertError) {
           console.error("Error storing email:", insertError);
