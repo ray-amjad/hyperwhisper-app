@@ -322,9 +322,9 @@
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 3.5 },
       "models": [
-        { "id": "universal-3-5-pro", "displayName": "Universal-3.5 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "universal-2", "displayName": "Universal-2", "creditsPerMinute": 2.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "dictation", "displayName": "Dictation (built-in cleanup, up to 120s)", "creditsPerMinute": 10.3333333333, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": false }
+        { "id": "universal-3-5-pro", "displayName": "Universal-3.5 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "languageCount": 98 },
+        { "id": "universal-2", "displayName": "Universal-2", "creditsPerMinute": 2.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "languageCount": 98 },
+        { "id": "dictation", "displayName": "Dictation (built-in cleanup, up to 120s)", "creditsPerMinute": 10.3333333333, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": false, "languageCount": 32 }
       ],
       "customVocabulary": {
         "supported": true,

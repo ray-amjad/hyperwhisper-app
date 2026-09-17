@@ -193,11 +193,12 @@ static Task TestCloudSttLanguageCountAsync()
         True(declared.All(count => count is not null),
             $"{providerId} states languageCount on some models but not all");
 
-        // The union is the widest model's table, so the largest per-model figure
-        // must be the provider's own. Otherwise `languages.codes` holds codes no
-        // model supports, or a model claims more than the union it came from.
+        // Models can support overlapping sets without any single model covering
+        // the entire provider union (e.g. AssemblyAI Universal and Dictation).
+        // No individual model may claim more languages than that union.
         True(providerCount is not null, $"{providerId} states languageCount but no provider count");
-        Equal(providerCount, declared.Max());
+        True(declared.Max() <= providerCount,
+            $"{providerId} has a model language count larger than its provider union");
 
         for (var index = 0; index < models.Length; index++)
         {
