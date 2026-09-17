@@ -177,7 +177,8 @@
                        Text="{ReflectionBinding [mode.editor.field.language], Source={StaticResource Localization}}"/>
             <TextBox x:Name="ModeLanguageInput" Text="{Binding Language}" PlaceholderText="auto" IsVisible="{Binding IsNotDictation}"/>
             <ComboBox x:Name="ModeDictationLanguage" ItemsSource="{Binding DictationLanguages}" SelectedItem="{Binding DictationLanguage}" IsVisible="{Binding IsDictation}"/>
-            <TextBlock IsVisible="{Binding IsDictation}" TextWrapping="Wrap" Text="Dictation includes cleanup even when post-processing is off. Select a language (no Auto). PCM16 WAV, up to 120 seconds. Explicit extra processing still runs."/>
+            <TextBlock IsVisible="{Binding IsDictation}" TextWrapping="Wrap"
+                       Text="{ReflectionBinding [linux.mode.editor.dictation.hint], Source={StaticResource Localization}}"/>
           </StackPanel>
 
           <!-- Linux-only: a per-mode vocabulary list. Windows keeps vocabulary on its own page,
