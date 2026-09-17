@@ -43,15 +43,18 @@ export default function PrivacyPolicyPage() {
           support. We keep a record of the transactional emails we send you —
           the recipient address, email type, subject, send timestamp, and
           delivery status — retained for support, audit, and deliverability
-          troubleshooting. We do not store the message body. When you request
-          the download link from our website, we also record the IP address the
-          request came from, the browser user agent, and the country resolved
-          from that IP address. We use the IP address to rate limit the download
-          form (10 requests per IP address per hour) and to prevent abuse, and
-          we use the country to understand where our downloads come from. This
-          download-request record — the email address, IP address, user agent,
-          and country — is kept until you ask us to delete it; see Your Rights
-          below.
+          troubleshooting. We do not store the message body. When you first
+          request the download link from our website, we record your email
+          address together with details of that request, including the IP
+          address it came from, the browser user agent, and, where we can
+          resolve it, the country for that IP address. We use the IP address to
+          rate limit the download form (10 requests per IP address per hour) and
+          to prevent abuse, and we use the country to understand where our
+          downloads come from. We keep one such record per email address: if you
+          request the download link again later, we do not add a second record
+          and we do not update the one we already hold, so it continues to
+          describe your first request. That record is kept until you ask us to
+          delete it; see Your Rights below.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
