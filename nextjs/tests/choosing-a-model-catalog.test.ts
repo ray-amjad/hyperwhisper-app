@@ -555,16 +555,29 @@ test("a provider whose models differ states each model's own language count", as
       `${provider.id} states languageCount on some models but not all`,
     );
 
-    // No model may claim more than the union it was folded from, and the union
-    // must be exactly the largest model's table — otherwise `languages.codes`
-    // holds codes no model supports.
+    // No model may claim more than the union it was folded from. The union
+    // can exceed the largest model's table when their language sets overlap
+    // only partially (AssemblyAI Dictation adds xh/yue/zu to Universal's set).
     const largest = Math.max(...overrides);
-    assert.equal(
-      largest,
-      codes.length,
+    assert.ok(
+      largest <= codes.length,
       `${provider.id}'s widest model claims ${largest} languages but languages.codes lists ${codes.length}`,
     );
   }
+});
+
+test("AssemblyAI Dictation retains its model-specific language coverage", async () => {
+  const { CLOUD_MODELS } = await loadCatalog();
+  const models = CLOUD_MODELS.filter(
+    (model: { sttProvider: string }) => model.sttProvider === "assemblyai",
+  );
+  assert.deepEqual(
+    models.map((model: { modelId: string; languages: number }) => [
+      model.modelId,
+      model.languages,
+    ]),
+    [["universal-3-5-pro", 98], ["universal-2", 98], ["dictation", 32]],
+  );
 });
 
 test("Meta Muse keeps streaming benchmark values out of the batch ranking", async () => {
