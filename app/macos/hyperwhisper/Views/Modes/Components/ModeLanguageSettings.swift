@@ -170,6 +170,9 @@ struct LanguageSelectionView: View {
                     Text(localized: "modes.language.title")
                         .frame(width: 80, alignment: .leading)
                     Picker("", selection: $language) {
+                        if language.isEmpty {
+                            Text("Select a language").tag("")
+                        }
                         ForEach(allowedLanguages, id: \.code) { lang in
                             Text(lang.name).tag(lang.code)
                         }
@@ -184,6 +187,9 @@ struct LanguageSelectionView: View {
             } else {
                 // Compact mode: just the picker for embedding in other layouts
                 Picker("", selection: $language) {
+                    if language.isEmpty {
+                        Text("Select a language").tag("")
+                    }
                     ForEach(allowedLanguages, id: \.code) { lang in
                         Text(lang.name).tag(lang.code)
                     }
@@ -226,8 +232,13 @@ struct LanguageSelectionView: View {
     }
 
     private func enforceAllowedLanguage() {
-        // Leave an unsupported selection unset; Dictation must never silently select English.
-        if cloudProviderId == "assemblyai" && cloudModelId == "dictation" { return }
+        // Require an explicit supported choice; never silently select English.
+        if cloudProviderId == "assemblyai" && cloudModelId == "dictation" {
+            if !allowedLanguageInfos.contains(where: { $0.code == language }) {
+                language = ""
+            }
+            return
+        }
         let infos = allowedLanguageInfos
         let allowed = Set(infos.map { $0.code })
         if !allowed.contains(language), let first = infos.first?.code {

@@ -331,10 +331,21 @@ public partial class ModeEditorWindow : Window
         UpdateSaveButtonState();
     }
 
+    private bool HasValidDictationLanguage()
+    {
+        if (SelectedProviderType() != "cloud") return true;
+        ResolveEffectiveCloudProviderAndModel(out var provider, out var modelId);
+        if (provider != CloudTranscriptionProvider.AssemblyAI || modelId != "dictation") return true;
+
+        var language = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var support = Services.SharedModelsCatalog.GetLanguageSupport("assemblyAI", CatalogKind.Voice, "dictation");
+        return language != null && support.Codes.Contains(language);
+    }
+
     private void UpdateSaveButtonState()
     {
         // Name is required
-        if (string.IsNullOrWhiteSpace(ModeNameBox.Text))
+        if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || !HasValidDictationLanguage())
         {
             SaveModeButton.IsEnabled = false;
             return;
@@ -1308,6 +1319,7 @@ public partial class ModeEditorWindow : Window
         if (_isLoading) return;
         UpdateEnglishSpellingVisibility();
         UpdateNova3Warning();
+        UpdateSaveButtonState();
     }
 
     /// <summary>
@@ -1754,6 +1766,12 @@ public partial class ModeEditorWindow : Window
 
     private void SaveModeButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!HasValidDictationLanguage())
+        {
+            LanguageCombo.Focus();
+            return;
+        }
+
         _mode.Name = ModeNameBox.Text.Trim();
 
         // Save preset
