@@ -239,8 +239,12 @@ export default function ModelPicker({ measured, regions }: Props) {
     setRequirements((current) => ({ ...current, [id]: !current[id] }));
   }
 
+  // The base `grid-cols-1` is load-bearing, not decoration. Without an explicit
+  // base track the lone implicit track is `auto`, so it is sized to the model
+  // table's min-content and the whole grid runs past a phone viewport, taking
+  // the control panel off-screen and out of reach — see #705.
   return (
-    <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
+    <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
       {/* ---------------- Controls ---------------- */}
       <div className="lg:sticky lg:top-6 lg:self-start">
         <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-6 backdrop-blur-xl">
