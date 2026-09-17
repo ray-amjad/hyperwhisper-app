@@ -635,46 +635,59 @@ struct ModeEditorView: View {
 
     /// Shortest the sheet may be drawn. Below this the form is unusable, and a
     /// `maxHeight` under a `minHeight` is an invalid frame range — which is why
-    /// the clamp below is a `max(...)` and not a bare `min(700, screen - inset)`.
+    /// the clamp below is a `max(...)` and not a bare `min(700, available)`.
     static let sheetMinHeight: CGFloat = 420
-    /// The height the sheet has always used where both limits have room for it.
+    /// The height the sheet has always used where there is room for it.
     static let sheetDesignHeight: CGFloat = 700
-    /// Slack left around the sheet on a short screen (sheet chrome + margins).
-    static let sheetScreenInset: CGFloat = 80
+    /// Slack kept between the sheet's bottom edge and the bottom of the screen's
+    /// visible area, so the footer never sits flush against the Dock.
+    static let sheetBottomMargin: CGFloat = 8
 
     /// Static so hyperwhisperTests can assert the clamp without standing up the
-    /// view. TWO limits bind and the smaller wins: the screen's `visibleFrame`,
-    /// and the PARENT WINDOW's content height. The second matters because a macOS
-    /// sheet hangs from its parent's content top and AppKit never resizes it nor
-    /// moves the parent — and the main window is a fixed 1000x600 that is
-    /// draggable from anywhere (`hyperwhisperApp.swift`), so a screen-only clamp
-    /// put the footer back under the Dock the moment the window was dragged down.
-    /// A nil input falls back to the design height, so it never narrows the clamp.
-    static func sheetMaxHeight(visibleScreenHeight: CGFloat?, parentContentHeight: CGFloat?) -> CGFloat {
-        let screenLimit = visibleScreenHeight.map { $0 - sheetScreenInset } ?? sheetDesignHeight
-        let parentLimit = parentContentHeight ?? sheetDesignHeight
-        return max(sheetMinHeight, min(sheetDesignHeight, min(screenLimit, parentLimit)))
+    /// view. ONE quantity bounds the sheet: how far its TOP edge — `sheetTopY`,
+    /// the parent window's content top in SCREEN coordinates — sits above
+    /// `visibleBottomY`, the bottom of that screen's `visibleFrame`. A macOS
+    /// sheet hangs from that top, and AppKit never resizes it, never clips it to
+    /// the visible frame and never moves the parent up to make room, so that
+    /// distance is all the room the sheet can ever have — at any window position,
+    /// on any display. A screen-HEIGHT clamp misses the window position; a
+    /// parent-content-HEIGHT clamp (round 1's remedy, withdrawn) is
+    /// position-independent, and with a single fixed 1000x600 parent it also
+    /// shrank the sheet on every display, including those where #711 cannot
+    /// happen. Either input missing means no limit is known, so it falls back to
+    /// the design height rather than narrowing the clamp.
+    static func sheetMaxHeight(sheetTopY: CGFloat?, visibleBottomY: CGFloat?) -> CGFloat {
+        guard let sheetTopY, let visibleBottomY else { return sheetDesignHeight }
+        let available = sheetTopY - visibleBottomY - sheetBottomMargin
+        return max(sheetMinHeight, min(sheetDesignHeight, available))
     }
 
-    /// The window the sheet hangs from. Once the sheet is up `NSApp.keyWindow` is
-    /// usually the SHEET, so resolve its `sheetParent` first; the screen then
-    /// comes from that window rather than from whichever window happens to be key.
-    /// Read once per body evaluation; it does not follow a drag to another
-    /// display, which is acceptable for a modal sheet.
+    /// The room under the content top of the window the sheet hangs from.
+    ///
+    /// `MainWindowStore.window` is the repo's own handle on that window
+    /// (`hyperwhisperApp.swift`, written by `WindowConfigurator`, read the same
+    /// way in three other places). It is the app's ONLY sheet parent, and unlike
+    /// `NSApp.keyWindow` it neither changes when a recording panel or a progress
+    /// popup takes key, nor goes nil while the app is inactive. Read once per
+    /// body evaluation (`body` hoists it into a `let`); it does not follow a drag
+    /// to another display, which is acceptable for a modal sheet.
     private var maxSheetHeight: CGFloat {
-        let keyWindow = NSApp.keyWindow
-        let hostWindow = keyWindow?.sheetParent ?? keyWindow ?? NSApp.mainWindow
+        let hostWindow = MainWindowStore.window
         return Self.sheetMaxHeight(
-            visibleScreenHeight: (hostWindow?.screen ?? NSScreen.main)?.visibleFrame.height,
-            // Content height, not `frame.height`: the sheet hangs below the
-            // titlebar, so the titlebar is not room the sheet can use.
-            parentContentHeight: hostWindow.map { $0.contentLayoutRect.height }
+            // `contentLayoutRect` is in WINDOW coordinates and excludes the
+            // titlebar band, which is not room the sheet can use; converting it
+            // gives the screen Y the sheet hangs from at this window position.
+            sheetTopY: hostWindow.map { $0.convertToScreen($0.contentLayoutRect).maxY },
+            visibleBottomY: (hostWindow?.screen ?? NSScreen.main)?.visibleFrame.minY
         )
     }
 
     // MARK: - Body
 
     var body: some View {
+        // One AppKit walk per body pass; the two frame arguments then agree.
+        let maxHeight = maxSheetHeight
+
         VStack(spacing: 0) {
             editorHeader
             editorContent
@@ -683,14 +696,14 @@ struct ModeEditorView: View {
             editorFooter
         }
         .frame(width: 480)
-        // Bounded instead of a hard 700: the fixed height pushed the footer
-        // (Cancel / Create / Delete) below the screen edge and below the parent
-        // window's bottom edge, and the window cannot be resized to reach it
-        // (issue #711). `idealHeight` holds the sheet at its full allowance.
+        // Bounded instead of a hard 700: the fixed height drew the footer
+        // (Cancel / Create / Delete) below the bottom of the screen's visible
+        // area, and the window cannot be resized to reach it (issue #711).
+        // `idealHeight` holds the sheet at its full allowance.
         .frame(
             minHeight: Self.sheetMinHeight,
-            idealHeight: maxSheetHeight,
-            maxHeight: maxSheetHeight
+            idealHeight: maxHeight,
+            maxHeight: maxHeight
         )
         .background(Color(NSColor.windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 12))
