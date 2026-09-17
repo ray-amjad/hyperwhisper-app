@@ -392,3 +392,36 @@ pub fn soniox_build_delete_file_request(
 ) -> HttpRequest {
     hw_net::providers::soniox::build_delete_file_request(&params.into(), &file_id).into()
 }
+
+// AssemblyAI Dictation (additive; never an ordinary-STT fallback).
+#[uniffi::export]
+pub fn assemblyai_build_dictation_request(
+    params: TranscribeParams,
+) -> Result<HttpRequest, HwTranscriptionError> {
+    hw_net::providers::assemblyai::build_dictation_request(&params.into())
+        .map(Into::into)
+        .map_err(Into::into)
+}
+#[uniffi::export]
+pub fn assemblyai_parse_dictation_response(
+    resp: HttpResponse,
+) -> Result<HwTranscript, HwTranscriptionError> {
+    hw_net::providers::assemblyai::parse_dictation_response(&resp.into())
+        .map(Into::into)
+        .map_err(Into::into)
+}
+#[uniffi::export]
+pub fn assemblyai_dictation_max_duration_secs() -> f64 {
+    hw_net::providers::assemblyai::DICTATION_MAX_DURATION_SECS
+}
+#[uniffi::export]
+pub fn assemblyai_dictation_timeout_ms() -> u64 {
+    hw_net::providers::assemblyai::DICTATION_TIMEOUT_MS
+}
+#[uniffi::export]
+pub fn assemblyai_dictation_languages() -> Vec<String> {
+    hw_net::providers::assemblyai::DICTATION_LANGUAGES
+        .iter()
+        .map(|s| (*s).into())
+        .collect()
+}
