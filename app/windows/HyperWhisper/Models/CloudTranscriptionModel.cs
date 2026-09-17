@@ -255,7 +255,7 @@ public static class CloudTranscriptionModels
         {
             Id = "dictation",
             DisplayName = "Dictation",
-            Description = "Built-in cleanup, including when post-processing is off. Up to 120 seconds of PCM16 WAV; select one of 32 supported languages (no Auto). Explicit extra processing still runs.",
+            Description = "",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             IsPopular = true,
             PricePerMinute = 0.62m / 60m

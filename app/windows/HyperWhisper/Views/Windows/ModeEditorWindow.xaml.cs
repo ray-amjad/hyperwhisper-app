@@ -908,7 +908,6 @@ public partial class ModeEditorWindow : Window
         }
 
         var parts = new List<string>();
-        if (tierId == "assemblyAI" && modelId == "dictation") parts.Add("Built-in cleanup, including when post-processing is off. Up to 120 seconds of PCM16 WAV; select one of 32 supported languages (no Auto). Explicit extra processing still runs.");
         if (model.PreviewStatus) parts.Add(Loc.S("mode.editor.cloudModel.previewHint"));
         if (!model.SupportsCustomVocabulary) parts.Add(Loc.S("mode.editor.cloudModel.noVocabularyHint"));
         CloudTierModelDescText.Text = string.Join(" · ", parts);

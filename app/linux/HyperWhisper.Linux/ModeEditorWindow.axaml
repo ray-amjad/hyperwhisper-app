@@ -177,8 +177,6 @@
                        Text="{ReflectionBinding [mode.editor.field.language], Source={StaticResource Localization}}"/>
             <TextBox x:Name="ModeLanguageInput" Text="{Binding Language}" PlaceholderText="auto" IsVisible="{Binding IsNotDictation}"/>
             <ComboBox x:Name="ModeDictationLanguage" ItemsSource="{Binding DictationLanguages}" SelectedItem="{Binding DictationLanguage}" IsVisible="{Binding IsDictation}"/>
-            <TextBlock IsVisible="{Binding IsDictation}" TextWrapping="Wrap"
-                       Text="{ReflectionBinding [linux.mode.editor.dictation.hint], Source={StaticResource Localization}}"/>
           </StackPanel>
 
           <!-- Linux-only: a per-mode vocabulary list. Windows keeps vocabulary on its own page,

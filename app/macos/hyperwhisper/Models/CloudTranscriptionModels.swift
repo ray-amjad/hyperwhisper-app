@@ -505,7 +505,7 @@ struct CloudTranscriptionModels {
             id: "dictation",
             displayName: "Dictation",
             isAvailable: true,
-            description: "Built-in cleanup, including when post-processing is off. Up to 120 seconds of PCM16 WAV; select one of 32 supported languages (no Auto). Explicit extra processing still runs.",
+            description: "",
             provider: .assemblyAI,
             isPopular: true,
             pricePerSecond: 0.62 / 3600.0

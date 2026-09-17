@@ -649,7 +649,4 @@
   <data name="linux.section.linuxOnly" xml:space="preserve">
     <value>Linux options</value>
   </data>
-  <data name="linux.mode.editor.dictation.hint" xml:space="preserve">
-    <value>Dictation includes cleanup even when post-processing is off. Select a language (no Auto). PCM16 WAV, up to 120 seconds. Explicit extra processing still runs.</value>
-  </data>
 </root>

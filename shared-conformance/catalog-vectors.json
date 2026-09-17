@@ -612,7 +612,7 @@
         },
         {
           "id": "dictation",
-          "displayName": "Dictation (built-in cleanup, up to 120s)",
+          "displayName": "Dictation",
           "creditsPerMinute": 10.3333333333,
           "isDefault": false,
           "previewStatus": false,

@@ -301,7 +301,7 @@ enum STTCapabilities {
                         languages: Array(AssemblyAIDictationAudio.languages).sorted().map { code in
                             STTLanguageSpec(code: code, displayName: LanguageData.info(for: code)?.displayName ?? ["xh": "Xhosa", "zu": "Zulu"][code] ?? code)
                         },
-                        notes: "Built-in cleanup, including when post-processing is off. Up to 120 seconds of PCM16 WAV; select one of 32 supported languages (no Auto). Explicit extra processing still runs."
+                        notes: ""
                     ),
                     STTModelSpec(
                         id: "universal-2",
