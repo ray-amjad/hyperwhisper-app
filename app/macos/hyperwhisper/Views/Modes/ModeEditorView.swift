@@ -647,15 +647,27 @@ struct ModeEditorView: View {
     /// view. ONE quantity bounds the sheet: how far its TOP edge — `sheetTopY`,
     /// the parent window's content top in SCREEN coordinates — sits above
     /// `visibleBottomY`, the bottom of that screen's `visibleFrame`. A macOS
-    /// sheet hangs from that top, and AppKit never resizes it, never clips it to
-    /// the visible frame and never moves the parent up to make room, so that
-    /// distance is all the room the sheet can ever have — at any window position,
-    /// on any display. A screen-HEIGHT clamp misses the window position; a
+    /// sheet hangs from that top and AppKit never resizes it, so that distance
+    /// is the room the sheet has at the position the window is in when the
+    /// clamp is read. A screen-HEIGHT clamp misses the window position; a
     /// parent-content-HEIGHT clamp (round 1's remedy, withdrawn) is
     /// position-independent, and with a single fixed 1000x600 parent it also
     /// shrank the sheet on every display, including those where #711 cannot
     /// happen. Either input missing means no limit is known, so it falls back to
     /// the design height rather than narrowing the clamp.
+    ///
+    /// MEASURED LIMIT, macOS 26.3.1 on a 1280x800-point display. AppKit DOES
+    /// move the parent window up when the sheet does not fit, so the sheet can
+    /// render lower than the `sheetTopY` this clamp sampled. At the app's
+    /// default window placement the sheet lands 8pt clear of the Dock, and it
+    /// stays clear with the window dragged down to rest on the Dock. Drag the
+    /// window deeper than that (content top about 150pt down, and lower) and the
+    /// lift outruns the sample: the overshoot measured 3pt at 150 and 28pt at
+    /// 250, which clips part of the footer row again. Every one of those
+    /// positions is still better than the fixed 700pt this replaced, where the
+    /// footer was entirely behind the Dock. A clamp that is stable under the
+    /// lift has to be position-independent, and that is the trade round 1 made
+    /// and lost on a different axis — see the PR for both readings.
     static func sheetMaxHeight(sheetTopY: CGFloat?, visibleBottomY: CGFloat?) -> CGFloat {
         guard let sheetTopY, let visibleBottomY else { return sheetDesignHeight }
         let available = sheetTopY - visibleBottomY - sheetBottomMargin
