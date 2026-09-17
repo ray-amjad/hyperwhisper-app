@@ -367,6 +367,25 @@ public sealed class CloudTranscriptionService : IDisposable
         ExecutionState state,
         CancellationToken cancellationToken)
     {
+        if (parameters.model == "dictation")
+        {
+            try
+            {
+                state.Attempts++;
+                return await AssemblyAiDictation.TranscribeAsync(parameters with { prompt = null }, _client, cancellationToken).ConfigureAwait(false);
+            }
+            catch (InvalidDataException error)
+            {
+                throw new CloudFailureException(new CloudTranscriptionFailure(
+                    CloudTranscriptionErrorCode.InvalidRequest, error.Message, provider));
+            }
+            catch (TimeoutException error)
+            {
+                throw new CloudFailureException(new CloudTranscriptionFailure(
+                    CloudTranscriptionErrorCode.ProviderUnavailable, error.Message, provider));
+            }
+        }
+
         var upload = await SendWithRetryAsync(
             () => HyperwhisperCoreMethods.AssemblyaiBuildUploadRequest(parameters),
             response => HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(response),
