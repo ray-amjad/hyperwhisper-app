@@ -102,9 +102,6 @@ struct ModeEditorView: View {
     @State private var lastHyperwhisperCloudTranscriptionModel: String?
     @State private var lastHyperwhisperCloudTranscriptionDomain: String?
 
-    /// Token for the Escape fallback monitor; see `installEscapeMonitor()`.
-    @State private var escapeMonitor: Any?
-
     // MARK: - Initialization
 
     init(configuration: ModeEditorConfiguration, availableModelIds: [String], onSave: @escaping (ModeData) -> Void) {
@@ -640,66 +637,39 @@ struct ModeEditorView: View {
     /// `maxHeight` under a `minHeight` is an invalid frame range — which is why
     /// the clamp below is a `max(...)` and not a bare `min(700, screen - inset)`.
     static let sheetMinHeight: CGFloat = 420
-    /// The height the sheet has always used where the screen has room for it.
+    /// The height the sheet has always used where both limits have room for it.
     static let sheetDesignHeight: CGFloat = 700
     /// Slack left around the sheet on a short screen (sheet chrome + margins).
     static let sheetScreenInset: CGFloat = 80
 
     /// Static so hyperwhisperTests can assert the clamp without standing up the
-    /// view; the regression it guards is a sheet taller than the screen it is on.
-    static func sheetMaxHeight(visibleScreenHeight: CGFloat?) -> CGFloat {
-        guard let visibleScreenHeight else { return sheetDesignHeight }
-        return max(sheetMinHeight, min(sheetDesignHeight, visibleScreenHeight - sheetScreenInset))
+    /// view. TWO limits bind and the smaller wins: the screen's `visibleFrame`,
+    /// and the PARENT WINDOW's content height. The second matters because a macOS
+    /// sheet hangs from its parent's content top and AppKit never resizes it nor
+    /// moves the parent — and the main window is a fixed 1000x600 that is
+    /// draggable from anywhere (`hyperwhisperApp.swift`), so a screen-only clamp
+    /// put the footer back under the Dock the moment the window was dragged down.
+    /// A nil input falls back to the design height, so it never narrows the clamp.
+    static func sheetMaxHeight(visibleScreenHeight: CGFloat?, parentContentHeight: CGFloat?) -> CGFloat {
+        let screenLimit = visibleScreenHeight.map { $0 - sheetScreenInset } ?? sheetDesignHeight
+        let parentLimit = parentContentHeight ?? sheetDesignHeight
+        return max(sheetMinHeight, min(sheetDesignHeight, min(screenLimit, parentLimit)))
     }
 
-    /// The sheet's own screen when it is key, falling back to the main screen.
+    /// The window the sheet hangs from. Once the sheet is up `NSApp.keyWindow` is
+    /// usually the SHEET, so resolve its `sheetParent` first; the screen then
+    /// comes from that window rather than from whichever window happens to be key.
     /// Read once per body evaluation; it does not follow a drag to another
     /// display, which is acceptable for a modal sheet.
     private var maxSheetHeight: CGFloat {
-        Self.sheetMaxHeight(
-            visibleScreenHeight: (NSApp.keyWindow?.screen ?? NSScreen.main)?.visibleFrame.height
+        let keyWindow = NSApp.keyWindow
+        let hostWindow = keyWindow?.sheetParent ?? keyWindow ?? NSApp.mainWindow
+        return Self.sheetMaxHeight(
+            visibleScreenHeight: (hostWindow?.screen ?? NSScreen.main)?.visibleFrame.height,
+            // Content height, not `frame.height`: the sheet hangs below the
+            // titlebar, so the titlebar is not room the sheet can use.
+            parentContentHeight: hostWindow.map { $0.contentLayoutRect.height }
         )
-    }
-
-    // MARK: - Escape handling
-
-    /// Escape must close this sheet even while the "Persistent Instructions"
-    /// `TextEditor` (`Components/ModePostProcessingSettings.swift`) holds first
-    /// responder. `NSTextView` answers `cancelOperation:` itself, so neither
-    /// `.onExitCommand` nor the Cancel button's `.keyboardShortcut(.cancelAction)`
-    /// ever sees the key — issue #711, where the only exit left was `killall`.
-    /// A local monitor runs before the event reaches the window, so it is the one
-    /// place that can see it.
-    ///
-    /// The monitor is app-wide while installed, so it is removed in `.onDisappear`
-    /// and consumes (`return nil`) ONLY on the branch that dismisses this sheet:
-    /// a bare Escape, delivered to a SHEET window, with no IME composition open
-    /// and no recording in flight. `KeyboardShortcuts.cancelRecording` (Escape by
-    /// default) is enabled only between `startRecording` and stop/cancel
-    /// (`RecordingTranscriptionFlow+StartRecording.swift:221`), so the recording
-    /// guard keeps this monitor out of that binding's way.
-    private func installEscapeMonitor() {
-        guard escapeMonitor == nil else { return }
-        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
-            guard event.keyCode == 53, modifiers.isEmpty,  // 53 = Escape
-                  let window = event.window,
-                  window.isSheet || window.sheetParent != nil,
-                  !appState.isRecording else { return event }
-            // Escape ends an in-progress IME composition; let the text view have it.
-            if let textView = window.firstResponder as? NSTextView, textView.hasMarkedText() {
-                return event
-            }
-            DispatchQueue.main.async { dismiss() }
-            return nil
-        }
-    }
-
-    private func removeEscapeMonitor() {
-        if let monitor = escapeMonitor {
-            NSEvent.removeMonitor(monitor)
-            escapeMonitor = nil
-        }
     }
 
     // MARK: - Body
@@ -713,11 +683,10 @@ struct ModeEditorView: View {
             editorFooter
         }
         .frame(width: 480)
-        // Bounded instead of a hard 700: a 1280x800 display leaves ~713pt of
-        // visibleFrame, so the fixed height pushed the footer (Cancel / Create /
-        // Delete) below the screen edge, and the window cannot be resized to
-        // reach it (issue #711). `idealHeight` keeps the sheet at its full
-        // allowance when there is room, so nothing changes on a big display.
+        // Bounded instead of a hard 700: the fixed height pushed the footer
+        // (Cancel / Create / Delete) below the screen edge and below the parent
+        // window's bottom edge, and the window cannot be resized to reach it
+        // (issue #711). `idealHeight` holds the sheet at its full allowance.
         .frame(
             minHeight: Self.sheetMinHeight,
             idealHeight: maxSheetHeight,
@@ -725,11 +694,7 @@ struct ModeEditorView: View {
         )
         .background(Color(NSColor.windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .onExitCommand { dismiss() }
-        .onDisappear { removeEscapeMonitor() }
         .onAppear {
-            installEscapeMonitor()
-
             // Ensure model selection is valid to avoid Picker selection warnings
             if provider == .local {
                 if availableModelIds.isEmpty {
