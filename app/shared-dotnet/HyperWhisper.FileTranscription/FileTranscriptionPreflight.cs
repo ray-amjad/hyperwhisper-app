@@ -62,7 +62,8 @@ public sealed record FileTranscriptionConstraints(
     TimeSpan? MaximumDuration,
     IReadOnlySet<string> SupportedExtensions,
     bool RequiresMuseWave = false,
-    long? MaximumSourceBytes = null);
+    long? MaximumSourceBytes = null,
+    bool RequiresPcm16Wave = false);
 
 public enum FileTranscriptionPreflightError
 {
@@ -184,6 +185,12 @@ public sealed class PortableFileTranscriptionPreflight
             if (metadata.LengthBytes <= 0) return Failure(
                 FileTranscriptionPreflightError.FileEmpty, "file_preflight.file_empty",
                 "The selected audio file is empty.");
+            if (resolved.Constraints.RequiresPcm16Wave
+                && (metadata.WaveEncoding != 1 || metadata.BitsPerSample != 16
+                    || metadata.Channels is not > 0 || metadata.SampleRate is not > 0))
+                return Failure(FileTranscriptionPreflightError.FormatUnsupported,
+                    "file_preflight.format_unsupported",
+                    "AssemblyAI Dictation requires PCM16 WAV audio. Convert the file to WAV or select another model.");
             var requiresNormalization = resolved.Constraints.RequiresMuseWave
                 && !metadata.IsMuseCompatibleWave;
             if (requiresNormalization
@@ -284,6 +291,21 @@ public sealed class PortableFileTranscriptionPreflight
                 FileTranscriptionPreflightError.ModelUnsupported, "file_preflight.model_unsupported",
                 "The selected transcription model is not supported by this provider.");
         }
+        // Dictation is a short PCM16 WAV route on both BYOK and Cloud. Keep
+        // Universal's broader container and size policy unchanged. Language and
+        // full RIFF integrity are also validated by the transport before upload.
+        if (modelId == "dictation" && (provider == CloudTranscriptionProvider.AssemblyAi
+            || (provider == CloudTranscriptionProvider.HyperWhisperCloud
+                && SharedCoreBridge.CanonicalCloudSttTier(target.CloudCatalogTier) == "assemblyAI")))
+        {
+            descriptor = descriptor with
+            {
+                Constraints = new FileTranscriptionConstraints(
+                    descriptor.Constraints.MaximumBytes, TimeSpan.FromSeconds(120),
+                    new HashSet<string>(["wav"], StringComparer.OrdinalIgnoreCase),
+                    RequiresPcm16Wave: true)
+            };
+        }
         CloudCredential? credential;
         try { credential = await _credentials.GetCredentialAsync(provider, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -356,7 +378,7 @@ public sealed class PortableFileTranscriptionPreflight
             [CloudTranscriptionProvider.Deepgram] = Cloud(2L * 1024 * 1024 * 1024, "nova-3-general",
                 ["nova-3-general", "nova-3-medical", "nova-2-general", "nova-2-medical"]),
             [CloudTranscriptionProvider.AssemblyAi] = Cloud(5L * 1024 * 1024 * 1024, "universal-3-5-pro",
-                ["universal-2", "universal-3-5-pro", "universal-2-medical", "universal-3-5-pro-medical"]),
+                ["universal-2", "universal-3-5-pro", "universal-2-medical", "universal-3-5-pro-medical", "dictation"]),
             [CloudTranscriptionProvider.ElevenLabs] = Cloud(3L * 1024 * 1024 * 1024, "scribe_v2", ["scribe_v2"]),
             [CloudTranscriptionProvider.Mistral] = Cloud(100L * 1024 * 1024, "voxtral-mini-latest", ["voxtral-mini-latest"]),
             [CloudTranscriptionProvider.Soniox] = Cloud(1L * 1024 * 1024 * 1024, "stt-async-v5", ["stt-async-v5"]),

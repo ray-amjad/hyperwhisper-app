@@ -11,6 +11,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud credentials and models fail before metadata", CloudReadinessPrecedesMetadata),
     ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
     ("Azure MAI file transcription accepts both models", AzureMaiAcceptsBothModels),
+    ("AssemblyAI Dictation accepts only short PCM16 WAV on BYOK and Cloud", AssemblyAiDictationFiles),
     ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
     ("Meta Muse converts portable non-WAV and incompatible WAV inputs", MetaMuseNormalization),
     ("Meta Muse enforces limits on the normalized WAV", MetaMuseNormalizedLimits),
@@ -116,6 +117,58 @@ static async Task AzureMaiAcceptsBothModels()
     AssertCode(await Service(new FakeMetadata { Value = metadata.Value }, account: true).ValidateAsync(
         "recording.wav",
         new(FileTranscriptionRoute.Cloud, "mai-transcribe-3", CloudProvider: CloudTranscriptionProvider.AzureMai)),
+        "file_preflight.model_unsupported");
+}
+
+static async Task AssemblyAiDictationFiles()
+{
+    foreach (var provider in new[] { CloudTranscriptionProvider.AssemblyAi, CloudTranscriptionProvider.HyperWhisperCloud })
+    {
+        var target = new FileTranscriptionTarget(FileTranscriptionRoute.Cloud, "dictation",
+            CloudProvider: provider, CloudCatalogTier: "assemblyAI");
+        var metadata = new FakeMetadata { Value = new(1024, TimeSpan.FromSeconds(120), 1, 1, 16_000, 16) };
+        var service = Service(metadata, account: provider == CloudTranscriptionProvider.HyperWhisperCloud);
+        var result = await service.ValidateAsync("recording.WAV", target);
+        Assert(result.IsSuccess && result.ResolvedModel == "dictation" && !result.RequiresNormalization
+            && result.Constraints is { RequiresPcm16Wave: true, MaximumDuration: var duration }
+            && duration == TimeSpan.FromSeconds(120), "Dictation rejected a PCM16 WAV at its duration limit");
+
+        var reads = metadata.Calls;
+        AssertCode(await service.ValidateAsync("recording.mp3", target), "file_preflight.format_unsupported");
+        Assert(metadata.Calls == reads, "Dictation read metadata for an unsupported container");
+
+        foreach (var invalid in new[]
+        {
+            new FileAudioMetadata(1024, TimeSpan.FromSeconds(1)),
+            new FileAudioMetadata(1024, TimeSpan.FromSeconds(1), 3, 1, 16_000, 16),
+            new FileAudioMetadata(1024, TimeSpan.FromSeconds(1), 1, 1, 16_000, 24),
+            new FileAudioMetadata(1024, TimeSpan.FromSeconds(1), 1, 0, 16_000, 16),
+            new FileAudioMetadata(1024, TimeSpan.FromSeconds(1), 1, 1, 0, 16),
+        })
+        {
+            metadata.Value = invalid;
+            AssertCode(await service.ValidateAsync("recording.wav", target), "file_preflight.format_unsupported");
+        }
+
+        metadata.Value = new(1024, TimeSpan.FromSeconds(120) + TimeSpan.FromMilliseconds(1), 1, 1, 16_000, 16);
+        AssertCode(await service.ValidateAsync("recording.wav", target), "file_preflight.duration_too_long");
+        metadata.Value = new(1024, null, 1, 1, 16_000, 16);
+        AssertCode(await service.ValidateAsync("recording.wav", target), "file_preflight.duration_unavailable");
+        metadata.Value = new(1024, TimeSpan.Zero, 1, 1, 16_000, 16);
+        AssertCode(await service.ValidateAsync("recording.wav", target), "file_preflight.duration_invalid");
+
+        // The adapter permits stereo and arbitrary positive sample rates; Muse's
+        // mono 16/24 kHz restriction must not leak into this model's contract.
+        metadata.Value = new(1024, TimeSpan.FromSeconds(1), 1, 2, 48_000, 16);
+        Assert((await service.ValidateAsync("recording.wav", target)).IsSuccess,
+            "Dictation inherited Muse's channel/sample-rate restriction");
+        metadata.Value = new(1024, TimeSpan.FromMinutes(5));
+        Assert((await service.ValidateAsync("recording.mp3", target with { Model = "universal-3-5-pro" })).IsSuccess,
+            "Universal inherited Dictation file restrictions");
+    }
+
+    AssertCode(await Service(new FakeMetadata()).ValidateAsync("recording.wav",
+        new(FileTranscriptionRoute.Cloud, "dictation-medical", CloudProvider: CloudTranscriptionProvider.AssemblyAi)),
         "file_preflight.model_unsupported");
 }
 
