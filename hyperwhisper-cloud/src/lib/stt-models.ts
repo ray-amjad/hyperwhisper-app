@@ -10,7 +10,7 @@
 // is the backend's narrower, security-critical view: what is actually routable
 // and how to meter it.
 
-import { ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE } from './cost-calculator';
+import { ASSEMBLYAI_DICTATION_COST_PER_AUDIO_MINUTE, ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE } from './cost-calculator';
 
 export type SttProviderId =
   | 'deepgram'
@@ -312,6 +312,7 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     models: [
       { id: 'universal-3-5-pro', supportsVocabulary: true, estimatedUsdPerMinute: 0.0035 },
       { id: 'universal-2', supportsVocabulary: true, estimatedUsdPerMinute: 0.0025 },
+      { id: 'dictation', supportsVocabulary: true, estimatedUsdPerMinute: ASSEMBLYAI_DICTATION_COST_PER_AUDIO_MINUTE },
     ],
   },
   soniox: {
@@ -479,7 +480,7 @@ export function estimatedUsdPerMinute(
     return (keyterms && priced.id === 'scribe_v2') ? base * (1 + ELEVENLABS_KEYTERMS_SURCHARGE) : base;
   }
 
-  if (provider !== 'assemblyai') {
+  if (provider !== 'assemblyai' || priced.id === 'dictation') {
     return base;
   }
 
