@@ -240,7 +240,7 @@ export default function ModelPicker({ measured, regions }: Props) {
   }
 
   return (
-    <div className="mt-12 grid gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
+    <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
       {/* ---------------- Controls ---------------- */}
       <div className="lg:sticky lg:top-6 lg:self-start">
         <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-6 backdrop-blur-xl">
