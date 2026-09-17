@@ -209,6 +209,7 @@ public sealed class ModesViewModel : ViewModelBase
             if (value == "cloud" && IsLocalTranscriptionModelId(_transcriptionModel)) TranscriptionModel = string.Empty;
             NormalizeLocalModel();
             NormalizeCloudModel();
+            NormalizeDictationDomain();
             NotifyEditorReveals();
         }
     }
@@ -368,7 +369,7 @@ public sealed class ModesViewModel : ViewModelBase
     public string TranscriptionModel
     {
         get => _transcriptionModel;
-        set { if (Set(ref _transcriptionModel, value)) NotifyEditorReveals(); }
+        set { if (Set(ref _transcriptionModel, value)) { NormalizeDictationDomain(); NotifyEditorReveals(); } }
     }
     /// <summary>
     /// The model ids the chosen BYOK vendor offers. Windows fills the same field from a pick list
@@ -511,12 +512,12 @@ public sealed class ModesViewModel : ViewModelBase
         get => _cloudProvider;
         // Same shape as LocalEngine above: the list the picker draws is rebuilt lazily by the
         // getter, and the SELECTION is moved onto that list here, where the change is written.
-        set { if (Set(ref _cloudProvider, value)) { NormalizeCloudModel(); NotifyEditorReveals(); } }
+        set { if (Set(ref _cloudProvider, value)) { NormalizeCloudModel(); NormalizeDictationDomain(); NotifyEditorReveals(); } }
     }
     public string CloudAccuracyTier
     {
         get => _cloudAccuracyTier;
-        set { if (Set(ref _cloudAccuracyTier, value)) { Notify(nameof(CloudTierModels)); NotifyEditorReveals(); } }
+        set { if (Set(ref _cloudAccuracyTier, value)) { NormalizeDictationDomain(); Notify(nameof(CloudTierModels)); NotifyEditorReveals(); } }
     }
     private readonly Dictionary<string, IReadOnlyList<string>> _tierModels = new(StringComparer.Ordinal);
     public IReadOnlyList<string> CloudTierModels
@@ -531,11 +532,25 @@ public sealed class ModesViewModel : ViewModelBase
     public string? CloudTierModel
     {
         get => IsHwCloudSource && CloudTierModels.Contains(_transcriptionModel) ? _transcriptionModel : null;
-        set { if (!string.IsNullOrWhiteSpace(value)) { TranscriptionModel = value; if (value == "dictation") CloudDomain = ""; } }
+        set { if (!string.IsNullOrWhiteSpace(value)) TranscriptionModel = value; }
     }
     public bool IsDictation => _transcriptionModel == "dictation"
         && (IsHwCloudSource && _cloudAccuracyTier == "assemblyAI" || IsYourProviderSource && _cloudProvider == "assemblyai");
     public bool IsNotDictation => !IsDictation;
+    // A hidden ComboBox still writes null when its list cannot represent Language.
+    // Keep that selection separate from the unrestricted language input, and preserve
+    // invalid loaded choices so Save can report them instead of inventing a default.
+    public string? DictationLanguage
+    {
+        get => IsDictation && DictationLanguages.Contains(_language) ? _language : null;
+        set { if (IsDictation && value is not null && DictationLanguages.Contains(value)) Language = value; }
+    }
+
+    private void NormalizeDictationDomain()
+    {
+        if (!_loadingEditor && IsDictation) CloudDomain = string.Empty;
+    }
+
     public IReadOnlyList<string> DictationLanguages { get; } = ["en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi", "hi", "vi", "he", "ur", "ko", "ca", "gl", "ru", "ro", "et", "fa", "yue", "af", "mr", "zu", "xh", "nn", "ar", "ja", "zh"];
     public string CloudDomain { get => _cloudDomain; set => Set(ref _cloudDomain, value); }
     public string GeminiPrompt { get => _geminiPrompt; set => Set(ref _geminiPrompt, value); }
@@ -828,6 +843,7 @@ public sealed class ModesViewModel : ViewModelBase
         Notify(nameof(ShowCloudProviderPanel));
         Notify(nameof(ShowCloudAccuracyPanel)); Notify(nameof(ShowMedicalDomain));
         Notify(nameof(CloudTierModel)); Notify(nameof(IsDictation)); Notify(nameof(IsNotDictation));
+        Notify(nameof(DictationLanguage));
         Notify(nameof(ShowCloudModelPanel)); Notify(nameof(ShowGeminiPrompt));
         Notify(nameof(ShowNova3Warning)); Notify(nameof(ShowParakeetLanguageWarning));
         Notify(nameof(PostProcessingEnabled));

@@ -1294,6 +1294,62 @@ static async Task RunDictationModeTestsAsync(string root)
         await editor.SaveAsync();
         Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Dictation accepted Auto");
     }
+
+    var ordinary = new Mode { Name = "Ordinary language", ProviderType = "cloud", CloudProvider = "assemblyai", CloudTranscriptionModel = "universal-3-pro", Language = "en" };
+    await repository.UpsertAsync(ordinary);
+    editor.Selected = ordinary;
+    Assert(editor.DictationLanguage is null, "A hidden Dictation picker exposed the ordinary language");
+    editor.Language = "pl";
+    editor.DictationLanguage = null; // Avalonia clears selections absent from ItemsSource.
+    editor.DictationLanguage = "en"; // Hidden picker cannot write a selection either.
+    await editor.SaveAsync();
+    var ordinarySaved = (await repository.ListAsync()).Single(row => row.Id == ordinary.Id);
+    Assert(ordinarySaved.Language == "pl", "The hidden Dictation picker changed Polish to Auto or English");
+    editor.Selected = ordinarySaved;
+    editor.CloudTranscriptionModel = "dictation";
+    Assert(editor.DictationLanguage is null && editor.Language == "pl", "An unsupported Dictation language was silently rewritten");
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.dictation_selection", "An unsupported Dictation language was accepted");
+    editor.DictationLanguage = "ja";
+    Assert(editor.Language == "ja", "The visible Dictation picker did not update the language");
+
+    foreach (var route in new[] { "byok-model", "cloud-model", "provider", "tier" })
+    {
+        var medical = new Mode { Name = "Medical transition " + route, ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "assemblyAI", CloudTranscriptionModel = "universal-3-pro", CloudTranscriptionDomain = "medical", Language = "en" };
+        await repository.UpsertAsync(medical);
+        editor.Selected = medical;
+        Assert(editor.CloudDomain == "medical", "Loading a medical mode discarded its domain");
+        switch (route)
+        {
+            case "byok-model":
+                editor.IsYourProviderSource = true;
+                editor.CloudProvider = "assemblyai";
+                editor.CloudTranscriptionModel = "dictation";
+                break;
+            case "cloud-model": editor.CloudTierModel = "dictation"; break;
+            case "provider":
+                editor.CloudProvider = "assemblyai";
+                editor.CloudTranscriptionModel = "dictation";
+                editor.CloudDomain = "medical";
+                editor.CloudProvider = "hyperwhisper";
+                break;
+            case "tier":
+                editor.CloudAccuracyTier = "elevenlabs";
+                editor.TranscriptionModel = "dictation";
+                editor.CloudAccuracyTier = "assemblyAI";
+                break;
+        }
+        Assert(editor.IsDictation && editor.CloudDomain == "", "Dictation retained an inaccessible medical domain after " + route);
+        await editor.SaveAsync();
+        var saved = (await repository.ListAsync()).Single(row => row.Id == medical.Id);
+        Assert(!editor.Status.HasError && saved.CloudTranscriptionModel == "dictation" && saved.CloudTranscriptionDomain is null, "Dictation failed to save after " + route);
+    }
+
+    var invalid = new Mode { Name = "Invalid restored Dictation", ProviderType = "cloud", CloudProvider = "assemblyai", CloudTranscriptionModel = "dictation", CloudTranscriptionDomain = "medical", Language = "en" };
+    editor.Selected = invalid;
+    Assert(editor.CloudDomain == "medical", "Loading an invalid mode silently rewrote its domain");
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Restored Dictation with a medical domain bypassed validation");
 }
 
 static async Task RunChirp3TierMigrationTestsAsync(string root)
