@@ -171,6 +171,22 @@
       ],
       "licensed": false,
       "note": "Ran UNLICENSED: no HYPERWHISPER_ACCOUNT_KEY in the sandbox, so no Cloud transcription was tried. Codex named 4 defects and 3 died on a hand check: each fuzz-drive STEP is its own RDP connection, and a reconnect sends Settings back to General, so 'the control did nothing' and 'Tab jumped to General' were artifacts. Re-drive every suspect click in ONE gui drive script. The tray needs a RIGHT click for its menu and gui has no rclick verb, so the tray menu was never opened; tray single click is inert BY DESIGN (MainWindow.xaml.cs:696 binds DoubleClick only) and double click does restore the window. Filed #704 from a hand check plus the app log, not from a Codex step."
+    },
+    {
+      "at": "2026-09-17T03:48:58Z",
+      "platform": "mac",
+      "commit": "6224fc7",
+      "routes": [
+        "modes",
+        "vocabulary",
+        "provider-settings"
+      ],
+      "status": "1-filed",
+      "issues": [
+        711
+      ],
+      "licensed": false,
+      "note": "Unlicensed (macOS never activates; HYPERWHISPER_ACCOUNT_KEY is absent from this box anyway). Two traps cost this round ~20 min: (1) ~/.codex was root-owned, so every codex exec died with 'in-process app-server client: Permission denied (os error 13)' and fuzz-drive reported 'no JSON from codex' at step 0 -- sudo chown -R user:user ~/.codex. (2) gui-mac.mjs only knew esc/enter/tab, so 'key Escape' TYPED the letter E; a real Escape needs the alias patch. The mac bundle and process are 'HyperWhisper' with capitals -- killall hyperwhisper and pkill -f hyperwhisper.app both no-op."
     }
   ]
 }
