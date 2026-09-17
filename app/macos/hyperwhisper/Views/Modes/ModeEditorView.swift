@@ -639,42 +639,36 @@ struct ModeEditorView: View {
     static let sheetMinHeight: CGFloat = 420
     /// The height the sheet has always used where there is room for it.
     static let sheetDesignHeight: CGFloat = 700
-    /// Slack kept between the sheet's bottom edge and the bottom of the screen's
-    /// visible area, so the footer never sits flush against the Dock.
-    static let sheetBottomMargin: CGFloat = 8
+    /// Room left for the window chrome above the sheet and for clearance below
+    /// it, taken out of the screen's visible height.
+    static let sheetScreenInset: CGFloat = 80
 
     /// Static so hyperwhisperTests can assert the clamp without standing up the
-    /// view. ONE quantity bounds the sheet: how far its TOP edge — `sheetTopY`,
-    /// the parent window's content top in SCREEN coordinates — sits above
-    /// `visibleBottomY`, the bottom of that screen's `visibleFrame`. A macOS
-    /// sheet hangs from that top and AppKit never resizes it, so that distance
-    /// is the room the sheet has at the position the window is in when the
-    /// clamp is read. A screen-HEIGHT clamp misses the window position; a
-    /// parent-content-HEIGHT clamp (round 1's remedy, withdrawn) is
-    /// position-independent, and with a single fixed 1000x600 parent it also
-    /// shrank the sheet on every display, including those where #711 cannot
-    /// happen. Either input missing means no limit is known, so it falls back to
-    /// the design height rather than narrowing the clamp.
+    /// view. The bound is the screen's VISIBLE height — what is left between the
+    /// menu bar and the Dock — less the inset. It is deliberately a function of
+    /// SIZES only, never of the window's position, and the reason is measured:
     ///
-    /// MEASURED LIMIT, macOS 26.3.1 on a 1280x800-point display. AppKit DOES
-    /// move the parent window up when the sheet does not fit, so the sheet can
-    /// render lower than the `sheetTopY` this clamp sampled. At the app's
-    /// default window placement the sheet lands 8pt clear of the Dock, and it
-    /// stays clear with the window dragged down to rest on the Dock. Drag the
-    /// window deeper than that (content top about 150pt down, and lower) and the
-    /// lift outruns the sample: the overshoot measured 3pt at 150 and 28pt at
-    /// 250, which clips part of the footer row again. Every one of those
-    /// positions is still better than the fixed 700pt this replaced, where the
-    /// footer was entirely behind the Dock. A clamp that is stable under the
-    /// lift has to be position-independent, and that is the trade round 1 made
-    /// and lost on a different axis — see the PR for both readings.
-    static func sheetMaxHeight(sheetTopY: CGFloat?, visibleBottomY: CGFloat?) -> CGFloat {
-        guard let sheetTopY, let visibleBottomY else { return sheetDesignHeight }
-        let available = sheetTopY - visibleBottomY - sheetBottomMargin
-        return max(sheetMinHeight, min(sheetDesignHeight, available))
+    /// On macOS 26.3.1, AppKit MOVES THE PARENT WINDOW UP when a sheet does not
+    /// fit below its content top (measured lifts, by window content top:
+    /// 250 → 192, 150 → 143, and with the old fixed 700pt sheet 75 → 31). So a
+    /// clamp that samples the window position is stale by the time the sheet
+    /// lands: a position-aware version of this function overshot by 3pt at a
+    /// content top of 150 and by 28pt at 250, and clipped the footer again. A
+    /// height that does not depend on the position is a fixed input to that
+    /// lift instead of a moving target of it.
+    ///
+    /// The other rejected shape was a parent-content-HEIGHT clamp. The app has
+    /// exactly one sheet parent — a fixed 1000x600 window — so that limit bound
+    /// on every display and cost every user about 100pt of form height, even on
+    /// displays where #711 cannot happen. This one only ever binds on a short
+    /// screen. A nil input means no limit is known, so it falls back to the
+    /// design height rather than narrowing the clamp.
+    static func sheetMaxHeight(visibleScreenHeight: CGFloat?) -> CGFloat {
+        guard let visibleScreenHeight else { return sheetDesignHeight }
+        return max(sheetMinHeight, min(sheetDesignHeight, visibleScreenHeight - sheetScreenInset))
     }
 
-    /// The room under the content top of the window the sheet hangs from.
+    /// The visible height of the screen the sheet's parent window is on.
     ///
     /// `MainWindowStore.window` is the repo's own handle on that window
     /// (`hyperwhisperApp.swift`, written by `WindowConfigurator`, read the same
@@ -686,11 +680,7 @@ struct ModeEditorView: View {
     private var maxSheetHeight: CGFloat {
         let hostWindow = MainWindowStore.window
         return Self.sheetMaxHeight(
-            // `contentLayoutRect` is in WINDOW coordinates and excludes the
-            // titlebar band, which is not room the sheet can use; converting it
-            // gives the screen Y the sheet hangs from at this window position.
-            sheetTopY: hostWindow.map { $0.convertToScreen($0.contentLayoutRect).maxY },
-            visibleBottomY: (hostWindow?.screen ?? NSScreen.main)?.visibleFrame.minY
+            visibleScreenHeight: (hostWindow?.screen ?? NSScreen.main)?.visibleFrame.height
         )
     }
 

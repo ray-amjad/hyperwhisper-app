@@ -7,17 +7,20 @@
 //  display its footer — Cancel, Create/Save and Delete — was drawn below the
 //  bottom of the screen's visible area, on a window that cannot be resized.
 //
-//  `ModeEditorView.sheetMaxHeight(sheetTopY:visibleBottomY:)` carries the why.
-//  What these add is that the answer moves with the WINDOW and not just with the
-//  screen, and that both ends of the clamp are load-bearing: the `max(...)` floor
-//  because `maxHeight < minHeight` is an invalid SwiftUI frame range (where the
-//  issue's own `min(700, available)` breaks), and the design cap because a roomy
-//  display must stay byte-identical to today.
+//  `ModeEditorView.sheetMaxHeight(visibleScreenHeight:)` carries the why, and
+//  the why is measured: AppKit lifts the parent window when a sheet does not
+//  fit, so a clamp that reads the window POSITION is stale by the time the
+//  sheet lands. This clamp is a function of sizes only.
 //
-//  The geometry below is SHAPED like the rented-Mac measurement (1280x800:
-//  `visibleFrame` height 697-698, a default-placed window giving a ~612pt sheet
-//  clear of the Dock), but every input is synthetic: no runtime constant is
-//  asserted, because none can be measured from this target.
+//  What these tests add is that both ends of the clamp are load-bearing: the
+//  `max(...)` floor because `maxHeight < minHeight` is an invalid SwiftUI frame
+//  range — which is where the issue's own `min(700, screen - 80)` breaks — and
+//  the design cap because a roomy display must stay byte-identical to today.
+//
+//  The geometry below is SHAPED like the rented-Mac measurement (a 1280x800
+//  display measured a `visibleFrame` height of 697), but every input is
+//  synthetic: no runtime constant is asserted, because none can be measured
+//  from this target.
 //
 
 import Foundation
@@ -29,89 +32,77 @@ import Testing
 @Suite("Mode editor sheet height")
 struct ModeEditorSheetHeightTests {
 
-    // A 1280x800-shaped display, and the content top of the 600pt main window at
-    // its default placement and dragged down onto the Dock. All estimates.
-    private static let visibleBottomY: CGFloat = 71
-    private static let defaultContentTopY: CGFloat = 685
-    private static let loweredContentTopY: CGFloat = 643
+    /// The visible height a 1280x800-point display measured on a rented Mac.
+    private static let shortScreenVisibleHeight: CGFloat = 697
 
-    private static func height(topY: CGFloat?, bottomY: CGFloat?) -> CGFloat {
-        ModeEditorView.sheetMaxHeight(sheetTopY: topY, visibleBottomY: bottomY)
+    private static func height(_ visibleScreenHeight: CGFloat?) -> CGFloat {
+        ModeEditorView.sheetMaxHeight(visibleScreenHeight: visibleScreenHeight)
     }
 
     @MainActor
     @Test func keepsTheDesignHeightWhereThereIsRoom() {
-        // A window high on a tall display has over 700pt below its content top,
-        // so the sheet looks exactly as it always has. This is the case the
-        // withdrawn parent-content-height clamp got wrong for 100% of users.
-        #expect(Self.height(topY: 1200, bottomY: 60) == 700)
+        // A 1440pt or 6K display: the sheet looks exactly as it always has.
+        // This is the case the withdrawn parent-content-height clamp got wrong
+        // for 100% of users, on displays where #711 cannot happen at all.
+        #expect(Self.height(1440) == ModeEditorView.sheetDesignHeight)
+        #expect(Self.height(780) == ModeEditorView.sheetDesignHeight)
     }
 
     @MainActor
     @Test func shrinksToFitTheShortScreenFromTheIssue() {
-        let height = Self.height(topY: Self.defaultContentTopY, bottomY: Self.visibleBottomY)
-        #expect(height == 606)
-        // The point of the fix: the bottom edge lands above the visible bottom.
-        #expect(
-            Self.defaultContentTopY - height
-                == Self.visibleBottomY + ModeEditorView.sheetBottomMargin
-        )
+        // 697 - 80 = 617, against a fixed 700 that did not fit the 697 of room.
+        let height = Self.height(Self.shortScreenVisibleHeight)
+        #expect(height == 617)
+        #expect(height < ModeEditorView.sheetDesignHeight)
+        #expect(height < Self.shortScreenVisibleHeight)
     }
 
     @MainActor
-    @Test func followsTheWindowDownTheScreen() {
-        // Same display, window dragged onto the Dock: less room, shorter sheet.
-        // A clamp built from heights alone — the screen's or the parent content's
-        // — cannot tell these two placements apart.
-        #expect(Self.height(topY: Self.loweredContentTopY, bottomY: Self.visibleBottomY) == 564)
-        #expect(
-            Self.height(topY: Self.loweredContentTopY, bottomY: Self.visibleBottomY)
-                < Self.height(topY: Self.defaultContentTopY, bottomY: Self.visibleBottomY)
-        )
+    @Test func neverReturnsAnInvalidFrameRange() {
+        // The floor is not decoration: `minHeight` is `sheetMinHeight`, and a
+        // `maxHeight` below it is an invalid range. The issue's own proposed
+        // `min(700, visible - 80)` returns 220 here.
+        #expect(Self.height(300) == ModeEditorView.sheetMinHeight)
+        #expect(Self.height(0) == ModeEditorView.sheetMinHeight)
+        #expect(Self.height(-100) == ModeEditorView.sheetMinHeight)
     }
 
     @MainActor
-    @Test func handlesTheEdgesOfTheCoordinateSpace() {
-        // Window dragged nearly off the bottom, then past it: still a valid frame
-        // range, never a tiny or negative height.
-        #expect(Self.height(topY: 300, bottomY: Self.visibleBottomY) == ModeEditorView.sheetMinHeight)
-        #expect(Self.height(topY: 0, bottomY: Self.visibleBottomY) == ModeEditorView.sheetMinHeight)
-        // A display below the primary has a negative `visibleFrame.minY`, so both
-        // inputs are negative while the difference between them is not.
-        #expect(Self.height(topY: -200, bottomY: -900) == 692)
-    }
-
-    @MainActor
-    @Test func fallsBackToTheDesignHeightWhenAnInputIsMissing() {
+    @Test func fallsBackToTheDesignHeightWithNoScreen() {
         // `MainWindowStore.window` is nil before `WindowConfigurator` runs, and
-        // `NSScreen.main` is nil with no display attached. Neither may narrow the
-        // clamp: a missing input is "no limit known", not "no room".
-        let design = ModeEditorView.sheetDesignHeight
-        #expect(Self.height(topY: nil, bottomY: nil) == design)
-        #expect(Self.height(topY: nil, bottomY: Self.visibleBottomY) == design)
-        #expect(Self.height(topY: Self.defaultContentTopY, bottomY: nil) == design)
+        // `NSScreen.main` is nil with no display attached. A missing input is
+        // "no limit known", not "no room".
+        #expect(Self.height(nil) == ModeEditorView.sheetDesignHeight)
     }
 
     @MainActor
     @Test func isAlwaysAValidFrameRange() {
-        // The result is piecewise linear in the available room, with breakpoints
+        // The result is piecewise linear in the visible height, with breakpoints
         // only where the floor and the design cap take over. Both breakpoints,
-        // both sides of each and the two extremes give identical coverage to
+        // both sides of each, and the two extremes give identical coverage to
         // sweeping every point in between.
-        let floorCrossover = ModeEditorView.sheetMinHeight + ModeEditorView.sheetBottomMargin
-        let capCrossover = ModeEditorView.sheetDesignHeight + ModeEditorView.sheetBottomMargin
-        let roomValues: [CGFloat] = [
+        let floorCrossover = ModeEditorView.sheetMinHeight + ModeEditorView.sheetScreenInset
+        let capCrossover = ModeEditorView.sheetDesignHeight + ModeEditorView.sheetScreenInset
+        let visibleHeights: [CGFloat] = [
             -1_000, 0,
             floorCrossover - 1, floorCrossover, floorCrossover + 1,
             (floorCrossover + capCrossover) / 2,
             capCrossover - 1, capCrossover, capCrossover + 1,
             10_000,
         ]
-        for room in roomValues {
-            let height = Self.height(topY: room, bottomY: 0)
+        for visibleHeight in visibleHeights {
+            let height = Self.height(visibleHeight)
             #expect(height >= ModeEditorView.sheetMinHeight)
             #expect(height <= ModeEditorView.sheetDesignHeight)
         }
+    }
+
+    @MainActor
+    @Test func isMonotonicInTheRoomAvailable() {
+        // A shorter screen never yields a taller sheet.
+        #expect(Self.height(500) <= Self.height(600))
+        #expect(Self.height(600) <= Self.height(697))
+        #expect(Self.height(697) <= Self.height(1440))
     }
 
     // MARK: - The call site, not just the formula
@@ -132,7 +123,7 @@ struct ModeEditorSheetHeightTests {
         )
         #expect(!body.contains("height: 700"), """
             The mode editor sheet is a fixed 700pt again — issue #711 verbatim. Its height must come \
-            from ModeEditorView.sheetMaxHeight(sheetTopY:visibleBottomY:).
+            from ModeEditorView.sheetMaxHeight(visibleScreenHeight:).
             """)
         #expect(body.contains("minHeight: Self.sheetMinHeight"))
         #expect(body.contains("idealHeight: maxHeight"))
@@ -148,7 +139,7 @@ struct ModeEditorSheetHeightTests {
         #expect(property.contains("MainWindowStore.window"))
         #expect(property.contains("Self.sheetMaxHeight("))
         // Key and main window follow app state and any panel that takes key, so
-        // the sheet's parent must not be resolved through either.
+        // the sheet's screen must not be resolved through either.
         #expect(!property.contains("NSApp.keyWindow"))
         #expect(!property.contains("NSApp.mainWindow"))
     }
