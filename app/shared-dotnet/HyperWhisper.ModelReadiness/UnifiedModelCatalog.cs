@@ -112,7 +112,7 @@ public static class UnifiedModelCatalog
                     $"cloud/stt/{providerId}/{NormalizeEmpty(modelId)}", $"{display} — {modelName}",
                     sttProvider, modelId, ModelDeployment.Cloud, ModelWorkload.Voice,
                     ModelSurface.BatchTranscription, vocab, allLanguages,
-                    providerId == "assemblyAI" && modelId == "dictation" ? DictationLanguages() : languages,
+                    providerId == "assemblyAI" ? AssemblyAiLanguages(modelId, languages) : languages,
                     model.@streaming ?? streaming,
                     CloudTierEligible: access.@cloudTierEligible,
                     ByokEligible: access.@byokEligible,
@@ -124,6 +124,16 @@ public static class UnifiedModelCatalog
 
     private static IReadOnlyList<string> DictationLanguages() => HyperwhisperCoreMethods.ModelsAllEntries()
         .First(model => model.@provider == "assemblyAI" && model.@id == "dictation").@supportedLanguages;
+
+    private static IReadOnlyList<string> AssemblyAiLanguages(string modelId, IReadOnlyList<string> providerCodes)
+    {
+        if (modelId == "dictation") return DictationLanguages();
+        // The provider union gained these three Dictation-only languages. Universal
+        // retains its original 98 raw codes, including English regional variants.
+        // Do not substitute the folded model lists: Universal-3.5's list describes
+        // its native 18 languages, while this route also falls back to Universal-2.
+        return providerCodes.Where(code => code is not ("xh" or "yue" or "zu")).ToArray();
+    }
 
     private static void AddStreaming(List<ModelCapability> result, IEnumerable<SttEntry> entries)
     {

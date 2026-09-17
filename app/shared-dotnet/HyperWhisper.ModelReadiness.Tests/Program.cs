@@ -99,6 +99,28 @@ static Task TestDictationAsync()
     if (row.SupportedLanguages.Count != 32 || row.SupportedLanguages.Contains("auto") || !row.SupportedLanguages.Contains("ja")
         || row.SupportsStreaming || !row.CloudTierEligible || !row.ByokEligible || !row.SupportsCustomVocabulary)
         throw new Exception("Dictation must expose 32 explicit languages, vocabulary, BYOK and cloud, with no streaming");
+    var dictationCodes = new[] { "en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi", "hi", "vi", "he", "ur", "ko", "ca", "gl", "ru", "ro", "et", "fa", "yue", "af", "mr", "zu", "xh", "nn", "ar", "ja", "zh" };
+    True(new HashSet<string>(row.SupportedLanguages).SetEquals(dictationCodes), "Dictation's exact language set changed");
+    using var catalog = OpenCatalog("cloud-stt-catalog.json");
+    using var doc = JsonDocument.Parse(catalog);
+    var union = doc.RootElement.GetProperty("providers").EnumerateArray()
+        .Single(provider => provider.GetProperty("id").GetString() == "assemblyAI")
+        .GetProperty("languages").GetProperty("codes").EnumerateArray()
+        .Select(code => code.GetString()!).ToHashSet();
+    Equal(101, union.Count); // Forces tests to use the current provider catalog.
+    // The streaming capability retains the raw provider union, read through FFI.
+    var nativeUnion = Load().Single(model => model.ProviderId == "assemblyai"
+        && model.Surface == ModelSurface.StreamingTranscription).SupportedLanguages;
+    True(union.SetEquals(nativeUnion),
+        "The loaded native AssemblyAI catalog differs from the source catalog; rebuild the native library");
+    var universalCodes = union.Except(new[] { "xh", "yue", "zu" }).ToHashSet();
+    foreach (var modelId in new[] { "universal-3-5-pro", "universal-2" })
+    {
+        var universal = Load().Single(model => model.ModelId == modelId && model.Surface == ModelSurface.BatchTranscription);
+        Equal(98, universal.SupportedLanguages.Count);
+        True(universalCodes.SetEquals(universal.SupportedLanguages), modelId + " inherited Dictation-only languages or lost Universal coverage");
+        True(universal.SupportedLanguages.Contains("en_au") && universal.SupportedLanguages.Contains("pl"), "Universal lost raw regional codes or fallback coverage");
+    }
     return Task.CompletedTask;
 }
 

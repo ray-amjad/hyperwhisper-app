@@ -27,7 +27,8 @@ public enum ReadinessState
 /// row, the model's own list. Never the folded picker space — a caller matching
 /// against this list must use the same codes the catalog uses, and every cloud
 /// row must answer that question the same way. It is PROVIDER-level for cloud
-/// rows, except Dictation, whose explicit vendor-native language list is narrowed.
+/// rows, except AssemblyAI, whose Universal and Dictation lists are narrowed
+/// to their respective vendor-native language codes.
 /// Other models use the provider union; see
 /// <paramref name="ModelLanguageCount"/> for the per-model figure.
 /// </param>
