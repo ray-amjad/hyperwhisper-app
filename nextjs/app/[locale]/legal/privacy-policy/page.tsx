@@ -45,16 +45,18 @@ export default function PrivacyPolicyPage() {
           delivery status — retained for support, audit, and deliverability
           troubleshooting. We do not store the message body. When you first
           request the download link from our website, we record your email
-          address together with details of that request, including the IP
-          address it came from, the browser user agent, and, where we can
-          resolve it, the country for that IP address. We use the IP address to
-          rate limit the download form (10 requests per IP address per hour) and
-          to prevent abuse, and we use the country to understand where our
-          downloads come from. We keep one such record per email address: if you
-          request the download link again later, we do not add a second record
-          and we do not update the one we already hold, so it continues to
-          describe your first request. That record is kept until you ask us to
-          delete it; see Your Rights below.
+          address together with details of that request, including the browser
+          user agent, the IP address it came from where we can determine it,
+          and, where we can resolve it, the country for that IP address. We use
+          the IP address to rate limit the download form (10 requests per IP
+          address per hour) and to prevent abuse, and we use the country to
+          understand where our downloads come from. If you request the download
+          link again later, we do not update the record we already hold, so it
+          continues to describe the request that created it, and normally no
+          further record is added — though a later request that spells your
+          address differently, for example with different capital letters, can
+          create a separate record of its own. Such records are kept until you
+          ask us to delete them; see Your Rights below.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
