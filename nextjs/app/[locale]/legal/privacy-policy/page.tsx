@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: June 30, 2026
+        Last Updated: September 17, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -43,7 +43,15 @@ export default function PrivacyPolicyPage() {
           support. We keep a record of the transactional emails we send you —
           the recipient address, email type, subject, send timestamp, and
           delivery status — retained for support, audit, and deliverability
-          troubleshooting. We do not store the message body.
+          troubleshooting. We do not store the message body. When you request
+          the download link from our website, we also record the IP address the
+          request came from, the browser user agent, and the country resolved
+          from that IP address. We use the IP address to rate limit the download
+          form (10 requests per IP address per hour) and to prevent abuse, and
+          we use the country to understand where our downloads come from. This
+          download-request record — the email address, IP address, user agent,
+          and country — is kept until you ask us to delete it; see Your Rights
+          below.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
@@ -420,6 +428,20 @@ export default function PrivacyPolicyPage() {
         for analytics to understand how our website is used and to improve the
         experience. PostHog may set its own cookies. We do not use this data for
         advertising purposes.
+      </p>
+      <p>
+        When you request the download link from our website, we use{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://proxycheck.io/privacy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          proxycheck.io
+        </a>{" "}
+        to resolve the country from the IP address of that request.
+        proxycheck.io receives the IP address only — it receives no email
+        address and no name. It sets no cookies.
       </p>
 
       <h2>Children&apos;s Privacy</h2>
