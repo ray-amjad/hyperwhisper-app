@@ -226,6 +226,8 @@ struct LanguageSelectionView: View {
     }
 
     private func enforceAllowedLanguage() {
+        // Leave an unsupported selection unset; Dictation must never silently select English.
+        if cloudProviderId == "assemblyai" && cloudModelId == "dictation" { return }
         let infos = allowedLanguageInfos
         let allowed = Set(infos.map { $0.code })
         if !allowed.contains(language), let first = infos.first?.code {

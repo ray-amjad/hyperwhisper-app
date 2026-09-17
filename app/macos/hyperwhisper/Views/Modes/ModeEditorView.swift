@@ -605,6 +605,7 @@ struct ModeEditorView: View {
                     cloudTranscriptionDomain = nil
                 }
                 cloudTranscriptionModel = newModel
+                if newModel == "dictation" { cloudTranscriptionDomain = nil }
             }
         )
     }
@@ -612,7 +613,7 @@ struct ModeEditorView: View {
     /// Whether the Medical domain toggle should be shown. Only assemblyAI uses a
     /// domain-based medical mode; Deepgram medical is a model selection instead.
     private var showsMedicalDomainToggle: Bool {
-        currentCloudProvider == .hyperwhisper && selectedCloudTier == .assemblyAI
+        currentCloudProvider == .hyperwhisper && selectedCloudTier == .assemblyAI && cloudTranscriptionModel != "dictation"
     }
 
     /// Binding for the Medical toggle → maps the nullable domain string to a Bool.
@@ -1277,6 +1278,10 @@ struct ModeEditorView: View {
                 .help(tier.description)
             }
 
+            if selectedCloudTier == .assemblyAI && cloudTranscriptionModel == "dictation" {
+                Text("Built-in cleanup stays on when post-processing is off. Select a language (no Auto). Up to 120 seconds. Explicit extra processing still runs.")
+                    .font(.caption).foregroundColor(.secondary).padding(.leading, 88)
+            }
             // Medical domain toggle — assemblyAI only (Deepgram medical is a
             // model selection, handled by the Model dropdown above).
             if showsMedicalDomainToggle {

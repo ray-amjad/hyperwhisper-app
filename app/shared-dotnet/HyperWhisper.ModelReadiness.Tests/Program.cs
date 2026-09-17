@@ -9,6 +9,7 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("local catalog maps every managed model", TestLocalCatalogAsync),
     ("cloud STT maps every provider model", TestCloudSttCoverageAsync),
+    ("AssemblyAI Dictation has its own exact capabilities", TestDictationAsync),
     ("cloud STT rows never over-claim a sibling model's languages", TestCloudSttPerModelLanguagesAsync),
     ("every stated languageCount matches the model it describes", TestCloudSttLanguageCountAsync),
     ("a provider whose models differ states languageCount or is a named exception", TestCloudSttLanguageCountCoverageAsync),
@@ -92,6 +93,15 @@ static Task TestCloudSttCoverageAsync()
 /// space for every cloud row, and the per-model figure must travel as a count
 /// beside it rather than as a second, differently-spelled code list inside it.
 /// </summary>
+static Task TestDictationAsync()
+{
+    var row = Load().Single(model => model.ModelId == "dictation" && model.Surface == ModelSurface.BatchTranscription);
+    if (row.SupportedLanguages.Count != 32 || row.SupportedLanguages.Contains("auto") || !row.SupportedLanguages.Contains("ja")
+        || row.SupportsStreaming || !row.CloudTierEligible || !row.ByokEligible || !row.SupportsCustomVocabulary)
+        throw new Exception("Dictation must expose 32 explicit languages, vocabulary, BYOK and cloud, with no streaming");
+    return Task.CompletedTask;
+}
+
 static Task TestCloudSttPerModelLanguagesAsync()
 {
     var rows = Load().Where(x => x.Surface == ModelSurface.BatchTranscription
@@ -119,7 +129,7 @@ static Task TestCloudSttPerModelLanguagesAsync()
     // Every cloud row, every vendor: the list is the provider's, unnarrowed.
     foreach (var group in rows.GroupBy(x => x.ProviderId, StringComparer.Ordinal))
     {
-        foreach (var row in group)
+        foreach (var row in group.Where(row => row.ModelId != "dictation"))
         {
             Equal(group.First().SupportedLanguages.Count, row.SupportedLanguages.Count);
         }
@@ -130,7 +140,7 @@ static Task TestCloudSttPerModelLanguagesAsync()
     // vendor with one table adds no noise.
     Equal(41, v15.ModelLanguageCount);
     Equal(59, v2.ModelLanguageCount);
-    foreach (var row in rows.Where(x => x.ProviderId != "azure-mai"))
+    foreach (var row in rows.Where(x => x.ProviderId != "azure-mai" && x.ModelId != "dictation"))
     {
         True(row.ModelLanguageCount is null,
             $"{row.Key} states a per-model language count but its provider is not in PerModelLanguageProviders");

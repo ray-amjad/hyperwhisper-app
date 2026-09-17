@@ -367,7 +367,7 @@ public sealed class CloudTranscriptionService : IDisposable
         ExecutionState state,
         CancellationToken cancellationToken)
     {
-        if (parameters.model == "dictation")
+        if (parameters.model is "dictation" or "dictation-medical")
         {
             try
             {

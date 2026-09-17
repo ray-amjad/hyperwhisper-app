@@ -39,6 +39,10 @@ public static partial class SharedCoreBridge
         return string.IsNullOrWhiteSpace(entry?.@displayName) ? null : entry!.@displayName;
     }
 
+    public static IReadOnlyList<string> CloudSttDictationModels(string tierId) =>
+        HyperwhisperCoreMethods.CloudSttModels(tierId).Select(model => model.@id)
+            .Where(id => !IsLiveOnlyCloudSttModel(id)).ToArray();
+
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 

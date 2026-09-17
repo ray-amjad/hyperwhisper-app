@@ -200,7 +200,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
         // params for sync vs async instead.
         var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
 
-        if (ModelId == "dictation")
+        if (ModelId is "dictation" or "dictation-medical")
         {
             try
             {

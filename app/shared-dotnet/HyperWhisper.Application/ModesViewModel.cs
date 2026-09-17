@@ -516,8 +516,27 @@ public sealed class ModesViewModel : ViewModelBase
     public string CloudAccuracyTier
     {
         get => _cloudAccuracyTier;
-        set { if (Set(ref _cloudAccuracyTier, value)) NotifyEditorReveals(); }
+        set { if (Set(ref _cloudAccuracyTier, value)) { Notify(nameof(CloudTierModels)); NotifyEditorReveals(); } }
     }
+    private readonly Dictionary<string, IReadOnlyList<string>> _tierModels = new(StringComparer.Ordinal);
+    public IReadOnlyList<string> CloudTierModels
+    {
+        get
+        {
+            if (_tierModels.TryGetValue(_cloudAccuracyTier, out var cached)) return cached;
+            var models = SharedCoreBridge.CloudSttDictationModels(_cloudAccuracyTier);
+            return _tierModels[_cloudAccuracyTier] = models;
+        }
+    }
+    public string? CloudTierModel
+    {
+        get => IsHwCloudSource && CloudTierModels.Contains(_transcriptionModel) ? _transcriptionModel : null;
+        set { if (!string.IsNullOrWhiteSpace(value)) { TranscriptionModel = value; if (value == "dictation") CloudDomain = ""; } }
+    }
+    public bool IsDictation => _transcriptionModel == "dictation"
+        && (IsHwCloudSource && _cloudAccuracyTier == "assemblyAI" || IsYourProviderSource && _cloudProvider == "assemblyai");
+    public bool IsNotDictation => !IsDictation;
+    public IReadOnlyList<string> DictationLanguages { get; } = ["en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi", "hi", "vi", "he", "ur", "ko", "ca", "gl", "ru", "ro", "et", "fa", "yue", "af", "mr", "zu", "xh", "nn", "ar", "ja", "zh"];
     public string CloudDomain { get => _cloudDomain; set => Set(ref _cloudDomain, value); }
     public string GeminiPrompt { get => _geminiPrompt; set => Set(ref _geminiPrompt, value); }
     public string CustomVocabulary { get => _customVocabulary; set => Set(ref _customVocabulary, value); }
@@ -677,7 +696,7 @@ public sealed class ModesViewModel : ViewModelBase
     public bool ShowCloudAccuracyPanel => IsHwCloudSource;
     /// <summary>Windows shows the medical toggle for AssemblyAI only (:889).</summary>
     public bool ShowMedicalDomain => IsHwCloudSource
-        && string.Equals(_cloudAccuracyTier, "assemblyAI", StringComparison.OrdinalIgnoreCase);
+        && string.Equals(_cloudAccuracyTier, "assemblyAI", StringComparison.OrdinalIgnoreCase) && !IsDictation;
     /// <summary>BYOK model box. Windows: CloudModelPanel (:697, :1293).</summary>
     public bool ShowCloudModelPanel => IsYourProviderSource;
     /// <summary>Windows reveals the Gemini prompt only for BYOK Gemini (:1326).</summary>
@@ -808,6 +827,7 @@ public sealed class ModesViewModel : ViewModelBase
         Notify(nameof(LocalTranscriptionModel)); Notify(nameof(CloudTranscriptionModel));
         Notify(nameof(ShowCloudProviderPanel));
         Notify(nameof(ShowCloudAccuracyPanel)); Notify(nameof(ShowMedicalDomain));
+        Notify(nameof(CloudTierModel)); Notify(nameof(IsDictation)); Notify(nameof(IsNotDictation));
         Notify(nameof(ShowCloudModelPanel)); Notify(nameof(ShowGeminiPrompt));
         Notify(nameof(ShowNova3Warning)); Notify(nameof(ShowParakeetLanguageWarning));
         Notify(nameof(PostProcessingEnabled));
@@ -926,6 +946,11 @@ public sealed class ModesViewModel : ViewModelBase
     }
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
+        if (IsDictation && (!DictationLanguages.Contains(Language) || !string.IsNullOrWhiteSpace(CloudDomain)))
+        {
+            Status.Failure("modes.dictation_selection", "Dictation needs an explicit supported language and no Medical domain.");
+            return;
+        }
         if (string.IsNullOrWhiteSpace(Name)) { Status.Failure("modes.name_required", "Enter a mode name."); return; }
         if (PostProcessingMode == "local"
             && (string.IsNullOrWhiteSpace(LocalPostProcessingModel)

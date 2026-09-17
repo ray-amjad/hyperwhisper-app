@@ -130,6 +130,10 @@
                       ItemsSource="{Binding CloudAccuracyTiers}" SelectedItem="{Binding CloudAccuracyTier}">
               <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=modes.cloudAccuracy.|.label}"/></DataTemplate></ComboBox.ItemTemplate>
             </ComboBox>
+            <ComboBox x:Name="ModeCloudTierModel" HorizontalAlignment="Stretch" Margin="0,12,0,0"
+                      ItemsSource="{Binding CloudTierModels}" SelectedItem="{Binding CloudTierModel}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudSttModelLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
             <ComboBox x:Name="ModeCloudDomain" HorizontalAlignment="Stretch" Margin="0,12,0,0"
                       IsVisible="{Binding ShowMedicalDomain}"
                       ItemsSource="{Binding CloudDomains}" SelectedItem="{Binding CloudDomain}">
@@ -171,7 +175,9 @@
           <StackPanel>
             <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
                        Text="{ReflectionBinding [mode.editor.field.language], Source={StaticResource Localization}}"/>
-            <TextBox x:Name="ModeLanguageInput" Text="{Binding Language}" PlaceholderText="auto"/>
+            <TextBox x:Name="ModeLanguageInput" Text="{Binding Language}" PlaceholderText="auto" IsVisible="{Binding IsNotDictation}"/>
+            <ComboBox x:Name="ModeDictationLanguage" ItemsSource="{Binding DictationLanguages}" SelectedItem="{Binding Language}" IsVisible="{Binding IsDictation}"/>
+            <TextBlock IsVisible="{Binding IsDictation}" TextWrapping="Wrap" Text="Dictation includes cleanup even when post-processing is off. Select a language (no Auto). PCM16 WAV, up to 120 seconds. Explicit extra processing still runs."/>
           </StackPanel>
 
           <!-- Linux-only: a per-mode vocabulary list. Windows keeps vocabulary on its own page,

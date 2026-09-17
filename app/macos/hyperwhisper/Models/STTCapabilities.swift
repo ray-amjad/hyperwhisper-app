@@ -293,8 +293,16 @@ enum STTCapabilities {
                 id: "assemblyai",
                 displayName: "AssemblyAI",
                 authKeyName: "AssemblyAI",
-                lastVerifiedAt: "2026-04-11",
+                lastVerifiedAt: "2026-09-17",
                 models: [
+                    STTModelSpec(
+                        id: "dictation",
+                        displayName: "Dictation",
+                        languages: Array(AssemblyAIDictationAudio.languages).sorted().map { code in
+                            STTLanguageSpec(code: code, displayName: LanguageData.info(for: code)?.displayName ?? ["xh": "Xhosa", "zu": "Zulu"][code] ?? code)
+                        },
+                        notes: "Built-in cleanup, including when post-processing is off. Up to 120 seconds of PCM16 WAV; select one of 32 supported languages (no Auto). Explicit extra processing still runs."
+                    ),
                     STTModelSpec(
                         id: "universal-2",
                         displayName: "Universal-2",

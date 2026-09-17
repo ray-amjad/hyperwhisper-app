@@ -111,14 +111,19 @@ public static class UnifiedModelCatalog
                 result.Add(new ModelCapability(
                     $"cloud/stt/{providerId}/{NormalizeEmpty(modelId)}", $"{display} — {modelName}",
                     sttProvider, modelId, ModelDeployment.Cloud, ModelWorkload.Voice,
-                    ModelSurface.BatchTranscription, vocab, allLanguages, languages, streaming,
+                    ModelSurface.BatchTranscription, vocab, allLanguages,
+                    providerId == "assemblyAI" && modelId == "dictation" ? DictationLanguages() : languages,
+                    model.@streaming ?? streaming,
                     CloudTierEligible: access.@cloudTierEligible,
                     ByokEligible: access.@byokEligible,
                     CredentialAccount: CredentialAccountFor(sttProvider),
-                    ModelLanguageCount: ModelLanguageCount(providerId, modelId, languages)));
+                    ModelLanguageCount: providerId == "assemblyAI" && modelId == "dictation" ? 32 : ModelLanguageCount(providerId, modelId, languages)));
             }
         }
     }
+
+    private static IReadOnlyList<string> DictationLanguages() => HyperwhisperCoreMethods.ModelsAllEntries()
+        .First(model => model.@provider == "assemblyAI" && model.@id == "dictation").@supportedLanguages;
 
     private static void AddStreaming(List<ModelCapability> result, IEnumerable<SttEntry> entries)
     {

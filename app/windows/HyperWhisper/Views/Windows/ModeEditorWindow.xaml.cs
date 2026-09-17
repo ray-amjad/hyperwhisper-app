@@ -897,6 +897,7 @@ public partial class ModeEditorWindow : Window
         }
 
         var parts = new List<string>();
+        if (tierId == "assemblyAI" && modelId == "dictation") parts.Add("Built-in cleanup, including when post-processing is off. Up to 120 seconds of PCM16 WAV; select one of 32 supported languages (no Auto). Explicit extra processing still runs.");
         if (model.PreviewStatus) parts.Add(Loc.S("mode.editor.cloudModel.previewHint"));
         if (!model.SupportsCustomVocabulary) parts.Add(Loc.S("mode.editor.cloudModel.noVocabularyHint"));
         CloudTierModelDescText.Text = string.Join(" · ", parts);
@@ -910,9 +911,10 @@ public partial class ModeEditorWindow : Window
     /// </summary>
     private void ApplyMedicalDomainVisibility(string? tierId, bool isCheckedFromStorage)
     {
-        var isAssemblyAI = string.Equals(tierId, "assemblyAI", StringComparison.OrdinalIgnoreCase);
+        var isAssemblyAI = string.Equals(tierId, "assemblyAI", StringComparison.OrdinalIgnoreCase)
+            && (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() != "dictation";
         MedicalDomainCheck.Visibility = isAssemblyAI ? Visibility.Visible : Visibility.Collapsed;
-        if (!isAssemblyAI && !isCheckedFromStorage)
+        if (!isAssemblyAI && (!isCheckedFromStorage || (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "dictation"))
         {
             // Leaving the only domain-capable tier clears the domain.
             MedicalDomainCheck.IsChecked = false;
@@ -2191,6 +2193,12 @@ public partial class ModeEditorWindow : Window
             if (cloudProvider == CloudTranscriptionProvider.AssemblyAI)
             {
                 var modelId = effectiveModelId;
+                if (modelId == "dictation")
+                {
+                    var support = Services.SharedModelsCatalog.GetLanguageSupport("assemblyAI", CatalogKind.Voice, "dictation");
+                    ReplaceLanguageItems(support.Codes.Select(code => new LanguageInfo(code, LanguageInfo.GetDisplayName(code))));
+                    return;
+                }
 
                 // For the HyperWhisper Cloud AssemblyAI tier, Medical Mode is the
                 // separate MedicalDomainCheck (X-STT-Domain), not a "-medical"

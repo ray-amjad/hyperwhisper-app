@@ -63,6 +63,7 @@ try
     await RunDefaultModeInvariantTestsAsync(Path.Combine(root, "default-mode-invariant"));
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
+    await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -1267,6 +1268,32 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     var afterDelete = await orphanRepository.ListAsync();
     Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
         "deleting the default mode left the remaining mode without the flag");
+}
+
+static async Task RunDictationModeTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    foreach (var provider in new[] { "assemblyai", "hyperwhisper" })
+    {
+        var mode = new Mode { Name = "Dictation " + provider, ProviderType = "cloud", CloudProvider = provider, CloudAccuracyTier = "assemblyAI", CloudTranscriptionModel = "dictation", Language = "ja", PostProcessingMode = 0 };
+        await repository.UpsertAsync(mode);
+        editor.Selected = mode;
+        Assert(editor.IsDictation && !editor.ShowMedicalDomain, "Dictation did not hide Medical Mode");
+        Assert(editor.DictationLanguages.Count == 32 && !editor.DictationLanguages.Contains("auto"), "Dictation language picker is inaccurate");
+        Assert(editor.CloudTierModels.Contains("dictation"), "The cloud model picker lacks Dictation");
+        Assert(ReferenceEquals(editor.CloudTierModels, editor.CloudTierModels), "The tier picker rebuilds its list while selection commits");
+        await editor.SaveAsync();
+        var saved = (await repository.ListAsync()).Single(row => row.Id == mode.Id);
+        Assert(saved.CloudTranscriptionModel == "dictation" && saved.Language == "ja" && saved.PostProcessingMode == 0, "Saving changed Dictation, language or explicit processing settings");
+        editor.Selected = saved;
+        Assert(editor.IsDictation && editor.TranscriptionModel == "dictation", "Reopening lost Dictation");
+        editor.Language = "auto";
+        await editor.SaveAsync();
+        Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Dictation accepted Auto");
+    }
 }
 
 static async Task RunChirp3TierMigrationTestsAsync(string root)
