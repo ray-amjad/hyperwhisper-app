@@ -185,8 +185,6 @@ struct TranscriptionFailureExtrasTests {
         let keys = Set(Self.extras().keys)
 
         #expect(keys == Self.expectedFailureExtraKeys)
-        #expect(keys.subtracting(Self.expectedFailureExtraKeys).isEmpty,
-                "an unexpected extra reached the Sentry payload")
     }
 
     /// The same guard on the breadcrumb. It does not ship today — `beforeSend`
@@ -196,8 +194,6 @@ struct TranscriptionFailureExtrasTests {
         let keys = Set(Self.slowBreadcrumb().keys)
 
         #expect(keys == Self.expectedSlowBreadcrumbKeys)
-        #expect(keys.subtracting(Self.expectedSlowBreadcrumbKeys).isEmpty,
-                "an unexpected entry reached the slow-transcription breadcrumb")
     }
 
     /// A second net, spelling-insensitive, for the clearer failure message.

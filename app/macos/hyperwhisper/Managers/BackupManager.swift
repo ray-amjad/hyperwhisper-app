@@ -852,13 +852,22 @@ class BackupManager: ObservableObject {
                 guard let mode = Self.backupMode(fromV2: modeDTO) else {
                     // Malformed/unparseable id — skip but make it VISIBLE (real producers emit
                     // valid UUIDs/GUIDs; we do not invent a replacement id).
-                    // The Mode's `name` is NOT logged (issue #795): it is free text
-                    // the user typed, this line is `.warning`, and
+                    // PRIVACY (issue #795): neither the Mode's `name` NOR its `id` is
+                    // reported. `backupMode(fromV2:)` returns nil ONLY when
+                    // `UUID(uuidString: dto.id)` fails, so on this branch the id is
+                    // provably NOT a UUID — it is arbitrary text out of the backup
+                    // file, which a hand-edited or third-party file can fill with
+                    // anything, including a name. This line is `.warning`, and
                     // `AppLogger.getRecentLogs` DOES capture `.warning` records into
                     // the `recent_logs` extra that `SentryService.capture` attaches.
-                    // The id is already on the line and is what makes the skipped
-                    // row findable in the backup file.
-                    AppLogger.settings.warning("v2 import: skipping mode with invalid id \(modeDTO.id, privacy: .public)")
+                    // The LENGTH is reported instead: it is not user content, and it
+                    // separates every failure a real producer can hit — 0 is an absent
+                    // or empty id, 36 is the right shape with bad characters (a
+                    // truncated or altered UUID), 38 is a Windows brace-wrapped
+                    // `{GUID}`, and anything else is arbitrary text. One line is
+                    // emitted per skipped row, so the count stays visible too.
+                    let invalidIdLength = modeDTO.id.count
+                    AppLogger.settings.warning("v2 import: skipping mode whose id is not a UUID · idLength=\(invalidIdLength, privacy: .public)")
                     return nil
                 }
                 return mode
