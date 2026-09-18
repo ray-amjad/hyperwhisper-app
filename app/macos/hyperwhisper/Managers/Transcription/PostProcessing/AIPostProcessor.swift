@@ -149,18 +149,29 @@ class AIPostProcessor: ObservableObject {
         let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
         guard processingMode != .off else {
             // The Mode's `preset`, not its `name`: the name is free text the user
-            // typed, and `getRecentLogs` ships the last 100 log lines to Sentry as
-            // the `recent_logs` extra (issue #795).
-            AppLogger.transcription.debug("AI post-processing disabled for mode preset: \(mode.preset ?? "unknown", privacy: .public)")
+            // typed (issue #795). This line is `.debug`, and
+            // `AppLogger.getRecentLogs` runs `log show` with neither `--debug`
+            // nor `--info`, so it does NOT reach the `recent_logs` extra — the
+            // name is out because it is user content at any level, and a level
+            // is a thing a later change can raise, not because this line ships.
+            //
+            // `PresetType.reportingValue(for:)` and not the raw column: `preset`
+            // is unvalidated `String` storage that the Local API and a restored
+            // backup both write raw, so it can hold free text as well.
+            let reportedPreset = PresetType.reportingValue(for: mode)
+            AppLogger.transcription.debug("AI post-processing disabled for mode preset: \(reportedPreset, privacy: .public)")
             return text
         }
-        
+
         // PRESET CHECK:
         // Get the preset for formatting instructions
         guard let preset = mode.preset else {
-            // No name here either (issue #795). The guard above already failed, so
-            // there is no preset to report — the message alone carries the fact.
-            AppLogger.transcription.debug("No preset defined for the active mode")
+            // The Mode's `id` and not its `name` (issue #795): a UUID is not user
+            // content, and it is what a support reader needs to find the row that
+            // has no preset. `mode.preset` is provably nil in this branch, so
+            // there is no preset to report alongside it.
+            let modeId = mode.id?.uuidString ?? "nil"
+            AppLogger.transcription.debug("No preset defined for mode id: \(modeId, privacy: .public)")
             return text
         }
         

@@ -852,7 +852,13 @@ class BackupManager: ObservableObject {
                 guard let mode = Self.backupMode(fromV2: modeDTO) else {
                     // Malformed/unparseable id — skip but make it VISIBLE (real producers emit
                     // valid UUIDs/GUIDs; we do not invent a replacement id).
-                    AppLogger.settings.warning("v2 import: skipping mode with invalid id \(modeDTO.id, privacy: .public) (name: \(modeDTO.name, privacy: .public))")
+                    // The Mode's `name` is NOT logged (issue #795): it is free text
+                    // the user typed, this line is `.warning`, and
+                    // `AppLogger.getRecentLogs` DOES capture `.warning` records into
+                    // the `recent_logs` extra that `SentryService.capture` attaches.
+                    // The id is already on the line and is what makes the skipped
+                    // row findable in the backup file.
+                    AppLogger.settings.warning("v2 import: skipping mode with invalid id \(modeDTO.id, privacy: .public)")
                     return nil
                 }
                 return mode

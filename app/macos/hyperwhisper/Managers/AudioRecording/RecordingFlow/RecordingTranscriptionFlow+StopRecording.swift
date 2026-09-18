@@ -358,12 +358,25 @@ extension RecordingTranscriptionFlow {
             id: sessionModeId,
             fallbackName: actualMode
         )
-        // Read once, here, for the flow log lines below. `preset` is the enum;
-        // the Mode's `name` is free text the user typed and must not be logged
-        // (issue #795) — `getRecentLogs` ships the last 100 log lines to Sentry
-        // as the `recent_logs` extra. Computed outside the interpolation because
-        // privacy-aware `os.Logger` interpolation takes a plain expression.
-        let modePreset = transcriptionMode?.preset ?? "unknown"
+        // Read once, here, for the two flow log lines below. The Mode's `name` is
+        // free text the user typed and is not logged (issue #795).
+        //
+        // `PresetType.reportingValue(for:)` and not the raw `transcriptionMode?.preset`:
+        // `Mode.preset` is an unvalidated `String` column — the Local API and a
+        // restored backup both write it raw — so the column can hold free text
+        // too. The mapped value is always a known preset raw value, `no_mode`,
+        // or `unrecognized_preset`.
+        //
+        // Reach: the success line below is `.warning` on the slow path, and
+        // `AppLogger.getRecentLogs` DOES capture `.warning` records into the
+        // `recent_logs` extra. Its `.info` branch and the cancelled line are
+        // `.info`, which `log show` does not return without `--info`, so those
+        // two stay on the machine. The name is out of all of them regardless,
+        // because a level is a thing a later change can raise.
+        //
+        // Computed outside the interpolation because privacy-aware `os.Logger`
+        // interpolation takes a plain expression.
+        let modePreset = PresetType.reportingValue(for: transcriptionMode)
 
         // Step 4: Perform transcription
         do {
