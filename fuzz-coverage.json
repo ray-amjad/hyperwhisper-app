@@ -203,6 +203,22 @@
       ],
       "licensed": false,
       "note": "UNLICENSED round: HYPERWHISPER_ACCOUNT_KEY is not in this box, so Cloud transcription 401s and every stop-recording path ends in 'A HyperWhisper account key is required'. history-and-backup found nothing. updates gave #762 (stale Model Library installed count). onboarding re-found the Getting Started un-tick on Linux; commented on the open Windows issue #638 instead of filing. Setup traps: gui setup mounts the clone at /root/hw, so chmod 755 /root inside the container or the app cannot exec; do NOT write settings.json before the first launch or the onboarding wizard never appears; the app window will not resize past 1000x680."
+    },
+    {
+      "at": "2026-09-18T08:51:16Z",
+      "platform": "win",
+      "commit": "a92caec",
+      "routes": [
+        "local-api",
+        "streaming",
+        "home-and-tray"
+      ],
+      "status": "1-filed",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "UNLICENSED: HYPERWHISPER_ACCOUNT_KEY is not in this channel box, so no Cloud transcription was walked. Filed #794 (Streaming page commits the shortcut on every key-down; the #539 ShortcutRecorderBox fix was never applied to StreamingSettingsPage). Commented #637 and #638 with root-cause lines. 2 of 5 Codex defects died on re-drive: the Local API checkbox and the Live engine picker both WORK (log proves LocalApiServer listening on 127.0.0.1:50163 and StreamingCloudTier set to geminiTranscribe) - the reconnect reset made Codex's clicks land on the General nav item. local-api route is otherwise clean: /health 200, no token 401, bad token 401, POST /health 405, Origin http://evil.example 403, local-api.json ACL has one ACE. Windows build on a rented box: cargo 38s, dotnet 27s, SSH is up under 1 minute after nsc create. A multi-line PowerShell Set-Content over nsc ssh writes NO file - put it on one line."
     }
   ]
 }
