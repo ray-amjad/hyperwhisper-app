@@ -921,7 +921,8 @@ extension RecordingTranscriptionFlow {
             message: "Streaming stop requested",
             category: "audio.streaming",
             data: [
-                "mode": mode,
+                // The Mode's name is user-typed free text and is never reported
+                // (issue #795); the transcription-failure event carries `modePreset`.
                 "attemptId": currentRecordingAttemptId ?? "none"
             ]
         )

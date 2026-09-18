@@ -148,14 +148,19 @@ class AIPostProcessor: ObservableObject {
 
         let processingMode = PostProcessingMode(rawValue: mode.postProcessingMode) ?? .off
         guard processingMode != .off else {
-            AppLogger.transcription.debug("AI post-processing disabled for mode: \(mode.name ?? "unknown", privacy: .public)")
+            // The Mode's `preset`, not its `name`: the name is free text the user
+            // typed, and `getRecentLogs` ships the last 100 log lines to Sentry as
+            // the `recent_logs` extra (issue #795).
+            AppLogger.transcription.debug("AI post-processing disabled for mode preset: \(mode.preset ?? "unknown", privacy: .public)")
             return text
         }
         
         // PRESET CHECK:
         // Get the preset for formatting instructions
         guard let preset = mode.preset else {
-            AppLogger.transcription.debug("No preset defined for mode: \(mode.name ?? "unknown", privacy: .public)")
+            // No name here either (issue #795). The guard above already failed, so
+            // there is no preset to report — the message alone carries the fact.
+            AppLogger.transcription.debug("No preset defined for the active mode")
             return text
         }
         

@@ -83,7 +83,9 @@ extension RecordingTranscriptionFlow {
             message: "Recording stop requested",
             category: "audio.recording",
             data: [
-                "mode": mode,
+                // The Mode's name is user-typed free text and is never reported
+                // (issue #795). Breadcrumbs are dropped by `beforeSend` today, but
+                // leaving the value here re-opens the leak the moment they are kept.
                 "cancelled": cancelled,
                 "isStreamingActive": isStreamingActive,
                 "trigger": trigger,
@@ -219,8 +221,8 @@ extension RecordingTranscriptionFlow {
                         "recordingDurationMs": Int(recordingDuration * 1000),
                         "minimumDurationMs": Int(Self.minimumRecordingDuration * 1000),
                         "fileExists": fileExists,
-                        "fileSizeBytes": fileSize,
-                        "mode": mode
+                        // The Mode's name is user-typed free text (issue #795).
+                        "fileSizeBytes": fileSize
                     ]
                 )
             }
@@ -286,7 +288,7 @@ extension RecordingTranscriptionFlow {
                     level: .error,
                     data: [
                         "audioPath": audioURL.path,
-                        "mode": sessionModeName,
+                        // The Mode's name is user-typed free text (issue #795).
                         "recordingsFolder": settingsManager?.recordingsFolder ?? "unknown"
                     ]
                 )
@@ -356,6 +358,12 @@ extension RecordingTranscriptionFlow {
             id: sessionModeId,
             fallbackName: actualMode
         )
+        // Read once, here, for the flow log lines below. `preset` is the enum;
+        // the Mode's `name` is free text the user typed and must not be logged
+        // (issue #795) — `getRecentLogs` ships the last 100 log lines to Sentry
+        // as the `recent_logs` extra. Computed outside the interpolation because
+        // privacy-aware `os.Logger` interpolation takes a plain expression.
+        let modePreset = transcriptionMode?.preset ?? "unknown"
 
         // Step 4: Perform transcription
         do {
@@ -380,7 +388,7 @@ extension RecordingTranscriptionFlow {
                         "fileReadable": FileManager.default.isReadableFile(atPath: audioURL.path),
                         "fileSizeBytes": fileSize,
                         "duration": recordingDuration,
-                        "mode": actualMode,
+                        // The Mode's name is user-typed free text (issue #795).
                         "isVeryShortRecording": isVeryShortRecording,
                         "isShortRecording": isShortRecording
                     ]
@@ -588,7 +596,7 @@ extension RecordingTranscriptionFlow {
             let trimmedSeconds = trimResult.map { String(format: "%.1f", $0.silenceRemoved) } ?? "0.0"
             let stageTimings = "wavReadyMs=\(wavReadyMs) · fileCheckMs=\(fileCheckMs) · vadTrimMs=\(vadTrimMs) · createRowMs=\(createRowMs) · transcribeMs=\(transcribeMs) · coreDataUpdateMs=\(coreDataUpdateMs)"
             let uiLogMessage =
-                "Recording transcription flow succeeded · attemptId=\(attemptId) · trigger=\(trigger) · mode=\(actualMode) · provider=\(transcriptionResult.provider) · flowMs=\(flowElapsedMs) · transcribingUiMs=\(transcribingUIElapsedMs) · vadProcessed=\(vadResult.wasProcessed) · silenceRemovedSeconds=\(trimmedSeconds) · \(stageTimings)"
+                "Recording transcription flow succeeded · attemptId=\(attemptId) · trigger=\(trigger) · modePreset=\(modePreset) · provider=\(transcriptionResult.provider) · flowMs=\(flowElapsedMs) · transcribingUiMs=\(transcribingUIElapsedMs) · vadProcessed=\(vadResult.wasProcessed) · silenceRemovedSeconds=\(trimmedSeconds) · \(stageTimings)"
 
             let isLocalLLM = transcriptionResult.postProcessingProvider == PostProcessingProvider.localLLM.rawValue
             let uiDurationAllowanceMs = Int(effectiveAudioDurationSeconds * slowTranscribingUIPerAudioSecondMs)
@@ -625,7 +633,7 @@ extension RecordingTranscriptionFlow {
             let flowElapsedMs = Int(Date().timeIntervalSince(flowStart) * 1000)
             let transcribingUIElapsedMs = transcribingUIStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
             AppLogger.audio.info(
-                "Recording transcription flow cancelled · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · mode=\(actualMode, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public)"
+                "Recording transcription flow cancelled · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · modePreset=\(modePreset, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public)"
             )
             // User cancelled - treat as benign (no error toast shown)
             await MainActor.run {

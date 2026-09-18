@@ -79,7 +79,8 @@ extension RecordingTranscriptionFlow {
             message: "Recording start requested",
             category: "audio.recording",
             data: [
-                "mode": mode,
+                // The Mode's name is user-typed free text and is never reported
+                // (issue #795); the transcription-failure event carries `modePreset`.
                 "streamingShortcutTriggered": appState?.isStreamingShortcutTriggered ?? false,
                 "isRecording": recordingLifecycle.isRecording,
                 "isStreamingActive": isStreamingActive,
