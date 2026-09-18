@@ -331,10 +331,21 @@ public partial class ModeEditorWindow : Window
         UpdateSaveButtonState();
     }
 
+    private bool HasValidDictationLanguage()
+    {
+        if (SelectedProviderType() != "cloud") return true;
+        ResolveEffectiveCloudProviderAndModel(out var provider, out var modelId);
+        if (provider != CloudTranscriptionProvider.AssemblyAI || modelId != "dictation") return true;
+
+        var language = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var support = Services.SharedModelsCatalog.GetLanguageSupport("assemblyAI", CatalogKind.Voice, "dictation");
+        return language != null && support.Codes.Contains(language);
+    }
+
     private void UpdateSaveButtonState()
     {
         // Name is required
-        if (string.IsNullOrWhiteSpace(ModeNameBox.Text))
+        if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || !HasValidDictationLanguage())
         {
             SaveModeButton.IsEnabled = false;
             return;
@@ -910,9 +921,10 @@ public partial class ModeEditorWindow : Window
     /// </summary>
     private void ApplyMedicalDomainVisibility(string? tierId, bool isCheckedFromStorage)
     {
-        var isAssemblyAI = string.Equals(tierId, "assemblyAI", StringComparison.OrdinalIgnoreCase);
+        var isAssemblyAI = string.Equals(tierId, "assemblyAI", StringComparison.OrdinalIgnoreCase)
+            && (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() != "dictation";
         MedicalDomainCheck.Visibility = isAssemblyAI ? Visibility.Visible : Visibility.Collapsed;
-        if (!isAssemblyAI && !isCheckedFromStorage)
+        if (!isAssemblyAI && (!isCheckedFromStorage || (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "dictation"))
         {
             // Leaving the only domain-capable tier clears the domain.
             MedicalDomainCheck.IsChecked = false;
@@ -1306,6 +1318,7 @@ public partial class ModeEditorWindow : Window
         if (_isLoading) return;
         UpdateEnglishSpellingVisibility();
         UpdateNova3Warning();
+        UpdateSaveButtonState();
     }
 
     /// <summary>
@@ -1752,6 +1765,12 @@ public partial class ModeEditorWindow : Window
 
     private void SaveModeButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!HasValidDictationLanguage())
+        {
+            LanguageCombo.Focus();
+            return;
+        }
+
         _mode.Name = ModeNameBox.Text.Trim();
 
         // Save preset
@@ -2191,6 +2210,12 @@ public partial class ModeEditorWindow : Window
             if (cloudProvider == CloudTranscriptionProvider.AssemblyAI)
             {
                 var modelId = effectiveModelId;
+                if (modelId == "dictation")
+                {
+                    var support = Services.SharedModelsCatalog.GetLanguageSupport("assemblyAI", CatalogKind.Voice, "dictation");
+                    ReplaceLanguageItems(support.Codes.Select(code => new LanguageInfo(code, LanguageInfo.GetDisplayName(code))));
+                    return;
+                }
 
                 // For the HyperWhisper Cloud AssemblyAI tier, Medical Mode is the
                 // separate MedicalDomainCheck (X-STT-Domain), not a "-medical"

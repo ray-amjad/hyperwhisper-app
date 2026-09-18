@@ -105,6 +105,28 @@ class AssemblyAIProvider: TranscriptionProvider {
         let modelToSend = (mode?.cloudTranscriptionModel?.isEmpty == false)
             ? (mode?.cloudTranscriptionModel ?? "")
             : ""
+        // Dictation is a separate terminal flow: failures must not enter ordinary STT.
+        if modelToSend == "dictation" || modelToSend == "dictation-medical" {
+            try AssemblyAIDictationAudio.validateSelection(model: modelToSend, language: language, domain: mode?.cloudTranscriptionDomain)
+            let prepared = try await AssemblyAIDictationAudio.prepare(audioURL)
+            defer { if prepared != audioURL { try? FileManager.default.removeItem(at: prepared) } }
+            let dictationParams = RustCoreMapping.transcribeParams(
+                audioPath: prepared.path, audioMime: "audio/wav", language: language,
+                vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
+                apiKey: apiKey, model: "dictation", shareAnonymousSpeedData: !LatencyOptOut.isEnabled
+            )
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = TimeInterval(assemblyaiDictationTimeoutMs()) / 1000
+            config.timeoutIntervalForResource = config.timeoutIntervalForRequest
+            let dictationSession = URLSession(configuration: config)
+            defer { dictationSession.invalidateAndCancel() }
+            do {
+                let request = try assemblyaiBuildDictationRequest(params: dictationParams)
+                let response = try await RustHTTPExecutor.execute(request, session: dictationSession)
+                try Task.checkCancellation()
+                return try assemblyaiParseDictationResponse(resp: response).text
+            } catch { throw mapError(error) }
+        }
         let contentType = AudioMimeTypeResolver.infer(for: audioURL)
         // NOTE: this ONE `params` value is passed to BOTH the sync builder
         // (`assemblyaiBuildSyncRequest`, below) AND — on fallback — the async
@@ -376,6 +398,94 @@ class AssemblyAIProvider: TranscriptionProvider {
             }
             logger.warning("AssemblyAI sync parse failed (non-fatal): \(String(describing: err), privacy: .public) — falling back to async")
             return nil
+        }
+    }
+}
+
+
+/// Shared by BYOK and credit-based Dictation uploads. Each call owns its temporary file.
+enum AssemblyAIDictationAudio {
+    static let languages = Set(["en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi", "hi", "vi", "he", "ur", "ko", "ca", "gl", "ru", "ro", "et", "fa", "yue", "af", "mr", "zu", "xh", "nn", "ar", "ja", "zh"])
+
+    static func validateSelection(model: String, language: String?, domain: String?) throws {
+        guard model == "dictation", (domain ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw invalid("AssemblyAI Dictation does not support Medical Mode. Select Dictation without a domain.")
+        }
+        var code = (language ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map(String.init) ?? ""
+        if code == "nb" { code = "no" }
+        guard languages.contains(code) else {
+            throw invalid("AssemblyAI Dictation requires an explicit supported language. Select a language instead of Auto.")
+        }
+    }
+
+    static func invalid(_ message: String) -> TranscriptionError {
+        .serverError(statusCode: 400, message: message)
+    }
+
+    static func prepare(_ source: URL) async throws -> URL {
+        try Task.checkCancellation()
+        if source.pathExtension.lowercased() == "wav" {
+            try validateWave(source)
+            return source
+        }
+        // macOS recordings are CAF/M4A. Use the existing PCM16 converter.
+        let destination = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-\(UUID().uuidString).wav")
+        do {
+            _ = try await AudioFileConverter().convertAudioToWAV(from: source, to: destination)
+            try Task.checkCancellation()
+            try validateWave(destination)
+            return destination
+        } catch {
+            try? FileManager.default.removeItem(at: destination)
+            throw error
+        }
+    }
+
+    static func validateWave(_ url: URL) throws {
+        let invalidAudio = invalid("AssemblyAI Dictation requires valid PCM16 WAV audio. Convert this file to WAV or select another model.")
+        let file = try FileHandle(forReadingFrom: url)
+        defer { try? file.close() }
+        let length = try file.seekToEnd()
+        try file.seek(toOffset: 0)
+        func read(_ count: Int) throws -> [UInt8] {
+            let data = Array(try file.read(upToCount: count) ?? Data())
+            guard data.count == count else { throw invalidAudio }
+            return data
+        }
+        func u16(_ bytes: [UInt8], _ offset: Int) -> UInt64 {
+            UInt64(bytes[offset]) | UInt64(bytes[offset + 1]) << 8
+        }
+        func u32(_ bytes: [UInt8], _ offset: Int) -> UInt64 {
+            u16(bytes, offset) | u16(bytes, offset + 2) << 16
+        }
+        let header = try read(12)
+        guard String(bytes: header[0..<4], encoding: .ascii) == "RIFF",
+              String(bytes: header[8..<12], encoding: .ascii) == "WAVE", u32(header, 4) + 8 == length else { throw invalidAudio }
+        var format: [UInt8]?
+        var dataBytes: UInt64?
+        var position: UInt64 = 12
+        while position < length {
+            let chunk = try read(8)
+            let size = u32(chunk, 4)
+            let end = position + 8 + size + size % 2
+            guard end <= length else { throw invalidAudio }
+            let id = String(bytes: chunk[0..<4], encoding: .ascii)
+            if id == "fmt " {
+                guard format == nil, size >= 16 else { throw invalidAudio }
+                format = try read(16)
+            } else if id == "data" {
+                guard dataBytes == nil else { throw invalidAudio }
+                dataBytes = size
+            }
+            try file.seek(toOffset: end)
+            position = end
+        }
+        guard let format, let dataBytes, dataBytes > 0 else { throw invalidAudio }
+        let channels = u16(format, 2), rate = u32(format, 4), byteRate = u32(format, 8), alignment = u16(format, 12)
+        guard u16(format, 0) == 1, channels > 0, rate > 0, u16(format, 14) == 16,
+              alignment == channels * 2, byteRate == rate * alignment, dataBytes % alignment == 0 else { throw invalidAudio }
+        guard Double(dataBytes) / Double(byteRate) <= assemblyaiDictationMaxDurationSecs() else {
+            throw invalid("AssemblyAI Dictation supports recordings up to 120 seconds. Use a shorter recording or another model.")
         }
     }
 }

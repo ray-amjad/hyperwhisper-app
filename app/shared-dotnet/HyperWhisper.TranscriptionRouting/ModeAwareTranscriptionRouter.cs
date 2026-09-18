@@ -75,6 +75,11 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
                 "The selected cloud transcription provider is not supported.",
                 "Cloud transcription");
 
+        if (provider == CloudTranscriptionProvider.HyperWhisperCloud
+            && SharedCoreBridge.CanonicalCloudSttTier(mode.CloudAccuracyTier) == "assemblyAI"
+            && mode.CloudTranscriptionModel == "dictation-medical")
+            return PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.InvalidRequest,
+                "AssemblyAI Dictation does not support Medical Mode.", "AssemblyAI");
         var cloudRequest = BuildCloudRequest(audioPath, request, mode, provider);
         var result = await _cloud.TranscribeAsync(cloudRequest, cancellationToken).ConfigureAwait(false);
         var attribution = ProviderDisplayName(provider);

@@ -502,6 +502,15 @@ struct CloudTranscriptionModels {
 
         // AssemblyAI Models
         CloudTranscriptionModel(
+            id: "dictation",
+            displayName: "Dictation",
+            isAvailable: true,
+            description: "",
+            provider: .assemblyAI,
+            isPopular: true,
+            pricePerSecond: 0.62 / 3600.0
+        ),
+        CloudTranscriptionModel(
             id: "universal-2",
             displayName: "Universal-2",
             isAvailable: true,

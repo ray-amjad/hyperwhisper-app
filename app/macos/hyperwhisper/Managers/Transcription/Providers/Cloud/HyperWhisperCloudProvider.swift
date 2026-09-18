@@ -298,6 +298,13 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         let trimmedDomain = mode?.cloudTranscriptionDomain?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let transcriptionDomain: String? = (trimmedDomain?.isEmpty == false) ? trimmedDomain : nil
+        let originalAudioURL = audioURL
+        var audioURL = audioURL
+        if accuracyTier == .assemblyAI && (selectedModelId == "dictation" || mode?.cloudTranscriptionModel == "dictation-medical") {
+            try AssemblyAIDictationAudio.validateSelection(model: mode?.cloudTranscriptionModel ?? selectedModelId, language: language, domain: transcriptionDomain)
+            audioURL = try await AssemblyAIDictationAudio.prepare(originalAudioURL)
+        }
+        defer { if audioURL != originalAudioURL { try? FileManager.default.removeItem(at: audioURL) } }
         let candidatePrompt = buildInitialTranscriptionPrompt(vocabulary: vocabulary)
         let initialPrompt: String?
         // Vocabulary support is now model-specific (e.g. Deepgram nova-3 supports

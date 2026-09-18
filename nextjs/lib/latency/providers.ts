@@ -124,6 +124,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     models: [
       { id: "universal-3-5-pro", displayName: "Universal-3.5 Pro", isDefault: true },
       { id: "universal-2", displayName: "Universal-2" },
+      { id: "dictation", displayName: "Dictation" },
     ],
   },
   {

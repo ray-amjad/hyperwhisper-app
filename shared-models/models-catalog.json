@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-11",
+  "lastUpdated": "2026-09-17",
   "models": [
     {
       "provider": "appleSpeech",
@@ -170,6 +170,53 @@
       "isEnglishOnly": true
     },
 
+    {
+      "provider": "assemblyAI",
+      "id": "dictation",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": [
+        "macos",
+        "windows",
+        "linux"
+      ],
+      "supportedLanguages": [
+        "en",
+        "es",
+        "de",
+        "fr",
+        "it",
+        "pt",
+        "tr",
+        "nl",
+        "sv",
+        "no",
+        "da",
+        "fi",
+        "hi",
+        "vi",
+        "he",
+        "ur",
+        "ko",
+        "ca",
+        "gl",
+        "ru",
+        "ro",
+        "et",
+        "fa",
+        "yue",
+        "af",
+        "mr",
+        "zu",
+        "xh",
+        "nn",
+        "ar",
+        "ja",
+        "zh"
+      ],
+      "notes": "Built-in cleanup, including when post-processing is off. Up to 120 seconds of PCM16 WAV; select one of 32 supported languages (no Auto). Explicit extra processing still runs. https://www.assemblyai.com/docs/dictation"
+    },
     {
       "provider": "assemblyAI",
       "id": "universal-2",

@@ -19,6 +19,19 @@ import Testing
 @testable import HyperWhisper
 
 struct CloudSttTierParityTests {
+    @Test("AssemblyAI Dictation preserves the cloud model and explicit language contract")
+    func assemblyAIDictation() throws {
+        #expect(HyperWhisperCloudProvider.resolvedSTTModelId(tier: .assemblyAI, storedModelId: "dictation") == "dictation")
+        #expect(HyperWhisperCloudProvider.resolvedSTTModelId(tier: .assemblyAI, storedModelId: nil) == "universal-3-5-pro")
+        let languages = STTCapabilities.languages(providerId: "assemblyai", modelId: "dictation")
+        #expect(languages.count == 32)
+        #expect(!languages.contains { $0.code == "auto" })
+        #expect(languages.contains { $0.code == "ja" })
+        try AssemblyAIDictationAudio.validateSelection(model: "dictation", language: "ja", domain: nil)
+        #expect(throws: (any Error).self) { try AssemblyAIDictationAudio.validateSelection(model: "dictation", language: "auto", domain: nil) }
+        #expect(throws: (any Error).self) { try AssemblyAIDictationAudio.validateSelection(model: "dictation", language: "en", domain: "medical") }
+    }
+
 
     /// The catalog as the shared Rust core reads it. This used to decode the
     /// repo's JSON file directly through a second, macOS-only decoder — that

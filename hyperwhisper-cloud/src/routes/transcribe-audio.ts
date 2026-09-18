@@ -30,7 +30,7 @@ export function estimateCreditsForProviderFallbacks(
   exactAudioSeconds?: number,
 ): number {
   const estimatedSeconds = exactAudioSeconds
-    ?? providerAudioReservation(provider, sizeBytes).estimatedAudioSeconds;
+    ?? providerAudioReservation(provider, sizeBytes, model).estimatedAudioSeconds;
   const usdPerMinute = maxReservationUsdPerMinute({
     provider,
     model,
@@ -98,7 +98,7 @@ export async function prepareTranscriptionAudio({
     return body;
   };
 
-  const audioReservation = providerAudioReservation(provider, contentLength);
+  const audioReservation = providerAudioReservation(provider, contentLength, model);
 
   // Some providers need the buffered audio to calculate an exact reservation.
   // Before that allocation, check the provider boundary's safe duration floor.

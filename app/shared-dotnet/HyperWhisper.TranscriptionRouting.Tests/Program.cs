@@ -255,6 +255,15 @@ static async Task TestRouterAsync(string root)
             RoutedModel: null,
         }, "direct Meta did not stay separate from HyperWhisper Cloud or use the exact default model");
 
+    var dictationMode = new Mode { ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "assemblyAI", CloudTranscriptionModel = "dictation", Language = "ja" };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: dictationMode));
+    Assert(cloud.LastRequest is { Provider: CloudTranscriptionProvider.HyperWhisperCloud, RoutedProvider: "assemblyai", RoutedModel: "dictation", Language: "ja", RoutedDomain: null }, "Dictation must travel as X-STT-Model through the cloud route");
+    dictationMode.CloudProvider = "assemblyai";
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: dictationMode));
+    Assert(cloud.LastRequest is { Provider: CloudTranscriptionProvider.AssemblyAi, Model: "dictation", RoutedModel: null }, "BYOK Dictation must retain its vendor model");
+    Assert(SharedCoreBridge.CloudSttDefaultModel("assemblyAI") == "universal-3-5-pro", "Dictation changed the AssemblyAI default");
+    Assert(SharedCoreBridge.CloudSttDictationModels("assemblyAI").Contains("dictation"), "Linux cloud picker lacks Dictation");
+
     // AZURE MAI — a standalone `microsoftazurespeech` mode is not a BYOK mode.
     // It terminates at the same HW Cloud /transcribe proxy, where the model is
     // `X-STT-Model`, built by hw-net from `routed_model` and never from `model`.

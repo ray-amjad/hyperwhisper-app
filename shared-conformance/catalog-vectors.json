@@ -528,8 +528,8 @@
       "sttProvider": "assemblyai",
       "cloudTierEligible": true,
       "byokEligible": true,
-      "cloudTierAccuracy": null,
-      "cloudTierCreditsPerMinute": null,
+      "cloudTierAccuracy": "high",
+      "cloudTierCreditsPerMinute": 3.5,
       "wordTimestamps": true,
       "diarization": true,
       "streaming": true,
@@ -540,11 +540,11 @@
       "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "keyterms_prompt",
-      "languagesCount": 98,
+      "languagesCount": 101,
       "languagesAutoDetect": true,
       "languagesCodeFormat": "ISO-639-1 + a few regional variants (e.g. `en_au`, `en_uk`, `en_us`)",
       "languagesHasCodes": true,
-      "languagesRawCodeCount": 98,
+      "languagesRawCodeCount": 101,
       "maxFileSizeMb": 5120.0,
       "maxDurationMinutes": null,
       "acceptedFormats": [
@@ -609,6 +609,15 @@
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
+        },
+        {
+          "id": "dictation",
+          "displayName": "Dictation",
+          "creditsPerMinute": 10.3333333333,
+          "isDefault": false,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": false
         }
       ]
     },
@@ -874,7 +883,8 @@
       ],
       "models": [
         "assemblyAI/universal-3-5-pro",
-        "assemblyAI/universal-2"
+        "assemblyAI/universal-2",
+        "assemblyAI/dictation"
       ]
     },
     {
@@ -1549,9 +1559,12 @@
         "ur",
         "uz",
         "vi",
+        "xh",
         "yi",
         "yo",
-        "zh"
+        "yue",
+        "zh",
+        "zu"
       ]
     },
     {
@@ -1677,6 +1690,49 @@
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
       "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "assemblyAI",
+      "id": "dictation",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "supportsAllLanguages": false,
+      "languageCodes": [
+        "af",
+        "ar",
+        "ca",
+        "da",
+        "de",
+        "en",
+        "es",
+        "et",
+        "fa",
+        "fi",
+        "fr",
+        "gl",
+        "he",
+        "hi",
+        "it",
+        "ja",
+        "ko",
+        "mr",
+        "nl",
+        "nn",
+        "no",
+        "pt",
+        "ro",
+        "ru",
+        "sv",
+        "tr",
+        "ur",
+        "vi",
+        "xh",
+        "yue",
+        "zh",
+        "zu"
+      ],
       "voiceCapabilities": null
     },
     {

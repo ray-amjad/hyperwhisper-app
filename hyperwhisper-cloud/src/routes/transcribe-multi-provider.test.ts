@@ -1817,3 +1817,96 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     }
   });
 });
+
+describe('AssemblyAI Dictation routing and billing', () => {
+  const previousKey = process.env.ASSEMBLYAI_API_KEY;
+  beforeEach(() => { cachedCredits = 1000; process.env.ASSEMBLYAI_API_KEY = 'test-key'; });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    cachedCredits = 1000;
+    if (previousKey === undefined) delete process.env.ASSEMBLYAI_API_KEY;
+    else process.env.ASSEMBLYAI_API_KEY = previousKey;
+  });
+  function dictationRequest(seconds: number, query = '&language=en', domain?: string, rate = 16000) {
+    const req = metaWavRequest(seconds, query, rate);
+    req.headers.set('X-STT-Provider', 'assemblyai');
+    req.headers.set('X-STT-Model', 'dictation');
+    if (domain) req.headers.set('X-STT-Domain', domain);
+    return req;
+  }
+  test('one vendor call returns cleanup and bills all-in exact WAV duration with vocabulary', async () => {
+    let upstream = 0;
+    let deduction: { amount: number; metadata: Record<string, unknown> } | undefined;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === 'https://dictation.assemblyai.com/v1/transcribe/live') {
+        upstream++;
+        return Response.json({ text: 'raw', llm_response: 'Cleaned.', audio_duration_ms: 999999 });
+      }
+      if (String(input).includes('/api/license/credits')) {
+        deduction = JSON.parse(String(init?.body));
+        return Response.json({ credits_remaining: 989.6, credits_deducted: 10.333 });
+      }
+      throw new Error('Unexpected fetch');
+    }) as unknown as typeof fetch;
+    const response = await buildApp().fetch(dictationRequest(60, '&language=en&initial_prompt=HyperWhisper'));
+    const body = await response.json() as { text: string; cost: { usd: number; credits: number } };
+    await drainPendingDeductions(2000);
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('Cleaned.');
+    expect(body.cost.usd).toBe(0.010333);
+    expect(body.cost.credits).toBe(10.4);
+    expect(deduction?.amount).toBe(10.4);
+    expect(deduction?.metadata.stt_model).toBe('dictation');
+    expect(response.headers.get('X-STT-Model')).toBe('dictation');
+    expect(upstream).toBe(1);
+  });
+  test('exact duration credit gate rejects low-byte-rate WAV with insufficient credits before vendor', async () => {
+    cachedCredits = 15; // 120 seconds costs 20.666 credits, even for 8 kHz PCM.
+    const fetchMock = mock(async () => { throw new Error('Must not fetch'); });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const response = await buildApp().fetch(dictationRequest(120, '&language=en', undefined, 8000));
+    expect(response.status).toBe(402);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  test('a funded user is not rejected by the old inflated WAV byte estimate', async () => {
+    cachedCredits = 11;
+    let vendor = 0;
+    let deductions = 0;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      if (String(input).includes('dictation.assemblyai.com')) { vendor++; return Response.json({ text: 'raw' }); }
+      if (String(input).includes('/api/license/credits')) { deductions++; return Response.json({ credits_remaining: 0.667, credits_deducted: 10.333 }); }
+      throw new Error('Unexpected fetch');
+    }) as unknown as typeof fetch;
+    const response = await buildApp().fetch(dictationRequest(60, '&language=en', undefined, 48000));
+    await drainPendingDeductions(2000);
+    expect(response.status).toBe(200);
+    expect(vendor).toBe(1);
+    expect(deductions).toBe(1);
+    expect((await response.json() as { text: string }).text).toBe('raw');
+  });
+  for (const [language, domain] of [['auto', undefined], ['', undefined], ['pl', undefined], ['en', 'medical'], ['en', 'unknown']] as const) {
+    test(`rejects language=${language}, domain=${domain} before vendor or deduction`, async () => {
+      const fetchMock = mock(async () => { throw new Error('Must not fetch'); });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+      const response = await buildApp().fetch(dictationRequest(1, `&language=${language}`, domain));
+      expect(response.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  }
+  test('vendor 500 never calls ordinary sync, async STT, cleanup LLM or deduction', async () => {
+    const urls: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      urls.push(String(input)); return new Response('unavailable', { status: 500 });
+    }) as unknown as typeof fetch;
+    const response = await buildApp().fetch(dictationRequest(1));
+    expect(response.status).toBe(502);
+    expect(urls).toEqual(['https://dictation.assemblyai.com/v1/transcribe/live']);
+  });
+  test('overlong WAV is a client error with no upstream request or deduction', async () => {
+    const fetchMock = mock(async () => { throw new Error('Must not fetch'); });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const response = await buildApp().fetch(dictationRequest(121));
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

@@ -9,6 +9,7 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("local catalog maps every managed model", TestLocalCatalogAsync),
     ("cloud STT maps every provider model", TestCloudSttCoverageAsync),
+    ("AssemblyAI Dictation has its own exact capabilities", TestDictationAsync),
     ("cloud STT rows never over-claim a sibling model's languages", TestCloudSttPerModelLanguagesAsync),
     ("every stated languageCount matches the model it describes", TestCloudSttLanguageCountAsync),
     ("a provider whose models differ states languageCount or is a named exception", TestCloudSttLanguageCountCoverageAsync),
@@ -92,6 +93,37 @@ static Task TestCloudSttCoverageAsync()
 /// space for every cloud row, and the per-model figure must travel as a count
 /// beside it rather than as a second, differently-spelled code list inside it.
 /// </summary>
+static Task TestDictationAsync()
+{
+    var row = Load().Single(model => model.ModelId == "dictation" && model.Surface == ModelSurface.BatchTranscription);
+    if (row.SupportedLanguages.Count != 32 || row.SupportedLanguages.Contains("auto") || !row.SupportedLanguages.Contains("ja")
+        || row.SupportsStreaming || !row.CloudTierEligible || !row.ByokEligible || !row.SupportsCustomVocabulary)
+        throw new Exception("Dictation must expose 32 explicit languages, vocabulary, BYOK and cloud, with no streaming");
+    var dictationCodes = new[] { "en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi", "hi", "vi", "he", "ur", "ko", "ca", "gl", "ru", "ro", "et", "fa", "yue", "af", "mr", "zu", "xh", "nn", "ar", "ja", "zh" };
+    True(new HashSet<string>(row.SupportedLanguages).SetEquals(dictationCodes), "Dictation's exact language set changed");
+    using var catalog = OpenCatalog("cloud-stt-catalog.json");
+    using var doc = JsonDocument.Parse(catalog);
+    var union = doc.RootElement.GetProperty("providers").EnumerateArray()
+        .Single(provider => provider.GetProperty("id").GetString() == "assemblyAI")
+        .GetProperty("languages").GetProperty("codes").EnumerateArray()
+        .Select(code => code.GetString()!).ToHashSet();
+    Equal(101, union.Count); // Forces tests to use the current provider catalog.
+    // The streaming capability retains the raw provider union, read through FFI.
+    var nativeUnion = Load().Single(model => model.ProviderId == "assemblyai"
+        && model.Surface == ModelSurface.StreamingTranscription).SupportedLanguages;
+    True(union.SetEquals(nativeUnion),
+        "The loaded native AssemblyAI catalog differs from the source catalog; rebuild the native library");
+    var universalCodes = union.Except(new[] { "xh", "yue", "zu" }).ToHashSet();
+    foreach (var modelId in new[] { "universal-3-5-pro", "universal-2" })
+    {
+        var universal = Load().Single(model => model.ModelId == modelId && model.Surface == ModelSurface.BatchTranscription);
+        Equal(98, universal.SupportedLanguages.Count);
+        True(universalCodes.SetEquals(universal.SupportedLanguages), modelId + " inherited Dictation-only languages or lost Universal coverage");
+        True(universal.SupportedLanguages.Contains("en_au") && universal.SupportedLanguages.Contains("pl"), "Universal lost raw regional codes or fallback coverage");
+    }
+    return Task.CompletedTask;
+}
+
 static Task TestCloudSttPerModelLanguagesAsync()
 {
     var rows = Load().Where(x => x.Surface == ModelSurface.BatchTranscription
@@ -119,7 +151,7 @@ static Task TestCloudSttPerModelLanguagesAsync()
     // Every cloud row, every vendor: the list is the provider's, unnarrowed.
     foreach (var group in rows.GroupBy(x => x.ProviderId, StringComparer.Ordinal))
     {
-        foreach (var row in group)
+        foreach (var row in group.Where(row => row.ModelId != "dictation"))
         {
             Equal(group.First().SupportedLanguages.Count, row.SupportedLanguages.Count);
         }
@@ -130,7 +162,7 @@ static Task TestCloudSttPerModelLanguagesAsync()
     // vendor with one table adds no noise.
     Equal(41, v15.ModelLanguageCount);
     Equal(59, v2.ModelLanguageCount);
-    foreach (var row in rows.Where(x => x.ProviderId != "azure-mai"))
+    foreach (var row in rows.Where(x => x.ProviderId != "azure-mai" && x.ModelId != "dictation"))
     {
         True(row.ModelLanguageCount is null,
             $"{row.Key} states a per-model language count but its provider is not in PerModelLanguageProviders");
@@ -183,11 +215,12 @@ static Task TestCloudSttLanguageCountAsync()
         True(declared.All(count => count is not null),
             $"{providerId} states languageCount on some models but not all");
 
-        // The union is the widest model's table, so the largest per-model figure
-        // must be the provider's own. Otherwise `languages.codes` holds codes no
-        // model supports, or a model claims more than the union it came from.
+        // Models can support overlapping sets without any single model covering
+        // the entire provider union (e.g. AssemblyAI Universal and Dictation).
+        // No individual model may claim more languages than that union.
         True(providerCount is not null, $"{providerId} states languageCount but no provider count");
-        Equal(providerCount, declared.Max());
+        True(declared.Max() <= providerCount,
+            $"{providerId} has a model language count larger than its provider union");
 
         for (var index = 0; index < models.Length; index++)
         {

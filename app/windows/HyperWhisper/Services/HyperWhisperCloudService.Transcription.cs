@@ -67,6 +67,8 @@ public partial class HyperWhisperCloudService
     /// </summary>
     internal static string ResolveDictationModelId(string tierStorageId, string? cloudTranscriptionModel)
     {
+        if (tierStorageId == "assemblyAI" && cloudTranscriptionModel == "dictation-medical")
+            throw new TranscriptionException(TranscriptionErrorCode.InvalidRequest, "AssemblyAI Dictation does not support Medical Mode.", "AssemblyAI");
         var catalog = Services.AppClassification.CloudSttCatalog.Shared;
         var modelBelongsToTier = !string.IsNullOrEmpty(cloudTranscriptionModel)
             && !Services.AppClassification.CloudSttCatalog.IsLiveOnlyModel(cloudTranscriptionModel)

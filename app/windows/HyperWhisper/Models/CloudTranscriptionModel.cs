@@ -250,6 +250,15 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.AssemblyAI,
             IsPopular = true,
             PricePerMinute = 0.0035m  // $0.21/hour base — medical add-on billed separately
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "dictation",
+            DisplayName = "Dictation",
+            Description = "",
+            Provider = CloudTranscriptionProvider.AssemblyAI,
+            IsPopular = true,
+            PricePerMinute = 0.62m / 60m
         }
     };
 

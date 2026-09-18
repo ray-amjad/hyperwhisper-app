@@ -6523,6 +6523,14 @@ internal static class Program
                     "a post-stop generationComplete must complete the session exactly once");
             });
 
+            Run("AssemblyAI Dictation stays selected on the cloud send path", () =>
+            {
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("assemblyAI", "dictation") == "dictation", "Dictation was replaced by the provider default");
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("assemblyAI", null) == "universal-3-5-pro", "AssemblyAI default changed");
+                Assert(CloudTranscriptionModels.AssemblyAI.Any(model => model.Id == "dictation"), "BYOK Dictation is missing");
+                Assert(!CloudTranscriptionModels.AssemblyAI.Any(model => model.Id == "dictation-medical"), "Dictation gained Medical Mode");
+            });
+
             Run("the HyperWhisper Cloud dictation model picker never offers a streaming-only model", () =>
             {
                 // gemini-3.5-transcribe-live is WebSocket-only - it has no

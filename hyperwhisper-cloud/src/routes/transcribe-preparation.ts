@@ -1,3 +1,4 @@
+import { validateDictationOptions } from '../providers/assemblyai-dictation';
 import type { Context } from 'hono';
 import { readClientInfo } from '../lib/client-info';
 import { planGeoRouting } from '../providers/geo-availability';
@@ -124,6 +125,11 @@ export async function prepareTranscriptionRequest(
   const language = rawQuery(c.req.url, 'language');
   const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
   const mode = rawQuery(c.req.url, 'mode');
+  if (provider === 'assemblyai' && model === 'dictation') {
+    try { validateDictationOptions(language, domain); } catch (error) {
+      return errorResponse(400, 'Invalid Dictation options', (error as Error).message, { requestId });
+    }
+  }
 
   // Some providers are unreachable from the region this machine runs in. The
   // providers layer owns which ones, from where, and where to send the request

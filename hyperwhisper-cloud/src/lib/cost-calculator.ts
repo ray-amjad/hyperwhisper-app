@@ -163,6 +163,7 @@ const ASSEMBLYAI_KEYTERMS_ADDON_COST_PER_AUDIO_MINUTE = 0.05 / 60;   // +~$0.05/
 // preflight reservation figure (`ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE`)
 // imports it rather than hardcoding a second copy of the same literal, so the
 // amount actually reserved can never silently drift from what's actually billed.
+export const ASSEMBLYAI_DICTATION_COST_PER_AUDIO_MINUTE = 0.62 / 60;
 export const ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE = 0.45 / 60;             // $0.0075/min
 
 // Mistral Voxtral — per-audio-minute billing.
@@ -613,6 +614,7 @@ export function computeAssemblyAITranscriptionCost(
   medical: boolean = false,
   keyterms: boolean = false,
 ): number {
+  if (model === 'dictation') return computeLinearPerMinuteCost(durationSeconds, ASSEMBLYAI_DICTATION_COST_PER_AUDIO_MINUTE);
   const isPro = model === 'universal-3-5-pro' || model === 'universal-3-pro';
   const basePerMinute = isPro
     ? ASSEMBLYAI_UNIVERSAL3_PRO_COST_PER_AUDIO_MINUTE

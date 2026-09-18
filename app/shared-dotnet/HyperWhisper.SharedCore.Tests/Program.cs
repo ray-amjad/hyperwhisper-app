@@ -201,6 +201,7 @@ var tests = new (string Name, Func<Task> Run)[]
         return Task.CompletedTask;
     }),
     ("single-shot providers use Rust request and response contracts", TestSingleShotProvidersAsync),
+    ("Dictation uses one request, validates audio, and never falls back", TestDictationAsync),
     ("multi-step providers execute upload poll parse and cleanup flows", TestMultiStepProvidersAsync),
     ("observer diagnostics redact credentials and request bodies", TestObserverRedactionAsync),
     ("retry policy retries transient responses deterministically", TestRetryAsync),
@@ -2418,6 +2419,118 @@ static string TempAudio(string content = "RIFF-test-audio")
     var path = Path.Combine(Path.GetTempPath(), $"hyperwhisper-shared-{Guid.NewGuid():N}.wav");
     File.WriteAllText(path, content);
     return path;
+}
+
+static async Task TestDictationAsync()
+{
+    var audio = TempWaveAudio();
+    var original = File.ReadAllBytes(audio);
+    try
+    {
+        foreach (var (body, expected, failure) in new (string, string?, CloudTranscriptionErrorCode?)[] {
+            ("{\"text\":\"um raw\",\"llm_response\":\"Clean text.\"}", "Clean text.", null),
+            ("{\"text\":\"raw\",\"llm_response\":null}", "raw", null),
+            ("{\"text\":\"raw\",\"llm_response\":\"  \"}", "raw", null),
+            ("{\"text\":\"\",\"llm_response\":null}", null, CloudTranscriptionErrorCode.NoSpeech),
+            ("not json", null, CloudTranscriptionErrorCode.InvalidRequest),
+        })
+        {
+            var calls = 0;
+            var handler = new RecordingHandler((_, _) => { calls++; return Json(body); });
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            var result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio,
+                "dictation", Language: "ja-JP", Vocabulary: ["HyperWhisper"], Prompt: "unrelated Gemini prompt"));
+            Assert.Equal(1, calls);
+            if (failure.HasValue) Assert.Equal(failure.Value, result.Failure!.Code);
+            else Assert.Equal(expected!, result.Transcript!.Text);
+            Assert.Equal("https://dictation.assemblyai.com/v1/transcribe/live", handler.LastRequest!.RequestUri!.ToString());
+            var multipart = Encoding.UTF8.GetString(handler.LastBody!);
+            Assert.True(multipart.IndexOf("name=config", StringComparison.Ordinal) < multipart.IndexOf("name=audio", StringComparison.Ordinal));
+            Assert.True(multipart.Contains("application/json"));
+            Assert.True(multipart.Contains("audio/wav"));
+            Assert.True(multipart.Contains("\"language_codes\":[\"ja\"]"));
+            Assert.True(multipart.Contains("HyperWhisper"));
+            Assert.False(multipart.Contains("stt_prompt"));
+            Assert.False(multipart.Contains("llm_instruction"));
+            Assert.Equal("test-api-key", handler.LastRequest.Headers.GetValues("Authorization").Single());
+        }
+        foreach (var status in new[] { HttpStatusCode.Unauthorized, HttpStatusCode.InternalServerError })
+        {
+            var calls = 0;
+            var handler = new RecordingHandler((_, _) => { calls++; return Json("{}", status); });
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            var result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio, "dictation", Language: "en"));
+            Assert.False(result.IsSuccess);
+            Assert.Equal(1, calls); // No sync/async fallback or duplicate paid request.
+        }
+        foreach (var language in new string?[] { null, "auto", "pl" })
+        {
+            var handler = new RecordingHandler((HttpRequestMessage _, CancellationToken _) => Task.FromException<HttpResponseMessage>(new Exception("Invalid language reached HTTP")));
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            var result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio, "dictation", Language: language));
+            Assert.Equal(CloudTranscriptionErrorCode.InvalidRequest, result.Failure!.Code);
+            Assert.True(result.Failure.Message.Contains("language"));
+        }
+        // True 120s is accepted; one sample over fails even with a valid RIFF length.
+        foreach (var samples in new[] { 120 * 16000, 120 * 16000 + 1 })
+        {
+            var bytes = new byte[44 + samples * 2];
+            original.AsSpan(0, 44).CopyTo(bytes);
+            BitConverter.GetBytes(bytes.Length - 8).CopyTo(bytes, 4);
+            BitConverter.GetBytes(samples * 2).CopyTo(bytes, 40);
+            File.WriteAllBytes(audio, bytes);
+            var handler = new RecordingHandler((_, _) => Json("{\"text\":\"boundary\"}"));
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            var result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio, "dictation", Language: "en"));
+            Assert.Equal(samples == 120 * 16000, result.IsSuccess);
+            if (!result.IsSuccess) { Assert.True(result.Failure!.Message.Contains("120")); Assert.True(handler.LastRequest is null); }
+        }
+        // Corrupt RIFF extent, float encoding, inconsistent rate/alignment and partial frames.
+        foreach (var offset in new[] { 4, 20, 28, 32, 34, 40 })
+        {
+            var bytes = original.ToArray(); bytes[offset]++;
+            File.WriteAllBytes(audio, bytes);
+            var handler = new RecordingHandler((HttpRequestMessage _, CancellationToken _) => Task.FromException<HttpResponseMessage>(new Exception("Malformed WAV reached HTTP")));
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+            var result = await service.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio, "dictation", Language: "en"));
+            Assert.Equal(CloudTranscriptionErrorCode.InvalidRequest, result.Failure!.Code);
+        }
+        File.WriteAllBytes(audio, original);
+        var domainHandler = new RecordingHandler((_, _) => Json("{}"));
+        using (var domainService = new CloudTranscriptionService(domainHandler, new StaticCredentials(), Sharing))
+        {
+            var rejected = await domainService.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio, "dictation", Language: "en", RoutedDomain: "medical"));
+            Assert.Equal(CloudTranscriptionErrorCode.InvalidRequest, rejected.Failure!.Code);
+            Assert.True(domainHandler.LastRequest is null);
+        }
+        // The same adapter is called directly by Windows; prove its raw/cleaned contract
+        // without a platform runtime or a separate reimplementation of the transport.
+        var directHandler = new RecordingHandler((_, _) => Json("{\"text\":\"raw\",\"llm_response\":\"clean\"}"));
+        using (var client = new HttpClient(directHandler))
+        {
+            var parameters = new uniffi.hyperwhisper_core.TranscribeParams("test-api-key", "dictation", "nb-NO", [], null, null,
+                audio, "application/octet-stream", null, null, null, null, null, null, false);
+            var transcript = await AssemblyAiDictation.TranscribeAsync(parameters, client, default);
+            Assert.Equal("clean", transcript.text);
+            Assert.True(Encoding.UTF8.GetString(directHandler.LastBody!).Contains("\"language_codes\":[\"no\"]"));
+        }
+        var timeoutHandler = new RecordingHandler((HttpRequestMessage _, CancellationToken _) =>
+            Task.FromException<HttpResponseMessage>(new OperationCanceledException()));
+        using (var timeoutService = new CloudTranscriptionService(timeoutHandler, new StaticCredentials(), Sharing))
+        {
+            var timedOut = await timeoutService.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio, "dictation", Language: "en"));
+            Assert.Equal(CloudTranscriptionErrorCode.ProviderUnavailable, timedOut.Failure!.Code);
+            Assert.True(timedOut.Failure.Message.Contains("timed out"));
+        }
+        using var cts = new CancellationTokenSource();
+        var hanging = new RecordingHandler(async (_, token) => {
+            cts.Cancel(); await Task.Delay(Timeout.Infinite, token); return Json("{}");
+        });
+        using var cancelledService = new CloudTranscriptionService(hanging, new StaticCredentials(), Sharing);
+        var cancelled = await cancelledService.TranscribeAsync(new(CloudTranscriptionProvider.AssemblyAi, audio, "dictation", Language: "en"), cts.Token);
+        Assert.Equal(CloudTranscriptionErrorCode.Cancelled, cancelled.Failure!.Code);
+    }
+    finally { File.Delete(audio); }
 }
 
 static string TempWaveAudio()

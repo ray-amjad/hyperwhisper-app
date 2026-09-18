@@ -507,6 +507,13 @@ struct ModeEditorView: View {
         return (isDeepgramNova3 || isHyperWhisperDeepgramTier) && isAutoDetect
     }
 
+    private var hasValidDictationLanguage: Bool {
+        guard provider == .cloud,
+              languageFilterCloudProviderId == "assemblyai",
+              languageFilterCloudModelId == "dictation" else { return true }
+        return AssemblyAIDictationAudio.languages.contains(language)
+    }
+
     // MARK: - HyperWhisper Cloud provider→model helpers
 
     /// The currently-selected HyperWhisper Cloud tier (Provider axis), resolved
@@ -605,6 +612,7 @@ struct ModeEditorView: View {
                     cloudTranscriptionDomain = nil
                 }
                 cloudTranscriptionModel = newModel
+                if newModel == "dictation" { cloudTranscriptionDomain = nil }
             }
         )
     }
@@ -612,7 +620,7 @@ struct ModeEditorView: View {
     /// Whether the Medical domain toggle should be shown. Only assemblyAI uses a
     /// domain-based medical mode; Deepgram medical is a model selection instead.
     private var showsMedicalDomainToggle: Bool {
-        currentCloudProvider == .hyperwhisper && selectedCloudTier == .assemblyAI
+        currentCloudProvider == .hyperwhisper && selectedCloudTier == .assemblyAI && cloudTranscriptionModel != "dictation"
     }
 
     /// Binding for the Medical toggle → maps the nullable domain string to a Bool.
@@ -1353,6 +1361,7 @@ struct ModeEditorView: View {
 
             // Save/Create button
             Button {
+                guard hasValidDictationLanguage else { return }
                 let chosenModel = provider == .cloud ? "cloud" : (model.isEmpty ? (sortedModelIds().first ?? "base") : model)
                 let finalLanguage = isEnglishOnlyModel(provider: provider, model: chosenModel) ? "en" : language
                 let modeData = ModeData(
@@ -1391,7 +1400,7 @@ struct ModeEditorView: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(normalizedName == nil || (provider == .local && availableModelIds.isEmpty))
+            .disabled(normalizedName == nil || !hasValidDictationLanguage || (provider == .local && availableModelIds.isEmpty))
         }
         .padding(20)
         .background(Color(NSColor.controlBackgroundColor))
