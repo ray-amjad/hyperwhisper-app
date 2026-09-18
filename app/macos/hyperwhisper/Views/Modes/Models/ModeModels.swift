@@ -115,8 +115,10 @@ extension PresetType {
     /// restored v2 backup writes whatever the file held — so the column can
     /// carry free text a person typed, which is the class of value issue #795
     /// is about. The return value is always one of the seven `PresetType` raw
-    /// values or one of the two sentinels above, and never a string that came
-    /// out of a Mode row unchecked.
+    /// values or `unrecognizedPresetReportingValue`, and never a string that
+    /// came out of a Mode row unchecked. (`noModeReportingValue` comes from the
+    /// `Mode?` overload below — this one is only ever asked about a Mode that
+    /// exists.)
     static func reportingValue(forRawPreset rawPreset: String?) -> String {
         guard let rawPreset, let known = PresetType(rawValue: rawPreset) else {
             return unrecognizedPresetReportingValue
@@ -129,6 +131,32 @@ extension PresetType {
     static func reportingValue(for mode: Mode?) -> String {
         guard let mode else { return noModeReportingValue }
         return reportingValue(forRawPreset: mode.preset)
+    }
+
+    /// Every value `reportingValue(...)` is allowed to return: the seven preset
+    /// raw values plus the two sentinels.
+    static let reportableValues: Set<String> = {
+        var values = Set<String>(PresetType.allCases.map { $0.rawValue })
+        values.insert(PresetType.noModeReportingValue)
+        values.insert(PresetType.unrecognizedPresetReportingValue)
+        return values
+    }()
+
+    /// Idempotent boundary check, for a value that should ALREADY have come out
+    /// of `reportingValue(...)`.
+    ///
+    /// The Sentry payload builders run every `modePreset` through this before
+    /// they store it, so a call site that regresses to handing over
+    /// `mode?.preset` raw still cannot put free text into a payload. It is the
+    /// only guard that does not depend on a future author remembering the rule.
+    ///
+    /// Known and accepted imprecision: a Mode whose `preset` column literally
+    /// holds `no_mode` or `unrecognized_preset` is reported as that sentinel
+    /// rather than as `unrecognized_preset` specifically. That mislabels a
+    /// diagnostic field by one word in a case nothing in the app produces; it
+    /// does not leak anything, which is what this guard is for.
+    static func sanitizedReportingValue(_ value: String) -> String {
+        reportableValues.contains(value) ? value : unrecognizedPresetReportingValue
     }
 }
 

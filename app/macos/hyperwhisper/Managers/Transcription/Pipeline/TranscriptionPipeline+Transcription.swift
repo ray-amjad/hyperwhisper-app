@@ -592,7 +592,9 @@ extension TranscriptionPipeline {
     /// `modePreset` must arrive already mapped through
     /// `PresetType.reportingValue(for:)`. `Mode.preset` is an unvalidated
     /// `String` column, so the raw value is free text too — passing it straight
-    /// through here would swap one user-content field for another.
+    /// through here would swap one user-content field for another. This builder
+    /// re-checks the value with `PresetType.sanitizedReportingValue(_:)` anyway,
+    /// so a call site that forgets cannot put free text in a Sentry payload.
     ///
     /// `nonisolated` on purpose: `TranscriptionPipeline` is `@MainActor`, and a
     /// pure payload builder must stay callable from a non-isolated test.
@@ -626,7 +628,11 @@ extension TranscriptionPipeline {
             "actualProvider": actualProvider,
             "modelString": modelString,
             "useCloud": useCloud,
-            "modePreset": modePreset,
+            // Re-checked at the boundary, not trusted from the caller: this is
+            // the last line before the value reaches Sentry, and it is the only
+            // guard that still holds if a future call site regresses to handing
+            // over the raw `Mode.preset` column (issue #795).
+            "modePreset": PresetType.sanitizedReportingValue(modePreset),
             "modeIsSystemProvided": modeIsSystemProvided,
             "language": language,
             "postProcessingMode": postProcessingMode,
@@ -680,7 +686,9 @@ extension TranscriptionPipeline {
     ///
     /// `modePreset` must arrive already mapped through
     /// `PresetType.reportingValue(for:)`; the raw `Mode.preset` column is
-    /// unvalidated free text.
+    /// unvalidated free text. Re-checked here with
+    /// `PresetType.sanitizedReportingValue(_:)` for the same reason as
+    /// `transcriptionFailureExtras(...)`.
     nonisolated static func slowTranscriptionBreadcrumbData(
         modePreset: String,
         modeIsSystemProvided: Bool,
@@ -702,7 +710,8 @@ extension TranscriptionPipeline {
     ) -> [String: Any] {
         let data: [String: Any] = [
             "actualProvider": actualProvider,
-            "modePreset": modePreset,
+            // Re-checked at the boundary — see `transcriptionFailureExtras`.
+            "modePreset": PresetType.sanitizedReportingValue(modePreset),
             "modeIsSystemProvided": modeIsSystemProvided,
             "language": language,
             "postProcessingMode": postProcessingMode,
