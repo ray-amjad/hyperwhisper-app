@@ -295,7 +295,7 @@ describe('completeTranscription response', () => {
     expect(body.duration).toBe(12);
   });
 
-  test('omits X-STT-Model for a provider that takes no model', async () => {
+  test('omits X-STT-Model when no model id reached the vendor', async () => {
     const response = await complete({
       preparation: { provider: 'grok', model: '' },
       result: transcript({ source: 'grok' }),

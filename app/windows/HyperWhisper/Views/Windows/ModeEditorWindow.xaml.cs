@@ -786,7 +786,7 @@ public partial class ModeEditorWindow : Window
     /// "Google" row lists Chirp and Gemini models together. Preview and
     /// no-custom-vocabulary models get an inline hint. The combo stays an enabled
     /// dropdown even with one item, so the row never changes shape. Tag carries
-    /// the X-STT-Model id (may be the empty string for Grok's implicit model);
+    /// the X-STT-Model id;
     /// DataContext carries the owning tier id, which is the X-STT-Provider source.
     ///
     /// <paramref name="persistedTierId"/> is the tier the mode was SAVED with. It
@@ -872,8 +872,8 @@ public partial class ModeEditorWindow : Window
 
     /// <summary>
     /// The model combo item whose Tag is <paramref name="modelId"/>, or null.
-    /// Tag and id are compared as "" when null so Grok's empty-string implicit
-    /// model id still matches its item.
+    /// Tag and id are compared as "" when null, so a mode that recorded no model
+    /// still matches an item rather than throwing on the null.
     /// </summary>
     private ComboBoxItem? FindCloudTierModelItem(string? modelId)
     {
@@ -1813,13 +1813,10 @@ public partial class ModeEditorWindow : Window
                         ? "medical"
                         : null;
             }
-            // Grok (BYOK) has a single implicit model — store empty sentinel regardless of any
-            // stale entries in the (hidden) CloudModelCombo from a prior provider selection.
-            else if (_mode.CloudProvider == "grok")
-            {
-                _mode.CloudTranscriptionModel = "";
-                _mode.CloudTranscriptionDomain = null;
-            }
+            // Grok stored an empty sentinel here until 2026-09-19, because an xAI
+            // request named no model. Grok Voice Transcribe 2.0 gave `/v1/stt` a
+            // `model` parameter, so grok takes the ordinary BYOK combo path below
+            // and its one model is stored like every other vendor's.
             else if (CloudModelCombo.SelectedItem is ComboBoxItem cloudItem)
             {
                 _mode.CloudTranscriptionModel = cloudItem.Tag?.ToString() ?? "whisper-1";

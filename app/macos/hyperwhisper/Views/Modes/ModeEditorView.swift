@@ -1032,8 +1032,8 @@ struct ModeEditorView: View {
             }
 
             // Cloud transcription model row. Always a dropdown — a provider
-            // with one implicit model (Grok) lists that one entry rather
-            // than degrading to a read-only label.
+            // with one model (Grok) lists that one entry rather than
+            // degrading to a read-only label.
             HStack {
                 Text(localized: "modes.field.model")
                     .frame(width: 80, alignment: .leading)

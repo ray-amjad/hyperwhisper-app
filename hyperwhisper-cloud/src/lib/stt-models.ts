@@ -28,7 +28,7 @@ export type SttProviderId =
   | 'meta';
 
 export interface SttModelDef {
-  /** Upstream model id. Empty string for single-model providers (grok). */
+  /** Upstream model id. */
   id: string;
   /** Marks a preview/experimental model so clients can badge it. */
   isPreview?: boolean;
@@ -153,11 +153,24 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     id: 'grok',
     // The only provider whose public label differs from its id.
     servedName: 'xai-grok',
-    defaultModel: '',
+    // `/v1/stt` took no `model` parameter until 2026-09-19, so this row and the
+    // one model below both carried the empty id. A shipped client that sends no
+    // `X-STT-Model` — which is every client built before that date — still
+    // lands here through `resolveModel`'s empty-request branch.
+    defaultModel: 'grok-voice-transcribe-2.0',
     // grok keeps its historical cross-provider fallback chain.
     fallbackChain: ['grok', 'deepgram', 'groq', 'elevenlabs'],
     async: false,
-    models: [{ id: '', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 }],
+    // `grok-voice-transcribe-1.0` is listed because it is what every client
+    // built before 2026-09-19 actually ran — xAI served no other model then —
+    // so a user who wants to stay on it must be able to ask for it by name.
+    // xAI price the two the same, hence the same rate on both rows. xAI have
+    // announced 1.0's deprecation; when they retire it, drop this row and the
+    // request 400s instead of being billed for a model that no longer exists.
+    models: [
+      { id: 'grok-voice-transcribe-2.0', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
+      { id: 'grok-voice-transcribe-1.0', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
+    ],
   },
   'azure-mai': {
     id: 'azure-mai',
@@ -400,8 +413,10 @@ export function servedNameFor(provider: SttProviderId): string {
 
 /**
  * The served `provider/model` pair for the response header and the metering
- * row, e.g. `deepgram/nova-3-medical`, `xai-grok`. `model` is empty for the
- * single-model providers, and then the label stands alone.
+ * row, e.g. `deepgram/nova-3-medical`, `xai-grok/grok-voice-transcribe-2.0`.
+ * An empty `model` leaves the label standing alone. No registry row answers an
+ * empty model any more — grok was the last, until xAI gave `/v1/stt` a `model`
+ * parameter on 2026-09-19 — but a caller can still pass one.
  */
 export function formatProviderName(provider: SttProviderId, model: string): string {
   const base = servedNameFor(provider);

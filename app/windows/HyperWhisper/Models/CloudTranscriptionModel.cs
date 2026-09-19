@@ -427,26 +427,39 @@ public static class CloudTranscriptionModels
 
     // =========================================================================
     // GROK MODELS
-    // xAI Grok speech-to-text. Single implicit model — no `model` parameter
-    // is sent over the wire; the placeholder entry exists only so registry
-    // lookups don't return null.
+    // xAI Grok speech-to-text. Two models, sent as the `model` field — the
+    // endpoint took no such parameter before 2026-09-19, which is why this
+    // entry carried an empty id until then.
     // =========================================================================
 
     /// <summary>
-    /// xAI Grok transcription. The API has no model parameter, so this is a
-    /// single entry. It is shown as a one-item dropdown so the Model row keeps
-    /// the same shape as every other provider's.
+    /// xAI Grok transcription.
     /// </summary>
+    /// <remarks>
+    /// <c>grok-voice-transcribe-1.0</c> is listed because it is the model the
+    /// empty id always ran — it was the only model xAI served. Keeping it means
+    /// a user chooses 2 rather than being moved onto it by a release of ours.
+    /// SpaceXAI price the two the same and have announced 1.0's deprecation.
+    /// </remarks>
     public static readonly CloudTranscriptionModel[] Grok = new[]
     {
         new CloudTranscriptionModel
         {
-            Id = "",
-            DisplayName = "Grok Speech-to-Text",
-            Description = "SpaceXAI Grok speech-to-text (single implicit model)",
+            Id = "grok-voice-transcribe-2.0",
+            DisplayName = "Grok Voice Transcribe 2",
+            Description = "SpaceXAI's speech-to-text model — auto-detects the language and follows a mid-recording switch.",
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
             IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "grok-voice-transcribe-1.0",
+            DisplayName = "Grok Voice Transcribe 1",
+            Description = "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
+            Provider = CloudTranscriptionProvider.Grok,
+            PricePerMinute = 0.0016667m,
+            IsPopular = false
         }
     };
 
@@ -687,20 +700,30 @@ public static class CloudTranscriptionModels
     /// Gets a model by its ID, optionally scoped to a provider.
     /// </summary>
     /// <remarks>
-    /// A provider whose API takes no <c>model</c> parameter (Grok) registers its
-    /// single entry under the empty id, so a provider-scoped lookup for "" is a
-    /// real hit and must resolve. An unscoped lookup still returns null — ""
-    /// is ambiguous without a provider, and any provider left without a model
-    /// would otherwise resolve to Grok. Mirrors the macOS
-    /// <c>model(withId:provider:)</c> overload.
+    /// An empty id means "no model recorded", which is what every Grok mode
+    /// saved before xAI exposed a <c>model</c> parameter (2026-09-19) carries,
+    /// and what any mode carries before the user opens the Model row. Scoped to
+    /// a provider it resolves to that provider's default — the model the request
+    /// will actually use — rather than to null, which would render the Model row
+    /// blank. Grok used to answer it with an empty-id registry entry instead.
+    /// An unscoped lookup still returns null: "" names no provider, so there is
+    /// nothing to default to. Mirrors the macOS <c>model(withId:provider:)</c>
+    /// overload.
     /// </remarks>
     public static CloudTranscriptionModel? GetById(string? modelId, CloudTranscriptionProvider? provider = null)
     {
         if (string.IsNullOrEmpty(modelId))
         {
-            return provider.HasValue
-                ? GetModelsForProvider(provider.Value).FirstOrDefault(m => m.Id.Length == 0)
-                : null;
+            if (!provider.HasValue)
+            {
+                return null;
+            }
+
+            var defaultId = DefaultModelIdFor(provider.Value);
+            return string.IsNullOrEmpty(defaultId)
+                ? null
+                : GetModelsForProvider(provider.Value)
+                    .FirstOrDefault(m => m.Id.Equals(defaultId, StringComparison.OrdinalIgnoreCase));
         }
 
         var canonical = ResolveModelAlias(modelId, provider);
@@ -765,8 +788,22 @@ public static class CloudTranscriptionModels
     /// </remarks>
     public static CloudTranscriptionModel? GetDefault(CloudTranscriptionProvider provider)
     {
+        return GetById(DefaultModelIdFor(provider), provider)
+            ?? GetModelsForProvider(provider).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The default model id for a provider, with no registry lookup.
+    /// </summary>
+    /// <remarks>
+    /// Split out of <see cref="GetDefault"/> so <see cref="GetById"/> can answer
+    /// an empty id without calling back into <see cref="GetDefault"/>, which
+    /// would recurse.
+    /// </remarks>
+    private static string? DefaultModelIdFor(CloudTranscriptionProvider provider)
+    {
         var catalogEntryId = CatalogEntryId(provider);
-        var defaultModelId = catalogEntryId is not null
+        return catalogEntryId is not null
             ? HyperwhisperCoreMethods.CloudSttDefaultModelId(catalogEntryId)
             : provider switch
             {
@@ -774,7 +811,5 @@ public static class CloudTranscriptionModels
                 CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
                 _ => null
             };
-
-        return GetById(defaultModelId, provider) ?? GetModelsForProvider(provider).FirstOrDefault();
     }
 }

@@ -99,8 +99,8 @@ struct EntryVector {
     preview_status: Option<bool>,
     migrate_from: Vec<String>,
     legacy_cloud_provider_aliases: Vec<String>,
-    /// `null` only when the provider lists no models; `""` is a real answer
-    /// (Grok's single implicit model).
+    /// `null` only when the provider lists no models; `""` is a real answer,
+    /// though no shipped entry spells one that way any more.
     default_model_id: Option<String>,
     models: Vec<ModelVector>,
 }

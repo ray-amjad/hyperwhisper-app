@@ -375,13 +375,23 @@
 
     {
       "provider": "grok",
-      "id": "",
+      "id": "grok-voice-transcribe-2.0",
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["windows"],
       "supportsAllLanguages": true,
-      "notes": "SpaceXAI Grok STT exposes one implicit model; the registry encodes it with an empty id. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per SpaceXAI docs), so it is intentionally NOT mirrored here."
+      "notes": "SpaceXAI Grok Voice Transcribe 2. `/v1/stt` took no `model` parameter when this row was written, so it carried an empty id until 2026-09-19; upstream now accepts `grok-voice-transcribe-2.0` (its default) and `grok-voice-transcribe-1.0`, and we send 2.0 explicitly. The empty id still resolves to this row, through the legacy-blank rule in `hw-catalog::models::entry()`, so persisted modes keep working. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per SpaceXAI docs), so it is intentionally NOT mirrored here."
+    },
+    {
+      "provider": "grok",
+      "id": "grok-voice-transcribe-1.0",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["windows"],
+      "supportsAllLanguages": true,
+      "notes": "SpaceXAI Grok Voice Transcribe 1. This is the model every Grok mode saved before 2026-09-19 actually ran, back when `/v1/stt` took no `model` parameter and xAI served only one. It is listed so those users can stay on it deliberately instead of being moved to 2 in silence. Same 25-code ITN allowlist, same `keyterm` support and the same price as 2. WARNING: SpaceXAI say 1.0 `will be deprecated in the coming weeks`. When upstream retires it, delete this row too — see the `notes` on the `grokStt` entry in cloud-stt-catalog.json for the migrateFrom step."
     },
 
     {

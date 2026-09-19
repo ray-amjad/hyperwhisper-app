@@ -392,9 +392,12 @@ const LIVE_STREAMING_ROW_IDS = new Set([
   // is why a route that forwards a model id is not on its own a live claim.
   "deepgramNova3:nova-3-general",
   "deepgramNova3:nova-3-medical",
-  // `XAIStreamingStrategy` builds a wss://api.x.ai URL with no model parameter,
-  // which is also why this row's model id is the empty string.
-  "grokStt:",
+  // `XAIStreamingStrategy` builds a wss://api.x.ai URL, and `live/xai.rs` pins
+  // the model on it as a query parameter. Both rows, because that pin is
+  // `grok::resolve_model(config.model)` — it forwards whichever model the mode
+  // selected and only substitutes the default for a blank.
+  "grokStt:grok-voice-transcribe-2.0",
+  "grokStt:grok-voice-transcribe-1.0",
   // `LIVE_MODEL` in hw-net `providers/gemini_transcribe.rs`, substituted by
   // `live/gemini.rs` and `GeminiStreamingStrategy` and proxied by
   // `ws-streaming-gemini-transcribe.ts`. The pre-recorded row is deliberately
@@ -458,7 +461,8 @@ test("every model the Cloud routes live is a row the page calls live", () => {
   );
 
   // Deliberately one-directional. A row can be live without the Cloud routing
-  // it: `grokStt:` streams BYOK-only and carries no catalog flag, so the page's
+  // it: `grokStt:grok-voice-transcribe-2.0` streams BYOK-only and carries no
+  // catalog flag, so the page's
   // list is a superset. Not an equality either way — a model the Cloud routes
   // live must appear here, but appearing here does not require the flag.
   assert.ok(cloudLive.length > 0, "no catalog model carries `streaming: true`");
