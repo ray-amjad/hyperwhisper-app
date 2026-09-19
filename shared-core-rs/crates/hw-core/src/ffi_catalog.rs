@@ -1381,14 +1381,17 @@ mod tests {
         );
     }
 
-    /// Grok's single model has an empty id — "the provider default" to the
-    /// backend. `Some("")` must not collapse into `None`, which is what an
-    /// unknown provider returns.
+    /// `None` means "no such entry" and nothing else. Grok used to be the one
+    /// listed entry whose default model id was `""` — its endpoint took no
+    /// `model` parameter until 2026-09-19 — so this test also pinned that
+    /// `Some("")` did not collapse into `None`. No listed entry answers `""`
+    /// any more, so what is left to hold is that a real entry answers its model
+    /// and an unknown one answers `None`.
     #[test]
-    fn cloud_stt_default_model_id_keeps_an_empty_model_id() {
+    fn cloud_stt_default_model_id_is_none_only_for_an_unknown_entry() {
         assert_eq!(
             cloud_stt_default_model_id("grokStt".to_string()).as_deref(),
-            Some("")
+            Some("grok-voice-transcribe-2.0")
         );
         assert_eq!(
             cloud_stt_default_model_id("noSuchProvider".to_string()),

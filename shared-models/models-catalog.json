@@ -375,13 +375,13 @@
 
     {
       "provider": "grok",
-      "id": "",
+      "id": "grok-voice-transcribe-2.0",
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["windows"],
       "supportsAllLanguages": true,
-      "notes": "SpaceXAI Grok STT exposes one implicit model; the registry encodes it with an empty id. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per SpaceXAI docs), so it is intentionally NOT mirrored here."
+      "notes": "SpaceXAI Grok Voice Transcribe 2. `/v1/stt` took no `model` parameter when this row was written, so it carried an empty id until 2026-09-19; upstream now accepts `grok-voice-transcribe-2.0` (its default) and `grok-voice-transcribe-1.0`, and we send 2.0 explicitly. The empty id still resolves here through the grok model-alias table so persisted modes keep working. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per SpaceXAI docs), so it is intentionally NOT mirrored here."
     },
 
     {

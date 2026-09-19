@@ -87,6 +87,6 @@ Before flipping `supportsCustomVocabulary = true` for a transcription model:
 
 - Windows registers `HyperWhisperCloud / "default"` as a literal transcription model row in `CloudTranscriptionModel.cs`. As of the catalog introduction that fake row is being removed; the catalog has no entry for it.
 - macOS has a `hyperwhisper-cloud` post-processing model that Windows does not. The catalog marks it `platforms: ["macos"]`.
-- The Grok cloud-transcription model has an empty-string id on Windows (xAI exposes a single implicit model). The catalog uses `id: ""` so the lookup matches.
+- The Grok cloud-transcription model had an empty-string id until 2026-09-19, because an xAI request named no model. Grok Voice Transcribe 2.0 gave `/v1/stt` a `model` parameter, so the catalog now spells the id out (`grok-voice-transcribe-2.0`) and every head resolves a stored blank to it.
 
 </important>

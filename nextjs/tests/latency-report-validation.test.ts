@@ -259,12 +259,14 @@ test("every model row is named the way the app's Model menu names it", async () 
     }
   }
 
-  // The ingest stores null for a provider whose endpoint takes no model id, and
-  // the catalog spells that same model with an empty id. Both must resolve to
-  // the one model, or xAI's only row would print its raw backend id.
-  assert.equal(modelDisplayName("grok", null), "Grok Speech-to-Text");
-  assert.equal(modelDisplayName("grok", ""), "Grok Speech-to-Text");
+  // The ingest stores null when the client sent no model. xAI's endpoint took
+  // none until Grok Voice Transcribe 2.0 (2026-09-19), so every grok row older
+  // than that date is stored that way and must still resolve to the model that
+  // actually ran, rather than printing a raw backend id.
+  assert.equal(modelDisplayName("grok", null), "Grok Voice Transcribe 2");
+  assert.equal(modelDisplayName("grok", ""), "Grok Voice Transcribe 2");
   assert.equal(isDefaultModel("grok", null), true);
+  assert.equal(modelSortIndex("grok", null), modelSortIndex("grok", "grok-voice-transcribe-2.0"));
 
   // A model the mirror has not learned yet keeps its raw id and sorts last,
   // rather than borrowing another model's name or position.

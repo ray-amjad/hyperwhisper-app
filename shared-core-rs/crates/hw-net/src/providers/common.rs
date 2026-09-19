@@ -77,8 +77,6 @@ pub struct OpenAiStyleSpec {
     pub default_model: &'static str,
     pub auth: Auth,
     pub vocabulary: VocabularyMode,
-    /// Whether to send a `model` field at all (Grok STT has no model param).
-    pub send_model: bool,
     /// Whether to send `response_format=json` (OpenAI / Groq). Mistral / Grok
     /// return `{ "text" }` without this field, so they omit it.
     pub send_response_format: bool,
@@ -120,9 +118,7 @@ pub fn build_openai_style(
     };
 
     // model
-    if spec.send_model {
-        parts.push(multipart_field("model", model.clone()));
-    }
+    parts.push(multipart_field("model", model.clone()));
 
     // language — omitted when absent / empty / "auto" (case-insensitive).
     //
@@ -446,7 +442,6 @@ mod tests {
             default_model: "whisper-1",
             auth: Auth::Bearer,
             vocabulary: VocabularyMode::Prompt,
-            send_model: true,
             keywords_models: &[],
             send_response_format: true,
         }

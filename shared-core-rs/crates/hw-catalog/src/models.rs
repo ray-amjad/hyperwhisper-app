@@ -210,6 +210,21 @@ impl ModelsCatalog {
         if let Some(exact) = self.get(provider, kind, id) {
             return Some(exact);
         }
+        // An empty id means "no model recorded", not "a model called empty".
+        // Every Grok mode saved before xAI exposed a `model` parameter carries
+        // one, and until 2026-09-19 it hit an empty-id row here. Resolve it to
+        // the provider's row when the provider has exactly one of this kind —
+        // then there is nothing to guess between, and it is the row the request
+        // will use. Two or more rows fall through to the wildcard, as before.
+        if id.is_empty() {
+            let mut rows = self
+                .by_key
+                .iter()
+                .filter(|((p, k, i), _)| p == provider && *k == kind && i != "*");
+            if let (Some((_, only)), None) = (rows.next(), rows.next()) {
+                return Some(only);
+            }
+        }
         self.get(provider, kind, "*")
     }
 
@@ -352,13 +367,26 @@ mod tests {
     }
 
     #[test]
-    fn empty_string_id_matches_grok_implicit_model() {
+    fn empty_string_id_resolves_to_groks_only_voice_row() {
         let c = catalog();
-        // Grok voice uses id == "" (xAI's single implicit model). It is NOT the
-        // wildcard "*", so an empty-id lookup must hit it exactly.
-        let e = c.entry("grok", Kind::Voice, "").expect("empty-id row exists");
-        assert_eq!(e.id, "");
+        // Grok voice carried id == "" until xAI exposed a `model` parameter on
+        // 2026-09-19. Modes saved before that still store the empty id, so it
+        // must keep resolving — now through the single-row fallback, not
+        // through an exact hit and not through the wildcard "*".
+        let e = c
+            .entry("grok", Kind::Voice, "")
+            .expect("the empty id resolves to Grok's one voice row");
+        assert_eq!(e.id, "grok-voice-transcribe-2.0");
         assert!(e.available_via_hyper_whisper_cloud);
+        assert!(e.supports_custom_vocabulary);
+    }
+
+    #[test]
+    fn an_empty_id_stays_unresolved_when_a_provider_has_several_models() {
+        let c = catalog();
+        // openai voice has more than one row and no wildcard, so there is
+        // nothing to pick between — the fallback must not guess.
+        assert!(c.entry("openai", Kind::Voice, "").is_none());
     }
 
     // --- Golden: language support yes/no -------------------------------------

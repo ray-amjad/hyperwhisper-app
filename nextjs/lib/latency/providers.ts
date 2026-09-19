@@ -76,9 +76,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "xai",
     vendorDisplayName: "SpaceXAI",
     models: [
-      // Empty id, like the catalog: the endpoint takes no model parameter, so
-      // the ingest stores null and modelDisplayName() normalises the two.
-      { id: "", displayName: "Grok Speech-to-Text", isDefault: true },
+      { id: "grok-voice-transcribe-2.0", displayName: "Grok Voice Transcribe 2", isDefault: true },
     ],
   },
   {
@@ -214,19 +212,28 @@ export function vendorDisplayName(vendorKey: string): string {
 }
 
 /**
- * The name the app's Model dropdown shows for one stored row's model.
+ * The catalog model one stored row names, with a blank resolved to the entry's
+ * default. A null model and an empty one are the same thing.
  *
- * A null model and an empty one are the same thing — the ingest stores null for
- * a provider whose endpoint takes no model id, and the catalog spells that same
- * model with an empty id — so both resolve to the provider's single entry rather
- * than to an unnamed row.
+ * The ingest stores null when the client sent no model, which is what a blank
+ * means everywhere else in the app: take the vendor's default. Grok is why the
+ * case is live. Its endpoint took no model parameter until Grok Voice
+ * Transcribe 2.0 (2026-09-19), so every grok row older than that date stores
+ * null — and that model IS what xAI ran for it. Resolving keeps those rows
+ * under their real name instead of printing a raw provider id.
  */
+function resolveModel(providerId: string, modelId: string | null): CatalogModel | undefined {
+  const entry = ENTRY_BY_PROVIDER.get(providerId);
+  if (!entry) return undefined;
+  const id = modelId ?? "";
+  if (id === "") return entry.models.find((model) => model.isDefault) ?? entry.models[0];
+  return entry.models.find((model) => model.id === id);
+}
+
+/** The name the app's Model dropdown shows for one stored row's model. */
 export function modelDisplayName(providerId: string, modelId: string | null): string {
   const id = modelId ?? "";
-  const model = ENTRY_BY_PROVIDER.get(providerId)?.models.find(
-    (candidate) => candidate.id === id,
-  );
-  return model?.displayName ?? (id === "" ? providerId : id);
+  return resolveModel(providerId, id)?.displayName ?? (id === "" ? providerId : id);
 }
 
 /**
@@ -247,7 +254,7 @@ export function isDefaultModel(providerId: string, modelId: string | null): bool
   const first = STT_CATALOG.find((candidate) => candidate.vendor === entry.vendor);
   if (!first || first.sttProvider !== providerId) return false;
   const fallsBackTo = first.models.find((model) => model.isDefault) ?? first.models[0];
-  return fallsBackTo?.id === (modelId ?? "");
+  return fallsBackTo !== undefined && fallsBackTo === resolveModel(providerId, modelId);
 }
 
 /**
@@ -258,11 +265,12 @@ export function isDefaultModel(providerId: string, modelId: string | null): bool
  * silently taking someone else's place.
  */
 export function modelSortIndex(providerId: string, modelId: string | null): number {
-  const id = modelId ?? "";
+  const resolved = resolveModel(providerId, modelId);
+  if (!resolved) return Number.MAX_SAFE_INTEGER;
   let index = 0;
   for (const entry of STT_CATALOG) {
     for (const model of entry.models) {
-      if (entry.sttProvider === providerId && model.id === id) return index;
+      if (entry.sttProvider === providerId && model === resolved) return index;
       index += 1;
     }
   }

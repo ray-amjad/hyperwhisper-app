@@ -39,8 +39,8 @@ export interface ProviderRequestContext {
    * Upstream model id the caller selected (e.g. 'gpt-4o-transcribe',
    * 'universal-3-5-pro', 'nova-3-medical'). Resolved + validated against the
    * server-side registry in `lib/stt-models.ts` before the provider fn runs,
-   * so adapters can trust it. Empty/undefined means "provider default" —
-   * single-model providers (grok) ignore it.
+   * so adapters can trust it. Empty/undefined means "provider default", which
+   * each adapter answers from its own pinned constant.
    */
   model?: string;
   /**

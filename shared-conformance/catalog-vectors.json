@@ -163,7 +163,7 @@
     {
       "id": "grokStt",
       "displayName": "Grok STT",
-      "displayModel": "grok-stt",
+      "displayModel": "grok-voice-transcribe-2.0",
       "vendor": "xai",
       "vendorDisplayName": "SpaceXAI",
       "vendorLabel": "SpaceXAI",
@@ -206,11 +206,11 @@
         "grokstt"
       ],
       "legacyCloudProviderAliases": [],
-      "defaultModelId": "",
+      "defaultModelId": "grok-voice-transcribe-2.0",
       "models": [
         {
-          "id": "",
-          "displayName": "Grok Speech-to-Text",
+          "id": "grok-voice-transcribe-2.0",
+          "displayName": "Grok Voice Transcribe 2",
           "creditsPerMinute": 1.67,
           "isDefault": true,
           "previewStatus": false,
@@ -1000,7 +1000,7 @@
         "grokStt"
       ],
       "models": [
-        "grokStt/"
+        "grokStt/grok-voice-transcribe-2.0"
       ]
     }
   ],
@@ -2382,7 +2382,7 @@
     },
     {
       "provider": "grok",
-      "id": "",
+      "id": "grok-voice-transcribe-2.0",
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,

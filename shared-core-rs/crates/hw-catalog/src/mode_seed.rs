@@ -195,7 +195,7 @@ pub fn mode_seed_default(region: Option<&str>) -> ModeSeed {
 /// The catalog's default model id for [`CLOUD_ACCURACY_TIER`], or the fallback.
 ///
 /// An empty id is treated as unresolved: the cloud-STT catalog allows `""` as a
-/// legitimate model id (Grok's single implicit model), but seeding it here would
+/// legitimate model id, but seeding it here would
 /// send an empty `X-STT-Model`.
 fn cloud_transcription_model() -> &'static str {
     static RESOLVED: OnceLock<String> = OnceLock::new();

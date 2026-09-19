@@ -242,7 +242,8 @@ impl SttEntry {
     }
 
     /// The default model id (`X-STT-Model` value), or `None` when the provider
-    /// lists no models. Note: the id may legitimately be `""` (Grok).
+    /// lists no models. Note: the id may legitimately be `""`, which the backend
+    /// reads as "provider default". No shipped entry spells one that way.
     pub fn default_model_id(&self) -> Option<&str> {
         self.default_model().map(|m| m.id.as_str())
     }

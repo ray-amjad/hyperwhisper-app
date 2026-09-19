@@ -487,10 +487,9 @@ try
         // reads blank while the field underneath keeps the old vendor's id — and SaveAsync, which
         // strips only LOCAL ids, persists that id under the new vendor with a `Mode saved` status.
         //
-        // Empty is the one legal exception, and only together: three vendor ids in CloudProviders
-        // have no BYOK model in the shared catalog (grok's single model carries an empty id because
-        // an xAI request names no model; microsoftazurespeech resolves to azure-mai, which is not
-        // byokEligible; googlespeech has no catalog vendor). An empty combo beside an empty
+        // Empty is the one legal exception, and only together: two vendor ids in CloudProviders
+        // have no BYOK model in the shared catalog (microsoftazurespeech resolves to azure-mai,
+        // which is not byokEligible; googlespeech has no catalog vendor). An empty combo beside an empty
         // selection saves null, which is what an implicit model means. An empty combo beside a
         // DANGLING selection is the state this asserts against.
         void AssertCloudSelectionIsListed(string where)
@@ -586,14 +585,26 @@ try
 
         // Vendors whose BYOK catalog is EMPTY. `geminitranscribe` is a shipping vendor
         // (LinuxLiveStreamingAdapters.cs:76) that drew a blank combo until CloudVendorModelIds
-        // reconciled the two spellings of its id; `grok` genuinely has no selectable model, so the
-        // combo is empty AND the selection is emptied with it, which saves null.
+        // reconciled the two spellings of its id.
         shell.Modes.CloudProvider = "geminitranscribe";
         Assert(shell.Modes.CloudModels.Contains("gemini-3.5-transcribe", StringComparer.Ordinal),
             "the geminitranscribe vendor drew an empty Cloud Model combo; its catalog is keyed "
             + "`gemini-transcribe` and CloudProviders spells it `geminitranscribe`");
         AssertCloudSelectionIsListed("changing the vendor to geminitranscribe");
-        foreach (var emptyVendor in new[] { "grok", "microsoftazurespeech", "googlespeech" })
+
+        // `grok` drew an empty combo too until 2026-09-19, because its single catalog model carried
+        // an empty id. Grok Voice Transcribe 2.0 gave xAI a real `model` parameter, so the vendor
+        // now behaves like every other one: one listed id, and that id selected.
+        shell.Modes.CloudProvider = "grok";
+        Assert(shell.Modes.CloudModels.Count == 1
+            && shell.Modes.CloudModels[0] == "grok-voice-transcribe-2.0",
+            "the grok vendor must list exactly its one catalog model; it drew "
+            + $"[{string.Join(", ", shell.Modes.CloudModels)}]");
+        Assert(shell.Modes.CloudTranscriptionModel == "grok-voice-transcribe-2.0",
+            "changing the vendor to grok did not select its only model");
+        AssertCloudSelectionIsListed("changing the vendor to grok");
+
+        foreach (var emptyVendor in new[] { "microsoftazurespeech", "googlespeech" })
         {
             shell.Modes.CloudProvider = emptyVendor;
             Assert(shell.Modes.CloudModels.Count == 0 && shell.Modes.CloudTranscriptionModel == string.Empty,
@@ -768,8 +779,8 @@ try
         await shell.Modes.RefreshAsync();
         string[][] vendorWalks =
         [
-            ["deepgram", "elevenlabs", "deepgram", "groq", "gemini", "meta", "geminitranscribe"],
-            ["elevenlabs", "deepgram", "gemini", "meta", "groq", "deepgram", "geminitranscribe"],
+            ["deepgram", "elevenlabs", "deepgram", "groq", "gemini", "meta", "geminitranscribe", "grok"],
+            ["elevenlabs", "deepgram", "gemini", "grok", "meta", "groq", "deepgram", "geminitranscribe"],
         ];
         foreach (var walk in vendorWalks)
         {
@@ -792,7 +803,7 @@ try
             // The vendors with no BYOK model empty the combo AND the selection together, so the
             // control is blank because there is nothing to show — not because a notification was
             // swallowed. Asserted as a pair, exactly as AssertCloudSelectionIsListed does.
-            foreach (var emptyVendor in new[] { "grok", "microsoftazurespeech", "googlespeech" })
+            foreach (var emptyVendor in new[] { "microsoftazurespeech", "googlespeech" })
             {
                 shell.Modes.CloudProvider = emptyVendor;
                 Assert(combo.ItemsSource.Count == 0 && combo.SelectedItem is null

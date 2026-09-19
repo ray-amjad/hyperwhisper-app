@@ -126,7 +126,7 @@ export type LatencyCell = {
  */
 export type LatencyModelRow = {
   provider: string;
-  /** Null for a provider whose endpoint takes no model id. */
+  /** Null when the client sent no model id; `modelDisplayName` resolves it. */
   model: string | null;
   label: string;
   /** The model a fresh install lands on, badged as such in the table. */
