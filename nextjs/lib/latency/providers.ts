@@ -212,28 +212,40 @@ export function vendorDisplayName(vendorKey: string): string {
 }
 
 /**
- * The catalog model one stored row names, with a blank resolved to the entry's
- * default. A null model and an empty one are the same thing.
+ * The catalog model one stored row names. A null model and an empty one are the
+ * same thing, and neither resolves: this page reports what a measurement WAS,
+ * and a row that names no model cannot be given one after the fact.
  *
- * The ingest stores null when the client sent no model, which is what a blank
- * means everywhere else in the app: take the vendor's default. Grok is why the
- * case is live. Its endpoint took no model parameter until Grok Voice
- * Transcribe 2.0 (2026-09-19), so every grok row older than that date stores
- * null — and that model IS what xAI ran for it. Resolving keeps those rows
- * under their real name instead of printing a raw provider id.
+ * Grok is why the case is live, and why resolving is wrong here. Its endpoint
+ * took no model parameter until Grok Voice Transcribe 2.0 (2026-09-19), so every
+ * grok row older than that date stores null — and those rows measured 1.0, the
+ * only model xAI then served. Resolving a blank to the entry's default would
+ * print "Grok Voice Transcribe 2" over timings taken from a model that did not
+ * exist yet, and would put a second row of that name beside the real one for as
+ * long as both sit in the retained window.
+ *
+ * This is the opposite of what a blank means on the WIRE, where
+ * `grok::resolve_model` and `hw-catalog::models::entry()` do take the default —
+ * correctly, because there the question is what to send next, not what already
+ * ran.
  */
 function resolveModel(providerId: string, modelId: string | null): CatalogModel | undefined {
   const entry = ENTRY_BY_PROVIDER.get(providerId);
-  if (!entry) return undefined;
-  const id = modelId ?? "";
-  if (id === "") return entry.models.find((model) => model.isDefault) ?? entry.models[0];
-  return entry.models.find((model) => model.id === id);
+  if (!entry || !modelId) return undefined;
+  return entry.models.find((model) => model.id === modelId);
 }
+
+/**
+ * The label a model row carries. Named from the catalog when the row names a
+ * model, and `UNREPORTED_MODEL_LABEL` when it does not — never the provider id,
+ * which read as a model name in lower case beside real ones.
+ */
+export const UNREPORTED_MODEL_LABEL = "Model not reported";
 
 /** The name the app's Model dropdown shows for one stored row's model. */
 export function modelDisplayName(providerId: string, modelId: string | null): string {
-  const id = modelId ?? "";
-  return resolveModel(providerId, id)?.displayName ?? (id === "" ? providerId : id);
+  if (!modelId) return UNREPORTED_MODEL_LABEL;
+  return resolveModel(providerId, modelId)?.displayName ?? modelId;
 }
 
 /**
@@ -262,7 +274,8 @@ export function isDefaultModel(providerId: string, modelId: string | null): bool
  * under a vendor exactly as the app's Model dropdown orders them. A pair the
  * catalog does not know sorts last, so a model the edge service starts reporting
  * before this mirror is updated appears at the bottom of its vendor instead of
- * silently taking someone else's place.
+ * silently taking someone else's place. A row that names no model sorts last for
+ * the same reason — it belongs under the named ones, not among them.
  */
 export function modelSortIndex(providerId: string, modelId: string | null): number {
   const resolved = resolveModel(providerId, modelId);

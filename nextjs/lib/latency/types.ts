@@ -126,7 +126,11 @@ export type LatencyCell = {
  */
 export type LatencyModelRow = {
   provider: string;
-  /** Null when the client sent no model id; `modelDisplayName` resolves it. */
+  /**
+   * Null when the client sent no model id. The row keeps its own place rather
+   * than folding into the entry's default — see `modelDisplayName`, which names
+   * it `Model not reported` because nothing records which model ran.
+   */
   model: string | null;
   label: string;
   /** The model a fresh install lands on, badged as such in the table. */
