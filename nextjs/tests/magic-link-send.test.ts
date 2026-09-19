@@ -26,12 +26,53 @@ const RECIPIENT = "magic-link-probe@example.com";
 const MAGIC_URL = "https://x.test/magic";
 
 /**
- * The same recipient as a phone keyboard with auto-capitalisation and a trailing
- * space would post it. Nothing between the input and `sendMagicLink` normalises:
- * `SignInClient.tsx` stores the field verbatim, better-auth's magic-link route
- * forwards `ctx.body.email` unchanged, and `z.email()` does not lowercase.
+ * A SUBDOMAINED recipient. Resend answers one of these by naming the domain it
+ * actually checked — the parent, `example.com` — not the `mail.example.com` that
+ * was submitted, so `redactAddresses` has to redact the parents too.
  */
-const MIXED_CASE_RECIPIENT = " Magic-Link-Probe@Example.COM ";
+const SUBDOMAIN_RECIPIENT = "magic-link-probe@mail.example.com";
+
+/**
+ * A recipient with no `@` at all, which leaves `redactAddresses` with an empty
+ * domain and therefore no domain candidates.
+ *
+ * NOT reachable through the route — `z.email()` rejects it (see
+ * `PADDED_RECIPIENT`). It is here for the same defence-in-depth reason the
+ * implementation guards the case: the guard it exercises is what stops an empty
+ * alternation regex from shredding the whole log line.
+ */
+const NO_DOMAIN_RECIPIENT = "magic-link-probe";
+
+/**
+ * The same recipient as a phone keyboard with auto-capitalisation would post it.
+ *
+ * This one IS reachable. Nothing between the input and `sendMagicLink`
+ * lowercases: `SignInClient.tsx` stores the field verbatim, better-auth's
+ * magic-link route forwards `ctx.body.email` unchanged, and the `z.email()` in
+ * its `signInMagicLinkBodySchema`
+ * (`better-auth/dist/plugins/magic-link/index.mjs`) validates without
+ * normalising — measured against the installed zod 4.6.2,
+ * `z.email().safeParse("Magic-Link-Probe@Example.COM")` succeeds and returns the
+ * string unchanged.
+ */
+const MIXED_CASE_RECIPIENT = "Magic-Link-Probe@Example.COM";
+
+/**
+ * The same address with surrounding whitespace. This is DEFENCE IN DEPTH, not a
+ * scenario a user reaches.
+ *
+ * An earlier version of this file claimed a phone keyboard "would post" a padded
+ * address. That is false: the same `z.email()` REJECTS padding — measured on the
+ * installed zod 4.6.2, `" Magic-Link-Probe@Example.COM "`,
+ * `"alice@example.com "` and `" alice@example.com"` all fail `safeParse`, so the
+ * route answers 400 and the callback never runs.
+ *
+ * The `.trim()` in the implementation is kept anyway, because `sendMagicLink` is
+ * a plain callback that any future caller can reach without that schema in
+ * front of it, and a padded address would otherwise hash to a digest support
+ * cannot reproduce. This test pins the trim; it does not claim a user gets here.
+ */
+const PADDED_RECIPIENT = " Magic-Link-Probe@Example.COM ";
 
 /**
  * KNOWN-ANSWER digests. Every hex below was computed outside this process and
@@ -57,6 +98,12 @@ const HASH12 = {
   recipient: "a24e076e7409",
   /** sha256(" Magic-Link-Probe@Example.COM ").slice(0, 12) — must NOT appear. */
   recipientUnnormalised: "7ffd45c49905",
+  /** sha256("Magic-Link-Probe@Example.COM").slice(0, 12) — must NOT appear. */
+  recipientUnlowercased: "737764855113",
+  /** sha256("magic-link-probe@mail.example.com").slice(0, 12). */
+  subdomainRecipient: "75e47db778cd",
+  /** sha256("magic-link-probe").slice(0, 12) — the no-`@` recipient. */
+  noDomainRecipient: "df764bd733cf",
 } as const;
 
 interface SendPayload {
@@ -304,20 +351,22 @@ test("a Resend message that echoes the recipient still reaches the log with no a
   );
 });
 
-test("the logged hash is of the NORMALISED address, and the envelope is not rewritten", async () => {
+const RATE_LIMIT_ERROR = {
+  name: "rate_limit_exceeded",
+  statusCode: 429,
+  message: "Slow down",
+};
+
+test("the logged hash is of the LOWERCASED address, and the envelope is not rewritten", async () => {
   const sendMagicLink = await loadSendMagicLink();
 
   sendCalls.length = 0;
   logLines.length = 0;
-  behaviour.result = {
-    data: null,
-    error: {
-      name: "rate_limit_exceeded",
-      statusCode: 429,
-      message: "Slow down",
-    },
-  };
+  behaviour.result = { data: null, error: RATE_LIMIT_ERROR };
 
+  // The reachable case: a phone keyboard's auto-capitalisation. `z.email()`
+  // accepts this exact string and passes it through unchanged, so it really
+  // does arrive at the callback.
   await assert.rejects(() =>
     sendMagicLink({ email: MIXED_CASE_RECIPIENT, url: MAGIC_URL }),
   );
@@ -325,18 +374,276 @@ test("the logged hash is of the NORMALISED address, and the envelope is not rewr
   const line = logLines[0];
 
   // Support has to be able to reproduce the digest from the address the user
-  // reports. Padding and capitalisation must therefore fall out before the
-  // hash, or one incident reads as two users.
+  // reports, so capitalisation must fall out before the hash or one incident
+  // reads as two users.
   assert.match(line, new RegExp(`recipientHash=${HASH12.recipient}\\b`));
   assert.ok(
-    !line.includes(HASH12.recipientUnnormalised),
-    `the hash must not be of the raw, unnormalised address: ${line}`,
+    !line.includes(HASH12.recipientUnlowercased),
+    `the hash must not be of the as-typed, mixed-case address: ${line}`,
   );
 
   // Normalisation is for the hash and the redaction only. An email local-part
   // is case-sensitive per RFC 5321, so the envelope keeps the address as given.
   assert.equal(sendCalls.length, 1);
   assert.equal(sendCalls[0].to, MIXED_CASE_RECIPIENT);
+});
+
+test("defence in depth: a padded address the route would reject still hashes normalised", async () => {
+  const sendMagicLink = await loadSendMagicLink();
+
+  sendCalls.length = 0;
+  logLines.length = 0;
+  behaviour.result = { data: null, error: RATE_LIMIT_ERROR };
+
+  // NOT a user-reachable input — `z.email()` rejects the padding and the route
+  // answers 400 before this callback runs (see PADDED_RECIPIENT). This pins the
+  // implementation's `.trim()` for a future caller that reaches `sendMagicLink`
+  // without that schema in front of it, and nothing more than that.
+  await assert.rejects(() =>
+    sendMagicLink({ email: PADDED_RECIPIENT, url: MAGIC_URL }),
+  );
+
+  const line = logLines[0];
+
+  assert.match(line, new RegExp(`recipientHash=${HASH12.recipient}\\b`));
+  assert.ok(
+    !line.includes(HASH12.recipientUnnormalised),
+    `the hash must not be of the raw, padded address: ${line}`,
+  );
+  assert.equal(sendCalls[0].to, PADDED_RECIPIENT);
+});
+
+test("a message that STARTS with the address is redacted without eating the message= key", async () => {
+  const sendMagicLink = await loadSendMagicLink();
+
+  sendCalls.length = 0;
+  logLines.length = 0;
+  behaviour.result = {
+    data: null,
+    error: {
+      name: "validation_error",
+      statusCode: 422,
+      // Resend's text begins with the address, which is the shape that broke
+      // the first version of the redaction: `/\S+@\S+/g` matched leftwards
+      // across the `=` and took `message=` with it, leaving a line no operator
+      // and no log parser could grep for the reason a send failed.
+      message: `${RECIPIENT} is not a valid recipient`,
+    },
+  };
+
+  await assert.rejects(() =>
+    sendMagicLink({ email: RECIPIENT, url: MAGIC_URL }),
+  );
+
+  assert.equal(
+    logLines.length,
+    1,
+    `expected one log line, got ${logLines.length}`,
+  );
+  const line = logLines[0];
+
+  // Both halves, in one assertion: the key survived AND the redaction fired at
+  // exactly the position the key introduces.
+  assert.ok(
+    line.includes("message=[redacted] is not a valid recipient"),
+    `the message= key must survive the redaction of a leading address: ${line}`,
+  );
+  // The key on its own, stated separately, because that is what a log parser
+  // greps for and what the regex used to destroy.
+  assert.ok(
+    line.includes("message="),
+    `the structured message= key must still be present: ${line}`,
+  );
+  // And the whole point of the redaction still holds.
+  assert.ok(
+    !line.includes(RECIPIENT),
+    `the recipient must not survive into the log line: ${line}`,
+  );
+  assert.ok(
+    !line.includes("@"),
+    `nothing address-shaped may survive into the log line: ${line}`,
+  );
+  // The other keys are unharmed too.
+  assert.match(line, /name=validation_error/);
+  assert.match(line, /statusCode=422/);
+  assert.match(line, new RegExp(`recipientHash=${HASH12.recipient}\\b`));
+});
+
+test("a bare PARENT domain of a subdomained recipient is redacted, and short labels are not", async () => {
+  const sendMagicLink = await loadSendMagicLink();
+
+  sendCalls.length = 0;
+  logLines.length = 0;
+  behaviour.result = {
+    data: null,
+    error: {
+      name: "validation_error",
+      statusCode: 422,
+      // No `@` anywhere, so the address pass cannot help: Resend names the
+      // domain it actually checked, which is the PARENT of the submitted
+      // `mail.example.com`. The word "recommended" is deliberate — it contains
+      // the bare label `com`, so it also pins the label floor. If the floor
+      // dropped to one label, `com` would be redacted out of ordinary provider
+      // prose and this would read `re[redacted]mended`.
+      message:
+        "The example.com domain is not verified. Verifying a domain is recommended before you send.",
+    },
+  };
+
+  await assert.rejects(() =>
+    sendMagicLink({ email: SUBDOMAIN_RECIPIENT, url: MAGIC_URL }),
+  );
+
+  assert.equal(
+    logLines.length,
+    1,
+    `expected one log line, got ${logLines.length}`,
+  );
+  const line = logLines[0];
+
+  // The parent domain is gone — which also covers the submitted
+  // `mail.example.com`, since that contains it.
+  assert.ok(
+    !line.includes("example.com"),
+    `a bare parent domain of the recipient must not survive: ${line}`,
+  );
+  assert.ok(
+    line.includes("The [redacted] domain is not verified"),
+    `the prose around the redacted domain must survive: ${line}`,
+  );
+
+  // The label floor: an ordinary word that happens to contain a bare TLD is not
+  // shredded.
+  assert.ok(
+    line.includes("recommended"),
+    `a 1-label candidate must not be redacted out of provider prose: ${line}`,
+  );
+
+  assert.match(
+    line,
+    new RegExp(`recipientHash=${HASH12.subdomainRecipient}\\b`),
+  );
+});
+
+test("statusCode=null is distinguished from a missing or wrong-typed statusCode", async () => {
+  const sendMagicLink = await loadSendMagicLink();
+
+  sendCalls.length = 0;
+  logLines.length = 0;
+  behaviour.result = {
+    data: null,
+    error: {
+      // Resend's own network-failure path: the `catch` around `fetch` in
+      // `resend/dist/index.mjs` sets exactly this shape, and the SDK types
+      // `statusCode` as `number | null`.
+      name: "application_error",
+      statusCode: null,
+      message: "Unable to fetch data. The request could not be resolved.",
+    },
+  };
+
+  await assert.rejects(() =>
+    sendMagicLink({ email: RECIPIENT, url: MAGIC_URL }),
+  );
+
+  const line = logLines[0];
+
+  // "the request never left the box", not "Resend sent something this code does
+  // not understand". Collapsing the two makes an unreachable provider
+  // indistinguishable from a malformed error to whoever is on call.
+  assert.ok(
+    line.includes("statusCode=null"),
+    `an explicit null statusCode must log as null: ${line}`,
+  );
+  assert.ok(
+    !line.includes("statusCode=unknown"),
+    `null must not collapse into the unknown default: ${line}`,
+  );
+  assert.match(line, /name=application_error/);
+});
+
+test("a non-object Resend error still rejects and logs with the fallback fields", async () => {
+  const sendMagicLink = await loadSendMagicLink();
+
+  sendCalls.length = 0;
+  logLines.length = 0;
+  // Not an object at all, so every `in` narrowing in `resendErrorFieldsOf`
+  // would throw `Cannot use 'in' operator` without the typeof guard — taking
+  // the log line and the APIError with it and rejecting with a TypeError
+  // instead.
+  behaviour.result = { data: null, error: "boom" };
+
+  await assert.rejects(
+    () => sendMagicLink({ email: RECIPIENT, url: MAGIC_URL }),
+    (err: unknown) => {
+      assert.ok(err instanceof Error);
+      assert.equal(err.name, "APIError", "throws better-auth's APIError");
+      return true;
+    },
+  );
+
+  assert.equal(
+    logLines.length,
+    1,
+    `expected one log line, got ${logLines.length}`,
+  );
+  const line = logLines[0];
+
+  assert.ok(
+    line.includes("name=unknown statusCode=unknown"),
+    `both fallbacks must appear for a non-object error: ${line}`,
+  );
+  assert.ok(
+    line.endsWith("message="),
+    `the message fallback is the empty string: ${line}`,
+  );
+  assert.match(line, new RegExp(`recipientHash=${HASH12.recipient}\\b`));
+});
+
+test("a recipient with no domain leaves the log line intact", async () => {
+  const sendMagicLink = await loadSendMagicLink();
+
+  sendCalls.length = 0;
+  logLines.length = 0;
+  behaviour.result = {
+    data: null,
+    error: {
+      name: "validation_error",
+      statusCode: 422,
+      message: "Invalid to field. The recipient is not an email address.",
+    },
+  };
+
+  // Not reachable through the route (`z.email()` rejects it), but it is what
+  // exercises the empty-candidate guard in `redactAddresses`. Without that
+  // guard the domain pass builds an empty alternation, and a global empty
+  // pattern makes `String.replace` insert the replacement between EVERY
+  // character of the line — so the diagnostics are destroyed rather than
+  // redacted.
+  await assert.rejects(() =>
+    sendMagicLink({ email: NO_DOMAIN_RECIPIENT, url: MAGIC_URL }),
+  );
+
+  const line = logLines[0];
+
+  assert.match(
+    line,
+    /^sendMagicLink failed: resend error name=validation_error/,
+  );
+  assert.ok(
+    line.includes(
+      "message=Invalid to field. The recipient is not an email address.",
+    ),
+    `the whole message must survive verbatim: ${line}`,
+  );
+  assert.ok(
+    !line.includes("[redacted]"),
+    `there is nothing to redact here, so nothing may be redacted: ${line}`,
+  );
+  assert.match(
+    line,
+    new RegExp(`recipientHash=${HASH12.noDomainRecipient}\\b`),
+  );
 });
 
 test("sha256Hex is a pure digest: no trim, no lowercase, no normalisation", () => {
