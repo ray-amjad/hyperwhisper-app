@@ -74,20 +74,90 @@ function resendErrorFieldsOf(error: unknown): {
 const REDACTED = "[redacted]";
 
 /**
- * Anything with an `@` between two runs of non-space characters.
+ * Anything holding an `@`, out to the surrounding whitespace — but never across
+ * a `=`.
  *
- * Deliberately greedy and imprecise. The job is not to parse an address
- * correctly, it is to make sure nothing address-shaped survives: over-redacting
- * a log line is harmless, under-redacting is the bug (#736 forbids the address).
+ * Deliberately greedy on the right and imprecise. The job is not to parse an
+ * address correctly, it is to make sure nothing address-shaped survives:
+ * over-redacting a log line is harmless, under-redacting is the bug (#736
+ * forbids the address).
+ *
+ * The left side stops at `=`, and that is not cosmetic. This runs over the
+ * WHOLE assembled `key=value` line, so a `\S+` left side swallowed the KEY
+ * whenever Resend's text STARTED with the address:
+ *
+ *   message=alice@corp.com is not a valid recipient
+ *        -> [redacted] is not a valid recipient
+ *
+ * `message=` was gone, so an operator or a log parser grepping `message=` for
+ * the reason a send failed found nothing, and `name=` was exposed to the same
+ * loss whenever Resend's error name was address-shaped. The structured shape of
+ * this line is the point of it; the redaction must not eat the structure.
+ *
+ * The left side is `*` rather than `+`, and the right side `\S*` rather than
+ * `\S+`, so a bare `@` and an `@` with nothing before it are matched too. Every
+ * `@` in the line is therefore inside some match, which is what makes "no `@`
+ * survives" a property of the pattern instead of a property of the wordings we
+ * happened to test.
+ *
+ * The cost of excluding `=`: an address whose LOCAL-PART contains a `=` (legal
+ * per RFC 5322) leaves the text up to its last `=` behind, so `a=b@corp.com`
+ * redacts to `a=[redacted]`. What survives is a fragment of a local part, which
+ * this function already declines to redact on its own — see below.
  */
-const ADDRESS_SHAPED = /\S+@\S+/g;
+const ADDRESS_SHAPED = /[^\s=]*@\S*/g;
 
 function escapeForRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
- * Strip every trace of an email address out of a finished log line.
+ * The fewest dot-separated labels a domain candidate may have before it is
+ * allowed to be redacted out of provider prose.
+ *
+ * 2 is chosen deliberately. Every candidate with 2 or more labels contains a
+ * `.`, so it cannot collide with an ordinary word in Resend's message. At 1
+ * label the candidate is a bare TLD or hostname — `com`, `io`, `mail` — and
+ * replacing that would shred the only field that usually says what actually
+ * failed, which is a worse outcome than the leak it prevents.
+ *
+ * This floor deliberately does NOT try to find the registrable domain.
+ * `alice@corp.co.uk` yields `corp.co.uk` AND `co.uk`, so a message naming
+ * `co.uk` on its own is over-redacted. That is the harmless direction, and a
+ * public-suffix list is a dependency this fix will not add.
+ */
+const MIN_DOMAIN_LABELS = 2;
+
+/**
+ * The recipient's own domain plus every parent of it at or above the label
+ * floor, longest first.
+ *
+ * The parents are the fix for a subdomained recipient. Resend answers by naming
+ * the domain it actually checked rather than the one that was submitted: for
+ * `alice@mail.corp.com` the reply is "The corp.com domain is not verified.",
+ * which carries no `@` for the pass above to catch and is not the literal
+ * `mail.corp.com` an exact-match pass searches for. That bare-domain shape is
+ * one of the two `redactAddresses` exists to handle, and it used to survive
+ * verbatim.
+ *
+ * Longest first, because the alternation built from this list takes the first
+ * branch that matches at a position — so the full domain wins and no `mail.`
+ * is left stranded in front of a redaction.
+ */
+function domainCandidatesOf(recipientDomain: string): string[] {
+  const labels = recipientDomain.split(".");
+  const candidates: string[] = [];
+
+  for (let i = 0; labels.length - i >= MIN_DOMAIN_LABELS; i += 1) {
+    candidates.push(labels.slice(i).join("."));
+  }
+
+  return candidates;
+}
+
+/**
+ * Strip email addresses, and the recipient's own domain, out of a finished log
+ * line.
  *
  * Applied to the WHOLE assembled line rather than to one field, so "the
  * recipient reaches this log only as a hash" is a property of the mechanism and
@@ -96,20 +166,41 @@ function escapeForRegExp(value: string): string {
  * Two passes, because Resend's text carries either shape:
  *   - a full address — a real `validation_error` echoes the rejected recipient
  *     ("... alice@corp.com is not a valid recipient");
- *   - a bare domain — "the domain corp.com is not verified".
+ *   - a bare domain — "the corp.com domain is not verified".
  *
- * The recipient's LOCAL-PART is deliberately NOT redacted on its own. It does
- * not identify anybody without a domain, and a short or common one ("a", "me",
- * "info") would shred the surrounding message — the only field that usually
- * says what actually failed.
+ * What this GUARANTEES, for any input:
+ *   - no `@` survives anywhere in the returned line;
+ *   - neither the recipient's domain nor any parent of it down to the label
+ *     floor survives, in any case, whether or not it arrived attached to an `@`;
+ *   - the `key=` tokens of this line's own format survive, so the line stays
+ *     greppable.
+ *
+ * What it does NOT guarantee, and cannot: Resend owns the `message` text, so it
+ * may name the recipient in a form no pattern here matches — the local part on
+ * its own ("the user alice is blocked"), a percent-encoded address
+ * (`alice%40corp.com`), an address written with spaces around its `@`, or some
+ * other identifier entirely. **Complete redaction of provider prose is not
+ * achievable from this side**, and this comment deliberately does not claim it.
+ * The guarantees above are what the two passes actually deliver.
+ *
+ * The recipient's LOCAL-PART is deliberately NOT redacted on its own either. It
+ * does not identify anybody without a domain, and a short or common one ("a",
+ * "me", "info") would shred the surrounding message.
  */
 function redactAddresses(line: string, recipientDomain: string): string {
   const withoutAddresses = line.replace(ADDRESS_SHAPED, REDACTED);
 
-  if (recipientDomain.length === 0) return withoutAddresses;
+  const candidates = domainCandidatesOf(recipientDomain);
+
+  // No candidate at all: an empty domain (a recipient with no `@`) or a
+  // single-label one. The early return is load-bearing, not tidiness — joining
+  // an empty list gives an empty pattern, and a global empty pattern makes
+  // `String.replace` insert the replacement between every character of the
+  // line.
+  if (candidates.length === 0) return withoutAddresses;
 
   return withoutAddresses.replace(
-    new RegExp(escapeForRegExp(recipientDomain), "gi"),
+    new RegExp(candidates.map(escapeForRegExp).join("|"), "gi"),
     REDACTED,
   );
 }
@@ -238,10 +329,26 @@ export const auth = betterAuth({
           // address itself" true of the mechanism instead of true only of the
           // wordings we happened to test.
           //
-          // "One line" is this callback's own record, and it is also all the
-          // request emits — see the throw below for the measurement. Nothing
-          // else on this path logs: `betterAuth()` here configures neither
-          // `logger` nor `onAPIError`.
+          // Exactly ONE record comes from this callback. In PRODUCTION it is
+          // also all the request emits: `betterAuth()` here configures neither
+          // `logger` nor `onAPIError`, and the `APIError` thrown below becomes
+          // the response before better-auth's and better-call's error handlers
+          // exist to log it — see the measurement at the throw.
+          //
+          // In a NON-production build there is a SECOND record, it is not
+          // redacted, and it lands before this one. The Resend SDK logs every
+          // failed send itself: `console.error("[Resend API Error]:", { status,
+          // error, path })` in `resend/dist/index.mjs` (`logError`), gated only
+          // on `process.env.NODE_ENV !== "production"`. So under `next dev` a
+          // `validation_error` whose message echoes the recipient prints the
+          // address in the clear whatever this line does.
+          //
+          // That log is deliberately NOT suppressed here. It never fires in
+          // production, it is pre-existing at all five `resend.emails.send` call
+          // sites (four of them in `lib/services/email.ts`, untouched by #736),
+          // and the SDK exposes no logger hook at that line — so quieting it
+          // means wrapping or muting the client app-wide. That belongs to #717,
+          // which owns plaintext addresses in logs across every call site.
           console.error(
             redactAddresses(
               `sendMagicLink failed: resend error name=${name} statusCode=${statusCode} recipientHash=${sha256Hex(
