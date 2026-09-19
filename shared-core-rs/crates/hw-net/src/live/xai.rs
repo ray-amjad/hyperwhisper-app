@@ -34,6 +34,12 @@ pub(super) fn connect(config: &LiveConfig) -> Result<LiveConnect, LiveError> {
     let api_key = super::config::present(&config.api_key).ok_or(LiveError::MissingCredential)?;
 
     let mut query = Query::default();
+    // Same pin as the batch builder: xAI defaults the socket to its newest
+    // model, so an unpinned session would change model without a release.
+    query.push(
+        "model",
+        crate::providers::grok::resolve_model(config.model.as_deref().unwrap_or_default()),
+    );
     query.push_literal("sample_rate=16000");
     query.push_literal("encoding=pcm");
     query.push_literal("interim_results=true");

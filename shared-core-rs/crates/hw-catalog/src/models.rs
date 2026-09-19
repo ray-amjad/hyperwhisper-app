@@ -210,6 +210,20 @@ impl ModelsCatalog {
         if let Some(exact) = self.get(provider, kind, id) {
             return Some(exact);
         }
+        // An empty id means "no model recorded", not "a model called empty".
+        // Every Grok mode saved before xAI exposed a `model` parameter carries
+        // one, and until 2026-09-19 it hit an empty-id row here. Resolve it the
+        // way the request path does — to the cloud-STT catalog default — but
+        // ONLY for a provider that really shipped a blank id. Every other
+        // provider always named its model, so a blank there is corrupt data and
+        // guessing at it would hide the fault.
+        if id.is_empty() {
+            if let Some(default_id) = legacy_blank_id_target(provider, kind) {
+                if let Some(hit) = self.get(provider, kind, default_id) {
+                    return Some(hit);
+                }
+            }
+        }
         self.get(provider, kind, "*")
     }
 
@@ -274,6 +288,37 @@ impl ModelsCatalog {
             supports_all: true,
         }
     }
+}
+
+/// Providers that once had NO model parameter at all, so a user's stored model
+/// id can legitimately be the empty string. Grok is the only one: `/v1/stt`
+/// took no `model` until 2026-09-19, and xAI served exactly one model, which
+/// was Grok Voice Transcribe 1. Adding the 1.0 row to the catalog means the
+/// blank can no longer be resolved by "the provider has one row", so it is
+/// resolved explicitly here instead.
+const LEGACY_BLANK_MODEL_PROVIDERS: &[(&str, Kind)] = &[("grok", Kind::Voice)];
+
+/// The id a legacy blank resolves to: the cloud-STT catalog's default model for
+/// that provider. It is read rather than hard-coded so this cannot drift from
+/// `grok::resolve_model`, which sends the same default on the wire. A blank
+/// therefore lands on Grok Voice Transcribe 2, NOT on the 1 the mode really
+/// ran — the question a read path answers is what the request will send next.
+fn legacy_blank_id_target(provider: &str, kind: Kind) -> Option<&'static str> {
+    if !LEGACY_BLANK_MODEL_PROVIDERS
+        .iter()
+        .any(|(p, k)| *p == provider && *k == kind)
+    {
+        return None;
+    }
+    static CLOUD_STT: std::sync::OnceLock<Option<crate::cloud_stt::CloudSttCatalog>> =
+        std::sync::OnceLock::new();
+    CLOUD_STT
+        .get_or_init(|| crate::cloud_stt::CloudSttCatalog::embedded().ok())
+        .as_ref()?
+        .providers()
+        .iter()
+        .find(|entry| entry.stt_provider.as_deref() == Some(provider))
+        .and_then(|entry| entry.default_model_id())
 }
 
 #[cfg(test)]
@@ -352,13 +397,57 @@ mod tests {
     }
 
     #[test]
-    fn empty_string_id_matches_grok_implicit_model() {
+    fn empty_string_id_resolves_to_groks_default_voice_row() {
         let c = catalog();
-        // Grok voice uses id == "" (xAI's single implicit model). It is NOT the
-        // wildcard "*", so an empty-id lookup must hit it exactly.
-        let e = c.entry("grok", Kind::Voice, "").expect("empty-id row exists");
-        assert_eq!(e.id, "");
+        // Grok voice carried id == "" until xAI exposed a `model` parameter on
+        // 2026-09-19. Modes saved before that still store the empty id, so it
+        // must keep resolving — through the legacy-blank rule, not through an
+        // exact hit and not through the wildcard "*". Grok has TWO voice rows
+        // now, so "the provider's only row" is no longer an answer.
+        let e = c
+            .entry("grok", Kind::Voice, "")
+            .expect("the empty id resolves to Grok's default voice row");
+        assert_eq!(e.id, "grok-voice-transcribe-2.0");
         assert!(e.available_via_hyper_whisper_cloud);
+        assert!(e.supports_custom_vocabulary);
+    }
+
+    #[test]
+    fn the_legacy_blank_target_is_the_cloud_stt_default_not_a_copy_of_it() {
+        // The blank must follow the catalog. If someone moves `isDefault` to
+        // another Grok model, this test moves with it and no second copy of the
+        // default is left behind to rot.
+        let stt = crate::cloud_stt::CloudSttCatalog::embedded().expect("cloud-stt catalog parses");
+        let expected = stt
+            .entry("grokStt")
+            .and_then(|e| e.default_model_id())
+            .expect("grokStt names a default model");
+        assert_eq!(
+            catalog()
+                .entry("grok", Kind::Voice, "")
+                .map(|e| e.id.as_str()),
+            Some(expected)
+        );
+    }
+
+    #[test]
+    fn an_empty_id_stays_unresolved_for_a_provider_that_never_shipped_one() {
+        let c = catalog();
+        // openai always named its model, so a blank there is corrupt data, not
+        // a legacy value. The fallback must not guess at it.
+        assert!(c.entry("openai", Kind::Voice, "").is_none());
+    }
+
+    #[test]
+    fn grok_offers_both_transcribe_rows() {
+        let c = catalog();
+        for id in ["grok-voice-transcribe-1.0", "grok-voice-transcribe-2.0"] {
+            let e = c
+                .entry("grok", Kind::Voice, id)
+                .unwrap_or_else(|| panic!("{id} is catalogued"));
+            assert!(e.supports_custom_vocabulary, "{id} takes keyterms");
+            assert!(e.available_via_hyper_whisper_cloud, "{id} is cloud-routed");
+        }
     }
 
     // --- Golden: language support yes/no -------------------------------------

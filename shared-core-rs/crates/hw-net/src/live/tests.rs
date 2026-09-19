@@ -1385,7 +1385,7 @@ fn xai_connect_filters_the_language_through_the_batch_support_set() {
     let connect = LiveSession::new(config.clone()).connect().expect("connect");
     assert_eq!(
         connect.url,
-        "wss://api.x.ai/v1/stt?sample_rate=16000&encoding=pcm&interim_results=true&endpointing=300"
+        "wss://api.x.ai/v1/stt?model=grok-voice-transcribe-2.0&sample_rate=16000&encoding=pcm&interim_results=true&endpointing=300"
     );
     assert_eq!(
         header_of(&connect, "Authorization").as_deref(),
@@ -1404,6 +1404,34 @@ fn xai_connect_filters_the_language_through_the_batch_support_set() {
     assert!(
         url.ends_with("&endpointing=300"),
         "an unsupported code means omit the parameter: {url}"
+    );
+}
+
+/// The socket is pinned the same way the batch builder is: a session started
+/// from a mode saved before xAI exposed `model` still names the model, and a
+/// caller that does name one is honoured.
+#[test]
+fn xai_connect_pins_the_model_and_honours_an_explicit_one() {
+    let mut config = LiveConfig::new(LiveProvider::Grok);
+    config.api_key = Some("test-key".to_string());
+
+    for blank in [None, Some(String::new()), Some("  ".to_string())] {
+        config.model = blank.clone();
+        let url = LiveSession::new(config.clone())
+            .connect()
+            .expect("connect")
+            .url;
+        assert!(
+            url.contains("model=grok-voice-transcribe-2.0"),
+            "blank model must pin the catalog default (model={blank:?}): {url}"
+        );
+    }
+
+    config.model = Some("grok-voice-transcribe-1.0".to_string());
+    let url = LiveSession::new(config).connect().expect("connect").url;
+    assert!(
+        url.contains("model=grok-voice-transcribe-1.0"),
+        "an explicit model must reach the wire: {url}"
     );
 }
 

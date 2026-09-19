@@ -100,8 +100,9 @@ void CheckEntries()
         SequenceEqual(Strings(want, "legacyCloudProviderAliases"), got.@legacyCloudProviderAliases,
             $"{id}.legacyCloudProviderAliases");
 
-        // An empty string is a real default model id (Grok); it must not
-        // collapse into null, which is what an unknown provider returns.
+        // An empty string is a real default model id; it must not collapse into
+        // null, which is what an unknown provider returns. No shipped entry
+        // spells one that way since Grok gained a model id on 2026-09-19.
         Equal(Str(want, "defaultModelId"), HyperwhisperCoreMethods.CloudSttDefaultModelId(id),
             $"{id}.defaultModelId");
 

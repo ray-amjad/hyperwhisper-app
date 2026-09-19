@@ -1726,11 +1726,11 @@ static async Task ApplicationBackendForeignCloudModel()
         // `wire == DefaultFor(engine)` alone would be tautological — the guard
         // and the assertion would call the same function. This second check is
         // the independent one: whatever the guard chose has to pass the
-        // membership test for the provider the caller asked for. Grok is the one
-        // exemption, and it is not a hole: its catalogued model id IS the empty
-        // string, which is the "this vendor takes no model parameter" case.
-        Assert(wire.Length == 0
-            || ModeAwareTranscriptionRouter.TryMapProvider(engine, out var target)
+        // membership test for the provider the caller asked for. Grok was
+        // exempt until 2026-09-19, because its catalogued model id WAS the empty
+        // string; Grok Voice Transcribe 2.0 gave it a real one, so no vendor in
+        // this loop is exempt any more.
+        Assert(ModeAwareTranscriptionRouter.TryMapProvider(engine, out var target)
                 && ModeAwareTranscriptionRouter.CloudModelBelongsToProvider(target, wire),
             $"engine '{engine}' fell back to '{wire}', which is not one of its own models");
         Assert(label == wire, $"engine '{engine}' reported '{label}' but dispatched '{wire}'");

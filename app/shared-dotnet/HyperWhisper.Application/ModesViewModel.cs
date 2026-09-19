@@ -296,11 +296,12 @@ public sealed class ModesViewModel : ViewModelBase
     /// same pair of spellings is already reconciled at ProviderAssets.cs:58/:62 and
     /// SettingsViewModel.cs:590; this adds no model id and changes no catalog.
     ///
-    /// Three vendor ids still return nothing, and correctly so: <c>grok</c>'s single catalog model
-    /// carries an empty id, because the model is implicit in an xAI request; <c>microsoftazurespeech</c>
-    /// resolves to <c>azure-mai</c>, which the catalog does not mark <c>byokEligible</c>; and
-    /// <c>googlespeech</c> has no catalog vendor at all. <see cref="NormalizeCloudModel"/> empties
-    /// the selection to match, so Save writes null — which is what an implicit model means.
+    /// Two vendor ids still return nothing, and correctly so:
+    /// <c>microsoftazurespeech</c> resolves to <c>azure-mai</c>, which the catalog does not mark
+    /// <c>byokEligible</c>; and <c>googlespeech</c> has no catalog vendor at all.
+    /// <see cref="NormalizeCloudModel"/> empties the selection to match, so Save writes null —
+    /// which is what an implicit model means. <c>grok</c> was a third until 2026-09-19: its single
+    /// catalog model carried an empty id, because an xAI request named no model.
     /// </summary>
     private static IReadOnlyList<string> CloudVendorModelIds(string vendor)
         => [.. HyperWhisper.ModelReadiness.CloudSttModelCatalog

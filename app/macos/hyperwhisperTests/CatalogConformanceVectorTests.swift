@@ -201,8 +201,9 @@ struct CatalogConformanceVectorTests {
                 "\(id).legacyCloudProviderAliases"
             )
 
-            // "" is a real default model id (Grok's single implicit model); it
-            // must not collapse into nil, which is what an unknown id returns.
+            // "" is a real default model id; it must not collapse into nil,
+            // which is what an unknown id returns. No shipped entry spells one
+            // that way since Grok gained a model id on 2026-09-19.
             #expect(cloudSttDefaultModelId(id: id) == want.defaultModelId, "\(id).defaultModelId")
 
             #expect(got.models.count == want.models.count, "\(id).models count")

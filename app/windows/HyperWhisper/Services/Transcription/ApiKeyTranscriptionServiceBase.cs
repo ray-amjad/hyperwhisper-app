@@ -123,9 +123,10 @@ public abstract class ApiKeyTranscriptionServiceBase : ITranscriptionProvider, I
             // site and throws ApiKeyMissing on a null or empty key. The flow
             // analysis that gives at the call site does not reach in here.
             apiKey: ApiKey!,
-            // Grok STT has no model parameter. It never writes ModelId, so its
-            // value stays the base default of "" — the same empty string the
-            // core's own `model` default carries.
+            // An empty ModelId is not "send no model": every provider builder in
+            // the core resolves a blank id to that provider's catalog default.
+            // Grok relied on the other reading until 2026-09-19, when xAI gave
+            // `/v1/stt` a `model` parameter.
             model: ModelId,
             prompt: prompt);
     }

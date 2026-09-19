@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 12,
-  "updated": "2026-09-17",
+  "updated": "2026-09-19",
   "providers": [
     {
       "id": "groqWhisper",
@@ -93,13 +93,14 @@
     {
       "id": "grokStt",
       "displayName": "Grok STT",
-      "displayModel": "grok-stt",
+      "displayModel": "grok-voice-transcribe-2.0",
       "vendor": "xai",
       "vendorDisplayName": "SpaceXAI",
       "sttProvider": "grok",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "", "displayName": "Grok Speech-to-Text", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "grok-voice-transcribe-2.0", "displayName": "Grok Voice Transcribe 2", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "grok-voice-transcribe-1.0", "displayName": "Grok Voice Transcribe 1", "creditsPerMinute": 1.67, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
       "migrateFrom": ["grok", "grokstt"],
@@ -122,10 +123,12 @@
       "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
       "regionalRouting": "Single global endpoint (`https://api.x.ai/v1/stt`); SpaceXAI hosts in `us-east-1` but no per-region routing exposed.",
       "previewStatus": false,
+      "notes": "`/v1/stt` now takes a `model` parameter (it did not when this entry was written, which is why the single model row carried an empty id until 2026-09-19). Upstream accepts `grok-voice-transcribe-2.0` and `grok-voice-transcribe-1.0` and defaults to 2.0; we send the selected id explicitly, so an upstream default change cannot move a user's model without a release. Both rows are listed because 1.0 is what every pre-2026-09-19 Grok mode actually ran — it was the only model xAI served — and dropping it would have silently upgraded those users. WARNING: xAI's own announcement says 1.0 `will be deprecated in the coming weeks`, and that 2.0 is `twice as accurate as Grok Voice Transcribe 1.0, at the same price`. When upstream retires 1.0, delete the row and add `grok-voice-transcribe-1.0` to `migrateFrom` so a pinned mode folds onto 2.0 instead of erroring.",
       "sources": [
         "https://docs.x.ai/developers/model-capabilities/audio/speech-to-text",
         "https://docs.x.ai/developers/models/speech-to-text",
-        "https://x.ai/news/grok-stt-and-tts-apis"
+        "https://x.ai/news/grok-stt-and-tts-apis",
+        "https://x.ai/news/grok-voice-transcribe-2"
       ]
     },
 

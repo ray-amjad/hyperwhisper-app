@@ -35,7 +35,7 @@ export const sttLatencySamples = pgTable(
     // (AssemblyAI's sync path runs universal-3-5-pro whatever was requested, so
     // this matches the X-STT-Model the caller got back), while a failed attempt
     // stores the model it was ATTEMPTED with, since no model ever ran. Null when
-    // the provider takes no model id.
+    // the client sent no model id, which every grok row before 2026-09-19 did.
     //
     // Read by the public page's "Break down by model" rows: src/content/latency.ts
     // aggregates the same window at two levels in one pass, by vendor and by

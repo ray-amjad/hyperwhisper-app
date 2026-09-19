@@ -6172,18 +6172,34 @@ internal static class Program
 
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
             {
-                // Grok's API takes no `model` parameter, so its single registry
-                // entry is stored under the empty id. The Model row is now a
-                // one-item dropdown like every other provider's, so that id has
-                // to resolve or the description, the price and the mode card's
+                // Grok's registry entry was stored under the empty id until xAI
+                // gave /v1/stt a `model` parameter on 2026-09-19. Every mode
+                // saved before that still carries the empty id, so it has to
+                // resolve or the description, the price and the mode card's
                 // model name all render blank.
                 var grok = CloudTranscriptionModels.GetById("", CloudTranscriptionProvider.Grok);
                 Assert(grok != null, "GetById(\"\", Grok) returned null — the Grok Model row would render blank");
-                Assert(grok!.DisplayName == "Grok Speech-to-Text", $"got '{grok.DisplayName}'");
+                Assert(grok!.Id == "grok-voice-transcribe-2.0", $"got '{grok.Id}'");
+                Assert(grok.DisplayName == "Grok Voice Transcribe 2", $"got '{grok.DisplayName}'");
                 Assert(!string.IsNullOrEmpty(grok.Description), "Grok entry has no description to show");
 
-                // Unscoped, "" stays ambiguous: any provider left without a model
-                // would otherwise resolve to Grok.
+                // The rule is "the provider's default", not "the first row" —
+                // a multi-model provider is what makes that testable.
+                foreach (var provider in new[]
+                {
+                    CloudTranscriptionProvider.Grok,
+                    CloudTranscriptionProvider.OpenAI,
+                    CloudTranscriptionProvider.Deepgram,
+                    CloudTranscriptionProvider.AssemblyAI
+                })
+                {
+                    var resolved = CloudTranscriptionModels.GetById("", provider);
+                    Assert(resolved?.Id == CloudTranscriptionModels.GetDefault(provider)?.Id,
+                        $"{provider}: the empty-id lookup did not land on its default model");
+                }
+
+                // Unscoped, "" stays ambiguous: it names no provider, so there
+                // is nothing to default to.
                 Assert(CloudTranscriptionModels.GetById("") == null, "unscoped GetById(\"\") must stay null");
             });
 
