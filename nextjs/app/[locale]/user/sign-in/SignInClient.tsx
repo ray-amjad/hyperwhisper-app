@@ -136,8 +136,16 @@ export default function SignInClient() {
   // that would have revealed its branch. That resend path is also the likeliest
   // place to meet a Resend rate limit, because reaching it at all requires a
   // send that already succeeded.
+  // `role="alert"` because in the `magicLinkSent` branch this banner is the ONLY
+  // thing that changes when a resend fails: the surrounding copy still reads
+  // "Check your email and click the link to sign in", so without it a screen
+  // reader announces nothing and the page says the opposite of what happened.
+  // One attribute, deliberately — #760 owns sign-in announcements as a whole.
   const emailErrorBanner = emailError ? (
-    <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+    <div
+      className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+      role="alert"
+    >
       <p className="text-red-300 text-sm text-center">{emailError}</p>
     </div>
   ) : null;
