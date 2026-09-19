@@ -124,6 +124,24 @@ export default function SignInClient() {
     }
   }
 
+  // ONE banner, rendered in BOTH email branches — shared as a variable the way
+  // `spinnerSvg` below already is, so there is one markup and not two.
+  //
+  // It used to live inline in the `!magicLinkSent` form branch only, and the
+  // "Resend Magic Link" button is in the other branch. So a failed resend set
+  // `emailError` while `magicLinkSent` stayed true: nothing rendered it, the
+  // button reverted from "Sending...", and the screen still read "We sent a
+  // magic link to {email}" — #736's exact symptom, surviving on a second entry
+  // point. "Use a Different Email" then cleared the message in the same commit
+  // that would have revealed its branch. That resend path is also the likeliest
+  // place to meet a Resend rate limit, because reaching it at all requires a
+  // send that already succeeded.
+  const emailErrorBanner = emailError ? (
+    <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+      <p className="text-red-300 text-sm text-center">{emailError}</p>
+    </div>
+  ) : null;
+
   const spinnerSvg = (
     <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -242,11 +260,7 @@ export default function SignInClient() {
             <>
               {!magicLinkSent ? (
                 <form onSubmit={handleSendMagicLink} className="space-y-6">
-                  {emailError && (
-                    <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
-                      <p className="text-red-300 text-sm text-center">{emailError}</p>
-                    </div>
-                  )}
+                  {emailErrorBanner}
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
@@ -307,7 +321,12 @@ export default function SignInClient() {
                     </p>
                   </div>
 
+                  {/* Above the button that produced it, not above the "we sent
+                      a magic link" text: the earlier send really did succeed,
+                      and it is this resend that just failed. */}
                   <div className="space-y-3">
+                    {emailErrorBanner}
+
                     <button
                       type="button"
                       onClick={() => handleSendMagicLink()}
