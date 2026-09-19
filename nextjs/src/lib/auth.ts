@@ -6,12 +6,46 @@ import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/src/db";
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
+import { sha256Hex } from "@/lib/shared/sha256";
 import {
   MAGIC_LINK_EXPIRY_SECONDS,
   magicLinkEmailHtml,
   magicLinkEmailText,
 } from "@/lib/templates/magic-link-email";
 import { licenseKeyPlugin } from "./auth-license-key-plugin";
+
+/**
+ * Read `name` / `statusCode` / `message` off whatever Resend put in the `error`
+ * slot, checking each field rather than asserting it.
+ *
+ * The SDK's `ErrorResponse` type does not reliably carry `statusCode`, so the
+ * parameter is `unknown` and every field is narrowed. This mirrors
+ * `resendErrorDetailsOf` in `lib/services/email.ts` on purpose instead of
+ * importing it: that module imports `logSentEmail` from `@/src/lib/db-layer`,
+ * which would pull the database into this file's import graph — and #736
+ * explicitly keeps the magic-link path off the `sentEmails` / retry path.
+ */
+function resendErrorFieldsOf(error: unknown): {
+  name: string;
+  statusCode: string;
+  message: string;
+} {
+  const fields = { name: "unknown", statusCode: "none", message: "" };
+
+  if (typeof error !== "object" || error === null) return fields;
+
+  if ("name" in error && typeof error.name === "string") {
+    fields.name = error.name;
+  }
+  if ("statusCode" in error && typeof error.statusCode === "number") {
+    fields.statusCode = String(error.statusCode);
+  }
+  if ("message" in error && typeof error.message === "string") {
+    fields.message = error.message;
+  }
+
+  return fields;
+}
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
@@ -85,13 +119,41 @@ export const auth = betterAuth({
       // stated deadline. The email copy is derived from this same constant.
       expiresIn: MAGIC_LINK_EXPIRY_SECONDS,
       sendMagicLink: async ({ email, url }) => {
-        await resend.emails.send({
+        const result = await resend.emails.send({
           from: DEFAULT_FROM_EMAIL,
           to: email,
           subject: "Sign in to HyperWhisper",
           html: magicLinkEmailHtml({ url }),
           text: magicLinkEmailText({ url }),
         });
+
+        // The Resend SDK resolves to { data, error } and does NOT throw on
+        // API-level failures (bad domain, rate limit, suspended key, 5xx), so
+        // the error object must be inspected explicitly. Without this, a
+        // rejected send returned normally, Better Auth answered 200, and
+        // SignInClient.tsx told the user to check an inbox that would never
+        // receive a link — with no trace of the failure anywhere (#736).
+        if (result.error) {
+          const { name, statusCode, message } = resendErrorFieldsOf(
+            result.error,
+          );
+
+          // ONE line, and the recipient appears only as a 12-char SHA-256
+          // prefix: enough to correlate a user's report with this log, never
+          // the address itself. `message` is Resend's own text and is included
+          // because the name/statusCode pair alone rarely says what was wrong.
+          console.error(
+            `sendMagicLink failed: resend error name=${name} statusCode=${statusCode} recipientHash=${sha256Hex(
+              email,
+            ).slice(0, 12)} message=${message}`,
+          );
+
+          // A plain Error, not better-auth's APIError, and with NO address in
+          // the message — Better Auth surfaces a thrown message toward the
+          // client, and the point of the throw is only that the client stops
+          // seeing a silent success.
+          throw new Error("Failed to send the magic-link email");
+        }
       },
     }),
     licenseKeyPlugin(),
