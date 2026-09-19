@@ -129,7 +129,38 @@ jobs:
           Write-Host "x64 DLL: $((Get-Item "$dest\hyperwhisper_core.dll").Length) bytes"
 
       # ----------------------------------------------------------------
-      # 5. Build + run the smoke tests
+      # 5. Publish the DLL as an artifact
+      # ----------------------------------------------------------------
+      # Windows commits only .gitkeep placeholders under Resources/rust-core/,
+      # so the ONLY fresh x64 DLL for a given commit is the one step 4 just
+      # built on this runner. A machine without a Rust toolchain — the Windows
+      # dev box that runs the smoke suite by hand — had no way to get it, and a
+      # hand-copied DLL from an older commit fails the smoke suite at the first
+      # FFI call: "FAIL ffi checksum touch", the same UniFFI handshake step 6
+      # relies on. Publishing it here makes every commit that changes the core
+      # carry its matching binary.
+      #
+      # This step sits BEFORE the smoke suite on purpose: a DLL that built but
+      # fails the handshake is exactly the one somebody needs in their hands to
+      # debug, so the upload must not depend on the suite passing.
+      #
+      # The name is stable (no SHA in it) because the run already carries the
+      # commit: a consumer resolves a SHA to its run with
+      # `/actions/runs?head_sha=…`, then reads that run's artifacts. PR runs
+      # publish too, which is what lets the dev box test a branch head.
+      - name: Upload x64 shared-core DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperwhisper-core-x64
+          path: app\windows\HyperWhisper\Resources\rust-core\x64\hyperwhisper_core.dll
+          if-no-files-found: error
+          # Long enough that a dev box a few weeks behind main still finds the
+          # build for the commit it has checked out; short of the 90-day
+          # default because these are debug aids, not release artifacts.
+          retention-days: 30
+
+      # ----------------------------------------------------------------
+      # 6. Build + run the smoke tests
       # ----------------------------------------------------------------
       # HyperWhisper.SmokeTests ProjectReferences the main app, so this single
       # command compiles the whole WPF app (the compile gate) and then runs the
@@ -141,7 +172,7 @@ jobs:
         run: dotnet run --project app/windows/HyperWhisper.SmokeTests -c Release
 
       # ----------------------------------------------------------------
-      # 6. Catalog conformance vectors
+      # 7. Catalog conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/catalog-vectors.json is one file run by all three
       # platforms (Rust in shared-core-tests.yml, Swift in macos-ci.yml, this
@@ -153,7 +184,7 @@ jobs:
         run: dotnet run --project app/shared-dotnet/HyperWhisper.CatalogConformance.Tests -c Release
 
       # ----------------------------------------------------------------
-      # 7. App-type conformance vectors
+      # 8. App-type conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/app-type-vectors.json, the same three-platform
       # shape. Issue #279 left exactly one app-type classifier, so these
@@ -164,7 +195,7 @@ jobs:
         run: dotnet run --project app/shared-dotnet/HyperWhisper.AppTypeConformance.Tests -c Release
 
       # ----------------------------------------------------------------
-      # 8. Backup conformance vectors
+      # 9. Backup conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/backup-vectors.json, the same three-platform shape
       # (issues #277 and #288). The smoke suite above already runs the rows
@@ -182,7 +213,7 @@ jobs:
         run: dotnet run --project app/shared-dotnet/HyperWhisper.Backup.Application.Tests -c Release
 
       # ----------------------------------------------------------------
-      # 9. Phonetic conformance vectors
+      # 10. Phonetic conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/phonetic-vectors.json, the same three-platform
       # shape. Issue #283 left exactly one phonetic matcher and exactly one
@@ -195,7 +226,7 @@ jobs:
         run: dotnet run --project app/shared-dotnet/HyperWhisper.PhoneticConformance.Tests -c Release
 
       # ----------------------------------------------------------------
-      # 10. Home statistics conformance vectors
+      # 11. Home statistics conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/stats-vectors.json, the same three-platform shape.
       # Issue #285 left exactly one set of home-statistics formulas, so these
@@ -209,7 +240,7 @@ jobs:
         run: dotnet run --project app/shared-dotnet/HyperWhisper.StatsConformance.Tests -c Release
 
       # ----------------------------------------------------------------
-      # 11. Language catalog conformance vectors
+      # 12. Language catalog conformance vectors
       # ----------------------------------------------------------------
       # shared-conformance/language-vectors.json, the same three-platform shape.
       # Issue #285 left exactly one language catalog and exactly one
@@ -226,7 +257,7 @@ jobs:
         run: dotnet run --project app/shared-dotnet/HyperWhisper.LanguageConformance.Tests -c Release
 
       # ----------------------------------------------------------------
-      # 12. First-run mode seed
+      # 13. First-run mode seed
       # ----------------------------------------------------------------
       # shared-conformance/mode-seed-vectors.json, the same three-platform
       # shape. Issue #285's final item left exactly one .NET seeder: Windows'
