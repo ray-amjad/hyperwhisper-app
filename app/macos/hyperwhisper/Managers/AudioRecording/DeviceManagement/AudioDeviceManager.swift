@@ -467,7 +467,7 @@ class AudioDeviceManager {
             durationMs: durationMs,
             deviceCount: snapshot.devices.count,
             defaultDeviceUID: snapshot.systemDefaultDeviceUID,
-            activeDeviceName: snapshot.activeInputDeviceName ?? "audio.device.default".localized,
+            activeDeviceUID: snapshot.activeInputDeviceIdentifier,
             didPublish: didPublish
         )
 
@@ -486,7 +486,7 @@ class AudioDeviceManager {
         durationMs: Int,
         deviceCount: Int,
         defaultDeviceUID: String?,
-        activeDeviceName: String,
+        activeDeviceUID: String?,
         didPublish: Bool? = nil
     ) {
         if AppLogger.isErrorLoggingEnabled,
@@ -495,7 +495,7 @@ class AudioDeviceManager {
                 "reason": reason.rawValue,
                 "deviceCount": deviceCount,
                 "defaultDeviceUID": defaultDeviceUID ?? "unknown",
-                "activeDeviceName": activeDeviceName
+                "activeDeviceUID": activeDeviceUID ?? "unknown"
             ]
             if let didPublish {
                 changeData["didPublish"] = didPublish
@@ -586,7 +586,7 @@ class AudioDeviceManager {
             durationMs: durationMs,
             deviceCount: availableDevices.count,
             defaultDeviceUID: systemDefaultDeviceUID,
-            activeDeviceName: activeInputDeviceName
+            activeDeviceUID: activeInputDeviceIdentifier
         )
     }
 
