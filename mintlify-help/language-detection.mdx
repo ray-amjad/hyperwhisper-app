@@ -133,6 +133,10 @@ If a model does not support your language, the picker changes to the first langu
 
 The Deepgram medical models are an exception. The picker filters the languages by accuracy tier, not by model, so all the languages of the Deepgram tier stay in the list. But **Nova 3 Medical** and **Nova 2 Medical** transcribe English only. If you select a medical model with a different language, HyperWhisper Cloud removes the language and Deepgram detects it from the audio.
 
+**AssemblyAI Dictation** is the second exception, and it works in the opposite direction. Dictation supports 32 languages and it does not support **Automatic**. When you select Dictation, the app does not put a language in its place: it clears the language and you must select one of the 32 languages yourself. Until you do, macOS keeps the **Save** button disabled, and Windows and Linux refuse the save with the message `Dictation needs an explicit supported language and no Medical domain.` HyperWhisper refuses a Dictation request that carries an unsupported language. It does not silently transcribe the audio as English.
+
+The 32 languages are Afrikaans, Arabic, Catalan, Cantonese, Chinese, Danish, Dutch, English, Estonian, Finnish, French, Galician, German, Hebrew, Hindi, Italian, Japanese, Korean, Marathi, Norwegian, Norwegian Nynorsk, Persian, Portuguese, Romanian, Russian, Spanish, Swedish, Turkish, Urdu, Vietnamese, Xhosa, and Zulu.
+
 ### Language Codes for Cloud Providers
 
 Each provider has its own spelling of a language code. For a request through HyperWhisper Cloud, the server changes the code of the mode into the code that the provider accepts. Examples:
