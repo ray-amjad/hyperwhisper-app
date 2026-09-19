@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { headers } from "next/headers";
-import { betterAuth } from "better-auth";
+import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
@@ -16,35 +16,102 @@ import { licenseKeyPlugin } from "./auth-license-key-plugin";
 
 /**
  * Read `name` / `statusCode` / `message` off whatever Resend put in the `error`
- * slot, checking each field rather than asserting it.
+ * slot, checking each field rather than asserting it, and return them already
+ * stringified so the one call site below needs no `??` noise and cannot
+ * interpolate `undefined`.
  *
  * The SDK's `ErrorResponse` type does not reliably carry `statusCode`, so the
- * parameter is `unknown` and every field is narrowed. This mirrors
- * `resendErrorDetailsOf` in `lib/services/email.ts` on purpose instead of
- * importing it: that module imports `logSentEmail` from `@/src/lib/db-layer`,
- * which would pull the database into this file's import graph — and #736
- * explicitly keeps the magic-link path off the `sentEmails` / retry path.
+ * parameter is `unknown` and every field is narrowed.
+ *
+ * `statusCode` has three outcomes on purpose. Resend's own network-failure path
+ * (`resend/dist/index.mjs`, the `catch` around `fetch`) sets
+ * `{ name: "application_error", statusCode: null }`, so an explicit `null` means
+ * "the request never reached Resend" while a missing or wrong-typed field means
+ * "Resend sent something this code does not understand". Collapsing both to one
+ * token would make an unreachable API indistinguishable from a malformed error.
+ *
+ * This deliberately duplicates `resendErrorDetailsOf` in
+ * `lib/services/email.ts` rather than importing it. NOT because of the import
+ * graph — `auth.ts` already imports `@/src/db` directly (line 7) and reaches
+ * `./db-layer` transitively through `./auth-license-key-plugin`, so the
+ * database is in this file's graph either way. The real reasons are that
+ * `resendErrorDetailsOf` is not exported (`email.ts` exports only the
+ * `emailService` singleton), that #736 explicitly keeps the magic-link path off
+ * the `sentEmails` / retry path that module owns, and that the two have
+ * diverged for their different jobs: `email.ts` returns optional fields that
+ * `isRetryableResendError` branches on, this one returns display strings.
+ * Extracting a shared narrower would mean editing that retry decision's inputs,
+ * which is out of scope for #736 and has no direct test coverage (the only test
+ * that reaches `lib/services/email.ts` replaces the whole module with a mock).
  */
 function resendErrorFieldsOf(error: unknown): {
   name: string;
   statusCode: string;
   message: string;
 } {
-  const fields = { name: "unknown", statusCode: "none", message: "" };
+  const fields = { name: "unknown", statusCode: "unknown", message: "" };
 
   if (typeof error !== "object" || error === null) return fields;
 
   if ("name" in error && typeof error.name === "string") {
     fields.name = error.name;
   }
-  if ("statusCode" in error && typeof error.statusCode === "number") {
-    fields.statusCode = String(error.statusCode);
+  if ("statusCode" in error) {
+    if (typeof error.statusCode === "number") {
+      fields.statusCode = String(error.statusCode);
+    } else if (error.statusCode === null) {
+      fields.statusCode = "null";
+    }
   }
   if ("message" in error && typeof error.message === "string") {
     fields.message = error.message;
   }
 
   return fields;
+}
+
+/** Written in place of anything in a log line that could be an address. */
+const REDACTED = "[redacted]";
+
+/**
+ * Anything with an `@` between two runs of non-space characters.
+ *
+ * Deliberately greedy and imprecise. The job is not to parse an address
+ * correctly, it is to make sure nothing address-shaped survives: over-redacting
+ * a log line is harmless, under-redacting is the bug (#736 forbids the address).
+ */
+const ADDRESS_SHAPED = /\S+@\S+/g;
+
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Strip every trace of an email address out of a finished log line.
+ *
+ * Applied to the WHOLE assembled line rather than to one field, so "the
+ * recipient reaches this log only as a hash" is a property of the mechanism and
+ * survives a later edit that interpolates one more provider-controlled value.
+ *
+ * Two passes, because Resend's text carries either shape:
+ *   - a full address — a real `validation_error` echoes the rejected recipient
+ *     ("... alice@corp.com is not a valid recipient");
+ *   - a bare domain — "the domain corp.com is not verified".
+ *
+ * The recipient's LOCAL-PART is deliberately NOT redacted on its own. It does
+ * not identify anybody without a domain, and a short or common one ("a", "me",
+ * "info") would shred the surrounding message — the only field that usually
+ * says what actually failed.
+ */
+function redactAddresses(line: string, recipientDomain: string): string {
+  const withoutAddresses = line.replace(ADDRESS_SHAPED, REDACTED);
+
+  if (recipientDomain.length === 0) return withoutAddresses;
+
+  return withoutAddresses.replace(
+    new RegExp(escapeForRegExp(recipientDomain), "gi"),
+    REDACTED,
+  );
 }
 
 export const auth = betterAuth({
@@ -119,6 +186,25 @@ export const auth = betterAuth({
       // stated deadline. The email copy is derived from this same constant.
       expiresIn: MAGIC_LINK_EXPIRY_SECONDS,
       sendMagicLink: async ({ email, url }) => {
+        // Normalised HERE, at the call site, and NOT inside `sha256Hex`: that
+        // helper is documented as a pure digest and a known-answer test pins a
+        // literal hex to keep it one.
+        //
+        // The digest has to be reproducible from the address a user reports over
+        // support, and nothing upstream normalises. `SignInClient.tsx` posts the
+        // field exactly as typed, better-auth's magic-link route forwards
+        // `ctx.body.email` unchanged, and its `z.email()` validates without
+        // lowercasing. So `Alice@Acme.com` off a phone keyboard would hash to a
+        // different digest than the `alice@acme.com` the user reports, and a
+        // lowercase retry would mint a second one — one incident reading as two
+        // users. better-auth's own sibling plugins normalise at this same seam
+        // (`plugins/email-otp/routes.mjs`, `plugins/admin/routes.mjs`).
+        //
+        // Only the hash and the redaction below use this. `to:` still gets the
+        // address as given, because an email local-part is case-sensitive per
+        // RFC 5321 and rewriting the envelope is not this fix's business.
+        const normalisedRecipient = email.trim().toLowerCase();
+
         const result = await resend.emails.send({
           from: DEFAULT_FROM_EMAIL,
           to: email,
@@ -138,21 +224,62 @@ export const auth = betterAuth({
             result.error,
           );
 
-          // ONE line, and the recipient appears only as a 12-char SHA-256
-          // prefix: enough to correlate a user's report with this log, never
-          // the address itself. `message` is Resend's own text and is included
-          // because the name/statusCode pair alone rarely says what was wrong.
+          // ONE line from this callback. The recipient appears in it only as a
+          // 12-character SHA-256 prefix of the NORMALISED address — enough to
+          // correlate a user's support report with this log.
+          //
+          // `message` is kept because the name/statusCode pair rarely says what
+          // was actually wrong, but both it and `name` are provider-controlled
+          // text, so the assembled line goes through `redactAddresses` before it
+          // is logged. Resend's `validation_error` really does echo the rejected
+          // recipient ("... alice@corp.com is not a valid recipient"), which
+          // would otherwise put the address a few characters from the hash whose
+          // whole purpose is to avoid it. Redaction is what makes "never the
+          // address itself" true of the mechanism instead of true only of the
+          // wordings we happened to test.
+          //
+          // "One line" is this callback's own record, and it is also all the
+          // request emits — see the throw below for the measurement. Nothing
+          // else on this path logs: `betterAuth()` here configures neither
+          // `logger` nor `onAPIError`.
           console.error(
-            `sendMagicLink failed: resend error name=${name} statusCode=${statusCode} recipientHash=${sha256Hex(
-              email,
-            ).slice(0, 12)} message=${message}`,
+            redactAddresses(
+              `sendMagicLink failed: resend error name=${name} statusCode=${statusCode} recipientHash=${sha256Hex(
+                normalisedRecipient,
+              ).slice(0, 12)} message=${message}`,
+              normalisedRecipient.split("@")[1] ?? "",
+            ),
           );
 
-          // A plain Error, not better-auth's APIError, and with NO address in
-          // the message — Better Auth surfaces a thrown message toward the
-          // client, and the point of the throw is only that the client stops
-          // seeing a silent success.
-          throw new Error("Failed to send the magic-link email");
+          // better-auth's `APIError`, not a plain `Error`. Measured against a
+          // real `auth.handler` (memory adapter, this same `magicLink` plugin,
+          // no `logger` and no `onAPIError`, as configured here):
+          //
+          //   plain Error  -> HTTP 500, EMPTY body,             2 extra console.error
+          //   APIError 503 -> HTTP 503, {"message": "..."},     0 extra console.error
+          //
+          // The empty body is why the plain `Error` was wrong. It falls past
+          // `isAPIError` in better-call's router (`better-call/dist/router.mjs`),
+          // which answers `new Response(null, { status: 500 })`; better-fetch
+          // parses that to `null`, so `authError.message` is `undefined` and
+          // `SignInClient.tsx` could only ever show its generic fallback. On the
+          // way out it also costs two stack dumps that never name
+          // `sendMagicLink` — better-auth's router `onError` and better-call's
+          // `# SERVER_ERROR:` — so an operator greping for one record per failed
+          // send would find three.
+          //
+          // An `APIError` never reaches either. `better-auth/dist/api/dispatch.mjs`
+          // catches it around the endpoint call and turns it straight into the
+          // response, so the message below is genuinely what the browser reads.
+          //
+          // 503, not 500: the app itself is healthy, it could not reach its email
+          // provider, and the sign-in page's "Resend Magic Link" button is the
+          // retry that status invites.
+          //
+          // NO address and NO Resend text in the message — it goes to a browser.
+          throw new APIError("SERVICE_UNAVAILABLE", {
+            message: "Failed to send the magic-link email. Please try again.",
+          });
         }
       },
     }),
