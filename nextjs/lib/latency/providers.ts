@@ -77,6 +77,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendorDisplayName: "SpaceXAI",
     models: [
       { id: "grok-voice-transcribe-2.0", displayName: "Grok Voice Transcribe 2", isDefault: true },
+      { id: "grok-voice-transcribe-1.0", displayName: "Grok Voice Transcribe 1", isDefault: false },
     ],
   },
   {

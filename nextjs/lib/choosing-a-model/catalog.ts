@@ -282,6 +282,11 @@ const CLOUD_MODELS_RAW = [
   { id: "deepgramNova3:nova-2-general", name: "Nova 2 General", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-general", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "grokStt:grok-voice-transcribe-2.0", name: "Grok Voice Transcribe 2", vendorLabel: "Grok STT", vendor: "SpaceXAI", sttProvider: "grok", modelId: "grok-voice-transcribe-2.0", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  // The leaderboard measured 2, not 1. SpaceXAI say 2 is "twice as accurate as
+  // Grok Voice Transcribe 1.0", which is a vendor claim about a ratio, not a
+  // published error rate — halving or doubling 4.0 would publish a number
+  // nobody measured. `wer` and `speedFactor` stay null, as for Nova 2 General.
+  { id: "grokStt:grok-voice-transcribe-1.0", name: "Grok Voice Transcribe 1", vendorLabel: "Grok STT", vendor: "SpaceXAI", sttProvider: "grok", modelId: "grok-voice-transcribe-1.0", credits: 1.67, wer: null, speedFactor: null, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
   // Not on the non-streaming leaderboard this column reads, so both figures
   // stay null and `rankModels` scores it a neutral 0.5 rather than inheriting
   // 1.5's numbers. Microsoft's own launch post claims it beats 1.5 on both, but

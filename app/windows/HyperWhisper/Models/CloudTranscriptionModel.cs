@@ -427,19 +427,19 @@ public static class CloudTranscriptionModels
 
     // =========================================================================
     // GROK MODELS
-    // xAI Grok speech-to-text. One model, sent as the `model` field — the
+    // xAI Grok speech-to-text. Two models, sent as the `model` field — the
     // endpoint took no such parameter before 2026-09-19, which is why this
     // entry carried an empty id until then.
     // =========================================================================
 
     /// <summary>
-    /// xAI Grok transcription. One entry, shown as a one-item dropdown so the
-    /// Model row keeps the same shape as every other provider's.
+    /// xAI Grok transcription.
     /// </summary>
     /// <remarks>
-    /// <c>grok-voice-transcribe-1.0</c> is deliberately absent: SpaceXAI
-    /// announced its deprecation alongside 2.0 and prices the two the same, so
-    /// offering it would only let a user pick the worse model.
+    /// <c>grok-voice-transcribe-1.0</c> is listed because it is the model the
+    /// empty id always ran — it was the only model xAI served. Keeping it means
+    /// a user chooses 2 rather than being moved onto it by a release of ours.
+    /// SpaceXAI price the two the same and have announced 1.0's deprecation.
     /// </remarks>
     public static readonly CloudTranscriptionModel[] Grok = new[]
     {
@@ -451,6 +451,15 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
             IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "grok-voice-transcribe-1.0",
+            DisplayName = "Grok Voice Transcribe 1",
+            Description = "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
+            Provider = CloudTranscriptionProvider.Grok,
+            PricePerMinute = 0.0016667m,
+            IsPopular = false
         }
     };
 

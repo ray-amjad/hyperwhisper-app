@@ -393,8 +393,11 @@ const LIVE_STREAMING_ROW_IDS = new Set([
   "deepgramNova3:nova-3-general",
   "deepgramNova3:nova-3-medical",
   // `XAIStreamingStrategy` builds a wss://api.x.ai URL, and `live/xai.rs` pins
-  // the model on it as a query parameter.
+  // the model on it as a query parameter. Both rows, because that pin is
+  // `grok::resolve_model(config.model)` — it forwards whichever model the mode
+  // selected and only substitutes the default for a blank.
   "grokStt:grok-voice-transcribe-2.0",
+  "grokStt:grok-voice-transcribe-1.0",
   // `LIVE_MODEL` in hw-net `providers/gemini_transcribe.rs`, substituted by
   // `live/gemini.rs` and `GeminiStreamingStrategy` and proxied by
   // `ws-streaming-gemini-transcribe.ts`. The pre-recorded row is deliberately

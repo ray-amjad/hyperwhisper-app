@@ -594,14 +594,14 @@ try
 
         // `grok` drew an empty combo too until 2026-09-19, because its single catalog model carried
         // an empty id. Grok Voice Transcribe 2.0 gave xAI a real `model` parameter, so the vendor
-        // now behaves like every other one: one listed id, and that id selected.
+        // now behaves like every other one: both of its ids listed, and the default selected.
         shell.Modes.CloudProvider = "grok";
-        Assert(shell.Modes.CloudModels.Count == 1
-            && shell.Modes.CloudModels[0] == "grok-voice-transcribe-2.0",
-            "the grok vendor must list exactly its one catalog model; it drew "
+        Assert(shell.Modes.CloudModels.Contains("grok-voice-transcribe-2.0", StringComparer.Ordinal)
+            && shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.Ordinal),
+            "the grok vendor must list both catalog models; it drew "
             + $"[{string.Join(", ", shell.Modes.CloudModels)}]");
         Assert(shell.Modes.CloudTranscriptionModel == "grok-voice-transcribe-2.0",
-            "changing the vendor to grok did not select its only model");
+            "changing the vendor to grok did not select its default model");
         AssertCloudSelectionIsListed("changing the vendor to grok");
 
         foreach (var emptyVendor in new[] { "microsoftazurespeech", "googlespeech" })

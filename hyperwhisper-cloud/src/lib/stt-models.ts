@@ -161,11 +161,15 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     // grok keeps its historical cross-provider fallback chain.
     fallbackChain: ['grok', 'deepgram', 'groq', 'elevenlabs'],
     async: false,
-    // `grok-voice-transcribe-1.0` is deliberately absent: xAI announced its
-    // deprecation with 2.0 and prices the two the same, so listing it would only
-    // let a caller pick the worse model.
+    // `grok-voice-transcribe-1.0` is listed because it is what every client
+    // built before 2026-09-19 actually ran — xAI served no other model then —
+    // so a user who wants to stay on it must be able to ask for it by name.
+    // xAI price the two the same, hence the same rate on both rows. xAI have
+    // announced 1.0's deprecation; when they retire it, drop this row and the
+    // request 400s instead of being billed for a model that no longer exists.
     models: [
       { id: 'grok-voice-transcribe-2.0', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
+      { id: 'grok-voice-transcribe-1.0', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
     ],
   },
   'azure-mai': {

@@ -687,11 +687,12 @@ struct CloudTranscriptionModels {
             pricePerSecond: 0.016 / 60.0
         ),
 
-        // xAI Grok — one model, sent as the `model` field. The id was the empty
+        // xAI Grok — two models, sent as the `model` field. The id was the empty
         // string until 2026-09-19, when xAI gave `/v1/stt` a `model` parameter.
-        // `grok-voice-transcribe-1.0` is deliberately absent: SpaceXAI announced
-        // its deprecation alongside 2.0 and prices the two the same, so offering
-        // it would only let a user pick the worse model.
+        // 1.0 is the model that empty string always ran, so it stays a row of
+        // its own: a user who wants it must be able to choose it, rather than
+        // being moved to 2 by a release of ours. SpaceXAI price the two the
+        // same and have announced 1.0's deprecation.
         CloudTranscriptionModel(
             id: "grok-voice-transcribe-2.0",
             displayName: "Grok Voice Transcribe 2",
@@ -699,6 +700,15 @@ struct CloudTranscriptionModels {
             description: "SpaceXAI's speech-to-text model — auto-detects the language and follows a mid-recording switch.",
             provider: .grok,
             isPopular: true,
+            pricePerSecond: nil
+        ),
+        CloudTranscriptionModel(
+            id: "grok-voice-transcribe-1.0",
+            displayName: "Grok Voice Transcribe 1",
+            isAvailable: true,
+            description: "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
+            provider: .grok,
+            isPopular: false,
             pricePerSecond: nil
         ),
 

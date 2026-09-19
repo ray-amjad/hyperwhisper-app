@@ -216,6 +216,15 @@
           "previewStatus": false,
           "supportsCustomVocabulary": true,
           "streaming": null
+        },
+        {
+          "id": "grok-voice-transcribe-1.0",
+          "displayName": "Grok Voice Transcribe 1",
+          "creditsPerMinute": 1.67,
+          "isDefault": false,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -1000,7 +1009,8 @@
         "grokStt"
       ],
       "models": [
-        "grokStt/grok-voice-transcribe-2.0"
+        "grokStt/grok-voice-transcribe-2.0",
+        "grokStt/grok-voice-transcribe-1.0"
       ]
     }
   ],
@@ -2378,6 +2388,16 @@
         "yue",
         "zh"
       ],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "grok",
+      "id": "grok-voice-transcribe-1.0",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
       "voiceCapabilities": null
     },
     {
