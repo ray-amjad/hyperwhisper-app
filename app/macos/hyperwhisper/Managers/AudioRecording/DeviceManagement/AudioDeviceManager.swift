@@ -440,7 +440,7 @@ class AudioDeviceManager {
         if let selected = selectedDevice,
            selected.uid == snapshot.selectedDeviceUID,
            snapshot.devices.contains(where: { $0.uid == selected.uid }) == false {
-            AppLogger.audio.warning("Selected microphone \(selected.name, privacy: .public) disappeared - reverting to system default")
+            AppLogger.audio.warning("Selected microphone UID \(selected.uid, privacy: .public) disappeared - reverting to system default")
             selectedDevice = nil
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -448,7 +448,6 @@ class AudioDeviceManager {
                     category: "audio.devices",
                     level: .warning,
                     data: [
-                        "selectedDeviceName": selected.name,
                         "selectedDeviceUID": selected.uid
                     ]
                 )
@@ -558,7 +557,7 @@ class AudioDeviceManager {
         // If the previously selected device is no longer available, fall back to system default.
         if let selected = selectedDevice,
            devices.first(where: { $0.id == selected.id }) == nil {
-            AppLogger.audio.warning("Selected microphone \(selected.name, privacy: .public) disappeared - reverting to system default")
+            AppLogger.audio.warning("Selected microphone UID \(selected.uid, privacy: .public) disappeared - reverting to system default")
             selectedDevice = nil
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
@@ -566,7 +565,6 @@ class AudioDeviceManager {
                     category: "audio.devices",
                     level: .warning,
                     data: [
-                        "selectedDeviceName": selected.name,
                         "selectedDeviceUID": selected.uid
                     ]
                 )
@@ -685,7 +683,7 @@ class AudioDeviceManager {
             if CoreAudioDeviceHelper.setSystemDefaultInputDevice(to: desiredID) {
                 AppLogger.audio.info("🎚️ Switched system default input to: \(selected.name)")
             } else {
-                AppLogger.audio.warning("⚠️ Failed to switch system default input to: \(selected.name)")
+                AppLogger.audio.warning("⚠️ Failed to switch system default input to UID: \(selected.uid, privacy: .public)")
             }
         }
 
