@@ -387,8 +387,10 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// <summary>
     /// Focusing the field starts a new attempt, so the last one's verdict goes, and
     /// so does any gesture left half-finished by the mouse taking focus away
-    /// mid-chord. The other clearing hook is <see cref="OnDisplayTextChanged"/>, for
-    /// a host that re-seeds or resets the box without the user touching it.
+    /// mid-chord. The other clearing hooks are <see cref="HandleFocusLost"/>, which
+    /// puts the field and the line back together when the attempt is abandoned, and
+    /// <see cref="OnDisplayTextChanged"/>, for a host that re-seeds or resets the box
+    /// without the user touching it.
     ///
     /// What does NOT go is the host's <see cref="StandingError"/>. That one is about
     /// the chord that is STORED, not about the last attempt, and it is still true
@@ -415,9 +417,19 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// the field was written only on the line that SAVED, so no page could show an
     /// unsaved value; a control that previews mid-gesture can, and has to undo it.
     ///
-    /// The verdict stays on screen. A user who was just told why a chord was refused
-    /// does not stop needing the reason because they looked away, and focus coming
-    /// back is already the point at which a new attempt clears it.
+    /// The GESTURE's verdict goes with it, and the host's <see cref="StandingError"/>
+    /// shows through again. Round 1 kept the verdict here, reasoning that a user told
+    /// why a chord was refused does not stop needing the reason because they looked
+    /// away. The line above is what settles it: this method has ALREADY called
+    /// <see cref="RestoreFieldText"/>, so the refused chord is not on screen for that
+    /// sentence to be about. What is on screen is the chord that is STORED - and the
+    /// verdict about THAT is the standing one, which the stale sentence was sitting on
+    /// top of. Streaming and Toggle both Ctrl+Shift+Space, a fumbled lone Ctrl, a click
+    /// elsewhere, and the box read "Ctrl+Shift+Space" under "Single modifier shortcuts
+    /// are not supported" with the duplicate warning gone, for the rest of the visit.
+    ///
+    /// The invariant, in one line: THE ERROR LINE AND THE FIELD TEXT DESCRIBE THE SAME
+    /// THING. Restoring one without the other is what broke it.
     ///
     /// This is also the only hook that catches the WINDOW losing activation
     /// mid-gesture, where the key-ups never arrive at this control at all.
@@ -443,7 +455,11 @@ public partial class ShortcutRecorderBox : WpfUserControl
     internal void HandleFocusLost()
     {
         ResetGesture();
+
+        // Both halves of what is on screen, put back together. RestoreFieldText alone
+        // left the line describing a chord it had just taken out of the field.
         RestoreFieldText();
+        ClearError();
     }
 
     private void ResetGesture()
@@ -474,8 +490,9 @@ public partial class ShortcutRecorderBox : WpfUserControl
     // TWO verdicts want the same line, and they have different lifetimes:
     //
     //   - the GESTURE's, from Commit: "the chord you just typed is refused". It
-    //     belongs to one attempt and dies with it - on focus, on a re-seeded
-    //     DisplayText, and on the next key-down.
+    //     belongs to one attempt and dies with it - on focus ARRIVING, on focus
+    //     LEAVING, on a re-seeded DisplayText, and on the next key-down. Every one of
+    //     those is a point at which the field stops showing the chord it was about.
     //   - the host's STANDING one, from StandingError: "the chord that is STORED is
     //     already someone else's". It is true before the user touches anything and
     //     stays true until the stored chord changes.
