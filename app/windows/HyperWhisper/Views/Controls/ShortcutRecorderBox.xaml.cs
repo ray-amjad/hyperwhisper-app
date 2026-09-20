@@ -37,8 +37,11 @@ public sealed class ShortcutCapturedEventArgs : EventArgs
 /// A read-only field that records the next key chord pressed into it.
 ///
 /// It validates and it reports. It never writes a setting: the Shortcuts settings
-/// page stores the result itself, and the onboarding Permissions step hands it to
-/// the flow model instead, so first run keeps its one path in and out of state.
+/// page and the Streaming settings page store the result themselves, and the
+/// onboarding Permissions step hands it to the flow model instead, so first run
+/// keeps its one path in and out of state. Three hosts, seven boxes - see
+/// ShortcutRecorderBox.xaml for the list, and count them before you change any
+/// behaviour here.
 /// </summary>
 public partial class ShortcutRecorderBox : WpfUserControl
 {
@@ -96,6 +99,14 @@ public partial class ShortcutRecorderBox : WpfUserControl
         // no focus handler, and LoadShortcutSettings and ResetShortcuts_Click both
         // write DisplayText and nothing else. This is the hook they already go
         // through.
+        //
+        // The host's StandingError goes with it, for a stronger reason: that one is
+        // a verdict about the chord that is STORED, so a re-seeded field makes it
+        // stale by definition. This is the whole reason StreamingSettingsPage seeds
+        // DisplayText BEFORE it renders its load-time conflict, and the reason a
+        // successful capture needs no second call to withdraw one - Commit writes
+        // DisplayText, and arrives here.
+        box._standingError = null;
         box.ClearError();
     }
 
@@ -107,7 +118,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// Every host now leaves this true. The push-to-talk box used to set it false
     /// so it would "keep looking the same" as the page it came from, which was
     /// true of the text and false of the border; it now explains a rejected chord
-    /// like the other five recorders do.
+    /// like the other six recorders do.
     /// </summary>
     public static readonly DependencyProperty ShowsInlineErrorProperty =
         DependencyProperty.Register(nameof(ShowsInlineError), typeof(bool), typeof(ShortcutRecorderBox),
@@ -130,7 +141,12 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// </summary>
     public void FocusForCapture() => Field.Focus();
 
-    /// <summary>The current inline error, or null. Public so a host can assert on it.</summary>
+    /// <summary>
+    /// Whatever sentence is on screen right now, or null - the gesture's own verdict
+    /// if there is one, otherwise the host's <see cref="StandingError"/>. Public so a
+    /// host can assert on it. It is the RENDERED value, not an input: a host sets
+    /// <see cref="StandingError"/>.
+    /// </summary>
     public string? ErrorMessage { get; private set; }
 
     // =========================================================================
@@ -373,11 +389,61 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// so does any gesture left half-finished by the mouse taking focus away
     /// mid-chord. The other clearing hook is <see cref="OnDisplayTextChanged"/>, for
     /// a host that re-seeds or resets the box without the user touching it.
+    ///
+    /// What does NOT go is the host's <see cref="StandingError"/>. That one is about
+    /// the chord that is STORED, not about the last attempt, and it is still true
+    /// while the user types a replacement. Clearing it here erased the Streaming
+    /// page's load-time duplicate warning on the first click into the field, with
+    /// nothing left to repaint it: the user read "already used by Start/Stop
+    /// Recording", clicked to fix it, and the sentence and the red border both went.
     /// </summary>
     private void Field_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
+        HandleFocusGained();
+    }
+
+    /// <summary>
+    /// Focus LEAVING ends the gesture too, and abandons it. The preview drawn while
+    /// the chord was being typed must not outlive it, so the field goes back to what
+    /// is actually configured.
+    ///
+    /// Without this, <see cref="RestoreFieldText"/> was reachable only from
+    /// <see cref="Commit"/>, so a gesture nobody finished left its preview in the
+    /// field for good: hold Ctrl+Shift, click another control, and the field reads
+    /// "Ctrl+Shift" for the rest of the page visit while settings.json and the
+    /// registered hotkey are still the real chord. On the pages this was lifted from
+    /// the field was written only on the line that SAVED, so no page could show an
+    /// unsaved value; a control that previews mid-gesture can, and has to undo it.
+    ///
+    /// The verdict stays on screen. A user who was just told why a chord was refused
+    /// does not stop needing the reason because they looked away, and focus coming
+    /// back is already the point at which a new attempt clears it.
+    ///
+    /// This is also the only hook that catches the WINDOW losing activation
+    /// mid-gesture, where the key-ups never arrive at this control at all.
+    /// </summary>
+    private void Field_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        HandleFocusLost();
+    }
+
+    /// <summary>The focus-arriving half, with the WPF plumbing off it.</summary>
+    /// <remarks>
+    /// internal, not private, for the same reason as <see cref="HandleKeyDown"/>:
+    /// real keyboard focus needs a PresentationSource the control only has inside a
+    /// shown window, and WHAT SURVIVES a focus change is exactly what broke.
+    /// </remarks>
+    internal void HandleFocusGained()
+    {
         ResetGesture();
         ClearError();
+    }
+
+    /// <summary>The focus-leaving half. See <see cref="HandleFocusGained"/>.</summary>
+    internal void HandleFocusLost()
+    {
+        ResetGesture();
+        RestoreFieldText();
     }
 
     private void ResetGesture()
@@ -404,7 +470,57 @@ public partial class ShortcutRecorderBox : WpfUserControl
 
     // =========================================================================
     // ERROR DISPLAY
+    //
+    // TWO verdicts want the same line, and they have different lifetimes:
+    //
+    //   - the GESTURE's, from Commit: "the chord you just typed is refused". It
+    //     belongs to one attempt and dies with it - on focus, on a re-seeded
+    //     DisplayText, and on the next key-down.
+    //   - the host's STANDING one, from StandingError: "the chord that is STORED is
+    //     already someone else's". It is true before the user touches anything and
+    //     stays true until the stored chord changes.
+    //
+    // They are separate fields and everything paints through RenderError, so neither
+    // can erase the other. Collapsing them into one string is what #794's round-1
+    // review found: the Streaming page rendered its load-time duplicate through
+    // ShowError, the recorder cleared that on focus as designed, and the only warning
+    // this app gives about a conflict already in settings.json vanished on the first
+    // click with nothing left to repaint it.
+    //
+    // The gesture's wins while it exists, because it answers what the user JUST did.
     // =========================================================================
+
+    /// <summary>The verdict about the chord this gesture typed, or null.</summary>
+    private string? _gestureError;
+
+    /// <summary>The host's verdict about the chord that is stored, or null.</summary>
+    private string? _standingError;
+
+    /// <summary>
+    /// A verdict the HOST holds about the chord that is currently STORED, rather than
+    /// about one the user just typed. Set null to withdraw it.
+    ///
+    /// This is the seam a host renders through, and the only one it should touch:
+    /// <see cref="ShowError"/> and <see cref="ClearError"/> are the recorder's own,
+    /// and are internal for the smoke suite. Production code calling those fought the
+    /// control for the line, because the control clears its own verdict on focus and
+    /// on a re-seeded DisplayText and cannot tell a host's sentence from its own.
+    ///
+    /// Withdrawn automatically when <see cref="DisplayText"/> changes: a verdict about
+    /// the stored chord cannot outlive the stored chord. There is one producer today -
+    /// StreamingSettingsPage's load-time duplicate check, which is the only thing in
+    /// this app that reports a conflict that was already in settings.json, because the
+    /// recorder validates on capture and not on load.
+    /// </summary>
+    public string? StandingError
+    {
+        get => _standingError;
+        set
+        {
+            _standingError = value;
+            RenderError();
+        }
+    }
 
     /// <summary>
     /// The red border and the reason are ONE thing, and are drawn together.
@@ -425,10 +541,47 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// Driving it through a real KeyDown needs a PresentationSource the control has
     /// only once it is in a shown window, and the pairing - not the key handling -
     /// is what came apart.
+    ///
+    /// A HOST must not call this. It sets the GESTURE's verdict, which this control
+    /// owns and clears on focus and on a re-seeded DisplayText; a host's sentence
+    /// goes on <see cref="StandingError"/> and survives both.
     /// </remarks>
     internal void ShowError(string message)
     {
+        _gestureError = message;
+        RenderError();
+    }
+
+    internal void ClearError()
+    {
+        _gestureError = null;
+        RenderError();
+    }
+
+    /// <summary>
+    /// The one place either verdict reaches the screen. The gesture's own wins while
+    /// it exists; the host's standing one shows through underneath it, and is what is
+    /// left when the gesture's is cleared.
+    /// </summary>
+    private void RenderError()
+    {
+        var message = _gestureError ?? _standingError;
         ErrorMessage = message;
+
+        if (message == null)
+        {
+            ErrorText.Text = string.Empty;
+            ErrorText.Visibility = Visibility.Collapsed;
+            Field.ClearValue(ToolTipProperty);
+            // Control.*, not Border.*. The page this was lifted from cleared
+            // Border.BorderBrushProperty on a TextBox, which is a DIFFERENT dependency
+            // property from the Control.BorderBrush the TextBox actually renders, so the
+            // red border it set on a rejected chord never came off again. One line, and
+            // the whole reason to extract this rather than copy it twice more.
+            Field.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
+            Field.ClearValue(System.Windows.Controls.Control.BorderThicknessProperty);
+            return;
+        }
 
         if (!ShowsInlineError)
         {
@@ -444,20 +597,5 @@ public partial class ShortcutRecorderBox : WpfUserControl
         Field.BorderBrush = new System.Windows.Media.SolidColorBrush(
             System.Windows.Media.Color.FromRgb(0xFF, 0x55, 0x55));
         Field.BorderThickness = new Thickness(2);
-    }
-
-    internal void ClearError()
-    {
-        ErrorMessage = null;
-        ErrorText.Text = string.Empty;
-        ErrorText.Visibility = Visibility.Collapsed;
-        Field.ClearValue(ToolTipProperty);
-        // Control.*, not Border.*. The page this was lifted from cleared
-        // Border.BorderBrushProperty on a TextBox, which is a DIFFERENT dependency
-        // property from the Control.BorderBrush the TextBox actually renders, so the
-        // red border it set on a rejected chord never came off again. One line, and
-        // the whole reason to extract this rather than copy it twice more.
-        Field.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
-        Field.ClearValue(System.Windows.Controls.Control.BorderThicknessProperty);
     }
 }

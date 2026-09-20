@@ -33,8 +33,10 @@ public partial class StreamingSettingsPage : Page
         _isInitializing = true;
 
         StreamingEnabledCheckbox.IsChecked = _settings.StreamingEnabled;
-        // Seed BEFORE the conflict check: writing DisplayText runs the recorder's
-        // OnDisplayTextChanged, which calls ClearError() and would wipe the verdict.
+        // Seed BEFORE the conflict check, and never the other way round: writing
+        // DisplayText runs the recorder's OnDisplayTextChanged, which withdraws the
+        // StandingError this page is about to draw. The verdict is about the chord
+        // that is stored, so a re-seeded field is exactly what makes it stale.
         StreamingShortcutBox.DisplayText = _settings.StreamingShortcut.ToDisplayString();
         UpdateStreamingShortcutConflict();
 
@@ -145,26 +147,28 @@ public partial class StreamingSettingsPage : Page
     /// <summary>
     /// The on-load conflict render. The recorder validates on CAPTURE, not on load,
     /// so a conflict that was already in settings.json when the page opened still
-    /// needs saying - and this is the only thing that says it.
+    /// needs saying - and this is the only thing in the app that says it.
+    ///
+    /// It goes on the recorder's StandingError, NOT its ShowError/ClearError. Those
+    /// two are the recorder's own seam for the verdict about the chord the user just
+    /// typed, and the recorder clears that verdict on focus and on a re-seeded
+    /// DisplayText - by design, and for good reasons of its own. Rendering a
+    /// load-time conflict through them meant the sentence and the red border both
+    /// vanished the moment the user clicked into the field to fix the duplicate, and
+    /// nothing repainted them: they were gone for the rest of the page visit, with
+    /// the duplicate still stored. StandingError is about what is STORED, so it
+    /// survives focus and is withdrawn by the one thing that makes it untrue - a new
+    /// value in the field.
     /// </summary>
     private void UpdateStreamingShortcutConflict()
     {
-        var validationError = ShortcutValidationService.ValidateDuplicate(
+        StreamingShortcutBox.StandingError = ShortcutValidationService.ValidateDuplicate(
             _settings.StreamingShortcut,
             "Streaming",
             _settings.ToggleShortcut,
             _settings.CancelShortcut,
             _settings.ChangeModeShortcut,
             _settings.StreamingShortcut);
-
-        if (validationError != null)
-        {
-            StreamingShortcutBox.ShowError(validationError);
-        }
-        else
-        {
-            StreamingShortcutBox.ClearError();
-        }
     }
 
     private void FocusStreamingShortcut_Click(object sender, RoutedEventArgs e)

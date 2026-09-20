@@ -4,9 +4,16 @@
     A read-only field that captures the next key chord pressed into it, rejects the
     ones this app cannot register, and reports what it captured. It writes nothing:
     the host decides where the shortcut goes, which is the only reason it can serve
-    both the Shortcuts settings page (five of them, straight into SettingsService)
-    and the onboarding Permissions step (one, through the flow model's seam so the
-    registration row refreshes and the flow-model suite stays WPF-free).
+    all THREE hosts, SEVEN boxes between them:
+
+      - Settings > Shortcuts, five of them, straight into SettingsService;
+      - Settings > Streaming, one, editing the SAME setting as the Shortcuts page's
+        Streaming box - the second editor nobody had fixed, which is what #794 was;
+      - the onboarding Permissions step, one, through the flow model's seam so the
+        registration row refreshes and the flow-model suite stays WPF-free.
+
+    A change to this control's behaviour lands on all seven. Count them again before
+    you write a number into a comment here; this block has been wrong once already.
 
     Extracted, not written. Every line of the capture and the validation came off
     ShortcutsSettingsPage.xaml.cs, which was where the ONLY recorder in this app
@@ -17,6 +24,10 @@
 
     The field is IsReadOnly and swallows KeyUp as well as KeyDown, so a Win-key
     release never leaks into WPF text input while the global hook is live.
+
+    Focus ARRIVING and focus LEAVING are both boundaries of a gesture, and they are
+    not symmetric: see Field_GotKeyboardFocus and Field_LostKeyboardFocus in the
+    code-behind for what each one clears and what each one deliberately does not.
 -->
 <UserControl x:Class="HyperWhisper.Views.Controls.ShortcutRecorderBox"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -31,7 +42,8 @@
                  VerticalAlignment="Center"
                  PreviewKeyDown="Field_PreviewKeyDown"
                  PreviewKeyUp="Field_PreviewKeyUp"
-                 GotKeyboardFocus="Field_GotKeyboardFocus"/>
+                 GotKeyboardFocus="Field_GotKeyboardFocus"
+                 LostKeyboardFocus="Field_LostKeyboardFocus"/>
 
         <TextBlock x:Name="ErrorText"
                    Text=""
