@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modell";
 "streaming.cloudTier.title" = "Sanntidsmotor";
 "streaming.cloudTier.description" = "Hvilken talemotor HyperWhisper Cloud bruker til sanntidstranskripsjon";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Rask formatering";
 "streaming.fastFormatting.description" = "Reduserer forsinkelse i smart formatering for raskere skriving";
 "streaming.warning.vocabAutoDetect" = "Tilpasset ordforråd er deaktivert i autodetekteringsmodus";
@@ -767,18 +765,12 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Nøyaktighet";
-"modes.cloudAccuracy.groqWhisper.label" = "Middels (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Middels (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Høy (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Rask og rimelig. Best for raske transkripsjoner.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balansert hastighet og nøyaktighet. Anbefalt for de fleste brukere.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditter/min";
-"modes.cloudAccuracy.grokStt.label" = "Høyest (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Høy (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flerspråklig, med støtte for tilpasset ordforråd.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høy (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Opptil 60 språk med kontekstuell tilpasning.";
 
 "modes.create.title" = "Opprett ny modus";

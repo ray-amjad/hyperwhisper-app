@@ -46,8 +46,6 @@
 "streaming.model.title" = "Mudel";
 "streaming.cloudTier.title" = "Reaalajamootor";
 "streaming.cloudTier.description" = "Millist kõnemootorit kasutab HyperWhisper Cloud reaalajas transkribeerimiseks";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Kiire vormindus";
 "streaming.fastFormatting.description" = "Vähendab nutika vorminduse viivitust kiirema trükkimise jaoks";
 "streaming.warning.vocabAutoDetect" = "Kohandatud sõnavara on automaattuvastuse režiimis keelatud";
@@ -767,18 +765,12 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Täpsus";
-"modes.cloudAccuracy.groqWhisper.label" = "Keskmine (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Keskmine (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Kõrge (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Kiire ja taskukohane. Parim kiire transkriptsioonide jaoks.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Tasakaalustatud kiirus ja täpsus. Soovitatav enamikule kasutajatele.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediiti/min";
-"modes.cloudAccuracy.grokStt.label" = "Kõrgeim (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Kõrge (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Mitmekeelne, kohandatud sõnavara toega.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe Azure Speech kaudu. Kuni 60 keelt koos kontekstipõhise kohandusega.";
 
 "modes.create.title" = "Loo uus režiim";

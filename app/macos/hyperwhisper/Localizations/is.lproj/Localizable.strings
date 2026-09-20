@@ -46,8 +46,6 @@
 "streaming.model.title" = "Líkan";
 "streaming.cloudTier.title" = "Rauntímavél";
 "streaming.cloudTier.description" = "Hvaða talvél HyperWhisper Cloud notar fyrir rauntímaumritun";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Hröð sniðsetning";
 "streaming.fastFormatting.description" = "Minnkar snjallsniðstöðvun fyrir hraðari innslátt";
 "streaming.warning.vocabAutoDetect" = "Sérsniðinn orðaforði er óvirkur í sjálfvirkri greiningu";
@@ -767,18 +765,12 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Nákvæmni";
-"modes.cloudAccuracy.groqWhisper.label" = "Miðlungs (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Miðlungs (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Há (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Hratt og hagkvæmt. Best fyrir skjótar afritanir.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Jafnvægi hraða og nákvæmni. Mælt með fyrir flesta notendur.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ einingar/mín";
-"modes.cloudAccuracy.grokStt.label" = "Hæst (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Há (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Fjöltyngt, með stuðningi við sérsniðinn orðaforða.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe í gegnum Azure Speech. Allt að 60 tungumál með samhengisaðlögun.";
 
 "modes.create.title" = "Búa til nýjan ham";

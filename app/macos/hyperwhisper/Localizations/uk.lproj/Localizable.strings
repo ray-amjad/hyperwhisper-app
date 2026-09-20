@@ -46,8 +46,6 @@
 "streaming.model.title" = "Модель";
 "streaming.cloudTier.title" = "Рушій у реальному часі";
 "streaming.cloudTier.description" = "Який мовленнєвий рушій HyperWhisper Cloud використовує для транскрипції в реальному часі";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Швидке форматування";
 "streaming.fastFormatting.description" = "Зменшує затримку розумного форматування для швидшого введення";
 "streaming.warning.vocabAutoDetect" = "Спеціальний словник відключено в режимі автозначення";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Точність";
-"modes.cloudAccuracy.groqWhisper.label" = "Середня (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Середня (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Висока (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Швидка та доступна. Найкраще для швидких транскрипцій.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Збалансована швидкість та точність. Рекомендовано для більшості користувачів.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Найвища точність з повільнішою обробкою. Найкраще для важливих транскрипцій.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ кредитів/хв";
-"modes.cloudAccuracy.grokStt.label" = "Найвища (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Найвища точність з повільнішою обробкою. Найкраще для важливих транскрипцій.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Висока (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Багатомовна модель із підтримкою власного словника.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe через Azure Speech. До 60 мов з контекстним підлаштуванням.";
 
 "modes.create.title" = "Створити новий режим";

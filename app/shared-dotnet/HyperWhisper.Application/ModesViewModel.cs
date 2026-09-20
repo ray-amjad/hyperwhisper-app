@@ -518,22 +518,69 @@ public sealed class ModesViewModel : ViewModelBase
     public string CloudAccuracyTier
     {
         get => _cloudAccuracyTier;
-        set { if (Set(ref _cloudAccuracyTier, value)) { NormalizeDictationDomain(); Notify(nameof(CloudTierModels)); NotifyEditorReveals(); } }
+        set { if (Set(ref _cloudAccuracyTier, value)) { NormalizeDictationDomain(); Notify(nameof(CloudVendor)); Notify(nameof(CloudTierModels)); NotifyEditorReveals(); } }
     }
-    private readonly Dictionary<string, IReadOnlyList<string>> _tierModels = new(StringComparer.Ordinal);
-    public IReadOnlyList<string> CloudTierModels
+
+    /// <summary>
+    /// Every model the selected COMPANY offers, across all of its tiers — so the merged
+    /// Google row lists Gemini 3.5 Transcribe beside the Gemini family, exactly as macOS
+    /// and Windows list them. The list used to hold one tier's models only.
+    ///
+    /// Cached per company, and the cache is what keeps the SELECTION: a getter that built a
+    /// fresh list on every read handed the picker a new ItemsSource mid-commit, and the
+    /// selection it was committing was no longer an item of it.
+    /// </summary>
+    public IReadOnlyList<string> CloudTierModels =>
+        GroupForTier(_cloudAccuracyTier) is { } group ? VendorModelIds[group.VendorKey] : [];
+
+    /// <summary>
+    /// The model the Model row shows, and the tier it moves the mode onto.
+    ///
+    /// A company row can span tiers, so the MODEL decides the tier — picking a Gemini
+    /// family model under "Google" moves the mode off <c>geminiTranscribe</c> and onto
+    /// <c>gemini</c>, which is a different upstream route and different credits. Windows
+    /// resolves it the same way, from the item's own tier id (ModeEditorWindow.xaml.cs:253).
+    ///
+    /// The getter falls back to the tier default rather than to null. A HyperWhisper Cloud
+    /// mode that never chose a model stores an empty id, and the old getter drew an empty
+    /// row for it — the user saw no model at all and could not tell which one would run.
+    /// The fallback is display only: Save still writes null for an unchosen model, and the
+    /// send path still resolves the tier default from the same catalog.
+    /// </summary>
+    public string? CloudTierModel
     {
         get
         {
-            if (_tierModels.TryGetValue(_cloudAccuracyTier, out var cached)) return cached;
-            var models = SharedCoreBridge.CloudSttDictationModels(_cloudAccuracyTier);
-            return _tierModels[_cloudAccuracyTier] = models;
+            if (!IsHwCloudSource) return null;
+            if (CloudTierModels.Contains(_transcriptionModel, StringComparer.Ordinal)) return _transcriptionModel;
+            return DefaultModelForTier(_cloudAccuracyTier);
         }
-    }
-    public string? CloudTierModel
-    {
-        get => IsHwCloudSource && CloudTierModels.Contains(_transcriptionModel) ? _transcriptionModel : null;
-        set { if (!string.IsNullOrWhiteSpace(value)) TranscriptionModel = value; }
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                // A ComboBox clears its selection when the ItemsSource swaps to a list that
+                // does not hold it, and writes that null back through the two-way binding.
+                // Changing company does exactly that, and the write lands AFTER the change
+                // notification. Dropping it silently was not enough: the model stayed set and
+                // the row still drew EMPTY, measured on the Linux head 2026-09-20 with Google
+                // selected. Re-assert, so the picker reads the value back.
+                Notify(nameof(CloudTierModel));
+                return;
+            }
+            var owner = (GroupForTier(_cloudAccuracyTier)?.Models ?? [])
+                .FirstOrDefault(m => string.Equals(m.ModelId, value, StringComparison.Ordinal));
+            if (owner is not null && !string.Equals(owner.TierId, _cloudAccuracyTier, StringComparison.Ordinal))
+            {
+                // Assign the field, not the property: the property's setter notifies
+                // CloudTierModels, and a list change mid-write makes the picker re-read a
+                // selection that is not written yet.
+                _cloudAccuracyTier = owner.TierId;
+                NormalizeDictationDomain();
+                Notify(nameof(CloudAccuracyTier));
+            }
+            TranscriptionModel = value;
+        }
     }
     public bool IsDictation => _transcriptionModel == "dictation"
         && (IsHwCloudSource && _cloudAccuracyTier == "assemblyAI" || IsYourProviderSource && _cloudProvider == "assemblyai");
@@ -599,7 +646,93 @@ public sealed class ModesViewModel : ViewModelBase
     // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
     // model) and from the `geminiTranscribe` HyperWhisper Cloud accuracy TIER.
     public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "geminitranscribe", "microsoftazurespeech", "googlespeech", "meta", "hyperwhisper"];
-    public IReadOnlyList<string> CloudAccuracyTiers { get; } = ["groqWhisper", "deepgramNova3", "grokStt", "azureMaiTranscribe", "geminiTranscribe", "elevenLabsScribeV2", "openaiWhisper", "gemini", "mistralVoxtral", "assemblyAI", "soniox", "metaMuse"];
+    // =====================================================================================
+    // HYPERWHISPER CLOUD — the Provider row is a COMPANY, read from the catalog (#837).
+    //
+    // This used to be a hand-kept array of 12 tier ids, and the picker labelled each one
+    // from `modes.cloudAccuracy.<tierId>.label` in 80 translation files. So a company name
+    // was written 81 times, and Linux showed "Grok STT" where macOS and Windows showed
+    // "SpaceXAI". The same call the other 2 heads already make answers both questions.
+    // =====================================================================================
+
+    /// <summary>
+    /// The company rows, in catalog order. Read once: the catalog is compiled into the
+    /// shared core, so it cannot change while the app runs.
+    /// </summary>
+    private static readonly IReadOnlyList<SharedCoreBridge.CloudSttVendorGroup> VendorGroups =
+        SharedCoreBridge.CloudSttVendorGroups();
+
+    /// <summary>
+    /// One model-id list per company, built once. Backs <see cref="CloudTierModels"/>; see
+    /// that property for why the list has to be the SAME instance on every read.
+    /// </summary>
+    private static readonly Dictionary<string, IReadOnlyList<string>> VendorModelIds =
+        VendorGroups.ToDictionary(
+            g => g.VendorKey,
+            g => (IReadOnlyList<string>)[.. g.Models.Select(m => m.ModelId)],
+            StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The Provider picker's rows: one <c>vendor</c> key per company.</summary>
+    public IReadOnlyList<string> CloudVendors { get; } = [.. VendorGroups.Select(g => g.VendorKey)];
+
+    /// <summary>
+    /// Every cloud accuracy tier the catalog offers — the allow-list Save checks a
+    /// canonicalised tier against. A company can own several (Google holds
+    /// <c>geminiTranscribe</c> and <c>gemini</c>), so this is the flattened set, not one
+    /// entry per company.
+    /// </summary>
+    public IReadOnlyList<string> CloudAccuracyTiers { get; } = [.. VendorGroups.SelectMany(g => g.TierIds)];
+
+    /// <summary>The company that owns <paramref name="tierId"/>, or null.</summary>
+    private static SharedCoreBridge.CloudSttVendorGroup? GroupForTier(string? tierId) =>
+        string.IsNullOrEmpty(tierId)
+            ? null
+            : VendorGroups.FirstOrDefault(
+                g => g.TierIds.Contains(tierId, StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>The company with this <c>vendor</c> key, or null.</summary>
+    private static SharedCoreBridge.CloudSttVendorGroup? GroupForVendor(string? vendorKey) =>
+        string.IsNullOrEmpty(vendorKey)
+            ? null
+            : VendorGroups.FirstOrDefault(
+                g => string.Equals(g.VendorKey, vendorKey, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// The company the Provider row shows. Derived from the saved TIER, because the tier is
+    /// what the mode stores and what the send path puts in <c>X-STT-Provider</c>.
+    ///
+    /// Setting it moves the mode onto that company's default tier and default model, which
+    /// is what Windows does on the same change (ModeEditorWindow.xaml.cs:749-758). Writing
+    /// the model here is also what stops the Model row going blank: it used to show nothing
+    /// at all whenever the mode's stored model was not one this tier offers, which is every
+    /// HyperWhisper Cloud mode that never chose a model.
+    /// </summary>
+    public string CloudVendor
+    {
+        get => GroupForTier(_cloudAccuracyTier)?.VendorKey ?? string.Empty;
+        set
+        {
+            var group = GroupForVendor(value);
+            if (group is null || string.Equals(group.VendorKey, CloudVendor, StringComparison.OrdinalIgnoreCase))
+                return;
+            CloudAccuracyTier = group.DefaultTierId;
+            TranscriptionModel = DefaultModelForTier(group.DefaultTierId) ?? string.Empty;
+            Notify(nameof(CloudVendor));
+        }
+    }
+
+    /// <summary>
+    /// The tier's own default model id, when the tier still offers it. Null when the
+    /// catalog names no default — the caller then falls back to the group's first model.
+    /// </summary>
+    private static string? DefaultModelForTier(string tierId)
+    {
+        var models = GroupForTier(tierId)?.Models ?? [];
+        var preferred = SharedCoreBridge.CloudSttDefaultModel(tierId);
+        return models.FirstOrDefault(
+                   m => string.Equals(m.ModelId, preferred, StringComparison.Ordinal))?.ModelId
+               ?? models.FirstOrDefault(m => string.Equals(m.TierId, tierId, StringComparison.Ordinal))?.ModelId;
+    }
     public IReadOnlyList<string> CloudDomains { get; } = ["", "medical"];
 
     // =====================================================================================
@@ -843,6 +976,7 @@ public sealed class ModesViewModel : ViewModelBase
         Notify(nameof(LocalTranscriptionModel)); Notify(nameof(CloudTranscriptionModel));
         Notify(nameof(ShowCloudProviderPanel));
         Notify(nameof(ShowCloudAccuracyPanel)); Notify(nameof(ShowMedicalDomain));
+        Notify(nameof(CloudVendor)); Notify(nameof(CloudTierModels));
         Notify(nameof(CloudTierModel)); Notify(nameof(IsDictation)); Notify(nameof(IsNotDictation));
         Notify(nameof(DictationLanguage));
         Notify(nameof(ShowCloudModelPanel)); Notify(nameof(ShowGeminiPrompt));

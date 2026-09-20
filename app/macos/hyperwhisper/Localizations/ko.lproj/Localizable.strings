@@ -46,8 +46,6 @@
 "streaming.model.title" = "모델";
 "streaming.cloudTier.title" = "실시간 엔진";
 "streaming.cloudTier.description" = "HyperWhisper Cloud가 실시간 받아쓰기에 사용하는 음성 엔진";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "빠른 서식";
 "streaming.fastFormatting.description" = "더 빠른 타이핑을 위해 스마트 서식 지연 감소";
 "streaming.warning.vocabAutoDetect" = "자동 감지 모드에서는 사용자 정의 어휘가 비활성화됩니다";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "정확도";
-"modes.cloudAccuracy.groqWhisper.label" = "중간 (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "중간 (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "높음 (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "빠르고 저렴합니다. 빠른 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.deepgramNova3.description" = "속도와 정확도의 균형. 대부분의 사용자에게 권장됩니다.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ 크레딧/분";
-"modes.cloudAccuracy.grokStt.label" = "최고 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "높음 (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. 다국어를 지원하며 사용자 지정 어휘를 사용할 수 있습니다.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "높음 (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 기반 Microsoft MAI-Transcribe. 문맥 기반 보정을 지원하는 최대 60개 언어.";
 
 "modes.create.title" = "새 모드 만들기";

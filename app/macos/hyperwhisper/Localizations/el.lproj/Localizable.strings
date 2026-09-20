@@ -46,8 +46,6 @@
 "streaming.model.title" = "Μοντέλο";
 "streaming.cloudTier.title" = "Μηχανή ζωντανής ροής";
 "streaming.cloudTier.description" = "Ποια μηχανή ομιλίας χρησιμοποιεί το HyperWhisper Cloud για ζωντανή μεταγραφή";
-"streaming.model.nova3general" = "Nova 3 Γενικό";
-"streaming.model.nova3medical" = "Nova 3 Ιατρικό";
 "streaming.fastFormatting.title" = "Γρήγορη Μορφοποίηση";
 "streaming.fastFormatting.description" = "Μειώνει την καθυστέρηση της έξυπνης μορφοποίησης για ταχύτερη πληκτρολόγηση";
 "streaming.warning.vocabAutoDetect" = "Το προσαρμοσμένο λεξιλόγιο είναι απενεργοποιημένο στη λειτουργία αυτόματης ανίχνευσης";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Ακρίβεια";
-"modes.cloudAccuracy.groqWhisper.label" = "Μεσαίο (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Μεσαίο (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Ψηλό (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Γρήγορο και οικονομικό. Καλύτερο για γρήγορες μεταγραφές.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Ισορροπημένη ταχύτητα και ακρίβεια. Συνιστάται για τους περισσότερους χρήστες.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ πιστώσεις/λεπτό";
-"modes.cloudAccuracy.grokStt.label" = "Υψηλότερο (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Υψηλή (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Πολύγλωσσο, με υποστήριξη προσαρμοσμένου λεξιλογίου.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe μέσω Azure Speech. Έως 60 γλώσσες με προσαρμογή βάσει συμφραζομένων.";
 
 "modes.create.title" = "Δημιουργία Νέας Λειτουργίας";

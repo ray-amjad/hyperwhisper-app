@@ -1022,15 +1022,6 @@
   <data name="modes.cloudAccuracy.title" xml:space="preserve">
     <value>クラウド精度</value>
   </data>
-  <data name="modes.cloudAccuracy.groqWhisper.label" xml:space="preserve">
-    <value>Groq Whisper</value>
-  </data>
-  <data name="modes.cloudAccuracy.deepgramNova3.label" xml:space="preserve">
-    <value>Deepgram Nova 3</value>
-  </data>
-  <data name="modes.cloudAccuracy.elevenLabsScribeV2.label" xml:space="preserve">
-    <value>ElevenLabs Scribe v2</value>
-  </data>
   <data name="modes.cloudAccuracy.groqWhisper.description" xml:space="preserve">
     <value>Groq Whisper - 最速の文字起こし、低コスト</value>
   </data>
@@ -1039,9 +1030,6 @@
   </data>
   <data name="modes.cloudAccuracy.elevenLabsScribeV2.description" xml:space="preserve">
     <value>ElevenLabs Scribe v2 - 最高精度、低速</value>
-  </data>
-  <data name="modes.cloudAccuracy.grokStt.label" xml:space="preserve">
-    <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
     <value>SpaceXAI Grok STT - 高精度、カスタム語彙をキータームとして使用</value>
@@ -1922,14 +1910,8 @@
   <data name="settings.models.feature.vocabulary" xml:space="preserve">
     <value>カスタム語彙</value>
   </data>
-  <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe</value>
-  </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
     <value>Microsoft MAI-Transcribe - 最大 60 言語、フレーズバイアス対応</value>
-  </data>
-  <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe - 音声専用モデル、85 言語以上、カスタム語彙に対応</value>
@@ -1937,32 +1919,17 @@
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>約 {0} クレジット/分</value>
   </data>
-  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
-    <value>Soniox</value>
-  </data>
   <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
     <value>Soniox - 60 言語対応、文脈バイアス</value>
-  </data>
-  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
-    <value>OpenAI Whisper</value>
   </data>
   <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
     <value>OpenAI GPT-4o Transcribe / Whisper</value>
   </data>
-  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
-    <value>Mistral Voxtral</value>
-  </data>
   <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
     <value>Mistral Voxtral - 13 言語対応、文脈バイアス</value>
   </data>
-  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
-    <value>Google Gemini</value>
-  </data>
   <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
     <value>Google Gemini - マルチモーダル LLM による文字起こし</value>
-  </data>
-  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
-    <value>AssemblyAI</value>
   </data>
   <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
     <value>AssemblyAI Universal - キーワードプロンプト、医療モード</value>

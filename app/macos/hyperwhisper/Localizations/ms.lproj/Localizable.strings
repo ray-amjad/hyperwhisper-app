@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Enjin Langsung";
 "streaming.cloudTier.description" = "Enjin pertuturan yang digunakan HyperWhisper Cloud untuk transkripsi langsung";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Pemformatan Pantas";
 "streaming.fastFormatting.description" = "Mengurangkan kelewatan pemformatan pintar untuk penaipan yang lebih pantas";
 "streaming.warning.vocabAutoDetect" = "Perbendaharaan kata tersuai dilumpuhkan dalam mod auto-detect";
@@ -767,18 +765,12 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Ketepatan";
-"modes.cloudAccuracy.groqWhisper.label" = "Sederhana (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Sederhana (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Tinggi (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Pantas dan berpatutan. Terbaik untuk transkripsi pantas.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Kelajuan dan ketepatan seimbang. Disyorkan untuk kebanyakan pengguna.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/min";
-"modes.cloudAccuracy.grokStt.label" = "Tertinggi (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Tinggi (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Berbilang bahasa, dengan sokongan perbendaharaan kata tersuai.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe melalui Azure Speech. Sehingga 60 bahasa dengan pemberatan kontekstual.";
 
 "modes.create.title" = "Cipta Mod Baharu";

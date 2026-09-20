@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Canlı Motor";
 "streaming.cloudTier.description" = "HyperWhisper Cloud'un canlı transkripsiyon için kullandığı konuşma motoru";
-"streaming.model.nova3general" = "Nova 3 Genel";
-"streaming.model.nova3medical" = "Nova 3 Tıbbi";
 "streaming.fastFormatting.title" = "Hızlı Biçimlendirme";
 "streaming.fastFormatting.description" = "Daha hızlı yazma için akıllı biçimlendirme gecikmesini azaltır";
 "streaming.warning.vocabAutoDetect" = "Özel kelime hazinesi otomatik algılama modunda devre dışıdır";
@@ -767,18 +765,12 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Doğruluk";
-"modes.cloudAccuracy.groqWhisper.label" = "Orta (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Orta (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Yüksek (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Hızlı ve uygun fiyatlı. Hızlı transkripsiyon için en iyisi.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Dengeli hız ve doğruluk. Çoğu kullanıcı için önerilir.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredi/dk";
-"modes.cloudAccuracy.grokStt.label" = "En Yüksek (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Yüksek (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Çok dilli, özel sözcük dağarcığı desteğiyle.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Yüksek (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech üzerinden Microsoft MAI-Transcribe. Bağlamsal yönlendirme ile en fazla 60 dil.";
 
 "modes.create.title" = "Yeni Mod Oluştur";

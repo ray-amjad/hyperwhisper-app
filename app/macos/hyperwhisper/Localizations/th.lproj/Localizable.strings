@@ -46,8 +46,6 @@
 "streaming.model.title" = "โมเดล";
 "streaming.cloudTier.title" = "เอนจินสด";
 "streaming.cloudTier.description" = "เอนจินเสียงพูดที่ HyperWhisper Cloud ใช้สำหรับการถอดเสียงแบบสด";
-"streaming.model.nova3general" = "Nova 3 ทั่วไป";
-"streaming.model.nova3medical" = "Nova 3 ทางการแพทย์";
 "streaming.fastFormatting.title" = "การจัดรูปแบบแบบรวดเร็ว";
 "streaming.fastFormatting.description" = "ลดความล่าช้าของการจัดรูปแบบอัจฉริยะเพื่อให้พิมพ์เร็วขึ้น";
 "streaming.warning.vocabAutoDetect" = "ศัพท์เฉพาะที่กำหนดเองถูกปิดใช้งานในโหมดตรวจสอบอัตโนมัติ";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "ความแม่นยำ";
-"modes.cloudAccuracy.groqWhisper.label" = "ปานกลาง (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "ปานกลาง (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "สูง (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "เร็วและราคาไม่แพง ดีที่สุดสำหรับการสัญลักษณ์อย่างรวดเร็ว";
 "modes.cloudAccuracy.deepgramNova3.description" = "ความเร็วและความแม่นยำที่สมดุล แนะนำสำหรับผู้ใช้ส่วนใหญ่";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ เครดิต/นาที";
-"modes.cloudAccuracy.grokStt.label" = "สูงสุด (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
-"modes.cloudAccuracy.geminiTranscribe.label" = "สูง (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe รองรับหลายภาษา พร้อมคำศัพท์ที่กำหนดเอง";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "สูง (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe ผ่าน Azure Speech รองรับสูงสุด 60 ภาษา พร้อมการปรับตามบริบท";
 
 "modes.create.title" = "สร้างโหมดใหม่";

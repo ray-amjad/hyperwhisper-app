@@ -46,8 +46,6 @@
 "streaming.model.title" = "Модел";
 "streaming.cloudTier.title" = "Механизам уживо";
 "streaming.cloudTier.description" = "Који говорни механизам HyperWhisper Cloud користи за транскрипцију уживо";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Брзо Форматирање";
 "streaming.fastFormatting.description" = "Смањује кашњење паметног форматирања за брже писање";
 "streaming.warning.vocabAutoDetect" = "Прилагођени речник је онемогућен у режиму аутоматске детекције";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Тачност";
-"modes.cloudAccuracy.groqWhisper.label" = "Средња (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Средња (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Висока (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Брза и приступачна. Најбоља за брзе транскрипције.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Уравнотежена брзина и тачност. Препоручена за већину корисника.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Највећа тачност са споријом обработком. Најбоља за важне транскрипције.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredita/min";
-"modes.cloudAccuracy.grokStt.label" = "Највиша (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Највећа тачност са споријом обработком. Најбоља за важне транскрипције.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Visoka (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Višejezično, sa podrškom za prilagođeni rečnik.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe preko Azure Speech. Do 60 jezika uz kontekstualno prilagođavanje.";
 
 "modes.create.title" = "Направи Нови Режим";

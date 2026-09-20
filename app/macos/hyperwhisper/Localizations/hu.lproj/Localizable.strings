@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modell";
 "streaming.cloudTier.title" = "Élő motor";
 "streaming.cloudTier.description" = "Melyik beszédmotort használja a HyperWhisper Cloud az élő átirathoz";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Gyors formázás";
 "streaming.fastFormatting.description" = "Csökkenti az intelligens formázás késleltetését a gyorsabb gépelés érdekében";
 "streaming.warning.vocabAutoDetect" = "Az egyéni szókincs le van tiltva automatikus felismerési módban";
@@ -767,18 +765,12 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Pontosság";
-"modes.cloudAccuracy.groqWhisper.label" = "Közepes (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Közepes (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Magas (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Gyors és megfizethető. Legjobb gyors átírásokhoz.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Kiegyensúlyozott sebesség és pontosság. Ajánlott a legtöbb felhasználónak.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/perc";
-"modes.cloudAccuracy.grokStt.label" = "Legmagasabb (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Magas (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Többnyelvű, egyéni szótár támogatásával.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Magas (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe az Azure Speech szolgáltatáson keresztül. Akár 60 nyelv, kontextusalapú súlyozással.";
 
 "modes.create.title" = "Új mód létrehozása";

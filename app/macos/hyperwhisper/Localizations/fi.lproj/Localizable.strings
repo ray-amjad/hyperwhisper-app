@@ -46,8 +46,6 @@
 "streaming.model.title" = "Malli";
 "streaming.cloudTier.title" = "Reaaliaikainen moottori";
 "streaming.cloudTier.description" = "Mitä puhemoottoria HyperWhisper Cloud käyttää reaaliaikaiseen litterointiin";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Nopea muotoilu";
 "streaming.fastFormatting.description" = "Vähentää älykästä muotoilun viivettä nopeampaa kirjoitusta varten";
 "streaming.warning.vocabAutoDetect" = "Mukautettu sanasto on poistettu käytöstä automaattisessa tunnistustilassa";
@@ -767,18 +765,12 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Tarkkuus";
-"modes.cloudAccuracy.groqWhisper.label" = "Keskitaso (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Keskitaso (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Korkea (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Nopea ja edullinen. Paras nopeisiin transkriptioihin.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Tasapainoinen nopeus ja tarkkuus. Suositeltu useimmille käyttäjille.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediittiä/min";
-"modes.cloudAccuracy.grokStt.label" = "Korkein (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Korkea (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Monikielinen, tukee mukautettua sanastoa.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Korkea (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe Azure Speech -palvelun kautta. Jopa 60 kieltä ja kontekstipohjainen painotus.";
 
 "modes.create.title" = "Luo uusi tila";

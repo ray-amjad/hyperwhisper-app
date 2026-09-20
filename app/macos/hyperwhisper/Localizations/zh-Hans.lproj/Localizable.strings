@@ -46,8 +46,6 @@
 "streaming.model.title" = "模型";
 "streaming.cloudTier.title" = "实时引擎";
 "streaming.cloudTier.description" = "HyperWhisper Cloud 用于实时转录的语音引擎";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "快速格式化";
 "streaming.fastFormatting.description" = "减少智能格式化延迟，实现更快的输入";
 "streaming.warning.vocabAutoDetect" = "自动检测模式下已禁用自定义词汇";
@@ -773,18 +771,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "准确度";
-"modes.cloudAccuracy.groqWhisper.label" = "中 (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "中 (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "高 (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "快速且经济，适合快速转写。";
 "modes.cloudAccuracy.deepgramNova3.description" = "速度与准确度平衡，推荐给大多数用户。";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高准确度但更慢，适合重要转写。";
 "modes.cloudAccuracy.creditsPerMinute" = "约 %@ 积分/分钟";
-"modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高准确度但更慢，适合重要转写。";
-"modes.cloudAccuracy.geminiTranscribe.label" = "高（Google Gemini 3.5 Transcribe）";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。支持多语言和自定义词汇。";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe）";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "通过 Azure Speech 使用 Microsoft MAI-Transcribe。最多支持 60 种语言，并具备上下文偏置。";
 
 "modes.create.title" = "创建新模式";

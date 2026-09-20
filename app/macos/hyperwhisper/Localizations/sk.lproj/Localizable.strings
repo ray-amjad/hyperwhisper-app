@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Živý engine";
 "streaming.cloudTier.description" = "Ktorý hlasový engine používa HyperWhisper Cloud na živý prepis";
-"streaming.model.nova3general" = "Nova 3 Všeobecný";
-"streaming.model.nova3medical" = "Nova 3 Medicína";
 "streaming.fastFormatting.title" = "Rýchle formátovanie";
 "streaming.fastFormatting.description" = "Znižuje oneskorenie inteligentného formátovania pre rýchlejšie písanie";
 "streaming.warning.vocabAutoDetect" = "Vlastný slovník je v režime automatickej detekcie zakázaný";
@@ -767,18 +765,12 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Presnosť";
-"modes.cloudAccuracy.groqWhisper.label" = "Stredná (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Stredná (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Vysoká (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Rýchla a dostupná. Najvhodnejšia na rýchle prepisy.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Vyvážená rýchlosť a presnosť. Odporúčané pre väčšinu používateľov.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditov/min";
-"modes.cloudAccuracy.grokStt.label" = "Najvyššia (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Vysoká (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Viacjazyčný, s podporou vlastného slovníka.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Vysoká (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe cez Azure Speech. Až 60 jazykov s kontextovým prispôsobením.";
 
 "modes.create.title" = "Vytvoriť nový režim";

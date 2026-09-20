@@ -55,8 +55,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Live Engine";
 "streaming.cloudTier.description" = "Which speech engine HyperWhisper Cloud uses for live transcription";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Fast Formatting";
 "streaming.fastFormatting.description" = "Reduces smart formatting delay for faster typing";
 "streaming.warning.vocabAutoDetect" = "Custom vocabulary is disabled in auto-detect mode";
@@ -818,17 +816,11 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Accuracy";
-"modes.cloudAccuracy.groqWhisper.label" = "Medium (Groq)";
 "modes.cloudAccuracy.groqWhisper.description" = "Fastest transcription, lowest cost. Great for quick notes.";
-"modes.cloudAccuracy.deepgramNova3.label" = "Medium (Deepgram Nova 3)";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanced speed and accuracy. Recommended for most users.";
-"modes.cloudAccuracy.grokStt.label" = "High (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - high-accuracy transcription with strong multilingual coverage.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "High (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Up to 60 languages with contextual biasing.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "High (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingual, with custom vocabulary support.";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Highest (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - highest accuracy transcription. Best for important transcriptions.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.postProcessing.accuracy" = "Accuracy";

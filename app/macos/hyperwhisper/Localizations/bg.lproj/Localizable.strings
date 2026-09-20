@@ -46,8 +46,6 @@
 "streaming.model.title" = "Модел";
 "streaming.cloudTier.title" = "Механизъм на живо";
 "streaming.cloudTier.description" = "Кой гласов механизъм използва HyperWhisper Cloud за транскрипция на живо";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Бързо форматиране";
 "streaming.fastFormatting.description" = "Намалява забавянето на интелигентното форматиране за по-бързо въвеждане";
 "streaming.warning.vocabAutoDetect" = "Потребителският речник е деактивиран в режим на автоматично разпознаване";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Точност";
-"modes.cloudAccuracy.groqWhisper.label" = "Средна (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Средна (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Висока (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Бърза и достъпна. Най-добра за бързи транскрипции.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Балансирана скорост и точност. Препоръчва се за повечето потребители.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ кредита/мин";
-"modes.cloudAccuracy.grokStt.label" = "Най-висока (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Висока (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Многоезичен, с поддръжка на персонализиран речник.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe през Azure Speech. До 60 езика с контекстно насочване.";
 
 "modes.create.title" = "Създаване на нов режим";

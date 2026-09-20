@@ -490,3 +490,76 @@ public sealed class CloudSttModelLabelConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+/// <summary>
+/// "xai" becomes "SpaceXAI" — the company name, from the catalog.
+///
+/// The HyperWhisper Cloud Provider row used to be a list of TIER ids labelled from
+/// `modes.cloudAccuracy.&lt;tierId&gt;.label` in 80 translation files, so Linux showed
+/// "Grok STT" where macOS and Windows showed "SpaceXAI". A company name is a proper noun
+/// and is never translated, so it belongs in the catalog and nowhere else (#837).
+/// </summary>
+public sealed class CloudVendorLabelConverter : IValueConverter
+{
+    private Dictionary<string, string>? _names;
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not string key || key.Length == 0) return string.Empty;
+        return Names().TryGetValue(key, out var name) ? name : key;
+    }
+
+    private Dictionary<string, string> Names()
+        => _names ??= SharedCoreBridge.CloudSttVendorGroups()
+            .ToDictionary(g => g.VendorKey, g => g.DisplayName, StringComparer.OrdinalIgnoreCase);
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// "elevenLabsScribeV2" becomes "ElevenLabs Scribe v2" — the TIER name, from the catalog.
+///
+/// The streaming picker chooses a tier, not a company: a live session names one upstream
+/// route. So this draws the entry's own <c>displayName</c>, where the Mode editor's
+/// Provider row draws the company that owns it.
+/// </summary>
+public sealed class CloudSttTierLabelConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is string id && id.Length > 0
+            ? SharedCoreBridge.CloudSttTierLabel(id) ?? id
+            : string.Empty;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// "mai-transcribe-2" becomes "MAI-Transcribe 2".
+///
+/// A SECOND model-label converter, because the two pickers list different sets.
+/// <see cref="CloudSttModelLabelConverter"/> reads the BYOK catalog, which holds only the
+/// vendors a user can point their own key at — it draws a raw id for every cloud-tier-only
+/// model (Microsoft MAI, Meta Muse). This one reads the cloud-tier vendor groups, the same
+/// rows the Provider picker above it is built from.
+/// </summary>
+public sealed class CloudTierModelLabelConverter : IValueConverter
+{
+    private Dictionary<string, string>? _names;
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not string id || id.Length == 0) return string.Empty;
+        return Names().TryGetValue(id, out var name) ? name : id;
+    }
+
+    private Dictionary<string, string> Names()
+        => _names ??= SharedCoreBridge.CloudSttVendorGroups()
+            .SelectMany(g => g.Models)
+            .GroupBy(m => m.ModelId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().DisplayName, StringComparer.Ordinal);
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}

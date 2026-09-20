@@ -46,8 +46,6 @@
 "streaming.model.title" = "Mô hình";
 "streaming.cloudTier.title" = "Công cụ trực tiếp";
 "streaming.cloudTier.description" = "Công cụ giọng nói mà HyperWhisper Cloud dùng cho phiên âm trực tiếp";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Định dạng nhanh";
 "streaming.fastFormatting.description" = "Giảm độ trễ định dạng thông minh để nhập nhanh hơn";
 "streaming.warning.vocabAutoDetect" = "Từ vựng tùy chỉnh được vô hiệu hóa ở chế độ tự động phát hiện";
@@ -767,18 +765,12 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Độ chính xác";
-"modes.cloudAccuracy.groqWhisper.label" = "Trung bình (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Trung bình (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Cao (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Nhanh và giá cả phải chăng. Tốt nhất cho chuyển đổi nhanh.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Cân bằng tốc độ và độ chính xác. Được đề xuất cho hầu hết người dùng.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ tín dụng/phút";
-"modes.cloudAccuracy.grokStt.label" = "Cao nhất (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Cao (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Đa ngôn ngữ, hỗ trợ từ vựng tùy chỉnh.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Cao (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe qua Azure Speech. Tối đa 60 ngôn ngữ, có điều chỉnh theo ngữ cảnh.";
 
 "modes.create.title" = "Tạo Chế độ Mới";

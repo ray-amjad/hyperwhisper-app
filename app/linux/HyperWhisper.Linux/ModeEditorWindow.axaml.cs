@@ -1,7 +1,9 @@
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using HyperWhisper.Linux.Localization;
 using HyperWhisper.PortableApplication.ViewModels;
 
@@ -45,6 +47,33 @@ public partial class ModeEditorWindow : Window
         Title = L(isCreate ? "mode.editor.title.create" : "mode.editor.title.edit");
         if (this.FindControl<Button>("ModeSaveButton") is { } save)
             save.Content = L(isCreate ? "modes.button.create" : "modes.button.save");
+
+        modes.PropertyChanged += OnModesPropertyChanged;
+        Closed += (_, _) => modes.PropertyChanged -= OnModesPropertyChanged;
+    }
+
+    /// <summary>
+    /// Re-applies the Model selection after the company row changes the list under it.
+    ///
+    /// A ComboBox drops a selection its NEW ItemsSource does not hold, and it writes that
+    /// null back through the binding. The view model keeps the model and raises the change
+    /// again, but that notification arrives while the binding is still writing, so the
+    /// binding ignores it and the row stays EMPTY. Measured on the Linux head 2026-09-20:
+    /// picking Google over ElevenLabs left the Model row blank with
+    /// <c>gemini-3.5-transcribe</c> selected in the view model. Post it instead, so the
+    /// re-apply lands after the list change has settled.
+    /// </summary>
+    private void OnModesPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ModesViewModel.CloudTierModels)) return;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                if (_modes is null) return;
+                if (this.FindControl<ComboBox>("ModeCloudTierModel") is { } combo)
+                    combo.SelectedValue = _modes.CloudTierModel;
+            },
+            DispatcherPriority.Background);
     }
 
     private static string L(string key) =>

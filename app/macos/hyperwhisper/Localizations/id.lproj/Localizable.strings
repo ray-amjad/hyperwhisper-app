@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Mesin Langsung";
 "streaming.cloudTier.description" = "Mesin ucapan yang digunakan HyperWhisper Cloud untuk transkripsi langsung";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Pemformatan Cepat";
 "streaming.fastFormatting.description" = "Mengurangi penundaan pemformatan pintar untuk pengetikan lebih cepat";
 "streaming.warning.vocabAutoDetect" = "Kosakata khusus dinonaktifkan dalam mode deteksi otomatis";
@@ -767,18 +765,12 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Akurasi";
-"modes.cloudAccuracy.groqWhisper.label" = "Sedang (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Sedang (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Tinggi (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Cepat dan terjangkau. Terbaik untuk transkripsi cepat.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Kecepatan dan akurasi seimbang. Direkomendasikan untuk sebagian besar pengguna.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Akurasi tertinggi dengan pemrosesan lebih lambat. Terbaik untuk transkripsi penting.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/mnt";
-"modes.cloudAccuracy.grokStt.label" = "Tertinggi (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Akurasi tertinggi dengan pemrosesan lebih lambat. Terbaik untuk transkripsi penting.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Tinggi (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multibahasa, dengan dukungan kosakata khusus.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe melalui Azure Speech. Hingga 60 bahasa dengan bias kontekstual.";
 
 "modes.create.title" = "Buat Mode Baru";

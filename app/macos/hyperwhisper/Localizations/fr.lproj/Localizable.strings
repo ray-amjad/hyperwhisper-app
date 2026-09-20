@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modèle";
 "streaming.cloudTier.title" = "Moteur en direct";
 "streaming.cloudTier.description" = "Quel moteur vocal HyperWhisper Cloud utilise pour la transcription en direct";
-"streaming.model.nova3general" = "Nova 3 Général";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Formatage rapide";
 "streaming.fastFormatting.description" = "Réduit le délai de formatage intelligent pour une saisie plus rapide";
 "streaming.warning.vocabAutoDetect" = "Le vocabulaire personnalisé est désactivé en mode détection automatique";
@@ -767,18 +765,12 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Précision";
-"modes.cloudAccuracy.groqWhisper.label" = "Moyenne (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Moyenne (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Élevée (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Rapide et économique. Idéal pour les transcriptions rapides.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Équilibre entre vitesse et précision. Recommandé pour la plupart des utilisateurs.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Précision maximale avec traitement plus lent. Idéal pour les transcriptions importantes.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ crédits/min";
-"modes.cloudAccuracy.grokStt.label" = "Maximale (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Précision maximale avec traitement plus lent. Idéal pour les transcriptions importantes.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Élevée (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingue, avec prise en charge du vocabulaire personnalisé.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Élevée (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Jusqu'à 60 langues avec adaptation contextuelle.";
 
 "modes.create.title" = "Créer un nouveau mode";

@@ -29,6 +29,9 @@ public partial class App : Application
         Resources["CloudPostProcessingLabelConverter"] = new CloudPostProcessingLabelConverter();
         Resources["LocalModelLabelConverter"] = new LocalModelLabelConverter();
         Resources["CloudSttModelLabelConverter"] = new CloudSttModelLabelConverter();
+        Resources["CloudVendorLabelConverter"] = new CloudVendorLabelConverter();
+        Resources["CloudTierModelLabelConverter"] = new CloudTierModelLabelConverter();
+        Resources["CloudSttTierLabelConverter"] = new CloudSttTierLabelConverter();
         Resources["ModeProviderLineConverter"] = new ModeProviderLineConverter();
         Resources["ModePostProcessingConverter"] = new ModePostProcessingConverter();
         Resources["StatusBarModelConverter"] = new StatusBarModelConverter();

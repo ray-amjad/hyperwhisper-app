@@ -43,6 +43,68 @@ public static partial class SharedCoreBridge
         HyperwhisperCoreMethods.CloudSttModels(tierId).Select(model => model.@id)
             .Where(id => !IsLiveOnlyCloudSttModel(id)).ToArray();
 
+    /// <summary>
+    /// One model row of a vendor group, carrying the TIER that owns it.
+    ///
+    /// The tier is what the mode saves and what the send path puts in
+    /// <c>X-STT-Provider</c>, so a merged company row must keep it per model:
+    /// under "Google", <c>chirp-3</c> belongs to <c>googleChirp</c> and
+    /// <c>gemini-3-flash</c> to <c>gemini</c>, and picking the wrong one changes
+    /// the billing and turns custom vocabulary off.
+    /// </summary>
+    public sealed record CloudSttVendorModel(
+        string TierId,
+        string ModelId,
+        string DisplayName,
+        bool PreviewStatus,
+        bool SupportsCustomVocabulary);
+
+    /// <summary>
+    /// One COMPANY row of the HyperWhisper Cloud Provider picker, with every
+    /// model that company offers across all of its tiers.
+    ///
+    /// A company that owns several tiers gets one row: Google holds Chirp 3 and
+    /// the whole Gemini family together, and the tier follows from the model the
+    /// user picks. macOS and Windows have drawn this shape since PR #200; Linux
+    /// drew a flat list of 12 tier ids labelled from a translation file until
+    /// #837.
+    /// </summary>
+    public sealed record CloudSttVendorGroup(
+        string VendorKey,
+        string DisplayName,
+        string DefaultTierId,
+        IReadOnlyList<string> TierIds,
+        IReadOnlyList<CloudSttVendorModel> Models);
+
+    /// <summary>
+    /// Every company row for the HyperWhisper Cloud Provider picker, in catalog
+    /// order. Live-only models are filtered out, exactly as
+    /// <see cref="CloudSttDictationModels"/> filters them: a pre-recorded POST
+    /// carrying one is an HTTP 400 on every dictation.
+    ///
+    /// A group whose models are ALL live-only is dropped, so the picker can
+    /// never seat a company with an empty Model row.
+    /// </summary>
+    public static IReadOnlyList<CloudSttVendorGroup> CloudSttVendorGroups() =>
+        HyperwhisperCoreMethods.CloudSttCloudTierVendorGroups()
+            .Select(group => new CloudSttVendorGroup(
+                VendorKey: group.@vendorKey,
+                DisplayName: group.@displayName,
+                DefaultTierId: group.@entries[0].@id,
+                TierIds: group.@entries.Select(entry => entry.@id).ToArray(),
+                Models: group.@entries
+                    .SelectMany(entry => entry.@models
+                        .Where(model => !IsLiveOnlyCloudSttModel(model.@id))
+                        .Select(model => new CloudSttVendorModel(
+                            TierId: entry.@id,
+                            ModelId: model.@id,
+                            DisplayName: model.@displayName,
+                            PreviewStatus: model.@previewStatus == true,
+                            SupportsCustomVocabulary: model.@supportsCustomVocabulary == true)))
+                    .ToArray()))
+            .Where(group => group.Models.Count > 0)
+            .ToArray();
+
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 

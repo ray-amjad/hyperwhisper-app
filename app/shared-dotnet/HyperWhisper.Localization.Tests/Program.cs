@@ -116,7 +116,13 @@ static void AllCatalogsLoad()
     //   settings.streaming.conflict.title
     // About's version line takes NO new key: menu.version.label is the same
     // one-argument string, shared with the macOS catalog.
-    Equal(864, PortableLocalizer.BaseKeyCount, "base key count");
+    // 864 -> 853: the 11 `modes.cloudAccuracy.<tierId>.label` keys are gone (#837).
+    // Each was a company or a model name — a proper noun, so all 40 catalogs held
+    // the same English string, and `translation-status.json` already listed every
+    // one of them as "identical by design". The picker reads the name from the
+    // catalog now, where it is written once. The `.description` keys stay: those
+    // are real sentences and they ARE translated.
+    Equal(853, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

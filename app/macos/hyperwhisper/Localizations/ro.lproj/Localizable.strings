@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Motor live";
 "streaming.cloudTier.description" = "Ce motor vocal folosește HyperWhisper Cloud pentru transcrierea live";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Formatare rapidă";
 "streaming.fastFormatting.description" = "Reduce întârzierea de formatare inteligentă pentru o dactilografiere mai rapidă";
 "streaming.warning.vocabAutoDetect" = "Vocabularul personalizat este dezactivat în modul de detectare automată";
@@ -767,18 +765,12 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Precizie";
-"modes.cloudAccuracy.groqWhisper.label" = "Mediu (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Mediu (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Înalt (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Rapid și accesibil. Cel mai bun pentru transcrieri rapide.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Echilibru între viteză și precizie. Recomandat pentru cei mai mulți utilizatori.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credite/min";
-"modes.cloudAccuracy.grokStt.label" = "Cel mai înalt (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Ridicată (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingv, cu suport pentru vocabular personalizat.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Ridicată (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe prin Azure Speech. Până la 60 de limbi, cu adaptare contextuală.";
 
 "modes.create.title" = "Creați mod nou";

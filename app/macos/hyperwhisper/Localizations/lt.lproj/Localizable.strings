@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modelis";
 "streaming.cloudTier.title" = "Tiesioginis variklis";
 "streaming.cloudTier.description" = "Kurį kalbos variklį „HyperWhisper Cloud“ naudoja tiesioginei transkripcijai";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Greitas formatavimas";
 "streaming.fastFormatting.description" = "Sumažina protingą formatavimo delsa greitesniu rašymui";
 "streaming.warning.vocabAutoDetect" = "Pasirinktas žodynas išjungtas automatinio aptikimo režime";
@@ -767,18 +765,12 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Tikslumas";
-"modes.cloudAccuracy.groqWhisper.label" = "Vidutinis (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Vidutinis (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Aukštas (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Greitas ir paaustas. Geriausias greitams transkriptsiniu.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Subalansuotas greitis ir tikslumas. Rekomenduojamas daugumai vartotojų.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditų/min";
-"modes.cloudAccuracy.grokStt.label" = "Aukščiausias (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Aukštas (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "„Google Gemini 3.5 Transcribe“. Daugiakalbis, palaiko tinkintą žodyną.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe per Azure Speech. Iki 60 kalbų su kontekstiniu pritaikymu.";
 
 "modes.create.title" = "Sukurti naują režimą";

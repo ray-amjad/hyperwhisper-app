@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Živý engine";
 "streaming.cloudTier.description" = "Který hlasový engine používá HyperWhisper Cloud pro živý přepis";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Rychle formatovani";
 "streaming.fastFormatting.description" = "Zkracuje prodlevu chytreho formatovani pro rychlejsi psani";
 "streaming.warning.vocabAutoDetect" = "Vlastni slovnik je v rezimu automaticke detekce vypnuty";
@@ -767,18 +765,12 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Presnost";
-"modes.cloudAccuracy.groqWhisper.label" = "Stredni (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Stredni (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Vysoka (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Rychly a cenove dostupny. Nejlepsi pro rychle prepisy.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Vyvazena rychlost a presnost. Doporuceno pro vetsinu uzivatelu.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Nejvyssi presnost s pomalejsim zpracovanim. Nejlepsi pro dulezite prepisy.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditů/min";
-"modes.cloudAccuracy.grokStt.label" = "Nejvyssi (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Nejvyssi presnost s pomalejsim zpracovanim. Nejlepsi pro dulezite prepisy.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Vysoká (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Vícejazyčný, s podporou vlastního slovníku.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Vysoká (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe přes Azure Speech. Až 60 jazyků s kontextovým přizpůsobením.";
 
 "modes.create.title" = "Vytvorit novy rezim";

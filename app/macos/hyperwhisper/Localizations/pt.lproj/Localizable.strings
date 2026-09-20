@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modelo";
 "streaming.cloudTier.title" = "Motor ao vivo";
 "streaming.cloudTier.description" = "Que motor de voz o HyperWhisper Cloud usa para transcrição ao vivo";
-"streaming.model.nova3general" = "Nova 3 Geral";
-"streaming.model.nova3medical" = "Nova 3 Médico";
 "streaming.fastFormatting.title" = "Formatação Rápida";
 "streaming.fastFormatting.description" = "Reduz o atraso de formatação inteligente para digitação mais rápida";
 "streaming.warning.vocabAutoDetect" = "O vocabulário personalizado está desabilitado no modo de detecção automática";
@@ -767,18 +765,12 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Precisão";
-"modes.cloudAccuracy.groqWhisper.label" = "Médio (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Médio (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Alto (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Rápido e acessível. Melhor para transcrições rápidas.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Equilíbrio entre velocidade e precisão. Recomendado para a maioria dos usuários.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Maior precisão com processamento mais lento. Melhor para transcrições importantes.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ créditos/min";
-"modes.cloudAccuracy.grokStt.label" = "Mais Alto (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Maior precisão com processamento mais lento. Melhor para transcrições importantes.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingue, com suporte a vocabulário personalizado.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe através do Azure Speech. Até 60 idiomas com adaptação contextual.";
 
 "modes.create.title" = "Criar Novo Modo";
