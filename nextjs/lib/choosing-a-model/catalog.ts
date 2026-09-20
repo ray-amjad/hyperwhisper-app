@@ -339,7 +339,7 @@ const CLOUD_MODELS_RAW = [
   // non-streaming board used by this page. Do not put that streaming WER or
   // speed figure beside batch results. Meta supports streaming upstream, but
   // HyperWhisper has no Meta live relay, so this batch row is not live-selectable.
-  { id: "metaMuse:muse-voice-transcribe-1.0", name: "Muse Voice Transcribe 1.0", vendorLabel: "Meta Muse Voice Transcribe", vendor: "Meta", sttProvider: "meta", modelId: "muse-voice-transcribe-1.0", credits: 3.0, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "metaMuse:muse-voice-transcribe-1.0", name: "Muse Voice Transcribe 1", vendorLabel: "Meta Muse Voice Transcribe", vendor: "Meta", sttProvider: "meta", modelId: "muse-voice-transcribe-1.0", credits: 3.0, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
 ] as const;
 
 export const CLOUD_MODELS: readonly CloudModel[] = CLOUD_MODELS_RAW.map(

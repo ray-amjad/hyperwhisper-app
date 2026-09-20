@@ -698,7 +698,6 @@ struct CloudTranscriptionModels {
             )
             models.append(CloudTranscriptionModel(
                 id: catalogModel?.id ?? MetaMuseProvider.modelID,
-                displayName: catalogModel?.displayName ?? "Muse Voice Transcribe 1.0",
                 isAvailable: true,
                 description: "Meta Muse batch transcription using your Meta Model API key",
                 provider: .meta,

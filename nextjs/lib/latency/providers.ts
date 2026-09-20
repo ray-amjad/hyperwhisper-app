@@ -157,7 +157,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "meta",
     vendorDisplayName: "Meta",
     models: [
-      { id: "muse-voice-transcribe-1.0", displayName: "Muse Voice Transcribe 1.0", isDefault: true },
+      { id: "muse-voice-transcribe-1.0", displayName: "Muse Voice Transcribe 1", isDefault: true },
     ],
   },
 ];
