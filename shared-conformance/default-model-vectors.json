@@ -20,9 +20,9 @@
     {
       "catalogEntryId": "grokStt",
       "providerIdentifier": "grok",
-      "defaultModelId": "",
+      "defaultModelId": "grok-voice-transcribe-2.0",
       "creditsPerMinute": 1.67,
-      "byokRequestBuilder": false
+      "byokRequestBuilder": true
     },
     {
       "catalogEntryId": "azureMaiTranscribe",

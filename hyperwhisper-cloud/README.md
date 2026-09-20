@@ -153,3 +153,11 @@ If you spot something that looks wrong — a privacy concern, a data path that c
 ## License
 
 Apache License 2.0 — see [`LICENSE`](./LICENSE), the same license as the rest of HyperWhisper. The hosted **HyperWhisper Cloud** service (our managed instance, credits, and license keys) is a separate paid offering, even though the backend source that powers it is published here under this license.
+
+### AssemblyAI Dictation
+
+Use existing account authentication with `X-STT-Provider: assemblyai` and `X-STT-Model: dictation` on `POST /transcribe`. Use the existing `ASSEMBLYAI_API_KEY` server secret. Deploy backend support before releasing native clients with this model.
+
+Dictation requires an explicit supported `language`, no `X-STT-Domain`, and valid PCM16 WAV audio up to 120 seconds. Invalid or overlong audio fails without truncation or fallback to ordinary STT. The provider returns cleaned `llm_response`, with raw `text` as a fallback. Default provider cleanup is included even when client post-processing is off; explicitly selected transformations use the existing separate post-processing path.
+
+The all-in rate is $0.62/audio hour (about 10.3333 credits/minute). The WAV header's actual duration drives preflight and final charges. There is no vocabulary or medical surcharge. Vocabulary uses Dictation's `keyterms` field (100 terms / 8000 characters); the existing app sanitizer limits each term to 80 characters. No additional automatic LLM request is made. [Provider contract](https://www.assemblyai.com/docs/dictation).

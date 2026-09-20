@@ -342,7 +342,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
 
         // Clear saved preference if the selected microphone disappears (e.g., Bluetooth device removed).
         deviceManager.onSelectedDeviceInvalidated = { [weak self] lostDevice in
-            AppLogger.audio.warning("Clearing persisted microphone preference for missing device: \(lostDevice.name, privacy: .public)")
+            AppLogger.audio.warning("Clearing persisted microphone preference for missing device UID: \(lostDevice.uid, privacy: .public)")
             self?.settingsManager?.selectedMicrophoneId = ""
         }
 

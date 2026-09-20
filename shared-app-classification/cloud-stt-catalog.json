@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 12,
-  "updated": "2026-09-11",
+  "updated": "2026-09-19",
   "providers": [
     {
       "id": "groqWhisper",
@@ -93,13 +93,14 @@
     {
       "id": "grokStt",
       "displayName": "Grok STT",
-      "displayModel": "grok-stt",
+      "displayModel": "grok-voice-transcribe-2.0",
       "vendor": "xai",
       "vendorDisplayName": "SpaceXAI",
       "sttProvider": "grok",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "", "displayName": "Grok Speech-to-Text", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "grok-voice-transcribe-2.0", "displayName": "Grok Voice Transcribe 2", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "grok-voice-transcribe-1.0", "displayName": "Grok Voice Transcribe 1", "creditsPerMinute": 1.67, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
       "migrateFrom": ["grok", "grokstt"],
@@ -122,10 +123,12 @@
       "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
       "regionalRouting": "Single global endpoint (`https://api.x.ai/v1/stt`); SpaceXAI hosts in `us-east-1` but no per-region routing exposed.",
       "previewStatus": false,
+      "notes": "`/v1/stt` now takes a `model` parameter (it did not when this entry was written, which is why the single model row carried an empty id until 2026-09-19). Upstream accepts `grok-voice-transcribe-2.0` and `grok-voice-transcribe-1.0` and defaults to 2.0; we send the selected id explicitly, so an upstream default change cannot move a user's model without a release. Both rows are listed because 1.0 is what every pre-2026-09-19 Grok mode actually ran — it was the only model xAI served — and dropping it would have silently upgraded those users. WARNING: xAI's own announcement says 1.0 `will be deprecated in the coming weeks`, and that 2.0 is `twice as accurate as Grok Voice Transcribe 1.0, at the same price`. When upstream retires 1.0, delete the row and add `grok-voice-transcribe-1.0` to `migrateFrom` so a pinned mode folds onto 2.0 instead of erroring.",
       "sources": [
         "https://docs.x.ai/developers/model-capabilities/audio/speech-to-text",
         "https://docs.x.ai/developers/models/speech-to-text",
-        "https://x.ai/news/grok-stt-and-tts-apis"
+        "https://x.ai/news/grok-stt-and-tts-apis",
+        "https://x.ai/news/grok-voice-transcribe-2"
       ]
     },
 
@@ -320,28 +323,31 @@
       "vendorDisplayName": "AssemblyAI",
       "sttProvider": "assemblyai",
       "access": { "cloudTierEligible": true, "byokEligible": true },
+      "cloudTier": { "accuracy": "high", "creditsPerMinute": 3.5 },
       "models": [
-        { "id": "universal-3-5-pro", "displayName": "Universal-3.5 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "universal-2", "displayName": "Universal-2", "creditsPerMinute": 2.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "universal-3-5-pro", "displayName": "Universal-3.5 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "languageCount": 98 },
+        { "id": "universal-2", "displayName": "Universal-2", "creditsPerMinute": 2.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "languageCount": 98 },
+        { "id": "dictation", "displayName": "Dictation", "creditsPerMinute": 10.3333333333, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": false, "languageCount": 32 }
       ],
       "customVocabulary": {
         "supported": true,
         "fieldName": "keyterms_prompt",
         "maxPhrases": 200,
-        "caveats": "200 for Universal-2; 1000 for Universal-3 Pro / Universal-3.5 Pro. Each phrase ≤ 6 words on the Pro tier. Universal-2 ignores terms < 5 chars or > 50 chars."
+        "caveats": "Dictation: keyterms (100 terms / 8000 characters), PCM16 WAV only, <=120 seconds, 32 explicit languages (see shared-models supportedLanguages), no Auto, no medical/domain, no live partials or timestamps. Built-in cleanup remains on when app post-processing is off; explicit extra processing still runs. Source: https://www.assemblyai.com/docs/dictation. Other capabilities below describe Universal models only. 200 for Universal-2; 1000 for Universal-3 Pro / Universal-3.5 Pro. Each phrase ≤ 6 words on the Pro tier. Universal-2 ignores terms < 5 chars or > 50 chars."
       },
       "languages": {
-        "count": 98,
+        "count": 101,
         "autoDetect": true,
         "codeFormat": "ISO-639-1 + a few regional variants (e.g. `en_au`, `en_uk`, `en_us`)",
-        "codes": ["af","am","ar","as","az","ba","be","bg","bn","bo","br","bs","ca","cs","cy","da","de","el","en","en_au","en_uk","en_us","es","et","eu","fa","fi","fo","fr","ga","gl","gu","ha","haw","he","hi","hr","hu","hy","id","is","it","ja","jw","ka","kk","km","kn","ko","la","lb","ln","lo","lt","lv","mk","ml","mn","mr","ms","mt","my","ne","nl","nn","no","oc","pa","pl","ps","pt","ro","ru","sa","sd","si","sk","sl","so","sq","sr","su","sv","sw","ta","te","tg","th","tl","tr","tt","uk","ur","uz","vi","yi","yo","zh"],
-        "notes": "AssemblyAI advertises 99 detection languages — the verified table publishes 98 (including 3 English regional variants). Universal-3.5 Pro natively supports 18 and falls back to Universal-2 for the rest via the `speech_models` array, so combined coverage stays 98."
+        "codes": ["af","am","ar","as","az","ba","be","bg","bn","bo","br","bs","ca","cs","cy","da","de","el","en","en_au","en_uk","en_us","es","et","eu","fa","fi","fo","fr","ga","gl","gu","ha","haw","he","hi","hr","hu","hy","id","is","it","ja","jw","ka","kk","km","kn","ko","la","lb","ln","lo","lt","lv","mk","ml","mn","mr","ms","mt","my","ne","nl","nn","no","oc","pa","pl","ps","pt","ro","ru","sa","sd","si","sk","sl","so","sq","sr","su","sv","sw","ta","te","tg","th","tl","tr","tt","uk","ur","uz","vi","yi","yo","zh","xh","yue","zu"],
+        "notes": "Provider union includes 3 additional Dictation languages (xh, yue, zu). Dictation itself requires 32 explicit languages (shared-models); it has no Auto. AssemblyAI advertises 99 detection languages — the verified table publishes 98 (including 3 English regional variants). Universal-3.5 Pro natively supports 18 and falls back to Universal-2 for the rest via the `speech_models` array, so combined coverage stays 98."
       },
       "acceptedFormats": ["3ga","8svx","aac","ac3","aif","aiff","alac","amr","ape","au","dss","flac","flv","m4a","m4b","m4p","m4r","mp3","mpga","ogg","oga","mogg","opus","qcp","tta","voc","wav","wma","wv","webm","mts","m2ts","ts","mov","mp2","mp4","m4v","mxf"],
       "maxFileSizeMb": 5120,
       "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
       "previewStatus": false,
       "sources": [
+        "https://www.assemblyai.com/docs/dictation",
         "https://www.assemblyai.com/docs/pre-recorded-audio/keyterms-prompting",
         "https://www.assemblyai.com/docs/pre-recorded-audio/language-detection#supported-languages",
         "https://support.assemblyai.com/articles/2616970375-what-audio-and-video-file-types-are-supported-by-your-api",

@@ -22,8 +22,9 @@
 //!   (`supported == Yes`), since `unverified` is the conservative "hidden"
 //!   default on both.
 //! - **Default model.** `isDefault: true`, else the first listed model, else
-//!   nil. A model id may legitimately be `""` (Grok's single implicit model);
-//!   the backend treats that as "provider default".
+//!   nil. A model id may legitimately be `""`; the backend treats that as
+//!   "provider default". No shipped entry uses it since 2026-09-19, when
+//!   Grok — the last one — gained a real model id.
 //! - **Per-model `creditsPerMinute`** falls back to the tier's
 //!   `cloudTier.creditsPerMinute`, then `0.0` — matches Windows
 //!   `CreditsPerMinuteForModel`.
@@ -356,10 +357,11 @@ mod tests {
     // --- Golden: default model fallback + empty-id model --------------------
 
     #[test]
-    fn grok_stt_default_model_id_is_empty_string() {
+    fn grok_stt_default_model_id_is_voice_transcribe_2() {
         let c = catalog();
-        // grokStt has a single model with id "" — default resolves to it.
-        assert_eq!(c.default_model_id("grokStt"), Some(""));
+        // grokStt carried a single model with id "" until xAI exposed a `model`
+        // parameter on 2026-09-19. It now names the model it sends.
+        assert_eq!(c.default_model_id("grokStt"), Some("grok-voice-transcribe-2.0"));
     }
 
     #[test]

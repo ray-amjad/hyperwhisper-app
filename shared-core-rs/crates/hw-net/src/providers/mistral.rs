@@ -72,7 +72,6 @@ fn spec() -> OpenAiStyleSpec {
             // comma with HTTP 400 — see VocabularyMode::Terms.
             underscore_separators: true,
         },
-        send_model: true,
         keywords_models: &[],
         // Mistral returns { "text" } without a response_format field.
         send_response_format: false,

@@ -1,4 +1,4 @@
-//! AssemblyAI transcription (sans-I/O). Two products live under this one
+//! AssemblyAI transcription (sans-I/O). Three products live under this one
 //! module:
 //!
 //! - [`async_flow`] — the original **three-step async workflow**:
@@ -14,6 +14,9 @@
 //! - [`sync_flow`] — the **sync fast path** for short clips (<120s): one
 //!   blocking multipart request/response, no upload/create/poll. See that
 //!   module's doc comment for the verified contract.
+//!
+//! - [`dictation_flow`] — short PCM WAV recordings with built-in cleanup,
+//!   selected explicitly, never used as a sync/async fallback.
 //!
 //! Both submodules are re-exported here (`pub use async_flow::*; pub use
 //! sync_flow::*;`) so the public API — `assemblyai::build_upload_request`,
@@ -57,9 +60,11 @@
 use crate::contract::{Header, TranscribeParams};
 
 mod async_flow;
+mod dictation_flow;
 mod sync_flow;
 
 pub use async_flow::*;
+pub use dictation_flow::*;
 pub use sync_flow::*;
 
 /// AssemblyAI API base. `params.base_url` overrides it (tests/staging).

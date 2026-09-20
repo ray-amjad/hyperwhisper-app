@@ -66,7 +66,11 @@ The rates follow the current prices of the backend and can change. Settings alwa
 
 The rate in the table is the rate of the default model of each provider. Three things change the number of credits that a transcription costs.
 
-**A different model.** Each provider offers more than one model, and each model has its own rate. For example, OpenAI GPT-4o Mini Transcribe costs approximately half of OpenAI GPT-4o Transcribe. The Microsoft row gives a larger difference: **MAI-Transcribe 2** costs approximately **1.67 credits per minute**, and the older **MAI-Transcribe 1.5** costs approximately **6.0**. Select the model in the Model row of the mode editor.
+**A different model.** Each provider offers more than one model, and each model has its own rate. For example, OpenAI GPT-4o Mini Transcribe costs approximately half of OpenAI GPT-4o Transcribe. The Microsoft row gives a larger difference: **MAI-Transcribe 2** costs approximately **1.67 credits per minute**, and the older **MAI-Transcribe 1.5** costs approximately **6.0**. The AssemblyAI row gives the largest difference: **Universal-2** costs approximately **2.5**, **Universal-3.5 Pro** approximately **3.5**, and **Dictation** approximately **10.33**. Select the model in the Model row of the mode editor.
+
+<Note>
+  **AssemblyAI Dictation** is a flat rate of approximately **10.33 credits per minute**, or **$0.62 per audio hour**. The built-in cleanup is in that rate. Neither custom vocabulary nor the Medical control changes it: Dictation refuses Medical Mode, and it adds no credits for vocabulary. The two SpaceXAI models also share one rate — **Grok Voice Transcribe 2** and **Grok Voice Transcribe 1** both cost approximately **1.67 credits per minute**.
+</Note>
 
 **Custom vocabulary.** Two providers charge more when your mode has [custom vocabulary](/vocabulary):
 

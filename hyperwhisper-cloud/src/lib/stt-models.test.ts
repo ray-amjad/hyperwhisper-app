@@ -73,9 +73,14 @@ describe('resolveModel', () => {
   });
 
   test('single-model providers resolve their one model from a blank request', () => {
-    const grok = resolveModel('grok', undefined);
-    expect(grok.ok).toBe(true);
-    if (grok.ok) expect(grok.model.id).toBe('');
+    // Every client built before xAI exposed a `model` parameter (2026-09-19)
+    // sends no `X-STT-Model` for grok, so this branch is the live path, not an
+    // edge case.
+    for (const requested of [undefined, '', '   ']) {
+      const grok = resolveModel('grok', requested);
+      expect(grok.ok).toBe(true);
+      if (grok.ok) expect(grok.model.id).toBe('grok-voice-transcribe-2.0');
+    }
   });
 
   test('flags preview models', () => {
@@ -366,8 +371,8 @@ describe('formatProviderName', () => {
     expect(formatProviderName('grok', 'grok-4')).toBe('xai-grok/grok-4');
   });
 
-  // grok's registry model id is the empty string, so the label has to stand
-  // alone rather than trail a bare slash.
+  // A caller can still reach the completion path with no model id, and the
+  // label has to stand alone rather than trail a bare slash.
   test('a provider with no model id serves the label alone', () => {
     expect(formatProviderName('grok', '')).toBe('xai-grok');
     expect(formatProviderName('deepgram', '')).toBe('deepgram');

@@ -16061,6 +16061,13 @@ public func assemblyaiBuildCreateRequest(params: TranscribeParams, audioUrl: Str
     )
 })
 }
+public func assemblyaiBuildDictationRequest(params: TranscribeParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_build_dictation_request(
+        FfiConverterTypeTranscribeParams.lower(params),$0
+    )
+})
+}
 public func assemblyaiBuildPollRequest(params: TranscribeParams, id: String)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_assemblyai_build_poll_request(
@@ -16083,9 +16090,34 @@ public func assemblyaiBuildUploadRequest(params: TranscribeParams)throws  -> Htt
     )
 })
 }
+public func assemblyaiDictationLanguages() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_dictation_languages($0
+    )
+})
+}
+public func assemblyaiDictationMaxDurationSecs() -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_dictation_max_duration_secs($0
+    )
+})
+}
+public func assemblyaiDictationTimeoutMs() -> UInt64 {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_dictation_timeout_ms($0
+    )
+})
+}
 public func assemblyaiParseCreateResponse(resp: HttpResponse)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_assemblyai_parse_create_response(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
+public func assemblyaiParseDictationResponse(resp: HttpResponse)throws  -> HwTranscript {
+    return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_parse_dictation_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
     )
 })
@@ -18929,6 +18961,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_create_request() != 60524) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_dictation_request() != 17238) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_poll_request() != 21341) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18938,7 +18973,19 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_upload_request() != 12928) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_dictation_languages() != 39258) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_dictation_max_duration_secs() != 21599) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_dictation_timeout_ms() != 52611) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_create_response() != 136) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_dictation_response() != 57526) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_poll_response() != 19680) {

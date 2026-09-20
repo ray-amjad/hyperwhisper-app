@@ -1,5 +1,8 @@
 // XAI GROK STT PROVIDER
 // xAI Speech to Text REST API - $0.10/hour
+// Model: Grok Voice Transcribe 2.0. The endpoint took no `model` parameter
+// before 2026-09-19 and this adapter sent none; it now sends the resolved model
+// on every request. Ref: https://x.ai/news/grok-voice-transcribe-2
 
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
@@ -15,6 +18,13 @@ import {
 } from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
+// The route resolves `context.model` against the registry before this runs, so
+// the constant only covers a direct caller that passes no context. It is kept
+// equal to the `grok` row's default in `lib/stt-models.ts` — `stt-models.test`
+// pins the two together. Sending nothing is NOT an option: xAI defaults
+// `/v1/stt` to its newest model, so an unpinned request would change model on
+// xAI's schedule rather than on a deploy of ours.
+const XAI_STT_DEFAULT_MODEL = 'grok-voice-transcribe-2.0';
 // xAI keyterm limits: max 100 terms, each up to 50 characters.
 const MAX_KEYTERMS = 100;
 const MAX_KEYTERM_CHARS = 50;
@@ -98,8 +108,11 @@ export async function transcribeWithXaiGrok(
   }
 
   const formattingLanguage = normalizedFormattingLanguage(language);
+  const model = context.model?.trim() || XAI_STT_DEFAULT_MODEL;
   const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'mp3';
   const formData = new FormData();
+
+  formData.append('model', model);
 
   if (formattingLanguage) {
     formData.append('format', 'true');
@@ -120,6 +133,7 @@ export async function transcribeWithXaiGrok(
   logProviderEvent(provider, 'prepare', {
     audioBytes: audio.byteLength,
     contentType,
+    model,
     language: language || 'auto',
     formattingLanguage: formattingLanguage || 'none',
     keytermCount: keyterms.length,

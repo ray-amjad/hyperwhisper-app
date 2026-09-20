@@ -70,7 +70,7 @@ The Provider row shows 11 companies, in alphabetical order:
 
 | Provider | Models in the Model row |
 |---|---|
-| AssemblyAI | Universal-3.5 Pro, Universal-2 |
+| AssemblyAI | Universal-3.5 Pro, Universal-2, Dictation |
 | Deepgram | Nova 3 General, Nova 3 Medical, Nova 2 General, Nova 2 Medical |
 | ElevenLabs | Scribe v2 |
 | Google | Gemini 3.5 Transcribe, Gemini 2.5 Flash, Gemini 2.5 Flash Lite, Gemini 2.5 Pro, Gemini 3 Flash, Gemini 3.1 Pro |
@@ -80,7 +80,7 @@ The Provider row shows 11 companies, in alphabetical order:
 | Meta | Muse Voice Transcribe 1.0 |
 | OpenAI | GPT-4o Transcribe, GPT-4o Mini Transcribe, Whisper, GPT Transcribe |
 | Soniox | Async v5 |
-| SpaceXAI | Grok Speech-to-Text |
+| SpaceXAI | Grok Voice Transcribe 2, Grok Voice Transcribe 1 |
 
 The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs Scribe v2 is the recommended engine. The Model row shows no **(Recommended)** tag.
 
@@ -94,6 +94,14 @@ The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs 
 
 <Note>
   Meta's Muse model supports real-time streaming upstream. HyperWhisper currently supports only its pre-recorded push-to-talk path. Muse therefore appears in a mode's Model row, but it does not appear in the HyperWhisper Live engine picker. The Cloud route costs 3 credits per audio minute. A direct Meta mode uses your own key and no HyperWhisper credits.
+</Note>
+
+<Note>
+  The SpaceXAI row gives two models. **Grok Voice Transcribe 2** is the model that the row selects first. **Grok Voice Transcribe 1** is the older model, at the same rate. A mode that you saved before this change stored no model id. HyperWhisper sends Grok Voice Transcribe 2 for that mode. Select **Grok Voice Transcribe 1** in the Model row if you want the older model.
+</Note>
+
+<Note>
+  **AssemblyAI → Dictation** is a different model from Universal-3.5 Pro and Universal-2. It needs an explicit language, it does not accept Medical Mode, and it takes recordings up to 120 seconds. Read [AssemblyAI Dictation](/choosing-a-provider#assemblyai-dictation).
 </Note>
 
 Below the two rows, HyperWhisper shows the approximate credit cost for each minute of the model that you selected. A badge also appears there when the model is a **Preview** model, or when the model does not support custom vocabulary. Today every HyperWhisper Cloud model supports custom vocabulary, thus only the **Preview** badge appears. For your own provider (BYOK), some models still have no vocabulary support, and the mode editor shows a notice for them.

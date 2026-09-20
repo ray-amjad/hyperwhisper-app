@@ -248,8 +248,9 @@ public sealed class CloudSttCatalog
     /// <summary>
     /// The default model id (X-STT-Model value) for the given tier — the entry
     /// flagged <c>isDefault</c>, else the first model, else null. Note: a model
-    /// id may legitimately be the empty string (e.g. Grok's single implicit
-    /// model), which the backend treats as "provider default".
+    /// id may legitimately be the empty string, which the backend treats as
+    /// "provider default". No shipped entry spells one that way since Grok
+    /// gained a model id on 2026-09-19.
     /// </summary>
     public string? DefaultModelIdForId(string? id)
         => string.IsNullOrEmpty(id) ? null : HyperwhisperCoreMethods.CloudSttDefaultModelId(id);

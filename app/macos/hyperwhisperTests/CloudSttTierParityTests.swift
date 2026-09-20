@@ -19,6 +19,19 @@ import Testing
 @testable import HyperWhisper
 
 struct CloudSttTierParityTests {
+    @Test("AssemblyAI Dictation preserves the cloud model and explicit language contract")
+    func assemblyAIDictation() throws {
+        #expect(HyperWhisperCloudProvider.resolvedSTTModelId(tier: .assemblyAI, storedModelId: "dictation") == "dictation")
+        #expect(HyperWhisperCloudProvider.resolvedSTTModelId(tier: .assemblyAI, storedModelId: nil) == "universal-3-5-pro")
+        let languages = STTCapabilities.languages(providerId: "assemblyai", modelId: "dictation")
+        #expect(languages.count == 32)
+        #expect(!languages.contains { $0.code == "auto" })
+        #expect(languages.contains { $0.code == "ja" })
+        try AssemblyAIDictationAudio.validateSelection(model: "dictation", language: "ja", domain: nil)
+        #expect(throws: (any Error).self) { try AssemblyAIDictationAudio.validateSelection(model: "dictation", language: "auto", domain: nil) }
+        #expect(throws: (any Error).self) { try AssemblyAIDictationAudio.validateSelection(model: "dictation", language: "en", domain: "medical") }
+    }
+
 
     /// The catalog as the shared Rust core reads it. This used to decode the
     /// repo's JSON file directly through a second, macOS-only decoder — that
@@ -62,9 +75,9 @@ struct CloudSttTierParityTests {
         }
     }
 
-    /// Grok's API takes no `model` parameter, so its single registry entry is
-    /// stored under the empty id. The Model row is now a one-item dropdown like
-    /// every other provider's, so that id has to resolve through the
+    /// Grok's registry entry was stored under the empty id until xAI gave
+    /// `/v1/stt` a `model` parameter on 2026-09-19. Every mode saved before that
+    /// still carries the empty id, so it has to resolve through the
     /// provider-scoped lookup or the name, the description and the mode card all
     /// render blank. The Windows counterpart lives in HyperWhisper.SmokeTests
     /// ("Grok's empty model id resolves through a provider-scoped lookup").
@@ -72,13 +85,28 @@ struct CloudSttTierParityTests {
     func grokEmptyModelIdResolves() {
         let grok = CloudTranscriptionModels.model(withId: "", provider: .grok)
         #expect(grok != nil, "the Grok Model row would render blank")
-        #expect(grok?.displayName == "Grok Speech-to-Text")
+        #expect(grok?.id == "grok-voice-transcribe-2.0")
+        #expect(grok?.displayName == "Grok Voice Transcribe 2")
         #expect(
-            CloudTranscriptionModels.displayName(for: "", provider: .grok) == "Grok Speech-to-Text")
+            CloudTranscriptionModels.displayName(for: "", provider: .grok)
+                == "Grok Voice Transcribe 2")
 
-        // Unscoped, "" stays ambiguous: any provider left without a model would
-        // otherwise resolve to Grok.
+        // Unscoped, "" stays ambiguous: it names no provider, so there is
+        // nothing to default to.
         #expect(CloudTranscriptionModels.model(withId: "") == nil)
+    }
+
+    /// The empty id resolves to the provider's DEFAULT, not to whichever row is
+    /// listed first — the two agree for Grok, so a provider with several models
+    /// is what makes the rule testable.
+    @Test("An empty model id resolves to the provider's default on every provider")
+    func emptyModelIdResolvesToTheProviderDefault() {
+        for provider in [CloudProvider.grok, .openai, .deepgram, .assemblyAI] {
+            let resolved = CloudTranscriptionModels.model(withId: "", provider: provider)
+            #expect(
+                resolved?.id == CloudTranscriptionModels.defaultModel(for: provider),
+                "\(provider) empty-id lookup did not land on its default model")
+        }
     }
 
     @Test("Retired cloud model ids resolve to selectable canonical models")

@@ -9,8 +9,10 @@
 //  bakes the `Authorization: Bearer` header, the conditional `language` +
 //  `format=true` fields (coupled, gated on xAI's supported-formatting set with
 //  the `tl`→`fil` alias), the repeated `keyterm` fields (max 100 terms, 50 chars
-//  each), the `file` part, and the NoSpeech-on-empty parse. Grok STT has no model
-//  parameter — that is owned (dropped) by the core.
+//  each), the `file` part, and the NoSpeech-on-empty parse. The `model` field is
+//  the core's too: it resolves a blank id to the `grokStt` catalog default.
+//  xAI added that parameter with Grok Voice Transcribe 2.0 on 2026-09-19; before
+//  then the endpoint took none and the core dropped the id.
 //  This file keeps the platform-owned shell: key config,
 //  the long-timeout URLSession, preflight, retry, logging, health.
 //
@@ -84,7 +86,8 @@ final class GrokSTTProvider: TranscriptionProvider {
 
         AppLogger.network.info("Grok transcription started · file=\(audioURL.lastPathComponent, privacy: .public) · language=\(language ?? "auto", privacy: .public)")
 
-        // Grok has no model param — that stays owned (dropped) by the core. Pass
+        // The model stays owned by the core, which defaults it from the catalog
+        // when this site passes none — as it does, because Grok has one. Pass
         // the RAW vocabulary terms; the core caps them into `keyterm` fields.
         // Pass the natively-resolved mime (mp4/mkv overrides) explicitly.
         let contentType = mimeType(for: audioURL)

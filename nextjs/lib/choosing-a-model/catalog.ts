@@ -136,7 +136,7 @@ export type CloudModel = {
    * beside it. Together they join a row to its measured latency on /latency.
    */
   sttProvider: string;
-  /** Empty for a provider whose endpoint takes no model id. */
+  /** Never empty: every catalog model carries an id since 2026-09-19. */
   modelId: string;
   /** Credits per audio minute. 1,000 credits = $1. */
   credits: number;
@@ -180,7 +180,8 @@ export type CloudModel = {
    *   `SettingsService.StreamingDeepgramModel` on Windows rewrites any other
    *   value to `nova-3-general`), and `ws-streaming-deepgram.ts` hard-codes
    *   `model: 'nova-3'`. The two Nova 2 rows are batch-only on both.
-   * - xAI's live endpoint takes no model parameter, so its single row streams.
+   * - xAI has one row, and `live/xai.rs` pins that model on the socket URL, so
+   *   the row streams.
    * - Gemini Transcribe: the live row only. No caller sends a model id on this
    *   path — macOS passes nil for `.gemini` deliberately — and each side
    *   substitutes its own live constant when the id is empty: `LIVE_MODEL` in
@@ -280,7 +281,12 @@ const CLOUD_MODELS_RAW = [
   { id: "deepgramNova3:nova-3-medical", name: "Nova 3 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-3-medical", credits: 5.5, wer: 5.2, speedFactor: 541.1, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "deepgramNova3:nova-2-general", name: "Nova 2 General", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-general", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
-  { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "SpaceXAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "grokStt:grok-voice-transcribe-2.0", name: "Grok Voice Transcribe 2", vendorLabel: "Grok STT", vendor: "SpaceXAI", sttProvider: "grok", modelId: "grok-voice-transcribe-2.0", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  // The leaderboard measured 2, not 1. SpaceXAI say 2 is "twice as accurate as
+  // Grok Voice Transcribe 1.0", which is a vendor claim about a ratio, not a
+  // published error rate — halving or doubling 4.0 would publish a number
+  // nobody measured. `wer` and `speedFactor` stay null, as for Nova 2 General.
+  { id: "grokStt:grok-voice-transcribe-1.0", name: "Grok Voice Transcribe 1", vendorLabel: "Grok STT", vendor: "SpaceXAI", sttProvider: "grok", modelId: "grok-voice-transcribe-1.0", credits: 1.67, wer: null, speedFactor: null, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
   // Not on the non-streaming leaderboard this column reads, so both figures
   // stay null and `rankModels` scores it a neutral 0.5 rather than inheriting
   // 1.5's numbers. Microsoft's own launch post claims it beats 1.5 on both, but
@@ -315,6 +321,9 @@ const CLOUD_MODELS_RAW = [
   { id: "openaiWhisper:gpt-live-transcribe", name: "GPT Live Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-live-transcribe", credits: 17.0, wer: null, speedFactor: null, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "assemblyAI:universal-3-5-pro", name: "Universal-3.5 Pro", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-3-5-pro", credits: 3.5, wer: 3.0, speedFactor: null, languages: 98, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "assemblyAI:universal-2", name: "Universal-2", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-2", credits: 2.5, wer: 3.8, speedFactor: 123.1, languages: 98, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
+  // Dictation has its own 32-language set, not the provider's 101-language
+  // union. No published benchmark is recorded for this cleanup-enabled model.
+  { id: "assemblyAI:dictation", name: "Dictation", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "dictation", credits: 10.3333333333, wer: null, speedFactor: null, languages: 32, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "mistralVoxtral:voxtral-mini-latest", name: "Voxtral Mini", vendorLabel: "Mistral Voxtral", vendor: "Mistral", sttProvider: "mistral", modelId: "voxtral-mini-latest", credits: 3.0, wer: 3.8, speedFactor: 78.1, languages: 13, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "soniox:stt-async-v5", name: "Async v5", vendorLabel: "Soniox", vendor: "Soniox", sttProvider: "soniox", modelId: "stt-async-v5", credits: 1.67, wer: 3.8, speedFactor: 18.8, languages: 60, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "gemini:gemini-2.5-flash", name: "Gemini 2.5 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-flash", credits: 2.4, wer: 5.1, speedFactor: 73.7, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },

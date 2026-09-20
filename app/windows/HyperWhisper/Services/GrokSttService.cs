@@ -4,14 +4,16 @@
 // API ENDPOINT: POST https://api.x.ai/v1/stt
 //
 // REQUEST FORMAT: multipart/form-data
+// - model: "grok-voice-transcribe-2.0" (from the shared catalog)
 // - file: audio file (last per docs)
 // - language: supported formatting code (e.g., "en") — only sent when caller
 //   provides a Grok-supported language selection
 // - format: "true" — only sent alongside a supported `language`
 // - keyterm: repeated once per vocabulary term (max 100 terms, 50 chars each)
 //
-// NOTE: No `model` parameter (single implicit model) and no free-text `prompt`
-// parameter — vocabulary goes through `keyterm` instead.
+// NOTE: there is no free-text `prompt` parameter — vocabulary goes through
+// `keyterm` instead. `model` arrived with Grok Voice Transcribe 2.0 on
+// 2026-09-19; before that the endpoint took none.
 //
 // RESPONSE FORMAT: { "text": "transcribed text", "language": "...", "duration": ..., "words": [...] }
 //
@@ -72,7 +74,8 @@ public class GrokSttService : ApiKeyTranscriptionServiceBase
     // RustSingleShot.TranscribeAsync (GetRequestTimeout — 5 min base +
     // 3 s/MB, capped at 30 min). A fixed 300 s cap here killed large-file
     // uploads that legitimately need longer than 5 minutes to send.
-    // Grok STT has no `model` parameter, so no default model id is passed.
+    // No default model id is passed: a blank one reaches the shared core, which
+    // resolves it to the `grokStt` catalog default.
     public GrokSttService()
         : base(Timeout.InfiniteTimeSpan)
     {
@@ -83,14 +86,19 @@ public class GrokSttService : ApiKeyTranscriptionServiceBase
     // =========================================================================
 
     /// <summary>
-    /// Configures the service with an API key.
-    /// `modelId` is accepted for factory signature uniformity but ignored — Grok
-    /// STT has no `model` parameter (single implicit model).
+    /// Configures the service with an API key and a model id.
     /// </summary>
+    /// <remarks>
+    /// `modelId` was ignored until 2026-09-19, when xAI gave <c>/v1/stt</c> a
+    /// <c>model</c> parameter. A blank id is still the common case — it is what
+    /// every mode saved before that date carries — and the shared core resolves
+    /// it to the catalog default rather than sending nothing.
+    /// </remarks>
     public override void Configure(string apiKey, string modelId = "")
     {
         ApiKey = apiKey?.Trim();
-        LoggingService.Info("GrokSttService: Configured");
+        ModelId = modelId?.Trim() ?? string.Empty;
+        LoggingService.Info($"GrokSttService: Configured (model: {(ModelId.Length == 0 ? "catalog default" : ModelId)})");
     }
 
     // =========================================================================
@@ -119,8 +127,8 @@ public class GrokSttService : ApiKeyTranscriptionServiceBase
 
         // Build the request via the Rust shared core, then drive it through the
         // shared executor + core retry loop. The core owns the language gating
-        // (`language` + `format=true`), the keyterm cap and the multipart
-        // assembly; Grok has no model, so only the vocabulary is passed on.
+        // (`language` + `format=true`), the keyterm cap, the model default and
+        // the multipart assembly.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
 

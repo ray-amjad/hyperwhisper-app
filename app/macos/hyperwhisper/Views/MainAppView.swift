@@ -929,7 +929,12 @@ struct MenuBarItems: View {
     private func transcribeFile(with snapshot: ModeSnapshot) {
         Task { @MainActor in
             guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: snapshot.id.uuidString) else {
-                AppLogger.coreData.error("Unable to resolve mode for file transcription: \(snapshot.name, privacy: .public)")
+                // The Mode's `id`, never its `name` (issue #795): the name is free
+                // text the user typed, this line is `.error`, and
+                // `AppLogger.getRecentLogs` DOES capture `.error` records into the
+                // `recent_logs` extra that `SentryService.capture` attaches. The id
+                // is a UUID and is what identifies the row that could not be found.
+                AppLogger.coreData.error("Unable to resolve mode for file transcription: id=\(snapshot.id.uuidString, privacy: .public)")
                 return
             }
             transcribeFile(with: mode)

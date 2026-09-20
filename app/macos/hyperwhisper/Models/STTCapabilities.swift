@@ -293,8 +293,16 @@ enum STTCapabilities {
                 id: "assemblyai",
                 displayName: "AssemblyAI",
                 authKeyName: "AssemblyAI",
-                lastVerifiedAt: "2026-04-11",
+                lastVerifiedAt: "2026-09-17",
                 models: [
+                    STTModelSpec(
+                        id: "dictation",
+                        displayName: "Dictation",
+                        languages: Array(AssemblyAIDictationAudio.languages).sorted().map { code in
+                            STTLanguageSpec(code: code, displayName: LanguageData.info(for: code)?.displayName ?? ["xh": "Xhosa", "zu": "Zulu"][code] ?? code)
+                        },
+                        notes: ""
+                    ),
                     STTModelSpec(
                         id: "universal-2",
                         displayName: "Universal-2",
@@ -422,12 +430,28 @@ enum STTCapabilities {
                 authKeyName: "Grok",
                 lastVerifiedAt: "2026-04-22",
                 models: [
-                    // Grok STT has no `model` parameter — the stored
-                    // `CloudTranscriptionModel` for a Grok mode is "", so the
-                    // lookup key here is the empty string.
+                    // Keyed on the RAW stored `CloudTranscriptionModel`, which
+                    // `ModeEditorView.languageFilterCloudModelId` passes through
+                    // unresolved. A Grok mode saved before 2026-09-19 carries
+                    // "", because `/v1/stt` had no `model` parameter then; a
+                    // mode saved since carries one of the two real ids. All
+                    // three must be here or the Language picker silently drops
+                    // its filter and offers every language.
                     STTModelSpec(
                         id: "",
                         displayName: "Default",
+                        languages: STTLanguageTemplates.grokFormattingLanguages,
+                        notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
+                    ),
+                    STTModelSpec(
+                        id: "grok-voice-transcribe-2.0",
+                        displayName: "Grok Voice Transcribe 2",
+                        languages: STTLanguageTemplates.grokFormattingLanguages,
+                        notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
+                    ),
+                    STTModelSpec(
+                        id: "grok-voice-transcribe-1.0",
+                        displayName: "Grok Voice Transcribe 1",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
                         notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
                     )

@@ -502,6 +502,15 @@ struct CloudTranscriptionModels {
 
         // AssemblyAI Models
         CloudTranscriptionModel(
+            id: "dictation",
+            displayName: "Dictation",
+            isAvailable: true,
+            description: "",
+            provider: .assemblyAI,
+            isPopular: true,
+            pricePerSecond: 0.62 / 3600.0
+        ),
+        CloudTranscriptionModel(
             id: "universal-2",
             displayName: "Universal-2",
             isAvailable: true,
@@ -678,17 +687,28 @@ struct CloudTranscriptionModels {
             pricePerSecond: 0.016 / 60.0
         ),
 
-        // xAI Grok — one implicit model. The API takes no model parameter, so
-        // the id is the empty string (matching `defaultModel(for: .grok)`). It
-        // is listed so the Model row is a one-item dropdown like every other
-        // provider, instead of a read-only label.
+        // xAI Grok — two models, sent as the `model` field. The id was the empty
+        // string until 2026-09-19, when xAI gave `/v1/stt` a `model` parameter.
+        // 1.0 is the model that empty string always ran, so it stays a row of
+        // its own: a user who wants it must be able to choose it, rather than
+        // being moved to 2 by a release of ours. SpaceXAI price the two the
+        // same and have announced 1.0's deprecation.
         CloudTranscriptionModel(
-            id: "",
-            displayName: "Grok Speech-to-Text",
+            id: "grok-voice-transcribe-2.0",
+            displayName: "Grok Voice Transcribe 2",
             isAvailable: true,
-            description: "SpaceXAI's speech-to-text endpoint. It exposes a single model, so there is nothing to choose.",
+            description: "SpaceXAI's speech-to-text model — auto-detects the language and follows a mid-recording switch.",
             provider: .grok,
             isPopular: true,
+            pricePerSecond: nil
+        ),
+        CloudTranscriptionModel(
+            id: "grok-voice-transcribe-1.0",
+            displayName: "Grok Voice Transcribe 1",
+            isAvailable: true,
+            description: "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
+            provider: .grok,
+            isPopular: false,
             pricePerSecond: nil
         ),
 
@@ -829,20 +849,27 @@ struct CloudTranscriptionModels {
     /// - Parameter id: The model ID to look up
     /// - Returns: The CloudTranscriptionModel if found, nil otherwise
     static func model(withId id: String) -> CloudTranscriptionModel? {
-        // Grok's entry has an empty id (its API takes no model parameter), so an
-        // id-only lookup must reject "" — otherwise any provider left without a
-        // model would resolve to Grok. Callers that know the provider should use
-        // `model(withId:provider:)`.
+        // "" names no provider, so there is nothing to default to. Callers that
+        // know the provider should use `model(withId:provider:)`.
         guard !id.isEmpty else { return nil }
         let resolved = resolveModelAlias(id, provider: nil)
         return availableModels.first { $0.id == resolved }
     }
 
-    /// Look up a model within a known provider. Required for providers whose
-    /// model id is the empty string, and safer than the id-only lookup wherever
-    /// the provider is already in hand.
+    /// Look up a model within a known provider. Safer than the id-only lookup
+    /// wherever the provider is already in hand, and the only overload that
+    /// resolves an empty id.
+    ///
+    /// An empty id means "no model recorded" — what every Grok mode saved before
+    /// xAI exposed a `model` parameter (2026-09-19) carries, and what any mode
+    /// carries before the user opens the Model row. It resolves to the
+    /// provider's default, which is the model the request will actually use.
+    /// Grok used to answer it with an empty-id registry entry instead.
     static func model(withId id: String, provider: CloudProvider) -> CloudTranscriptionModel? {
-        let resolved = resolveModelAlias(id, provider: provider)
+        let resolved = id.isEmpty
+            ? defaultModel(for: provider)
+            : resolveModelAlias(id, provider: provider)
+        guard !resolved.isEmpty else { return nil }
         return availableModels.first { $0.provider == provider && $0.id == resolved }
     }
     
@@ -853,9 +880,9 @@ struct CloudTranscriptionModels {
         model(withId: id)?.displayName ?? id
     }
 
-    /// Get the display name for a model ID within a known provider. Required for
-    /// providers whose model id is the empty string (Grok) — the id-only lookup
-    /// rejects "" and falls back to the id, which renders as a blank name.
+    /// Get the display name for a model ID within a known provider. Required
+    /// wherever a mode may carry no model id — the id-only lookup rejects "" and
+    /// falls back to the id, which renders as a blank name.
     /// - Parameters:
     ///   - id: The model ID to look up
     ///   - provider: The provider that owns the model
@@ -911,7 +938,6 @@ struct CloudTranscriptionModels {
             default: return ""
             }
         }
-        // "" is a real answer for Grok (single implicit model, no `model` param).
         return CloudSTTCatalog.shared.defaultModelId(forEntryId: entryId)
     }
 

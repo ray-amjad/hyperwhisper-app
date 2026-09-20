@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: June 30, 2026
+        Last Updated: September 17, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -43,7 +43,12 @@ export default function PrivacyPolicyPage() {
           support. We keep a record of the transactional emails we send you —
           the recipient address, email type, subject, send timestamp, and
           delivery status — retained for support, audit, and deliverability
-          troubleshooting. We do not store the message body.
+          troubleshooting. We do not store the message body. When you request
+          the download link from our website, we record the email address you
+          submit so we can send it. We use the IP address of that request only
+          to rate limit the form (10 requests per IP address per hour) and we
+          do not store the IP address, browser user agent, or country with the
+          record.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment

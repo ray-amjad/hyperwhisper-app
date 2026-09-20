@@ -209,6 +209,7 @@ public sealed class ModesViewModel : ViewModelBase
             if (value == "cloud" && IsLocalTranscriptionModelId(_transcriptionModel)) TranscriptionModel = string.Empty;
             NormalizeLocalModel();
             NormalizeCloudModel();
+            NormalizeDictationDomain();
             NotifyEditorReveals();
         }
     }
@@ -295,11 +296,12 @@ public sealed class ModesViewModel : ViewModelBase
     /// same pair of spellings is already reconciled at ProviderAssets.cs:58/:62 and
     /// SettingsViewModel.cs:590; this adds no model id and changes no catalog.
     ///
-    /// Three vendor ids still return nothing, and correctly so: <c>grok</c>'s single catalog model
-    /// carries an empty id, because the model is implicit in an xAI request; <c>microsoftazurespeech</c>
-    /// resolves to <c>azure-mai</c>, which the catalog does not mark <c>byokEligible</c>; and
-    /// <c>googlespeech</c> has no catalog vendor at all. <see cref="NormalizeCloudModel"/> empties
-    /// the selection to match, so Save writes null — which is what an implicit model means.
+    /// Two vendor ids still return nothing, and correctly so:
+    /// <c>microsoftazurespeech</c> resolves to <c>azure-mai</c>, which the catalog does not mark
+    /// <c>byokEligible</c>; and <c>googlespeech</c> has no catalog vendor at all.
+    /// <see cref="NormalizeCloudModel"/> empties the selection to match, so Save writes null —
+    /// which is what an implicit model means. <c>grok</c> was a third until 2026-09-19: its single
+    /// catalog model carried an empty id, because an xAI request named no model.
     /// </summary>
     private static IReadOnlyList<string> CloudVendorModelIds(string vendor)
         => [.. HyperWhisper.ModelReadiness.CloudSttModelCatalog
@@ -368,7 +370,7 @@ public sealed class ModesViewModel : ViewModelBase
     public string TranscriptionModel
     {
         get => _transcriptionModel;
-        set { if (Set(ref _transcriptionModel, value)) NotifyEditorReveals(); }
+        set { if (Set(ref _transcriptionModel, value)) { NormalizeDictationDomain(); NotifyEditorReveals(); } }
     }
     /// <summary>
     /// The model ids the chosen BYOK vendor offers. Windows fills the same field from a pick list
@@ -511,13 +513,46 @@ public sealed class ModesViewModel : ViewModelBase
         get => _cloudProvider;
         // Same shape as LocalEngine above: the list the picker draws is rebuilt lazily by the
         // getter, and the SELECTION is moved onto that list here, where the change is written.
-        set { if (Set(ref _cloudProvider, value)) { NormalizeCloudModel(); NotifyEditorReveals(); } }
+        set { if (Set(ref _cloudProvider, value)) { NormalizeCloudModel(); NormalizeDictationDomain(); NotifyEditorReveals(); } }
     }
     public string CloudAccuracyTier
     {
         get => _cloudAccuracyTier;
-        set { if (Set(ref _cloudAccuracyTier, value)) NotifyEditorReveals(); }
+        set { if (Set(ref _cloudAccuracyTier, value)) { NormalizeDictationDomain(); Notify(nameof(CloudTierModels)); NotifyEditorReveals(); } }
     }
+    private readonly Dictionary<string, IReadOnlyList<string>> _tierModels = new(StringComparer.Ordinal);
+    public IReadOnlyList<string> CloudTierModels
+    {
+        get
+        {
+            if (_tierModels.TryGetValue(_cloudAccuracyTier, out var cached)) return cached;
+            var models = SharedCoreBridge.CloudSttDictationModels(_cloudAccuracyTier);
+            return _tierModels[_cloudAccuracyTier] = models;
+        }
+    }
+    public string? CloudTierModel
+    {
+        get => IsHwCloudSource && CloudTierModels.Contains(_transcriptionModel) ? _transcriptionModel : null;
+        set { if (!string.IsNullOrWhiteSpace(value)) TranscriptionModel = value; }
+    }
+    public bool IsDictation => _transcriptionModel == "dictation"
+        && (IsHwCloudSource && _cloudAccuracyTier == "assemblyAI" || IsYourProviderSource && _cloudProvider == "assemblyai");
+    public bool IsNotDictation => !IsDictation;
+    // A hidden ComboBox still writes null when its list cannot represent Language.
+    // Keep that selection separate from the unrestricted language input, and preserve
+    // invalid loaded choices so Save can report them instead of inventing a default.
+    public string? DictationLanguage
+    {
+        get => IsDictation && DictationLanguages.Contains(_language) ? _language : null;
+        set { if (IsDictation && value is not null && DictationLanguages.Contains(value)) Language = value; }
+    }
+
+    private void NormalizeDictationDomain()
+    {
+        if (!_loadingEditor && IsDictation) CloudDomain = string.Empty;
+    }
+
+    public IReadOnlyList<string> DictationLanguages { get; } = ["en", "es", "de", "fr", "it", "pt", "tr", "nl", "sv", "no", "da", "fi", "hi", "vi", "he", "ur", "ko", "ca", "gl", "ru", "ro", "et", "fa", "yue", "af", "mr", "zu", "xh", "nn", "ar", "ja", "zh"];
     public string CloudDomain { get => _cloudDomain; set => Set(ref _cloudDomain, value); }
     public string GeminiPrompt { get => _geminiPrompt; set => Set(ref _geminiPrompt, value); }
     public string CustomVocabulary { get => _customVocabulary; set => Set(ref _customVocabulary, value); }
@@ -677,7 +712,7 @@ public sealed class ModesViewModel : ViewModelBase
     public bool ShowCloudAccuracyPanel => IsHwCloudSource;
     /// <summary>Windows shows the medical toggle for AssemblyAI only (:889).</summary>
     public bool ShowMedicalDomain => IsHwCloudSource
-        && string.Equals(_cloudAccuracyTier, "assemblyAI", StringComparison.OrdinalIgnoreCase);
+        && string.Equals(_cloudAccuracyTier, "assemblyAI", StringComparison.OrdinalIgnoreCase) && !IsDictation;
     /// <summary>BYOK model box. Windows: CloudModelPanel (:697, :1293).</summary>
     public bool ShowCloudModelPanel => IsYourProviderSource;
     /// <summary>Windows reveals the Gemini prompt only for BYOK Gemini (:1326).</summary>
@@ -808,6 +843,8 @@ public sealed class ModesViewModel : ViewModelBase
         Notify(nameof(LocalTranscriptionModel)); Notify(nameof(CloudTranscriptionModel));
         Notify(nameof(ShowCloudProviderPanel));
         Notify(nameof(ShowCloudAccuracyPanel)); Notify(nameof(ShowMedicalDomain));
+        Notify(nameof(CloudTierModel)); Notify(nameof(IsDictation)); Notify(nameof(IsNotDictation));
+        Notify(nameof(DictationLanguage));
         Notify(nameof(ShowCloudModelPanel)); Notify(nameof(ShowGeminiPrompt));
         Notify(nameof(ShowNova3Warning)); Notify(nameof(ShowParakeetLanguageWarning));
         Notify(nameof(PostProcessingEnabled));
@@ -926,6 +963,11 @@ public sealed class ModesViewModel : ViewModelBase
     }
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
+        if (IsDictation && (!DictationLanguages.Contains(Language) || !string.IsNullOrWhiteSpace(CloudDomain)))
+        {
+            Status.Failure("modes.dictation_selection", "Dictation needs an explicit supported language and no Medical domain.");
+            return;
+        }
         if (string.IsNullOrWhiteSpace(Name)) { Status.Failure("modes.name_required", "Enter a mode name."); return; }
         if (PostProcessingMode == "local"
             && (string.IsNullOrWhiteSpace(LocalPostProcessingModel)

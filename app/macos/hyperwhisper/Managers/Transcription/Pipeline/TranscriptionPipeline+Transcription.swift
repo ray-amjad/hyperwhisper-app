@@ -61,6 +61,15 @@ extension TranscriptionPipeline {
         await MainActor.run { state = .transcribing(provider: "Starting...", progress: 0.0) }
 
         // Capture metadata for error reporting.
+        //
+        // `reportedModePreset` is the ONLY mode identity this function reports,
+        // to a log line or to Sentry (issue #795). It is read once here, next to
+        // the other captured metadata, and `PresetType.reportingValue(for:)`
+        // maps it onto the known preset set first: `Mode.preset` is an
+        // unvalidated `String` column that the Local API and a restored backup
+        // can both fill with free text, so the raw column is no safer to report
+        // than the Mode's name was.
+        let reportedModePreset: String = PresetType.reportingValue(for: mode)
         var capturedProviderName: String = "Unknown"
         var capturedModelString: String = mode?.model ?? "base"
         var capturedUseCloud: Bool = (mode?.model ?? "base").lowercased() == "cloud"
@@ -301,8 +310,14 @@ extension TranscriptionPipeline {
             }
 
             AppLogger.transcription.info("🔍 Post-processing check:")
-            AppLogger.transcription.info("  - Mode name: \(mode?.name ?? "nil")")
-            AppLogger.transcription.info("  - Preset: \(mode?.preset ?? "nil")")
+            // The Mode's name is NOT logged here (issue #795). This line is
+            // `.info`, and `AppLogger.getRecentLogs` runs `log show` with no
+            // `--info` and no `--debug`, so an `.info` record does NOT reach the
+            // `recent_logs` extra today. The name is gone for the simpler
+            // reason that it is free text the user typed, and the level of a log
+            // line is something a later change can raise. Do not read this
+            // comment as "`.info` is a channel to Sentry".
+            AppLogger.transcription.info("  - Preset: \(reportedModePreset)")
             AppLogger.transcription.info("  - postProcessingMode value: \(processingMode.rawValue) (0=off, 1=cloud, 2=local)")
             AppLogger.transcription.info("  - needsPostProcessing: \(needsPostProcessing)")
             AppLogger.transcription.info("  - aiPostProcessor exists: \(self.aiPostProcessor != nil)")
@@ -422,7 +437,7 @@ extension TranscriptionPipeline {
             let stageTimelineSummary = stageTimelineSnapshot.joined(separator: " | ")
             let skippedSuffix = result.postProcessingSkipped ? " · postProcessingSkipped=true" : ""
             let logMessage =
-                "Transcription completed · provider=\(capturedProviderName) · mode=\(mode?.name ?? "nil") · totalMs=\(totalElapsedMs) · postProcessed=\(result.wasPostProcessed)\(skippedSuffix) · stageTimeline=\(stageTimelineSummary)"
+                "Transcription completed · provider=\(capturedProviderName) · modePreset=\(reportedModePreset) · totalMs=\(totalElapsedMs) · postProcessed=\(result.wasPostProcessed)\(skippedSuffix) · stageTimeline=\(stageTimelineSummary)"
 
             let wasPostProcessed = result.wasPostProcessed
             let isLocalLLM = result.postProcessingProvider == PostProcessingProvider.localLLM.rawValue
@@ -447,24 +462,25 @@ extension TranscriptionPipeline {
                         message: "slow_transcription_completed",
                         category: "transcription.performance",
                         level: .warning,
-                        data: [
-                            "actualProvider": capturedProviderName,
-                            "modeName": mode?.name ?? "nil",
-                            "language": capturedLanguage,
-                            "postProcessingMode": capturedPostProcessingMode,
-                            "postProcessingProvider": capturedPostProcessingProvider,
-                            "shouldRunPostProcessing": capturedShouldRunPostProcessing,
-                            "wasPostProcessed": wasPostProcessed,
-                            "isHyperwhisperTranscription": capturedIsHyperwhisperTranscription,
-                            "totalElapsedMs": totalElapsedMs,
-                            "effectiveThresholdMs": effectiveThreshold,
-                            "baseThresholdMs": baseThreshold,
-                            "audioDurationSeconds": audioDurationSecondsResolved,
-                            "durationAllowanceMs": durationAllowanceMs,
-                            "finalStage": stage,
-                            "stageTimeline": stageTimelineSnapshot,
-                            "recordingSessionID": recordingSession?.id?.uuidString ?? "nil"
-                        ]
+                        data: Self.slowTranscriptionBreadcrumbData(
+                            modePreset: reportedModePreset,
+                            modeIsSystemProvided: mode?.isSystemProvided ?? false,
+                            actualProvider: capturedProviderName,
+                            language: capturedLanguage,
+                            postProcessingMode: capturedPostProcessingMode,
+                            postProcessingProvider: capturedPostProcessingProvider,
+                            shouldRunPostProcessing: capturedShouldRunPostProcessing,
+                            wasPostProcessed: wasPostProcessed,
+                            isHyperwhisperTranscription: capturedIsHyperwhisperTranscription,
+                            totalElapsedMs: totalElapsedMs,
+                            effectiveThresholdMs: effectiveThreshold,
+                            baseThresholdMs: baseThreshold,
+                            audioDurationSeconds: audioDurationSecondsResolved,
+                            durationAllowanceMs: durationAllowanceMs,
+                            finalStage: stage,
+                            stageTimeline: stageTimelineSnapshot,
+                            recordingSessionID: recordingSession?.id?.uuidString ?? "nil"
+                        )
                     )
                 }
             } else {
@@ -488,44 +504,30 @@ extension TranscriptionPipeline {
                     let currentStageElapsedMs = Int(now.timeIntervalSince(stageStart) * 1000)
                     let stageTimelineSnapshot = stageTimeline + ["\(stage)=\(currentStageElapsedMs)ms@\(totalElapsedMs)ms (failed)"]
 
-                    var extras: [String: Any] = [
-                        "actualProvider": capturedProviderName,
-                        "modelString": capturedModelString,
-                        "useCloud": capturedUseCloud,
-                        "modeName": mode?.name ?? "nil",
-                        "language": capturedLanguage,
-                        "postProcessingMode": capturedPostProcessingMode,
-                        "postProcessingProvider": capturedPostProcessingProvider,
-                        "shouldRunPostProcessing": capturedShouldRunPostProcessing,
-                        "isHyperwhisperTranscription": capturedIsHyperwhisperTranscription,
-                        // The recording path is deliberately absent. It is
-                        // `~/Documents/hyperwhisper/recordings/...`, so it
-                        // carries the account name — HYPERWHISPER-T2 events
-                        // shipped real user names in this extra for months.
-                        // `fileExists` / `fileReadable` / `fileSizeBytes` /
-                        // `fileExtension` below answer every question the path
-                        // was there to answer.
-                        "fileExists": fileExists,
-                        "fileReadable": fileReadable,
-                        "fileSizeBytes": fileSize,
-                        "fileExtension": audioURL.pathExtension,
-                        "usedCAFFallback": audioURL.pathExtension.lowercased() == "caf",
-                        "errorType": String(describing: type(of: error)),
-                        "errorDomain": (error as NSError).domain,
-                        "errorCode": (error as NSError).code,
-                        "errorCategory": classification.category,
-                        "errorKind": classification.kind,
-                        "errorRetryable": classification.retryable,
-                        "errorStage": stage,
-                        "stageElapsedMs": currentStageElapsedMs,
-                        "totalElapsedMs": totalElapsedMs,
-                        "stageTimeline": stageTimelineSnapshot,
-                        "transcriptionState": String(describing: state),
-                        "recordingSessionID": recordingSession?.id?.uuidString ?? "nil"
-                    ]
-                    if let httpStatus = classification.httpStatus {
-                        extras["errorHttpStatus"] = httpStatus
-                    }
+                    let extras = Self.transcriptionFailureExtras(
+                        modePreset: reportedModePreset,
+                        modeIsSystemProvided: mode?.isSystemProvided ?? false,
+                        actualProvider: capturedProviderName,
+                        modelString: capturedModelString,
+                        useCloud: capturedUseCloud,
+                        language: capturedLanguage,
+                        postProcessingMode: capturedPostProcessingMode,
+                        postProcessingProvider: capturedPostProcessingProvider,
+                        shouldRunPostProcessing: capturedShouldRunPostProcessing,
+                        isHyperwhisperTranscription: capturedIsHyperwhisperTranscription,
+                        audioURL: audioURL,
+                        fileExists: fileExists,
+                        fileReadable: fileReadable,
+                        fileSizeBytes: fileSize,
+                        error: error,
+                        classification: classification,
+                        stage: stage,
+                        stageElapsedMs: currentStageElapsedMs,
+                        totalElapsedMs: totalElapsedMs,
+                        stageTimeline: stageTimelineSnapshot,
+                        transcriptionState: String(describing: state),
+                        recordingSessionID: recordingSession?.id?.uuidString ?? "nil"
+                    )
 
                     // The status also goes on a TAG, not just an extra. Sentry's
                     // server-side scrubbing turns the `errorCategory` /
@@ -570,6 +572,163 @@ extension TranscriptionPipeline {
         default:
             return false
         }
+    }
+
+    /// Build the Sentry `extras` payload for a transcription failure.
+    ///
+    /// Lifted out of the `catch` block so the key set is testable
+    /// (`TranscriptionFailureExtrasTests`), mirroring the Windows assertion in
+    /// `HyperWhisper.SmokeTests/Program.cs`. No behaviour change.
+    ///
+    /// **`modeName` is deliberately absent and must not come back (issue #795).**
+    /// A Mode's `name` is free text the user typed — the app itself only ever
+    /// writes one name, the seeded default — and people name a Mode after what
+    /// they dictate into it, so the value is user content, not metadata. Do not
+    /// truncate it (a truncated mode name is still the mode name) and do not
+    /// hash it (a hash is a stable per-person identifier). `modePreset` is the
+    /// enum and answers the only diagnostic question the field was there for:
+    /// which kind of Mode was running.
+    ///
+    /// `modePreset` must arrive already mapped through
+    /// `PresetType.reportingValue(for:)`. `Mode.preset` is an unvalidated
+    /// `String` column, so the raw value is free text too — passing it straight
+    /// through here would swap one user-content field for another. This builder
+    /// re-checks the value with `PresetType.sanitizedReportingValue(_:)` anyway,
+    /// so a call site that forgets cannot put free text in a Sentry payload.
+    ///
+    /// `nonisolated` on purpose: `TranscriptionPipeline` is `@MainActor`, and a
+    /// pure payload builder must stay callable from a non-isolated test.
+    /// `Mode` is kept out of the signature because a managed object is not
+    /// `Sendable`; the caller does the two reads.
+    nonisolated static func transcriptionFailureExtras(
+        modePreset: String,
+        modeIsSystemProvided: Bool,
+        actualProvider: String,
+        modelString: String,
+        useCloud: Bool,
+        language: String,
+        postProcessingMode: String,
+        postProcessingProvider: String,
+        shouldRunPostProcessing: Bool,
+        isHyperwhisperTranscription: Bool,
+        audioURL: URL,
+        fileExists: Bool,
+        fileReadable: Bool,
+        fileSizeBytes: Int64,
+        error: Error,
+        classification: TranscriptionErrorClassification,
+        stage: String,
+        stageElapsedMs: Int,
+        totalElapsedMs: Int,
+        stageTimeline: [String],
+        transcriptionState: String,
+        recordingSessionID: String
+    ) -> [String: Any] {
+        var extras: [String: Any] = [
+            "actualProvider": actualProvider,
+            "modelString": modelString,
+            "useCloud": useCloud,
+            // Re-checked at the boundary, not trusted from the caller: this is
+            // the last line before the value reaches Sentry, and it is the only
+            // guard that still holds if a future call site regresses to handing
+            // over the raw `Mode.preset` column (issue #795).
+            "modePreset": PresetType.sanitizedReportingValue(modePreset),
+            "modeIsSystemProvided": modeIsSystemProvided,
+            "language": language,
+            "postProcessingMode": postProcessingMode,
+            "postProcessingProvider": postProcessingProvider,
+            "shouldRunPostProcessing": shouldRunPostProcessing,
+            "isHyperwhisperTranscription": isHyperwhisperTranscription,
+            // The recording path is deliberately absent. It is
+            // `~/Documents/hyperwhisper/recordings/...`, so it
+            // carries the account name — HYPERWHISPER-T2 events
+            // shipped real user names in this extra for months.
+            // `fileExists` / `fileReadable` / `fileSizeBytes` /
+            // `fileExtension` below answer every question the path
+            // was there to answer.
+            "fileExists": fileExists,
+            "fileReadable": fileReadable,
+            "fileSizeBytes": fileSizeBytes,
+            "fileExtension": audioURL.pathExtension,
+            "usedCAFFallback": audioURL.pathExtension.lowercased() == "caf",
+            "errorType": String(describing: type(of: error)),
+            "errorDomain": (error as NSError).domain,
+            "errorCode": (error as NSError).code,
+            "errorCategory": classification.category,
+            "errorKind": classification.kind,
+            "errorRetryable": classification.retryable,
+            "errorStage": stage,
+            "stageElapsedMs": stageElapsedMs,
+            "totalElapsedMs": totalElapsedMs,
+            "stageTimeline": stageTimeline,
+            "transcriptionState": transcriptionState,
+            "recordingSessionID": recordingSessionID
+        ]
+        if let httpStatus = classification.httpStatus {
+            extras["errorHttpStatus"] = httpStatus
+        }
+        return extras
+    }
+
+    /// Build the `slow_transcription_completed` breadcrumb payload.
+    ///
+    /// Lifted out of the call site for the same reason as
+    /// `transcriptionFailureExtras(...)`: while it was an inline dictionary
+    /// literal no test could reach it, so re-adding the Mode's name here stayed
+    /// green. No behaviour change.
+    ///
+    /// **`modeName` is deliberately absent and must not come back (issue #795),**
+    /// for the same reasons spelled out on `transcriptionFailureExtras(...)`.
+    /// This payload is a breadcrumb, and `SentryService.beforeSend` sets
+    /// `event.breadcrumbs = nil`, so it does not leave the machine TODAY — that
+    /// is one line in shared code away from changing, which is exactly why the
+    /// name must not sit here waiting.
+    ///
+    /// `modePreset` must arrive already mapped through
+    /// `PresetType.reportingValue(for:)`; the raw `Mode.preset` column is
+    /// unvalidated free text. Re-checked here with
+    /// `PresetType.sanitizedReportingValue(_:)` for the same reason as
+    /// `transcriptionFailureExtras(...)`.
+    nonisolated static func slowTranscriptionBreadcrumbData(
+        modePreset: String,
+        modeIsSystemProvided: Bool,
+        actualProvider: String,
+        language: String,
+        postProcessingMode: String,
+        postProcessingProvider: String,
+        shouldRunPostProcessing: Bool,
+        wasPostProcessed: Bool,
+        isHyperwhisperTranscription: Bool,
+        totalElapsedMs: Int,
+        effectiveThresholdMs: Int,
+        baseThresholdMs: Int,
+        audioDurationSeconds: TimeInterval,
+        durationAllowanceMs: Int,
+        finalStage: String,
+        stageTimeline: [String],
+        recordingSessionID: String
+    ) -> [String: Any] {
+        let data: [String: Any] = [
+            "actualProvider": actualProvider,
+            // Re-checked at the boundary — see `transcriptionFailureExtras`.
+            "modePreset": PresetType.sanitizedReportingValue(modePreset),
+            "modeIsSystemProvided": modeIsSystemProvided,
+            "language": language,
+            "postProcessingMode": postProcessingMode,
+            "postProcessingProvider": postProcessingProvider,
+            "shouldRunPostProcessing": shouldRunPostProcessing,
+            "wasPostProcessed": wasPostProcessed,
+            "isHyperwhisperTranscription": isHyperwhisperTranscription,
+            "totalElapsedMs": totalElapsedMs,
+            "effectiveThresholdMs": effectiveThresholdMs,
+            "baseThresholdMs": baseThresholdMs,
+            "audioDurationSeconds": audioDurationSeconds,
+            "durationAllowanceMs": durationAllowanceMs,
+            "finalStage": finalStage,
+            "stageTimeline": stageTimeline,
+            "recordingSessionID": recordingSessionID
+        ]
+        return data
     }
 
     private static func elapsedMilliseconds(_ duration: Duration) -> Int {

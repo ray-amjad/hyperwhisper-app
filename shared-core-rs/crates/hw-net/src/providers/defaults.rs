@@ -47,10 +47,12 @@ pub(crate) fn catalog() -> Option<&'static CloudSttCatalog> {
 /// The default model id for a catalog entry — the value a BYOK builder puts in
 /// its own request body when the caller leaves `params.model` empty.
 ///
-/// `""` is a legitimate answer (Grok STT exposes one implicit model and takes no
-/// `model` parameter), which is why this returns a `&str` rather than an
-/// `Option`: the callers that matter cannot tell "no such entry" from "the empty
-/// model id" apart in any useful way, and the conformance vector pins both.
+/// `""` is the answer for an entry the catalog does not list, which is why this
+/// returns a `&str` rather than an `Option`: the callers that matter cannot tell
+/// "no such entry" from "the empty model id" apart in any useful way, and the
+/// conformance vector pins both. Grok used to be the one LISTED entry that
+/// answered `""` — its endpoint took no `model` parameter until 2026-09-19 —
+/// and no longer is.
 pub fn default_model(catalog_entry_id: &str) -> &'static str {
     catalog()
         .and_then(|catalog| catalog.default_model_id(catalog_entry_id))
@@ -73,6 +75,7 @@ mod tests {
             crate::providers::elevenlabs::CATALOG_ENTRY_ID,
             crate::providers::gemini::CATALOG_ENTRY_ID,
             crate::providers::gemini_transcribe::CATALOG_ENTRY_ID,
+            crate::providers::grok::CATALOG_ENTRY_ID,
             crate::providers::groq::CATALOG_ENTRY_ID,
             crate::providers::meta::CATALOG_ENTRY_ID,
             crate::providers::mistral::CATALOG_ENTRY_ID,

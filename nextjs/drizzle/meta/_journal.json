@@ -99,6 +99,13 @@
       "when": 1786504473867,
       "tag": "0013_nifty_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789651119887,
+      "tag": "0014_wooden_nightshade",
+      "breakpoints": true
     }
   ]
 }

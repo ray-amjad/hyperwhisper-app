@@ -5,6 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithXaiGrok } from './xai-stt';
+import { resolveModel } from '../lib/stt-models';
 import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
@@ -116,7 +117,12 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     const captured = captureRequest({ text: 'hi', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3', 'de-DE');
-    expect([...(captured.form as FormData).keys()]).toEqual(['format', 'language', 'file']);
+    expect([...(captured.form as FormData).keys()]).toEqual([
+      'model',
+      'format',
+      'language',
+      'file',
+    ]);
   });
 
   test('names the file part from the content type, falling back to .mp3', async () => {
@@ -136,7 +142,41 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     expect(captured.form?.has('prompt')).toBe(false);
     expect(captured.form?.getAll('keyterm')).toEqual(['HyperWhisper', 'Drizzle']);
     // the file part stays last.
-    expect([...(captured.form as FormData).keys()]).toEqual(['keyterm', 'keyterm', 'file']);
+    expect([...(captured.form as FormData).keys()]).toEqual([
+      'model',
+      'keyterm',
+      'keyterm',
+      'file',
+    ]);
+  });
+
+  test('pins the model, and honours the one the route resolved', async () => {
+    const pinned = captureRequest({ text: 'hi', duration: 4 });
+    await transcribeWithXaiGrok(audio(), 'audio/mp3');
+    expect(pinned.form?.get('model')).toBe('grok-voice-transcribe-2.0');
+
+    // A pre-2026-09-19 client sends no model, and the route passes none on.
+    const blank = captureRequest({ text: 'hi', duration: 4 });
+    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, { model: '  ' });
+    expect(blank.form?.get('model')).toBe('grok-voice-transcribe-2.0');
+
+    const chosen = captureRequest({ text: 'hi', duration: 4 });
+    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, undefined, {
+      model: 'grok-voice-transcribe-1.0',
+    });
+    expect(chosen.form?.get('model')).toBe('grok-voice-transcribe-1.0');
+  });
+
+  test("the adapter's own default is the registry's default", async () => {
+    // Two independent copies of one model id: the route resolves through the
+    // registry, a direct caller falls back to the constant in the adapter. They
+    // must not drift.
+    const registry = resolveModel('grok', undefined);
+    expect(registry.ok).toBe(true);
+
+    const captured = captureRequest({ text: 'hi', duration: 4 });
+    await transcribeWithXaiGrok(audio(), 'audio/mp3');
+    if (registry.ok) expect(captured.form?.get('model')).toBe(registry.model.id);
   });
 
   test('sends no keyterm field when there is no initial prompt', async () => {

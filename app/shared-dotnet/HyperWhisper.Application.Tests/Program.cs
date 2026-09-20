@@ -20,6 +20,7 @@ using HyperWhisper.Diagnostics;
 using System.IO.Compression;
 using HyperWhisper.PortableApplication.Audio;
 using HyperWhisper.Platform.Abstractions.Audio;
+using HyperWhisper.TranscriptionRouting;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -63,6 +64,8 @@ try
     await RunDefaultModeInvariantTestsAsync(Path.Combine(root, "default-mode-invariant"));
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
+    await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
+    await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -484,10 +487,9 @@ try
         // reads blank while the field underneath keeps the old vendor's id — and SaveAsync, which
         // strips only LOCAL ids, persists that id under the new vendor with a `Mode saved` status.
         //
-        // Empty is the one legal exception, and only together: three vendor ids in CloudProviders
-        // have no BYOK model in the shared catalog (grok's single model carries an empty id because
-        // an xAI request names no model; microsoftazurespeech resolves to azure-mai, which is not
-        // byokEligible; googlespeech has no catalog vendor). An empty combo beside an empty
+        // Empty is the one legal exception, and only together: two vendor ids in CloudProviders
+        // have no BYOK model in the shared catalog (microsoftazurespeech resolves to azure-mai,
+        // which is not byokEligible; googlespeech has no catalog vendor). An empty combo beside an empty
         // selection saves null, which is what an implicit model means. An empty combo beside a
         // DANGLING selection is the state this asserts against.
         void AssertCloudSelectionIsListed(string where)
@@ -583,14 +585,26 @@ try
 
         // Vendors whose BYOK catalog is EMPTY. `geminitranscribe` is a shipping vendor
         // (LinuxLiveStreamingAdapters.cs:76) that drew a blank combo until CloudVendorModelIds
-        // reconciled the two spellings of its id; `grok` genuinely has no selectable model, so the
-        // combo is empty AND the selection is emptied with it, which saves null.
+        // reconciled the two spellings of its id.
         shell.Modes.CloudProvider = "geminitranscribe";
         Assert(shell.Modes.CloudModels.Contains("gemini-3.5-transcribe", StringComparer.Ordinal),
             "the geminitranscribe vendor drew an empty Cloud Model combo; its catalog is keyed "
             + "`gemini-transcribe` and CloudProviders spells it `geminitranscribe`");
         AssertCloudSelectionIsListed("changing the vendor to geminitranscribe");
-        foreach (var emptyVendor in new[] { "grok", "microsoftazurespeech", "googlespeech" })
+
+        // `grok` drew an empty combo too until 2026-09-19, because its single catalog model carried
+        // an empty id. Grok Voice Transcribe 2.0 gave xAI a real `model` parameter, so the vendor
+        // now behaves like every other one: both of its ids listed, and the default selected.
+        shell.Modes.CloudProvider = "grok";
+        Assert(shell.Modes.CloudModels.Contains("grok-voice-transcribe-2.0", StringComparer.Ordinal)
+            && shell.Modes.CloudModels.Contains("grok-voice-transcribe-1.0", StringComparer.Ordinal),
+            "the grok vendor must list both catalog models; it drew "
+            + $"[{string.Join(", ", shell.Modes.CloudModels)}]");
+        Assert(shell.Modes.CloudTranscriptionModel == "grok-voice-transcribe-2.0",
+            "changing the vendor to grok did not select its default model");
+        AssertCloudSelectionIsListed("changing the vendor to grok");
+
+        foreach (var emptyVendor in new[] { "microsoftazurespeech", "googlespeech" })
         {
             shell.Modes.CloudProvider = emptyVendor;
             Assert(shell.Modes.CloudModels.Count == 0 && shell.Modes.CloudTranscriptionModel == string.Empty,
@@ -765,8 +779,8 @@ try
         await shell.Modes.RefreshAsync();
         string[][] vendorWalks =
         [
-            ["deepgram", "elevenlabs", "deepgram", "groq", "gemini", "meta", "geminitranscribe"],
-            ["elevenlabs", "deepgram", "gemini", "meta", "groq", "deepgram", "geminitranscribe"],
+            ["deepgram", "elevenlabs", "deepgram", "groq", "gemini", "meta", "geminitranscribe", "grok"],
+            ["elevenlabs", "deepgram", "gemini", "grok", "meta", "groq", "deepgram", "geminitranscribe"],
         ];
         foreach (var walk in vendorWalks)
         {
@@ -789,7 +803,7 @@ try
             // The vendors with no BYOK model empty the combo AND the selection together, so the
             // control is blank because there is nothing to show — not because a notification was
             // swallowed. Asserted as a pair, exactly as AssertCloudSelectionIsListed does.
-            foreach (var emptyVendor in new[] { "grok", "microsoftazurespeech", "googlespeech" })
+            foreach (var emptyVendor in new[] { "microsoftazurespeech", "googlespeech" })
             {
                 shell.Modes.CloudProvider = emptyVendor;
                 Assert(combo.ItemsSource.Count == 0 && combo.SelectedItem is null
@@ -1194,6 +1208,76 @@ finally
 // write paths applying it — the repository the Linux GUI saves through, the
 // startup repair, and the backup import that is the realistic way a broken set
 // arrives on a machine at all.
+static async Task RunShellLanguageRoutingTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var paths = new TestPaths(root);
+    var database = new ApplicationDb(paths);
+    await database.InitializeAsync();
+    var settings = new PortableSettingsService(new MemoryPrivateFileService(), Path.Combine(root, "settings.json"));
+    settings.Set("language", "auto");
+    var audio = Path.Combine(root, "language.wav");
+    await File.WriteAllBytesAsync(audio, [1]);
+    var local = new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("local", "test")));
+    var cloud = new LanguageRecordingCloud();
+    using var router = new ModeAwareTranscriptionRouter(local, local, cloud);
+    using var devices = new FakeDevices();
+    using var recorder = new FakeRecorder(audio);
+    var history = new HistoryRepository(database, paths);
+    using var workflow = new TranscriptionWorkflow(recorder, devices, router, history);
+    using var shell = new ApplicationShellViewModel(database, settings, workflow);
+    await shell.InitializeAsync();
+    foreach (var provider in new[] { "assemblyai", "hyperwhisper" })
+    {
+        var mode = new Mode
+        {
+            Name = "Dictation " + provider, ProviderType = "cloud", CloudProvider = provider,
+            CloudAccuracyTier = "assemblyAI", CloudTranscriptionModel = "dictation", Language = "en",
+            PostProcessingMode = 0
+        };
+        await new ModeRepository(database).UpsertAsync(mode);
+        await shell.Modes.RefreshAsync();
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Id == mode.Id);
+        Assert(shell.Settings.Language == "auto", "mode selection changed global Auto setting");
+        var request = shell.CreateTranscriptionRequest(shell.Modes.Selected);
+        await router.TranscribeAsync(audio, request);
+        Assert(cloud.LastRequest?.Language == "en", "shell request lost mode language at router boundary");
+
+        shell.Recording!.FilePath = audio;
+        await shell.Recording.TranscribeFileAsync();
+        Assert(cloud.LastRequest?.Language == "en" && workflow.Snapshot.State == TranscriptionWorkflowState.Completed,
+            "file transcription ignored mode language");
+        await shell.Recording.StartAsync();
+        await shell.Recording.StopAsync();
+        Assert(cloud.LastRequest?.Language == "en" && workflow.Snapshot.State == TranscriptionWorkflowState.Completed,
+            "recording transcription ignored mode language");
+
+        var failed = new Transcript
+        {
+            Status = TranscriptStatus.Failed, FailedReason = "test failure", AudioFilePath = audio,
+            ModeId = mode.Id, Mode = mode.Name
+        };
+        await history.AddAsync(failed);
+        shell.Modes.Selected = shell.Modes.Items.First(item => item.Id != mode.Id);
+        await shell.History.RefreshAsync();
+        shell.History.Selected = shell.History.Items.Single(item => item.Id == failed.Id);
+        await shell.History.RetryAsync();
+        Assert(cloud.LastRequest?.Language == "en" && (await history.GetAsync(failed.Id))?.Status == TranscriptStatus.Completed,
+            "retry ignored persisted mode language with global Auto");
+
+        await router.TranscribeAsync(audio, request with { Language = "ja" });
+        Assert(cloud.LastRequest?.Language == "ja", "explicit request language no longer overrides mode");
+        await router.TranscribeAsync(audio, request with { Language = "auto" });
+        Assert(cloud.LastRequest?.Language is null, "explicit Auto request no longer overrides mode");
+        mode.Language = "auto";
+        shell.Settings.Language = "fr";
+        await router.TranscribeAsync(audio, shell.CreateTranscriptionRequest(mode));
+        Assert(cloud.LastRequest?.Language is null, "mode Auto inherited global explicit language");
+        Assert(shell.CreateTranscriptionRequest(null).Language == "fr", "no-mode request lost global language fallback");
+        shell.Settings.Language = "auto";
+    }
+}
+
 static async Task RunDefaultModeInvariantTestsAsync(string root)
 {
     Directory.CreateDirectory(root);
@@ -1267,6 +1351,88 @@ static async Task RunDefaultModeInvariantTestsAsync(string root)
     var afterDelete = await orphanRepository.ListAsync();
     Assert(afterDelete.Count == 1 && afterDelete.Single().IsDefault,
         "deleting the default mode left the remaining mode without the flag");
+}
+
+static async Task RunDictationModeTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+    foreach (var provider in new[] { "assemblyai", "hyperwhisper" })
+    {
+        var mode = new Mode { Name = "Dictation " + provider, ProviderType = "cloud", CloudProvider = provider, CloudAccuracyTier = "assemblyAI", CloudTranscriptionModel = "dictation", Language = "ja", PostProcessingMode = 0 };
+        await repository.UpsertAsync(mode);
+        editor.Selected = mode;
+        Assert(editor.IsDictation && !editor.ShowMedicalDomain, "Dictation did not hide Medical Mode");
+        Assert(editor.DictationLanguages.Count == 32 && !editor.DictationLanguages.Contains("auto"), "Dictation language picker is inaccurate");
+        Assert(editor.CloudTierModels.Contains("dictation"), "The cloud model picker lacks Dictation");
+        Assert(ReferenceEquals(editor.CloudTierModels, editor.CloudTierModels), "The tier picker rebuilds its list while selection commits");
+        await editor.SaveAsync();
+        var saved = (await repository.ListAsync()).Single(row => row.Id == mode.Id);
+        Assert(saved.CloudTranscriptionModel == "dictation" && saved.Language == "ja" && saved.PostProcessingMode == 0, "Saving changed Dictation, language or explicit processing settings");
+        editor.Selected = saved;
+        Assert(editor.IsDictation && editor.TranscriptionModel == "dictation", "Reopening lost Dictation");
+        editor.Language = "auto";
+        await editor.SaveAsync();
+        Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Dictation accepted Auto");
+    }
+
+    var ordinary = new Mode { Name = "Ordinary language", ProviderType = "cloud", CloudProvider = "assemblyai", CloudTranscriptionModel = "universal-3-pro", Language = "en" };
+    await repository.UpsertAsync(ordinary);
+    editor.Selected = ordinary;
+    Assert(editor.DictationLanguage is null, "A hidden Dictation picker exposed the ordinary language");
+    editor.Language = "pl";
+    editor.DictationLanguage = null; // Avalonia clears selections absent from ItemsSource.
+    editor.DictationLanguage = "en"; // Hidden picker cannot write a selection either.
+    await editor.SaveAsync();
+    var ordinarySaved = (await repository.ListAsync()).Single(row => row.Id == ordinary.Id);
+    Assert(ordinarySaved.Language == "pl", "The hidden Dictation picker changed Polish to Auto or English");
+    editor.Selected = ordinarySaved;
+    editor.CloudTranscriptionModel = "dictation";
+    Assert(editor.DictationLanguage is null && editor.Language == "pl", "An unsupported Dictation language was silently rewritten");
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.dictation_selection", "An unsupported Dictation language was accepted");
+    editor.DictationLanguage = "ja";
+    Assert(editor.Language == "ja", "The visible Dictation picker did not update the language");
+
+    foreach (var route in new[] { "byok-model", "cloud-model", "provider", "tier" })
+    {
+        var medical = new Mode { Name = "Medical transition " + route, ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "assemblyAI", CloudTranscriptionModel = "universal-3-pro", CloudTranscriptionDomain = "medical", Language = "en" };
+        await repository.UpsertAsync(medical);
+        editor.Selected = medical;
+        Assert(editor.CloudDomain == "medical", "Loading a medical mode discarded its domain");
+        switch (route)
+        {
+            case "byok-model":
+                editor.IsYourProviderSource = true;
+                editor.CloudProvider = "assemblyai";
+                editor.CloudTranscriptionModel = "dictation";
+                break;
+            case "cloud-model": editor.CloudTierModel = "dictation"; break;
+            case "provider":
+                editor.CloudProvider = "assemblyai";
+                editor.CloudTranscriptionModel = "dictation";
+                editor.CloudDomain = "medical";
+                editor.CloudProvider = "hyperwhisper";
+                break;
+            case "tier":
+                editor.CloudAccuracyTier = "elevenlabs";
+                editor.TranscriptionModel = "dictation";
+                editor.CloudAccuracyTier = "assemblyAI";
+                break;
+        }
+        Assert(editor.IsDictation && editor.CloudDomain == "", "Dictation retained an inaccessible medical domain after " + route);
+        await editor.SaveAsync();
+        var saved = (await repository.ListAsync()).Single(row => row.Id == medical.Id);
+        Assert(!editor.Status.HasError && saved.CloudTranscriptionModel == "dictation" && saved.CloudTranscriptionDomain is null, "Dictation failed to save after " + route);
+    }
+
+    var invalid = new Mode { Name = "Invalid restored Dictation", ProviderType = "cloud", CloudProvider = "assemblyai", CloudTranscriptionModel = "dictation", CloudTranscriptionDomain = "medical", Language = "en" };
+    editor.Selected = invalid;
+    Assert(editor.CloudDomain == "medical", "Loading an invalid mode silently rewrote its domain");
+    await editor.SaveAsync();
+    Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Restored Dictation with a medical domain bypassed validation");
 }
 
 static async Task RunChirp3TierMigrationTestsAsync(string root)
@@ -2869,6 +3035,16 @@ file sealed class SwitchableDevices : IAudioInputDeviceService
     public PlatformResult<IReadOnlyList<AudioInputDevice>> GetAvailableDevices() =>
         PlatformResult<IReadOnlyList<AudioInputDevice>>.Success(Available);
     public void Dispose() { }
+}
+
+file sealed class LanguageRecordingCloud : IBatchCloudTranscriptionClient
+{
+    public CloudTranscriptionRequest? LastRequest { get; private set; }
+    public Task<CloudTranscriptionResult> TranscribeAsync(CloudTranscriptionRequest request, CancellationToken cancellationToken = default)
+    {
+        LastRequest = request;
+        return Task.FromResult(CloudTranscriptionResult.Success(new("cloud words", null, null, "upstream"), 1));
+    }
 }
 
 file sealed class FakeDevices : IAudioInputDeviceService

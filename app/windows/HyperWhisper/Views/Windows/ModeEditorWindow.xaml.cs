@@ -331,10 +331,21 @@ public partial class ModeEditorWindow : Window
         UpdateSaveButtonState();
     }
 
+    private bool HasValidDictationLanguage()
+    {
+        if (SelectedProviderType() != "cloud") return true;
+        ResolveEffectiveCloudProviderAndModel(out var provider, out var modelId);
+        if (provider != CloudTranscriptionProvider.AssemblyAI || modelId != "dictation") return true;
+
+        var language = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var support = Services.SharedModelsCatalog.GetLanguageSupport("assemblyAI", CatalogKind.Voice, "dictation");
+        return language != null && support.Codes.Contains(language);
+    }
+
     private void UpdateSaveButtonState()
     {
         // Name is required
-        if (string.IsNullOrWhiteSpace(ModeNameBox.Text))
+        if (string.IsNullOrWhiteSpace(ModeNameBox.Text) || !HasValidDictationLanguage())
         {
             SaveModeButton.IsEnabled = false;
             return;
@@ -775,7 +786,7 @@ public partial class ModeEditorWindow : Window
     /// "Google" row lists Chirp and Gemini models together. Preview and
     /// no-custom-vocabulary models get an inline hint. The combo stays an enabled
     /// dropdown even with one item, so the row never changes shape. Tag carries
-    /// the X-STT-Model id (may be the empty string for Grok's implicit model);
+    /// the X-STT-Model id;
     /// DataContext carries the owning tier id, which is the X-STT-Provider source.
     ///
     /// <paramref name="persistedTierId"/> is the tier the mode was SAVED with. It
@@ -861,8 +872,8 @@ public partial class ModeEditorWindow : Window
 
     /// <summary>
     /// The model combo item whose Tag is <paramref name="modelId"/>, or null.
-    /// Tag and id are compared as "" when null so Grok's empty-string implicit
-    /// model id still matches its item.
+    /// Tag and id are compared as "" when null, so a mode that recorded no model
+    /// still matches an item rather than throwing on the null.
     /// </summary>
     private ComboBoxItem? FindCloudTierModelItem(string? modelId)
     {
@@ -910,9 +921,10 @@ public partial class ModeEditorWindow : Window
     /// </summary>
     private void ApplyMedicalDomainVisibility(string? tierId, bool isCheckedFromStorage)
     {
-        var isAssemblyAI = string.Equals(tierId, "assemblyAI", StringComparison.OrdinalIgnoreCase);
+        var isAssemblyAI = string.Equals(tierId, "assemblyAI", StringComparison.OrdinalIgnoreCase)
+            && (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() != "dictation";
         MedicalDomainCheck.Visibility = isAssemblyAI ? Visibility.Visible : Visibility.Collapsed;
-        if (!isAssemblyAI && !isCheckedFromStorage)
+        if (!isAssemblyAI && (!isCheckedFromStorage || (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "dictation"))
         {
             // Leaving the only domain-capable tier clears the domain.
             MedicalDomainCheck.IsChecked = false;
@@ -1306,6 +1318,7 @@ public partial class ModeEditorWindow : Window
         if (_isLoading) return;
         UpdateEnglishSpellingVisibility();
         UpdateNova3Warning();
+        UpdateSaveButtonState();
     }
 
     /// <summary>
@@ -1752,6 +1765,12 @@ public partial class ModeEditorWindow : Window
 
     private void SaveModeButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!HasValidDictationLanguage())
+        {
+            LanguageCombo.Focus();
+            return;
+        }
+
         _mode.Name = ModeNameBox.Text.Trim();
 
         // Save preset
@@ -1794,13 +1813,10 @@ public partial class ModeEditorWindow : Window
                         ? "medical"
                         : null;
             }
-            // Grok (BYOK) has a single implicit model — store empty sentinel regardless of any
-            // stale entries in the (hidden) CloudModelCombo from a prior provider selection.
-            else if (_mode.CloudProvider == "grok")
-            {
-                _mode.CloudTranscriptionModel = "";
-                _mode.CloudTranscriptionDomain = null;
-            }
+            // Grok stored an empty sentinel here until 2026-09-19, because an xAI
+            // request named no model. Grok Voice Transcribe 2.0 gave `/v1/stt` a
+            // `model` parameter, so grok takes the ordinary BYOK combo path below
+            // and its one model is stored like every other vendor's.
             else if (CloudModelCombo.SelectedItem is ComboBoxItem cloudItem)
             {
                 _mode.CloudTranscriptionModel = cloudItem.Tag?.ToString() ?? "whisper-1";
@@ -2191,6 +2207,12 @@ public partial class ModeEditorWindow : Window
             if (cloudProvider == CloudTranscriptionProvider.AssemblyAI)
             {
                 var modelId = effectiveModelId;
+                if (modelId == "dictation")
+                {
+                    var support = Services.SharedModelsCatalog.GetLanguageSupport("assemblyAI", CatalogKind.Voice, "dictation");
+                    ReplaceLanguageItems(support.Codes.Select(code => new LanguageInfo(code, LanguageInfo.GetDisplayName(code))));
+                    return;
+                }
 
                 // For the HyperWhisper Cloud AssemblyAI tier, Medical Mode is the
                 // separate MedicalDomainCheck (X-STT-Domain), not a "-medical"

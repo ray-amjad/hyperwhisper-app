@@ -1038,18 +1038,12 @@ export async function getDeviceCountsPerLicense(sinceDays?: number): Promise<
 export async function upsertEmail(data: {
   email: string;
   source?: string | null;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-  country?: string | null;
 }): Promise<void> {
   await db
     .insert(emails)
     .values({
       email: data.email,
       source: data.source ?? null,
-      ipAddress: data.ipAddress ?? null,
-      userAgent: data.userAgent ?? null,
-      country: data.country ?? null,
     })
     .onConflictDoNothing({ target: emails.email });
 }

@@ -200,6 +200,28 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
         // params for sync vs async instead.
         var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
 
+        if (ModelId is "dictation" or "dictation-medical")
+        {
+            try
+            {
+                var transcript = await HyperWhisper.SharedCore.AssemblyAiDictation.TranscribeAsync(
+                    coreParams, Http, cancellationToken);
+                return transcript.text;
+            }
+            catch (HwTranscriptionException error)
+            {
+                throw RustCoreMapping.MapTranscriptionError(error, "AssemblyAI");
+            }
+            catch (InvalidDataException error)
+            {
+                throw new TranscriptionException(TranscriptionErrorCode.InvalidRequest, error.Message, "AssemblyAI");
+            }
+            catch (TimeoutException error)
+            {
+                throw new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, error.Message, "AssemblyAI");
+            }
+        }
+
         // STEP 3.5: Try the sync fast path for short clips. Uses the EXACT NAudio
         // duration (not a byte-size estimate) since we have the file on disk.
         // Unknown duration, >= the sync cap, or a medical model (the sync API

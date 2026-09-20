@@ -83,7 +83,7 @@ const PREMIUM_ROUTES: Partial<Record<SttProviderId, PremiumRouteResolver>> = {
   // published rate, higher than either async catalog tier. A short clip is
   // exactly sync's target case, so a reservation that only ever priced the
   // requested async model could be deducted beyond what it held.
-  assemblyai: (input) => (couldRouteThroughSync(input)
+  assemblyai: (input) => (input.model !== 'dictation' && couldRouteThroughSync(input)
     ? ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE
     : null),
 };

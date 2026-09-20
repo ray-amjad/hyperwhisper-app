@@ -76,9 +76,8 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "xai",
     vendorDisplayName: "SpaceXAI",
     models: [
-      // Empty id, like the catalog: the endpoint takes no model parameter, so
-      // the ingest stores null and modelDisplayName() normalises the two.
-      { id: "", displayName: "Grok Speech-to-Text", isDefault: true },
+      { id: "grok-voice-transcribe-2.0", displayName: "Grok Voice Transcribe 2", isDefault: true },
+      { id: "grok-voice-transcribe-1.0", displayName: "Grok Voice Transcribe 1", isDefault: false },
     ],
   },
   {
@@ -124,6 +123,7 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     models: [
       { id: "universal-3-5-pro", displayName: "Universal-3.5 Pro", isDefault: true },
       { id: "universal-2", displayName: "Universal-2" },
+      { id: "dictation", displayName: "Dictation" },
     ],
   },
   {
@@ -213,19 +213,40 @@ export function vendorDisplayName(vendorKey: string): string {
 }
 
 /**
- * The name the app's Model dropdown shows for one stored row's model.
+ * The catalog model one stored row names. A null model and an empty one are the
+ * same thing, and neither resolves: this page reports what a measurement WAS,
+ * and a row that names no model cannot be given one after the fact.
  *
- * A null model and an empty one are the same thing — the ingest stores null for
- * a provider whose endpoint takes no model id, and the catalog spells that same
- * model with an empty id — so both resolve to the provider's single entry rather
- * than to an unnamed row.
+ * Grok is why the case is live, and why resolving is wrong here. Its endpoint
+ * took no model parameter until Grok Voice Transcribe 2.0 (2026-09-19), so every
+ * grok row older than that date stores null — and those rows measured 1.0, the
+ * only model xAI then served. Resolving a blank to the entry's default would
+ * print "Grok Voice Transcribe 2" over timings taken from a model that did not
+ * exist yet, and would put a second row of that name beside the real one for as
+ * long as both sit in the retained window.
+ *
+ * This is the opposite of what a blank means on the WIRE, where
+ * `grok::resolve_model` and `hw-catalog::models::entry()` do take the default —
+ * correctly, because there the question is what to send next, not what already
+ * ran.
  */
+function resolveModel(providerId: string, modelId: string | null): CatalogModel | undefined {
+  const entry = ENTRY_BY_PROVIDER.get(providerId);
+  if (!entry || !modelId) return undefined;
+  return entry.models.find((model) => model.id === modelId);
+}
+
+/**
+ * The label a model row carries. Named from the catalog when the row names a
+ * model, and `UNREPORTED_MODEL_LABEL` when it does not — never the provider id,
+ * which read as a model name in lower case beside real ones.
+ */
+export const UNREPORTED_MODEL_LABEL = "Model not reported";
+
+/** The name the app's Model dropdown shows for one stored row's model. */
 export function modelDisplayName(providerId: string, modelId: string | null): string {
-  const id = modelId ?? "";
-  const model = ENTRY_BY_PROVIDER.get(providerId)?.models.find(
-    (candidate) => candidate.id === id,
-  );
-  return model?.displayName ?? (id === "" ? providerId : id);
+  if (!modelId) return UNREPORTED_MODEL_LABEL;
+  return resolveModel(providerId, modelId)?.displayName ?? modelId;
 }
 
 /**
@@ -246,7 +267,7 @@ export function isDefaultModel(providerId: string, modelId: string | null): bool
   const first = STT_CATALOG.find((candidate) => candidate.vendor === entry.vendor);
   if (!first || first.sttProvider !== providerId) return false;
   const fallsBackTo = first.models.find((model) => model.isDefault) ?? first.models[0];
-  return fallsBackTo?.id === (modelId ?? "");
+  return fallsBackTo !== undefined && fallsBackTo === resolveModel(providerId, modelId);
 }
 
 /**
@@ -254,14 +275,16 @@ export function isDefaultModel(providerId: string, modelId: string | null): bool
  * under a vendor exactly as the app's Model dropdown orders them. A pair the
  * catalog does not know sorts last, so a model the edge service starts reporting
  * before this mirror is updated appears at the bottom of its vendor instead of
- * silently taking someone else's place.
+ * silently taking someone else's place. A row that names no model sorts last for
+ * the same reason — it belongs under the named ones, not among them.
  */
 export function modelSortIndex(providerId: string, modelId: string | null): number {
-  const id = modelId ?? "";
+  const resolved = resolveModel(providerId, modelId);
+  if (!resolved) return Number.MAX_SAFE_INTEGER;
   let index = 0;
   for (const entry of STT_CATALOG) {
     for (const model of entry.models) {
-      if (entry.sttProvider === providerId && model.id === id) return index;
+      if (entry.sttProvider === providerId && model === resolved) return index;
       index += 1;
     }
   }

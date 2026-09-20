@@ -73,7 +73,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 ?? Modes.Items.FirstOrDefault(mode => mode.IsDefault)
                 ?? Modes.Selected;
             return await transcriptionWorkflow!.RetryTranscriptAsync(item.Id, new(
-                Language: Settings.Language,
+                Language: retryMode?.Language ?? Settings.Language,
                 ModeName: retryMode?.Name ?? item.Mode,
                 ModeId: retryMode?.Id ?? item.ModeId,
                 SelectedMode: retryMode,
@@ -174,7 +174,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Mode? mode,
         ApplicationContextSnapshot? applicationContext = null,
         PortableCursorContext cursorContext = PortableCursorContext.Unknown) => new(
-        Language: Settings.Language,
+        // A mode's language is authoritative; global settings only apply without a mode.
+        Language: mode?.Language ?? Settings.Language,
         ModeName: mode?.Name,
         ModeId: mode?.Id,
         SelectedMode: mode,

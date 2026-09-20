@@ -38,7 +38,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use hw_net::providers::{
-    assemblyai, deepgram, elevenlabs, gemini, gemini_transcribe, groq, meta, mistral, openai,
+    assemblyai, deepgram, elevenlabs, gemini, gemini_transcribe, grok, groq, meta, mistral, openai,
     soniox,
 };
 
@@ -68,10 +68,11 @@ struct ProviderVector {
     default_model_id: String,
     credits_per_minute: f64,
     /// Whether `hw-net` builds this provider's own request body with a `model`
-    /// field, and therefore resolves a default of its own. False for Grok (the
-    /// endpoint takes no `model` parameter) and for Azure MAI (proxy-routed; the
-    /// caller supplies `routed_model`). Those rows are still pinned because the
-    /// .NET and Swift heads DO answer them.
+    /// field, and therefore resolves a default of its own. False for Azure MAI
+    /// (proxy-routed; the caller supplies `routed_model`) and for the tiers with
+    /// no BYOK builder at all. Those rows are still pinned because the .NET and
+    /// Swift heads DO answer them. Grok was false until 2026-09-19, when xAI
+    /// gave `/v1/stt` a `model` parameter.
     byok_request_builder: bool,
 }
 
@@ -94,6 +95,7 @@ fn rust_resolvers() -> Vec<(&'static str, &'static str)> {
             gemini_transcribe::CATALOG_ENTRY_ID,
             gemini_transcribe::default_model(),
         ),
+        (grok::CATALOG_ENTRY_ID, grok::default_model()),
         (groq::CATALOG_ENTRY_ID, groq::default_model()),
         (meta::CATALOG_ENTRY_ID, meta::default_model()),
         (mistral::CATALOG_ENTRY_ID, mistral::default_model()),

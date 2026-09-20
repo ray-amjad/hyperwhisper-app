@@ -392,9 +392,12 @@ const LIVE_STREAMING_ROW_IDS = new Set([
   // is why a route that forwards a model id is not on its own a live claim.
   "deepgramNova3:nova-3-general",
   "deepgramNova3:nova-3-medical",
-  // `XAIStreamingStrategy` builds a wss://api.x.ai URL with no model parameter,
-  // which is also why this row's model id is the empty string.
-  "grokStt:",
+  // `XAIStreamingStrategy` builds a wss://api.x.ai URL, and `live/xai.rs` pins
+  // the model on it as a query parameter. Both rows, because that pin is
+  // `grok::resolve_model(config.model)` — it forwards whichever model the mode
+  // selected and only substitutes the default for a blank.
+  "grokStt:grok-voice-transcribe-2.0",
+  "grokStt:grok-voice-transcribe-1.0",
   // `LIVE_MODEL` in hw-net `providers/gemini_transcribe.rs`, substituted by
   // `live/gemini.rs` and `GeminiStreamingStrategy` and proxied by
   // `ws-streaming-gemini-transcribe.ts`. The pre-recorded row is deliberately
@@ -458,7 +461,8 @@ test("every model the Cloud routes live is a row the page calls live", () => {
   );
 
   // Deliberately one-directional. A row can be live without the Cloud routing
-  // it: `grokStt:` streams BYOK-only and carries no catalog flag, so the page's
+  // it: `grokStt:grok-voice-transcribe-2.0` streams BYOK-only and carries no
+  // catalog flag, so the page's
   // list is a superset. Not an equality either way — a model the Cloud routes
   // live must appear here, but appearing here does not require the flag.
   assert.ok(cloudLive.length > 0, "no catalog model carries `streaming: true`");
@@ -555,16 +559,29 @@ test("a provider whose models differ states each model's own language count", as
       `${provider.id} states languageCount on some models but not all`,
     );
 
-    // No model may claim more than the union it was folded from, and the union
-    // must be exactly the largest model's table — otherwise `languages.codes`
-    // holds codes no model supports.
+    // No model may claim more than the union it was folded from. The union
+    // can exceed the largest model's table when their language sets overlap
+    // only partially (AssemblyAI Dictation adds xh/yue/zu to Universal's set).
     const largest = Math.max(...overrides);
-    assert.equal(
-      largest,
-      codes.length,
+    assert.ok(
+      largest <= codes.length,
       `${provider.id}'s widest model claims ${largest} languages but languages.codes lists ${codes.length}`,
     );
   }
+});
+
+test("AssemblyAI Dictation retains its model-specific language coverage", async () => {
+  const { CLOUD_MODELS } = await loadCatalog();
+  const models = CLOUD_MODELS.filter(
+    (model: { sttProvider: string }) => model.sttProvider === "assemblyai",
+  );
+  assert.deepEqual(
+    models.map((model: { modelId: string; languages: number }) => [
+      model.modelId,
+      model.languages,
+    ]),
+    [["universal-3-5-pro", 98], ["universal-2", 98], ["dictation", 32]],
+  );
 });
 
 test("Meta Muse keeps streaming benchmark values out of the batch ranking", async () => {

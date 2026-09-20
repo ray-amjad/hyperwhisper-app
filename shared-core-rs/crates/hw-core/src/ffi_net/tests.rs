@@ -1125,6 +1125,365 @@
     }
 
     // -----------------------------------------------------------------------
+    // Gemini multi-step wrappers (upload-start -> upload-bytes -> poll ->
+    // generate -> delete). Each step is a separate `#[uniffi::export]`, so the
+    // head drives the sequence itself; a wrapper wired to the wrong leaf
+    // function, or one that drops the id/URL argument the previous step
+    // returned, breaks the chain with no compile error.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn gemini_upload_start_wrapper_opens_a_resumable_session_for_the_audio_file() {
+        let mut p = params();
+        p.api_key = "gemini-key".to_string();
+        p.audio_path = "/tmp/take-one.wav".to_string();
+        p.audio_mime = Some("audio/wav".to_string());
+        // No override, so the wrapper must reach Gemini's own API root.
+        p.base_url = None;
+
+        let request = gemini_build_upload_start_request(p).expect("upload-start request");
+        assert_eq!(method_tag(&request.method), "POST");
+        assert_eq!(
+            request.url,
+            "https://generativelanguage.googleapis.com/upload/v1beta/files?key=gemini-key",
+            "Gemini authenticates with a query key, not a header"
+        );
+        assert_eq!(
+            header(&request, "X-Goog-Upload-Protocol").as_deref(),
+            Some("resumable")
+        );
+        assert_eq!(
+            header(&request, "X-Goog-Upload-Command").as_deref(),
+            Some("start")
+        );
+        assert_eq!(
+            header(&request, "X-Goog-Upload-Header-Content-Type").as_deref(),
+            Some("audio/wav")
+        );
+        let body: serde_json::Value = match request.body {
+            Body::Bytes { content_type, data } => {
+                assert_eq!(content_type, "application/json");
+                serde_json::from_slice(&data).expect("upload-start JSON")
+            }
+            _ => panic!("the upload-start wrapper must return a JSON body"),
+        };
+        assert_eq!(
+            body["file"]["display_name"], "take-one.wav",
+            "only the file name crosses the wire, never the local path"
+        );
+    }
+
+    /// The session URL lives in a response *header*, so a wrapper that read the
+    /// body instead would return nothing at all.
+    #[test]
+    fn gemini_upload_start_wrapper_reads_the_session_url_from_its_header() {
+        let url = gemini_parse_upload_start_response(response_with_headers(
+            200,
+            &[("x-goog-upload-url", "https://upload.example.test/session-1")],
+            "",
+        ))
+        .expect("session url");
+        assert_eq!(url, "https://upload.example.test/session-1");
+
+        let missing = expect_error(
+            gemini_parse_upload_start_response(response(200, "{}")),
+            "a response with no upload URL cannot continue",
+        );
+        assert!(matches!(missing, HwTranscriptionError::Parse { .. }));
+
+        // PARITY: Gemini answers a bad key with 400, not 401.
+        let rejected = expect_error(
+            gemini_parse_upload_start_response(response(400, r#"{"error":{"message":"API key not valid"}}"#)),
+            "a rejected key must fail",
+        );
+        assert!(matches!(rejected, HwTranscriptionError::Unauthorized));
+    }
+
+    #[test]
+    fn gemini_upload_bytes_wrapper_streams_to_the_session_url_step_one_returned() {
+        let mut p = params();
+        p.audio_path = "/tmp/take-one.wav".to_string();
+        p.audio_mime = Some("audio/wav".to_string());
+
+        let request = gemini_build_upload_bytes_request(
+            p,
+            "https://upload.example.test/session-1".to_string(),
+        )
+        .expect("upload-bytes request");
+        assert_eq!(
+            request.url, "https://upload.example.test/session-1",
+            "step 2 goes to the session URL, not to the API root"
+        );
+        assert_eq!(header(&request, "X-Goog-Upload-Offset").as_deref(), Some("0"));
+        assert_eq!(
+            header(&request, "X-Goog-Upload-Command").as_deref(),
+            Some("upload, finalize")
+        );
+        match request.body {
+            Body::FileStream { path, content_type } => {
+                assert_eq!(path, "/tmp/take-one.wav");
+                assert_eq!(content_type, "audio/wav");
+            }
+            _ => panic!("the audio must be streamed from disk, never carried as bytes"),
+        }
+    }
+
+    #[test]
+    fn gemini_upload_bytes_wrapper_requires_a_complete_file_resource() {
+        let file = gemini_parse_upload_bytes_response(response(
+            200,
+            r#"{"file":{"name":"files/abc","uri":"https://files.example.test/abc","mimeType":"audio/wav","state":"PROCESSING"}}"#,
+        ))
+        .expect("uploaded file");
+        assert_eq!(file.name.as_deref(), Some("files/abc"));
+        assert_eq!(file.uri.as_deref(), Some("https://files.example.test/abc"));
+        assert_eq!(file.mime_type.as_deref(), Some("audio/wav"));
+        assert_eq!(file.state.as_deref(), Some("PROCESSING"));
+
+        let incomplete = expect_error(
+            gemini_parse_upload_bytes_response(response(200, r#"{"name":"files/abc"}"#)),
+            "a file with no uri cannot be generated from",
+        );
+        assert!(matches!(incomplete, HwTranscriptionError::Parse { .. }));
+    }
+
+    /// Poll and delete address the same resource and differ only in the method,
+    /// so a crossed pair would delete the file the head is still waiting for.
+    #[test]
+    fn gemini_poll_and_delete_wrappers_share_a_url_and_differ_in_method() {
+        let mut p = params();
+        p.api_key = "gemini-key".to_string();
+        p.base_url = Some("https://gemini.example.test/".to_string());
+
+        let mut q = params();
+        q.api_key = "gemini-key".to_string();
+        q.base_url = Some("https://gemini.example.test/".to_string());
+
+        let poll = gemini_build_poll_request(p, "files/abc".to_string()).expect("poll request");
+        let delete =
+            gemini_build_delete_request(q, "files/abc".to_string()).expect("delete request");
+
+        assert_eq!(
+            poll.url, "https://gemini.example.test/v1beta/files/abc?key=gemini-key",
+            "the trailing slash on the override must not double up"
+        );
+        assert_eq!(delete.url, poll.url);
+        assert_eq!(method_tag(&poll.method), "GET");
+        assert_eq!(method_tag(&delete.method), "DELETE");
+        assert!(matches!(poll.body, Body::Empty));
+        assert!(matches!(delete.body, Body::Empty));
+    }
+
+    #[test]
+    fn gemini_generate_wrapper_skips_the_thinking_parts_and_reports_silence() {
+        let transcript = gemini_parse_generate_response(response(
+            200,
+            r#"{"candidates":[{"content":{"parts":[
+                {"text":"planning the answer","thought":true},
+                {"text":"the spoken words"},
+                {"text":" and the rest"}
+            ]}}]}"#,
+        ))
+        .expect("transcript");
+        assert_eq!(
+            transcript.text, "the spoken words and the rest",
+            "a thinking model's thought part is not transcript text"
+        );
+
+        let silent = expect_error(
+            gemini_parse_generate_response(response(
+                200,
+                r#"{"candidates":[{"content":{"parts":[{"text":"   "}]}}]}"#,
+            )),
+            "a blank generate response must be no speech",
+        );
+        assert!(matches!(silent, HwTranscriptionError::NoSpeech));
+
+        let unavailable = expect_error(
+            gemini_parse_generate_response(response(503, "upstream down")),
+            "a 5xx must fail",
+        );
+        assert!(matches!(
+            unavailable,
+            HwTranscriptionError::ProviderUnavailable { status: 503 }
+        ));
+    }
+
+    // -----------------------------------------------------------------------
+    // Soniox multi-step wrappers (upload -> create -> status -> transcript ->
+    // delete). Two ids travel through this flow — a file id and a
+    // transcription id — and they address different paths.
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn soniox_upload_wrapper_posts_the_audio_and_returns_the_file_id() {
+        let mut p = params();
+        p.api_key = "soniox-key".to_string();
+        p.audio_path = "/tmp/take-one.wav".to_string();
+        p.audio_mime = Some("audio/wav".to_string());
+        p.base_url = Some("https://soniox.example.test/v1/".to_string());
+
+        let request = soniox_build_upload_request(p).expect("upload request");
+        assert_eq!(method_tag(&request.method), "POST");
+        assert_eq!(request.url, "https://soniox.example.test/v1/files");
+        assert_eq!(
+            header(&request, "Authorization").as_deref(),
+            Some("Bearer soniox-key"),
+            "Soniox uses a bearer token, unlike AssemblyAI's bare key"
+        );
+        let (field_name, path, mime, filename) = file_ref(parts_of(&request.body));
+        assert_eq!(field_name, "file");
+        assert_eq!(path, "/tmp/take-one.wav");
+        assert_eq!(mime, "audio/wav");
+        assert_eq!(filename, "take-one.wav");
+
+        let file_id = soniox_parse_upload_response(response(200, r#"{"id":"file-1"}"#))
+            .expect("file id");
+        assert_eq!(file_id, "file-1");
+
+        let rejected = expect_error(
+            soniox_parse_upload_response(response(401, "{}")),
+            "a rejected key must fail",
+        );
+        assert!(matches!(rejected, HwTranscriptionError::Unauthorized));
+    }
+
+    #[test]
+    fn soniox_create_wrapper_binds_the_uploaded_file_to_the_model_and_vocabulary() {
+        let mut p = params();
+        p.api_key = "soniox-key".to_string();
+        p.model = "stt-async-preview".to_string();
+        p.language = Some("fr-CA".to_string());
+        p.vocabulary = vec!["HyperWhisper".to_string(), "UniFFI".to_string()];
+        p.base_url = Some("https://soniox.example.test/v1".to_string());
+
+        let request = soniox_build_create_request(p, "file-1".to_string()).expect("create request");
+        assert_eq!(request.url, "https://soniox.example.test/v1/transcriptions");
+        assert_eq!(
+            header(&request, "Authorization").as_deref(),
+            Some("Bearer soniox-key")
+        );
+        let body: serde_json::Value = match request.body {
+            Body::Bytes { content_type, data } => {
+                assert_eq!(content_type, "application/json");
+                serde_json::from_slice(&data).expect("create JSON")
+            }
+            _ => panic!("the create wrapper must return a JSON body"),
+        };
+        assert_eq!(
+            body["file_id"], "file-1",
+            "the id from step 1 must reach the create body"
+        );
+        assert_eq!(body["model"], "stt-async-preview");
+        assert_eq!(body["language_hints"], serde_json::json!(["fr-CA"]));
+        assert_eq!(body["context"], "HyperWhisper, UniFFI");
+
+        let transcription_id =
+            soniox_parse_create_response(response(201, r#"{"id":"job-7"}"#)).expect("job id");
+        assert_eq!(transcription_id, "job-7");
+    }
+
+    /// `auto` is not a language hint, and the empty vocabulary carries no
+    /// context key — both are how the head asks Soniox to detect the language.
+    #[test]
+    fn soniox_create_wrapper_omits_an_automatic_language_and_an_empty_vocabulary() {
+        let mut p = params();
+        p.language = Some("auto".to_string());
+        p.vocabulary = Vec::new();
+
+        let request = soniox_build_create_request(p, "file-1".to_string()).expect("create request");
+        let body: serde_json::Value = match request.body {
+            Body::Bytes { data, .. } => serde_json::from_slice(&data).expect("create JSON"),
+            _ => panic!("expected a JSON body"),
+        };
+        assert!(body.get("language_hints").is_none());
+        assert!(body.get("context").is_none());
+    }
+
+    #[test]
+    fn soniox_status_and_transcript_wrappers_address_the_job_by_its_own_id() {
+        let mut p = params();
+        p.api_key = "soniox-key".to_string();
+        p.base_url = Some("https://soniox.example.test/v1".to_string());
+        let mut q = params();
+        q.api_key = "soniox-key".to_string();
+        q.base_url = Some("https://soniox.example.test/v1".to_string());
+
+        let status = soniox_build_status_request(p, "job-7".to_string()).expect("status request");
+        let transcript =
+            soniox_build_transcript_request(q, "job-7".to_string()).expect("transcript request");
+
+        assert_eq!(method_tag(&status.method), "GET");
+        assert_eq!(
+            status.url,
+            "https://soniox.example.test/v1/transcriptions/job-7"
+        );
+        assert_eq!(method_tag(&transcript.method), "GET");
+        assert_eq!(
+            transcript.url,
+            "https://soniox.example.test/v1/transcriptions/job-7/transcript",
+            "the transcript hangs off the job, and is not the job itself"
+        );
+        assert_eq!(
+            header(&transcript, "Authorization").as_deref(),
+            Some("Bearer soniox-key")
+        );
+        assert!(matches!(status.body, Body::Empty));
+        assert!(matches!(transcript.body, Body::Empty));
+    }
+
+    #[test]
+    fn soniox_transcript_wrapper_returns_the_text_and_calls_a_blank_one_silence() {
+        let transcript =
+            soniox_parse_transcript_response(response(200, r#"{"text":"the spoken words"}"#))
+                .expect("transcript");
+        assert_eq!(transcript.text, "the spoken words");
+
+        let silent = expect_error(
+            soniox_parse_transcript_response(response(200, r#"{"text":""}"#)),
+            "a blank transcript must be no speech",
+        );
+        assert!(matches!(silent, HwTranscriptionError::NoSpeech));
+
+        let unavailable = expect_error(
+            soniox_parse_transcript_response(response(500, "upstream down")),
+            "a 5xx must fail",
+        );
+        assert!(matches!(
+            unavailable,
+            HwTranscriptionError::ProviderUnavailable { status: 500 }
+        ));
+    }
+
+    /// The cleanup pair takes two different ids. A crossed pair would send a
+    /// file id to the transcriptions path, so both URLs are pinned here.
+    #[test]
+    fn soniox_cleanup_wrappers_delete_the_job_and_the_file_at_their_own_paths() {
+        let mut p = params();
+        p.api_key = "soniox-key".to_string();
+        p.base_url = Some("https://soniox.example.test/v1".to_string());
+        let mut q = params();
+        q.api_key = "soniox-key".to_string();
+        q.base_url = Some("https://soniox.example.test/v1".to_string());
+
+        let job = soniox_build_delete_transcription_request(p, "job-7".to_string());
+        let file = soniox_build_delete_file_request(q, "file-1".to_string());
+
+        assert_eq!(method_tag(&job.method), "DELETE");
+        assert_eq!(job.url, "https://soniox.example.test/v1/transcriptions/job-7");
+        assert_eq!(method_tag(&file.method), "DELETE");
+        assert_eq!(file.url, "https://soniox.example.test/v1/files/file-1");
+        assert_eq!(
+            header(&job, "Authorization").as_deref(),
+            Some("Bearer soniox-key")
+        );
+        assert_eq!(
+            header(&file, "Authorization").as_deref(),
+            Some("Bearer soniox-key")
+        );
+    }
+
+    // -----------------------------------------------------------------------
     // Request conversion, FFI -> contract
     // -----------------------------------------------------------------------
 
