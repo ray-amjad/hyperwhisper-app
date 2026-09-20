@@ -1,12 +1,12 @@
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.Streaming;
+using HyperWhisper.Views.Controls;
 using HyperWhisper.Views.Windows;
 
 namespace HyperWhisper.Views.Pages.Settings;
@@ -33,7 +33,11 @@ public partial class StreamingSettingsPage : Page
         _isInitializing = true;
 
         StreamingEnabledCheckbox.IsChecked = _settings.StreamingEnabled;
-        StreamingShortcutBox.Text = _settings.StreamingShortcut.ToDisplayString();
+        // Seed BEFORE the conflict check, and never the other way round: writing
+        // DisplayText runs the recorder's OnDisplayTextChanged, which withdraws the
+        // StandingError this page is about to draw. The verdict is about the chord
+        // that is stored, so a re-seeded field is exactly what makes it stale.
+        StreamingShortcutBox.DisplayText = _settings.StreamingShortcut.ToDisplayString();
         UpdateStreamingShortcutConflict();
 
         LanguageBox.ItemsSource = LanguageInfo.AllLanguages;
@@ -123,106 +127,55 @@ public partial class StreamingSettingsPage : Page
         LoggingService.Info($"StreamingSettingsPage: Fast formatting set to {_settings.StreamingFastFormatting}");
     }
 
-    private void StreamingShortcutBox_PreviewKeyDown(object sender, WpfKeyEventArgs e)
+    /// <summary>
+    /// A recorder captured a chord. It has already rejected single bare modifiers
+    /// and duplicates against the other three global shortcuts, exactly as
+    /// ShortcutsSettingsPage's own handler relies on, so all that is left here is
+    /// storing it.
+    ///
+    /// The capture, the validation and the error rendering used to live on this
+    /// page, in a key handler that committed on every key-down - so reaching for
+    /// Ctrl+Shift+X persisted the bare Ctrl+Shift prefix as a global hotkey that
+    /// survived a restart (#794, the same defect #539 fixed in the recorder).
+    /// </summary>
+    private void ShortcutBox_Captured(object sender, ShortcutCapturedEventArgs e)
     {
-        e.Handled = true;
-
-        var shortcut = BuildShortcutFromKeyEvent(e);
-        if (shortcut == null) return;
-
-        var validationError = ShortcutValidationService.ValidateDuplicate(
-            shortcut,
-            "Streaming",
-            _settings.ToggleShortcut,
-            _settings.CancelShortcut,
-            _settings.ChangeModeShortcut,
-            _settings.StreamingShortcut);
-
-        if (validationError != null)
-        {
-            ShowStreamingShortcutError(validationError);
-            // The chord, not the sentence: that sentence is now a catalogue value
-            // and would put the user's display language into the support log.
-            LoggingService.Warn($"StreamingSettingsPage: Shortcut validation failed - {shortcut}");
-            return;
-        }
-
-        _settings.StreamingShortcut = shortcut;
-        StreamingShortcutBox.Text = shortcut.ToDisplayString();
-        ClearStreamingShortcutError();
-        LoggingService.Info($"StreamingSettingsPage: Streaming shortcut set to {shortcut.ToDisplayString()}");
+        _settings.StreamingShortcut = e.Shortcut;
+        LoggingService.Info($"StreamingSettingsPage: Streaming shortcut set to {e.Shortcut.ToDisplayString()}");
     }
 
-    private void StreamingShortcutBox_PreviewKeyUp(object sender, WpfKeyEventArgs e)
-    {
-        e.Handled = true;
-    }
-
-    private KeyboardShortcut? BuildShortcutFromKeyEvent(WpfKeyEventArgs e)
-    {
-        var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (key == Key.None) return null;
-
-        var shortcut = new KeyboardShortcut
-        {
-            Control = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl) || key is Key.LeftCtrl or Key.RightCtrl,
-            Alt = Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt) || key is Key.LeftAlt or Key.RightAlt,
-            Shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift) || key is Key.LeftShift or Key.RightShift,
-            Win = Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin) || key is Key.LWin or Key.RWin
-        };
-
-        if (!IsModifierKey(key))
-        {
-            shortcut.Key = key;
-        }
-
-        return shortcut;
-    }
-
-    private static bool IsModifierKey(Key key) =>
-        key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin;
-
+    /// <summary>
+    /// The on-load conflict render. The recorder validates on CAPTURE, not on load,
+    /// so a conflict that was already in settings.json when the page opened still
+    /// needs saying - and this is the only thing in the app that says it.
+    ///
+    /// It goes on the recorder's StandingError, NOT its ShowError/ClearError. Those
+    /// two are the recorder's own seam for the verdict about the chord the user just
+    /// typed, and the recorder clears that verdict on focus and on a re-seeded
+    /// DisplayText - by design, and for good reasons of its own. Rendering a
+    /// load-time conflict through them meant the sentence and the red border both
+    /// vanished the moment the user clicked into the field to fix the duplicate, and
+    /// nothing repainted them: they were gone for the rest of the page visit, with
+    /// the duplicate still stored. StandingError is about what is STORED, so it
+    /// survives focus and is withdrawn by the one thing that makes it untrue - a new
+    /// value in the field.
+    /// </summary>
     private void UpdateStreamingShortcutConflict()
     {
-        var validationError = ShortcutValidationService.ValidateDuplicate(
+        StreamingShortcutBox.StandingError = ShortcutValidationService.ValidateDuplicate(
             _settings.StreamingShortcut,
             "Streaming",
             _settings.ToggleShortcut,
             _settings.CancelShortcut,
             _settings.ChangeModeShortcut,
             _settings.StreamingShortcut);
-
-        if (validationError != null)
-        {
-            ShowStreamingShortcutError(validationError);
-        }
-        else
-        {
-            ClearStreamingShortcutError();
-        }
-    }
-
-    private void ShowStreamingShortcutError(string errorMessage)
-    {
-        StreamingShortcutErrorText.Text = errorMessage;
-        StreamingShortcutErrorText.Visibility = Visibility.Visible;
-        StreamingShortcutBox.BorderBrush = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(0xFF, 0x55, 0x55));
-        StreamingShortcutBox.BorderThickness = new Thickness(2);
-    }
-
-    private void ClearStreamingShortcutError()
-    {
-        StreamingShortcutErrorText.Text = "";
-        StreamingShortcutErrorText.Visibility = Visibility.Collapsed;
-        StreamingShortcutBox.ClearValue(Border.BorderBrushProperty);
-        StreamingShortcutBox.ClearValue(Border.BorderThicknessProperty);
     }
 
     private void FocusStreamingShortcut_Click(object sender, RoutedEventArgs e)
     {
-        StreamingShortcutBox.Focus();
-        StreamingShortcutBox.SelectAll();
+        // Not StreamingShortcutBox.Focus(): the UserControl is not focusable, so it
+        // would silently do nothing. The recorder reaches its own inner field.
+        StreamingShortcutBox.FocusForCapture();
     }
 
     private void OpenShortcutSettings_Click(object sender, RoutedEventArgs e)

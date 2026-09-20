@@ -14340,6 +14340,304 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts: Settings > Streaming stores nothing until the gesture closes", () =>
+            {
+                // #794. The SAME setting had two editors and only one was fixed:
+                // Settings > Shortcuts used the recorder, Settings > Streaming kept a
+                // raw TextBox whose PreviewKeyDown saved on EVERY key-down. Reaching
+                // for Ctrl+Shift+X committed Ctrl (refused), then Ctrl+Shift - a legal
+                // two-modifier chord - straight into settings.json, so a user who never
+                // finished the chord was left with a global Ctrl+Shift streaming hotkey
+                // that survived a restart.
+                //
+                // Driving the PAGE's own box is the structural half of the guard too: a
+                // raw TextBox put back here stops this case COMPILING, because
+                // HandleKeyDown belongs to ShortcutRecorderBox.
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var savedToggle = settings.ToggleShortcut;
+                var savedCancel = settings.CancelShortcut;
+                var savedChangeMode = settings.ChangeModeShortcut;
+                var savedStreaming = settings.StreamingShortcut;
+                try
+                {
+                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+
+                    // Construction alone wires ShortcutCaptured to the page's handler.
+                    // Loaded is NOT raised: it reaches VocabularyService and the DB, and
+                    // none of that is what this case is about.
+                    var streaming = new StreamingSettingsPage();
+
+                    // Reach for Ctrl+Shift+K, one key at a time, and stop short of the K.
+                    streaming.StreamingShortcutBox.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    streaming.StreamingShortcutBox.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
+                        "reaching for the final key must store NOTHING - the Streaming page committed "
+                        + "the Ctrl+Shift prefix on every key-down and it survived a restart (#794) - got "
+                        + settings.StreamingShortcut.ToPersistedString());
+
+                    // Now close the gesture properly. That the value lands at all is what
+                    // proves the page's ShortcutCaptured wiring saves.
+                    streaming.StreamingShortcutBox.HandleKeyDown(Key.K, control: true, alt: false, shift: true, win: false);
+                    streaming.StreamingShortcutBox.HandleKeyUp(Key.K);
+                    streaming.StreamingShortcutBox.HandleKeyUp(Key.LeftShift);
+                    streaming.StreamingShortcutBox.HandleKeyUp(Key.LeftCtrl);
+
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+K",
+                        "a finished gesture is what saves, and it saves the chord actually typed - got "
+                        + settings.StreamingShortcut.ToPersistedString());
+                    Assert(streaming.StreamingShortcutBox.ErrorMessage is null,
+                        "an accepted chord leaves no verdict behind");
+                }
+                finally
+                {
+                    settings.ToggleShortcut = savedToggle;
+                    settings.CancelShortcut = savedCancel;
+                    settings.ChangeModeShortcut = savedChangeMode;
+                    settings.StreamingShortcut = savedStreaming;
+                }
+            });
+
+            Run("shortcuts: Settings > Streaming says a duplicate it LOADED, and keeps saying it", () =>
+            {
+                // #794 round 1. UpdateStreamingShortcutConflict is the only thing in
+                // this app that reports a duplicate that was ALREADY in settings.json:
+                // the recorder validates on CAPTURE, so a conflict nobody typed today
+                // is invisible to it. Nothing covered that render, and it went silent
+                // two ways, both of which left the suite green:
+                //
+                //   - seed DisplayText AFTER the conflict check instead of before, and
+                //     the recorder's OnDisplayTextChanged withdraws the verdict the
+                //     line above it just drew. Every load-time warning, gone.
+                //   - render it through ShowError, which is the recorder's own seam for
+                //     the chord the user just typed and which focus clears by design.
+                //     The user read "already used by Start/Stop Recording", clicked the
+                //     field to fix it, and the sentence and the red border went with the
+                //     click - with nothing left to repaint them.
+                //
+                // Driven through the PAGE, because the ordering is the page's.
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var savedToggle = settings.ToggleShortcut;
+                var savedCancel = settings.CancelShortcut;
+                var savedChangeMode = settings.ChangeModeShortcut;
+                var savedStreaming = settings.StreamingShortcut;
+                StreamingSettingsPage? page = null;
+                try
+                {
+                    // The stored streaming chord IS the toggle chord. This is the state
+                    // the page exists to announce and the recorder will never see.
+                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+
+                    page = new StreamingSettingsPage();
+                    page.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    var box = page.StreamingShortcutBox;
+
+                    Assert(box.Field.Text == "Ctrl+Shift+Space",
+                        "precondition: the field is seeded with the chord that is stored - got '"
+                        + box.Field.Text + "'");
+
+                    // THE ORDERING. Swap the two lines in OnLoaded and this is null.
+                    // Against the catalogue value, not an English literal: the role
+                    // labels became resources in #516.
+                    Assert(box.ErrorMessage != null && box.ErrorMessage.Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.toggle.label"),
+                            StringComparison.Ordinal),
+                        "a duplicate already in settings.json has to be named on load, and named with "
+                        + "the role that holds it - got '" + (box.ErrorMessage ?? "null") + "'");
+                    Assert(box.ErrorText.Visibility == Visibility.Visible
+                           && box.Field.BorderThickness.Left > 1,
+                        "and DRAWN, not merely recorded - the line and the border are one thing");
+
+                    // THE FOCUS. The user clicks the field to fix the duplicate. The
+                    // verdict is about the chord that is STORED, so arriving focus -
+                    // which clears the recorder's own verdict, on purpose - must not
+                    // take it. Nothing would ever have repainted it.
+                    box.HandleFocusGained();
+                    Assert(box.ErrorMessage != null && box.ErrorText.Visibility == Visibility.Visible,
+                        "clicking the field to FIX the duplicate must not erase the only warning this "
+                        + "app gives about it - got '" + (box.ErrorMessage ?? "null") + "'");
+
+                    // It is still the recorder underneath: the gesture's own verdict
+                    // wins while it exists, because it answers what the user JUST did.
+                    box.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    box.HandleKeyUp(Key.LeftCtrl);
+                    Assert(box.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        "a refused chord's reason goes on top of the standing one - got '"
+                        + (box.ErrorMessage ?? "null") + "'");
+
+                    // And the one thing that makes the standing verdict untrue is a new
+                    // stored chord, which reaches the box as a DisplayText write.
+                    box.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    box.HandleKeyDown(Key.LeftAlt, control: true, alt: true, shift: false, win: false);
+                    box.HandleKeyDown(Key.J, control: true, alt: true, shift: false, win: false);
+                    box.HandleKeyUp(Key.J);
+                    box.HandleKeyUp(Key.LeftAlt);
+                    box.HandleKeyUp(Key.LeftCtrl);
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Alt+J",
+                        "precondition: the page stored the replacement - got "
+                        + settings.StreamingShortcut.ToPersistedString());
+                    Assert(box.ErrorMessage is null,
+                        "a new stored chord withdraws the verdict about the old one - got '"
+                        + box.ErrorMessage + "'");
+
+                    // THE ABANDONED GESTURE. RestoreFieldText was reachable only from
+                    // Commit, so a chord the user gave up on by clicking elsewhere left
+                    // its live preview in the field for the rest of the page visit,
+                    // reading "Ctrl+Shift" while settings.json and the registered hotkey
+                    // were still the real chord. On the page this replaced, the field
+                    // was written only on the line that SAVED, so it could not show an
+                    // unsaved value at all; a control that previews mid-gesture can.
+                    box.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    box.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    Assert(box.Field.Text == "Ctrl+Shift",
+                        "precondition: the recorder previews the chord as it is typed - got '"
+                        + box.Field.Text + "'");
+
+                    box.HandleFocusLost();
+                    Assert(box.Field.Text == "Ctrl+Alt+J",
+                        "focus leaving abandons the gesture, and the field goes back to what is really "
+                        + "configured - got '" + box.Field.Text + "'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Alt+J",
+                        "and it stores nothing on the way out - got "
+                        + settings.StreamingShortcut.ToPersistedString());
+                }
+                finally
+                {
+                    // Loaded subscribed this page to VocabularyService; Unloaded is what
+                    // takes it off a singleton that outlives the case.
+                    page?.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
+                    settings.ToggleShortcut = savedToggle;
+                    settings.CancelShortcut = savedCancel;
+                    settings.ChangeModeShortcut = savedChangeMode;
+                    settings.StreamingShortcut = savedStreaming;
+                }
+            });
+
+            Run("shortcuts: a refused chord's reason leaves with the focus it was typed in", () =>
+            {
+                // #794 round 2. HandleFocusLost called ResetGesture and
+                // RestoreFieldText and stopped there, so the GESTURE's verdict outlived
+                // the gesture - and the field it was about. RestoreFieldText had
+                // already taken the refused chord off screen on the line above, so what
+                // was left was a sentence with no referent sitting on top of the host's
+                // StandingError, which is the verdict about the chord the field is NOW
+                // showing.
+                //
+                // Round 1 kept it deliberately: "a user does not stop needing the
+                // reason because they looked away". The axis both readings turn on is
+                // whether the reason still has anything on screen to be about. It does
+                // not. The invariant this case pins is that the error line and the
+                // field text always describe the same thing.
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var savedToggle = settings.ToggleShortcut;
+                var savedCancel = settings.CancelShortcut;
+                var savedChangeMode = settings.ChangeModeShortcut;
+                var savedStreaming = settings.StreamingShortcut;
+                StreamingSettingsPage? page = null;
+                try
+                {
+                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+
+                    // ------------------------------------------------------------------
+                    // A. The six boxes with no host verdict behind them - the five on
+                    // Settings > Shortcuts and the onboarding one. Nothing shows through,
+                    // so the line has to end up EMPTY, border included.
+                    // ------------------------------------------------------------------
+                    var plain = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    plain.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    plain.HandleKeyUp(Key.LeftCtrl);
+
+                    Assert(plain.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        "precondition: a bare Ctrl is refused and says why - got '"
+                        + (plain.ErrorMessage ?? "null") + "'");
+                    Assert(plain.Field.Text == "Esc",
+                        "precondition: Commit ALREADY restored the field, so the refused chord is not "
+                        + "on screen even before focus moves - got '" + plain.Field.Text + "'");
+
+                    plain.HandleFocusLost();
+                    Assert(plain.ErrorMessage is null,
+                        "a verdict about a chord the field is no longer showing must not survive the "
+                        + "attempt that produced it - got '" + (plain.ErrorMessage ?? "null") + "'");
+                    Assert(plain.ErrorText.Visibility != Visibility.Visible
+                           && plain.Field.BorderThickness.Left <= 1,
+                        "and it has to leave the SCREEN, line and border together - not merely the field");
+                    Assert(plain.Field.Text == "Esc",
+                        "while the field still shows what is really configured - got '"
+                        + plain.Field.Text + "'");
+
+                    // ------------------------------------------------------------------
+                    // B. The Streaming box, which has one. Driven through the real page,
+                    // because the standing verdict is the page's and only its OnLoaded
+                    // produces one anywhere in this app.
+                    // ------------------------------------------------------------------
+                    page = new StreamingSettingsPage();
+                    page.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                    var box = page.StreamingShortcutBox;
+
+                    var duplicate = box.ErrorMessage;
+                    Assert(duplicate != null && duplicate.Contains(
+                            HyperWhisper.Localization.Loc.S("settings.shortcuts.toggle.label"),
+                            StringComparison.Ordinal),
+                        "precondition: the stored chord IS Toggle's, and the page says so on load - got '"
+                        + (duplicate ?? "null") + "'");
+
+                    // The user clicks the field to fix it, fumbles a lone Ctrl, and lets
+                    // it go. The refusal paints over the standing warning, which is
+                    // right while the field has the user's attention.
+                    box.HandleFocusGained();
+                    box.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    box.HandleKeyUp(Key.LeftCtrl);
+                    Assert(box.ErrorMessage == HyperWhisper.Localization.Loc.S(
+                            "settings.shortcuts.error.singleModifier"),
+                        "precondition: the gesture's verdict wins while the gesture exists - got '"
+                        + (box.ErrorMessage ?? "null") + "'");
+                    Assert(box.Field.Text == "Ctrl+Shift+Space",
+                        "precondition: and the field is ALREADY back to the stored chord under it - got '"
+                        + box.Field.Text + "'");
+
+                    // THE FINDING. The user clicks another control.
+                    box.HandleFocusLost();
+                    Assert(box.ErrorMessage == duplicate,
+                        "the standing verdict about the STORED chord is what belongs under a field "
+                        + "showing the stored chord - the single-modifier sentence masked it for the "
+                        + "rest of the page visit - got '" + (box.ErrorMessage ?? "null") + "'");
+                    Assert(box.ErrorText.Visibility == Visibility.Visible
+                           && box.Field.BorderThickness.Left > 1,
+                        "and it is DRAWN again, not merely recorded");
+                    Assert(box.Field.Text == "Ctrl+Shift+Space",
+                        "which is the invariant: the line and the field describe the same chord - got '"
+                        + box.Field.Text + "'");
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
+                        "and an abandoned gesture still stores nothing - got "
+                        + settings.StreamingShortcut.ToPersistedString());
+                }
+                finally
+                {
+                    page?.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
+                    settings.ToggleShortcut = savedToggle;
+                    settings.CancelShortcut = savedCancel;
+                    settings.ChangeModeShortcut = savedChangeMode;
+                    settings.StreamingShortcut = savedStreaming;
+                }
+            });
+
             Run("home: the Getting Started badges follow the shortcut, with no restart", () =>
             {
                 // #515. The rows are built once, by InitializeGettingStarted, whose
