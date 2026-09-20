@@ -122,6 +122,14 @@ public partial class ShortcutRecorderBox : WpfUserControl
     /// <summary>Raised only for a chord that passed both validations.</summary>
     public event EventHandler<ShortcutCapturedEventArgs>? ShortcutCaptured;
 
+    /// <summary>
+    /// Puts the keyboard in the capture field. A host that asks the user to
+    /// re-record - the Streaming page's "Change shortcut" button - must reach focus
+    /// to the inner field, because the UserControl itself is not focusable and
+    /// <c>.Focus()</c> on it would silently do nothing.
+    /// </summary>
+    public void FocusForCapture() => Field.Focus();
+
     /// <summary>The current inline error, or null. Public so a host can assert on it.</summary>
     public string? ErrorMessage { get; private set; }
 

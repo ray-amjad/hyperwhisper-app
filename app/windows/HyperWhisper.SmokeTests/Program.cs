@@ -14340,6 +14340,69 @@ internal static class Program
                 }
             });
 
+            Run("shortcuts: Settings > Streaming stores nothing until the gesture closes", () =>
+            {
+                // #794. The SAME setting had two editors and only one was fixed:
+                // Settings > Shortcuts used the recorder, Settings > Streaming kept a
+                // raw TextBox whose PreviewKeyDown saved on EVERY key-down. Reaching
+                // for Ctrl+Shift+X committed Ctrl (refused), then Ctrl+Shift - a legal
+                // two-modifier chord - straight into settings.json, so a user who never
+                // finished the chord was left with a global Ctrl+Shift streaming hotkey
+                // that survived a restart.
+                //
+                // Driving the PAGE's own box is the structural half of the guard too: a
+                // raw TextBox put back here stops this case COMPILING, because
+                // HandleKeyDown belongs to ShortcutRecorderBox.
+                EnsureSmokeApplication();
+
+                var settings = SettingsService.Instance;
+                var savedToggle = settings.ToggleShortcut;
+                var savedCancel = settings.CancelShortcut;
+                var savedChangeMode = settings.ChangeModeShortcut;
+                var savedStreaming = settings.StreamingShortcut;
+                try
+                {
+                    settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
+                    settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
+                    settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
+                    settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+
+                    // Construction alone wires ShortcutCaptured to the page's handler.
+                    // Loaded is NOT raised: it reaches VocabularyService and the DB, and
+                    // none of that is what this case is about.
+                    var streaming = new StreamingSettingsPage();
+
+                    // Reach for Ctrl+Shift+K, one key at a time, and stop short of the K.
+                    streaming.StreamingShortcutBox.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    streaming.StreamingShortcutBox.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+Space",
+                        "reaching for the final key must store NOTHING - the Streaming page committed "
+                        + "the Ctrl+Shift prefix on every key-down and it survived a restart (#794) - got "
+                        + settings.StreamingShortcut.ToPersistedString());
+
+                    // Now close the gesture properly. That the value lands at all is what
+                    // proves the page's ShortcutCaptured wiring saves.
+                    streaming.StreamingShortcutBox.HandleKeyDown(Key.K, control: true, alt: false, shift: true, win: false);
+                    streaming.StreamingShortcutBox.HandleKeyUp(Key.K);
+                    streaming.StreamingShortcutBox.HandleKeyUp(Key.LeftShift);
+                    streaming.StreamingShortcutBox.HandleKeyUp(Key.LeftCtrl);
+
+                    Assert(settings.StreamingShortcut.ToPersistedString() == "Ctrl+Shift+K",
+                        "a finished gesture is what saves, and it saves the chord actually typed - got "
+                        + settings.StreamingShortcut.ToPersistedString());
+                    Assert(streaming.StreamingShortcutBox.ErrorMessage is null,
+                        "an accepted chord leaves no verdict behind");
+                }
+                finally
+                {
+                    settings.ToggleShortcut = savedToggle;
+                    settings.CancelShortcut = savedCancel;
+                    settings.ChangeModeShortcut = savedChangeMode;
+                    settings.StreamingShortcut = savedStreaming;
+                }
+            });
+
             Run("home: the Getting Started badges follow the shortcut, with no restart", () =>
             {
                 // #515. The rows are built once, by InitializeGettingStarted, whose
