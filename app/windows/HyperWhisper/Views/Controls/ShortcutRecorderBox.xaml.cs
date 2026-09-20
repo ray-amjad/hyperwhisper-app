@@ -533,7 +533,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
     ///
     /// The fix is the pairing, not the suppression: a host that does not want the
     /// line does not want the border either. ShowsInlineError="False" has no user
-    /// left (the push-to-talk box now shows its reason like the other five), but the
+    /// left (the push-to-talk box now shows its reason like the other six), but the
     /// property stays, and this method is what stops it drifting apart again.
     /// </summary>
     /// <remarks>
