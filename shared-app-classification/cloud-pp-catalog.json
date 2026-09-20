@@ -54,7 +54,7 @@
 
     {
       "id": "grok",
-      "displayName": "Grok (SpaceXAI)",
+      "displayName": "SpaceXAI Grok",
       "vendor": "xai",
       "llmProvider": "grok",
       "apiStyle": "openai",
@@ -101,7 +101,7 @@
         { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "llmModelHeader": "gemini-2.5-flash",
           "pricePerMInput": 0.30, "pricePerMOutput": 2.50, "isDefault": true, "isRecommended": true,
           "accuracy": 3, "speed": 1, "previewStatus": false, "enabled": true },
-        { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash-Lite", "llmModelHeader": "gemini-2.5-flash-lite",
+        { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash Lite", "llmModelHeader": "gemini-2.5-flash-lite",
           "pricePerMInput": 0.10, "pricePerMOutput": 0.40, "isDefault": false, "isRecommended": false,
           "accuracy": 2, "speed": 2, "previewStatus": false, "enabled": true },
         { "id": "gemini-3.8-flash", "displayName": "Gemini 3.8 Flash", "llmModelHeader": "gemini-3.8-flash",

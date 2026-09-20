@@ -480,7 +480,7 @@
       "sttProvider": "meta",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "muse-voice-transcribe-1.0", "displayName": "Muse Voice Transcribe 1.0", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": false }
+        { "id": "muse-voice-transcribe-1.0", "displayName": "Muse Voice Transcribe 1", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": false }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 3.0 },
       "migrateFrom": ["meta", "metamuse", "muse", "musevoicetranscribe"],

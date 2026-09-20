@@ -11,6 +11,9 @@ mod cloud_pp;
 mod cloud_stt;
 // Legacy cloud-STT model-id aliases (ported from the Windows dictionaries).
 mod model_alias;
+// The one rule for how a model and a company are named, and the cross-catalog
+// tests that hold every catalog to it (#837).
+mod names;
 // The language catalog: BCP-47 canonicalization, the alias map and the one
 // reconciled row set (#285).
 //
@@ -48,6 +51,8 @@ pub use cloud_stt::{
 };
 
 pub use cloud_pp::{CloudPpCatalog, CloudPpError, PpModel, PpProvider};
+
+pub use names::style_violation;
 
 pub use model_alias::{
     resolve_assemblyai_model_alias, resolve_deepgram_model_alias, resolve_elevenlabs_model_alias,

@@ -873,7 +873,7 @@
       "models": [
         {
           "id": "muse-voice-transcribe-1.0",
-          "displayName": "Muse Voice Transcribe 1.0",
+          "displayName": "Muse Voice Transcribe 1",
           "creditsPerMinute": 3.0,
           "isDefault": true,
           "previewStatus": false,
