@@ -90,6 +90,16 @@ public static class SharedModelsCatalog
     public static bool AvailableViaHyperWhisperCloud(string provider, CatalogKind kind, string id)
         => HyperwhisperCoreMethods.ModelsAvailableViaHwCloud(provider, ToHwKind(kind), id ?? "");
 
+    /// <summary>
+    /// The model's user-visible name, or null when the row is not catalogued.
+    ///
+    /// This is the ONLY place Windows reads a model name from. The registry in
+    /// <c>Models/CloudTranscriptionModel.cs</c> used to hold its own 36 literals
+    /// and they had drifted from macOS (#837).
+    /// </summary>
+    public static string? DisplayName(string provider, CatalogKind kind, string id)
+        => HyperwhisperCoreMethods.ModelsEntry(provider, ToHwKind(kind), id ?? "")?.@displayName;
+
     public static ModelVoiceCapabilities? VoiceCapabilities(string provider, string id)
     {
         var value = HyperwhisperCoreMethods.ModelsEntry(
