@@ -128,7 +128,10 @@ export default function FeaturesGrid() {
               whileInView={{ opacity: 1, y: 0 }}
             >
               <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 hover:border-gray-700 transition-colors h-full">
-                <CardBody className="p-6">
+                {/* text-start overrides the physical `text-left` baked into
+                    HeroUI's CardBody slot, which would otherwise leave the
+                    heading and body copy flush left under dir="rtl". */}
+                <CardBody className="p-6 text-start">
                   <div
                     className={`w-12 h-12 rounded-xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center mb-4`}
                   >
@@ -155,7 +158,7 @@ export default function FeaturesGrid() {
           whileInView={{ opacity: 1, y: 0 }}
         >
           <Card className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 backdrop-blur-xl border border-purple-800/50">
-            <CardBody className="p-8 md:p-12">
+            <CardBody className="p-8 md:p-12 text-start">
               <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
