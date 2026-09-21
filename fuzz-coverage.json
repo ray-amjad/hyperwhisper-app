@@ -219,6 +219,23 @@
       ],
       "licensed": false,
       "note": "UNLICENSED: HYPERWHISPER_ACCOUNT_KEY is not in this channel box, so no Cloud transcription was walked. Filed #794 (Streaming page commits the shortcut on every key-down; the #539 ShortcutRecorderBox fix was never applied to StreamingSettingsPage). Commented #637 and #638 with root-cause lines. 2 of 5 Codex defects died on re-drive: the Local API checkbox and the Live engine picker both WORK (log proves LocalApiServer listening on 127.0.0.1:50163 and StreamingCloudTier set to geminiTranscribe) - the reconnect reset made Codex's clicks land on the General nav item. local-api route is otherwise clean: /health 200, no token 401, bad token 401, POST /health 405, Origin http://evil.example 403, local-api.json ACL has one ACE. Windows build on a rented box: cargo 38s, dotnet 27s, SSH is up under 1 minute after nsc create. A multi-line PowerShell Set-Content over nsc ssh writes NO file - put it on one line."
+    },
+    {
+      "at": "2026-09-21T01:58:00Z",
+      "platform": "mac",
+      "commit": "942c9f7",
+      "routes": [
+        "core-settings",
+        "licence",
+        "modes"
+      ],
+      "status": "1-filed-1-commented",
+      "issues": [
+        873,
+        642
+      ],
+      "licensed": false,
+      "note": "mac round on a rented Namespace box, Xcode 26, app 2.48.0 (118), UNLICENSED (Debug build points at Cloud staging, and no HYPERWHISPER_ACCOUNT_KEY in the box). Onboarding was walked first so the app had Whisper Base and a real on-device transcription. FILED #873 (new Mode defaults to Cloud with no key and is made active). COMMENTED #642 with a wider repro (the stale licence error also survives navigating away and back) and the cause. Codex named 6 defects over 3 routes: 5 of the 6 died on a re-drive - the FIRST click of every gui drive connection on macOS is swallowed, so Codex reads a dead control. The modes route needed a second run: codex returned no JSON at step 3 and burned 15 minutes."
     }
   ]
 }
