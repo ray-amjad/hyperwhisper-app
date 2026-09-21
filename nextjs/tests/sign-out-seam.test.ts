@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createSignOutHandler,
   SIGN_OUT_ERROR_MESSAGE,
   signOutAndRedirect,
   type SignOutResult,
@@ -91,4 +92,100 @@ test("a thrown sign-out does not navigate and reports the failure", async () => 
   assert.deepEqual(navigated, []);
   assert.deepEqual(errors, [SIGN_OUT_ERROR_MESSAGE]);
   assert.equal(logged.length, 1);
+});
+
+/**
+ * The handler `UserHeader` builds in its render body. Records the busy flag and
+ * the error region the way React state would receive them, so a test can assert
+ * on the SEQUENCE — the defect in review round 1 was a `finally` that cleared
+ * busy on the success path too.
+ */
+function handlerHarness(signOut: () => Promise<SignOutResult>) {
+  const busy: boolean[] = [];
+  const errors: (string | null)[] = [];
+  const navigated: string[] = [];
+
+  const handler = createSignOutHandler({
+    signOut,
+    navigate: (destination) => navigated.push(destination),
+    setBusy: (value) => busy.push(value),
+    setError: (message) => errors.push(message),
+    redirectTo: "/fr/user/sign-in",
+  });
+
+  async function run() {
+    const quiet = console.error;
+    console.error = () => {};
+    try {
+      await handler();
+    } finally {
+      console.error = quiet;
+    }
+  }
+
+  return { busy, errors, navigated, run };
+}
+
+test("a successful sign-out leaves the button disarmed while the page unloads", async () => {
+  const { busy, errors, navigated, run } = handlerHarness(() =>
+    Promise.resolve({ data: { success: true }, error: null }),
+  );
+
+  await run();
+
+  assert.deepEqual(navigated, ["/fr/user/sign-in"]);
+  // The heart of it. `navigate` sets `window.location.href`, which only
+  // SCHEDULES the navigation — this document stays live and interactive for the
+  // whole page load that follows. A `setBusy(false)` here re-enables the
+  // button, flips the label back to "Sign Out", and lets a second sign-out be
+  // clicked against a session that is already gone.
+  assert.deepEqual(busy, [true]);
+  assert.deepEqual(errors, [null]);
+});
+
+test("a refused sign-out re-arms the button and shows the failure", async () => {
+  const { busy, errors, navigated, run } = handlerHarness(() =>
+    Promise.resolve({
+      data: null,
+      error: { status: 500, message: "Internal Server Error" },
+    }),
+  );
+
+  await run();
+
+  assert.deepEqual(navigated, []);
+  // The user is still on this page, so the button HAS to come back.
+  assert.deepEqual(busy, [true, false]);
+  assert.deepEqual(errors, [null, "Internal Server Error"]);
+});
+
+test("a thrown sign-out re-arms the button and shows the failure", async () => {
+  const { busy, errors, navigated, run } = handlerHarness(() =>
+    Promise.reject(new Error("network down")),
+  );
+
+  await run();
+
+  assert.deepEqual(navigated, []);
+  assert.deepEqual(busy, [true, false]);
+  assert.deepEqual(errors, [null, SIGN_OUT_ERROR_MESSAGE]);
+});
+
+test("the handler clears a previous failure before it retries", async () => {
+  let attempt = 0;
+  const { busy, errors, navigated, run } = handlerHarness(() => {
+    attempt += 1;
+
+    return attempt === 1
+      ? Promise.resolve({ data: null, error: { status: 500 } })
+      : Promise.resolve({ data: { success: true }, error: null });
+  });
+
+  await run();
+  await run();
+
+  // The stale "sign out failed" must not sit next to a sign-out that worked.
+  assert.deepEqual(errors, [null, SIGN_OUT_ERROR_MESSAGE, null]);
+  assert.deepEqual(busy, [true, false, true]);
+  assert.deepEqual(navigated, ["/fr/user/sign-in"]);
 });

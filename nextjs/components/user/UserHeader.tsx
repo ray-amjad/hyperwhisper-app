@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { authClient } from "@/src/lib/auth-client";
-import { signOutAndRedirect } from "@/src/lib/sign-out";
+import { createSignOutHandler } from "@/src/lib/sign-out";
 
 interface UserHeaderProps {
   user: { email?: string | null };
@@ -23,23 +23,19 @@ export default function UserHeader({ user, locale, isAdmin }: UserHeaderProps) {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
-  async function handleSignOut() {
-    setSignOutError(null);
-    setSigningOut(true);
-
-    try {
-      await signOutAndRedirect({
-        signOut: () => authClient.signOut(),
-        navigate: (destination) => {
-          window.location.href = destination;
-        },
-        onError: setSignOutError,
-        redirectTo: `/${locale}/user/sign-in`,
-      });
-    } finally {
-      setSigningOut(false);
-    }
-  }
+  // Built in the render body, not inline in `onClick`: that is what makes the
+  // wiring visible to `tests/user-header-sign-out.test.ts`, which can render
+  // this component but cannot click it. Every rule about when to navigate and
+  // when to clear the busy flag lives in the factory — see `src/lib/sign-out.ts`.
+  const handleSignOut = createSignOutHandler({
+    signOut: () => authClient.signOut(),
+    navigate: (destination) => {
+      window.location.href = destination;
+    },
+    setBusy: setSigningOut,
+    setError: setSignOutError,
+    redirectTo: `/${locale}/user/sign-in`,
+  });
 
   return (
     <header className="h-14 border-b border-white/10 bg-slate-900/50 backdrop-blur-sm">
