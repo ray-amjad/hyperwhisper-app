@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Script from "next/script";
 import { headers } from "next/headers";
+import { localeDirection } from "@/src/i18n/locales";
 
 type Props = {
   children: ReactNode;
@@ -12,7 +13,7 @@ export default async function RootLayout({ children }: Props) {
   const locale = (await headers()).get("x-next-intl-locale") ?? "en";
 
   return (
-    <html suppressHydrationWarning lang={locale}>
+    <html suppressHydrationWarning lang={locale} dir={localeDirection(locale)}>
       <body>
         {children}
         <Script id="agentstack-init" strategy="lazyOnload">

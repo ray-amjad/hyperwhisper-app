@@ -100,8 +100,18 @@ const openGraphLocaleOverrides: Partial<Record<Locale, string>> = {
 
 const localeSet = new Set<string>(locales);
 
+// The only right-to-left locales the site ships. Everything else, including any
+// unrecognised value, reads left-to-right.
+const rtlLocales = new Set<string>(["ar", "he"]);
+
 export function isSupportedLocale(locale: string): locale is Locale {
   return localeSet.has(locale);
+}
+
+// Takes a plain string, not a Locale: the root layout reads the locale off a
+// request header and falls back to "en", so the value is untrusted at the call site.
+export function localeDirection(locale: string): "rtl" | "ltr" {
+  return rtlLocales.has(locale) ? "rtl" : "ltr";
 }
 
 export function stripLocalePrefix(pathname: string): string {
