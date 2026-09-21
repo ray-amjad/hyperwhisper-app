@@ -88,6 +88,56 @@ export const localeLabels: Record<Locale, string> = {
   hi: "हिन्दी",
 };
 
+export type LocaleDirection = "rtl" | "ltr";
+
+// Exhaustive over Locale on purpose, and deliberately not a short list of the
+// right-to-left tags. Direction cannot be derived from a language tag, so a
+// human has to classify each locale; keying this by Locale makes
+// `tsc --noEmit` fail until whoever adds a locale to `locales` states its
+// direction, instead of silently shipping "ltr" for a new Arabic-script tag.
+export const localeDirections: Record<Locale, LocaleDirection> = {
+  en: "ltr",
+  ja: "ltr",
+  es: "ltr",
+  zh: "ltr",
+  de: "ltr",
+  fr: "ltr",
+  ko: "ltr",
+  "zh-Hant": "ltr",
+  it: "ltr",
+  nl: "ltr",
+  pt: "ltr",
+  ar: "rtl",
+  sv: "ltr",
+  da: "ltr",
+  nb: "ltr",
+  fi: "ltr",
+  he: "rtl",
+  pl: "ltr",
+  cs: "ltr",
+  tr: "ltr",
+  el: "ltr",
+  ro: "ltr",
+  hu: "ltr",
+  sk: "ltr",
+  bg: "ltr",
+  hr: "ltr",
+  sl: "ltr",
+  sr: "ltr",
+  lt: "ltr",
+  lv: "ltr",
+  et: "ltr",
+  is: "ltr",
+  ca: "ltr",
+  ru: "ltr",
+  uk: "ltr",
+  th: "ltr",
+  ms: "ltr",
+  id: "ltr",
+  vi: "ltr",
+  hi: "ltr",
+};
+
 const openGraphLocaleOverrides: Partial<Record<Locale, string>> = {
   en: "en_US",
   ja: "ja_JP",
@@ -102,6 +152,23 @@ const localeSet = new Set<string>(locales);
 
 export function isSupportedLocale(locale: string): locale is Locale {
   return localeSet.has(locale);
+}
+
+// Takes a plain string, not a Locale: the root layout reads the locale off a
+// request header and falls back to "en", so the value is untrusted at the call
+// site. An unrecognised value reads left-to-right, like the rest of the web.
+export function localeDirection(locale: string): LocaleDirection {
+  return isSupportedLocale(locale) ? localeDirections[locale] : "ltr";
+}
+
+// Writes both attributes together so a client-side locale switch cannot leave
+// one of them stale. Typed structurally so a test can pass a plain object.
+export function applyHtmlLocaleAttributes(
+  element: { lang: string; dir: string },
+  locale: string,
+): void {
+  element.lang = locale;
+  element.dir = localeDirection(locale);
 }
 
 export function stripLocalePrefix(pathname: string): string {
