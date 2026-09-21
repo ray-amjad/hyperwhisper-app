@@ -17,14 +17,17 @@
  * window.location.href = …` stops calling the factory and fails the first test
  * below.
  *
- * What is asserted is the MARKUP, not the props of the returned element — the
- * same rule `tests/root-layout-direction.test.ts` documents. A `role="alert"`
- * region React refused to serialise would still satisfy a prop assertion, and
- * what the user gets is the bytes.
+ * Round 2 split the markup out into `UserHeaderView`, because a static render
+ * can see neither an event handler nor a state this component's FIRST render
+ * never reaches. Those assertions are `tests/user-header-view.test.ts` now.
+ * What is left here is the wiring between the two halves, and this file mocks
+ * the view so it can read the props the wrapper hands down — including the
+ * `onSignOut` callback, which it INVOKES to prove the button is joined to the
+ * handler the factory built. That chain is the whole of #870.
  */
 import assert from "node:assert/strict";
 import test, { beforeEach, mock } from "node:test";
-import { createElement, type ReactNode } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { SignOutHandlerRequest } from "../src/lib/sign-out";
@@ -32,14 +35,17 @@ import type { SignOutHandlerRequest } from "../src/lib/sign-out";
 /**
  * `mock.module` is a real Node 22 API (behind `--experimental-test-module-mocks`,
  * which `npm test` passes) but this repo pins `@types/node@20`, which has no
- * declaration for it. Narrowed to the one method used here rather than bumping
+ * declaration for it. Narrowed to the two options used here rather than bumping
  * the types in a test-only change — the same shape
  * `tests/root-layout-direction.test.ts` uses.
  */
 interface ModuleMocker {
   module(
     specifier: string,
-    options: { namedExports: Record<string, unknown> },
+    options: {
+      namedExports?: Record<string, unknown>;
+      defaultExport?: unknown;
+    },
   ): void;
 }
 
@@ -48,17 +54,23 @@ const moduleMock = mock as unknown as ModuleMocker;
 /** Every `createSignOutHandler` call the component made, in order. */
 const factoryCalls: SignOutHandlerRequest[] = [];
 
+/** Every run of a handler the factory answered, in order. */
+const handlerRuns: SignOutHandlerRequest[] = [];
+
 /**
- * The seam under test. The stub records the request and answers a handler,
- * which is all the component does with it. The handler's own behaviour — when
- * it navigates, when it clears the busy flag — is `sign-out-seam.test.ts`.
+ * The seam under test. The stub records the request and answers a handler that
+ * records its own runs, which is all the component does with it. The handler's
+ * own behaviour — when it navigates, when it clears the busy flag — is
+ * `sign-out-seam.test.ts`.
  */
 moduleMock.module("../src/lib/sign-out", {
   namedExports: {
     createSignOutHandler: (request: SignOutHandlerRequest) => {
       factoryCalls.push(request);
 
-      return async () => {};
+      return async () => {
+        handlerRuns.push(request);
+      };
     },
   },
 });
@@ -72,16 +84,30 @@ moduleMock.module("../src/lib/auth-client", {
   namedExports: { authClient: { signOut: async () => ({ error: null }) } },
 });
 
+/** Every prop set the wrapper handed the view, in order. */
+interface ViewProps {
+  user: { email?: string | null };
+  isAdmin: boolean;
+  signingOut: boolean;
+  signOutError: string | null;
+  onSignOut: () => void;
+}
+
+const viewRenders: ViewProps[] = [];
+
 /**
- * `next-intl`'s `createNavigation` builds a `Link` that reads the request
- * locale from React context, which a bare `renderToStaticMarkup` does not
- * provide. The stub is a plain anchor: the logo link is not what this file is
- * about, but it must render for the header to render at all.
+ * The presentational half, stubbed. It renders nothing: this file is about the
+ * props crossing the seam, and the markup they produce is
+ * `tests/user-header-view.test.ts`. Capturing them is the only way to reach
+ * `onSignOut` at all — React never serialises a handler into static markup,
+ * which is exactly how the round 1 version of this file passed with the
+ * button's `onClick` deleted.
  */
-moduleMock.module("../src/i18n/navigation", {
-  namedExports: {
-    Link: ({ children, ...props }: { children?: ReactNode; href: string }) =>
-      createElement("a", props, children),
+moduleMock.module("../components/user/UserHeaderView.tsx", {
+  defaultExport: (props: ViewProps) => {
+    viewRenders.push(props);
+
+    return null;
   },
 });
 
@@ -98,12 +124,12 @@ type UserHeader = (props: {
 }) => React.ReactElement;
 
 /** Renders the real `UserHeader` exactly as a signed-in page would. */
-async function renderUserHeader(locale: string): Promise<string> {
+async function renderUserHeader(locale: string): Promise<void> {
   const { default: UserHeader } = (await import(HEADER_PATH)) as {
     default: UserHeader;
   };
 
-  return renderToStaticMarkup(
+  renderToStaticMarkup(
     createElement(UserHeader, {
       user: { email: "someone@example.com" },
       locale,
@@ -114,6 +140,8 @@ async function renderUserHeader(locale: string): Promise<string> {
 
 beforeEach(() => {
   factoryCalls.length = 0;
+  handlerRuns.length = 0;
+  viewRenders.length = 0;
 });
 
 test("the header routes its sign-out button through the shared handler", async () => {
@@ -123,6 +151,27 @@ test("the header routes its sign-out button through the shared handler", async (
   // back to an inline `await authClient.signOut(); window.location.href = …`
   // the factory is never asked for and this is 0.
   assert.equal(factoryCalls.length, 1);
+});
+
+test("the button is joined to the handler the factory built", async () => {
+  await renderUserHeader("fr");
+
+  const [view] = viewRenders;
+
+  assert.ok(view, "the header rendered no view");
+  assert.equal(typeof view.onSignOut, "function");
+
+  // Nothing may fire from rendering alone.
+  assert.deepEqual(handlerRuns, []);
+
+  view.onSignOut();
+  await Promise.resolve();
+
+  // The end of the chain: the factory's handler, and no other, is what the
+  // button runs. A component that built the handler and then wired its button
+  // to something else would satisfy every other test in this file.
+  assert.equal(handlerRuns.length, 1);
+  assert.equal(handlerRuns[0], factoryCalls[0]);
 });
 
 test("the handler is built for the caller's own locale", async () => {
@@ -150,22 +199,18 @@ test("the handler is given a busy setter and an error setter", async () => {
   assert.equal(typeof request.navigate, "function");
 });
 
-test("the header renders an enabled Sign Out button", async () => {
-  const markup = await renderUserHeader("en");
+test("the view is handed the idle state and the user on a first paint", async () => {
+  await renderUserHeader("en");
 
-  assert.match(markup, /<button[^>]*>Sign Out<\/button>/);
-  assert.doesNotMatch(markup, /Signing Out/);
-  // React serialises a true `disabled` as `disabled=""` and omits a false one.
-  // Anchored on the `=` because the button's Tailwind classes contain the bare
-  // word `disabled:` twice.
-  assert.doesNotMatch(markup, /disabled="/);
-});
+  const [view] = viewRenders;
 
-test("the header announces nothing before a sign-out has failed", async () => {
-  const markup = await renderUserHeader("en");
-
-  // A live region that is present and empty on every page load is an assistive
-  // technology annoyance and would also mean the error span renders with no
-  // error. It appears only once `setError` has been called.
-  assert.doesNotMatch(markup, /role="alert"/);
+  assert.ok(view, "the header rendered no view");
+  // The two flags the wrapper owns. They start here, and the factory's
+  // `setBusy` and `setError` are the only things that move them — which is why
+  // a static render of the wrapper can never reach any other state, and why
+  // the view is tested on its own.
+  assert.equal(view.signingOut, false);
+  assert.equal(view.signOutError, null);
+  assert.equal(view.isAdmin, false);
+  assert.equal(view.user.email, "someone@example.com");
 });
