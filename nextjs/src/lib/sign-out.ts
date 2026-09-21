@@ -46,7 +46,14 @@ export async function signOutAndRedirect({
           `${error.statusText ?? ""} ${error.message ?? ""}. ` +
           `The session was NOT ended.`,
       );
-      onError(error.message ?? SIGN_OUT_ERROR_MESSAGE);
+      // The user always sees the shared copy, never the server's own words.
+      // #870's Proposed fix pins this string; the upstream text is untranslated
+      // in a 30-locale app and can carry a driver message such as
+      // `connect ECONNREFUSED 10.0.0.4:5432`. An empty `message` would also
+      // slip past `??` and paint an empty alert region. The status, statusText
+      // and message stay in the `console.error` above — that is for the
+      // developer, not for the user.
+      onError(SIGN_OUT_ERROR_MESSAGE);
 
       return false;
     }

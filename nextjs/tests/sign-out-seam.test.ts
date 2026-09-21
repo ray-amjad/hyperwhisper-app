@@ -45,7 +45,7 @@ test("a refused sign-out does not navigate and reports the failure", async () =>
       error: {
         status: 500,
         statusText: "Internal Server Error",
-        message: "Internal Server Error",
+        message: "connect ECONNREFUSED 10.0.0.4:5432",
       },
     }),
   );
@@ -55,19 +55,34 @@ test("a refused sign-out does not navigate and reports the failure", async () =>
   // Better Auth RESOLVES this — it does not reject. Before #870 the caller
   // discarded it and redirected, leaving a live session behind.
   assert.deepEqual(navigated, []);
-  assert.deepEqual(errors, ["Internal Server Error"]);
+
+  // The server's own words NEVER reach the user. #870's Proposed fix pins this
+  // exact string, and the upstream text is untranslated in a 30-locale app and
+  // can carry a driver message like the one above.
+  assert.deepEqual(errors, [SIGN_OUT_ERROR_MESSAGE]);
+
+  // …but the developer still gets all three fields, in the one console line.
   assert.equal(logged.length, 1);
+  const line = String(logged[0]?.[0]);
+  assert.match(line, /500/);
+  assert.match(line, /Internal Server Error/);
+  assert.match(line, /connect ECONNREFUSED 10\.0\.0\.4:5432/);
 });
 
-test("a refused sign-out with no message falls back to the shared copy", async () => {
-  const { errors, navigated, run } = harness(() =>
-    Promise.resolve({ data: null, error: { status: 403 } }),
+test("a refused sign-out with an EMPTY message still shows the shared copy", async () => {
+  // The hole the old `error.message ?? SIGN_OUT_ERROR_MESSAGE` left: `??` does
+  // not fall back on `""`, and the render guard is a truthiness check, so an
+  // empty message showed the user NOTHING AT ALL. This case fails the moment
+  // the user-facing string is derived from the error again.
+  const { errors, logged, navigated, run } = harness(() =>
+    Promise.resolve({ data: null, error: { status: 403, message: "" } }),
   );
 
   await run();
 
   assert.deepEqual(navigated, []);
   assert.deepEqual(errors, [SIGN_OUT_ERROR_MESSAGE]);
+  assert.equal(logged.length, 1);
 });
 
 test("a successful sign-out navigates exactly once to the locale path", async () => {
@@ -156,7 +171,8 @@ test("a refused sign-out re-arms the button and shows the failure", async () => 
   assert.deepEqual(navigated, []);
   // The user is still on this page, so the button HAS to come back.
   assert.deepEqual(busy, [true, false]);
-  assert.deepEqual(errors, [null, "Internal Server Error"]);
+  // The shared copy, not the server's "Internal Server Error".
+  assert.deepEqual(errors, [null, SIGN_OUT_ERROR_MESSAGE]);
 });
 
 test("a thrown sign-out re-arms the button and shows the failure", async () => {
