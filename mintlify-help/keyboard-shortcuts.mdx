@@ -77,7 +77,7 @@ You can start recording in three ways:
         Go to **Settings → Shortcuts**.
       </Step>
       <Step title="Record a new key combination">
-        Click the shortcut field for the action you want to change. Then press the new key combination.
+        Click the shortcut field for the action you want to change. Then press the new key combination. HyperWhisper records the combination when you release the last key. It does not record a key at a time, so a combination that you start and abandon changes nothing.
       </Step>
       <Step title="Correct conflicts">
         If your new shortcut conflicts with a different shortcut, a warning banner appears. Select a different key combination.
@@ -86,6 +86,19 @@ You can start recording in three ways:
         To return all shortcuts to their default values, click **Reset to Defaults**.
       </Step>
     </Steps>
+
+    Windows refuses a new combination in four cases. The field keeps the previous value, and the reason appears next to it.
+
+    | Case | Message |
+    | --- | --- |
+    | A modifier-only shortcut with one modifier | Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win. |
+    | The combination is already assigned to a different HyperWhisper action | This shortcut is already used for the other action |
+    | Another application holds the combination | The shortcut is already in use by another application |
+    | Windows reserves the combination | The shortcut is reserved by Windows and cannot be used |
+
+    <Note>
+      A modifier-only shortcut needs two modifiers, for example `Ctrl+Win`. One bare modifier would trigger on a normal keystroke such as `Ctrl+C`. Linux applies the same rule.
+    </Note>
   </Tab>
   <Tab title="Linux">
     Linux has no shortcut recorder. You type each shortcut as text, in **Settings → Shortcuts and push-to-talk**.
