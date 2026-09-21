@@ -21,6 +21,13 @@ export interface ProvidersProps {
   themeProps?: ThemeProviderProps;
 }
 
+// React warns when useLayoutEffect runs during server rendering, and this file
+// is a client component that Next still renders on the server. `window` is the
+// standard discriminator: the branch is evaluated once, at module scope, so the
+// hook identity never changes between renders on either side.
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
+
 declare module "@react-types/shared" {
   interface RouterConfig {
     routerOptions: NonNullable<
@@ -42,7 +49,16 @@ export function Providers({ children, themeProps }: ProvidersProps) {
   // the new locale, so it is the cheapest place to resync both attributes.
   // <html> carries suppressHydrationWarning, and on a full page load the server
   // already emitted these same values, so this is a no-op there.
-  React.useEffect(() => {
+  //
+  // A LAYOUT effect, not a passive one. React calls the scheduler's
+  // requestPaint() at the end of the mutation and layout phase, which is BEFORE
+  // the passive phase that would flush a useEffect. With useEffect the browser
+  // is therefore free to paint one frame of the new locale's content under the
+  // OLD dir — a visible flash of English laid out right-to-left. A layout effect
+  // runs synchronously inside that same commit, so dir is already corrected when
+  // the frame the user sees is produced. The work here is one attribute write on
+  // a single element, so it is not enough to be worth deferring off the commit.
+  useIsomorphicLayoutEffect(() => {
     applyHtmlLocaleAttributes(document.documentElement, locale);
   }, [locale]);
 
