@@ -43,16 +43,18 @@ These models run on your machine and make no network calls. After you download a
 | Model | Runs on | Languages | Why it is here |
 | --- | --- | --- | --- |
 | **Apple Speech** | macOS (built-in) | Auto-detect | No download, immediate, private. The fastest way to start dictation on a Mac, with nothing to install. |
-| **NVIDIA Parakeet** | macOS · Windows | English (V2) · 25 European on macOS and 26 European on Windows (V3) | Fastest accurate on-device transcription for English and European languages. |
-| **NVIDIA Nemotron 3.5** | macOS · Windows | 6 Latin · ~30 including Chinese, Japanese, Korean, Arabic (macOS). Smaller English+Japanese streaming variant on Windows | Best on-device accuracy and the **broadest offline language coverage** on macOS. The only local option that goes beyond European languages. |
-| **Whisper** | macOS · Windows | 101 languages | The general-purpose model from OpenAI, in many sizes (Tiny to Large). The universal fallback. It runs on almost all hardware, including CPU-only and older machines. |
-| **Qwen3 ASR** | macOS · Windows | Multilingual | An additional multilingual on-device option for users who want the ASR model from Alibaba. Windows ships a smaller 0.6B variant with the sherpa-onnx daemon. |
+| **NVIDIA Parakeet** | macOS · Windows · Linux | English (V2) · 25 European on macOS, 26 European on Windows and Linux (V3) | Fastest accurate on-device transcription for English and European languages. |
+| **NVIDIA Nemotron 3.5** | macOS · Windows · Linux | 6 Latin · ~30 including Chinese, Japanese, Korean, Arabic (macOS). Smaller streaming variant on Windows and Linux | Best on-device accuracy and the **broadest offline language coverage** on macOS. The only local option that goes beyond European languages. |
+| **Whisper** | macOS · Windows · Linux | 101 languages | The general-purpose model from OpenAI, in many sizes (Tiny to Large). The universal fallback. It runs on almost all hardware, including CPU-only and older machines. |
+| **Qwen3 ASR** | macOS · Windows · Linux | Multilingual | An additional multilingual on-device option for users who want the ASR model from Alibaba. Windows and Linux ship a smaller 0.6B variant with the sherpa-onnx daemon. |
+
+Windows and Linux download the same files for Whisper, Parakeet, Qwen3 ASR, and Nemotron 3.5. The two platforms thus give the same model sizes and the same language lists. Linux downloads them from the **Unified model library**.
 
 ### Whisper models
 
 The general-purpose multilingual models from OpenAI. The **VRAM** values give the recommended GPU memory for full acceleration. With less memory, the model still runs on the CPU or on part of the GPU, but more slowly.
 
-| Model | Size (macOS) | Size (Windows) | Recommended VRAM | Languages | Best for |
+| Model | Size (macOS) | Size (Windows · Linux) | Recommended VRAM | Languages | Best for |
 | --- | --- | --- | --- | --- | --- |
 | Tiny | 39 MB | 78 MB | ~1 GB | Multilingual | Lowest-end machines, quick drafts |
 | Tiny (English) | 39 MB | 78 MB | ~1 GB | English only | Same as Tiny, with better English accuracy |
@@ -78,20 +80,20 @@ The general-purpose multilingual models from OpenAI. The **VRAM** values give th
 
 NVIDIA Parakeet models are faster than Whisper models of an equivalent size. They are accurate for the languages that they support.
 
-| Model | Size (macOS) | Size (Windows) | Languages | Best for |
+| Model | Size (macOS) | Size (Windows · Linux) | Languages | Best for |
 | --- | --- | --- | --- | --- |
 | Parakeet V2 (English) | 474 MB | 661 MB | English only | Fastest accurate English transcription |
-| Parakeet V3 (Multilingual) | 494 MB | 671 MB | 25 European (macOS) · 26 European (Windows) | Multilingual European dictation |
+| Parakeet V3 (Multilingual) | 494 MB | 671 MB | 25 European (macOS) · 26 European (Windows and Linux) | Multilingual European dictation |
 
 **The Parakeet V3 language list is different on each platform.** Each app ships its own export of the model, and the two exports do not carry the same languages.
 
 | Platform | Count | Languages |
 | --- | --- | --- |
 | macOS | 25 | English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, **Russian**, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, **Serbian**, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian |
-| Windows | 26 | English, German, Spanish, French, Italian, Portuguese, Dutch, Polish, Romanian, Swedish, Danish, Finnish, Norwegian, Czech, Slovak, Hungarian, Croatian, Slovenian, Bulgarian, Ukrainian, **Greek**, Lithuanian, Latvian, Estonian, **Catalan**, **Basque** |
+| Windows · Linux | 26 | English, German, Spanish, French, Italian, Portuguese, Dutch, Polish, Romanian, Swedish, Danish, Finnish, Norwegian, Czech, Slovak, Hungarian, Croatian, Slovenian, Bulgarian, Ukrainian, **Greek**, Lithuanian, Latvian, Estonian, **Catalan**, **Basque** |
 
 <Warning>
-  Russian and Serbian are on macOS only. Greek, Catalan, and Basque are on Windows only. If you dictate one of these 5 languages with Parakeet V3, do not expect the same result on the other platform. Use Whisper or a cloud model when you need the same coverage on both.
+  Russian and Serbian are on macOS only. Greek, Catalan, and Basque are on Windows and Linux only. If you dictate one of these 5 languages with Parakeet V3, do not expect the same result on macOS. Use Whisper or a cloud model when you need the same coverage on all three platforms.
 </Warning>
 
 <Note>
@@ -107,15 +109,20 @@ Nemotron 3.5 ASR from NVIDIA is the newest on-device option. macOS gets a broade
 | Nemotron 3.5 (Latin) | macOS | ~350 MB | English, Spanish, French, Italian, Portuguese, German | Smaller, faster Latin-script transcription |
 | Nemotron 3.5 (Multilingual) | macOS | ~1.3 GB | ~30 languages including Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
 | Nemotron 3.5 Streaming (Multilingual) | Windows | Smaller than the macOS variant | English, Japanese | On-device streaming with the sherpa-onnx daemon |
+| Nemotron 3.5 Streaming (Multilingual) | Linux | Smaller than the macOS variant | Approximately 32 languages, including Chinese, Japanese, Korean, Arabic, and Hindi | On-device streaming with the sherpa-onnx daemon |
 
 <Tip>
-  For non-European languages **offline** on macOS, **Nemotron 3.5 (Multilingual)** is the correct choice. The **Latin** variant is smaller and faster, and it is enough if you speak only English, Spanish, French, Italian, Portuguese, or German. The Windows Nemotron variant is a different, smaller streaming model with English and Japanese only. It is not a substitute for the macOS multilingual model.
+  For non-European languages **offline** on macOS, **Nemotron 3.5 (Multilingual)** is the correct choice. The **Latin** variant is smaller and faster, and it is enough if you speak only English, Spanish, French, Italian, Portuguese, or German. The Windows and Linux Nemotron variant is a different, smaller streaming model. It is not a substitute for the macOS multilingual model.
 </Tip>
+
+<Note>
+  Windows and Linux download the same Nemotron 3.5 streaming model, but the two apps publish a different language list for it. Read the language picker in the model library of your platform, and not the list of the other platform.
+</Note>
 
 ### Apple Speech & Qwen3 ASR
 
 - **Apple Speech** is built into macOS. There is no download, and it is available when you start the app. It is the fastest private option for daily Mac dictation. (It requires a recent macOS version.)
-- **Qwen3 ASR** is an additional multilingual on-device model for users who want the ASR model from Alibaba. It runs on macOS and Windows, and it uses the sherpa-onnx daemon on Windows.
+- **Qwen3 ASR** is an additional multilingual on-device model for users who want the ASR model from Alibaba. It runs on macOS, Windows, and Linux. Windows and Linux run it with the sherpa-onnx daemon. The Windows and Linux variant is Qwen3 ASR 0.6B, and it covers Japanese, English, Chinese, Korean, Spanish, French, German, Italian, Portuguese, Russian, and Arabic.
 
 ## Offline language coverage
 
@@ -131,7 +138,7 @@ This table gives the best local model for the most common languages. For the ful
 | macOS, fastest start, no download | Apple Speech | — |
 
 <Note>
-  Whisper runs on macOS and Windows with the same language coverage. Parakeet, Nemotron, and Qwen3 ASR also run on both platforms, but their macOS and Windows variants are different. Parakeet V3 carries 25 languages on macOS and 26 on Windows, and the two lists do not match. The Nemotron and the Qwen3 ASR variants on Windows are smaller and support fewer languages. The sections above give the details.
+  Whisper runs on macOS, Windows, and Linux with the same language coverage. Parakeet, Nemotron, and Qwen3 ASR also run on all three platforms, but the macOS variants are different from the Windows and Linux variants. Parakeet V3 carries 25 languages on macOS and 26 on Windows and Linux, and the two lists do not match. The Nemotron and the Qwen3 ASR variants on Windows and Linux are smaller. The sections above give the details.
 </Note>
 
 ## HyperWhisper Cloud
@@ -141,10 +148,10 @@ HyperWhisper Cloud is built into the app. You need no API key and no separate ac
 | Tier | Powered by | Best for |
 | --- | --- | --- |
 | **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
-| **High** | Grok STT (SpaceXAI), Microsoft MAI-Transcribe, Google Gemini 3.5 Transcribe, Meta Muse Voice Transcribe | Good multilingual accuracy at low cost |
+| **High** | Grok STT (SpaceXAI), Microsoft MAI-Transcribe, Google Gemini 3.5 Transcribe, AssemblyAI, Meta Muse Voice Transcribe | Good multilingual accuracy at low cost |
 | **Medium** | Deepgram Nova-3, Groq Whisper Large v3 Turbo | Strong English accuracy. Groq adds sub-second latency |
 
-HyperWhisper Cloud gives you all 12 supported provider engines with no key. The other providers are Soniox, OpenAI, AssemblyAI, Mistral Voxtral, Gemini, and Meta Muse Voice Transcribe. Only ElevenLabs, Grok, Deepgram, and Groq have automatic failover to a backup provider. The other providers have no automatic failover. For pricing, cost examples, and language guidance, see [Providers](/choosing-a-provider).
+HyperWhisper Cloud gives you all 12 supported provider engines with no key. Four of the 12 carry no accuracy tier: OpenAI, Soniox, Mistral Voxtral, and Google Gemini. Only ElevenLabs, Grok, Deepgram, and Groq have automatic failover to a backup provider. The other providers have no automatic failover. For pricing, cost examples, and language guidance, see [Providers](/choosing-a-provider).
 
 ### Microsoft MAI-Transcribe 2
 
@@ -333,6 +340,13 @@ After you download them, the local **Gemma 4** models clean and format the trans
       On a PC that can only use the CPU, the **Recommended** tag on Gemma 4 E2B is not shown, and the model menus remove the `(Recommended)` suffix from the name. Gemma 4 E2B is still the default local model. Only the label changes.
     </Note>
   </Tab>
+  <Tab title="Linux">
+    Local LLM post-processing runs on **Linux x64 and ARM64**. Linux offers the same five Gemma 4 models, at the same sizes, as Windows.
+
+    On x64, Linux can use CUDA 12 or Vulkan for GPU acceleration. The app uses a GPU backend only when the packaged runtime files and the matching system library are both present: `libvulkan.so.1` for Vulkan, and `libcuda.so.1`, `libcudart.so.12` and `libcublas.so.12` for CUDA 12. On ARM64, Linux runs the local LLM on the CPU.
+
+    Linux does not select the backend for you. Set it yourself with the **Local LLM backend** picker. Read [Select the local runtime on Linux](#select-the-local-runtime-on-linux).
+  </Tab>
 </Tabs>
 
 ## Rating scale
@@ -387,8 +401,11 @@ Open **Model Library** in the app. Click **Download** on a model. The circular i
 | --- | --- |
 | Windows | `%LOCALAPPDATA%\HyperWhisper\Models\` |
 | macOS | `~/Library/Application Support/hyperwhisper/models/` |
+| Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/models` |
 
 Apple Speech is built into macOS and needs no download.
+
+On Linux, the model list is the **Unified model library**. It holds the same local models as the Windows Model Library: the 11 Whisper sizes, Parakeet V2 and V3, Qwen3 ASR 0.6B, Nemotron 3.5 Streaming, and the 5 Gemma 4 post-processing models.
 
 ## GPU vs CPU
 
@@ -401,10 +418,31 @@ Local engines use your GPU when one is available. If you have no dedicated GPU, 
 | Parakeet (Windows) | sherpa-onnx / DirectML | NVIDIA, AMD, Intel | Yes |
 | Parakeet (macOS) | sherpa-onnx / CoreML | Apple Silicon | Yes |
 | Nemotron (macOS) | FluidAudio / CoreML | Apple Silicon | Yes |
-| Nemotron (Windows) | sherpa-onnx daemon | Same as Parakeet (Windows) | Yes |
-| Qwen3 ASR (Windows) | sherpa-onnx daemon | Same as Parakeet (Windows) | Yes |
+| Nemotron (Windows) | sherpa-onnx daemon | **None — the daemon always uses the CPU** | Not applicable |
+| Qwen3 ASR (Windows) | sherpa-onnx daemon | **None — the daemon always uses the CPU** | Not applicable |
+| Whisper (Linux) | Whisper.net / CUDA 12 or Vulkan | NVIDIA (CUDA 12), AMD or Intel (Vulkan) | Yes, and you can turn the fallback off |
+| Parakeet, Qwen3 ASR, and Nemotron (Linux) | sherpa-onnx daemon | **None — the daemon always uses the CPU** | Not applicable |
 | Local Gemma post-processing (macOS) | llama.cpp / Metal | Apple Silicon (M1+) | No (Intel Macs not supported) |
 | Local Gemma post-processing (Windows) | LLamaSharp / GGUF | NVIDIA (CUDA), discrete AMD/Intel (Vulkan) — x64 only | Yes (CPU — x64 and ARM64) |
+| Local Gemma post-processing (Linux) | LLamaSharp / GGUF | NVIDIA (CUDA 12), Vulkan — x64 only | Yes (CPU — x64 and ARM64) |
+
+<Warning>
+  The sherpa-onnx daemon gives no GPU acceleration to Qwen3 ASR or to Nemotron 3.5, on any platform. It tries DirectML for Parakeet on Windows x64 only. Qwen3 ASR is CPU-only by design, because the DirectML decoder gives wrong text with no error. Nemotron 3.5 is CPU-only because the DirectML result for its streaming graph is not verified. On Linux, the daemon uses the CPU for **all three** models, and it never tries a GPU.
+</Warning>
+
+### Select the local runtime on Linux
+
+macOS and Windows select the local runtime for you. Linux gives you the choice, in two pickers at the end of the **Unified model library**.
+
+| Control | Values | Default | What it does |
+| --- | --- | --- | --- |
+| **Local Whisper backend** | `auto`, `cpu`, `vulkan`, `cuda12` | `auto` | Selects the runtime for local Whisper. `auto` uses CUDA 12 when your machine supports it, then Vulkan, then the CPU |
+| **Fall back to CPU if the selected Whisper GPU runtime cannot start** | On or off | On | Runs Whisper on the CPU when the GPU runtime that you selected cannot start. When it is off, HyperWhisper tries only the runtime that you selected |
+| **Local LLM backend** | `cpu`, `vulkan`, `cuda` | `cpu` | Selects the runtime for the local Gemma post-processing models |
+
+The card also shows the capability of the running process. Start HyperWhisper again after you change the Whisper backend or the CPU fallback. The card tells you when a restart is necessary.
+
+The settings file keeps these three values as `localWhisperBackend`, `allowLocalWhisperCpuFallback`, and `localLlmBackend`.
 
 ## Remove models
 
