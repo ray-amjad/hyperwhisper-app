@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { authClient } from "@/src/lib/auth-client";
+import { signOutAndRedirect } from "@/src/lib/sign-out";
 
 interface UserHeaderProps {
   user: { email?: string | null };
@@ -17,9 +20,25 @@ interface UserHeaderProps {
  * For regular users, shows the logo on the left.
  */
 export default function UserHeader({ user, locale, isAdmin }: UserHeaderProps) {
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+
   async function handleSignOut() {
-    await authClient.signOut();
-    window.location.href = `/${locale}/user/sign-in`;
+    setSignOutError(null);
+    setSigningOut(true);
+
+    try {
+      await signOutAndRedirect({
+        signOut: () => authClient.signOut(),
+        navigate: (destination) => {
+          window.location.href = destination;
+        },
+        onError: setSignOutError,
+        redirectTo: `/${locale}/user/sign-in`,
+      });
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -52,11 +71,20 @@ export default function UserHeader({ user, locale, isAdmin }: UserHeaderProps) {
             {user.email}
           </span>
 
+          {signOutError && (
+            <span className="text-red-300 text-sm" role="alert">
+              {signOutError}
+            </span>
+          )}
+
           <button
-            onClick={handleSignOut}
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={signingOut}
+            onClick={() => {
+              void handleSignOut();
+            }}
           >
-            Sign Out
+            {signingOut ? "Signing Out..." : "Sign Out"}
           </button>
         </div>
       </div>
