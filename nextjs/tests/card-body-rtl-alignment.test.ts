@@ -1,35 +1,34 @@
 /**
- * The RTL alignment of HeroUI `CardBody` on the landing page (#878).
+ * The five landing-page `CardBody` sites that PR #869 and PR #906 patched for
+ * #878 — and nothing else in the repo.
  *
  * `@heroui/theme` bakes a PHYSICAL `text-left` into the card `body` slot. Under
  * `dir="rtl"` (/ar and /he) that pins the heading and the copy flush left. The
- * fix is one logical utility, `text-start`, on each `<CardBody>`: tailwind-merge
- * puts `text-left` and `text-start` in the same alignment group, so the later
- * class DROPS the vendor one instead of losing to it.
+ * fix is one logical utility, `text-start`, appended to each `<CardBody>`:
+ * tailwind-merge puts `text-left` and `text-start` in the same alignment group,
+ * so the later class DROPS the vendor one instead of losing to it.
  *
- * That makes the fix depend on two things no test asserted:
+ * SCOPE — this guard covers exactly 3 sites in `components/landing/
+ * PricingSection.tsx` and 2 in `components/landing/FeaturesGrid.tsx`. Seven
+ * other `<CardBody>` sites exist (support, download, older-versions, credits);
+ * they were NOT in scope for #878, they are NOT patched, and this file makes no
+ * claim about them. Widening it to a directory walk would fail on day one.
  *
- *   1. the COMPONENT half — each `<CardBody>` still carries `text-start`;
- *   2. the VENDOR half — `@heroui/theme` (ranged `^2.4.26`) plus the
- *      tailwind-merge it ships still resolve that string to a class list with
- *      no `text-left` left in it.
+ * WHAT IT ASSERTS — for each site, the className literal is scraped from the
+ * source and put through the real `<CardBody>` under `react-dom/server`. The
+ * served body-slot class list must (a) carry `text-start` and (b) contain no
+ * physical alignment class at all. Both halves are properties of the SERVED
+ * page, so the guard stays correct if `@heroui/theme` ever ships a logical
+ * default: the vendor's own `text-start` would satisfy (a), and that page is
+ * aligned correctly whatever the component string says.
  *
- * A dependency bump that moved `text-left` to another slot, or split the
- * alignment group, would silently revert every RTL locale on all five patched
- * sites with CI green. `.github/workflows/` runs no browser job, so nothing else
- * can catch it.
+ * `nextjs/package-lock.json` is gitignored and CI runs `npm install`, so every
+ * run re-resolves `@heroui/theme: ^2.4.26`. Nothing here may assert what the
+ * vendor's DEFAULT slot contains — a HeroUI release that goes logical would
+ * then turn every unrelated nextjs PR red and tell the maintainer to strip a
+ * working fix.
  *
- * Review round 1 proposed asserting the vendor half alone —
- * `card({}).body({ class: "…text-start" })` with a hand-written string — and
- * named its own weakness: deleting `text-start` from a component would still
- * leave that green. This file instead READS the class strings out of the two
- * component sources and feeds each one through the REAL `<CardBody>`, so both
- * halves are guarded by the same assertion, and the merge `CardBody` itself
- * performs (`clsx(classNames?.body, className)` into the slot) is covered too
- * rather than re-implemented here.
- *
- * No DOM is needed: `Card`/`CardBody` render to a string under
- * `react-dom/server`, the same way `tests/root-layout-direction.test.ts` renders
+ * No DOM is needed, the same way `tests/root-layout-direction.test.ts` renders
  * the root layout. jsdom and friends stay absent.
  */
 import assert from "node:assert/strict";
@@ -38,14 +37,18 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { Card, CardBody } from "@heroui/card";
-import { card } from "@heroui/theme";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-/** Landing-page files whose `CardBody` slots must mirror under `dir="rtl"`. */
-const COMPONENTS = [
-  "components/landing/PricingSection.tsx",
-  "components/landing/FeaturesGrid.tsx",
+/**
+ * The patched sites, with the EXACT number expected in each file. A count that
+ * moves is a real failure in both directions: a new landing card that nobody
+ * gave `text-start`, or a scraper that has gone blind to a site written in a
+ * form it cannot read (template literal, expression, no `className`).
+ */
+const PATCHED_SITES: ReadonlyArray<readonly [file: string, count: number]> = [
+  ["components/landing/PricingSection.tsx", 3],
+  ["components/landing/FeaturesGrid.tsx", 2],
 ];
 
 /** One `<CardBody className="…">` found in a component source. */
@@ -54,6 +57,28 @@ interface CardBodySite {
   line: number;
   className: string;
 }
+
+/**
+ * A physical alignment class, in any form that survives to the class list:
+ * bare, behind any variant prefix (`md:`, `rtl:`, `[&>p]:`), as an
+ * arbitrary-value property, and with either important marker. Verified against
+ * the real rendered slot — none of the ~20 vendor classes matches it.
+ *
+ * `rtl:text-right` is rejected too. It is start-aligned in practice, but no
+ * patched site writes it, and a site that starts to should re-read this guard
+ * rather than slip past it.
+ */
+const PHYSICAL_ALIGNMENT =
+  /(^|:)!?(text-left|text-right|\[text-align:\s*(left|right)\])!?$/;
+
+/** The sentinel child used to locate the rendered body slot's own element. */
+const SENTINEL = "card-body-sentinel";
+
+/** The slot element's opening tag, whatever attributes it carries. */
+const SLOT_OPEN_TAG = new RegExp(`<[a-zA-Z][^>]*>(?=${SENTINEL})`);
+
+/** `class` read out of that tag by name, not by position. */
+const CLASS_ATTRIBUTE = /\sclass="([^"]*)"/;
 
 function readComponent(relative: string): string {
   return readFileSync(
@@ -64,105 +89,78 @@ function readComponent(relative: string): string {
 
 /**
  * Every `<CardBody className="…">` in one file, with its line number so a
- * failure names the exact site rather than a count.
+ * failure names the exact site.
  *
- * The extraction is deliberately narrow — a double-quoted literal only — and it
- * is checked against a plain count of `<CardBody` openings below. A site written
- * with a template literal, an expression, or no `className` at all would not be
- * scraped, and a scraper that silently skips a site is a test that passes
- * vacuously. If that check fails, widen this reader; do not delete it.
+ * Block comments are blanked first — `{/* … *\/}` around a `<CardBody>` is
+ * documentation, not a site — and blanked in place so line numbers still point
+ * at the real source. String literals are not masked; the exact count above is
+ * what catches a site the scraper miscounts either way.
  */
-function cardBodySites(file: string): CardBodySite[] {
-  const source = readComponent(file);
-  const sites: CardBodySite[] = [];
+function cardBodySites(file: string, expected: number): CardBodySite[] {
+  const source = readComponent(file).replace(/\/\*[\s\S]*?\*\//g, (comment) =>
+    comment.replace(/[^\n]/g, " "),
+  );
 
   // `Array.from`, not a for-of over the iterator: this tsconfig targets es5
   // without downlevelIteration, so iterating a RegExpStringIterator directly is
   // a TS2802 typecheck error.
-  const matches = Array.from(
+  const sites = Array.from(
     source.matchAll(/<CardBody\s+className="([^"]*)"/g),
-  );
-
-  for (const match of matches) {
-    sites.push({
+    (match): CardBodySite => ({
       file,
       line: source.slice(0, match.index).split("\n").length,
       className: match[1],
-    });
-  }
-
-  const openings = source.match(/<CardBody\b/g)?.length ?? 0;
+    }),
+  );
 
   assert.equal(
     sites.length,
-    openings,
-    `${file}: scraped ${sites.length} of ${openings} <CardBody> sites — one is written in a form this reader cannot see`,
+    expected,
+    `${file}: scraped ${sites.length} <CardBody className="…"> sites, expected ${expected}. Either the file gained or lost a landing card — give the new one text-start and update the count here — or a site is written in a form this scraper cannot read.`,
   );
-  assert.ok(sites.length > 0, `${file}: no <CardBody> found at all`);
 
   return sites;
 }
-
-/** The sentinel child used to locate the rendered body slot's own <div>. */
-const SENTINEL = "card-body-sentinel";
 
 /**
  * The class list the real `<CardBody className={…}>` actually serves.
  *
  * Rendered inside a real `<Card>`, as the components use it, so the whole
  * HeroUI path runs: the slot function, the theme's own class list, and
- * tailwind-merge resolving the conflict between them.
+ * tailwind-merge resolving the conflict between them. The slot is found by the
+ * sentinel and its `class` is read by name, so a vendor that adds `data-slot`
+ * or reorders attributes does not break the lookup.
  */
 function renderedBodyClass(className: string): string {
   const markup = renderToStaticMarkup(
     createElement(Card, null, createElement(CardBody, { className }, SENTINEL)),
   );
 
-  const match = markup.match(new RegExp(`<div class="([^"]*)">${SENTINEL}`));
+  const tag = markup.match(SLOT_OPEN_TAG);
+  assert.ok(tag, `CardBody rendered no element around the sentinel: ${markup}`);
 
-  assert.ok(match, `CardBody rendered no body element: ${markup}`);
+  const attribute = tag[0].match(CLASS_ATTRIBUTE);
+  assert.ok(attribute, `CardBody body slot carries no class: ${markup}`);
 
-  return match[1];
+  return attribute[1];
 }
 
-test("every landing CardBody carries the logical text-start", () => {
-  for (const file of COMPONENTS) {
-    for (const site of cardBodySites(file)) {
-      assert.ok(
-        site.className.split(/\s+/).includes("text-start"),
-        `${site.file}:${site.line} — <CardBody className="${site.className}"> has no text-start, so its copy stays flush left on /ar and /he`,
-      );
-    }
-  }
-});
-
-test("HeroUI resolves each landing CardBody with the physical text-left dropped", () => {
-  for (const file of COMPONENTS) {
-    for (const site of cardBodySites(file)) {
+test("the five patched landing CardBody sites serve a logically aligned body slot", () => {
+  for (const [file, expected] of PATCHED_SITES) {
+    for (const site of cardBodySites(file, expected)) {
       const rendered = renderedBodyClass(site.className);
-      const classes = rendered.split(/\s+/);
+      const classes = rendered.split(/\s+/).filter(Boolean);
+      const physical = classes.filter((name) => PHYSICAL_ALIGNMENT.test(name));
 
-      assert.ok(
-        !classes.includes("text-left"),
-        `${site.file}:${site.line} — the vendor's text-left survived the merge for className="${site.className}"; the rendered body slot is "${rendered}". A @heroui/theme or tailwind-merge bump has broken the RTL fix.`,
+      assert.deepEqual(
+        physical,
+        [],
+        `${site.file}:${site.line} — the served body slot still carries physical alignment ${physical.join(", ")} for className="${site.className}", so this card snaps flush left on /ar and /he. Rendered: "${rendered}".`,
       );
       assert.ok(
         classes.includes("text-start"),
-        `${site.file}:${site.line} — text-start did not reach the rendered body slot for className="${site.className}"; got "${rendered}"`,
+        `${site.file}:${site.line} — text-start did not reach the served body slot for className="${site.className}"; got "${rendered}".`,
       );
     }
   }
-});
-
-test("the vendor still bakes a physical text-left into the card body slot", () => {
-  // A tripwire, not a wish. `text-start` on these five sites exists only to beat
-  // this class. If @heroui/theme ever ships a logical default, this fails — and
-  // the right answer is to re-read the slot and decide whether the overrides can
-  // go, not to assume the fix above is still doing something.
-  const vendorDefault = card({}).body({}).split(/\s+/);
-
-  assert.ok(
-    vendorDefault.includes("text-left"),
-    `@heroui/theme no longer puts text-left in the card body slot (got "${vendorDefault.join(" ")}") — re-check whether the text-start overrides on the landing cards are still needed`,
-  );
 });
