@@ -15,6 +15,7 @@ import clsx from "clsx";
 import { Link as HeroUILink } from "@heroui/link";
 import { Download, Github } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
@@ -24,6 +25,14 @@ export const Navbar = () => {
   const { openModal } = useDownloadModal();
   const t = useTranslations("navbar");
   const locale = useLocale();
+  /*
+    The menu is controlled here because nothing else closes it. HeroUI closes it
+    only from the toggle and from its own resize observer, so a tap on a menu
+    item left the full-screen overlay up — and HeroUI's usePreventScroll keeps
+    document.documentElement at overflow:hidden for as long as it is open.
+  */
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeMenu = () => setIsMenuOpen(false);
 
   /*
     The latency and model-chooser pages are English-only — they 404 on every
@@ -72,8 +81,10 @@ export const Navbar = () => {
         // shrank it to its content and made the bar 16px shorter on every page.
         wrapper: "flex-wrap h-auto min-h-[var(--navbar-height)] gap-y-2 py-2",
       }}
+      isMenuOpen={isMenuOpen}
       maxWidth="xl"
       position="static"
+      onMenuOpenChange={setIsMenuOpen}
     >
       {/*
         HeroUI gives this content `flex-basis: 0`, so the word mark's box could end up narrower
@@ -175,6 +186,7 @@ export const Navbar = () => {
                 <a
                   className="text-gray-300 hover:text-white transition-colors text-lg"
                   href={item.href}
+                  onClick={closeMenu}
                 >
                   {item.label}
                 </a>
@@ -182,6 +194,7 @@ export const Navbar = () => {
                 <LocaleLink
                   className="text-gray-300 hover:text-white transition-colors text-lg"
                   href={item.href}
+                  onClick={closeMenu}
                 >
                   {item.label}
                 </LocaleLink>
