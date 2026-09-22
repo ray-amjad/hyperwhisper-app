@@ -188,8 +188,18 @@ export const Navbar = () => {
               )}
             </NavbarMenuItem>
           ))}
-          <NavbarMenuItem className="mt-4 flex gap-2">
-            <LanguageSwitcher />
+          {/*
+            The header end-cluster (line 113) and this menu stay on screen at the
+            same time from 640px up, so every control in this row would otherwise
+            be drawn twice. Mirror that cluster's own breakpoints: it shows the
+            language switcher from sm (640) and the Download button from md (768),
+            so hide the switcher from sm and the whole row from md, at which point
+            both of its children are duplicates.
+          */}
+          <NavbarMenuItem className="mt-4 flex gap-2 md:hidden">
+            <span className="contents sm:hidden">
+              <LanguageSwitcher />
+            </span>
             <Button
               className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
               startContent={<Download className="w-4 h-4" />}
