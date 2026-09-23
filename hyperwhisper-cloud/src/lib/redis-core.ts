@@ -34,12 +34,160 @@ export type RedisStoreFactory = () => RedisStore;
 // IP BLOCKING
 // ============================================================================
 
+/**
+ * The longest redacted failure we put on one log line. An
+ * `UpstashJSONParseError` carries up to 200 characters of a proxy's raw HTML
+ * body (`chunk-LLI2WIYN.mjs`: `body.slice(0, 200) + '...'`), which would
+ * otherwise be the whole record. The cap is a BOUND, not a redaction: it runs
+ * last, after every pass below, so it can only remove text, never uncover it.
+ */
+const MAX_FAILURE_LOG_CHARS = 200;
+
+/**
+ * Is `value` an IP address rather than a word? `getClientIP` (`lib/request-id`)
+ * returns the literal `'unknown'` for an off-edge 6PN peer and for a request
+ * with neither `Fly-Client-IP` nor `X-Forwarded-For`, and substituting THAT as
+ * a literal corrupts unrelated English in the message —
+ * `ERR unknown command 'GET'` would log as `ERR <redacted-ip> command 'GET'`,
+ * putting a redaction marker where an operator looks for the fault code.
+ * Deliberately loose about which addresses are well-formed: a false negative
+ * only skips a pass that the key pass and the payload cut already cover.
+ */
+function looksLikeIPAddress(value: string): boolean {
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(value)) return true;
+  return value.includes(':') && /^[0-9a-f:.]+$/i.test(value);
+}
+
+/**
+ * A Redis failure as ONE bounded log line, with the secrets taken out of it.
+ *
+ * Logging the raw error would ship credentials. `@upstash/redis` builds its
+ * message as `` `${body.error}, command was: ${JSON.stringify(req.body)}` ``
+ * on every non-ok HTTP response, and `req.body` is what we sent. That body is
+ * NOT just this caller's command: `enableAutoPipelining` defaults to `true`
+ * (`chunk-LLI2WIYN.mjs`, `Redis` constructor) and `lib/redis.ts` builds
+ * `new Redis({ url, token })` without overriding it, so every command issued in
+ * the same tick is co-batched into one request — an `ip_blocked:` key for a
+ * DIFFERENT caller's IP, a `license:` key, and on a `cacheLicense` write the
+ * cached licence object itself. The licence key is the bearer credential for
+ * every request (`middleware/auth.ts`). This line is the only thing
+ * `isIPBlocked` ships — its catch was silent before this diff. It is NOT the
+ * only thing in this file that ships that payload: `getCachedLicense` and
+ * `cacheLicense` already log the same Error unredacted on the same failure
+ * (measured: 20 stderr lines on one 401, with the IP, the licence key and the
+ * cached licence value in the clear). That is issue #921, and it is why this
+ * helper takes an optional `ip` — so #921 can route those two through it.
+ *
+ * So the design is a BOUND first and redaction second — a deny-list that names
+ * the secrets it knows about is what let the licence key through. In order:
+ *
+ * 1. Collapse ALL whitespace to single spaces. A `UpstashJSONParseError` is
+ *    built from `res.text()` verbatim, so an intermediary's HTML 502 body
+ *    arrives with real newlines and would split this record into ~8 in a
+ *    line-oriented shipper — on exactly the outage class the log is for.
+ * 2. Cut the command payload. Everything from `, command was:` to the end
+ *    becomes `<redacted>`, whatever it held. This is the pass that bounds an
+ *    UNKNOWN secret: a key, a value or a caller we never thought about is gone
+ *    without being named. If Upstash rewords the suffix this degrades to the
+ *    passes below — today's behaviour — rather than to a leak.
+ * 3. Cut the userinfo out of any `scheme://user:password@host` URL. The second
+ *    grammar-shaped bound, and it names no secret either. Upstash gives an
+ *    operator TWO connection strings for one database — a REST URL, and a
+ *    `redis://default:<PASSWORD>@host:6379` URL that carries the password
+ *    inline. Paste the second into `UPSTASH_REDIS_CLOUD_URL` and the real
+ *    client throws `UrlError` from its constructor, INSIDE this try, with the
+ *    whole URL quoted back in the message (measured, v1.36.1). No other pass
+ *    reaches it: there is no `, command was:` suffix, no Redis key, it is not
+ *    the client IP, and the line measures 199 characters so the cap does not
+ *    fire — and the password sits at the FRONT, so the cap would not help.
+ *    The host is deliberately kept, or an operator cannot see WHICH url is
+ *    wrong.
+ * 4. Redact `ip_blocked:` and `license:` values wherever else they appear, for
+ *    a message that names a key outside the command payload.
+ * 5. Redact this request's own `ip` by VALUE, which is the only pass that
+ *    reaches an address carried some other way entirely — a DNS failure gives
+ *    `TypeError: getaddrinfo ENOTFOUND 203.0.113.7.invalid`, which has no key
+ *    and no command suffix. (That example is MEASURED on this runtime. The
+ *    `connect ETIMEDOUT <addr>:443` shape this comment used to cite does NOT
+ *    occur here: bun's fetch gives `Unable to connect. Is the computer able to
+ *    access the url?` with the address only on a non-enumerable property, and
+ *    Node/undici hides it on `error.cause`, which this helper never reads.)
+ *    Gated on `looksLikeIPAddress` so the `'unknown'` sentinel is not
+ *    substituted into English.
+ * 6. Truncate to `MAX_FAILURE_LOG_CHARS`.
+ *
+ * No two passes depend on each other's order for CORRECTNESS. Every marker a
+ * pass can WRITE INTO the line — `<redacted>`, `<redacted-ip>`,
+ * `<redacted-credentials>` — holds no whitespace, `"`, `'`, `]`, `/`, `?`, `#`
+ * or `@`, so it matches no other pass's character class in part: a later pass
+ * can only re-match one whole (which is idempotent) and can never truncate
+ * one. Pass 3 re-matching its OWN output is the case that needs `@` on that
+ * list, and `redis://<redacted-credentials>@host` is a fixed point. Round 1's
+ * `<redacted ip>` did have a space, which is what made the old order
+ * load-bearing; the hyphen removed the hazard rather than documenting it. The
+ * order above is for readability. Dropping any one of 2, 3, 4 or 5 re-opens a
+ * leak the tests pin, so none is redundant. (`<unloggable failure>` is the
+ * catch-path return, not a marker: it replaces the whole line and never meets
+ * another pass.)
+ *
+ * `ip` is optional so #921 can reuse this for the `getCachedLicense` /
+ * `cacheLicense` catches, which have no address to redact. Those two lines are
+ * deliberately NOT routed through it here — that is #921's scope, not #898's.
+ *
+ * Returns a STRING, never the Error: a raw Error prints a multi-line stack,
+ * and the line-oriented shipper splits that into several unrelated records.
+ * NEVER throws — a logger that throws inside a catch would turn a fail-open
+ * into a 500.
+ */
+function toRedactedLogLine(error: unknown, ip?: string): string {
+  try {
+    // `String(x)`, never `` `${x}` ``. MEASURED, because round 1's note had it
+    // backwards: `String(aSymbol)` does NOT throw — it has an explicit Symbol
+    // case and gives `Symbol(x)` — while `` `${aSymbol}` `` throws
+    // `Cannot convert a symbol to a string`. `String()` DOES still throw on an
+    // object with a null prototype, which is what the catch below is for.
+    const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+    let line = raw.replace(/\s+/g, ' ').trim();
+    line = line.replace(/, command was:[\s\S]*$/, ', command was: <redacted>');
+    // The class stops at the characters RFC 3986 says end an authority, so the
+    // userinfo it can eat is only ever real userinfo. Without `/` this eats a
+    // module path — `file:///…/node_modules/@upstash/redis/nodejs.mjs` becomes
+    // `file://<redacted-credentials>@upstash/redis/nodejs.mjs` — and without
+    // `?` it eats a query string up to an `@` in a parameter value. Both are
+    // ordinary diagnostic text, and neither is a credential.
+    line = line.replace(
+      /([a-z][a-z0-9+.-]*:\/\/)[^@\s"'/?#\]]*@/gi,
+      '$1<redacted-credentials>@'
+    );
+    line = line
+      .replace(/ip_blocked:[^"'\s\]]*/g, 'ip_blocked:<redacted>')
+      .replace(/license:[^"'\s\]]*/g, 'license:<redacted>');
+    if (ip !== undefined && looksLikeIPAddress(ip)) {
+      line = line.replaceAll(ip, '<redacted-ip>');
+    }
+
+    return line.length > MAX_FAILURE_LOG_CHARS
+      ? `${line.slice(0, MAX_FAILURE_LOG_CHARS)}<truncated>`
+      : line;
+  } catch {
+    return '<unloggable failure>';
+  }
+}
+
 export async function isIPBlocked(store: RedisStoreFactory, ip: string): Promise<boolean> {
   try {
     const blockKey = `ip_blocked:${ip}`;
     const blocked = await store().get(blockKey);
     return blocked === 'true';
-  } catch {
+  } catch (error) {
+    // Keep failing open — a Redis outage must not lock every caller out. But
+    // this is the only abuse gate the public endpoints have, so the fail-open
+    // has to leave a record: stdout ships to Axiom, and without a line here a
+    // disabled gate looks exactly like an hour with no blocked IPs. Nothing
+    // secret in the line — see `toRedactedLogLine`; the operation name and the
+    // bounded error text are enough to spot the outage.
+    console.error('IP block check failed — failing open:', toRedactedLogLine(error, ip));
     return false;
   }
 }
