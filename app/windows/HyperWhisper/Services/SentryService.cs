@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using Sentry;
 
 namespace HyperWhisper.Services;
@@ -119,118 +120,7 @@ public static class SentryService
             LoggingService.Info($"SentryService: Initializing with environment={resolvedEnv}, release=hyperwhisper@{version}");
 
             _sentryInstance = SentrySdk.Init(options =>
-            {
-                options.Dsn = dsn;
-                options.Environment = resolvedEnv;
-                options.Release = $"hyperwhisper@{version}";
-
-#if DEBUG
-                options.Debug = true;
-#endif
-
-                // PERFORMANCE TRACING
-                // Sample 100% of transactions to capture all performance data
-                // This lets us see slow transcriptions, API calls, and UI operations
-                // For a small user base, 100% is fine; reduce if Sentry quota becomes an issue
-                options.TracesSampleRate = 1.0;
-
-                // PROFILING
-                // CPU profiling for slow operations - helps identify code bottlenecks
-                // Attached to sampled transactions
-                options.ProfilesSampleRate = 1.0;
-
-                // RELEASE HEALTH
-                // Tracks crash-free sessions per release
-                // Enables "Release Health" dashboard in Sentry showing:
-                // - Crash-free session % (e.g., "2.10 has 99.2% crash-free")
-                // - Adoption rate (how many users upgraded)
-                // - Session count per release
-                options.AutoSessionTracking = true;
-
-                // Follow docs: include IP (PII); gated by EnableErrorLogging setting
-                options.SendDefaultPii = true;
-
-                // Attach stack traces to messages/errors for better debugging
-                options.AttachStacktrace = true;
-
-                // PRIVACY SANITIZATION
-                // Scrub potentially sensitive data from error events
-                options.SetBeforeSend((sentryEvent, hint) =>
-                {
-                    // Note: Breadcrumbs are read-only in C# SDK, but we don't add any
-                    // with sensitive data, and the beforeSend hook provides extra protection.
-                    // If needed, breadcrumbs could be disabled entirely via options.MaxBreadcrumbs = 0
-
-                    // Drop any suspicious extras (transcript, text, prompt), and rewrite
-                    // the user's Windows identifiers out of every extra that survives.
-                    // The redacted branch is never re-examined, which is what makes the
-                    // "not already [redacted]" rule structural rather than a second check.
-                    if (sentryEvent.Extra != null)
-                    {
-                        var sanitizedExtras = new Dictionary<string, object?>();
-                        foreach (var kvp in sentryEvent.Extra)
-                        {
-                            sanitizedExtras[kvp.Key] = IsRedactedExtraKey(kvp.Key)
-                                ? "[redacted]"
-                                : kvp.Value is string extraText
-                                    ? RedactUserIdentifiers(extraText)
-                                    : kvp.Value;
-                        }
-                        // Clear and re-add sanitized extras
-                        foreach (var kvp in sanitizedExtras)
-                        {
-                            sentryEvent.SetExtra(kvp.Key, kvp.Value);
-                        }
-                    }
-
-                    // The exception message itself (HYPERWHISPER-Y5 / -YF / -Z1). The
-                    // filter above only ever looked at extras and matched on the KEY, so
-                    // a FileLoadException carried the install path - and the user's
-                    // account name with it - into the Sentry issue TITLE.
-                    var sentryExceptions = sentryEvent.SentryExceptions?.ToList();
-                    if (sentryExceptions != null)
-                    {
-                        foreach (var sentryException in sentryExceptions)
-                        {
-                            if (sentryException.Value != null)
-                            {
-                                sentryException.Value = RedactUserIdentifiers(sentryException.Value);
-                            }
-                        }
-                        sentryEvent.SentryExceptions = sentryExceptions;
-                    }
-
-                    // CaptureMessage events. Capture() puts the caller's text in the
-                    // error_message EXTRA instead, so Message is null on the events in
-                    // this issue - the extras branch above is what covers those. Each
-                    // property is rewritten only when it is non-null, so a null Formatted
-                    // stays null rather than becoming "".
-                    var message = sentryEvent.Message;
-                    if (message != null)
-                    {
-                        if (message.Formatted != null)
-                        {
-                            message.Formatted = RedactUserIdentifiers(message.Formatted);
-                        }
-
-                        if (message.Message != null)
-                        {
-                            message.Message = RedactUserIdentifiers(message.Message);
-                        }
-
-                        sentryEvent.Message = message;
-                    }
-
-                    // Every step above is total: RedactUserIdentifiers never throws for
-                    // any input, and nothing here indexes or parses. A throw inside
-                    // beforeSend costs the whole event, so keep it that way.
-                    return sentryEvent;
-                });
-
-                // Disable breadcrumbs to avoid leaking text content via logs
-                // This matches the macOS implementation which strips breadcrumbs before sending
-                options.MaxBreadcrumbs = 0;
-            });
+                ConfigureSentryOptions(options, dsn, resolvedEnv, $"hyperwhisper@{version}"));
 
             // DEVICE/SYSTEM TAGS
             // Set global tags for filtering issues by hardware/software configuration
@@ -258,6 +148,215 @@ public static class SentryService
             LoggingService.Error("SentryService: Failed to initialize", ex);
             // Don't throw - Sentry failing shouldn't crash the app
         }
+    }
+
+    /// <summary>
+    /// Everything <see cref="Initialize(string?, string?)"/> configures on the SDK,
+    /// in one place that a test can drive.
+    /// </summary>
+    /// <remarks>
+    /// This is a seam, not a layer. The privacy guarantees of this service live in
+    /// TWO places - <c>beforeSend</c>, and the options that decide what the SDK
+    /// stamps on an event BEFORE <c>beforeSend</c> ever sees it - and only an event
+    /// pushed through the real pipeline proves both are wired. The smoke suite
+    /// initializes the SDK with these very options and an in-memory transport, then
+    /// reads the envelope it would have sent.
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static void ConfigureSentryOptions(
+        SentryOptions options,
+        string dsn,
+        string? environment,
+        string release)
+    {
+        options.Dsn = dsn;
+        options.Environment = environment;
+        options.Release = release;
+
+#if DEBUG
+        options.Debug = true;
+#endif
+
+        // PERFORMANCE TRACING
+        // Sample 100% of transactions to capture all performance data
+        // This lets us see slow transcriptions, API calls, and UI operations
+        // For a small user base, 100% is fine; reduce if Sentry quota becomes an issue
+        options.TracesSampleRate = 1.0;
+
+        // PROFILING
+        // CPU profiling for slow operations - helps identify code bottlenecks
+        // Attached to sampled transactions
+        options.ProfilesSampleRate = 1.0;
+
+        // RELEASE HEALTH
+        // Tracks crash-free sessions per release
+        // Enables "Release Health" dashboard in Sentry showing:
+        // - Crash-free session % (e.g., "2.10 has 99.2% crash-free")
+        // - Adoption rate (how many users upgraded)
+        // - Session count per release
+        options.AutoSessionTracking = true;
+
+        // Follow docs: include IP (PII); gated by EnableErrorLogging setting
+        options.SendDefaultPii = true;
+
+        // ...but NOT the Windows account name. SendDefaultPii on its own makes the
+        // SDK's own enricher stamp Environment.UserName into event.user.username,
+        // and it does that in an event processor that runs BEFORE beforeSend - so
+        // the filter below would rewrite the exception title while the very same
+        // event still serialized "user":{"username":"<account name>"}. That is the
+        // leak HYPERWHISPER-Y5/-YF/-Z1 are about, arriving by a second door.
+        //
+        // Turning it off does not cost the "N users" count on an issue: SendDefaultPii
+        // still sends the IP, and Sentry counts a user by IP when no id or username
+        // is set. The diagnosis the issue needs (which release, which HRESULT, which
+        // assembly) is untouched.
+        options.IsEnvironmentUser = false;
+
+        // PRIVACY SANITIZATION
+        // Scrub potentially sensitive data from error events.
+        //
+        // Note: Breadcrumbs are read-only in C# SDK, but we don't add any
+        // with sensitive data, and the beforeSend hook provides extra protection.
+        // If needed, breadcrumbs could be disabled entirely via options.MaxBreadcrumbs = 0
+        options.SetBeforeSend((sentryEvent, hint) => SanitizeEvent(sentryEvent));
+
+        // Disable breadcrumbs to avoid leaking text content via logs
+        // This matches the macOS implementation which strips breadcrumbs before sending
+        options.MaxBreadcrumbs = 0;
+    }
+
+    /// <summary>
+    /// The <c>beforeSend</c> body: drops denied extras and rewrites the signed-in
+    /// user's Windows identifiers out of every field of an error event that can
+    /// carry them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The fields, and why each one is here:
+    /// <list type="bullet">
+    /// <item><c>Extra</c> - the only field the filter covered before #932, and it
+    /// matched on the KEY, which is why the exception message went out raw.</item>
+    /// <item><c>Tags</c> - <c>selected_input_device_name</c> is a tag as well as an
+    /// extra, and a Bluetooth endpoint is routinely named after its owner
+    /// ("Bob's AirPods").</item>
+    /// <item><c>SentryExceptions[].Value</c> - the Sentry issue TITLE, and the whole
+    /// of HYPERWHISPER-Y5 / -YF / -Z1.</item>
+    /// <item><c>Message</c> - <c>CaptureMessage</c> events. <c>Capture()</c> puts the
+    /// caller's text in the <c>error_message</c> EXTRA instead, so Message is null
+    /// on the events in this issue.</item>
+    /// <item><c>ServerName</c> - the machine name, which <c>SendDefaultPii</c> adds.
+    /// It is NOT deleted: a machine name is not an account name and it is the only
+    /// way to tell two devices apart inside one issue. But Windows offers the
+    /// account name as the default computer name, so "RAY-DESKTOP-PC" is a real
+    /// shape, and the account name comes out of it like anywhere else.</item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// The entries are mutated IN PLACE. <c>SentryExceptions</c> hands back the
+    /// event's own <see cref="SentryException"/> objects, so writing the collection
+    /// back would be a no-op on an event that has one - and NOT a no-op on an event
+    /// that has none, where it replaces a null backing field with an empty one and
+    /// adds an <c>"exception":{"values":[]}</c> key the event did not have. Same for
+    /// <c>Message</c>, whose write-back was a self-assignment. The smoke suite pushes
+    /// a real exception and a real message event through the SDK and asserts both.
+    /// </para>
+    /// <para>
+    /// Every step is total: <see cref="Redact"/> never throws for any input, and
+    /// nothing here indexes or parses. A throw inside <c>beforeSend</c> costs the
+    /// whole event, so keep it that way. The identifiers are read ONCE per event
+    /// rather than once per field.
+    /// </para>
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static SentryEvent SanitizeEvent(SentryEvent sentryEvent)
+        => SanitizeEvent(sentryEvent, BuildLiveRedactionRules());
+
+    /// <summary>
+    /// The <see cref="SanitizeEvent(SentryEvent)"/> seam: the same sanitization with
+    /// the three identifiers supplied instead of read from the live environment.
+    /// </summary>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static SentryEvent SanitizeEvent(
+        SentryEvent sentryEvent,
+        string? userProfileDirectory,
+        string? localAppDataDirectory,
+        string? userName)
+        => SanitizeEvent(
+            sentryEvent,
+            BuildRedactionRules(userProfileDirectory, localAppDataDirectory, userName));
+
+    private static SentryEvent SanitizeEvent(SentryEvent sentryEvent, IReadOnlyList<RedactionRule> rules)
+    {
+        // Drop any suspicious extras (transcript, text, prompt), and rewrite the
+        // user's Windows identifiers out of every extra that survives. The redacted
+        // branch is never re-examined, which is what makes the "not already
+        // [redacted]" rule structural rather than a second check.
+        if (sentryEvent.Extra != null)
+        {
+            var sanitizedExtras = new Dictionary<string, object?>();
+            foreach (var kvp in sentryEvent.Extra)
+            {
+                sanitizedExtras[kvp.Key] = IsRedactedExtraKey(kvp.Key)
+                    ? "[redacted]"
+                    : kvp.Value is string extraText
+                        ? Redact(extraText, rules)
+                        : kvp.Value;
+            }
+
+            // Buffered first: SetExtra writes into the dictionary being enumerated.
+            foreach (var kvp in sanitizedExtras)
+            {
+                sentryEvent.SetExtra(kvp.Key, kvp.Value);
+            }
+        }
+
+        var sanitizedTags = new Dictionary<string, string>();
+        foreach (var kvp in sentryEvent.Tags)
+        {
+            sanitizedTags[kvp.Key] = Redact(kvp.Value, rules);
+        }
+
+        foreach (var kvp in sanitizedTags)
+        {
+            sentryEvent.SetTag(kvp.Key, kvp.Value);
+        }
+
+        foreach (var sentryException in sentryEvent.SentryExceptions)
+        {
+            if (sentryException.Value != null)
+            {
+                sentryException.Value = Redact(sentryException.Value, rules);
+            }
+        }
+
+        var message = sentryEvent.Message;
+        if (message != null)
+        {
+            // Each property is rewritten only when it is non-null, so a null
+            // Formatted stays null rather than becoming "".
+            if (message.Formatted != null)
+            {
+                message.Formatted = Redact(message.Formatted, rules);
+            }
+
+            if (message.Message != null)
+            {
+                message.Message = Redact(message.Message, rules);
+            }
+        }
+
+        if (sentryEvent.ServerName != null)
+        {
+            sentryEvent.ServerName = Redact(sentryEvent.ServerName, rules);
+        }
+
+        return sentryEvent;
     }
 
     /// <summary>
@@ -325,18 +424,31 @@ public static class SentryService
     /// redirected profile and it misses a non-<c>C:</c> drive.
     /// </para>
     /// <para>
-    /// Order is load-bearing, and it is the reason for the private helper below. The
-    /// bare account name is a SUBSTRING of both directories (<c>C:\Users\bob</c>
-    /// contains <c>bob</c>), so replacing the name first would leave
-    /// <c>C:\Users\%USER%\AppData\...</c>, the directory steps would then match
-    /// nothing, and <c>C:\Users\</c> would survive. The two long, specific prefixes
-    /// go first and the bare name goes LAST. Between the two directories the order is
-    /// not load-bearing: local-app-data normally sits inside the profile, so the
-    /// second step is a no-op on the common path. It is still not dead code - it is
-    /// what catches a local-app-data directory redirected to another drive, which the
-    /// profile prefix never matches. That directory is read from the environment
-    /// rather than from the special-folder API, because only <c>AppPaths</c> may read
-    /// that special folder (see
+    /// This is ONE left-to-right scan over the input, not three passes of
+    /// <c>string.Replace</c>. Three passes are wrong in two ways that a fourth pass
+    /// cannot fix. Pass N+1 reads what pass N wrote, so an account named <c>User</c>
+    /// - Microsoft's own default on a Windows dev VM image - turned the
+    /// <c>%USERPROFILE%</c> token that had just removed it back into
+    /// <c>%%USER%PROFILE%</c>, re-encoding the identifier the pass before had
+    /// removed; <c>App</c> and <c>Data</c> did the same to <c>\AppData\</c>. And a
+    /// substring match for the bare name has no idea where a word ends, so account
+    /// <c>ed</c> shredded <c>HyperWhisper.Shar%USER%Core.dll</c> and account
+    /// <c>c</c> shredded <c>0x800711%USER%7</c> - the two things this method exists
+    /// to keep. The scan fixes both by construction: it only ever moves FORWARD over
+    /// the input, so no rule can match a token this method itself emitted, and the
+    /// bare name is matched only between boundaries (below).
+    /// </para>
+    /// <para>
+    /// At a given position the LONGEST identifier wins, which is why
+    /// <c>BuildRedactionRules</c> sorts. Local-app-data normally sits inside the
+    /// profile, so a path under it reads <c>%LOCALAPPDATA%\...</c> rather than
+    /// <c>%USERPROFILE%\AppData\Local\...</c> - the more specific answer, and the one
+    /// that makes the two rules tell each other apart in a test. Neither rule is dead
+    /// code: the profile rule is the only one that catches
+    /// <c>C:\Users\bob\Documents\...</c>, and the local-app-data rule is the only one
+    /// that catches a local-app-data directory redirected to another drive. That
+    /// directory is read from the environment rather than from the special-folder
+    /// API, because only <c>AppPaths</c> may read that special folder (see
     /// <c>scripts/verify_isolated_app_profile_paths.ps1</c>).
     /// </para>
     /// <para>
@@ -347,13 +459,12 @@ public static class SentryService
     /// if maximum safety is ever wanted over diagnosis.
     /// </para>
     /// <para>
-    /// Over-redaction is possible and accepted: an account named <c>System</c> turns
-    /// unrelated occurrences of that word into <c>%USER%</c>. That is the safe
-    /// direction for a privacy filter and it is how
-    /// <see cref="IsRedactedExtraKey"/> already errs. Beyond the blank and
-    /// drive-root guards there are no length heuristics. The method is total - it
-    /// never throws, for any input - because it runs inside <c>beforeSend</c>, where
-    /// a throw costs the whole event.
+    /// Over-redaction is still possible and still accepted: an account named
+    /// <c>System</c> turns a standalone occurrence of that word into <c>%USER%</c>.
+    /// That is the safe direction for a privacy filter and it is how
+    /// <see cref="IsRedactedExtraKey"/> already errs. The method is total - it never
+    /// throws, for any input - because it runs inside <c>beforeSend</c>, where a
+    /// throw costs the whole event.
     /// </para>
     /// </remarks>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
@@ -361,25 +472,12 @@ public static class SentryService
     // change is intended.
     internal static string RedactUserIdentifiers(string? value)
     {
-        return RedactUserIdentifiers(
-            value,
-            ReadIdentifier(static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
-            ReadIdentifier(static () => Environment.GetEnvironmentVariable("LOCALAPPDATA")),
-            ReadIdentifier(static () => Environment.UserName));
-
-        // An environment that refuses to be read must not cost the event, and must
-        // not take the other two identifiers down with it either.
-        static string? ReadIdentifier(Func<string?> read)
+        if (string.IsNullOrEmpty(value))
         {
-            try
-            {
-                return read();
-            }
-            catch
-            {
-                return null;
-            }
+            return string.Empty;
         }
+
+        return Redact(value, BuildLiveRedactionRules());
     }
 
     /// <summary>
@@ -403,52 +501,218 @@ public static class SentryService
     {
         if (string.IsNullOrEmpty(value))
         {
-            return value ?? string.Empty;
+            return string.Empty;
         }
 
-        // Longest and most specific first; the bare account name LAST. See the
-        // remarks on the one-argument overload for why that order is load-bearing.
-        var redacted = ReplaceIdentifier(value, userProfileDirectory, "%USERPROFILE%", isDirectory: true);
-        redacted = ReplaceIdentifier(redacted, localAppDataDirectory, "%LOCALAPPDATA%", isDirectory: true);
-        redacted = ReplaceIdentifier(redacted, userName, "%USER%", isDirectory: false);
-        return redacted;
+        return Redact(
+            value,
+            BuildRedactionRules(userProfileDirectory, localAppDataDirectory, userName));
     }
 
     /// <summary>
-    /// Replaces one identifier with its token, or returns the text unchanged when the
-    /// identifier is not safe to feed to <c>Replace</c>.
+    /// One identifier, the token that replaces it, and whether it has to stand alone
+    /// to count as a match.
+    /// </summary>
+    private readonly record struct RedactionRule(string Identifier, string Token, bool RequiresBoundaries);
+
+    /// <summary>
+    /// The three identifiers of the signed-in user, read from the process.
     /// </summary>
     /// <remarks>
-    /// <c>string.Replace(oldValue, newValue, StringComparison)</c> THROWS
-    /// <c>ArgumentException</c> on a zero-length <c>oldValue</c>, so a blank account
-    /// name or an unset environment variable would throw inside <c>beforeSend</c> and
-    /// lose the event. A bare drive root (<c>C:\</c>) is skipped as well: replacing
-    /// it would mangle every path in the message for no privacy gain.
+    /// Read ONCE per event rather than once per field: <c>SanitizeEvent</c> touches
+    /// about eleven strings on a typical diagnostic event, and <c>Environment.UserName</c>
+    /// P/Invokes <c>GetUserNameExW</c> with no BCL cache. Not cached ACROSS events -
+    /// a static cache would need a memory barrier for a value that costs microseconds.
     /// </remarks>
-    private static string ReplaceIdentifier(string value, string? identifier, string token, bool isDirectory)
+    private static IReadOnlyList<RedactionRule> BuildLiveRedactionRules()
     {
-        if (string.IsNullOrWhiteSpace(identifier))
+        return BuildRedactionRules(
+            ReadIdentifier(static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
+            ReadIdentifier(static () => Environment.GetEnvironmentVariable("LOCALAPPDATA")),
+            ReadIdentifier(static () => Environment.UserName));
+
+        // An environment that refuses to be read must not cost the event, and must
+        // not take the other two identifiers down with it either.
+        static string? ReadIdentifier(Func<string?> read)
         {
-            return value;
+            try
+            {
+                return read();
+            }
+            catch
+            {
+                return null;
+            }
         }
-
-        var candidate = isDirectory
-            ? identifier.TrimEnd('\\', '/')
-            : identifier;
-
-        // "C:", "C:\", "D:/" - a drive root, and nothing else is this short.
-        if (isDirectory && candidate.Length <= 3)
-        {
-            return value;
-        }
-
-        if (string.IsNullOrWhiteSpace(candidate))
-        {
-            return value;
-        }
-
-        return value.Replace(candidate, token, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Turns the three identifiers into the rules <see cref="Redact"/> scans with,
+    /// longest identifier first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every guard that decides whether an identifier is usable lives here, once:
+    /// a blank identifier is dropped (it would otherwise match at every position and
+    /// advance the scan by nothing), a directory loses a trailing separator, and a
+    /// bare drive root (<c>C:\</c>, three characters or fewer once trimmed) is
+    /// dropped because replacing it would mangle every path in the message for no
+    /// privacy gain.
+    /// </para>
+    /// <para>
+    /// A directory needs no boundaries: it is long, it is specific, and a false
+    /// match is over-redaction. The bare account name does, because it can be two
+    /// characters long and Windows sets no minimum.
+    /// </para>
+    /// </remarks>
+    private static IReadOnlyList<RedactionRule> BuildRedactionRules(
+        string? userProfileDirectory,
+        string? localAppDataDirectory,
+        string? userName)
+    {
+        var rules = new List<RedactionRule>(3);
+
+        AddDirectory(userProfileDirectory, "%USERPROFILE%");
+        AddDirectory(localAppDataDirectory, "%LOCALAPPDATA%");
+
+        if (!string.IsNullOrWhiteSpace(userName))
+        {
+            rules.Add(new RedactionRule(userName, "%USER%", RequiresBoundaries: true));
+        }
+
+        // OrderByDescending is stable, so two identifiers of the same length keep
+        // the order they were added in.
+        return rules.OrderByDescending(rule => rule.Identifier.Length).ToList();
+
+        void AddDirectory(string? directory, string token)
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                return;
+            }
+
+            var trimmed = directory.TrimEnd('\\', '/');
+
+            // "C:", "C:\", "D:/" - a drive root, and nothing else is this short.
+            if (trimmed.Length <= 3 || string.IsNullOrWhiteSpace(trimmed))
+            {
+                return;
+            }
+
+            rules.Add(new RedactionRule(trimmed, token, RequiresBoundaries: false));
+        }
+    }
+
+    /// <summary>
+    /// The single forward scan. Emitted tokens are never re-read.
+    /// </summary>
+    private static string Redact(string value, IReadOnlyList<RedactionRule> rules)
+    {
+        if (string.IsNullOrEmpty(value) || rules.Count == 0)
+        {
+            return value;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        var index = 0;
+
+        while (index < value.Length)
+        {
+            var matchLength = MatchRule(value, index, rules, out var token);
+            if (matchLength > 0)
+            {
+                // Appended, never re-examined. The cursor only moves forward over
+                // the INPUT, so no rule can match text this method emitted - which
+                // is what stops an account named "User" from rewriting the
+                // "%USERPROFILE%" that had just removed it.
+                builder.Append(token);
+                index += matchLength;
+                continue;
+            }
+
+            builder.Append(value[index]);
+            index++;
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// The rule that matches at <paramref name="index"/>, or a length of 0.
+    /// </summary>
+    private static int MatchRule(
+        string value,
+        int index,
+        IReadOnlyList<RedactionRule> rules,
+        out string token)
+    {
+        for (var i = 0; i < rules.Count; i++)
+        {
+            var rule = rules[i];
+            var length = rule.Identifier.Length;
+
+            // A zero-length identifier would match at every position and move the
+            // cursor by nothing. BuildRedactionRules drops blanks; this keeps the
+            // scan terminating even if one ever reached it.
+            if (length == 0 || index + length > value.Length)
+            {
+                continue;
+            }
+
+            if (string.Compare(value, index, rule.Identifier, 0, length, StringComparison.OrdinalIgnoreCase) != 0)
+            {
+                continue;
+            }
+
+            if (rule.RequiresBoundaries && !IsStandaloneIdentifier(value, index, length))
+            {
+                continue;
+            }
+
+            token = rule.Token;
+            return length;
+        }
+
+        token = string.Empty;
+        return 0;
+    }
+
+    /// <summary>
+    /// Whether the run at <paramref name="index"/> is a whole account name rather
+    /// than a fragment of a longer word.
+    /// </summary>
+    private static bool IsStandaloneIdentifier(string value, int index, int length)
+        => (index == 0 || IsAccountNameBoundary(value[index - 1]))
+            && (index + length == value.Length || IsAccountNameBoundary(value[index + length]));
+
+    /// <summary>
+    /// The characters an account name cannot run across.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Windows forbids <c>" / \ [ ] : ; | = , + * ? &lt; &gt;</c> and whitespace in an
+    /// account name, so a run that touches one of them cannot be the middle of a
+    /// longer name - which makes them exactly the right boundary set. The two
+    /// apostrophes and <c>-</c> / <c>_</c> are added because they are where a bare
+    /// account name actually shows up outside a path: a Bluetooth endpoint named
+    /// after its owner ("Bob's AirPods", and Apple writes the curly one), and a
+    /// machine name Windows offered to build out of the account name ("BOB-PC").
+    /// </para>
+    /// <para>
+    /// What is deliberately NOT here is as load-bearing as what is. <c>.</c> is a
+    /// legal account-name character, so it is not a boundary, and that is what keeps
+    /// <c>HyperWhisper.SharedCore.dll</c> whole for an account named <c>dll</c>,
+    /// <c>Core</c> or <c>SharedCore</c>. <c>(</c> and <c>)</c> are legal too, so
+    /// <c>(0x800711C7)</c> stays whole for an account named <c>0x800711C7</c> - and
+    /// with alphanumerics excluded as well, no substring of either token can ever
+    /// match. The one string that can still take the whole run is an account name
+    /// equal to the entire token, and Windows caps an account name at 20 characters.
+    /// </para>
+    /// </remarks>
+    private static bool IsAccountNameBoundary(char character)
+        => char.IsWhiteSpace(character) || AccountNameBoundaryCharacters.Contains(character);
+
+    private const string AccountNameBoundaryCharacters = "\"/\\[]:;|=,+*?<>'\u2019-_";
 
     /// <summary>
     /// Shutdown Sentry and flush pending events.
@@ -697,6 +961,22 @@ public static class SentryService
         }
     }
 
+    /// <summary>
+    /// The tags and data of one diagnostic TRANSACTION, sanitized.
+    /// </summary>
+    /// <remarks>
+    /// A transaction never reaches <c>beforeSend</c> - that hook is for error events
+    /// only, and <c>SetBeforeSendTransaction</c> is a separate one this service does
+    /// not configure - so this method is the whole of the privacy filter on that
+    /// path, and <c>TracesSampleRate = 1.0</c> means it runs on 100% of them. Up to
+    /// #932 it only ever matched on the KEY, which left the identifier rewrite that
+    /// <see cref="SanitizeEvent(SentryEvent)"/> does on the error path absent here.
+    /// <c>selected_input_device_name</c> is the field that makes it concrete: it
+    /// comes from <c>WaveInCapabilities.ProductName</c>, it is a TAG as well as an
+    /// extra, and a Bluetooth endpoint is routinely named after its owner. The same
+    /// no-speech event was redacted as an Issue and shipped verbatim as a
+    /// transaction.
+    /// </remarks>
     // internal: test seam for HyperWhisper.SmokeTests.
     internal static (Dictionary<string, string> Tags, Dictionary<string, object?> Data)
         PrepareDiagnosticTransactionData(
@@ -705,16 +985,25 @@ public static class SentryService
             Dictionary<string, string>? tags,
             string[]? fingerprint)
     {
-        var preparedTags = tags != null
-            ? new Dictionary<string, string>(tags, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Once for the whole payload, not once per field.
+        var rules = BuildLiveRedactionRules();
+        var redactedMessage = Redact(message, rules);
+
+        var preparedTags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (tags != null)
+        {
+            foreach (var (key, value) in tags)
+            {
+                preparedTags[key] = Redact(value, rules);
+            }
+        }
 
         preparedTags["event_type"] = "diagnostic";
 
         var preparedData = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
-            ["diagnostic_message"] = message,
-            ["diagnostic_fingerprint"] = fingerprint ?? new[] { "diagnostic", message }
+            ["diagnostic_message"] = redactedMessage,
+            ["diagnostic_fingerprint"] = fingerprint ?? new[] { "diagnostic", redactedMessage }
         };
 
         if (extras != null)
@@ -723,7 +1012,9 @@ public static class SentryService
             {
                 preparedData[key] = IsRedactedExtraKey(key)
                     ? "[redacted]"
-                    : value;
+                    : value is string extraText
+                        ? Redact(extraText, rules)
+                        : value;
             }
         }
 
