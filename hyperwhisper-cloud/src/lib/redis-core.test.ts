@@ -134,9 +134,13 @@ describe('isIPBlocked', () => {
     // and the operation name plus the redacted error is enough to spot the
     // outage.
     //
-    // The spy is restored here rather than in an afterEach because the
-    // getCachedLicense/cacheLicense suites below legitimately call
-    // console.error, and must keep reaching the real one.
+    // The spy is created and restored inside this test, rather than in an
+    // afterEach, so its whole lifetime sits in one block and only the tests
+    // that install one pay for it. An afterEach would have been SAFE for the
+    // getCachedLicense / cacheLicense suites below, contrary to what this
+    // comment used to say: bun's lifecycle hooks are describe-scoped, so a
+    // hook declared here never runs for a sibling describe. Measured on bun
+    // 1.4.2, not assumed.
     const spy = spyOn(console, 'error').mockImplementation(() => {});
 
     try {
