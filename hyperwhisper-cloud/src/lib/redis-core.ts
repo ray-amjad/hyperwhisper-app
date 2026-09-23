@@ -110,11 +110,12 @@ function looksLikeIPAddress(value: string): boolean {
  */
 function toRedactedLogLine(error: unknown, ip?: string): string {
   try {
-    const raw = error instanceof Error
-      ? `${error.name}: ${error.message}`
-      // `String(aSymbol)` throws, and so does an object with a null prototype.
-      // Symbols have a useful `toString()`; the rest fall to the catch below.
-      : typeof error === 'symbol' ? error.toString() : String(error);
+    // `String(x)`, never `` `${x}` ``. MEASURED, because round 1's note had it
+    // backwards: `String(aSymbol)` does NOT throw — it has an explicit Symbol
+    // case and gives `Symbol(x)` — while `` `${aSymbol}` `` throws
+    // `Cannot convert a symbol to a string`. `String()` DOES still throw on an
+    // object with a null prototype, which is what the catch below is for.
+    const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
     let line = raw.replace(/\s+/g, ' ').trim();
     line = line.replace(/, command was:[\s\S]*$/, ', command was: <redacted>');

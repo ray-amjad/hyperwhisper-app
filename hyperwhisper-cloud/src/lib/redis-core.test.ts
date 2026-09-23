@@ -386,23 +386,34 @@ describe('isIPBlocked', () => {
   test('still fails open, and still logs a string, when the thrown value resists String()', async () => {
     // The helper runs inside the catch, so a throw from IT would turn the
     // fail-open into a 500 — the exact outcome #898 exists to prevent.
-    // `String(aSymbol)` throws a TypeError, and so does an object with a null
-    // prototype or a getter that throws.
-    const hostile: unknown[] = [
-      Symbol('ip_blocked:203.0.113.7'),
-      Object.assign(Object.create(null), { nope: true }),
+    const hostile: Array<{ thrown: unknown; logged: string }> = [
+      // `String(aSymbol)` does NOT throw, contrary to round 1's note — only a
+      // template literal does. So the symbol keeps its readable form here, and
+      // this case is what stops someone "fixing" `String(x)` into `` `${x}` ``.
+      // (The trailing `)` falls inside the key regex and is redacted with the
+      // address — redacting MORE, never less.)
+      { thrown: Symbol('ip_blocked:203.0.113.7'), logged: 'Symbol(ip_blocked:<redacted>' },
+      // `String()` on a null-prototype object throws "Cannot convert object to
+      // primitive value".
+      { thrown: Object.assign(Object.create(null), { nope: true }), logged: '<unloggable failure>' },
+      // An Error whose `message` read throws, so `${error.message}` throws
+      // INSIDE the instanceof branch rather than at the String() fallback.
       {
-        get message(): string {
-          throw new Error('nope');
-        },
+        thrown: Object.defineProperty(new Error('boom'), 'message', {
+          get(): string {
+            throw new Error('nope');
+          },
+        }),
+        logged: '<unloggable failure>',
       },
     ];
 
-    for (const thrown of hostile) {
+    for (const { thrown, logged } of hostile) {
       consoleError.mockClear();
 
       expect(await isIPBlocked(() => throwingStore(thrown), '203.0.113.7')).toBe(false);
 
+      expect(loggedLine()).toBe(logged);
       expect(loggedLine()).not.toContain('203.0.113.7');
     }
   });
