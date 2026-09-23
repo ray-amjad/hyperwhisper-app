@@ -2874,6 +2874,57 @@ internal static class Program
                 Assert(!SentryService.IsRedactedExtraKey("audio_file_extension"), "a plain metadata key is denied");
             });
 
+            Run("SentryService.RedactUserIdentifiers strips the Windows account name but keeps the HRESULT and the assembly name", () =>
+            {
+                // HYPERWHISPER-Y5 / -YF / -Z1 carried three real Windows account names
+                // in the Sentry issue TITLE. beforeSend only ever rewrote Extra, and it
+                // matched on the KEY, so a FileLoadException message - which embeds the
+                // full install path, and that path holds the account name - went out
+                // exactly as the CLR produced it. This pins both halves of the fix: the
+                // identifiers go, and 0x800711C7 plus the assembly simple name stay,
+                // because on these events they are the entire diagnosis.
+                //
+                // The four-argument overload is the seam. The one-argument entry point
+                // reads the account of whoever is running the suite, so a case built on
+                // a fixed C:\Users\testaccount\... string would pass only on a machine
+                // owned by a user named testaccount - on the CI runner the profile is
+                // C:\Users\runneradmin and nothing would match.
+                const string message =
+                    @"Could not load file or assembly 'C:\Users\testaccount\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.dll'. An Application Control policy has blocked this file. (0x800711C7)";
+
+                var redacted = SentryService.RedactUserIdentifiers(
+                    message,
+                    @"C:\Users\testaccount",
+                    @"C:\Users\testaccount\AppData\Local",
+                    "testaccount");
+
+                Assert(!redacted.Contains("testaccount", StringComparison.OrdinalIgnoreCase),
+                    "the Windows account name reached Sentry");
+                Assert(!redacted.Contains(@"C:\Users\", StringComparison.OrdinalIgnoreCase),
+                    "the user-profile path prefix reached Sentry");
+                Assert(redacted.Contains("HyperWhisper.SharedCore.dll", StringComparison.Ordinal),
+                    "the assembly simple name was thrown away with the identifier");
+                Assert(redacted.Contains("0x800711C7", StringComparison.Ordinal),
+                    "the HRESULT was thrown away with the identifier");
+
+                // The seam can be right while the live entry point passes the wrong
+                // values, which would leave production broken with a green suite. The
+                // profile directory is not a substring of the bare account name, so only
+                // the account-name step fires here and the result is deterministic.
+                Assert(SentryService.RedactUserIdentifiers(Environment.UserName) == "%USER%",
+                    "the live-environment entry point does not redact the current account name");
+
+                // A blank identifier must be SKIPPED, never passed to Replace: the
+                // StringComparison overload throws ArgumentException on a zero-length
+                // oldValue, and a throw inside beforeSend costs the whole event. A bare
+                // drive root is skipped too - replacing it mangles every path for no
+                // privacy gain.
+                Assert(SentryService.RedactUserIdentifiers(message, "", null, "   ") == message,
+                    "a blank identifier is not skipped");
+                Assert(SentryService.RedactUserIdentifiers(message, @"C:\", @"C:\", null) == message,
+                    "a bare drive root is not skipped");
+            });
+
             Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic reclassifies a zero-frame recording as EmptyRecording, not no-speech", () =>
             {
                 // A header-only / zero-frame WAV means the recorder captured nothing at

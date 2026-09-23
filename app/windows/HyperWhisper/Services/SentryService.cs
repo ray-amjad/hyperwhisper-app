@@ -161,7 +161,10 @@ public static class SentryService
                     // with sensitive data, and the beforeSend hook provides extra protection.
                     // If needed, breadcrumbs could be disabled entirely via options.MaxBreadcrumbs = 0
 
-                    // Drop any suspicious extras (transcript, text, prompt)
+                    // Drop any suspicious extras (transcript, text, prompt), and rewrite
+                    // the user's Windows identifiers out of every extra that survives.
+                    // The redacted branch is never re-examined, which is what makes the
+                    // "not already [redacted]" rule structural rather than a second check.
                     if (sentryEvent.Extra != null)
                     {
                         var sanitizedExtras = new Dictionary<string, object?>();
@@ -169,7 +172,9 @@ public static class SentryService
                         {
                             sanitizedExtras[kvp.Key] = IsRedactedExtraKey(kvp.Key)
                                 ? "[redacted]"
-                                : kvp.Value;
+                                : kvp.Value is string extraText
+                                    ? RedactUserIdentifiers(extraText)
+                                    : kvp.Value;
                         }
                         // Clear and re-add sanitized extras
                         foreach (var kvp in sanitizedExtras)
@@ -178,6 +183,47 @@ public static class SentryService
                         }
                     }
 
+                    // The exception message itself (HYPERWHISPER-Y5 / -YF / -Z1). The
+                    // filter above only ever looked at extras and matched on the KEY, so
+                    // a FileLoadException carried the install path - and the user's
+                    // account name with it - into the Sentry issue TITLE.
+                    var sentryExceptions = sentryEvent.SentryExceptions?.ToList();
+                    if (sentryExceptions != null)
+                    {
+                        foreach (var sentryException in sentryExceptions)
+                        {
+                            if (sentryException.Value != null)
+                            {
+                                sentryException.Value = RedactUserIdentifiers(sentryException.Value);
+                            }
+                        }
+                        sentryEvent.SentryExceptions = sentryExceptions;
+                    }
+
+                    // CaptureMessage events. Capture() puts the caller's text in the
+                    // error_message EXTRA instead, so Message is null on the events in
+                    // this issue - the extras branch above is what covers those. Each
+                    // property is rewritten only when it is non-null, so a null Formatted
+                    // stays null rather than becoming "".
+                    var message = sentryEvent.Message;
+                    if (message != null)
+                    {
+                        if (message.Formatted != null)
+                        {
+                            message.Formatted = RedactUserIdentifiers(message.Formatted);
+                        }
+
+                        if (message.Message != null)
+                        {
+                            message.Message = RedactUserIdentifiers(message.Message);
+                        }
+
+                        sentryEvent.Message = message;
+                    }
+
+                    // Every step above is total: RedactUserIdentifiers never throws for
+                    // any input, and nothing here indexes or parses. A throw inside
+                    // beforeSend costs the whole event, so keep it that way.
                     return sentryEvent;
                 });
 
@@ -251,6 +297,157 @@ public static class SentryService
             || keyLower.Contains("text")
             || keyLower.Contains("prompt")
             || keyLower.Contains("path");
+    }
+
+    /// <summary>
+    /// Replaces the signed-in user's Windows identifiers - profile directory,
+    /// local-app-data directory and bare account name - with fixed tokens, and
+    /// leaves the rest of the text alone.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// HYPERWHISPER-Y5/-YF/-Z1 put three real Windows account names in the Sentry
+    /// issue TITLE. A <c>FileLoadException</c> message embeds the full install path,
+    /// that path holds the account name, and the privacy filter in
+    /// <c>SetBeforeSend</c> only ever rewrote <c>Extra</c> - matching on the KEY, so
+    /// the exception's own message was never examined. The rule was already written
+    /// down at <see cref="OptionalAssemblyGuard"/>: never the exception message and
+    /// never <c>FileLoadException.FileName</c>, because both carry the installed
+    /// path and that path holds the user's account name. This is what keeps it on
+    /// the unhandled path, which does not go through that guard.
+    /// </para>
+    /// <para>
+    /// The identifiers are read from the process rather than matched by pattern. The
+    /// sentence around the path is localized by Windows - the German form of "an
+    /// Application Control policy has blocked this file" is what HYPERWHISPER-Y5
+    /// actually carries - but the PATH is not localized, so matching the literal
+    /// directory is locale-proof. A <c>C:\Users\[^\\]+</c> regex is not: it misses a
+    /// redirected profile and it misses a non-<c>C:</c> drive.
+    /// </para>
+    /// <para>
+    /// Order is load-bearing, and it is the reason for the private helper below. The
+    /// bare account name is a SUBSTRING of both directories (<c>C:\Users\bob</c>
+    /// contains <c>bob</c>), so replacing the name first would leave
+    /// <c>C:\Users\%USER%\AppData\...</c>, the directory steps would then match
+    /// nothing, and <c>C:\Users\</c> would survive. The two long, specific prefixes
+    /// go first and the bare name goes LAST. Between the two directories the order is
+    /// not load-bearing: local-app-data normally sits inside the profile, so the
+    /// second step is a no-op on the common path. It is still not dead code - it is
+    /// what catches a local-app-data directory redirected to another drive, which the
+    /// profile prefix never matches. That directory is read from the environment
+    /// rather than from the special-folder API, because only <c>AppPaths</c> may read
+    /// that special folder (see
+    /// <c>scripts/verify_isolated_app_profile_paths.ps1</c>).
+    /// </para>
+    /// <para>
+    /// This deliberately does NOT do what <c>TelemetryPrivacy.SanitizeException</c>
+    /// does on Linux. That throws away the message, the inner exception and the
+    /// HRESULT. Here <c>0x800711C7</c> and the assembly simple name are the entire
+    /// diagnosis, so only the identifiers go. The Linux blanket form is the fallback
+    /// if maximum safety is ever wanted over diagnosis.
+    /// </para>
+    /// <para>
+    /// Over-redaction is possible and accepted: an account named <c>System</c> turns
+    /// unrelated occurrences of that word into <c>%USER%</c>. That is the safe
+    /// direction for a privacy filter and it is how
+    /// <see cref="IsRedactedExtraKey"/> already errs. Beyond the blank and
+    /// drive-root guards there are no length heuristics. The method is total - it
+    /// never throws, for any input - because it runs inside <c>beforeSend</c>, where
+    /// a throw costs the whole event.
+    /// </para>
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static string RedactUserIdentifiers(string? value)
+    {
+        return RedactUserIdentifiers(
+            value,
+            ReadIdentifier(static () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)),
+            ReadIdentifier(static () => Environment.GetEnvironmentVariable("LOCALAPPDATA")),
+            ReadIdentifier(static () => Environment.UserName));
+
+        // An environment that refuses to be read must not cost the event, and must
+        // not take the other two identifiers down with it either.
+        static string? ReadIdentifier(Func<string?> read)
+        {
+            try
+            {
+                return read();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The <see cref="RedactUserIdentifiers(string?)"/> seam: the same redaction with
+    /// the three identifiers supplied instead of read from the live environment.
+    /// </summary>
+    /// <remarks>
+    /// The smoke tests need this. The live entry point reads the account of whoever
+    /// is running it, so a case built on a fixed <c>C:\Users\testaccount\...</c>
+    /// string would pass only on a machine owned by a user named <c>testaccount</c>
+    /// and fail on the CI runner, where the profile is <c>C:\Users\runneradmin</c>.
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static string RedactUserIdentifiers(
+        string? value,
+        string? userProfileDirectory,
+        string? localAppDataDirectory,
+        string? userName)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value ?? string.Empty;
+        }
+
+        // Longest and most specific first; the bare account name LAST. See the
+        // remarks on the one-argument overload for why that order is load-bearing.
+        var redacted = ReplaceIdentifier(value, userProfileDirectory, "%USERPROFILE%", isDirectory: true);
+        redacted = ReplaceIdentifier(redacted, localAppDataDirectory, "%LOCALAPPDATA%", isDirectory: true);
+        redacted = ReplaceIdentifier(redacted, userName, "%USER%", isDirectory: false);
+        return redacted;
+    }
+
+    /// <summary>
+    /// Replaces one identifier with its token, or returns the text unchanged when the
+    /// identifier is not safe to feed to <c>Replace</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>string.Replace(oldValue, newValue, StringComparison)</c> THROWS
+    /// <c>ArgumentException</c> on a zero-length <c>oldValue</c>, so a blank account
+    /// name or an unset environment variable would throw inside <c>beforeSend</c> and
+    /// lose the event. A bare drive root (<c>C:\</c>) is skipped as well: replacing
+    /// it would mangle every path in the message for no privacy gain.
+    /// </remarks>
+    private static string ReplaceIdentifier(string value, string? identifier, string token, bool isDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            return value;
+        }
+
+        var candidate = isDirectory
+            ? identifier.TrimEnd('\\', '/')
+            : identifier;
+
+        // "C:", "C:\", "D:/" - a drive root, and nothing else is this short.
+        if (isDirectory && candidate.Length <= 3)
+        {
+            return value;
+        }
+
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return value;
+        }
+
+        return value.Replace(candidate, token, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
