@@ -3284,9 +3284,13 @@ internal static class Program
 
                 // The same trap round 1's finding 4 caught on SentryExceptions: a
                 // write-back that is inert on an event which HAS the field, and not
-                // inert on one that does not. An empty "fingerprint" key regroups the
-                // event, and a "debug_meta" key the SDK never wrote is noise in every
-                // envelope this app sends that has no stack trace.
+                // inert on one that does not. The DebugImages half is the live one -
+                // materializing the list on an event the SDK gave none to adds a
+                // "debug_meta" key it never wrote. The Fingerprint half is a contract
+                // pin rather than a proof: SentryEvent.Fingerprint is never null in
+                // 4.12.1 and the serializer skips an empty array, so writing one back
+                // is not observable. Both are asserted; only the first is killable,
+                // and the notes say so.
                 var bareEvent = new Sentry.SentryEvent();
                 SentryService.SanitizeEvent(bareEvent, @"C:\Users\testaccount", null, "testaccount");
 

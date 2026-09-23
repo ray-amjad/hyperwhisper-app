@@ -443,9 +443,12 @@ public static class SentryService
             }
         }
 
-        // Count is read rather than a null check: Fingerprint is never null in 4.12.1,
-        // and writing an empty list back would add a "fingerprint" key to an event
-        // that had none, changing how the SDK groups it.
+        // Count is read rather than a null check: Fingerprint is never null in 4.12.1.
+        // The guard saves an allocation on the events that have no fingerprint, which
+        // is most of them; it is NOT load-bearing for behaviour, because the
+        // serializer omits an empty array either way. The DebugImages guard above IS
+        // load-bearing - reading that property does not create the list, and writing
+        // one would add a "debug_meta" key the SDK never wrote.
         if (sentryEvent.Fingerprint.Count > 0)
         {
             sentryEvent.Fingerprint = RedactFingerprint(sentryEvent.Fingerprint, rules);
