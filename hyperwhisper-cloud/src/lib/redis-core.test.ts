@@ -69,6 +69,32 @@ function failingStore(): RedisStore {
   };
 }
 
+/** A store whose read throws exactly `thrown`, whatever shape that is. */
+function throwingStore(thrown: unknown): RedisStore {
+  return {
+    async get(): Promise<never> {
+      throw thrown;
+    },
+    async set(): Promise<never> {
+      throw thrown;
+    },
+  };
+}
+
+/**
+ * The error `@upstash/redis` really throws on an HTTP failure. It builds the
+ * message as `${body.error}, command was: ${JSON.stringify(req.body)}`, and
+ * `req.body` is the command — so the ip_blocked: key, and therefore the client
+ * IP, is INSIDE the message. Reproduced here because that is the only thing
+ * that can carry the IP into the log, and `lib/redis.ts` wires the real client
+ * straight into `core.isIPBlocked`.
+ */
+function upstashError(message: string): Error {
+  const error = new Error(message);
+  error.name = 'UpstashError';
+  return error;
+}
+
 const validLicense: CachedLicense = { isValid: true, credits: 1000, cachedAt: '2026-09-01T00:00:00Z' };
 
 describe('isIPBlocked', () => {
@@ -102,10 +128,12 @@ describe('isIPBlocked', () => {
 
   test('RECORDS each fail-open on console.error, without the IP address', async () => {
     // The fail-open is deliberate, so the return value is not the thing at
-    // risk — the silence was. Both failure shapes have to leave a line, or a
+    // risk — the silence was. Every failure shape has to leave a line, or a
     // disabled abuse gate reads as an hour with no blocked IPs. The IP must
     // NOT appear: the client IP is a privacy finding on this service (#714),
-    // and the operation name plus the error is enough to spot the outage.
+    // and the operation name plus the redacted error is enough to spot the
+    // outage.
+    //
     // The spy is restored here rather than in an afterEach because the
     // getCachedLicense/cacheLicense suites below legitimately call
     // console.error, and must keep reaching the real one.
@@ -118,10 +146,74 @@ describe('isIPBlocked', () => {
       expect(await isIPBlocked(() => failingStore(), '203.0.113.7')).toBe(false);
       expect(spy).toHaveBeenCalledTimes(2);
 
+      // The real leak shape: an HTTP failure from @upstash/redis carries the
+      // command — and so the ip_blocked: key — inside its message.
+      const httpFailure = upstashError(
+        'WRONGPASS invalid password, command was: ["get","ip_blocked:203.0.113.7"]'
+      );
+      expect(await isIPBlocked(() => throwingStore(httpFailure), '203.0.113.7')).toBe(false);
+      expect(spy).toHaveBeenCalledTimes(3);
+
       for (const call of spy.mock.calls) {
+        // Pin the ARITY. `console.error(MSG, redacted, { ip })` would satisfy
+        // every assertion below while putting the address back on the line.
+        expect(call).toHaveLength(2);
         expect(call[0]).toBe('IP block check failed — failing open:');
-        expect(call[1]).toBeInstanceOf(Error);
-        expect(JSON.stringify(call)).not.toContain('203.0.113.7');
+        // A string, not the Error: a raw Error prints a multi-line stack that
+        // a line-oriented shipper splits into several records.
+        expect(typeof call[1]).toBe('string');
+        // Asserted on the argument console.error ACTUALLY received. Never
+        // `JSON.stringify(call)`: an Error's message, stack and cause are all
+        // non-enumerable, so `JSON.stringify(['x', new Error(ip)])` is
+        // `["x",{}]` and that assertion passes over a live leak.
+        expect(call[1]).not.toContain('203.0.113.7');
+      }
+
+      // And the exact line for the leak case, so the redaction is pinned to a
+      // readable value rather than only to the absence of the address.
+      expect(spy.mock.calls[2]).toEqual([
+        'IP block check failed — failing open:',
+        'UpstashError: WRONGPASS invalid password, command was: ["get","ip_blocked:<redacted>"]',
+      ]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('redacts the client IP from the error however the message carries it', async () => {
+    // Redaction is by VALUE — the `ip` argument is the string the key was
+    // built from — so it does not depend on Upstash keeping the
+    // `, command was:` wording, and it still covers an error that names the
+    // address without the key at all.
+    const cases: Array<{ thrown: unknown; logged: string }> = [
+      {
+        thrown: upstashError(
+          'max requests limit exceeded, command was: ["get","ip_blocked:203.0.113.7"]'
+        ),
+        logged:
+          'UpstashError: max requests limit exceeded, command was: ["get","ip_blocked:<redacted>"]',
+      },
+      // No ip_blocked: key in this one: a shape-only redaction would leak it.
+      {
+        thrown: new Error('connect ETIMEDOUT 203.0.113.7:443'),
+        logged: 'Error: connect ETIMEDOUT <redacted ip>:443',
+      },
+      // Not every throw is an Error.
+      {
+        thrown: 'raw string failure for 203.0.113.7',
+        logged: 'raw string failure for <redacted ip>',
+      },
+    ];
+
+    const spy = spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      for (const { thrown, logged } of cases) {
+        spy.mockClear();
+
+        expect(await isIPBlocked(() => throwingStore(thrown), '203.0.113.7')).toBe(false);
+
+        expect(spy.mock.calls).toEqual([['IP block check failed — failing open:', logged]]);
       }
     } finally {
       spy.mockRestore();

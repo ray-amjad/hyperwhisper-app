@@ -34,6 +34,38 @@ export type RedisStoreFactory = () => RedisStore;
 // IP BLOCKING
 // ============================================================================
 
+/**
+ * A Redis failure as ONE log line, with the client IP taken out of it.
+ *
+ * Logging the raw error would ship the caller's IP. `@upstash/redis` builds its
+ * message as `` `${body.error}, command was: ${JSON.stringify(req.body)}` ``,
+ * and `req.body` is the command we sent — `["get","ip_blocked:203.0.113.7"]`.
+ * Its retry loop only retries a fetch that THREW, so every HTTP failure (a
+ * rotated token's 401, a quota 429, any 5xx) lands in the catch below with the
+ * key in the message. That is exactly the outage this log was added for, so
+ * without redaction the line leaks an IP per request — and the client IP is
+ * its own privacy finding on this service (#714). Nothing downstream redacts.
+ *
+ * Two passes, and the FIRST is the one that carries the guarantee:
+ *
+ * 1. By VALUE. The `ip` argument is the string the key was built from, so
+ *    replacing that literal catches it wherever the message put it — after the
+ *    key, in a socket error, in a future upstream that words things some other
+ *    way. Matching the message SHAPE instead (splitting on `, command was:`)
+ *    only holds while Upstash keeps that wording.
+ * 2. By KEY. A backstop for an `ip_blocked:` value we were not handed, e.g. a
+ *    pipelined command or a key built from a normalised address.
+ *
+ * Returns a STRING, never the Error: a raw Error prints a multi-line stack,
+ * and the line-oriented shipper splits that into several unrelated records.
+ */
+function redactIPFromFailure(error: unknown, ip: string): string {
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  const withoutKeys = message.replace(/ip_blocked:[^"'\s\]]*/g, 'ip_blocked:<redacted>');
+  // `replaceAll('')` would splice the replacement between every character.
+  return ip.length > 0 ? withoutKeys.replaceAll(ip, '<redacted ip>') : withoutKeys;
+}
+
 export async function isIPBlocked(store: RedisStoreFactory, ip: string): Promise<boolean> {
   try {
     const blockKey = `ip_blocked:${ip}`;
@@ -44,8 +76,9 @@ export async function isIPBlocked(store: RedisStoreFactory, ip: string): Promise
     // this is the only abuse gate the public endpoints have, so the fail-open
     // has to leave a record: stdout ships to Axiom, and without a line here a
     // disabled gate looks exactly like an hour with no blocked IPs. No IP in
-    // the message — the operation name and the error are enough.
-    console.error('IP block check failed — failing open:', error);
+    // the line — see `redactIPFromFailure`; the operation name and the
+    // redacted error are enough to spot the outage.
+    console.error('IP block check failed — failing open:', redactIPFromFailure(error, ip));
     return false;
   }
 }
