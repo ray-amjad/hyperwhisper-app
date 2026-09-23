@@ -70,8 +70,13 @@ function looksLikeIPAddress(value: string): boolean {
  * the same tick is co-batched into one request — an `ip_blocked:` key for a
  * DIFFERENT caller's IP, a `license:` key, and on a `cacheLicense` write the
  * cached licence object itself. The licence key is the bearer credential for
- * every request (`middleware/auth.ts`). Before this log existed the catch was
- * silent, so this line is the only thing that could ship any of it.
+ * every request (`middleware/auth.ts`). This line is the only thing
+ * `isIPBlocked` ships — its catch was silent before this diff. It is NOT the
+ * only thing in this file that ships that payload: `getCachedLicense` and
+ * `cacheLicense` already log the same Error unredacted on the same failure
+ * (measured: 20 stderr lines on one 401, with the IP, the licence key and the
+ * cached licence value in the clear). That is issue #921, and it is why this
+ * helper takes an optional `ip` — so #921 can route those two through it.
  *
  * So the design is a BOUND first and redaction second — a deny-list that names
  * the secrets it knows about is what let the licence key through. In order:
@@ -85,24 +90,45 @@ function looksLikeIPAddress(value: string): boolean {
  *    UNKNOWN secret: a key, a value or a caller we never thought about is gone
  *    without being named. If Upstash rewords the suffix this degrades to the
  *    passes below — today's behaviour — rather than to a leak.
- * 3. Redact `ip_blocked:` and `license:` values wherever else they appear, for
+ * 3. Cut the userinfo out of any `scheme://user:password@host` URL. The second
+ *    grammar-shaped bound, and it names no secret either. Upstash gives an
+ *    operator TWO connection strings for one database — a REST URL, and a
+ *    `redis://default:<PASSWORD>@host:6379` URL that carries the password
+ *    inline. Paste the second into `UPSTASH_REDIS_CLOUD_URL` and the real
+ *    client throws `UrlError` from its constructor, INSIDE this try, with the
+ *    whole URL quoted back in the message (measured, v1.36.1). No other pass
+ *    reaches it: there is no `, command was:` suffix, no Redis key, it is not
+ *    the client IP, and the line measures 199 characters so the cap does not
+ *    fire — and the password sits at the FRONT, so the cap would not help.
+ *    The host is deliberately kept, or an operator cannot see WHICH url is
+ *    wrong.
+ * 4. Redact `ip_blocked:` and `license:` values wherever else they appear, for
  *    a message that names a key outside the command payload.
- * 4. Redact this request's own `ip` by VALUE, which is the only pass that
- *    reaches an address carried some other way entirely —
- *    `connect ETIMEDOUT 203.0.113.7:443` has no key and no command suffix.
+ * 5. Redact this request's own `ip` by VALUE, which is the only pass that
+ *    reaches an address carried some other way entirely — a DNS failure gives
+ *    `TypeError: getaddrinfo ENOTFOUND 203.0.113.7.invalid`, which has no key
+ *    and no command suffix. (That example is MEASURED on this runtime. The
+ *    `connect ETIMEDOUT <addr>:443` shape this comment used to cite does NOT
+ *    occur here: bun's fetch gives `Unable to connect. Is the computer able to
+ *    access the url?` with the address only on a non-enumerable property, and
+ *    Node/undici hides it on `error.cause`, which this helper never reads.)
  *    Gated on `looksLikeIPAddress` so the `'unknown'` sentinel is not
  *    substituted into English.
- * 5. Truncate to `MAX_FAILURE_LOG_CHARS`.
+ * 6. Truncate to `MAX_FAILURE_LOG_CHARS`.
  *
  * No two passes depend on each other's order for CORRECTNESS. Every marker a
- * pass can WRITE INTO the line — `<redacted>`, `<redacted-ip>` — holds no
- * whitespace, `"`, `'` or `]`, so a later pass can only re-match one whole
- * (which is idempotent) and can never truncate one. Round 1's `<redacted ip>`
- * did have a space, which is what made the old order load-bearing; the hyphen
- * removed the hazard rather than documenting it. The order above is for
- * readability. Dropping any one of 2, 3 or 4 re-opens a leak the tests pin, so
- * none is redundant. (`<unloggable failure>` is the catch-path return, not a
- * marker: it replaces the whole line and never meets another pass.)
+ * pass can WRITE INTO the line — `<redacted>`, `<redacted-ip>`,
+ * `<redacted-credentials>` — holds no whitespace, `"`, `'`, `]`, `/`, `?`, `#`
+ * or `@`, so it matches no other pass's character class in part: a later pass
+ * can only re-match one whole (which is idempotent) and can never truncate
+ * one. Pass 3 re-matching its OWN output is the case that needs `@` on that
+ * list, and `redis://<redacted-credentials>@host` is a fixed point. Round 1's
+ * `<redacted ip>` did have a space, which is what made the old order
+ * load-bearing; the hyphen removed the hazard rather than documenting it. The
+ * order above is for readability. Dropping any one of 2, 3, 4 or 5 re-opens a
+ * leak the tests pin, so none is redundant. (`<unloggable failure>` is the
+ * catch-path return, not a marker: it replaces the whole line and never meets
+ * another pass.)
  *
  * `ip` is optional so #921 can reuse this for the `getCachedLicense` /
  * `cacheLicense` catches, which have no address to redact. Those two lines are
@@ -124,6 +150,16 @@ function toRedactedLogLine(error: unknown, ip?: string): string {
 
     let line = raw.replace(/\s+/g, ' ').trim();
     line = line.replace(/, command was:[\s\S]*$/, ', command was: <redacted>');
+    // The class stops at the characters RFC 3986 says end an authority, so the
+    // userinfo it can eat is only ever real userinfo. Without `/` this eats a
+    // module path — `file:///…/node_modules/@upstash/redis/nodejs.mjs` becomes
+    // `file://<redacted-credentials>@upstash/redis/nodejs.mjs` — and without
+    // `?` it eats a query string up to an `@` in a parameter value. Both are
+    // ordinary diagnostic text, and neither is a credential.
+    line = line.replace(
+      /([a-z][a-z0-9+.-]*:\/\/)[^@\s"'/?#\]]*@/gi,
+      '$1<redacted-credentials>@'
+    );
     line = line
       .replace(/ip_blocked:[^"'\s\]]*/g, 'ip_blocked:<redacted>')
       .replace(/license:[^"'\s\]]*/g, 'license:<redacted>');

@@ -213,8 +213,12 @@ describe('isIPBlocked', () => {
     // same tick. A deny-list that redacts `ip_blocked:` and this request's own
     // address leaves a concurrent getCachedLicense / cacheLicense in the clear
     // — and the licence key is the BEARER CREDENTIAL for every request
-    // (middleware/auth.ts). Before this diff the catch logged nothing, so this
-    // line is the only thing that could ever ship it to Axiom.
+    // (middleware/auth.ts). Before this diff `isIPBlocked`'s catch logged
+    // nothing, so this line is the only thing IT ships. It is not the only
+    // thing in this file that ships the payload: getCachedLicense and
+    // cacheLicense log the same Error raw on the same failure today. That is
+    // #921, which owns them; this test pins that isIPBlocked does not join
+    // them.
     const coBatched = autoPipelinedFailure(
       'WRONGPASS invalid password',
       ['get', 'ip_blocked:203.0.113.7'],
@@ -361,6 +365,17 @@ describe('isIPBlocked', () => {
         logged: 'UpstashError: max requests limit exceeded, command was: <redacted>',
       },
       // No ip_blocked: key and no command suffix: both shape passes are blind.
+      // MEASURED on bun 1.4.2 against the real client: a host that does not
+      // resolve is the one socket-level failure whose message really does
+      // carry the address. (`connect ETIMEDOUT <addr>:443` does NOT occur on
+      // this runtime — bun's fetch says "Unable to connect. Is the computer
+      // able to access the url?" and keeps the address off the message.)
+      {
+        thrown: new TypeError('getaddrinfo ENOTFOUND 203.0.113.7.invalid'),
+        logged: 'TypeError: getaddrinfo ENOTFOUND <redacted-ip>.invalid',
+      },
+      // A synthetic shape, kept because the pass must not depend on where in
+      // the sentence the address sits.
       {
         thrown: new Error('connect ETIMEDOUT 203.0.113.7:443'),
         logged: 'Error: connect ETIMEDOUT <redacted-ip>:443',
@@ -380,6 +395,75 @@ describe('isIPBlocked', () => {
       expect(consoleError.mock.calls).toEqual([
         ['IP block check failed — failing open:', logged],
       ]);
+    }
+  });
+
+  test('strips the password from a redis:// URL the client quotes back, and keeps the host', async () => {
+    // Upstash hands an operator TWO connection strings for one database: a
+    // REST URL, which carries no secret, and
+    // `redis://default:<PASSWORD>@host:6379`, which carries the password
+    // inline. Pasting the wrong one into UPSTASH_REDIS_CLOUD_URL is an
+    // ordinary ops mistake, and the REAL client then throws UrlError from its
+    // constructor — inside getRedis(), inside this catch — with the whole URL
+    // quoted back. MEASURED against @upstash/redis v1.36.1 in a real child
+    // process: without this pass the password reaches stderr verbatim.
+    //
+    // Every other pass is blind to it: no `, command was:` suffix, no Redis
+    // key, not the client IP, and the line is UNDER the 200-char cap.
+    const password = 'AX9sASQgNmI4ZTk1YTctSUPERSECRET';
+    const host = 'eu2-lucky-crab-12345.upstash.io';
+    const urlError = new errors.UrlError(`redis://default:${password}@${host}:6379`);
+    // Guard the FIXTURE: if the library ever stops quoting the URL back, the
+    // assertions below would pass vacuously.
+    expect(urlError).toBeInstanceOf(errors.UrlError);
+    expect(urlError.message).toContain(password);
+
+    // Thrown from the FACTORY, which is where the real client constructor runs.
+    expect(
+      await isIPBlocked(() => {
+        throw urlError;
+      }, '203.0.113.7')
+    ).toBe(false);
+
+    const logged = loggedLine();
+    expect(logged).not.toContain(password);
+    expect(logged).not.toContain('SUPERSECRET');
+    // The host SURVIVES — an operator has to be able to see which url is
+    // wrong, or the line cannot be acted on.
+    expect(logged).toContain(host);
+    expect(logged).toBe(
+      'UrlError: Upstash Redis client was passed an invalid URL. You should pass a URL starting with https. Received: "redis://<redacted-credentials>@eu2-lucky-crab-12345.upstash.io:6379".'
+    );
+    // And prove the CAP is not what saved it: the line is under the bound, and
+    // the password sat at the front of the URL where truncation never reaches.
+    expect(logged).not.toEndWith('<truncated>');
+    expect(logged.length).toBeLessThan(200);
+  });
+
+  test('does not corrupt an ordinary message that merely contains an @', async () => {
+    // The credential pass is a regex over free text, so its false POSITIVES
+    // matter as much as its negatives: a marker written over a support address
+    // or a module path destroys the only diagnostic the operator has. The
+    // character class stops at the characters RFC 3986 says end an authority,
+    // which is what keeps all three of these whole.
+    const untouched = [
+      // An email address: no `scheme://` in front of it at all.
+      'quota exceeded — contact support@hyperwhisper.com to raise it',
+      // A scoped npm package inside a file:// URL. The `/` in the class is the
+      // only thing standing between this and
+      // `file://<redacted-credentials>@upstash/redis/nodejs.mjs`.
+      'Cannot find module imported from file:///app/node_modules/@upstash/redis/nodejs.mjs',
+      // An `@` inside a query-string value, after a perfectly ordinary https URL.
+      'request to https://console.upstash.com/redis?owner=ops@example.com failed',
+    ];
+
+    for (const message of untouched) {
+      consoleError.mockClear();
+
+      expect(await isIPBlocked(() => throwingStore(new Error(message)), '203.0.113.7')).toBe(false);
+
+      expect(loggedLine()).toBe(`Error: ${message}`);
+      expect(loggedLine()).not.toContain('<redacted-credentials>');
     }
   });
 
