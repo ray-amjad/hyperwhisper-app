@@ -236,6 +236,22 @@
       ],
       "licensed": false,
       "note": "mac round on a rented Namespace box, Xcode 26, app 2.48.0 (118), UNLICENSED (Debug build points at Cloud staging, and no HYPERWHISPER_ACCOUNT_KEY in the box). Onboarding was walked first so the app had Whisper Base and a real on-device transcription. FILED #873 (new Mode defaults to Cloud with no key and is made active). COMMENTED #642 with a wider repro (the stale licence error also survives navigating away and back) and the cause. Codex named 6 defects over 3 routes: 5 of the 6 died on a re-drive - the FIRST click of every gui drive connection on macOS is swallowed, so Codex reads a dead control. The modes route needed a second run: codex returned no JSON at step 3 and burned 15 minutes."
+    },
+    {
+      "at": "2026-09-23T01:47:48Z",
+      "platform": "linux",
+      "commit": "f2821cf5",
+      "routes": [
+        "vocabulary",
+        "provider-settings",
+        "onboarding"
+      ],
+      "status": "1-filed",
+      "issues": [
+        924
+      ],
+      "licensed": false,
+      "note": "Linux, unlicensed (no HYPERWHISPER_ACCOUNT_KEY in the box). Filed #924: the Test dictation step renders one blocked string for all 4 conjuncts of IsTestReady. vocabulary and provider-settings were walked hard and were clean. TRAP: start the app with PULSE_SERVER=unix:/tmp/pulse-*/native. pulseaudio started without XDG_RUNTIME_DIR puts its socket in /tmp, the app looks in XDG_RUNTIME_DIR, the microphone list is then EMPTY and Codex files 2 fake defects about it. gui setup/exec/drive need --container <name>, but fuzz-drive calls gui with no flag, so rename the container to gui before you drive."
     }
   ]
 }
