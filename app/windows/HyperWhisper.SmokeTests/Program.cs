@@ -2958,6 +2958,26 @@ internal static class Program
                         $"account '{account}' did not redact to the expected string, got: {forAccount}");
                 }
 
+                // The token itself, for the account names that are SUBSTRINGS OF THE
+                // TOKEN - the half of finding 3 the fixture above cannot show, because
+                // a path under local-app-data never emits %USERPROFILE%. Under three
+                // passes "User" produced %%USER%PROFILE%, "file" produced
+                // %USERPRO%USER%%, and both re-encode the identifier the pass before
+                // had just removed. A forward scan cannot: it never reads its own
+                // output.
+                foreach (var account in new[] { "User", "USER", "file", "Profile", "PRO" })
+                {
+                    var profile = $@"C:\Users\{account}";
+                    var forAccount = SentryService.RedactUserIdentifiers(
+                        $@"Saved to {profile}\Documents\recording.wav",
+                        profile,
+                        @"D:\CacheRoot\Local",
+                        account);
+
+                    Assert(forAccount == @"Saved to %USERPROFILE%\Documents\recording.wav",
+                        $"account '{account}' rewrote the token that had just replaced it, got: {forAccount}");
+                }
+
                 // ROUND 1, FINDING 6. The fixture above sits under the supplied
                 // local-app-data directory, so ONE rule satisfies all of it and the
                 // other could be deleted with the block still green. These two cannot
@@ -2996,6 +3016,13 @@ internal static class Program
                     "a zero-length account name with no other identifier must leave the value alone");
                 Assert(SentryService.RedactUserIdentifiers(message, "", null, "   ") == message,
                     "a blank identifier is not skipped");
+                // The `IsNullOrWhiteSpace` guard is what keeps a whitespace-only
+                // account name out of the rule set, and this is the one value that
+                // proves it: a lone space satisfies BOTH boundaries (start of string
+                // on the left, end of string on the right), so an unguarded rule
+                // would rewrite it. Every longer value bounds it away.
+                Assert(SentryService.RedactUserIdentifiers(" ", null, null, " ") == " ",
+                    "a whitespace-only account name rewrote a whitespace value");
                 Assert(SentryService.RedactUserIdentifiers(message, @"C:\", @"C:\", null) == message,
                     "a bare drive root is not skipped");
 
@@ -3130,8 +3157,7 @@ internal static class Program
 
                 // "logentry" is what a SentryMessage serializes as - the protocol's
                 // own name for it, not SentryEvent.Message.
-                var messageEvent = transport.FindPayload(payload =>
-                    payload["exception"] == null && payload["logentry"] != null);
+                var messageEvent = transport.FindPayload(payload => payload["logentry"] != null);
                 Assert(messageEvent != null, $"the SDK sent no message event at all: {transport.Dump()}");
 
                 var texts = new[] { "message", "formatted" }
