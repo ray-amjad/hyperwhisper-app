@@ -251,6 +251,26 @@ public static class SentryService
     /// way to tell two devices apart inside one issue. But Windows offers the
     /// account name as the default computer name, so "RAY-DESKTOP-PC" is a real
     /// shape, and the account name comes out of it like anywhere else.</item>
+    /// <item><c>DebugImages[].CodeFile</c> / <c>.DebugFile</c> - the second door onto
+    /// the very path HYPERWHISPER-Y5 / -YF / -Z1 are about. <c>AttachStacktrace</c>
+    /// is on by design, so the SDK's own <c>DebugStackTrace</c> adds one debug image
+    /// per managed module with <c>CodeFile = module.FullyQualifiedName</c>, and the
+    /// installer is per-user
+    /// (<c>setup-x64.iss</c>: <c>%LOCALAPPDATA%\Programs\HyperWhisper</c>). Those
+    /// images are merged onto the event BEFORE <c>beforeSend</c> runs, so a clean
+    /// title shipped in the same envelope as
+    /// <c>"code_file":"C:\Users\bob\AppData\Local\Programs\..."</c>. They are
+    /// REDACTED rather than dropped: the module file name is what makes a stack
+    /// frame symbolicate, and #932 explicitly keeps the assembly simple name.</item>
+    /// <item><c>Fingerprint</c> - <see cref="Capture"/>'s default fingerprint is
+    /// <c>["{{ default }}", message, errorType]</c> and the caller's message can hold
+    /// a path, so a redacted <c>value</c> rode beside a raw <c>fingerprint</c>. The
+    /// literal <c>{{ default }}</c> directive is left alone - it is Sentry's grouping
+    /// instruction, not data - and everything else goes through the redactor. That
+    /// MERGES what used to be one Sentry group per account name into one group per
+    /// fault, which is the grouping the fingerprint was always meant to express; it
+    /// cannot split a group, because the redactor is a function of the text alone
+    /// and two events that fingerprinted alike still do.</item>
     /// </list>
     /// </para>
     /// <para>
@@ -264,16 +284,25 @@ public static class SentryService
     /// </para>
     /// <para>
     /// Every step is total: <see cref="Redact"/> never throws for any input, and
-    /// nothing here indexes or parses. A throw inside <c>beforeSend</c> costs the
-    /// whole event, so keep it that way. The identifiers are read ONCE per event
-    /// rather than once per field.
+    /// nothing here indexes or parses. The outer <c>try</c> is a backstop for the
+    /// step after this one, and it returns <c>null</c> - it DROPS the event - rather
+    /// than returning what it was handed. That is not the conservative choice it
+    /// looks like. In sentry-dotnet 4.12.1 the <c>beforeSend</c> invocation
+    /// (<c>SentryClient.BeforeSendInternal</c>) already sits inside a <c>try</c>: a
+    /// throw aborts the assignment that would have taken the sanitized result, the
+    /// <c>catch</c> logs, and the method falls through to <c>return @event</c> - the
+    /// ORIGINAL, un-sanitized event. So letting a throw escape publishes
+    /// <c>C:\Users\bob\...</c>, and with <c>MaxBreadcrumbs = 0</c> even the SDK's own
+    /// "BeforeSend callback failed" breadcrumb is dropped, so it would be silent.
+    /// Losing one event is the cheaper failure. The identifiers are read ONCE per
+    /// event rather than once per field.
     /// </para>
     /// </remarks>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static SentryEvent SanitizeEvent(SentryEvent sentryEvent)
-        => SanitizeEvent(sentryEvent, BuildLiveRedactionRules());
+    internal static SentryEvent? SanitizeEvent(SentryEvent sentryEvent)
+        => SanitizeEventGuarded(sentryEvent, static () => BuildLiveRedactionRules());
 
     /// <summary>
     /// The <see cref="SanitizeEvent(SentryEvent)"/> seam: the same sanitization with
@@ -282,14 +311,47 @@ public static class SentryService
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static SentryEvent SanitizeEvent(
+    internal static SentryEvent? SanitizeEvent(
         SentryEvent sentryEvent,
         string? userProfileDirectory,
         string? localAppDataDirectory,
         string? userName)
-        => SanitizeEvent(
+        => SanitizeEventGuarded(
             sentryEvent,
-            BuildRedactionRules(userProfileDirectory, localAppDataDirectory, userName));
+            () => BuildRedactionRules(userProfileDirectory, localAppDataDirectory, userName));
+
+    /// <summary>
+    /// <see cref="SanitizeEvent(SentryEvent, IReadOnlyList{RedactionRule})"/>, with a
+    /// fault turned into a dropped event instead of an un-sanitized one.
+    /// </summary>
+    private static SentryEvent? SanitizeEventGuarded(
+        SentryEvent sentryEvent,
+        Func<IReadOnlyList<RedactionRule>> buildRules)
+    {
+        try
+        {
+            return SanitizeEvent(sentryEvent, buildRules());
+        }
+        catch (Exception ex)
+        {
+            // The exception's own text can hold the identifier this method exists to
+            // remove, and this log line stays on the user's machine - but the type
+            // name is all a maintainer needs to find the fault, so only that is
+            // written. The log call itself is guarded: nothing in this catch may
+            // escape, or the SDK ships the raw event.
+            try
+            {
+                LoggingService.Debug(
+                    $"SentryService: beforeSend sanitization failed ({ex.GetType().Name}); dropping the event");
+            }
+            catch
+            {
+                // Deliberately empty - see above.
+            }
+
+            return null;
+        }
+    }
 
     private static SentryEvent SanitizeEvent(SentryEvent sentryEvent, IReadOnlyList<RedactionRule> rules)
     {
@@ -356,8 +418,72 @@ public static class SentryService
             sentryEvent.ServerName = Redact(sentryEvent.ServerName, rules);
         }
 
+        // Mutated in place, like the exception values above: the list and the images
+        // in it belong to the event, and the SDK has already merged its own images
+        // onto it. Null is left null - reading the property does not create the list,
+        // and writing an empty one would add a "debug_meta" key the event never had.
+        if (sentryEvent.DebugImages != null)
+        {
+            foreach (var debugImage in sentryEvent.DebugImages)
+            {
+                if (debugImage == null)
+                {
+                    continue;
+                }
+
+                if (debugImage.CodeFile != null)
+                {
+                    debugImage.CodeFile = Redact(debugImage.CodeFile, rules);
+                }
+
+                if (debugImage.DebugFile != null)
+                {
+                    debugImage.DebugFile = Redact(debugImage.DebugFile, rules);
+                }
+            }
+        }
+
+        // Count is read rather than a null check: Fingerprint is never null in 4.12.1,
+        // and writing an empty list back would add a "fingerprint" key to an event
+        // that had none, changing how the SDK groups it.
+        if (sentryEvent.Fingerprint.Count > 0)
+        {
+            sentryEvent.Fingerprint = RedactFingerprint(sentryEvent.Fingerprint, rules);
+        }
+
         return sentryEvent;
     }
+
+    /// <summary>
+    /// One fingerprint, redacted part by part, with Sentry's grouping directive left
+    /// alone.
+    /// </summary>
+    /// <remarks>
+    /// <c>{{ default }}</c> tells Sentry to fold its own grouping in beside these
+    /// parts. It is an instruction, not data, and an account named <c>default</c>
+    /// would otherwise turn it into <c>{{ %USER% }}</c> - a string Sentry does not
+    /// recognise - and silently regroup every issue for that one user.
+    /// </remarks>
+    private static string[] RedactFingerprint(
+        IReadOnlyList<string> fingerprint,
+        IReadOnlyList<RedactionRule> rules)
+    {
+        var redacted = new string[fingerprint.Count];
+        for (var i = 0; i < fingerprint.Count; i++)
+        {
+            var part = fingerprint[i];
+            redacted[i] = part == null || part == SentryDefaultFingerprintDirective
+                ? part!
+                : Redact(part, rules);
+        }
+
+        return redacted;
+    }
+
+    /// <summary>
+    /// Sentry's own grouping directive, which must survive redaction verbatim.
+    /// </summary>
+    private const string SentryDefaultFingerprintDirective = "{{ default }}";
 
     /// <summary>
     /// Whether the Sentry privacy filter replaces this extra's value with <c>"[redacted]"</c>.
@@ -463,8 +589,10 @@ public static class SentryService
     /// <c>System</c> turns a standalone occurrence of that word into <c>%USER%</c>.
     /// That is the safe direction for a privacy filter and it is how
     /// <see cref="IsRedactedExtraKey"/> already errs. The method is total - it never
-    /// throws, for any input - because it runs inside <c>beforeSend</c>, where a
-    /// throw costs the whole event.
+    /// throws, for any input - because it runs inside <c>beforeSend</c>, and a throw
+    /// there does NOT cost the event: sentry-dotnet 4.12.1 catches it and sends the
+    /// event it was handed, un-sanitized. See
+    /// <see cref="SanitizeEventGuarded"/>, which turns that into a dropped event.
     /// </para>
     /// </remarks>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
@@ -510,10 +638,33 @@ public static class SentryService
     }
 
     /// <summary>
-    /// One identifier, the token that replaces it, and whether it has to stand alone
-    /// to count as a match.
+    /// What has to sit around a run of text for it to count as this identifier.
     /// </summary>
-    private readonly record struct RedactionRule(string Identifier, string Token, bool RequiresBoundaries);
+    private enum MatchBoundary
+    {
+        /// <summary>
+        /// A directory: the match has to END a path segment, so the character after
+        /// it must be a separator or the end of the string. Without that,
+        /// <c>C:\Users\bob\AppData\Local</c> matched inside
+        /// <c>...\AppData\LocalLow\NVIDIA\x.log</c> (a standard Windows sibling) and
+        /// produced <c>%LOCALAPPDATA%Low\NVIDIA\x.log</c>, and profile
+        /// <c>C:\Users\bob</c> rewrote a SECOND account's <c>C:\Users\bobby\...</c>
+        /// to <c>%USERPROFILE%by\...</c> - a fragment of someone else's name,
+        /// attributed to the reporter. Neither is "over-redaction"; both mangle the
+        /// diagnosis, and the second one leaks.
+        /// </summary>
+        DirectorySegment,
+
+        /// <summary>
+        /// A bare account name: neither neighbour may be a letter or a digit.
+        /// </summary>
+        WholeWord
+    }
+
+    /// <summary>
+    /// One identifier, the token that replaces it, and what has to bound a match.
+    /// </summary>
+    private readonly record struct RedactionRule(string Identifier, string Token, MatchBoundary Boundary);
 
     /// <summary>
     /// The three identifiers of the signed-in user, read from the process.
@@ -552,17 +703,19 @@ public static class SentryService
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every guard that decides whether an identifier is usable lives here, once:
-    /// a blank identifier is dropped (it would otherwise match at every position and
-    /// advance the scan by nothing), a directory loses a trailing separator, and a
-    /// bare drive root (<c>C:\</c>, three characters or fewer once trimmed) is
-    /// dropped because replacing it would mangle every path in the message for no
-    /// privacy gain.
+    /// Every guard that decides whether an identifier is usable lives here, once, and
+    /// this is the ONLY producer of rules: a blank identifier is dropped - both the
+    /// directories and the account name go through <c>IsNullOrWhiteSpace</c> - a
+    /// directory loses a trailing separator, and a bare drive root (<c>C:\</c>, three
+    /// characters or fewer once trimmed) is dropped because replacing it would mangle
+    /// every path in the message for no privacy gain. Because the blank guards are
+    /// here, <see cref="MatchRule"/> can never be handed a zero-length identifier and
+    /// carries no guard of its own for one.
     /// </para>
     /// <para>
-    /// A directory needs no boundaries: it is long, it is specific, and a false
-    /// match is over-redaction. The bare account name does, because it can be two
-    /// characters long and Windows sets no minimum.
+    /// Both kinds of rule are bounded, in different ways - see
+    /// <see cref="MatchBoundary"/>. A directory has to end a path segment; a bare
+    /// account name has to be a whole word.
     /// </para>
     /// </remarks>
     private static IReadOnlyList<RedactionRule> BuildRedactionRules(
@@ -577,7 +730,7 @@ public static class SentryService
 
         if (!string.IsNullOrWhiteSpace(userName))
         {
-            rules.Add(new RedactionRule(userName, "%USER%", RequiresBoundaries: true));
+            rules.Add(new RedactionRule(userName, "%USER%", MatchBoundary.WholeWord));
         }
 
         // OrderByDescending is stable, so two identifiers of the same length keep
@@ -599,7 +752,7 @@ public static class SentryService
                 return;
             }
 
-            rules.Add(new RedactionRule(trimmed, token, RequiresBoundaries: false));
+            rules.Add(new RedactionRule(trimmed, token, MatchBoundary.DirectorySegment));
         }
     }
 
@@ -651,10 +804,12 @@ public static class SentryService
             var rule = rules[i];
             var length = rule.Identifier.Length;
 
-            // A zero-length identifier would match at every position and move the
-            // cursor by nothing. BuildRedactionRules drops blanks; this keeps the
-            // scan terminating even if one ever reached it.
-            if (length == 0 || index + length > value.Length)
+            // No zero-length guard here on purpose: BuildRedactionRules is the only
+            // producer of rules and it drops every blank identifier, so one cannot
+            // reach this loop - a guard for it would be unreachable code that no test
+            // could kill. The scan terminates even if one ever did, because Redact
+            // advances the cursor whenever the returned length is not positive.
+            if (index + length > value.Length)
             {
                 continue;
             }
@@ -664,7 +819,7 @@ public static class SentryService
                 continue;
             }
 
-            if (rule.RequiresBoundaries && !IsStandaloneIdentifier(value, index, length))
+            if (!IsBoundedMatch(value, index, length, rule.Boundary))
             {
                 continue;
             }
@@ -678,41 +833,65 @@ public static class SentryService
     }
 
     /// <summary>
-    /// Whether the run at <paramref name="index"/> is a whole account name rather
-    /// than a fragment of a longer word.
+    /// Whether the run at <paramref name="index"/> is bounded the way its rule needs.
     /// </summary>
-    private static bool IsStandaloneIdentifier(string value, int index, int length)
-        => (index == 0 || IsAccountNameBoundary(value[index - 1]))
-            && (index + length == value.Length || IsAccountNameBoundary(value[index + length]));
+    private static bool IsBoundedMatch(string value, int index, int length, MatchBoundary boundary)
+        => boundary == MatchBoundary.DirectorySegment
+            ? index + length == value.Length || IsDirectorySeparator(value[index + length])
+            : (index == 0 || IsAccountNameBoundary(value[index - 1]))
+                && (index + length == value.Length || IsAccountNameBoundary(value[index + length]));
+
+    private static bool IsDirectorySeparator(char character)
+        => character == '\\' || character == '/';
 
     /// <summary>
-    /// The characters an account name cannot run across.
+    /// A character a bare account name cannot run across: anything that is not a
+    /// letter and not a digit.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Windows forbids <c>" / \ [ ] : ; | = , + * ? &lt; &gt;</c> and whitespace in an
-    /// account name, so a run that touches one of them cannot be the middle of a
-    /// longer name - which makes them exactly the right boundary set. The two
-    /// apostrophes and <c>-</c> / <c>_</c> are added because they are where a bare
-    /// account name actually shows up outside a path: a Bluetooth endpoint named
-    /// after its owner ("Bob's AirPods", and Apple writes the curly one), and a
-    /// machine name Windows offered to build out of the account name ("BOB-PC").
+    /// This is the rule, and it is the third one tried. A bare substring match
+    /// shredded the diagnosis (account <c>ed</c> turned
+    /// <c>HyperWhisper.SharedCore.dll</c> into <c>HyperWhisper.Shar%USER%Core.dll</c>).
+    /// A delimiter-INCLUSION set - only the characters Windows forbids in an account
+    /// name, plus whitespace, the apostrophes, <c>-</c> and <c>_</c> - kept the
+    /// diagnosis but left the leak wide open, because it excluded <c>.</c>, <c>@</c>
+    /// and the parentheses: account <c>bob</c> survived in
+    /// <c>'C:\Users\bob\Documents\bob.docx'</c>, in <c>Bob.AirPods</c>, in
+    /// <c>bob@corp.com</c> and in <c>Headset (Bob's AirPods)</c> - and the first of
+    /// those is the exact shape of the Sentry issue TITLE that #932 exists to close.
     /// </para>
     /// <para>
-    /// What is deliberately NOT here is as load-bearing as what is. <c>.</c> is a
-    /// legal account-name character, so it is not a boundary, and that is what keeps
-    /// <c>HyperWhisper.SharedCore.dll</c> whole for an account named <c>dll</c>,
-    /// <c>Core</c> or <c>SharedCore</c>. <c>(</c> and <c>)</c> are legal too, so
-    /// <c>(0x800711C7)</c> stays whole for an account named <c>0x800711C7</c> - and
-    /// with alphanumerics excluded as well, no substring of either token can ever
-    /// match. The one string that can still take the whole run is an account name
-    /// equal to the entire token, and Windows caps an account name at 20 characters.
+    /// Excluding only letters and digits keeps BOTH properties, because the strings
+    /// #932 must preserve are dotted tokens whose parts sit between letters and
+    /// digits, not at their edges. Traced, for the message in the issue:
+    /// <list type="bullet">
+    /// <item>account <c>ed</c> in <c>SharedCore</c> - neighbours <c>r</c> and
+    /// <c>C</c>, both alphanumeric, so no match; the assembly name survives.</item>
+    /// <item>account <c>c</c> in <c>0x800711C7</c> - neighbours <c>1</c> and
+    /// <c>7</c>, so no match; the HRESULT survives.</item>
+    /// <item>account <c>bob</c> in <c>\bob.docx</c> - neighbours <c>\</c> and
+    /// <c>.</c>, so it MATCHES; the leak closes.</item>
+    /// <item>account <c>Bob</c> in <c>(Bob's AirPods)</c> - neighbours <c>(</c> and
+    /// <c>'</c>, so it MATCHES; the leak closes.</item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// The residual cost is exact, and it is over-redaction rather than a leak: an
+    /// account named <c>dll</c>, <c>SharedCore</c> or <c>0x800711C7</c> - all legal
+    /// Windows account names - loses that token out of its own crash report, because
+    /// <c>.dll'</c> and <c>(0x800711C7)</c> ARE whole words by this rule. That is the
+    /// accepted direction for this filter, the same direction
+    /// <see cref="IsRedactedExtraKey"/> already errs in, and a lost file extension is
+    /// cheaper than a published account name.
+    /// </para>
+    /// <para>
+    /// <see cref="char.IsLetterOrDigit(char)"/> rather than an ASCII range, so a CJK
+    /// or Cyrillic account name is bounded by the same rule as a Latin one.
     /// </para>
     /// </remarks>
     private static bool IsAccountNameBoundary(char character)
-        => char.IsWhiteSpace(character) || AccountNameBoundaryCharacters.Contains(character);
-
-    private const string AccountNameBoundaryCharacters = "\"/\\[]:;|=,+*?<>'\u2019-_";
+        => !char.IsLetterOrDigit(character);
 
     /// <summary>
     /// Shutdown Sentry and flush pending events.
@@ -841,7 +1020,15 @@ public static class SentryService
                     }
                 }
 
-                // Set custom fingerprint for proper grouping
+                // Set custom fingerprint for proper grouping.
+                //
+                // Both branches put caller text into the fingerprint, and the caller's
+                // message can hold a path - CaptureDiagnosticEvent passes its own
+                // message down here as well. The fingerprint is a field of the event
+                // like any other, so SanitizeEvent redacts it in beforeSend rather
+                // than each call site doing it; that is also what keeps the SDK's
+                // "{{ default }}" directive intact. Do not pre-redact here: this runs
+                // on the scope, and doing it twice buys nothing.
                 if (fingerprint != null && fingerprint.Length > 0)
                 {
                     scope.SetFingerprint(fingerprint);
@@ -1003,7 +1190,14 @@ public static class SentryService
         var preparedData = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
             ["diagnostic_message"] = redactedMessage,
-            ["diagnostic_fingerprint"] = fingerprint ?? new[] { "diagnostic", redactedMessage }
+
+            // The caller's fingerprint goes through the redactor too. It used to be
+            // written straight through - CaptureDiagnosticTransaction(..., fingerprint:
+            // new[] { Environment.UserName }) would have shipped the raw account name
+            // in a field whose sibling one line up was carefully redacted.
+            ["diagnostic_fingerprint"] = fingerprint != null
+                ? RedactFingerprint(fingerprint, rules)
+                : new[] { "diagnostic", redactedMessage }
         };
 
         if (extras != null)

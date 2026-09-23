@@ -2938,13 +2938,15 @@ internal static class Program
                 //
                 // Every account below must leave the fixture at the SAME redacted
                 // string: the dll name, the HRESULT and the sentence are untouched
-                // whoever is signed in. "Core", "dll", "SharedCore" and "0x800711C7"
-                // are the other half of that claim - a boundary rule that fired on them
-                // would shred the diagnosis just as thoroughly as no rule at all.
+                // whoever is signed in. Each one sits INSIDE a token the issue says
+                // must survive - "ed" and "Core" inside SharedCore, "c" and "al"
+                // inside the HRESULT and inside Local, "Whisper" inside
+                // HyperWhisper - so a boundary rule that fired on them would shred
+                // the diagnosis just as thoroughly as no rule at all.
                 foreach (var account in new[]
                          {
                              "ed", "c", "al", "User", "App", "Data",
-                             "Core", "dll", "SharedCore", "0x800711C7", "testaccount"
+                             "Core", "Whisper", "Shared", "testaccount"
                          })
                 {
                     var profile = $@"C:\Users\{account}";
@@ -2957,6 +2959,69 @@ internal static class Program
                     Assert(forAccount == ExpectedRedactedLoadFailure,
                         $"account '{account}' did not redact to the expected string, got: {forAccount}");
                 }
+
+                // ROUND 2, FINDING 2. THE COST OF THE RULE ABOVE, WRITTEN DOWN.
+                //
+                // Round 1 shipped a delimiter-INCLUSION boundary set - only the
+                // characters Windows forbids in an account name, plus whitespace, the
+                // apostrophes, '-' and '_'. It kept the diagnosis and it left the leak
+                // open, because '.', '@', '(' and ')' were all excluded: account "bob"
+                // survived in 'C:\Users\bob\Documents\bob.docx', which is the exact
+                // shape of the Sentry issue TITLE #932 exists to close.
+                //
+                // The rule is now "a boundary is any character that is not a letter
+                // and not a digit". The four cases below are what that costs, and the
+                // block after this one is what it buys. An account named literally
+                // "dll", "SharedCore" or "0x800711C7" loses that token out of its own
+                // crash report, because ".dll'" and "(0x800711C7)" ARE whole words by
+                // this rule. That is OVER-redaction, not a leak, it is the direction
+                // IsRedactedExtraKey already errs in, and it is the accepted trade:
+                // a lost file extension beats a published account name.
+                foreach (var (account, expected) in new[]
+                         {
+                             ("dll", @"Could not load file or assembly '%LOCALAPPDATA%\Programs\HyperWhisper\HyperWhisper.SharedCore.%USER%'. An Application Control policy has blocked this file. (0x800711C7)"),
+                             ("SharedCore", @"Could not load file or assembly '%LOCALAPPDATA%\Programs\HyperWhisper\HyperWhisper.%USER%.dll'. An Application Control policy has blocked this file. (0x800711C7)"),
+                             ("0x800711C7", @"Could not load file or assembly '%LOCALAPPDATA%\Programs\HyperWhisper\HyperWhisper.SharedCore.dll'. An Application Control policy has blocked this file. (%USER%)")
+                         })
+                {
+                    var profile = $@"C:\Users\{account}";
+                    var forAccount = SentryService.RedactUserIdentifiers(
+                        $@"Could not load file or assembly '{profile}\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.dll'. An Application Control policy has blocked this file. (0x800711C7)",
+                        profile,
+                        $@"{profile}\AppData\Local",
+                        account);
+
+                    Assert(forAccount == expected,
+                        $"account '{account}' is the accepted over-redaction case and it changed, got: {forAccount}");
+                }
+
+                // ROUND 2, FINDING 2. WHAT THE RULE BUYS. Every one of these shipped
+                // the account name under the round-1 boundary set, and the first is
+                // the issue TITLE itself.
+                Assert(SentryService.RedactUserIdentifiers(
+                        @"Access to the path 'C:\Users\bob\Documents\bob.docx' is denied.",
+                        @"C:\Users\bob",
+                        null,
+                        "bob")
+                    == @"Access to the path '%USERPROFILE%\Documents\%USER%.docx' is denied.",
+                    "a dot does not bound the account name, so it survived in a file name");
+                Assert(SentryService.RedactUserIdentifiers("Bob.AirPods", null, null, "bob")
+                    == "%USER%.AirPods", "a dotted device name still carries the account name");
+                Assert(SentryService.RedactUserIdentifiers("bob@corp.com", null, null, "bob")
+                    == "%USER%@corp.com", "an @ does not bound the account name");
+                Assert(SentryService.RedactUserIdentifiers("Headset (Bob's AirPods)", null, null, "bob")
+                    == "Headset (%USER%'s AirPods)", "a parenthesis does not bound the account name");
+
+                // char.IsLetterOrDigit, not an ASCII range: a CJK account name has to
+                // be bounded by the same rule as a Latin one, and has to be safe from
+                // a false match inside a longer CJK word. An ASCII-only test would
+                // pass either way, so both halves are here.
+                Assert(SentryService.RedactUserIdentifiers("C:\\Users\\\u7530\u4e2d\\Documents\\x.wav", null, null, "\u7530\u4e2d")
+                    == @"C:\Users\%USER%\Documents\x.wav", "a CJK account name is not redacted");
+                Assert(SentryService.RedactUserIdentifiers("\u7530\u4e2d-PC", null, null, "\u7530\u4e2d")
+                    == "%USER%-PC", "a CJK account name is not redacted beside a hyphen");
+                Assert(SentryService.RedactUserIdentifiers("\u7530\u4e2d\u5cf6", null, null, "\u7530\u4e2d")
+                    == "\u7530\u4e2d\u5cf6", "a CJK account name was rewritten inside a longer CJK word");
 
                 // The token itself, for the account names that are SUBSTRINGS OF THE
                 // TOKEN - the half of finding 3 the fixture above cannot show, because
@@ -2999,11 +3064,68 @@ internal static class Program
                     == @"Saved to %LOCALAPPDATA%\HyperWhisper\hyperwhisper.db",
                     "a redirected local-app-data directory is no longer redacted");
 
-                // ROUND 1, FINDING 7. The zero-length identifier is the one that can
-                // make the scan match at every position and advance by nothing, and
-                // "" in the userProfileDirectory slot never reaches it - the drive-root
-                // guard returns first. userName is the slot that does. The last case
-                // supplies NOTHING else, so only the account-name rule is in play.
+                // ROUND 2, FINDING 3. A directory rule used to match with no trailing
+                // boundary at all, and both of these are real Windows shapes rather
+                // than contrivances.
+                //
+                //   LocalLow is a standard sibling of Local - NVIDIA, Adobe and IE all
+                //   write there - and it came out as "%LOCALAPPDATA%Low\...", which is
+                //   not over-redaction, it is a path no reader can resolve.
+                //
+                //   C:\Users\bobby is a SECOND person's profile on the same machine,
+                //   and profile C:\Users\bob rewrote it to "%USERPROFILE%by\...":
+                //   a fragment of someone else's account name, attributed to the
+                //   reporter. That is a leak with the reporter's name on it.
+                //
+                // A directory now has to END a path segment. The bare-name rule is
+                // what still catches "bobby"... nothing: "bob" inside "bobby" is
+                // bounded on the left by \ and on the right by 'b', so it correctly
+                // does not fire either, and the second account's path is left alone.
+                Assert(SentryService.RedactUserIdentifiers(
+                        @"Failed to read C:\Users\bob\AppData\LocalLow\NVIDIA\x.log",
+                        @"C:\Users\bob",
+                        @"C:\Users\bob\AppData\Local",
+                        "bob")
+                    == @"Failed to read %USERPROFILE%\AppData\LocalLow\NVIDIA\x.log",
+                    "the local-app-data rule matched with no trailing boundary and mangled LocalLow");
+                Assert(SentryService.RedactUserIdentifiers(
+                        @"Failed to read C:\Users\bobby\Documents\x.wav",
+                        @"C:\Users\bob",
+                        @"C:\Users\bob\AppData\Local",
+                        "bob")
+                    == @"Failed to read C:\Users\bobby\Documents\x.wav",
+                    "the profile rule took a bite out of a second account's directory name");
+                // The trailing boundary must not cost a directory that ends the
+                // string, which is the shape a log line uses most.
+                Assert(SentryService.RedactUserIdentifiers(
+                        @"Log directory: C:\Users\bob\AppData\Local",
+                        @"C:\Users\bob",
+                        @"C:\Users\bob\AppData\Local",
+                        "bob")
+                    == "Log directory: %LOCALAPPDATA%",
+                    "a directory at the end of the string is no longer redacted");
+                // ...and a directory followed by anything else still loses the account
+                // name, through the bare-name rule if not through the directory rule.
+                Assert(!SentryService.RedactUserIdentifiers(
+                        @"Log directory: 'C:\Users\bob' was unreadable",
+                        @"C:\Users\bob",
+                        null,
+                        "bob")
+                    .Contains("bob", StringComparison.OrdinalIgnoreCase),
+                    "a quoted profile directory carried the account name out");
+
+                // ROUND 2, FINDING 6. The claim that used to be here was wrong twice
+                // over. There is NO slot that reaches MatchRule with a zero-length
+                // identifier: BuildRedactionRules is the only producer of rules, and
+                // it drops a blank directory and a blank account name with the same
+                // IsNullOrWhiteSpace test. The "length == 0" guard inside MatchRule
+                // was therefore unreachable, no mutation could kill it, and it is gone
+                // - the scan still terminates because Redact advances the cursor
+                // whenever the match length is not positive.
+                //
+                // These cases pin the contract instead: a blank identifier is inert,
+                // whichever slot it arrives in. They are a contract pin, not a proof,
+                // EXCEPT the lone-space one below, which is killable and says so.
                 Assert(SentryService.RedactUserIdentifiers(
                         message,
                         @"C:\Users\testaccount",
@@ -3068,11 +3190,58 @@ internal static class Program
                 sentryEvent.SetTag("selected_input_device_name", "Testaccount's AirPods");
                 sentryEvent.SetTag("component", "transcription");
 
-                SentryService.SanitizeEvent(
+                // ROUND 2, FINDING 1. AttachStacktrace is on by design, so the SDK's
+                // own DebugStackTrace adds one debug image per managed module with
+                // CodeFile = module.FullyQualifiedName - and setup-x64.iss installs
+                // per-user, under %LOCALAPPDATA%\Programs\HyperWhisper. On the very
+                // HYPERWHISPER-Y5 envelope this PR exists to fix, the title read
+                // "%LOCALAPPDATA%\Programs\..." while debug_meta carried
+                // "C:\Users\bob\AppData\Local\Programs\HyperWhisper\HyperWhisper.dll".
+                // They are redacted, not dropped: the module file name is what
+                // symbolicates a frame, and #932 keeps the assembly simple name.
+                sentryEvent.DebugImages = new List<Sentry.Protocol.DebugImage>
+                {
+                    new()
+                    {
+                        Type = "pe_dotnet",
+                        CodeFile = @"C:\Users\testaccount\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.dll",
+                        DebugFile = @"C:\Users\testaccount\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.pdb",
+                        DebugId = "a13b911b-469d-47a0-8fd2-407b06d2a12d-c0b21b72"
+                    }
+                };
+
+                // ROUND 2, FINDING 4. Capture's default fingerprint is
+                // ["{{ default }}", message, errorType] and the caller's message can
+                // hold a path, so a redacted exception value rode beside a raw
+                // fingerprint. "{{ default }}" is Sentry's own grouping directive and
+                // must come through untouched - an account named "default" would
+                // otherwise turn it into "{{ %USER% }}".
+                sentryEvent.Fingerprint = new[] { "{{ default }}", message, "FileLoadException" };
+
+                var sanitized = SentryService.SanitizeEvent(
                     sentryEvent,
                     @"C:\Users\testaccount",
                     @"C:\Users\testaccount\AppData\Local",
                     "testaccount");
+
+                Assert(ReferenceEquals(sanitized, sentryEvent),
+                    "the sanitizer did not return the event it was given");
+                Assert(sentryEvent.DebugImages!.Single().CodeFile
+                        == @"%LOCALAPPDATA%\Programs\HyperWhisper\HyperWhisper.SharedCore.dll",
+                    $"the debug image code_file still carries the install path: {sentryEvent.DebugImages!.Single().CodeFile}");
+                Assert(sentryEvent.DebugImages!.Single().DebugFile
+                        == @"%LOCALAPPDATA%\Programs\HyperWhisper\HyperWhisper.SharedCore.pdb",
+                    $"the debug image debug_file still carries the install path: {sentryEvent.DebugImages!.Single().DebugFile}");
+                Assert(sentryEvent.DebugImages!.Single().DebugId == "a13b911b-469d-47a0-8fd2-407b06d2a12d-c0b21b72",
+                    "the debug image lost the id that makes it symbolicate");
+                Assert(sentryEvent.Fingerprint.Count == 3,
+                    "the fingerprint changed length");
+                Assert(sentryEvent.Fingerprint[0] == "{{ default }}",
+                    $"Sentry's grouping directive was rewritten: {sentryEvent.Fingerprint[0]}");
+                Assert(sentryEvent.Fingerprint[1] == ExpectedRedactedLoadFailure,
+                    $"the fingerprint still carries the account name: {sentryEvent.Fingerprint[1]}");
+                Assert(sentryEvent.Fingerprint[2] == "FileLoadException",
+                    "the fingerprint's error type was rewritten");
 
                 Assert(sentryEvent.SentryExceptions!.Single().Value == ExpectedRedactedLoadFailure,
                     "the exception value - the Sentry issue TITLE - is not redacted");
@@ -3090,6 +3259,67 @@ internal static class Program
                     "an ordinary tag was rewritten");
                 Assert(sentryEvent.ServerName == "%USER%-PC",
                     "the machine name keeps the account name Windows built it out of");
+            });
+
+            Run("SentryService.SanitizeEvent keeps Sentry's grouping directive, adds no key the event lacked, and drops an event it cannot sanitize", () =>
+            {
+                // ROUND 2, FINDING 4, the grouping half. Redacting a fingerprint
+                // changes how Sentry GROUPS. The direction it changes in is the right
+                // one - two users hitting the same fault with their own account name
+                // in the message used to get two issues and now get one - but
+                // "{{ default }}" is not data, it is the instruction that folds the
+                // SDK's own grouping in beside these parts, and an account named
+                // "default" is a legal Windows account name.
+                var directiveEvent = new Sentry.SentryEvent
+                {
+                    Fingerprint = new[] { "{{ default }}", @"C:\Users\default\x.dll" }
+                };
+
+                SentryService.SanitizeEvent(directiveEvent, @"C:\Users\default", null, "default");
+
+                Assert(directiveEvent.Fingerprint[0] == "{{ default }}",
+                    $"an account named 'default' broke Sentry's grouping directive: {directiveEvent.Fingerprint[0]}");
+                Assert(directiveEvent.Fingerprint[1] == @"%USERPROFILE%\x.dll",
+                    $"the rest of the fingerprint is not redacted: {directiveEvent.Fingerprint[1]}");
+
+                // The same trap round 1's finding 4 caught on SentryExceptions: a
+                // write-back that is inert on an event which HAS the field, and not
+                // inert on one that does not. An empty "fingerprint" key regroups the
+                // event, and a "debug_meta" key the SDK never wrote is noise in every
+                // envelope this app sends that has no stack trace.
+                var bareEvent = new Sentry.SentryEvent();
+                SentryService.SanitizeEvent(bareEvent, @"C:\Users\testaccount", null, "testaccount");
+
+                Assert(bareEvent.Fingerprint.Count == 0,
+                    "the sanitizer gave a fingerprint to an event that had none");
+                Assert(bareEvent.DebugImages == null,
+                    "the sanitizer gave a debug-image list to an event that had none");
+
+                // ROUND 2, FINDING 5. The remarks used to say "a throw inside
+                // beforeSend costs the whole event, so keep it that way". That is the
+                // opposite of what sentry-dotnet 4.12.1 does: SentryClient's
+                // BeforeSendInternal wraps the call in a try, the throw aborts the
+                // assignment that would have taken the sanitized result, the catch
+                // logs, and the method falls through to `return @event` - the
+                // ORIGINAL. So an escaping throw PUBLISHES C:\Users\bob\..., and with
+                // MaxBreadcrumbs = 0 even the SDK's own "BeforeSend callback failed"
+                // breadcrumb is dropped, so it would be silent. The sanitizer now
+                // returns null on a fault, which drops the event.
+                //
+                // A null entry in SentryExceptions is the one input that reaches a
+                // throw from outside this class - the collection is settable and the
+                // element type is a reference type.
+                var unsanitizableEvent = new Sentry.SentryEvent
+                {
+                    SentryExceptions = new Sentry.Protocol.SentryException[] { null! }
+                };
+
+                Assert(SentryService.SanitizeEvent(
+                        unsanitizableEvent,
+                        @"C:\Users\testaccount",
+                        null,
+                        "testaccount") == null,
+                    "a sanitizer fault returns an event instead of dropping it - the SDK would ship it raw");
             });
 
             RunAsync("SentryService's Sentry options keep the account name out of the envelope the SDK would send", async () =>
@@ -3126,7 +3356,33 @@ internal static class Program
                     options.AutoSessionTracking = false;
                 })!)
                 {
-                    Sentry.SentrySdk.CaptureException(new FileLoadException(raw));
+                    // ROUND 2, FINDINGS 1 and 4. The debug image and the fingerprint
+                    // are PLANTED, because neither can be made to carry this machine's
+                    // profile directory on demand: the SDK's own debug images point at
+                    // wherever the suite happens to be built, which on CI and on a dev
+                    // box is not under the profile, so an assertion over them alone
+                    // would pass vacuously. A planted image is merged with the SDK's
+                    // own (SentryClient merges debug images BEFORE beforeSend), so
+                    // this reads the real merged list out of the real envelope.
+                    var plantedEvent = new Sentry.SentryEvent(new FileLoadException(raw))
+                    {
+                        DebugImages = new List<Sentry.Protocol.DebugImage>
+                        {
+                            new()
+                            {
+                                Type = "pe_dotnet",
+                                CodeFile = $@"{profileDirectory}\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.dll"
+                            }
+                        }
+                    };
+
+                    // Called as a static: Program.cs deliberately does not take
+                    // `using Sentry;`, so the extension method is not in scope.
+                    Sentry.SentrySdk.CaptureEvent(
+                        plantedEvent,
+                        scope => Sentry.EventLikeExtensions.SetFingerprint(
+                            scope,
+                            new[] { "{{ default }}", raw, "FileLoadException" }));
                     Sentry.SentrySdk.CaptureMessage(raw);
                     await Sentry.SentrySdk.FlushAsync(TimeSpan.FromSeconds(10));
                 }
@@ -3154,6 +3410,48 @@ internal static class Program
                 var serverName = errorEvent["server_name"]?.GetValue<string>();
                 Assert(serverName == SentryService.RedactUserIdentifiers(Environment.MachineName),
                     $"the server name is not the redacted machine name: {serverName}");
+
+                // ROUND 2, FINDING 1, at the envelope. The round-1 case read four
+                // named keys and could not see debug_meta at all. Every code_file in
+                // the merged list is checked, not just the planted one, so an SDK
+                // image that happens to sit under the profile is covered too.
+                var debugImages = errorEvent["debug_meta"]?["images"]?.AsArray();
+                Assert(debugImages != null && debugImages.Count > 0,
+                    $"the envelope carries no debug images, so this proves nothing: {transport.Dump()}");
+
+                var plantedCodeFile = $@"{profileDirectory}\AppData\Local\Programs\HyperWhisper\HyperWhisper.SharedCore.dll";
+                var plantedCodeFileSeen = false;
+                foreach (var image in debugImages!)
+                {
+                    foreach (var key in new[] { "code_file", "debug_file" })
+                    {
+                        var path = image?[key]?.GetValue<string>();
+                        if (path == null)
+                            continue;
+
+                        Assert(path == SentryService.RedactUserIdentifiers(path),
+                            $"debug_meta.images[].{key} still carries the install path: {path}");
+                    }
+
+                    if (image?["code_file"]?.GetValue<string>()
+                        == SentryService.RedactUserIdentifiers(plantedCodeFile))
+                    {
+                        plantedCodeFileSeen = true;
+                    }
+                }
+
+                Assert(plantedCodeFileSeen,
+                    $"the planted debug image is not in the envelope, so the loop above proves nothing: {transport.Dump()}");
+
+                // ROUND 2, FINDING 4, at the envelope. The fingerprint is set on the
+                // SCOPE, which the SDK applies to the event before beforeSend runs.
+                var envelopeFingerprint = errorEvent["fingerprint"]?.AsArray();
+                Assert(envelopeFingerprint != null && envelopeFingerprint.Count == 3,
+                    $"the envelope carries no fingerprint, so this proves nothing: {transport.Dump()}");
+                Assert(envelopeFingerprint![0]?.GetValue<string>() == "{{ default }}",
+                    $"Sentry's grouping directive did not survive: {envelopeFingerprint[0]}");
+                Assert(envelopeFingerprint[1]?.GetValue<string>() == expected,
+                    $"the envelope's fingerprint still carries the account name: {envelopeFingerprint[1]}");
 
                 // "logentry" is what a SentryMessage serializes as - the protocol's
                 // own name for it, not SentryEvent.Message.
@@ -3209,7 +3507,13 @@ internal static class Program
                         ["selected_input_device_name"] = deviceName,
                         ["component"] = "transcription"
                     },
-                    new[] { "transcription-no-speech" });
+                    // ROUND 2, FINDING 4 / the Codex [P1]. The caller's fingerprint
+                    // used to be written into diagnostic_fingerprint verbatim, one
+                    // line below a diagnostic_message that was carefully redacted.
+                    // Latent today - every in-repo caller passes a constant - but
+                    // CaptureDiagnosticTransaction is public and a transaction never
+                    // reaches beforeSend, so nothing downstream would have caught it.
+                    new[] { "transcription-no-speech", Environment.UserName });
 
                 Assert((string)data["selected_input_device_name"]! == "%USER%'s AirPods",
                     $"the transaction extra still carries the account name: {data["selected_input_device_name"]}");
@@ -3223,6 +3527,20 @@ internal static class Program
                     "an ordinary transaction tag was rewritten");
                 Assert(tags["event_type"] == "diagnostic",
                     "the transaction event_type tag is missing");
+
+                var transactionFingerprint = (string[])data["diagnostic_fingerprint"]!;
+                Assert(transactionFingerprint.Length == 2,
+                    "the transaction fingerprint changed length");
+                Assert(transactionFingerprint[0] == "transcription-no-speech",
+                    "a constant fingerprint part was rewritten");
+                // Codex's [P1] verbatim: CaptureDiagnosticTransaction(..., fingerprint:
+                // new[] { Environment.UserName }). Asserted as the exact token rather
+                // than "does not contain the name", because %USERPROFILE% contains the
+                // string "USER" and an account named "User" - Microsoft's default on a
+                // Windows dev VM image, and this dev box - would pass that test while
+                // leaking.
+                Assert(transactionFingerprint[1] == "%USER%",
+                    $"the transaction fingerprint still carries the account name: {transactionFingerprint[1]}");
             });
 
             Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic reclassifies a zero-frame recording as EmptyRecording, not no-speech", () =>
