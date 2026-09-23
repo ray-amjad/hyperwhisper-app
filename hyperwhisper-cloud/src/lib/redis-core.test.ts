@@ -13,7 +13,15 @@
 // `./redis-core`, so a plain import always resolves to the real thing whatever
 // order bun walks the tree in.
 
-import { describe, expect, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+// The REAL error classes, not a hand-rolled stand-in. A fixture that assigns
+// `error.name = 'UpstashError'` only ever confirms the fixture's own field, so
+// it cannot notice the library renaming or restructuring what it throws. This
+// is safe from bun's process-wide module registry for the same reason the note
+// at the top of the file gives: nothing anywhere in `src/` does
+// `mock.module('@upstash/redis')`, so this import always resolves to the real
+// package.
+import { errors } from '@upstash/redis';
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
 import {
   cacheLicense,
@@ -82,22 +90,58 @@ function throwingStore(thrown: unknown): RedisStore {
 }
 
 /**
- * The error `@upstash/redis` really throws on an HTTP failure. It builds the
- * message as `${body.error}, command was: ${JSON.stringify(req.body)}`, and
- * `req.body` is the command — so the ip_blocked: key, and therefore the client
- * IP, is INSIDE the message. Reproduced here because that is the only thing
- * that can carry the IP into the log, and `lib/redis.ts` wires the real client
- * straight into `core.isIPBlocked`.
+ * The message `@upstash/redis` really throws on a non-ok HTTP response. It
+ * builds it as `${body.error}, command was: ${JSON.stringify(req.body)}`, and
+ * `req.body` is the whole REQUEST — which under auto-pipelining (on by default;
+ * `lib/redis.ts` does not override it) is every command issued in the same
+ * tick, not only ours. So a single failure carries this caller's `ip_blocked:`
+ * key, a concurrent caller's, the `license:` key that is the bearer credential
+ * for every request, and a cached licence VALUE. That is the payload the log
+ * line must not ship.
  */
-function upstashError(message: string): Error {
-  const error = new Error(message);
-  error.name = 'UpstashError';
-  return error;
+function autoPipelinedFailure(upstreamError: string, ...commands: unknown[]): errors.UpstashError {
+  return new errors.UpstashError(`${upstreamError}, command was: ${JSON.stringify(commands)}`);
+}
+
+/** Installs the console.error spy, and gives it a type the `let` below can use. */
+function spyOnConsoleError() {
+  return spyOn(console, 'error').mockImplementation(() => {});
 }
 
 const validLicense: CachedLicense = { isValid: true, credits: 1000, cachedAt: '2026-09-01T00:00:00Z' };
 
 describe('isIPBlocked', () => {
+  // Describe-SCOPED, measured on bun 1.4.2: a hook declared here never runs for
+  // the sibling describes below, so `getCachedLicense` / `cacheLicense` keep the
+  // real console.error and their own logging stays assertable. Hoisted out of
+  // the individual tests because the two fail-open tests that assert only the
+  // RETURN value now also reach the new console.error, and an unsuppressed
+  // `IP block check failed` in the suite output reads as a genuine failure
+  // sitting next to a green result.
+  let consoleError: ReturnType<typeof spyOnConsoleError>;
+
+  beforeEach(() => {
+    consoleError = spyOnConsoleError();
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  /** The single string argument `console.error` received on call `index`. */
+  function loggedLine(index = 0): string {
+    const call = consoleError.mock.calls[index];
+    // Pin the ARITY here, once. `console.error(MSG, redacted, { ip })` would
+    // satisfy every assertion in every test below while putting the address
+    // back on the line.
+    expect(call).toHaveLength(2);
+    expect(call?.[0]).toBe('IP block check failed — failing open:');
+    // A string, not the Error: a raw Error prints a multi-line stack that a
+    // line-oriented shipper splits into several records.
+    expect(typeof call?.[1]).toBe('string');
+    return call?.[1] as string;
+  }
+
   test('reads the ip_blocked: key for the address it was given', async () => {
     const store = recordingStore('true');
 
@@ -131,111 +175,244 @@ describe('isIPBlocked', () => {
     // risk — the silence was. Every failure shape has to leave a line, or a
     // disabled abuse gate reads as an hour with no blocked IPs. The IP must
     // NOT appear: the client IP is a privacy finding on this service (#714),
-    // and the operation name plus the redacted error is enough to spot the
+    // and the operation name plus the bounded error is enough to spot the
     // outage.
-    //
-    // The spy is created and restored inside this test, rather than in an
-    // afterEach, so its whole lifetime sits in one block and only the tests
-    // that install one pay for it. An afterEach would have been SAFE for the
-    // getCachedLicense / cacheLicense suites below, contrary to what this
-    // comment used to say: bun's lifecycle hooks are describe-scoped, so a
-    // hook declared here never runs for a sibling describe. Measured on bun
-    // 1.4.2, not assumed.
-    const spy = spyOn(console, 'error').mockImplementation(() => {});
+    expect(await isIPBlocked(unconfiguredStore, '203.0.113.7')).toBe(false);
+    expect(consoleError).toHaveBeenCalledTimes(1);
 
-    try {
-      expect(await isIPBlocked(unconfiguredStore, '203.0.113.7')).toBe(false);
-      expect(spy).toHaveBeenCalledTimes(1);
+    expect(await isIPBlocked(() => failingStore(), '203.0.113.7')).toBe(false);
+    expect(consoleError).toHaveBeenCalledTimes(2);
 
-      expect(await isIPBlocked(() => failingStore(), '203.0.113.7')).toBe(false);
-      expect(spy).toHaveBeenCalledTimes(2);
+    // The real leak shape: a non-ok HTTP response from @upstash/redis carries
+    // the request body — and so the ip_blocked: key — inside its message.
+    const httpFailure = autoPipelinedFailure('WRONGPASS invalid password', [
+      'get',
+      'ip_blocked:203.0.113.7',
+    ]);
+    expect(await isIPBlocked(() => throwingStore(httpFailure), '203.0.113.7')).toBe(false);
+    expect(consoleError).toHaveBeenCalledTimes(3);
 
-      // The real leak shape: an HTTP failure from @upstash/redis carries the
-      // command — and so the ip_blocked: key — inside its message.
-      const httpFailure = upstashError(
-        'WRONGPASS invalid password, command was: ["get","ip_blocked:203.0.113.7"]'
-      );
-      expect(await isIPBlocked(() => throwingStore(httpFailure), '203.0.113.7')).toBe(false);
-      expect(spy).toHaveBeenCalledTimes(3);
-
-      for (const call of spy.mock.calls) {
-        // Pin the ARITY. `console.error(MSG, redacted, { ip })` would satisfy
-        // every assertion below while putting the address back on the line.
-        expect(call).toHaveLength(2);
-        expect(call[0]).toBe('IP block check failed — failing open:');
-        // A string, not the Error: a raw Error prints a multi-line stack that
-        // a line-oriented shipper splits into several records.
-        expect(typeof call[1]).toBe('string');
-        // Asserted on the argument console.error ACTUALLY received. Never
-        // `JSON.stringify(call)`: an Error's message, stack and cause are all
-        // non-enumerable, so `JSON.stringify(['x', new Error(ip)])` is
-        // `["x",{}]` and that assertion passes over a live leak.
-        expect(call[1]).not.toContain('203.0.113.7');
-      }
-
-      // And the exact line for the leak case, so the redaction is pinned to a
-      // readable value rather than only to the absence of the address.
-      expect(spy.mock.calls[2]).toEqual([
-        'IP block check failed — failing open:',
-        'UpstashError: WRONGPASS invalid password, command was: ["get","ip_blocked:<redacted>"]',
-      ]);
-    } finally {
-      spy.mockRestore();
+    for (let i = 0; i < 3; i++) {
+      // Asserted on the argument console.error ACTUALLY received. Never
+      // `JSON.stringify(call)`: an Error's message, stack and cause are all
+      // non-enumerable, so `JSON.stringify(['x', new Error(ip)])` is
+      // `["x",{}]` and that assertion passes over a live leak.
+      expect(loggedLine(i)).not.toContain('203.0.113.7');
     }
+
+    // And the exact line for the leak case, so the result is pinned to a
+    // readable value rather than only to the absence of the address.
+    expect(loggedLine(2)).toBe(
+      'UpstashError: WRONGPASS invalid password, command was: <redacted>'
+    );
+  });
+
+  test('drops the WHOLE co-batched command payload, not just this caller keys', async () => {
+    // `enableAutoPipelining` is on by default and `lib/redis.ts` does not turn
+    // it off, so one failed HTTP request carries every command issued in the
+    // same tick. A deny-list that redacts `ip_blocked:` and this request's own
+    // address leaves a concurrent getCachedLicense / cacheLicense in the clear
+    // — and the licence key is the BEARER CREDENTIAL for every request
+    // (middleware/auth.ts). Before this diff the catch logged nothing, so this
+    // line is the only thing that could ever ship it to Axiom.
+    const coBatched = autoPipelinedFailure(
+      'WRONGPASS invalid password',
+      ['get', 'ip_blocked:203.0.113.7'],
+      ['get', 'license:HW-LIVE-7f3a9c2b-CUSTOMER'],
+      ['set', 'license:HW-LIVE-7f3a9c2b-CUSTOMER', { isValid: true, credits: 4200 }]
+    );
+    // Guard the FIXTURE: if the library ever stops putting all of this in one
+    // message these assertions would pass vacuously.
+    expect(coBatched).toBeInstanceOf(errors.UpstashError);
+    expect(coBatched.message).toContain('license:HW-LIVE-7f3a9c2b-CUSTOMER');
+    expect(coBatched.message).toContain('4200');
+
+    expect(await isIPBlocked(() => throwingStore(coBatched), '203.0.113.7')).toBe(false);
+
+    const logged = loggedLine();
+    expect(logged).toBe('UpstashError: WRONGPASS invalid password, command was: <redacted>');
+    for (const secret of ['203.0.113.7', 'HW-LIVE-7f3a9c2b-CUSTOMER', 'credits', '4200']) {
+      expect(logged).not.toContain(secret);
+    }
+
+    consoleError.mockClear();
+
+    // And the licence key named OUTSIDE any command payload — the shape the
+    // auto-pipeline executor re-throws per command, which has no
+    // `, command was:` suffix for the cut to find. Only the key pass reaches it.
+    const perCommand = new errors.UpstashError(
+      'Command failed: WRONGTYPE key license:HW-LIVE-7f3a9c2b-CUSTOMER holds the wrong kind of value'
+    );
+    expect(await isIPBlocked(() => throwingStore(perCommand), '203.0.113.7')).toBe(false);
+    expect(loggedLine()).toBe(
+      'UpstashError: Command failed: WRONGTYPE key license:<redacted> holds the wrong kind of value'
+    );
+    expect(loggedLine()).not.toContain('HW-LIVE-7f3a9c2b-CUSTOMER');
+  });
+
+  test("redacts ANOTHER caller's IP, which the ip argument cannot reach", async () => {
+    // Auto-pipelining co-batches a second request's ip_blocked: read into the
+    // same body. `198.51.100.9` is not the `ip` we were handed, so the
+    // by-VALUE pass is blind to it and only the key pass and the payload cut
+    // stand between it and the log.
+    const other = '198.51.100.9';
+
+    // (a) inside the command payload — the cut removes it.
+    const coBatched = autoPipelinedFailure(
+      'ERR max daily request limit exceeded',
+      ['get', 'ip_blocked:203.0.113.7'],
+      ['get', `ip_blocked:${other}`]
+    );
+    expect(await isIPBlocked(() => throwingStore(coBatched), '203.0.113.7')).toBe(false);
+    expect(loggedLine()).toBe(
+      'UpstashError: ERR max daily request limit exceeded, command was: <redacted>'
+    );
+    expect(loggedLine()).not.toContain(other);
+
+    consoleError.mockClear();
+
+    // (b) named OUTSIDE any command payload — the shape of the per-command
+    // error the auto-pipeline executor re-throws (`Command failed: ...`), which
+    // has no `, command was:` suffix at all. Only the key pass covers this.
+    const perCommand = new errors.UpstashError(
+      `Command failed: ERR key ip_blocked:${other} is read-only in replica mode`
+    );
+    expect(await isIPBlocked(() => throwingStore(perCommand), '203.0.113.7')).toBe(false);
+    expect(loggedLine()).toBe(
+      'UpstashError: Command failed: ERR key ip_blocked:<redacted> is read-only in replica mode'
+    );
+    expect(loggedLine()).not.toContain(other);
+  });
+
+  test('flattens a multi-line upstream body into ONE record', async () => {
+    // UpstashJSONParseError is built from `res.text()` verbatim on the !res.ok
+    // branch, so an intermediary's HTML 502 goes in with real newlines. A
+    // line-oriented shipper splits that into ~8 unrelated records — on exactly
+    // the outage class this log was added to surface.
+    const html = [
+      '<html>',
+      '<head><title>502 Bad Gateway</title></head>',
+      '<body>',
+      '<center><h1>502 Bad Gateway</h1></center>',
+      '<hr><center>nginx/1.25.3</center>',
+      '<!-- client 203.0.113.7 upstream eu-central-1.upstash.io -->',
+      '</body>',
+      '</html>',
+    ].join('\r\n');
+    const parseFailure = new errors.UpstashJSONParseError(html);
+    // Guard the FIXTURE: the newlines must really be in the message.
+    expect(parseFailure).toBeInstanceOf(errors.UpstashError);
+    expect(parseFailure.message).toContain('\r\n');
+
+    expect(await isIPBlocked(() => throwingStore(parseFailure), '203.0.113.7')).toBe(false);
+
+    const logged = loggedLine();
+    expect(logged).not.toContain('\n');
+    expect(logged).not.toContain('\r');
+    expect(logged.split('\n')).toHaveLength(1);
+    expect(logged).not.toContain('203.0.113.7');
+    expect(logged).toStartWith(
+      'UpstashJSONParseError: Unable to parse response body: <html> <head><title>502 Bad Gateway'
+    );
+    // And BOUNDED, so 200 characters of someone else's HTML cannot be the
+    // whole record. 200 + '<truncated>'.length.
+    expect(logged).toEndWith('<truncated>');
+    expect(logged.length).toBe(211);
+  });
+
+  test("does not corrupt English when the address is the 'unknown' sentinel", async () => {
+    // `getClientIP` returns the literal 'unknown' for an off-edge 6PN peer and
+    // for a request with neither Fly-Client-IP nor X-Forwarded-For — both
+    // pinned as production shapes in request-id.test.ts. Substituting that as a
+    // literal would log `ERR <redacted-ip> command 'GET'` and put a redaction
+    // marker exactly where an operator reads the fault code.
+    const wrongCommand = autoPipelinedFailure("ERR unknown command 'GET'", [
+      'get',
+      'ip_blocked:unknown',
+    ]);
+    expect(await isIPBlocked(() => throwingStore(wrongCommand), 'unknown')).toBe(false);
+    expect(loggedLine()).toBe(
+      "UpstashError: ERR unknown command 'GET', command was: <redacted>"
+    );
+
+    consoleError.mockClear();
+
+    // The key pass still covers `ip_blocked:unknown` outside a command payload,
+    // so skipping the value pass costs nothing.
+    const perCommand = new errors.UpstashError(
+      'Command failed: ERR unknown key ip_blocked:unknown in an unknown shard'
+    );
+    expect(await isIPBlocked(() => throwingStore(perCommand), 'unknown')).toBe(false);
+    expect(loggedLine()).toBe(
+      'UpstashError: Command failed: ERR unknown key ip_blocked:<redacted> in an unknown shard'
+    );
   });
 
   test('redacts the client IP from the error however the message carries it', async () => {
-    // Redaction is by VALUE — the `ip` argument is the string the key was
-    // built from — so it does not depend on Upstash keeping the
-    // `, command was:` wording, and it still covers an error that names the
-    // address without the key at all.
+    // The by-VALUE pass is the only one that reaches an address the message
+    // carries with no key and no command suffix, so it stays even though the
+    // payload cut covers the Upstash shapes.
     const cases: Array<{ thrown: unknown; logged: string }> = [
       {
-        thrown: upstashError(
-          'max requests limit exceeded, command was: ["get","ip_blocked:203.0.113.7"]'
-        ),
-        logged:
-          'UpstashError: max requests limit exceeded, command was: ["get","ip_blocked:<redacted>"]',
+        thrown: autoPipelinedFailure('max requests limit exceeded', [
+          'get',
+          'ip_blocked:203.0.113.7',
+        ]),
+        logged: 'UpstashError: max requests limit exceeded, command was: <redacted>',
       },
-      // No ip_blocked: key in this one: a shape-only redaction would leak it.
+      // No ip_blocked: key and no command suffix: both shape passes are blind.
       {
         thrown: new Error('connect ETIMEDOUT 203.0.113.7:443'),
-        logged: 'Error: connect ETIMEDOUT <redacted ip>:443',
+        logged: 'Error: connect ETIMEDOUT <redacted-ip>:443',
       },
       // Not every throw is an Error.
       {
         thrown: 'raw string failure for 203.0.113.7',
-        logged: 'raw string failure for <redacted ip>',
+        logged: 'raw string failure for <redacted-ip>',
       },
     ];
 
-    const spy = spyOn(console, 'error').mockImplementation(() => {});
+    for (const { thrown, logged } of cases) {
+      consoleError.mockClear();
 
-    try {
-      for (const { thrown, logged } of cases) {
-        spy.mockClear();
+      expect(await isIPBlocked(() => throwingStore(thrown), '203.0.113.7')).toBe(false);
 
-        expect(await isIPBlocked(() => throwingStore(thrown), '203.0.113.7')).toBe(false);
+      expect(consoleError.mock.calls).toEqual([
+        ['IP block check failed — failing open:', logged],
+      ]);
+    }
+  });
 
-        expect(spy.mock.calls).toEqual([['IP block check failed — failing open:', logged]]);
-      }
-    } finally {
-      spy.mockRestore();
+  test('still fails open, and still logs a string, when the thrown value resists String()', async () => {
+    // The helper runs inside the catch, so a throw from IT would turn the
+    // fail-open into a 500 — the exact outcome #898 exists to prevent.
+    // `String(aSymbol)` throws a TypeError, and so does an object with a null
+    // prototype or a getter that throws.
+    const hostile: unknown[] = [
+      Symbol('ip_blocked:203.0.113.7'),
+      Object.assign(Object.create(null), { nope: true }),
+      {
+        get message(): string {
+          throw new Error('nope');
+        },
+      },
+    ];
+
+    for (const thrown of hostile) {
+      consoleError.mockClear();
+
+      expect(await isIPBlocked(() => throwingStore(thrown), '203.0.113.7')).toBe(false);
+
+      expect(loggedLine()).not.toContain('203.0.113.7');
     }
   });
 
   test('stays silent on the paths that are not a failure', async () => {
     // A hit and a miss are the normal case. Logging them would bury the
-    // fail-open line the test above pins, on every single request.
-    const spy = spyOn(console, 'error').mockImplementation(() => {});
-
-    try {
-      expect(await isIPBlocked(() => recordingStore('true'), '203.0.113.7')).toBe(true);
-      expect(await isIPBlocked(() => recordingStore(null), '203.0.113.7')).toBe(false);
-      expect(spy).not.toHaveBeenCalled();
-    } finally {
-      spy.mockRestore();
-    }
+    // fail-open line the tests above pin, on every single request.
+    expect(await isIPBlocked(() => recordingStore('true'), '203.0.113.7')).toBe(true);
+    expect(await isIPBlocked(() => recordingStore(null), '203.0.113.7')).toBe(false);
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
 
