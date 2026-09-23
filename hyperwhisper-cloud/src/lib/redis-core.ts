@@ -94,10 +94,15 @@ function looksLikeIPAddress(value: string): boolean {
  *    substituted into English.
  * 5. Truncate to `MAX_FAILURE_LOG_CHARS`.
  *
- * No two passes depend on each other's order for CORRECTNESS — the markers
- * hold no whitespace, `"`, `'` or `]`, so none of them can be re-matched or
- * truncated by a later pass. The order above is for readability. Dropping any
- * one of 2, 3 or 4 re-opens a leak the tests pin, so none is redundant.
+ * No two passes depend on each other's order for CORRECTNESS. Every marker a
+ * pass can WRITE INTO the line — `<redacted>`, `<redacted-ip>` — holds no
+ * whitespace, `"`, `'` or `]`, so a later pass can only re-match one whole
+ * (which is idempotent) and can never truncate one. Round 1's `<redacted ip>`
+ * did have a space, which is what made the old order load-bearing; the hyphen
+ * removed the hazard rather than documenting it. The order above is for
+ * readability. Dropping any one of 2, 3 or 4 re-opens a leak the tests pin, so
+ * none is redundant. (`<unloggable failure>` is the catch-path return, not a
+ * marker: it replaces the whole line and never meets another pass.)
  *
  * `ip` is optional so #921 can reuse this for the `getCachedLicense` /
  * `cacheLicense` catches, which have no address to redact. Those two lines are
