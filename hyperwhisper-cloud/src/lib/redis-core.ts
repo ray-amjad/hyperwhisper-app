@@ -39,7 +39,13 @@ export async function isIPBlocked(store: RedisStoreFactory, ip: string): Promise
     const blockKey = `ip_blocked:${ip}`;
     const blocked = await store().get(blockKey);
     return blocked === 'true';
-  } catch {
+  } catch (error) {
+    // Keep failing open — a Redis outage must not lock every caller out. But
+    // this is the only abuse gate the public endpoints have, so the fail-open
+    // has to leave a record: stdout ships to Axiom, and without a line here a
+    // disabled gate looks exactly like an hour with no blocked IPs. No IP in
+    // the message — the operation name and the error are enough.
+    console.error('IP block check failed — failing open:', error);
     return false;
   }
 }

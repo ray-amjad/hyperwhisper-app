@@ -13,7 +13,7 @@
 // `./redis-core`, so a plain import always resolves to the real thing whatever
 // order bun walks the tree in.
 
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, spyOn, test } from 'bun:test';
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
 import {
   cacheLicense,
@@ -98,6 +98,48 @@ describe('isIPBlocked', () => {
 
   test('fails open when the read itself fails', async () => {
     expect(await isIPBlocked(() => failingStore(), '203.0.113.7')).toBe(false);
+  });
+
+  test('RECORDS each fail-open on console.error, without the IP address', async () => {
+    // The fail-open is deliberate, so the return value is not the thing at
+    // risk — the silence was. Both failure shapes have to leave a line, or a
+    // disabled abuse gate reads as an hour with no blocked IPs. The IP must
+    // NOT appear: the client IP is a privacy finding on this service (#714),
+    // and the operation name plus the error is enough to spot the outage.
+    // The spy is restored here rather than in an afterEach because the
+    // getCachedLicense/cacheLicense suites below legitimately call
+    // console.error, and must keep reaching the real one.
+    const spy = spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      expect(await isIPBlocked(unconfiguredStore, '203.0.113.7')).toBe(false);
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      expect(await isIPBlocked(() => failingStore(), '203.0.113.7')).toBe(false);
+      expect(spy).toHaveBeenCalledTimes(2);
+
+      for (const call of spy.mock.calls) {
+        expect(call[0]).toBe('IP block check failed — failing open:');
+        expect(call[1]).toBeInstanceOf(Error);
+        expect(JSON.stringify(call)).not.toContain('203.0.113.7');
+      }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('stays silent on the paths that are not a failure', async () => {
+    // A hit and a miss are the normal case. Logging them would bury the
+    // fail-open line the test above pins, on every single request.
+    const spy = spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      expect(await isIPBlocked(() => recordingStore('true'), '203.0.113.7')).toBe(true);
+      expect(await isIPBlocked(() => recordingStore(null), '203.0.113.7')).toBe(false);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
