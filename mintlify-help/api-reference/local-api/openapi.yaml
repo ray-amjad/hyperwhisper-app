@@ -51,9 +51,11 @@ paths:
       parameters:
         - in: query
           name: kind
+          description: macOS only. Windows and Linux ignore this parameter and return the full catalog.
           schema: { type: string, enum: [voice, text, all], default: all }
         - in: query
           name: installed_only
+          description: macOS only. Windows and Linux ignore this parameter and return the full catalog.
           schema: { type: boolean, default: false }
       responses:
         '200':
