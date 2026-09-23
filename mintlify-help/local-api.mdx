@@ -208,7 +208,7 @@ If the kept port is not free at a later start, for example because a different p
 
 ## Request timeout
 
-A `/transcribe` or a `/post-process` call is slow. A large local model, or a slow cloud model, needs 30 to 90 seconds, and sometimes more. On macOS, the server allows 10 minutes for one request. On Windows, the server sets no limit on the time of one request.
+A `/transcribe` or a `/post-process` call is slow. A large local model, or a slow cloud model, needs 30 to 90 seconds, and sometimes more. On macOS, the server allows 10 minutes for one request. On Windows and on Linux, the server sets no limit on the time of one request.
 
 Set the timeout of your own HTTP client higher than its default value. Many clients apply a short default timeout. Such a client reports a failure while the transcription is still in progress.
 
@@ -315,10 +315,27 @@ On macOS, `postProcessingMode` must be `0`, `1`, or `2` on create and patch. A P
 
 For a macOS PATCH, an omitted field stays unchanged. An explicit JSON `null` clears these string fields: `customInstructions`, `userSystemPrompt`, `languageModel`, `cloudTranscriptionModel`, `cloudTranscriptionDomain`, `cloudProvider`, `postProcessingProvider`, `englishSpelling`, `cloudAccuracyTier`, `geminiCustomPrompt`, and `cloudPostProcessingModel`. Windows treats `null` like an omitted value for these PATCH fields.
 
-<Note>
-  The two platforms are different in two ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows ignores these parameters and always returns the full catalog.
+### Local models on Linux
 
-  Windows accepts and returns five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the Windows settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them.
+A local Mode on Linux names its engine in `localEngine`. The value is one of two: `whisper` or `parakeet`. Linux removes the whitespace around the value and makes it lower case, and it uses `whisper` when you send no value.
+
+`parakeet` is the engine of every model that the sherpa-onnx daemon runs, and `localParakeetModel` selects which one. So `parakeet` is how you select Nemotron 3.5 or Qwen3 ASR as well. Neither model has a `localEngine` value of its own.
+
+| `localEngine` | Field that names the model | Accepted models | Default |
+| --- | --- | --- | --- |
+| `whisper` | `modelType`, or `model` | `tiny`, `tiny.en`, `base`, `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large-v3-turbo`, `large-v2`, `large-v3` | `base` |
+| `parakeet` | `localParakeetModel`, or `model` | `parakeet-v2`, `parakeet-v3`, `qwen3-asr-0.6b`, `nemotron-3.5-ml-560ms` | `parakeet-v3` |
+
+A different `localEngine`, or a model that is not in the list of its engine, returns an **HTTP 400** with the code `INVALID_REQUEST`. The model must also be one of the voice models that `GET /models` reports.
+
+To write a cloud Mode instead, send `"providerType": "cloud"`. A `"model": "cloud"` sets the same thing.
+
+Windows accepts the same two field names, but it applies no list of accepted values to them. Only Linux refuses an unknown `localEngine` or an unknown local model.
+
+<Note>
+  The platforms are different in two ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows and Linux ignore these parameters and always return the full catalog.
+
+  Windows and Linux accept and return five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them. On Linux, `localEngine` and `localParakeetModel` are the only way to select a local model — read [Local models on Linux](#local-models-on-linux).
 </Note>
 
 The `providers` array includes `key_present`, `reachable`, and `status`. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.

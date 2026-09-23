@@ -158,7 +158,7 @@ cannot read an envelope that contains it. Read the `code`, not the status.
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/health` | Gets the server identity, the provider health, and the local model inventory. **No token necessary.** |
-| GET | `/models?kind=&installed_only=` | Gets the flat model catalog. |
+| GET | `/models` | Gets the flat model catalog. The `kind` and `installed_only` query parameters filter the list on **macOS only**. Windows and Linux ignore them and always return the full catalog. |
 | GET | `/modes` | Lists the saved Modes. |
 | POST | `/modes` | Makes a Mode. |
 | GET | `/modes/{id}` | Gets one Mode. |
