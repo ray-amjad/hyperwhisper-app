@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePostHog } from "posthog-js/react";
+
+import CloudCreditsCardView, {
+  type CloudCreditsTierView,
+} from "./CloudCreditsCardView";
 
 import {
   MIN_CREDIT_DOLLARS,
@@ -9,7 +14,10 @@ import {
   CREDITS_PER_DOLLAR,
   validateCreditPurchaseAmount,
 } from "@/app/api/checkout/credits/validation";
-import { isRecord } from "@/src/lib/type-guards";
+import {
+  createBuyCreditsHandler,
+  type BuyCreditsTier,
+} from "@/src/lib/buy-credits";
 
 interface CloudCreditsCardProps {
   totalCredits: number;
@@ -28,6 +36,16 @@ const CREDIT_TIERS = [
  * Cloud Credits Card
  *
  * Displays total cloud credits across all licenses and buy credits buttons.
+ *
+ * This is the STATEFUL half only. Every byte it renders lives in
+ * `CloudCreditsCardView`, which holds no hooks — see the note there for why the
+ * split exists (#737): a hook-free view can be called as a function in a test,
+ * so the tier buttons' `onClick`, the busy state and the failed state are all
+ * reachable, and none of them are reachable through `renderToStaticMarkup`.
+ *
+ * Because the View can call no hook, this half also PRE-FORMATS every
+ * translated string, including the parameterised per-tier ones, and hands them
+ * down as plain strings.
  */
 export default function CloudCreditsCard({
   totalCredits,
@@ -36,11 +54,17 @@ export default function CloudCreditsCard({
   activeLicenseKey,
 }: CloudCreditsCardProps) {
   const t = useTranslations("cloudCreditsCard");
+  // The two failure strings are the sibling `/credits` form's, reused verbatim:
+  // they already exist, already translated, in all 40 files under `messages/`.
+  // #737 asked for a new key; this declines that and adds none.
+  const tBuyCredits = useTranslations("buyCredits");
+  const posthog = usePostHog();
   // loadingTier holds the dollar amount of the in-flight checkout, or the
   // sentinel "custom" while the custom-amount checkout is being created.
-  const [loadingTier, setLoadingTier] = useState<number | "custom" | null>(
-    null
-  );
+  const [loadingTier, setLoadingTier] = useState<BuyCreditsTier | null>(null);
+  // The message from a checkout the server refused, or `null`. Before #737
+  // this state did not exist and a refusal was shown to nobody.
+  const [error, setError] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
 
@@ -50,132 +74,77 @@ export default function CloudCreditsCard({
   const customValid =
     validateCreditPurchaseAmount(Number(customAmount)) === null;
 
-  const handleBuyCredits = async (
-    amount: number,
-    tier: number | "custom" = amount
-  ) => {
-    if (!activeLicenseKey) return;
+  const tiers: CloudCreditsTierView[] = CREDIT_TIERS.map((tier) => {
+    const minutes = getMinutesForCredits(tier.credits);
 
-    setLoadingTier(tier);
-    try {
-      const response = await fetch("/api/checkout/credits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ licenseKey: activeLicenseKey, amount }),
-      });
-      const data: unknown = await response.json();
-      if (isRecord(data) && typeof data.checkoutUrl === "string") {
-        window.location.href = data.checkoutUrl;
-      }
-    } catch (err) {
-      console.error("Failed to create checkout:", err);
-    } finally {
-      setLoadingTier(null);
-    }
-  };
+    return {
+      amount: tier.amount,
+      creditsLabel: t("creditsCount", { count: tier.credits }),
+      minutesLabel: minutes ? t("minutes", { minutes }) : null,
+    };
+  });
+
+  // Built in the render body, not in a `useEffect` and not inline in `onClick`.
+  // Two things depend on that: the wiring is visible to a test that can render
+  // this component but cannot click it (`tests/user-header-sign-out.test.ts` is
+  // the precedent), and the `setError` below is reachable during this
+  // component's own render, which is the only way this repo can prove a
+  // refusal message actually reaches the screen — see
+  // `tests/cloud-credits-card-error-state.test.ts`. Move this call and that
+  // test goes red. Every rule about when to navigate, what to show and when to
+  // clear the busy flag lives in the factory — see `src/lib/buy-credits.ts`.
+  const handleBuyCredits = createBuyCreditsHandler({
+    // Nullable, and passed straight through: the factory owns the no-licence
+    // refusal so no component can forget it.
+    licenseKey: activeLicenseKey,
+    // NOT the bare global `fetch`. Passed as a value it loses its `this` and
+    // throws `Illegal invocation` in the browser.
+    fetchImpl: (input, init) => fetch(input, init),
+    // The only `window` in this flow. The seam must never grow one.
+    navigate: (destination) => {
+      window.location.href = destination;
+    },
+    // `usePostHog` is typed non-nullable but the provider is not mounted when
+    // `NEXT_PUBLIC_POSTHOG_KEY` is absent, so the value really can be missing
+    // at runtime — the same guard as `app/[locale]/purchase-success/page.tsx`.
+    // The properties come from the seam, which keeps the licence key out of
+    // them: this app's PostHog init has no redaction (#739).
+    reportError: (thrown, properties) => {
+      if (posthog) posthog.captureException(thrown, properties);
+    },
+    setBusy: setLoadingTier,
+    setError,
+    checkoutErrorMessage: tBuyCredits("errorCheckout"),
+    genericErrorMessage: tBuyCredits("errorGeneric"),
+  });
 
   return (
-    <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-      <div className="mb-4">
-        <p className="text-sm text-gray-400 mb-1">{t("title")}</p>
-        <p className="text-2xl font-semibold text-white">
-          {totalCredits.toLocaleString()}
-        </p>
-        {totalMinutesRemaining > 0 && (
-          <p className="text-sm text-gray-400 mt-0.5">
-            {t("minutesRemaining", { minutes: totalMinutesRemaining })}
-          </p>
-        )}
-      </div>
-
-      {activeLicenseKey && (
-        <>
-          <div className="grid grid-cols-3 gap-2">
-            {CREDIT_TIERS.map((tier) => {
-              const minutes = getMinutesForCredits(tier.credits);
-              const isLoading = loadingTier === tier.amount;
-              const isDisabled = loadingTier !== null;
-
-              return (
-                <button
-                  key={tier.amount}
-                  onClick={() => handleBuyCredits(tier.amount)}
-                  disabled={isDisabled}
-                  className="flex flex-col items-center justify-center px-3 py-3 bg-white/5 border border-white/10 text-white font-medium rounded-lg hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                >
-                  {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <span className="text-lg font-semibold">
-                        ${tier.amount}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {t("creditsCount", { count: tier.credits })}
-                      </span>
-                      {minutes && (
-                        <span className="text-xs text-gray-500">
-                          {t("minutes", { minutes })}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Custom amount: toggles an inline input below the tier grid. */}
-            <button
-              onClick={() => setShowCustom((v) => !v)}
-              disabled={loadingTier !== null}
-              aria-pressed={showCustom}
-              className={`flex flex-col items-center justify-center px-3 py-3 border text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors ${
-                showCustom
-                  ? "bg-white/10 border-white/30"
-                  : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
-              }`}
-            >
-              <span className="text-lg font-semibold">{t("custom")}</span>
-              <span className="text-xs text-gray-400">{t("customSub")}</span>
-            </button>
-          </div>
-
-          {showCustom && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="relative flex-1">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  $
-                </span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={MIN_CREDIT_DOLLARS}
-                  max={MAX_CREDIT_DOLLARS}
-                  step={1}
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  placeholder={`${MIN_CREDIT_DOLLARS}–${MAX_CREDIT_DOLLARS}`}
-                  disabled={loadingTier !== null}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-7 pr-3 text-white placeholder:text-gray-500 focus:border-white/30 focus:outline-none disabled:opacity-50"
-                />
-              </div>
-              <button
-                onClick={() =>
-                  handleBuyCredits(Number(customAmount), "custom")
-                }
-                disabled={!customValid || loadingTier !== null}
-                className="flex items-center justify-center rounded-lg bg-white/10 border border-white/20 px-4 py-2 font-medium text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-              >
-                {loadingTier === "custom" ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  t("topUp")
-                )}
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <CloudCreditsCardView
+      activeLicenseKey={activeLicenseKey}
+      customAmount={customAmount}
+      customValid={customValid}
+      error={error}
+      labels={{
+        title: t("title"),
+        minutesRemaining: t("minutesRemaining", {
+          minutes: totalMinutesRemaining,
+        }),
+        custom: t("custom"),
+        customSub: t("customSub"),
+        topUp: t("topUp"),
+      }}
+      loadingTier={loadingTier}
+      maxAmount={MAX_CREDIT_DOLLARS}
+      minAmount={MIN_CREDIT_DOLLARS}
+      showCustom={showCustom}
+      tiers={tiers}
+      totalCredits={totalCredits}
+      totalMinutesRemaining={totalMinutesRemaining}
+      onBuy={(amount, tier) => {
+        void handleBuyCredits(amount, tier);
+      }}
+      onCustomAmountChange={setCustomAmount}
+      onToggleCustom={() => setShowCustom((v) => !v)}
+    />
   );
 }
