@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modelis";
 "streaming.cloudTier.title" = "Tiešraides dzinējs";
 "streaming.cloudTier.description" = "Kuru runas dzinēju HyperWhisper Cloud izmanto tiešraides transkripcijai";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Ātra formatēšana";
 "streaming.fastFormatting.description" = "Samazina intelektuālās formatēšanas aizkavi ātrākai rakstīšanai";
 "streaming.warning.vocabAutoDetect" = "Pielāgotais vārdu krājums ir atspējots automātiskās valodas noteikšanas režīmā";
@@ -767,18 +765,12 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Precizitāte";
-"modes.cloudAccuracy.groqWhisper.label" = "Vidēja (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Vidēja (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Augsta (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Ātrs un pieejams. Labākais ātrajiem transkripcijām.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Līdzsvarots ātrums un precizitāte. Ieteicams lielākajai daļai lietotāju.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredīti/min";
-"modes.cloudAccuracy.grokStt.label" = "Augstākā (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Augsta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Daudzvalodu, ar pielāgota vārdu krājuma atbalstu.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Augsta (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe, izmantojot Azure Speech. Līdz 60 valodām ar konteksta pielāgošanu.";
 
 "modes.create.title" = "Izveidot jaunu režīmu";

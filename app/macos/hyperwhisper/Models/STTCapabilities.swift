@@ -4,6 +4,12 @@
 //
 //  Provider-agnostic registry of cloud STT providers, models, and supported locales.
 //
+//  This registry answers ONE question: which locales does a model accept. It holds
+//  no model name and no company name (#837). It used to hold both, nothing read
+//  them, and they drifted — `Nova-3 General` here against `Nova 3 General` in the
+//  catalog. `models-catalog.json` owns every shown name, and
+//  `SharedModelsCatalog.entry(provider:kind:id:)?.displayName` reads it.
+//
 //  LANGUAGE TAG STANDARDS:
 //  - All locales should use BCP-47 tags (e.g., "en-US", "es-419")
 //  - Special case: "auto" for automatic language detection (handled by provider code)
@@ -168,7 +174,6 @@ enum STTLanguageTemplates {
 
 struct STTModelSpec: Identifiable, Hashable {
     let id: String
-    let displayName: String
     var languages: [STTLanguageSpec]
     var notes: String?
 
@@ -177,7 +182,6 @@ struct STTModelSpec: Identifiable, Hashable {
 
 struct STTProviderSpec: Identifiable, Hashable {
     let id: String // e.g., "elevenlabs"
-    let displayName: String // e.g., "ElevenLabs"
     let authKeyName: String // Settings/Keychain logical name
     var lastVerifiedAt: String? // ISO date string
     var models: [STTModelSpec]
@@ -194,25 +198,21 @@ enum STTCapabilities {
         providers: [
             STTProviderSpec(
                 id: "openai",
-                displayName: "OpenAI",
                 authKeyName: "OpenAI",
                 lastVerifiedAt: "2025-09-17",
                 models: [
                     STTModelSpec(
                         id: "gpt-4o-transcribe",
-                        displayName: "GPT-4o Transcribe",
                         languages: STTLanguageTemplates.whisperUniversal,
                         notes: "Advanced speech-to-text powered by GPT-4o with Whisper language coverage."
                     ),
                     STTModelSpec(
                         id: "gpt-4o-mini-transcribe",
-                        displayName: "GPT-4o Mini Transcribe",
                         languages: STTLanguageTemplates.whisperUniversal,
                         notes: "Fast GPT-4o Mini transcription with full Whisper language support."
                     ),
                     STTModelSpec(
                         id: "whisper-1",
-                        displayName: "Whisper-1",
                         languages: STTLanguageTemplates.whisperUniversal,
                         notes: "General-purpose Whisper model with multilingual support and auto-detection."
                     )
@@ -220,19 +220,16 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "groq",
-                displayName: "Groq",
                 authKeyName: "Groq",
                 lastVerifiedAt: "2025-09-17",
                 models: [
                     STTModelSpec(
                         id: "whisper-large-v3-turbo",
-                        displayName: "Whisper Large v3 Turbo",
                         languages: STTLanguageTemplates.whisperUniversal,
                         notes: "Groq's ultra-fast Whisper implementation with full multilingual coverage."
                     ),
                     STTModelSpec(
                         id: "whisper-large-v3",
-                        displayName: "Whisper Large v3",
                         languages: STTLanguageTemplates.whisperUniversal,
                         notes: "Groq's Whisper v3 model with multilingual support and auto-detection."
                     )
@@ -240,20 +237,17 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "deepgram",
-                displayName: "Deepgram",
                 authKeyName: "Deepgram",
                 lastVerifiedAt: "2025-09-17",
                 models: [
                     // Nova-3 Models
                     STTModelSpec(
                         id: "nova-3-general",
-                        displayName: "Nova-3 General",
                         languages: STTLanguageTemplates.nova3General,
                         notes: "Highest performing model with multilingual support and auto-detection."
                     ),
                     STTModelSpec(
                         id: "nova-3-medical",
-                        displayName: "Nova-3 Medical",
                         languages: STTLanguageTemplates.codes(["en", "en-US", "en-AU", "en-CA", "en-GB", "en-IE", "en-IN", "en-NZ"]),
                         notes: "Medical domain vocabulary."
                     ),
@@ -261,7 +255,6 @@ enum STTCapabilities {
                     // Nova-2 Models
                     STTModelSpec(
                         id: "nova-2-general",
-                        displayName: "Nova-2 General",
                         languages: STTLanguageTemplates.codes([
                             "auto",
                             "bg", "ca", "zh", "zh-CN", "zh-Hans", "zh-TW", "zh-Hant", "zh-HK",
@@ -283,7 +276,6 @@ enum STTCapabilities {
                     ),
                     STTModelSpec(
                         id: "nova-2-medical",
-                        displayName: "Nova-2 Medical",
                         languages: STTLanguageTemplates.englishUS,
                         notes: "Medical domain vocabulary."
                     )
@@ -291,13 +283,11 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "assemblyai",
-                displayName: "AssemblyAI",
                 authKeyName: "AssemblyAI",
                 lastVerifiedAt: "2026-09-17",
                 models: [
                     STTModelSpec(
                         id: "dictation",
-                        displayName: "Dictation",
                         languages: Array(AssemblyAIDictationAudio.languages).sorted().map { code in
                             STTLanguageSpec(code: code, displayName: LanguageData.info(for: code)?.displayName ?? ["xh": "Xhosa", "zu": "Zulu"][code] ?? code)
                         },
@@ -305,7 +295,6 @@ enum STTCapabilities {
                     ),
                     STTModelSpec(
                         id: "universal-2",
-                        displayName: "Universal-2",
                         languages: STTLanguageTemplates.codes([
                             "auto",
                             "en", "es", "fr", "de", "it", "pt", "nl", "hi", "ja", "zh",
@@ -324,7 +313,6 @@ enum STTCapabilities {
                     ),
                     STTModelSpec(
                         id: "universal-3-5-pro",
-                        displayName: "Universal-3.5 Pro",
                         languages: STTLanguageTemplates.codes([
                             "auto",
                             "en", "es", "fr", "de", "it", "pt",
@@ -334,7 +322,6 @@ enum STTCapabilities {
                     ),
                     STTModelSpec(
                         id: "universal-2-medical",
-                        displayName: "Universal-2 (Medical)",
                         languages: STTLanguageTemplates.codes([
                             "auto", "en", "es", "de", "fr"
                         ]),
@@ -342,7 +329,6 @@ enum STTCapabilities {
                     ),
                     STTModelSpec(
                         id: "universal-3-5-pro-medical",
-                        displayName: "Universal-3.5 Pro (Medical)",
                         languages: STTLanguageTemplates.codes([
                             "auto", "en", "es", "de", "fr"
                         ]),
@@ -352,7 +338,6 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "elevenlabs",
-                displayName: "ElevenLabs",
                 authKeyName: "ElevenLabs",
                 lastVerifiedAt: "2025-09-22",
                 models: [
@@ -362,7 +347,6 @@ enum STTCapabilities {
                     // so do NOT re-add it here to "keep old modes working".
                     STTModelSpec(
                         id: "scribe_v2",
-                        displayName: "Scribe v2",
                         languages: STTLanguageTemplates.elevenLabsScribeV2,
                         notes: "Latest generation Scribe model with improved accuracy. Supports custom vocabulary with keyterm prompting (up to 100 terms)."
                     )
@@ -370,13 +354,11 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "mistral",
-                displayName: "Mistral",
                 authKeyName: "Mistral",
                 lastVerifiedAt: "2025-11-27",
                 models: [
                     STTModelSpec(
                         id: "voxtral-mini-latest",
-                        displayName: "Voxtral Mini",
                         languages: STTLanguageTemplates.codes([
                             "auto",
                             "en",  // English
@@ -399,13 +381,11 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "soniox",
-                displayName: "Soniox",
                 authKeyName: "Soniox",
                 lastVerifiedAt: "2026-03-21",
                 models: [
                     STTModelSpec(
                         id: "stt-async-v5",
-                        displayName: "STT Async v5",
                         languages: STTLanguageTemplates.sonioxAsync,
                         notes: "Soniox async batch transcription model with optional language hints and plain-text transcript output."
                     )
@@ -413,12 +393,10 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "hyperwhisper",
-                displayName: "HyperWhisper Cloud",
                 authKeyName: "",
                 models: [
                     STTModelSpec(
                         id: "nova-3",
-                        displayName: "Nova-3 Streaming",
                         languages: STTLanguageTemplates.nova3General,
                         notes: "HyperWhisper Cloud streaming (Deepgram Nova-3 backend)."
                     )
@@ -426,7 +404,6 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "grok",
-                displayName: "Grok",
                 authKeyName: "Grok",
                 lastVerifiedAt: "2026-04-22",
                 models: [
@@ -439,19 +416,16 @@ enum STTCapabilities {
                     // its filter and offers every language.
                     STTModelSpec(
                         id: "",
-                        displayName: "Default",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
                         notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
                     ),
                     STTModelSpec(
                         id: "grok-voice-transcribe-2.0",
-                        displayName: "Grok Voice Transcribe 2",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
                         notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
                     ),
                     STTModelSpec(
                         id: "grok-voice-transcribe-1.0",
-                        displayName: "Grok Voice Transcribe 1",
                         languages: STTLanguageTemplates.grokFormattingLanguages,
                         notes: "SpaceXAI Grok speech-to-text. The language setting only enables number/currency formatting — transcription works on any spoken language."
                     )
@@ -464,19 +438,16 @@ enum STTCapabilities {
             // instead of falling through to the full list.
             STTProviderSpec(
                 id: "azure-mai",
-                displayName: "Azure MAI-Transcribe",
                 authKeyName: "",
                 lastVerifiedAt: "2026-09-04",
                 models: [
                     STTModelSpec(
                         id: "mai-transcribe-2",
-                        displayName: "MAI-Transcribe 2",
                         languages: STTLanguageTemplates.azureMaiTranscribeV2,
                         notes: "Microsoft Azure MAI-Transcribe 2 (public preview). Multilingual mode with a 60-language set — 18 codes wider than 1.5."
                     ),
                     STTModelSpec(
                         id: "mai-transcribe-1.5",
-                        displayName: "MAI-Transcribe 1.5",
                         languages: STTLanguageTemplates.azureMaiTranscribe,
                         notes: "Microsoft Azure MAI-Transcribe 1.5. Multilingual mode with a restricted ~42-language set."
                     )
@@ -484,13 +455,11 @@ enum STTCapabilities {
             ),
             STTProviderSpec(
                 id: "google-chirp",
-                displayName: "Google Chirp",
                 authKeyName: "",
                 lastVerifiedAt: "2026-06-18",
                 models: [
                     STTModelSpec(
                         id: "chirp_3",
-                        displayName: "Chirp 3",
                         languages: STTLanguageTemplates.googleChirp3,
                         notes: "Google Speech-to-Text Chirp 3. 29 GA locales plus preview languages; auto-detect supported."
                     )

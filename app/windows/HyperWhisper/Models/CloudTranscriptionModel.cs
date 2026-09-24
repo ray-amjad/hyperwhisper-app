@@ -23,8 +23,32 @@ public record CloudTranscriptionModel
     /// <summary>API model ID (sent to the cloud API).</summary>
     public required string Id { get; init; }
 
-    /// <summary>Human-readable display name for UI.</summary>
-    public required string DisplayName { get; init; }
+    /// <summary>
+    /// The user-visible model name.
+    ///
+    /// Read from <c>shared-models/models-catalog.json</c> through the shared
+    /// core, never stored here. This file used to carry its own 36 literals and
+    /// they had drifted from macOS: <c>Whisper Large V3</c> here against
+    /// <c>Whisper Large v3</c> there, <c>Scribe V2</c> against <c>Scribe v2</c>,
+    /// and 4 rows appended <c>(Preview)</c> beside the <c>previewStatus</c>
+    /// field that already said so (#837).
+    ///
+    /// The <c>?? Id</c> fallback is never reached in a shipped build:
+    /// <c>HyperWhisper.Application.Tests</c> fails when a registry row has no
+    /// catalog entry, so a raw id cannot reach a user.
+    /// </summary>
+    public string DisplayName =>
+        DisplayNameOverride
+        ?? Services.SharedModelsCatalog.DisplayName(
+            Services.SharedModelsCatalog.CatalogKey(Provider), Services.CatalogKind.Voice, Id)
+        ?? Id;
+
+    /// <summary>
+    /// The one row that is NOT a model, and so has no catalog name: the
+    /// HyperWhisper Cloud sentinel, which keeps <c>GetById(HyperWhisperCloud,
+    /// "default")</c> stable for persisted modes. Nothing else may set it.
+    /// </summary>
+    public string? DisplayNameOverride { get; init; }
 
     /// <summary>Brief description of the model's characteristics.</summary>
     public required string Description { get; init; }
@@ -62,7 +86,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gpt-4o-mini-transcribe-2025-12-15",
-            DisplayName = "GPT-4o Mini Transcribe (2025-12-15)",
             Description = "Latest dated snapshot of GPT-4o Mini Transcribe",
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.003m
@@ -75,7 +98,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gpt-4o-transcribe",
-            DisplayName = "GPT-4o Transcribe",
             Description = "Deprecated by OpenAI - retires 2027-02-26, use GPT Transcribe",
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.006m
@@ -83,7 +105,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gpt-4o-mini-transcribe",
-            DisplayName = "GPT-4o Mini Transcribe",
             Description = "Deprecated by OpenAI - retires 2027-02-26, use the 2025-12-15 snapshot",
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.003m
@@ -91,7 +112,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "whisper-1",
-            DisplayName = "Whisper-1",
             Description = "Deprecated by OpenAI - retires 2027-02-26, use GPT Transcribe",
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.006m
@@ -99,7 +119,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gpt-transcribe",
-            DisplayName = "GPT Transcribe",
             Description = "OpenAI's flat-rate transcription model billed per audio minute",
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.0045m,
@@ -108,7 +127,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gpt-live-transcribe",
-            DisplayName = "GPT Live Transcribe",
             // Requires OpenAI's Realtime WebSocket API. NOT request-capable via this
             // catalog today: OpenAIWhisperService (the consumer of this registry) is a
             // REST/batch client. Windows DOES have a WebSocket transport elsewhere
@@ -140,7 +158,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "whisper-large-v3-turbo",
-            DisplayName = "Whisper Large V3 Turbo",
             Description = "Fastest - optimized for speed with good accuracy",
             Provider = CloudTranscriptionProvider.Groq,
             IsPopular = true
@@ -148,7 +165,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "whisper-large-v3",
-            DisplayName = "Whisper Large V3",
             Description = "Full model - highest accuracy, slower",
             Provider = CloudTranscriptionProvider.Groq
         }
@@ -169,7 +185,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "nova-3-general",
-            DisplayName = "Nova 3 General",
             Description = "The leading model for general transcription from Deepgram",
             Provider = CloudTranscriptionProvider.Deepgram,
             PricePerMinute = 0.0043m,
@@ -178,7 +193,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "nova-3-medical",
-            DisplayName = "Nova 3 Medical",
             Description = "Optimized audio with medical oriented vocabulary",
             Provider = CloudTranscriptionProvider.Deepgram,
             PricePerMinute = 0.0043m
@@ -186,7 +200,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "nova-2-general",
-            DisplayName = "Nova 2 General",
             Description = "General-purpose transcription with high accuracy for diverse audio sources",
             Provider = CloudTranscriptionProvider.Deepgram,
             PricePerMinute = 0.0043m
@@ -194,7 +207,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "nova-2-medical",
-            DisplayName = "Nova-2 Medical",
             Description = "Medical domain vocabulary for clinical conversations and healthcare settings",
             Provider = CloudTranscriptionProvider.Deepgram,
             PricePerMinute = 0.0043m,
@@ -218,7 +230,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "universal-2",
-            DisplayName = "Universal-2",
             Description = "Multi-language model supporting 99 languages with automatic detection. Keyterms prompting up to 200 terms.",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             PricePerMinute = 0.0025m,  // $0.15/hour
@@ -227,7 +238,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "universal-3-5-pro",
-            DisplayName = "Universal-3.5 Pro",
             Description = "AssemblyAI's most accurate model. Natively covers 18 languages. Keyterms prompting up to 1000 terms.",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             PricePerMinute = 0.0035m,  // $0.21/hour - same as Universal-3 Pro
@@ -236,7 +246,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "universal-2-medical",
-            DisplayName = "Universal-2 (Medical)",
             Description = "Universal-2 with Medical Mode add-on for clinical vocabulary. EN/ES/DE/FR only. Medical Mode is billed as a separate add-on on top of Universal-2 pricing.",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             IsPopular = true,
@@ -245,7 +254,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "universal-3-5-pro-medical",
-            DisplayName = "Universal-3.5 Pro (Medical)",
             Description = "Universal-3.5 Pro with Medical Mode add-on for clinical vocabulary. EN/ES/DE/FR only. Medical Mode is billed as a separate add-on on top of Universal-3.5 Pro pricing.",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             IsPopular = true,
@@ -254,7 +262,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "dictation",
-            DisplayName = "Dictation",
             Description = "",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             IsPopular = true,
@@ -279,7 +286,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "scribe_v1",
-            DisplayName = "Scribe V1",
             Description = "Original flagship model (no vocabulary support)",
             Provider = CloudTranscriptionProvider.ElevenLabs,
             IsAvailable = false  // Retired by ElevenLabs 2026-07-09 — resolved to scribe_v2 via LegacyElevenLabsAliases
@@ -287,7 +293,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "scribe_v2",
-            DisplayName = "Scribe V2",
             Description = "Latest model with keyterm prompting (up to 100 terms)",
             Provider = CloudTranscriptionProvider.ElevenLabs,
             IsPopular = true
@@ -310,7 +315,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "voxtral-mini-latest",
-            DisplayName = "Voxtral Mini",
             Description = "Audio transcription with context-bias vocabulary",
             Provider = CloudTranscriptionProvider.Mistral,
             IsPopular = true
@@ -331,7 +335,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "stt-async-v5",
-            DisplayName = "STT Async v5",
             Description = "Soniox's latest async batch transcription model with 60+ supported languages",
             Provider = CloudTranscriptionProvider.Soniox,
             IsPopular = true
@@ -357,7 +360,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gemini-2.5-flash",
-            DisplayName = "Gemini 2.5 Flash",
             Description = "Fast and cost-effective with strong accuracy",
             Provider = CloudTranscriptionProvider.Gemini,
             IsPopular = true
@@ -365,7 +367,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gemini-2.5-flash-lite",
-            DisplayName = "Gemini 2.5 Flash Lite",
             Description = "Cheapest option - good for high-volume use",
             Provider = CloudTranscriptionProvider.Gemini,
             IsPopular = true
@@ -373,7 +374,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gemini-2.5-pro",
-            DisplayName = "Gemini 2.5 Pro",
             Description = "Highest quality - best accuracy for complex audio",
             Provider = CloudTranscriptionProvider.Gemini,
             IsPopular = true
@@ -381,28 +381,24 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gemini-3.1-flash-lite",
-            DisplayName = "Gemini 3.1 Flash Lite",
             Description = "Lightweight, fast and cost-efficient",
             Provider = CloudTranscriptionProvider.Gemini
         },
         new CloudTranscriptionModel
         {
             Id = "gemini-3.6-flash",
-            DisplayName = "Gemini 3.6 Flash",
             Description = "Current general-purpose Gemini Flash model",
             Provider = CloudTranscriptionProvider.Gemini
         },
         new CloudTranscriptionModel
         {
             Id = "gemini-3-flash-preview",
-            DisplayName = "Gemini 3 Flash (Preview)",
             Description = "Next-gen flash model (preview)",
             Provider = CloudTranscriptionProvider.Gemini
         },
         new CloudTranscriptionModel
         {
             Id = "gemini-3.1-pro-preview",
-            DisplayName = "Gemini 3.1 Pro (Preview)",
             Description = "Next-gen pro model - highest quality (preview)",
             Provider = CloudTranscriptionProvider.Gemini
         }
@@ -419,7 +415,7 @@ public static class CloudTranscriptionModels
     private static readonly CloudTranscriptionModel HyperWhisperCloudSentinel = new()
     {
         Id = "default",
-        DisplayName = "Default",
+        DisplayNameOverride = "Default",
         Description = "HyperWhisper Cloud (Deepgram Nova-3 default tier)",
         Provider = CloudTranscriptionProvider.HyperWhisperCloud,
         IsPopular = true
@@ -446,7 +442,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "grok-voice-transcribe-2.0",
-            DisplayName = "Grok Voice Transcribe 2",
             Description = "SpaceXAI's speech-to-text model — auto-detects the language and follows a mid-recording switch.",
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
@@ -455,7 +450,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "grok-voice-transcribe-1.0",
-            DisplayName = "Grok Voice Transcribe 1",
             Description = "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
@@ -479,7 +473,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "mai-transcribe-2",
-            DisplayName = "MAI-Transcribe 2 (Preview)",
             Description = "Microsoft's 60-language transcription model with contextual biasing.",
             Provider = CloudTranscriptionProvider.MicrosoftAzureSpeech,
             // $0.10 per hour of audio — a limited-time offer Microsoft has
@@ -491,7 +484,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "mai-transcribe-1.5",
-            DisplayName = "MAI-Transcribe 1.5 (Preview)",
             Description = "Microsoft's 42-language transcription model with contextual biasing.",
             Provider = CloudTranscriptionProvider.MicrosoftAzureSpeech,
             PricePerMinute = 0.006m,
@@ -512,7 +504,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "chirp_3",
-            DisplayName = "Chirp 3",
             Description = "Google's latest multilingual speech model with phrase adaptation.",
             Provider = CloudTranscriptionProvider.GoogleSpeech,
             PricePerMinute = 0.016m,
@@ -538,7 +529,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "gemini-3.5-transcribe",
-            DisplayName = "Gemini 3.5 Transcribe",
             Description = "Google's dedicated speech-to-text model with custom vocabulary support",
             Provider = CloudTranscriptionProvider.GeminiTranscribe,
             IsPopular = true
@@ -550,7 +540,6 @@ public static class CloudTranscriptionModels
         new CloudTranscriptionModel
         {
             Id = "muse-voice-transcribe-1.0",
-            DisplayName = "Muse Voice Transcribe 1.0",
             Description = "Meta's batch speech-to-text model with language and vocabulary biasing",
             Provider = CloudTranscriptionProvider.Meta,
             IsPopular = true

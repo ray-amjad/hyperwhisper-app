@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Live-motor";
 "streaming.cloudTier.description" = "Hvilken talemotor HyperWhisper Cloud bruger til live-transskription";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Hurtig formatering";
 "streaming.fastFormatting.description" = "Reducerer forsinkelsen for smart formatering for hurtigere indtastning";
 "streaming.warning.vocabAutoDetect" = "Brugerdefineret ordforråd er deaktiveret i automatisk genkendelsestilstand";
@@ -767,18 +765,12 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Nøjagtighed";
-"modes.cloudAccuracy.groqWhisper.label" = "Medium (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Medium (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Høj (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Hurtig og overkommelig. Bedst til hurtige transskriptioner.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanceret hastighed og nøjagtighed. Anbefalet til de fleste brugere.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
-"modes.cloudAccuracy.grokStt.label" = "Højest (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Høj (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flersproget, med understøttelse af brugerdefineret ordforråd.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høj (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Op til 60 sprog med kontekstuel tilpasning.";
 
 "modes.create.title" = "Opret ny tilstand";

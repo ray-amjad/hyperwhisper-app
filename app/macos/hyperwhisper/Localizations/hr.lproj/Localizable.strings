@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Pogon uživo";
 "streaming.cloudTier.description" = "Koji govorni pogon HyperWhisper Cloud koristi za transkripciju uživo";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Brzo formatiranje";
 "streaming.fastFormatting.description" = "Smanjuje kašnjenje pametnog formatiranja za brže tipkanje";
 "streaming.warning.vocabAutoDetect" = "Prilagođeni rječnik je onemogućen u načinu automatskog prepoznavanja";
@@ -767,18 +765,12 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Točnost";
-"modes.cloudAccuracy.groqWhisper.label" = "Srednja (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Srednja (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Visoka (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Brzo i pristupačno. Najbolje za brze transkripcije.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Uravnotežena brzina i točnost. Preporučeno za većinu korisnika.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredita/min";
-"modes.cloudAccuracy.grokStt.label" = "Najviša (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Visoka (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Višejezično, s podrškom za prilagođeni rječnik.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe putem Azure Speech. Do 60 jezika s kontekstualnim usmjeravanjem.";
 
 "modes.create.title" = "Stvori novi način";

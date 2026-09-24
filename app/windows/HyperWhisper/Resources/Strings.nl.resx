@@ -934,15 +934,6 @@ Dit kan niet ongedaan worden gemaakt.</value>
   <data name="modes.cloudAccuracy.title" xml:space="preserve">
     <value>Nauwkeurigheid in de cloud</value>
   </data>
-  <data name="modes.cloudAccuracy.groqWhisper.label" xml:space="preserve">
-    <value>Groq Whisper</value>
-  </data>
-  <data name="modes.cloudAccuracy.deepgramNova3.label" xml:space="preserve">
-    <value>Deepgram Nova 3</value>
-  </data>
-  <data name="modes.cloudAccuracy.elevenLabsScribeV2.label" xml:space="preserve">
-    <value>ElevenLabs Scribe v2</value>
-  </data>
   <data name="modes.cloudAccuracy.groqWhisper.description" xml:space="preserve">
     <value>Groq Whisper - snelste transcriptie, laagste kosten</value>
   </data>
@@ -951,9 +942,6 @@ Dit kan niet ongedaan worden gemaakt.</value>
   </data>
   <data name="modes.cloudAccuracy.elevenLabsScribeV2.description" xml:space="preserve">
     <value>ElevenLabs Scribe v2 - hoogste nauwkeurigheid, trager</value>
-  </data>
-  <data name="modes.cloudAccuracy.grokStt.label" xml:space="preserve">
-    <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
     <value>SpaceXAI Grok STT - hoge nauwkeurigheid, eigen woordenlijst als kernbegrippen</value>
@@ -1834,14 +1822,8 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
     <value>{0} (populair)</value>
   </data>
-  <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe</value>
-  </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
     <value>Microsoft MAI-Transcribe - tot 60 talen, met voorkeur voor opgegeven zinnen</value>
-  </data>
-  <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe - apart spraakmodel, 85+ talen, eigen woordenlijst</value>
@@ -1849,32 +1831,17 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
   </data>
-  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
-    <value>Soniox</value>
-  </data>
   <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
     <value>Soniox - 60 talen, contextuele afstemming</value>
-  </data>
-  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
-    <value>OpenAI Whisper</value>
   </data>
   <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
     <value>OpenAI GPT-4o Transcribe / Whisper</value>
   </data>
-  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
-    <value>Mistral Voxtral</value>
-  </data>
   <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
     <value>Mistral Voxtral - 13 talen, contextuele afstemming</value>
   </data>
-  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
-    <value>Google Gemini</value>
-  </data>
   <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
     <value>Google Gemini - multimodale LLM-transcriptie</value>
-  </data>
-  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
-    <value>AssemblyAI</value>
   </data>
   <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
     <value>AssemblyAI Universal - prompts met sleuteltermen, medische modus</value>

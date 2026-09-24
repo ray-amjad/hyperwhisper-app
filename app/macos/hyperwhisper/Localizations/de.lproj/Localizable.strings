@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modell";
 "streaming.cloudTier.title" = "Live-Engine";
 "streaming.cloudTier.description" = "Welche Sprach-Engine HyperWhisper Cloud für die Live-Transkription verwendet";
-"streaming.model.nova3general" = "Nova 3 Allgemein";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Schnelle Formatierung";
 "streaming.fastFormatting.description" = "Reduziert die Verzögerung bei der intelligenten Formatierung für schnelleres Tippen";
 "streaming.warning.vocabAutoDetect" = "Benutzerdefiniertes Vokabular ist im automatischen Erkennungsmodus deaktiviert";
@@ -767,18 +765,12 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Genauigkeit";
-"modes.cloudAccuracy.groqWhisper.label" = "Mittel (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Mittel (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Hoch (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Schnell und erschwinglich. Am besten für schnelle Transkriptionen geeignet.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Ausgewogene Geschwindigkeit und Genauigkeit. Für die meisten Benutzer empfohlen.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Höchste Genauigkeit bei langsamerer Verarbeitung. Am besten für wichtige Transkriptionen geeignet.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ Credits/Min.";
-"modes.cloudAccuracy.grokStt.label" = "Höchste (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Höchste Genauigkeit bei langsamerer Verarbeitung. Am besten für wichtige Transkriptionen geeignet.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Hoch (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Mehrsprachig, mit Unterstützung für benutzerdefiniertes Vokabular.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoch (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe über Azure Speech. Bis zu 60 Sprachen mit kontextbezogener Gewichtung.";
 
 "modes.create.title" = "Neuen Modus erstellen";

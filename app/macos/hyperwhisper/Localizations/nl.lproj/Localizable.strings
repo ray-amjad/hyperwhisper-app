@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Live-engine";
 "streaming.cloudTier.description" = "Welke spraakengine HyperWhisper Cloud gebruikt voor live transcriptie";
-"streaming.model.nova3general" = "Nova 3 Algemeen";
-"streaming.model.nova3medical" = "Nova 3 Medisch";
 "streaming.fastFormatting.title" = "Snelle opmaak";
 "streaming.fastFormatting.description" = "Vermindert slimme opmaakavertraging voor sneller typen";
 "streaming.warning.vocabAutoDetect" = "Aangepaste woordenlijst is uitgeschakeld in modus voor automatische detectie";
@@ -767,18 +765,12 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Nauwkeurigheid";
-"modes.cloudAccuracy.groqWhisper.label" = "Gemiddeld (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Gemiddeld (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Hoog (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Snel en betaalbaar. Het beste voor snelle transcripties.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Evenwichtige snelheid en nauwkeurigheid. Aanbevolen voor de meeste gebruikers.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
-"modes.cloudAccuracy.grokStt.label" = "Hoogste (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Hoog (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Meertalig, met ondersteuning voor aangepaste woordenlijsten.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Tot 60 talen met contextuele afstemming.";
 
 "modes.create.title" = "Nieuwe modus maken";

@@ -953,7 +953,7 @@
                   </StackPanel>
                   <ComboBox Grid.Column="2" x:Name="StreamingCloudTierChoice" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                             ItemsSource="{Binding Settings.StreamingCloudTiers}" SelectedItem="{Binding Settings.StreamingCloudTier}">
-                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=modes.cloudAccuracy.|.label}"/></DataTemplate></ComboBox.ItemTemplate>
+                    <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudSttTierLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
                   </ComboBox>
                 </Grid>
               </StackPanel>

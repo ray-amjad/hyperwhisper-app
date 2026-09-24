@@ -46,8 +46,6 @@
 "streaming.model.title" = "モデル";
 "streaming.cloudTier.title" = "ライブエンジン";
 "streaming.cloudTier.description" = "HyperWhisper Cloud がライブ文字起こしに使用する音声エンジン";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "高速フォーマット";
 "streaming.fastFormatting.description" = "スマートフォーマットの遅延を削減して、より高速な入力を実現";
 "streaming.warning.vocabAutoDetect" = "自動検出モードではカスタム語彙が無効になります";
@@ -773,18 +771,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "精度";
-"modes.cloudAccuracy.groqWhisper.label" = "標準 (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "標準 (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "高 (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "高速で手頃。素早い文字起こしに最適。";
 "modes.cloudAccuracy.deepgramNova3.description" = "速度と精度のバランス。ほとんどのユーザーにおすすめ。";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高精度、処理は遅め。重要な文字起こしに最適。";
 "modes.cloudAccuracy.creditsPerMinute" = "約 %@ クレジット/分";
-"modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - 最高精度、処理は遅め。重要な文字起こしに最適。";
-"modes.cloudAccuracy.geminiTranscribe.label" = "高 (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。多言語に対応し、カスタム語彙を利用できます。";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "高 (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 経由の Microsoft MAI-Transcribe。最大 60 言語に対応し、文脈バイアスを利用できます。";
 
 "modes.create.title" = "新しいモードを作成";

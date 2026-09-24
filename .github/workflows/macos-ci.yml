@@ -180,17 +180,31 @@ jobs:
       # line — and the name moves between runs, which reads like a flaky test
       # rather than one crash. The crash report names the real fault. Without
       # this step the only way to get it is to rent a Mac.
+      #
+      # `-iname`, and every report rather than one name: the app binary is
+      # `HyperWhisper`, `find -name` is case-sensitive, and the step printed
+      # NOTHING for the crash on 2026-09-20 — which reads as "no crash" and
+      # sends you back to the test that is not at fault. The test host can
+      # also die as `xctest` or as a helper, so the filter is the time, not
+      # the name. `ls` names the whole directory when the find matches
+      # nothing, so a miss stays visible instead of printing an empty step.
       - name: Dump test-host crash reports
         if: failure()
         run: |
           reports="$HOME/Library/Logs/DiagnosticReports"
           [ -d "$reports" ] || exit 0
-          find "$reports" \
-            -type f \
-            -name 'hyperwhisper*.ips' \
-            -newer "$RUNNER_TEMP/hyperwhisper-test-start" \
-            -print0 | while IFS= read -r -d '' f; do
+          found=0
+          while IFS= read -r -d '' f; do
+            found=1
             echo "===== $f ====="
             head -c 30000 "$f"
             echo
-          done
+          done < <(find "$reports" \
+            -type f \
+            \( -iname '*.ips' -o -iname '*.crash' \) \
+            -newer "$RUNNER_TEMP/hyperwhisper-test-start" \
+            -print0)
+          if [ "$found" -eq 0 ]; then
+            echo "No crash report is newer than the test start. The whole directory:"
+            ls -la "$reports"
+          fi

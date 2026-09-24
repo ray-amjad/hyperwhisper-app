@@ -4,12 +4,50 @@ Cross-platform source of truth for per-model metadata that doesn't belong inside
 
 ## What's in scope
 
-Two fields per `(provider, id)`:
+Three fields per `(provider, id)`:
 
 | Field | Meaning |
 |---|---|
+| `displayName` | The model's user-visible name, and the ONLY place it is written. See "Naming" below. |
 | `supportsCustomVocabulary` | Model accepts user-supplied keyword / keyterm / `initial_prompt` boosts at request time. Cross-checked against the actual transcription request site, not vendor marketing. |
 | `availableViaHyperWhisperCloud` | Model is reachable through the credit-based HyperWhisper Cloud routing service (Fly backend at `hyperwhisper-cloud`). When `true`, users without their own API key for that provider can still use the model via cloud credits. |
+
+## Naming
+
+A model has exactly 1 name. It is written here, and every head reads it through
+the shared core (`models_entry(provider, kind, id).displayName`).
+
+Warning: never write a model name anywhere else. Not in
+`CloudTranscriptionModels.swift`, not in `CloudTranscriptionModel.cs`, not in a
+`.resx`, not in a `.strings`. A name is a proper noun, so it is never
+translated. Before #837 those copies had drifted: `Whisper Large V3` on Windows
+against `Whisper Large v3` on macOS, `Async v5` in the catalog against
+`STT Async v5` on both heads, and `(Preview)` glued onto 4 names beside the
+`previewStatus` field that already said so.
+
+The style rule, which `hw-catalog::style_violation` enforces on every catalog
+name:
+
+- The vendor's own name for the model — `Nova 3 General`, `Voxtral Mini`.
+- No company prefix. The Provider row above already says the company.
+- No status suffix. `previewStatus` is a field and the UI draws the badge.
+- No bracketed domain — `Universal-2 Medical`, not `Universal-2 (Medical)`.
+- No version padding — `Grok Voice Transcribe 1`, not `Grok Voice Transcribe 1.0`.
+- A version is a lower-case `v` — `Whisper Large v3`, `Scribe v2`.
+
+A wildcard row (`id: "*"`) carries NO `displayName`. It stands for a whole
+family, and each head's on-device registry names those models.
+
+Two catalogs name models, because they cover different sets:
+
+| File | Covers |
+|---|---|
+| `shared-models/models-catalog.json` | every model a head can list, cloud and BYOK |
+| `shared-app-classification/cloud-stt-catalog.json` | every model offered through HyperWhisper Cloud, including `gemini-3.5-transcribe-live`, which is WebSocket-only and is deliberately NOT a Model Library row |
+
+Where both hold a row the 2 names must be identical.
+`hw-catalog::names::tests::the_two_catalogs_agree_on_every_shared_model_name`
+fails the build when they are not.
 
 Plus a `platforms` array so a model can sit in the catalog before any given app ships it — each app filters out entries whose platform isn't in the list.
 

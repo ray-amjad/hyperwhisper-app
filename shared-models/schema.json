@@ -71,7 +71,7 @@
         },
         "displayName": {
           "type": "string",
-          "description": "Optional human-readable name. Each platform may override; the catalog value is the default."
+          "description": "The model's user-visible name, and the ONLY place it is written. Every head reads it through the shared core (`models_entry`), so no registry, no .resx and no .strings file may hold a copy — before #837 the same model was `Whisper Large V3` on Windows and `Whisper Large v3` on macOS. Style: the vendor's own name for the model, with no company prefix (the Provider row above already says the company), no status suffix (`previewStatus` is a field and the UI draws the badge), no bracketed domain (`Universal-2 Medical`, not `Universal-2 (Medical)`) and no version padding (`Grok Voice Transcribe 1`, not `... 1.0`). `hw-catalog::style_violation` is that rule as code. Required on every non-wildcard voice row; omitted on a wildcard (`id: \"*\"`) row, which stands for a family and cannot carry one name."
         },
         "supportsCustomVocabulary": {
           "type": "boolean",

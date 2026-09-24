@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Pogon v živo";
 "streaming.cloudTier.description" = "Kateri govorni pogon HyperWhisper Cloud uporablja za prepis v živo";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Hitro oblikovanje";
 "streaming.fastFormatting.description" = "Zmanjšuje zakasnitev pametnega oblikovanja za hitrejši vnos";
 "streaming.warning.vocabAutoDetect" = "Prilagojeni besednjak je onemogočen v samodejnem načinu";
@@ -767,18 +765,12 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Natančnost";
-"modes.cloudAccuracy.groqWhisper.label" = "Srednja (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Srednja (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Visoka (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Hitro in prihodljivo. Najbolje za hitre prepise.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Uravnotežena hitrost in natančnost. Priporočljivo za večino uporabnikov.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najvišja natančnost s počasnejšo obdelavo. Najbolje za pomembne prepise.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditov/min";
-"modes.cloudAccuracy.grokStt.label" = "Najvišja (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Najvišja natančnost s počasnejšo obdelavo. Najbolje za pomembne prepise.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Visoka (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Večjezično, s podporo za slovar po meri.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe prek Azure Speech. Do 60 jezikov s kontekstnim usmerjanjem.";
 
 "modes.create.title" = "Ustvari novi način";

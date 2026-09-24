@@ -46,8 +46,6 @@
 "streaming.model.title" = "Model";
 "streaming.cloudTier.title" = "Motor en directe";
 "streaming.cloudTier.description" = "Quin motor de veu utilitza HyperWhisper Cloud per a la transcripció en directe";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Format ràpid";
 "streaming.fastFormatting.description" = "Redueix el retard del format intel·ligent per escriure més ràpid";
 "streaming.warning.vocabAutoDetect" = "El vocabulari personalitzat està desactivat en mode de detecció automàtica";
@@ -767,18 +765,12 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Precisió";
-"modes.cloudAccuracy.groqWhisper.label" = "Mitjana (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Mitjana (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Alta (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Ràpida i assequible. Ideal per a transcripcions ràpides.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Velocitat i precisió equilibrades. Recomanada per a la majoria d'usuaris.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Màxima precisió amb processament més lent. Ideal per a transcripcions importants.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ crèdits/min";
-"modes.cloudAccuracy.grokStt.label" = "Màxima (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Màxima precisió amb processament més lent. Ideal per a transcripcions importants.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingüe, amb compatibilitat amb vocabulari personalitzat.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe mitjançant Azure Speech. Fins a 60 idiomes amb adaptació contextual.";
 
 "modes.create.title" = "Crear nou mode";

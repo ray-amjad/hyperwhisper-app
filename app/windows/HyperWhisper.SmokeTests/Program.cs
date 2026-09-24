@@ -7212,6 +7212,34 @@ internal static class Program
                     "a post-stop generationComplete must complete the session exactly once");
             });
 
+            Run("every registry row takes its name from the shared catalog", () =>
+            {
+                // #837: the registry used to hold 36 name literals and they had
+                // drifted from macOS. `DisplayName` is now a catalog lookup with
+                // an `?? Id` fallback. This test is what keeps that fallback
+                // unreachable: a row with no catalog entry fails here, so a raw
+                // id can never reach a user.
+                foreach (var model in CloudTranscriptionModels.All)
+                {
+                    var key = SharedModelsCatalog.CatalogKey(model.Provider);
+                    var name = SharedModelsCatalog.DisplayName(key, CatalogKind.Voice, model.Id);
+                    Assert(!string.IsNullOrWhiteSpace(name),
+                        $"{key}/{model.Id} has no displayName in shared-models/models-catalog.json");
+                    Assert(model.DisplayName == name,
+                        $"{key}/{model.Id} shows '{model.DisplayName}', the catalog says '{name}'");
+                }
+
+                // The one row that is NOT a model keeps its literal, through the
+                // override property, so GetById(HyperWhisperCloud, "default")
+                // stays stable for a persisted mode.
+                var sentinel = CloudTranscriptionModels.GetById(
+                    "default", CloudTranscriptionProvider.HyperWhisperCloud);
+                Assert(sentinel?.DisplayName == "Default",
+                    $"the HyperWhisper Cloud sentinel is named '{sentinel?.DisplayName}'");
+                Assert(!CloudTranscriptionModels.All.Any(m => m.DisplayNameOverride != null),
+                    "a real model set DisplayNameOverride - names belong in the catalog");
+            });
+
             Run("AssemblyAI Dictation stays selected on the cloud send path", () =>
             {
                 Assert(HyperWhisperCloudService.ResolveDictationModelId("assemblyAI", "dictation") == "dictation", "Dictation was replaced by the provider default");

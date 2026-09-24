@@ -317,16 +317,13 @@ enum CloudProvider: String, CaseIterable, Identifiable {
 struct CloudTranscriptionModel {
     /// The model identifier used by the API
     let id: String
-    
-    /// The user-friendly display name shown in the UI
-    let displayName: String
-    
+
     /// Whether this model is available for general use
     let isAvailable: Bool
-    
+
     /// Model description for tooltips
     let description: String
-    
+
     /// Which provider this model belongs to
     let provider: CloudProvider
 
@@ -336,9 +333,25 @@ struct CloudTranscriptionModel {
     /// Billing price per second in USD (nil if unknown)
     let pricePerSecond: Double?
 
+    /// The user-visible model name.
+    ///
+    /// Read from `shared-models/models-catalog.json` through the shared core,
+    /// never stored here. This file used to carry its own 33 literals and they
+    /// had drifted: Windows said `Whisper Large V3` where this file said
+    /// `Whisper Large v3`, and 4 rows appended `(Preview)` beside the
+    /// `previewStatus` field that already said so (#837).
+    ///
+    /// The `?? id` fallback is never reached in a shipped build:
+    /// `CloudSttTierParityTests.every_registry_row_resolves_a_catalog_name`
+    /// fails when a row has no catalog entry, so a raw id cannot reach a user.
+    var displayName: String {
+        SharedModelsCatalog
+            .entry(provider: SharedModelsCatalog.providerKey(provider), kind: .voice, id: id)?
+            .displayName ?? id
+    }
+
     init(
         id: String,
-        displayName: String,
         isAvailable: Bool,
         description: String,
         provider: CloudProvider,
@@ -346,7 +359,6 @@ struct CloudTranscriptionModel {
         pricePerSecond: Double?
     ) {
         self.id = id
-        self.displayName = displayName
         self.isAvailable = isAvailable
         self.description = description
         self.provider = provider
@@ -388,7 +400,6 @@ struct CloudTranscriptionModels {
         // OpenAI Models
         CloudTranscriptionModel(
             id: "gpt-4o-mini-transcribe-2025-12-15",
-            displayName: "GPT-4o Mini Transcribe (2025-12-15)",
             isAvailable: true,
             description: "Latest dated snapshot of GPT-4o Mini Transcribe. Lowest word error rate among OpenAI transcription models.",
             provider: .openai,
@@ -401,7 +412,6 @@ struct CloudTranscriptionModels {
         // the rows once a build carrying that alias table has shipped.
         CloudTranscriptionModel(
             id: "gpt-4o-transcribe",
-            displayName: "GPT-4o Transcribe",
             isAvailable: true,
             description: "Advanced speech-to-text powered by GPT-4o. Deprecated by OpenAI — retires 2027-02-26, use GPT Transcribe.",
             provider: .openai,
@@ -409,7 +419,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gpt-4o-mini-transcribe",
-            displayName: "GPT-4o Mini Transcribe",
             isAvailable: true,
             description: "Fast speech-to-text powered by GPT-4o Mini. Deprecated by OpenAI — retires 2027-02-26, use the 2025-12-15 snapshot.",
             provider: .openai,
@@ -417,7 +426,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "whisper-1",
-            displayName: "Whisper-1",
             isAvailable: true,
             description: "General-purpose speech recognition model. Deprecated by OpenAI — retires 2027-02-26, use GPT Transcribe.",
             provider: .openai,
@@ -425,7 +433,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gpt-transcribe",
-            displayName: "GPT Transcribe",
             isAvailable: true,
             description: "OpenAI's flat-rate transcription model billed per audio minute.",
             provider: .openai,
@@ -434,7 +441,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gpt-live-transcribe",
-            displayName: "GPT Live Transcribe",
             isAvailable: false,  // Requires OpenAI's Realtime WebSocket API — no request path (this
             // app's cloud/BYOK OpenAI transcription is REST/batch-only) actually serves it yet.
             // Catalogued for pricing/metadata; flip once a Realtime session relay is wired.
@@ -446,7 +452,6 @@ struct CloudTranscriptionModels {
         // Groq Models
         CloudTranscriptionModel(
             id: "whisper-large-v3-turbo",
-            displayName: "Whisper Large v3 Turbo",
             isAvailable: true,
             description: "Groq's ultra-fast Whisper implementation. Optimized for speed with high accuracy. Excellent for real-time transcription.",
             provider: .groq,
@@ -456,7 +461,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "whisper-large-v3",
-            displayName: "Whisper Large v3",
             isAvailable: true,
             description: "Groq's standard Whisper v3 model. High accuracy with good performance.",
             provider: .groq,
@@ -467,7 +471,6 @@ struct CloudTranscriptionModels {
         // Deepgram
         CloudTranscriptionModel(
             id: "nova-3-general",
-            displayName: "Nova 3 General",
             isAvailable: true,
             description: "The leading model for general transcription from Deepgram.",
             provider: .deepgram,
@@ -476,7 +479,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "nova-3-medical",
-            displayName: "Nova 3 Medical",
             isAvailable: true,
             description: "Optimized audio with medical oriented vocabulary.",
             provider: .deepgram,
@@ -484,7 +486,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "nova-2-general",
-            displayName: "Nova 2 General",
             isAvailable: true,
             description: "General-purpose transcription with high accuracy for diverse audio sources.",
             provider: .deepgram,
@@ -492,7 +493,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "nova-2-medical",
-            displayName: "Nova-2 Medical",
             isAvailable: true,
             description: "Medical domain vocabulary for clinical conversations and healthcare settings.",
             provider: .deepgram,
@@ -503,7 +503,6 @@ struct CloudTranscriptionModels {
         // AssemblyAI Models
         CloudTranscriptionModel(
             id: "dictation",
-            displayName: "Dictation",
             isAvailable: true,
             description: "",
             provider: .assemblyAI,
@@ -512,7 +511,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "universal-2",
-            displayName: "Universal-2",
             isAvailable: true,
             description: "Multi-language model supporting 99 languages with automatic detection. Supports keyterms prompting (up to 200 terms).",
             provider: .assemblyAI,
@@ -521,7 +519,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "universal-3-5-pro",
-            displayName: "Universal-3.5 Pro",
             isAvailable: true,
             description: "AssemblyAI's most accurate model. Natively covers 18 languages. Keyterms prompting up to 1000 terms.",
             provider: .assemblyAI,
@@ -530,7 +527,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "universal-2-medical",
-            displayName: "Universal-2 (Medical)",
             isAvailable: true,
             description: "Universal-2 with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Billed as a separate add-on on top of Universal-2 pricing.",
             provider: .assemblyAI,
@@ -538,7 +534,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "universal-3-5-pro-medical",
-            displayName: "Universal-3.5 Pro (Medical)",
             isAvailable: true,
             description: "Universal-3.5 Pro with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Billed as a separate add-on on top of Universal-3.5 Pro pricing.",
             provider: .assemblyAI,
@@ -548,7 +543,6 @@ struct CloudTranscriptionModels {
         // ElevenLabs Models
         CloudTranscriptionModel(
             id: "scribe_v1",
-            displayName: "Scribe v1",
             isAvailable: false,  // Retired by ElevenLabs 2026-07-09 — resolved to scribe_v2 via legacyElevenLabsAliases
             description: "ElevenLabs Scribe model with multilingual coverage and word-level timestamps. Does not support custom vocabulary.",
             provider: .elevenLabs,
@@ -556,7 +550,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "scribe_v2",
-            displayName: "Scribe v2",
             isAvailable: true,
             description: "ElevenLabs' latest Scribe model with improved accuracy. Supports custom vocabulary with keyterm prompting.",
             provider: .elevenLabs,
@@ -567,7 +560,6 @@ struct CloudTranscriptionModels {
         // Mistral Models
         CloudTranscriptionModel(
             id: "voxtral-mini-latest",
-            displayName: "Voxtral Mini",
             isAvailable: true,
             description: "Mistral's state-of-the-art transcription model. Faster and more accurate than Whisper large-v3.",
             provider: .mistral,
@@ -578,7 +570,6 @@ struct CloudTranscriptionModels {
         // Soniox Models
         CloudTranscriptionModel(
             id: "stt-async-v5",
-            displayName: "STT Async v5",
             isAvailable: true,
             description: "Soniox's latest async batch transcription model with 60+ supported languages.",
             provider: .soniox,
@@ -589,7 +580,6 @@ struct CloudTranscriptionModels {
         // Google Gemini Models
         CloudTranscriptionModel(
             id: "gemini-2.5-flash",
-            displayName: "Gemini 2.5 Flash",
             isAvailable: true,
             description: "Fast and affordable multimodal transcription. Supports custom vocabulary via prompting.",
             provider: .gemini,
@@ -598,7 +588,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gemini-2.5-flash-lite",
-            displayName: "Gemini 2.5 Flash Lite",
             isAvailable: true,
             description: "Cheapest Gemini option for high-volume transcription. Good accuracy at minimal cost.",
             provider: .gemini,
@@ -607,7 +596,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gemini-2.5-pro",
-            displayName: "Gemini 2.5 Pro",
             isAvailable: true,
             description: "Highest quality Gemini model. Best accuracy for complex audio with background noise.",
             provider: .gemini,
@@ -616,7 +604,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gemini-3.1-flash-lite",
-            displayName: "Gemini 3.1 Flash Lite",
             isAvailable: true,
             description: "Latest generation lightweight Gemini model. Fast and cost-effective transcription.",
             provider: .gemini,
@@ -624,7 +611,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gemini-3-flash-preview",
-            displayName: "Gemini 3 Flash (Preview)",
             isAvailable: true,
             description: "Next-gen Gemini Flash with improved accuracy and speed.",
             provider: .gemini,
@@ -632,7 +618,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "gemini-3.1-pro-preview",
-            displayName: "Gemini 3.1 Pro (Preview)",
             isAvailable: true,
             description: "Latest generation Gemini Pro model. Highest quality transcription with preview access.",
             provider: .gemini,
@@ -646,7 +631,6 @@ struct CloudTranscriptionModels {
         // never a batch transcription model.
         CloudTranscriptionModel(
             id: "gemini-3.5-transcribe",
-            displayName: "Gemini 3.5 Transcribe",
             isAvailable: true,
             description: "Google's dedicated speech-to-text model. Supports custom vocabulary for exact spellings of names and jargon.",
             provider: .geminiTranscribe,
@@ -656,7 +640,6 @@ struct CloudTranscriptionModels {
         // Microsoft Azure Speech (HyperWhisper Cloud only)
         CloudTranscriptionModel(
             id: "mai-transcribe-2",
-            displayName: "MAI-Transcribe 2 (Preview)",
             isAvailable: true,
             description: "Microsoft's 60-language transcription model with contextual biasing.",
             provider: .microsoftAzureSpeech,
@@ -668,7 +651,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "mai-transcribe-1.5",
-            displayName: "MAI-Transcribe 1.5 (Preview)",
             isAvailable: true,
             description: "Microsoft's 42-language transcription model with contextual biasing.",
             provider: .microsoftAzureSpeech,
@@ -679,7 +661,6 @@ struct CloudTranscriptionModels {
         // Google Cloud Speech (HyperWhisper Cloud only)
         CloudTranscriptionModel(
             id: "chirp_3",
-            displayName: "Chirp 3",
             isAvailable: true,
             description: "Google's latest multilingual speech model with phrase adaptation.",
             provider: .googleSpeech,
@@ -695,7 +676,6 @@ struct CloudTranscriptionModels {
         // same and have announced 1.0's deprecation.
         CloudTranscriptionModel(
             id: "grok-voice-transcribe-2.0",
-            displayName: "Grok Voice Transcribe 2",
             isAvailable: true,
             description: "SpaceXAI's speech-to-text model — auto-detects the language and follows a mid-recording switch.",
             provider: .grok,
@@ -704,7 +684,6 @@ struct CloudTranscriptionModels {
         ),
         CloudTranscriptionModel(
             id: "grok-voice-transcribe-1.0",
-            displayName: "Grok Voice Transcribe 1",
             isAvailable: true,
             description: "SpaceXAI's previous speech-to-text model, at the same price. Announced for deprecation — prefer Grok Voice Transcribe 2.",
             provider: .grok,
@@ -719,7 +698,6 @@ struct CloudTranscriptionModels {
             )
             models.append(CloudTranscriptionModel(
                 id: catalogModel?.id ?? MetaMuseProvider.modelID,
-                displayName: catalogModel?.displayName ?? "Muse Voice Transcribe 1.0",
                 isAvailable: true,
                 description: "Meta Muse batch transcription using your Meta Model API key",
                 provider: .meta,

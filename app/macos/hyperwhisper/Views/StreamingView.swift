@@ -447,8 +447,14 @@ struct StreamingView: View {
             Spacer()
 
             Picker("", selection: $settingsManager.streamingDeepgramModel) {
-                Text("streaming.model.nova3general".localized).tag("nova-3-general")
-                Text("streaming.model.nova3medical".localized).tag("nova-3-medical")
+                ForEach(["nova-3-general", "nova-3-medical"], id: \.self) { modelId in
+                    Text(
+                        CloudSTTCatalog.shared
+                            .model(forEntryId: "deepgramNova3", modelId: modelId)?
+                            .displayName ?? modelId
+                    )
+                    .tag(modelId)
+                }
             }
             .labelsHidden()
             .frame(width: 200, alignment: .trailing)
@@ -467,10 +473,11 @@ struct StreamingView: View {
     /// we serve no WebSocket route for — offering one of those would ship a 404
     /// at dictation time, and the STT catalog has no `enabled` gate to hide it.
     ///
-    /// Row labels are the EXISTING per-tier strings the Mode editor already
-    /// ships (`modes.cloudAccuracy.<id>.label`). Reusing `CloudAccuracyTier`'s
-    /// value space is exactly what buys that, so this picker adds one new
-    /// localized string — its own heading — and not 40 files of vendor names.
+    /// A row label is the tier's own catalog name — "ElevenLabs Scribe v2". It
+    /// used to read `modes.cloudAccuracy.<id>.label`, and the 40 translated
+    /// copies of that key were the same English proper noun 40 times over. A
+    /// name is never translated, so #837 deleted them and this reads the
+    /// catalog, which is where a name is written.
     private var cloudTierSection: some View {
         HStack(spacing: 12) {
             Image(systemName: "cpu")
@@ -491,7 +498,8 @@ struct StreamingView: View {
 
             Picker("", selection: normalizedCloudTierBinding) {
                 ForEach(CloudAccuracyTier.streamingEligibleTiers) { tier in
-                    Text("modes.cloudAccuracy.\(tier.rawValue).label".localized).tag(tier.rawValue)
+                    Text(CloudSTTCatalog.shared.entry(byId: tier.rawValue)?.displayName ?? tier.rawValue)
+                        .tag(tier.rawValue)
                 }
             }
             .labelsHidden()

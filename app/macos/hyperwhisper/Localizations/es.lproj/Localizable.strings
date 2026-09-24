@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modelo";
 "streaming.cloudTier.title" = "Motor en directo";
 "streaming.cloudTier.description" = "Qué motor de voz usa HyperWhisper Cloud para la transcripción en directo";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Formato Rápido";
 "streaming.fastFormatting.description" = "Reduce el retraso de formato inteligente para una escritura más rápida";
 "streaming.warning.vocabAutoDetect" = "El vocabulario personalizado está deshabilitado en modo de detección automática";
@@ -773,18 +771,12 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Precisión";
-"modes.cloudAccuracy.groqWhisper.label" = "Media (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Media (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Alta (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Rápida y asequible. Ideal para transcripciones rápidas.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Equilibrio entre velocidad y precisión. Recomendado para la mayoría de usuarios.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Máxima precisión con procesamiento más lento. Ideal para transcripciones importantes.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ créditos/min";
-"modes.cloudAccuracy.grokStt.label" = "Máxima (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Máxima precisión con procesamiento más lento. Ideal para transcripciones importantes.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingüe, con compatibilidad con vocabulario personalizado.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe a través de Azure Speech. Hasta 60 idiomas con adaptación contextual.";
 
 "modes.create.title" = "Crear nuevo modo";

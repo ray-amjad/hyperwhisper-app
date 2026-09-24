@@ -65,6 +65,7 @@ try
 
     await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
     await RunDictationModeTestsAsync(Path.Combine(root, "dictation-modes"));
+    await RunCloudVendorPickerTestsAsync(Path.Combine(root, "cloud-vendor-picker"));
     await RunShellLanguageRoutingTestsAsync(Path.Combine(root, "shell-language"));
 
     var history = new HistoryRepository(database);
@@ -1433,6 +1434,84 @@ static async Task RunDictationModeTestsAsync(string root)
     Assert(editor.CloudDomain == "medical", "Loading an invalid mode silently rewrote its domain");
     await editor.SaveAsync();
     Assert(editor.Status.ErrorCode == "modes.dictation_selection", "Restored Dictation with a medical domain bypassed validation");
+}
+
+/// <summary>
+/// The HyperWhisper Cloud Provider row is a COMPANY, read from the catalog (#837).
+///
+/// It used to be a hand-kept array of 12 tier ids that the picker labelled from
+/// `modes.cloudAccuracy.&lt;tierId&gt;.label` in 80 translation files, so Linux drew
+/// "Grok STT" where macOS and Windows drew "SpaceXAI". These checks pin the 3 things
+/// that change: the rows are companies, a company that owns 2 tiers is ONE row whose
+/// model decides the tier, and the Model row is never blank.
+/// </summary>
+static async Task RunCloudVendorPickerTestsAsync(string root)
+{
+    var db = new ApplicationDb(new TestPaths(root));
+    await db.InitializeAsync();
+    var repository = new ModeRepository(db);
+    var editor = new ModesViewModel(repository);
+
+    // Every row is a catalog vendor key, and every tier the allow-list holds belongs
+    // to exactly one of them. A tier missing from a group would save fine and then
+    // open on a blank Provider row.
+    Assert(editor.CloudVendors.Count > 0, "the Provider picker has no companies");
+    Assert(editor.CloudVendors.Distinct(StringComparer.OrdinalIgnoreCase).Count() == editor.CloudVendors.Count,
+        "a company is listed twice");
+    Assert(editor.CloudAccuracyTiers.Count == 12,
+        $"the catalog offers {editor.CloudAccuracyTiers.Count} cloud tiers, not 12");
+
+    var mode = new Mode
+    {
+        Name = "Vendor picker",
+        ProviderType = "cloud",
+        CloudProvider = "hyperwhisper",
+        CloudAccuracyTier = "geminiTranscribe",
+        Language = "en",
+    };
+    await repository.UpsertAsync(mode);
+    editor.Selected = mode;
+
+    // Google owns geminiTranscribe AND gemini, and the fold to one row is deliberate.
+    Assert(editor.CloudVendor == "google", $"geminiTranscribe sits under '{editor.CloudVendor}', not Google");
+    Assert(editor.CloudTierModels.Contains("gemini-3.5-transcribe"), "the Google row lost Gemini 3.5 Transcribe");
+    Assert(editor.CloudTierModels.Contains("gemini-2.5-flash"),
+        "the Google row lists one tier only - the Gemini family is missing");
+
+    // The mode chose no model, and the row must still show the one that will run.
+    Assert(editor.TranscriptionModel.Length == 0, "this mode was seeded with a model - the check below proves nothing");
+    Assert(editor.CloudTierModel == "gemini-3.5-transcribe",
+        $"the Model row shows '{editor.CloudTierModel}' for a mode that chose none");
+
+    // Picking a model from the OTHER tier of the same company moves the tier with it.
+    // Getting this wrong changes the upstream route, the credits and the vocabulary
+    // support, with no visible change in the picker.
+    editor.CloudTierModel = "gemini-2.5-flash";
+    Assert(editor.CloudAccuracyTier == "gemini", $"the tier stayed '{editor.CloudAccuracyTier}' after a Gemini model");
+    Assert(editor.CloudVendor == "google", "the company changed when only the model was picked");
+    await editor.SaveAsync();
+    var saved = (await repository.ListAsync()).Single(row => row.Id == mode.Id);
+    Assert(saved.CloudAccuracyTier == "gemini" && saved.CloudTranscriptionModel == "gemini-2.5-flash",
+        $"saved tier '{saved.CloudAccuracyTier}' with model '{saved.CloudTranscriptionModel}'");
+
+    // Changing company lands on that company's default tier AND its default model,
+    // so the Model row is never left holding the old company's id.
+    editor.Selected = saved;
+    editor.CloudVendor = "deepgram";
+    Assert(editor.CloudAccuracyTier == "deepgramNova3", $"Deepgram seeded tier '{editor.CloudAccuracyTier}'");
+    Assert(editor.CloudTierModel == "nova-3-general", $"Deepgram seeded model '{editor.CloudTierModel}'");
+    Assert(editor.CloudTierModels.All(id => editor.CloudTierModel != "gemini-2.5-flash"),
+        "the previous company's model survived the change");
+
+    // Every company can seat a model, on every tier it owns. A group whose default
+    // resolves to nothing would draw an empty Model row for that whole company.
+    foreach (var tier in editor.CloudAccuracyTiers)
+    {
+        editor.CloudAccuracyTier = tier;
+        Assert(editor.CloudVendor.Length > 0, $"tier {tier} belongs to no company");
+        Assert(editor.CloudTierModels.Count > 0, $"tier {tier} draws an empty Model row");
+        Assert(!string.IsNullOrEmpty(editor.CloudTierModel), $"tier {tier} shows no model");
+    }
 }
 
 static async Task RunChirp3TierMigrationTestsAsync(string root)

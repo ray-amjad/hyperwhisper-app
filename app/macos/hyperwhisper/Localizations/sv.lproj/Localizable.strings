@@ -46,8 +46,6 @@
 "streaming.model.title" = "Modell";
 "streaming.cloudTier.title" = "Realtidsmotor";
 "streaming.cloudTier.description" = "Vilken talmotor HyperWhisper Cloud använder för realtidstranskribering";
-"streaming.model.nova3general" = "Nova 3 Allmän";
-"streaming.model.nova3medical" = "Nova 3 Medicinsk";
 "streaming.fastFormatting.title" = "Snabb formatering";
 "streaming.fastFormatting.description" = "Minskar smart formateringsfördröjning för snabbare skrivning";
 "streaming.warning.vocabAutoDetect" = "Anpassat ordförråd är inaktiverat i läge för automatisk identifiering";
@@ -767,18 +765,12 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Noggrannhet";
-"modes.cloudAccuracy.groqWhisper.label" = "Medel (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Medel (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Hög (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Snabb och prisvärd. Bäst för snabba transkriptioner.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanserad hastighet och noggrannhet. Rekommenderas för de flesta användare.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediter/min";
-"modes.cloudAccuracy.grokStt.label" = "Högsta (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Hög (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Flerspråkig, med stöd för anpassad ordlista.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hög (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe via Azure Speech. Upp till 60 språk med kontextuell anpassning.";
 
 "modes.create.title" = "Skapa nytt läge";

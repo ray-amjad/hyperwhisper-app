@@ -46,8 +46,6 @@
 "streaming.model.title" = "Модель";
 "streaming.cloudTier.title" = "Движок в реальном времени";
 "streaming.cloudTier.description" = "Какой речевой движок HyperWhisper Cloud использует для транскрипции в реальном времени";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Быстрое форматирование";
 "streaming.fastFormatting.description" = "Снижает задержку умного форматирования для более быстрого ввода";
 "streaming.warning.vocabAutoDetect" = "Пользовательский словарь отключен в режиме автоматического определения";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "Точность";
-"modes.cloudAccuracy.groqWhisper.label" = "Средняя (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "Средняя (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Высокая (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "Быстро и доступно. Лучше для быстрых транскрипций.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Сбалансированная скорость и точность. Рекомендуется для большинства пользователей.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Наивысшая точность с более медленной обработкой. Лучше для важных транскрипций.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ кред./мин";
-"modes.cloudAccuracy.grokStt.label" = "Наивысшая (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - Наивысшая точность с более медленной обработкой. Лучше для важных транскрипций.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "Высокая (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Многоязычная модель с поддержкой пользовательского словаря.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "Высокая (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe через Azure Speech. До 60 языков с контекстной адаптацией.";
 
 "modes.create.title" = "Создать новый режим";

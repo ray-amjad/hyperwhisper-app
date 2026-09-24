@@ -46,8 +46,6 @@
 "streaming.model.title" = "मॉडल";
 "streaming.cloudTier.title" = "लाइव इंजन";
 "streaming.cloudTier.description" = "लाइव ट्रांसक्रिप्शन के लिए HyperWhisper Cloud कौन सा स्पीच इंजन उपयोग करता है";
-"streaming.model.nova3general" = "Nova 3 सामान्य";
-"streaming.model.nova3medical" = "Nova 3 चिकित्सा";
 "streaming.fastFormatting.title" = "तेज़ फॉर्मेटिंग";
 "streaming.fastFormatting.description" = "तेज़ टाइपिंग के लिए स्मार्ट फॉर्मेटिंग विलंब को कम करता है";
 "streaming.warning.vocabAutoDetect" = "ऑटो-डिटेक्ट मोड में कस्टम शब्दावली अक्षम है";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "सटीकता";
-"modes.cloudAccuracy.groqWhisper.label" = "मध्यम (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "मध्यम (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "उच्च (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "तेज़ और सस्ता। त्वरित ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.deepgramNova3.description" = "संतुलित गति और सटीकता। अधिकांश उपयोगकर्ताओं के लिए अनुशंसित।";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ क्रेडिट/मिनट";
-"modes.cloudAccuracy.grokStt.label" = "सर्वोच्च (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
-"modes.cloudAccuracy.geminiTranscribe.label" = "उच्च (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. बहुभाषी, कस्टम शब्दावली समर्थन के साथ।";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe। संदर्भ-आधारित बायसिंग के साथ अधिकतम 60 भाषाएँ।";
 
 "modes.create.title" = "नया मोड बनाएं";

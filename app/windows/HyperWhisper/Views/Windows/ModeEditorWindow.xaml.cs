@@ -228,12 +228,18 @@ public partial class ModeEditorWindow : Window
         // grouping, so each row is tagged with the tier id itself (exactly what
         // the pre-catalog XAML tagged them with); SelectedCloudTierId reads that
         // tag back directly.
+        //
+        // The row draws the tier ID, not a name. A name is catalog data, and this
+        // branch runs only when the catalog is gone — reading it from a .resx
+        // instead would mean keeping 11 keys in 40 files alive for a path that
+        // fires when the native core has failed to load and the rest of the
+        // window is already degraded (#837).
         foreach (CloudAccuracyTier tier in Enum.GetValues<CloudAccuracyTier>())
         {
             var tierId = tier.ToStorageValue();
             CloudAccuracyCombo.Items.Add(new ComboBoxItem
             {
-                Content = Loc.S($"modes.cloudAccuracy.{tierId}.label"),
+                Content = tierId,
                 Tag = tierId
             });
         }

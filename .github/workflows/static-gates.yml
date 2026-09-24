@@ -1,6 +1,6 @@
 name: static-gates
 
-# Three cheap, deterministic gates that hold a defect class at zero. Each one
+# Four cheap, deterministic gates that hold a defect class at zero. Each one
 # was measured against `main` before it was added here (2026-09-07), and each
 # was green, so a red check on this workflow means the PR introduced something
 # — not that the repo was already dirty.
@@ -14,6 +14,9 @@ name: static-gates
 #     .then() count reached 0 on 2026-08-27 and a commit put a new chain into
 #     nextjs three days later.
 #   - docs-links runs OFFLINE, so a third-party outage never fails it.
+#   - model-names holds the name of a cloud speech model in the catalog and
+#     nowhere else. 6 places named the same model before #837 and 4 names had
+#     already drifted. The script states what it does NOT hold.
 
 on:
   pull_request:
@@ -70,6 +73,15 @@ jobs:
       # remembered by whoever wrote it.
       - name: ast-grep scan
         run: ast-grep scan
+
+  model-names:
+    name: A model name lives in the catalog only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for a duplicated model name
+        run: tools/check-model-name-literals.sh
 
   docs-links:
     name: Docs links

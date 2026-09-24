@@ -198,11 +198,6 @@
   <data name="provider.hyperwhispercloud" xml:space="preserve"><value>HyperWhisper Cloud</value></data>
   <data name="provider.custom" xml:space="preserve"><value>Custom endpoint</value></data>
 
-  <!-- Windows has no modes.cloudAccuracy.metaMuse.label: its own fallback list is missing this
-       one tier, a gap that only shows there when the catalog fails to load. Linux reaches the
-       same keys for every row of the engine picker, so the gap would show every time. -->
-  <data name="modes.cloudAccuracy.metaMuse.label" xml:space="preserve"><value>Meta Muse</value></data>
-
   <!-- Medical-domain picker. The stored ids are "" and "medical"; "" is the general case. -->
   <data name="mode.editor.domain.default" xml:space="preserve"><value>General</value></data>
   <data name="mode.editor.domain.medical" xml:space="preserve"><value>Medical</value></data>

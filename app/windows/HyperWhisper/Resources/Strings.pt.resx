@@ -934,15 +934,6 @@ Esta ação não pode ser desfeita.</value>
   <data name="modes.cloudAccuracy.title" xml:space="preserve">
     <value>Precisão na cloud</value>
   </data>
-  <data name="modes.cloudAccuracy.groqWhisper.label" xml:space="preserve">
-    <value>Groq Whisper</value>
-  </data>
-  <data name="modes.cloudAccuracy.deepgramNova3.label" xml:space="preserve">
-    <value>Deepgram Nova 3</value>
-  </data>
-  <data name="modes.cloudAccuracy.elevenLabsScribeV2.label" xml:space="preserve">
-    <value>ElevenLabs Scribe v2</value>
-  </data>
   <data name="modes.cloudAccuracy.groqWhisper.description" xml:space="preserve">
     <value>Groq Whisper - a transcrição mais rápida, ao menor custo</value>
   </data>
@@ -951,9 +942,6 @@ Esta ação não pode ser desfeita.</value>
   </data>
   <data name="modes.cloudAccuracy.elevenLabsScribeV2.description" xml:space="preserve">
     <value>ElevenLabs Scribe v2 - a maior precisão, mais lento</value>
-  </data>
-  <data name="modes.cloudAccuracy.grokStt.label" xml:space="preserve">
-    <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
     <value>SpaceXAI Grok STT - alta precisão, vocabulário personalizado como termos-chave</value>
@@ -1834,14 +1822,8 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
     <value>{0} (Popular)</value>
   </data>
-  <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
-    <value>Microsoft MAI-Transcribe</value>
-  </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
     <value>Microsoft MAI-Transcribe - até 60 idiomas com preferência por expressões</value>
-  </data>
-  <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
-    <value>Google Gemini 3.5 Transcribe</value>
   </data>
   <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
     <value>Google Gemini 3.5 Transcribe - modelo de fala dedicado, mais de 85 idiomas, vocabulário personalizado</value>
@@ -1849,32 +1831,17 @@ Pode voltar a descarregá-lo mais tarde.</value>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} créditos/min</value>
   </data>
-  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
-    <value>Soniox</value>
-  </data>
   <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
     <value>Soniox - 60 idiomas, adaptação contextual</value>
-  </data>
-  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
-    <value>OpenAI Whisper</value>
   </data>
   <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
     <value>OpenAI GPT-4o Transcribe / Whisper</value>
   </data>
-  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
-    <value>Mistral Voxtral</value>
-  </data>
   <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
     <value>Mistral Voxtral - 13 idiomas, adaptação contextual</value>
   </data>
-  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
-    <value>Google Gemini</value>
-  </data>
   <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
     <value>Google Gemini - transcrição com LLM multimodal</value>
-  </data>
-  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
-    <value>AssemblyAI</value>
   </data>
   <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
     <value>AssemblyAI Universal - sugestão de termos-chave, modo médico</value>

@@ -46,8 +46,6 @@
 "streaming.model.title" = "מודל";
 "streaming.cloudTier.title" = "מנוע בזמן אמת";
 "streaming.cloudTier.description" = "באיזה מנוע דיבור HyperWhisper Cloud משתמש לתמלול בזמן אמת";
-"streaming.model.nova3general" = "Nova 3 General";
-"streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "עיצוב מהיר";
 "streaming.fastFormatting.description" = "מקטין את עיכוב העיצוב החכם להקלדה מהירה יותר";
 "streaming.warning.vocabAutoDetect" = "אוצר מילים מותאם אישי מושבת במצב זיהוי אוטומטי";
@@ -767,18 +765,12 @@
 
 // Accuracy tier (HyperWhisper Cloud)
 "modes.cloudAccuracy.title" = "דיוק";
-"modes.cloudAccuracy.groqWhisper.label" = "בינוני (Groq)";
-"modes.cloudAccuracy.deepgramNova3.label" = "בינוני (Deepgram Nova 3)";
-"modes.cloudAccuracy.elevenLabsScribeV2.label" = "גבוה (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.groqWhisper.description" = "מהיר ומשתלם. הטוב ביותר לתמלולים מהירים.";
 "modes.cloudAccuracy.deepgramNova3.description" = "מאוזן בין מהירות לדיוק. מומלץ לרוב המשתמשים.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ קרדיטים/דק׳";
-"modes.cloudAccuracy.grokStt.label" = "הגבוה ביותר (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "SpaceXAI Grok STT - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
-"modes.cloudAccuracy.geminiTranscribe.label" = "גבוהה (Google Gemini 3.5 Transcribe)";
 "modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. רב-לשוני, עם תמיכה באוצר מילים מותאם אישית.";
-"modes.cloudAccuracy.azureMaiTranscribe.label" = "גבוהה (Microsoft MAI-Transcribe)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe דרך Azure Speech. עד 60 שפות עם הטיה לפי הקשר.";
 
 "modes.create.title" = "צור מצב חדש";

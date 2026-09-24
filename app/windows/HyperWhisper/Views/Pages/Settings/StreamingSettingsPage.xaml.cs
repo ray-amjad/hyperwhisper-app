@@ -291,23 +291,17 @@ public partial class StreamingSettingsPage : Page
     }
 
     /// <summary>
-    /// The picker's row labels are the EXISTING per-tier strings the Mode editor
-    /// already ships (<c>modes.cloudAccuracy.&lt;id&gt;.label</c>) — reusing
-    /// CloudAccuracyTier's value space is exactly what buys that. Only the
-    /// picker's own heading is a new string, so this is one key per platform and
-    /// not 40 files of vendor names. Falls back to the catalog display name if a
-    /// future catalog id ever lands before its label does.
+    /// The row label is the tier's own catalog name — "ElevenLabs Scribe v2".
+    ///
+    /// It used to read <c>modes.cloudAccuracy.&lt;id&gt;.label</c> first and fall
+    /// back to the catalog. The 40 translated copies of that key were the same
+    /// English proper noun 40 times over, and a name is never translated, so
+    /// #837 deleted them and left the fallback as the only path. This picker
+    /// chooses a TIER (one live upstream route), not a company, so it draws the
+    /// entry's <c>displayName</c> rather than the vendor group's.
     /// </summary>
     private static string TierLabel(string tierId)
-    {
-        var localized = Loc.S($"modes.cloudAccuracy.{tierId}.label");
-        if (!string.IsNullOrWhiteSpace(localized) &&
-            !string.Equals(localized, $"modes.cloudAccuracy.{tierId}.label", System.StringComparison.Ordinal))
-        {
-            return localized;
-        }
-        return CloudSttCatalog.Shared.GetById(tierId)?.DisplayName ?? tierId;
-    }
+        => CloudSttCatalog.Shared.GetById(tierId)?.DisplayName ?? tierId;
 
     private sealed record CloudTierChoice(string Id, string Label);
 

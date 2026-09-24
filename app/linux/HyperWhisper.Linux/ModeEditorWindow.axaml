@@ -126,13 +126,22 @@
           <StackPanel Margin="0,0,0,16" IsVisible="{Binding ShowCloudAccuracyPanel}">
             <TextBlock Classes="fieldLabel" Margin="0,0,0,4"
                        Text="{ReflectionBinding [mode.editor.field.provider], Source={StaticResource Localization}}"/>
+            <!-- The row is a COMPANY, not a tier: one "Google" row holds Gemini 3.5 Transcribe
+                 and the Gemini family together, and the MODEL below decides the tier. Read
+                 from the catalog's vendor groups, the same call macOS and Windows make (#837). -->
             <ComboBox x:Name="ModeCloudAccuracyTier" HorizontalAlignment="Stretch"
-                      ItemsSource="{Binding CloudAccuracyTiers}" SelectedItem="{Binding CloudAccuracyTier}">
-              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource OptionLabelConverter}, ConverterParameter=modes.cloudAccuracy.|.label}"/></DataTemplate></ComboBox.ItemTemplate>
+                      ItemsSource="{Binding CloudVendors}" SelectedItem="{Binding CloudVendor}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudVendorLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
             </ComboBox>
+            <!-- SelectedValue, not SelectedItem. Changing company swaps ItemsSource, and a
+                 ComboBox drops a SelectedItem the new list does not hold — it then writes
+                 that null back and the row draws EMPTY even though the model is set.
+                 SelectedValue re-resolves against the new list instead. Measured on the
+                 Linux head 2026-09-20: with SelectedItem, picking Google blanked the row. -->
             <ComboBox x:Name="ModeCloudTierModel" HorizontalAlignment="Stretch" Margin="0,12,0,0"
-                      ItemsSource="{Binding CloudTierModels}" SelectedItem="{Binding CloudTierModel}">
-              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudSttModelLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
+                      ItemsSource="{Binding CloudTierModels}"
+                      SelectedValueBinding="{Binding}" SelectedValue="{Binding CloudTierModel}">
+              <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource CloudTierModelLabelConverter}}"/></DataTemplate></ComboBox.ItemTemplate>
             </ComboBox>
             <ComboBox x:Name="ModeCloudDomain" HorizontalAlignment="Stretch" Margin="0,12,0,0"
                       IsVisible="{Binding ShowMedicalDomain}"
