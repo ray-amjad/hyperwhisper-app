@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   BUY_CREDITS_ENDPOINT,
   BUY_CREDITS_HANDLER_STAGE,
+  BUY_CREDITS_HANDOVER_STAGE,
   BUY_CREDITS_OPERATION,
   buyCreditsAndRedirect,
   createBuyCreditsHandler,
@@ -444,6 +445,13 @@ function handlerHarness(
 ) {
   const busy: Array<BuyCreditsTier | null> = [];
   const errors: Array<string | null> = [];
+  /**
+   * The developer-facing `console.error` lines, RECORDED rather than dropped.
+   * They used to be swallowed by `run`, which is why finding 2's wrong
+   * sentence — a log line claiming the busy flag was "released anyway" on the
+   * one path that releases nothing — could not be asserted on from here.
+   */
+  const logged: unknown[][] = [];
   const navigated: string[] = [];
   const reported: ReportedCall[] = [];
   const requests: Array<{ input: string; init: BuyCreditsRequestInit }> = [];
@@ -477,7 +485,9 @@ function handlerHarness(
   async function run(amount = 5, tier?: BuyCreditsTier) {
     const quiet = console.error;
 
-    console.error = () => {};
+    console.error = (...args: unknown[]) => {
+      logged.push(args);
+    };
     try {
       await (tier === undefined ? handler(amount) : handler(amount, tier));
     } finally {
@@ -485,7 +495,7 @@ function handlerHarness(
     }
   }
 
-  return { busy, errors, navigated, releases, reported, requests, run };
+  return { busy, errors, logged, navigated, releases, reported, requests, run };
 }
 
 /** A 200 carrying a checkout URL — the only response that navigates. */
@@ -675,6 +685,87 @@ test("a navigation that throws re-arms the card and is not blamed on the network
   // `GENERIC_ERROR` never reached the customer, because the request never
   // failed. Only the `setError(null)` that every click opens with is here.
   assert.deepEqual(errors, [null]);
+});
+
+test("a redirect handover that throws leaves the card busy, and says so", async () => {
+  // #947 review round 2, findings 2 and 4. `HandlerOverrides` has declared
+  // `onRedirectScheduled` since round 1 and no test ever supplied it, while
+  // its two siblings each had a throwing test — so this branch ran in no test
+  // at all, and the console line on it claimed the busy flag was "released
+  // anyway" when nothing released it.
+  //
+  // The reviewer's remedy was to call `setBusy(null)` here. DECLINED, and this
+  // test is where the decision is pinned. Getting here means `navigate`
+  // already assigned `location.href`: a cross-origin load to Stripe is
+  // scheduled and most likely committing, and only the handover to the
+  // page-lifecycle watcher failed. Re-arming the controls at that moment is
+  // the double-session fault round 2 deleted a 20-second timer for doing more
+  // mildly — at 0 ms it is the same defect, made worse. So the card stays busy
+  // and a reload is the recovery, exactly as it is for Escape.
+  const broken = new TypeError("window.addEventListener is not a function");
+  const { busy, errors, navigated, releases, reported, run } = handlerHarness(
+    CHECKOUT_OK,
+    LICENSE_KEY,
+    {
+      onRedirectScheduled: () => {
+        throw broken;
+      },
+    },
+  );
+
+  // `CloudCreditsCard.tsx` calls this with `void` and no `.catch`, so a
+  // rejection here is an unhandled rejection in the customer's console.
+  await assert.doesNotReject(() => run(5));
+
+  // The checkout itself worked and the customer is on their way to Stripe.
+  assert.deepEqual(navigated, ["https://checkout.stripe.com/c/pay/ok"]);
+  // Deliberately `[5]` and NOT `[5, null]`. Change this line and read the
+  // `catch` in `createBuyCreditsHandler` first — it is the only exit in the
+  // file that releases nothing, and it is the reason mutation row `w` exists.
+  assert.deepEqual(busy, [5]);
+  // Nothing to fire by hand: the handover is what failed.
+  assert.equal(releases.length, 0);
+  // The customer is told nothing new — the request answered 200 and a session
+  // really was created, so a failure message here would be a lie.
+  assert.deepEqual(errors, [null]);
+
+  // Silence is what made this a defect, so the exit reports itself, under its
+  // OWN stage: a dashboard cannot infer this one from anything else, because
+  // no other exit leaves a customer with a card that can never re-arm.
+  assert.equal(reported.length, 1);
+  assert.equal(reported[0]?.error, broken);
+  assert.deepEqual(reported[0]?.properties, {
+    operation: BUY_CREDITS_OPERATION,
+    stage: BUY_CREDITS_HANDOVER_STAGE,
+  });
+  assert.notEqual(BUY_CREDITS_HANDOVER_STAGE, BUY_CREDITS_HANDLER_STAGE);
+});
+
+test("the handover fault's console line does not claim a release it skipped", async () => {
+  // The other half of finding 2: "Fix the code AND the comment." The line the
+  // developer reads used to say "The busy flag is released anyway so the card
+  // is not left dead" on every path, this one included. It is a parameter now,
+  // and this is what holds the two wordings apart — a fault whose own log line
+  // contradicts the behaviour sends the next reader looking in the wrong file.
+  const { busy, logged, run } = handlerHarness(CHECKOUT_OK, LICENSE_KEY, {
+    onRedirectScheduled: () => {
+      throw new TypeError("window.addEventListener is not a function");
+    },
+  });
+
+  await run(5);
+
+  assert.deepEqual(busy, [5]);
+  assert.equal(logged.length, 1);
+
+  const line = String(logged[0]?.[0]);
+
+  assert.match(line, /buy_credits/);
+  // The sentence that was false here.
+  assert.equal(line.includes("released anyway"), false);
+  // …and what it says instead: the true state of the card, and the recovery.
+  assert.match(line, /nothing now owns the busy flag/);
+  assert.match(line, /reload/);
 });
 
 test("an error tracker an ad-blocker broke does not leave the card dead", async () => {

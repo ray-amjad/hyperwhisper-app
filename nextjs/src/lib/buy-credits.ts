@@ -33,6 +33,21 @@ export const BUY_CREDITS_OPERATION = "buy_credits";
 export const BUY_CREDITS_HANDLER_STAGE = "handler";
 
 /**
+ * The `stage` a report carries when the throw came from the busy-flag HANDOVER
+ * itself (#947 review round 2, finding 2).
+ *
+ * A second VALUE of the existing `stage` property, not a second property. It
+ * exists because this is the one exit in `createBuyCreditsHandler` that
+ * releases nothing at all, so it is the one exit a dashboard cannot infer from
+ * anything else: a checkout session WAS created, the customer IS being
+ * redirected, and this card will never re-arm itself if they come back. If
+ * these ever appear in production, the fix is to find out what broke
+ * the page's own `addEventListener` — not to re-arm the card here. See the
+ * `catch` it is reported from.
+ */
+export const BUY_CREDITS_HANDOVER_STAGE = "redirect_handover";
+
+/**
  * The slice of the request the seam builds. Declared here rather than reused
  * from the DOM's `RequestInit` so a test can assert on all three fields
  * without a cast, and so the seam stays free of anything browser-shaped. It
@@ -266,20 +281,29 @@ export interface BuyCreditsHandlerRequest {
 function reportHandlerFault(
   thrown: unknown,
   reportError: (error: unknown, properties: Record<string, unknown>) => void,
+  stage: string,
+  consequence: string,
 ): void {
   // Deliberate: the developer gets the throw itself, which never reaches the
   // customer.
+  //
+  // The consequence sentence is a PARAMETER because it differs per call site
+  // and a fixed one was a lie (#947 review round 2, finding 2): this line used
+  // to read "The busy flag is released anyway so the card is not left dead" on
+  // every path, including the one path where nothing releases the flag and the
+  // card IS left dead. A comment that claims the opposite of the code is worse
+  // than no comment, because the next reader stops looking.
   // eslint-disable-next-line no-console
   console.error(
     `[${BUY_CREDITS_OPERATION}] A collaborator threw outside the checkout ` +
-      `request. The busy flag is released anyway so the card is not left dead.`,
+      `request. ${consequence}`,
     thrown,
   );
 
   try {
     reportError(thrown, {
       operation: BUY_CREDITS_OPERATION,
-      stage: BUY_CREDITS_HANDLER_STAGE,
+      stage,
     });
   } catch {
     // `reportError` is itself one of the collaborators that can be the
@@ -338,7 +362,9 @@ function reportHandlerFault(
  * block. A throw from the navigation, from `setError` or from `reportError`
  * (an ad-blocker that stubs `posthog.captureException` is enough) is caught,
  * named for what it is by `reportHandlerFault`, and the flag is released
- * anyway.
+ * anyway — on every exit but the handover one above, which is the only place
+ * in this file where the release is deliberately skipped and the only place
+ * that says so in the report it sends.
  */
 export function createBuyCreditsHandler({
   licenseKey,
@@ -386,22 +412,70 @@ export function createBuyCreditsHandler({
       // here, so it is reported as one and never a second time as a network
       // fault. `navigated` is still false, which is correct: a navigation that
       // threw is a navigation that did not happen.
-      reportHandlerFault(thrown, reportError);
+      reportHandlerFault(
+        thrown,
+        reportError,
+        BUY_CREDITS_HANDLER_STAGE,
+        "The busy flag is released below, so the card is not left dead.",
+      );
     }
 
-    // A plain statement and not a `finally`, because the `catch` above is
+    // Plain statements and not a `finally`, because the `catch` above is
     // total: nothing can leave the block by throwing, so control always
     // arrives here and the release below is the last thing in the handler.
-    // Its own `try` is the belt to that braces — a release that threw would be
-    // the rejection this whole shape exists to prevent.
-    try {
-      if (navigated) onRedirectScheduled(() => setBusy(null));
-      else setBusy(null);
-    } catch (thrown) {
-      // Unreachable in a real browser: the only host that can fail here is the
-      // same one `navigate` just assigned to. Left in because the cost is four
-      // lines and the alternative is an unhandled rejection.
-      reportHandlerFault(thrown, reportError);
+    // The two exits are written apart, each with its own `try`, because they
+    // want OPPOSITE things when they fail (#947 review round 2, finding 2) and
+    // one shared `catch` could not tell them apart.
+    if (navigated) {
+      try {
+        onRedirectScheduled(() => setBusy(null));
+      } catch (thrown) {
+        // THIS EXIT RELEASES NOTHING, ON PURPOSE. It is the only one, and the
+        // rule above says every exit names an owner — so here is the reason
+        // this one names none.
+        //
+        // Getting here means `navigate` already assigned `location.href` and a
+        // cross-origin load to Stripe is scheduled and most likely committing
+        // right now; only the handover to the page-lifecycle watcher failed
+        // (the page's own `addEventListener` stubbed or refused). Calling
+        // `setBusy` here would re-arm all four controls at the worst possible
+        // moment — zero milliseconds after scheduling, when the navigation is at
+        // its most likely to still commit — and a second click would POST again
+        // and create a second checkout session for the same top-up. That is
+        // the money-path fault this whole asymmetry exists to prevent, and
+        // round 2 deleted a 20-SECOND timer for doing a milder version of it.
+        // Releasing at 0 ms instead would be the same defect, made worse.
+        //
+        // So the card stays busy: a spinner that never stops, recovered by a
+        // reload. That is the same price Escape and an unreachable host pay,
+        // it is the cheaper side of the trade, and the report below is what
+        // makes it visible rather than silent.
+        reportHandlerFault(
+          thrown,
+          reportError,
+          BUY_CREDITS_HANDOVER_STAGE,
+          "The redirect is scheduled but nothing now owns the busy flag: " +
+            "this card cannot re-arm itself and a reload is the recovery. " +
+            "Re-arming it here would invite a second checkout session.",
+        );
+      }
+    } else {
+      try {
+        setBusy(null);
+      } catch (thrown) {
+        // The customer is still on the dashboard and this release is the one
+        // that had to run. `setBusy` is React's own state setter, so nothing
+        // realistic throws here — it is caught because an unhandled rejection
+        // under the card's `void handleBuyCredits(…)` call site is worse than
+        // four lines.
+        reportHandlerFault(
+          thrown,
+          reportError,
+          BUY_CREDITS_HANDLER_STAGE,
+          "The busy-flag release itself threw, so the card is left dead " +
+            "until a reload.",
+        );
+      }
     }
   };
 }

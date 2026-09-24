@@ -74,8 +74,8 @@ const mutations = {
     apply: (s) =>
       s.replace(
         `  onError(
-    isRecord(data) && typeof data.error === "string" && data.error !== ""
-      ? data.error
+    response.status < 500 && serverMessage !== ""
+      ? serverMessage
       : checkoutErrorMessage,
   );
 
@@ -92,8 +92,8 @@ const mutations = {
     // and a redirect no markup assertion could ever see.
     apply: (s) =>
       s.replace(
-        "  onError(\n    isRecord(data)",
-        '  navigate("/credits");\n\n  onError(\n    isRecord(data)',
+        "  onError(\n    response.status",
+        '  navigate("/credits");\n\n  onError(\n    response.status',
       ),
   },
   g: {
@@ -159,8 +159,13 @@ const mutations = {
     // released, so the whole buy block is dead until a reload.
     apply: (s) =>
       s.replace(
-        "      reportHandlerFault(thrown, reportError);\n    }\n\n    // A plain statement",
-        "      throw thrown;\n    }\n\n    // A plain statement",
+        `      reportHandlerFault(
+        thrown,
+        reportError,
+        BUY_CREDITS_HANDLER_STAGE,
+        "The busy flag is released below, so the card is not left dead.",
+      );`,
+        "      throw thrown;",
       ),
   },
   l: {
@@ -171,8 +176,8 @@ const mutations = {
     // passes: a scheduled redirect looked identical to one that committed.
     apply: (s) =>
       s.replace(
-        "      if (navigated) onRedirectScheduled(() => setBusy(null));\n      else setBusy(null);",
-        "      if (!navigated) setBusy(null);",
+        "        onRedirectScheduled(() => setBusy(null));\n",
+        "",
       ),
   },
   m: {
@@ -342,6 +347,62 @@ const mutations = {
           '  host.addEventListener("pageshow", onPageShow);\n}',
           '  host.addEventListener("pageshow", onPageShow);\n  timer = host.setTimeout(finish, timeoutMs);\n}',
         ),
+  },
+
+  // u–w are finding 2: the redirect HANDOVER, the one exit in the handler that
+  // ran in no test at all before this round (finding 4 is why — the override
+  // was declared and never supplied).
+
+  u: {
+    file: LIB,
+    describe: "let a failed redirect handover escape the handler again",
+    expect: "buy-credits-seam (the handover tests)",
+    // The handler is called as `void handleBuyCredits(…)` with no `.catch`, so
+    // an escaping throw is an unhandled rejection in the customer's console on
+    // top of a card that never re-arms.
+    apply: (s) =>
+      s.replace(
+        `            "Re-arming it here would invite a second checkout session.",
+        );
+      }`,
+        `            "Re-arming it here would invite a second checkout session.",
+        );
+
+        throw thrown;
+      }`,
+      ),
+  },
+  w: {
+    file: LIB,
+    describe: "re-arm the card when the redirect handover fails",
+    expect: "buy-credits-seam (the handover-leaves-the-card-busy test)",
+    // The reviewer's own suggested remedy for finding 2, applied as a
+    // mutation — because it was DECLINED and a declined remedy needs a row as
+    // much as an accepted one does. `navigate` has already assigned
+    // `location.href` by the time this `catch` runs, so this re-arms all four
+    // controls zero milliseconds into a navigation that is most likely
+    // committing, and a second click creates a second checkout session. It is
+    // the same shape as the timer row `v` puts back, with the delay set to
+    // nothing.
+    apply: (s) =>
+      s.replace(
+        "        reportHandlerFault(\n          thrown,\n          reportError,\n          BUY_CREDITS_HANDOVER_STAGE,",
+        "        setBusy(null);\n        reportHandlerFault(\n          thrown,\n          reportError,\n          BUY_CREDITS_HANDOVER_STAGE,",
+      ),
+  },
+  x: {
+    file: LIB,
+    describe: "let an EMPTY server error string reach the alert region",
+    expect: "buy-credits-seam (the empty-error-string test)",
+    // The other guard inside the same expression the 4xx/5xx split rewrote.
+    // `""` is a `string` and passes `typeof`, and the card's alert region
+    // paints only when the message is truthy — so the customer gets an empty
+    // red box, which is the "button that does nothing" #737 is about.
+    apply: (s) =>
+      s.replace(
+        '    response.status < 500 && serverMessage !== ""',
+        "    response.status < 500",
+      ),
   },
 };
 
