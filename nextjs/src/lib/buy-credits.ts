@@ -19,6 +19,20 @@ export const BUY_CREDITS_ENDPOINT = "/api/checkout/credits";
 export const BUY_CREDITS_OPERATION = "buy_credits";
 
 /**
+ * The `stage` a report carries when the throw did NOT come from the checkout
+ * request (#947 review round 1, finding 1).
+ *
+ * `buyCreditsAndRedirect` classifies a request that failed and reports it with
+ * a `status`, or with no `status` at all when the request itself threw. A
+ * throw from one of the OTHER collaborators — the navigation, the message
+ * setter, or the reporter itself — is neither of those, and reporting it down
+ * either of those paths would blame a network that was never at fault. It gets
+ * this stage instead, so a dashboard can tell a lost sale from a broken
+ * browser extension.
+ */
+export const BUY_CREDITS_HANDLER_STAGE = "handler";
+
+/**
  * The slice of the request the seam builds. Declared here rather than reused
  * from the DOM's `RequestInit` so a test can assert on all three fields
  * without a cast, and so the seam stays free of anything browser-shaped. It
@@ -201,8 +215,56 @@ export interface BuyCreditsHandlerRequest {
   reportError: (error: unknown, properties: Record<string, unknown>) => void;
   setBusy: (tier: BuyCreditsTier | null) => void;
   setError: (message: string | null) => void;
+  /**
+   * Takes over the busy-flag release for the ONE exit this factory does not
+   * run itself: a navigation that has been SCHEDULED and may still never
+   * happen. See the asymmetry note on `createBuyCreditsHandler` and
+   * `src/lib/abandoned-redirect.ts`, which is what the card passes here.
+   *
+   * It is injected rather than called directly because the release depends on
+   * page-lifecycle events, and no such thing may appear in this file — a test
+   * asserts on the source text itself.
+   */
+  onRedirectScheduled: (release: () => void) => void;
   checkoutErrorMessage: string;
   genericErrorMessage: string;
+}
+
+/**
+ * Records a throw that escaped `buyCreditsAndRedirect` — which can only be a
+ * collaborator failing, never a failed request.
+ *
+ * `buyCreditsAndRedirect` wraps the REQUEST and nothing else, on purpose: a
+ * broader `try` there would catch a throw from the navigation, from `onError`
+ * or from `reportError` and report the same failure a second time down the
+ * network path. That reasoning is kept. The classification of a failed request
+ * stays one concern; catching a collaborator is a different one, and it
+ * belongs out here where it can be named for what it is.
+ */
+function reportHandlerFault(
+  thrown: unknown,
+  reportError: (error: unknown, properties: Record<string, unknown>) => void,
+): void {
+  // Deliberate: the developer gets the throw itself, which never reaches the
+  // customer.
+  // eslint-disable-next-line no-console
+  console.error(
+    `[${BUY_CREDITS_OPERATION}] A collaborator threw outside the checkout ` +
+      `request. The busy flag is released anyway so the card is not left dead.`,
+    thrown,
+  );
+
+  try {
+    reportError(thrown, {
+      operation: BUY_CREDITS_OPERATION,
+      stage: BUY_CREDITS_HANDLER_STAGE,
+    });
+  } catch {
+    // `reportError` is itself one of the collaborators that can be the
+    // thrower — an ad-blocker that stubs `posthog.captureException` is the
+    // reported case — so its own failure must not become the rejection this
+    // whole path exists to prevent. The console line above is what is left.
+  }
 }
 
 /**
@@ -215,13 +277,39 @@ export interface BuyCreditsHandlerRequest {
  * in its render body and wire the result to `onClick`, which a static render
  * can prove.
  *
- * The busy flag is asymmetric on purpose (#881 review round 1, finding 1, and
+ * THE BUSY FLAG HAS EXACTLY ONE OWNER ON EVERY EXIT, AND NO EXIT HAS NONE.
+ * That is the whole rule, and it is what #947 review round 1 findings 1 and 3
+ * are two halves of.
+ *
+ * The flag is asymmetric on purpose (#881 review round 1, finding 1, and
  * `sign-out.ts:93-101`). `navigate` assigns the document's `location.href`,
- * which only SCHEDULES a navigation: the document stays live and interactive for the
- * whole page load that follows. The card's old `finally { setLoadingTier(null) }`
- * cleared it unconditionally, which re-armed every tier button during the
- * Stripe redirect and invited a second checkout session — a second charge —
- * for the same top-up. So busy is cleared on the failure paths ONLY.
+ * which only SCHEDULES a navigation: the document stays live and interactive
+ * for the whole page load that follows. The card's old
+ * `finally { setLoadingTier(null) }` cleared it unconditionally, which re-armed
+ * every tier button during the Stripe redirect and invited a second checkout
+ * session — a second charge — for the same top-up. So this function must not
+ * clear it there, and it does not.
+ *
+ * But "not here" is not "nowhere". Every exit below hands the release to
+ * somebody:
+ *
+ * - a refused checkout, a thrown request, or a collaborator that threw: the
+ *   customer is still on the dashboard, so the release runs right here;
+ * - a scheduled navigation: the release is handed to `onRedirectScheduled`,
+ *   which the card implements with the page-lifecycle watcher in
+ *   `src/lib/abandoned-redirect.ts`. A navigation the customer abandons —
+ *   Escape, an unreachable Stripe host, or Back with this document restored
+ *   from the bfcache — therefore still re-arms the card. Before that, this
+ *   branch simply dropped the flag on the floor and only a reload brought the
+ *   buttons back.
+ *
+ * AND IT NEVER REJECTS. `CloudCreditsCard.tsx` calls this with `void` and no
+ * `.catch`, which is correct for a click handler and fatal for a promise that
+ * can reject: the customer would get an unhandled rejection AND a dead buy
+ * block. A throw from the navigation, from `setError` or from `reportError`
+ * (an ad-blocker that stubs `posthog.captureException` is enough) is caught,
+ * named for what it is by `reportHandlerFault`, and the flag is released
+ * anyway.
  */
 export function createBuyCreditsHandler({
   licenseKey,
@@ -230,6 +318,7 @@ export function createBuyCreditsHandler({
   reportError,
   setBusy,
   setError,
+  onRedirectScheduled,
   checkoutErrorMessage,
   genericErrorMessage,
 }: BuyCreditsHandlerRequest): (
@@ -249,18 +338,41 @@ export function createBuyCreditsHandler({
     setError(null);
     setBusy(tier);
 
-    const navigated = await buyCreditsAndRedirect({
-      licenseKey,
-      amount,
-      fetchImpl,
-      navigate,
-      onError: setError,
-      reportError,
-      checkoutErrorMessage,
-      genericErrorMessage,
-    });
+    let navigated = false;
 
-    // Only when we are staying on this page. See the asymmetry note above.
-    if (!navigated) setBusy(null);
+    try {
+      navigated = await buyCreditsAndRedirect({
+        licenseKey,
+        amount,
+        fetchImpl,
+        navigate,
+        onError: setError,
+        reportError,
+        checkoutErrorMessage,
+        genericErrorMessage,
+      });
+    } catch (thrown) {
+      // Not a failed request — `buyCreditsAndRedirect` has already caught,
+      // classified and reported any of those. Only a collaborator reaches
+      // here, so it is reported as one and never a second time as a network
+      // fault. `navigated` is still false, which is correct: a navigation that
+      // threw is a navigation that did not happen.
+      reportHandlerFault(thrown, reportError);
+    }
+
+    // A plain statement and not a `finally`, because the `catch` above is
+    // total: nothing can leave the block by throwing, so control always
+    // arrives here and the release below is the last thing in the handler.
+    // Its own `try` is the belt to that braces — a release that threw would be
+    // the rejection this whole shape exists to prevent.
+    try {
+      if (navigated) onRedirectScheduled(() => setBusy(null));
+      else setBusy(null);
+    } catch (thrown) {
+      // Unreachable in a real browser: the only host that can fail here is the
+      // same one `navigate` just assigned to. Left in because the cost is four
+      // lines and the alternative is an unhandled rejection.
+      reportHandlerFault(thrown, reportError);
+    }
   };
 }

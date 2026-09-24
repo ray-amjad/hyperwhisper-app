@@ -151,6 +151,7 @@ type CloudCreditsCard = (props: {
 /** Renders the real card exactly as the dashboard does. */
 async function renderCard(
   activeLicenseKey: string | null = LICENSE_KEY,
+  totalMinutesRemaining = 42,
 ): Promise<void> {
   const { default: CloudCreditsCard } = (await import(CARD_PATH)) as {
     default: CloudCreditsCard;
@@ -159,7 +160,7 @@ async function renderCard(
   renderToStaticMarkup(
     createElement(CloudCreditsCard, {
       totalCredits: 12345,
-      totalMinutesRemaining: 42,
+      totalMinutesRemaining,
       creditsPerMinute: 100,
       activeLicenseKey,
     }),
@@ -198,6 +199,11 @@ test("the handler is built with every collaborator the seam needs", async () => 
   // or surface a refusal, which is the silence #737 is about.
   assert.equal(typeof request.setBusy, "function");
   assert.equal(typeof request.setError, "function");
+  // The busy flag's SECOND owner (#947 round 1, finding 3). The factory keeps
+  // the flag set once a redirect is scheduled and hands the release to this;
+  // omit it and `loadingTier` is stuck for the life of the document whenever
+  // the customer abandons the redirect.
+  assert.equal(typeof request.onRedirectScheduled, "function");
 });
 
 test("a null licence key still reaches the factory, unchecked", async () => {
@@ -321,10 +327,53 @@ test("the card does not navigate by itself", async () => {
 
   const request = factoryCalls[0];
 
-  // `navigate` is the card's ONLY window reference, and the seam asserts on its
-  // own source text that it grew none. Calling it here would assign
+  // `navigate` is one of the card's two window references, and the seam asserts
+  // on its own source text that it grew none. Calling it here would assign
   // `window.location.href` under a Node runtime with no `window`, so the throw
   // is the proof that the navigation really is the card's to make and not the
   // seam's.
   assert.throws(() => request?.navigate("https://checkout.stripe.com/c/pay/ok"));
+});
+
+test("the abandoned-redirect watch is the card's to arm, not the seam's", async () => {
+  await renderCard();
+
+  const request = factoryCalls[0];
+
+  // The card's OTHER window reference, and the same proof. The watch is a
+  // `pageshow` listener and a timer on the real page, which the seam may not
+  // hold — so a `onRedirectScheduled` that did nothing at all, or one the seam
+  // supplied itself, would both pass the `typeof` check above. Only a call
+  // that reaches for the page and finds no `window` under Node can tell them
+  // apart. What the watch then DOES is `tests/abandoned-redirect.test.ts`.
+  //
+  // The `typeof` first is not decoration: without it, a card that passed no
+  // `onRedirectScheduled` at all makes `request?.onRedirectScheduled(…)` throw
+  // a TypeError of its own and `assert.throws` passes for the wrong reason.
+  assert.equal(typeof request?.onRedirectScheduled, "function");
+  assert.throws(() => request?.onRedirectScheduled(() => {}));
+});
+
+test("a customer with no minutes left is handed no minutes line at all", async () => {
+  // #947 round 1, finding 2. This used to be two decisions: the wrapper
+  // interpolated the string unconditionally and the View separately re-tested
+  // `totalMinutesRemaining > 0`. The label now carries the answer, so a caller
+  // cannot paint `~0 minutes remaining` by forgetting the second test.
+  await renderCard(LICENSE_KEY, 0);
+
+  assert.equal(viewRenders[0]?.labels.minutesRemaining, null);
+  // The balance itself is unconditional and still there, so the null above is
+  // a decision and not a card that failed to render.
+  assert.equal(viewRenders[0]?.totalCredits, 12345);
+});
+
+test("a customer with minutes left is handed the interpolated line", async () => {
+  await renderCard(LICENSE_KEY, 42);
+
+  // The positive control. `t` echoes `namespace.key` here, so this proves the
+  // card asked for its own `cloudCreditsCard.minutesRemaining` and no other.
+  assert.equal(
+    viewRenders[0]?.labels.minutesRemaining,
+    "cloudCreditsCard.minutesRemaining",
+  );
 });

@@ -68,7 +68,6 @@ function propsFor(
 ): CloudCreditsCardViewProps {
   return {
     totalCredits: 12345,
-    totalMinutesRemaining: 42,
     activeLicenseKey: "HW-TEST-0000-1111-2222",
     tiers: [
       { amount: 5, creditsLabel: "5,000 credits", minutesLabel: "~50 min" },
@@ -140,6 +139,35 @@ function findButtons(node: ReactNode): ButtonElement[] {
 
   return found;
 }
+
+/** The class string the minutes line, and nothing else in this card, carries. */
+const MINUTES_LINE = /class="text-sm text-gray-400 mt-0\.5"/;
+
+test("the minutes line is painted from the label alone", async () => {
+  // #947 round 1, finding 2. The View no longer re-decides this from
+  // `totalMinutesRemaining > 0` — that prop is gone. The wrapper's answer IS
+  // the label, exactly as it already was for `tier.minutesLabel`.
+  const withMinutes = await renderView();
+
+  assert.match(withMinutes, />42 minutes remaining</);
+  assert.match(withMinutes, MINUTES_LINE);
+});
+
+test("a null minutes label paints no line, not an empty one", async () => {
+  const withoutMinutes = await renderView({
+    labels: { ...propsFor().labels, minutesRemaining: null },
+  });
+
+  // The ELEMENT has to be gone, not just its text. Paint it unconditionally
+  // and React renders an empty `<p>` whose bytes contain no "minutes
+  // remaining" at all — a text-only assertion would survive that mutation, so
+  // the container's own class is what is asserted on.
+  assert.doesNotMatch(withoutMinutes, MINUTES_LINE);
+  assert.doesNotMatch(withoutMinutes, /minutes remaining/);
+  // …and the balance above it is untouched, so this is one line missing and
+  // not a card that failed to render.
+  assert.match(withoutMinutes, /12,345/);
+});
 
 test("a refused checkout is announced under the tier buttons", async () => {
   const markup = await renderView({ error: "Amount too large" });

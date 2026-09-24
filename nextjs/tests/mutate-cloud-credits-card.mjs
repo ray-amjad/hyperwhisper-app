@@ -21,6 +21,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 const VIEW = "components/customer/dashboard/CloudCreditsCardView.tsx";
 const WRAPPER = "components/customer/dashboard/CloudCreditsCard.tsx";
 const LIB = "src/lib/buy-credits.ts";
+const WATCH = "src/lib/abandoned-redirect.ts";
 
 const mutations = {
   a: {
@@ -143,6 +144,114 @@ const mutations = {
     expect: "cloud-credits-card-error-state + cloud-credits-card-wiring",
     apply: (s) =>
       s.replace("    setBusy: setLoadingTier,\n    setError,\n", "    setBusy: setLoadingTier,\n"),
+  },
+
+  // ─── #947 review round 1 ────────────────────────────────────────────────
+  // k–n are findings 1 and 3, which are one rule: the busy flag has exactly
+  // one owner on every exit, and no exit has none. o–p are finding 2.
+
+  k: {
+    file: LIB,
+    describe: "let a collaborator's throw escape the handler again",
+    expect: "buy-credits-seam (the navigate-throws and ad-blocker tests)",
+    // Finding 1 exactly as it stood: the handler rejects under a `void` call
+    // site (an unhandled rejection at the customer) and `loadingTier` is never
+    // released, so the whole buy block is dead until a reload.
+    apply: (s) =>
+      s.replace(
+        "      reportHandlerFault(thrown, reportError);\n    }\n\n    // A plain statement",
+        "      throw thrown;\n    }\n\n    // A plain statement",
+      ),
+  },
+  l: {
+    file: LIB,
+    describe: "drop the busy flag on the floor once a redirect is scheduled",
+    expect: "buy-credits-seam (the scheduled-redirect handover test)",
+    // Finding 3 exactly as it stood. Every other test in the file still
+    // passes: a scheduled redirect looked identical to one that committed.
+    apply: (s) =>
+      s.replace(
+        "      if (navigated) onRedirectScheduled(() => setBusy(null));\n      else setBusy(null);",
+        "      if (!navigated) setBusy(null);",
+      ),
+  },
+  m: {
+    file: WATCH,
+    describe: "re-arm the card on ANY pageshow, not only a bfcache restore",
+    expect: "abandoned-redirect (the ordinary-page-load test)",
+    apply: (s) =>
+      s.replace("    if (event.persisted) finish();", "    finish();"),
+  },
+  n: {
+    file: WATCH,
+    describe: "leave the pageshow listener registered after releasing",
+    expect: "abandoned-redirect (the bfcache and release-runs-once tests)",
+    // Half of what makes the release at-most-once. A `released` boolean was
+    // written here first; this harness proved it unreachable, so the teardown
+    // IS the guard and these two rows are what hold it.
+    apply: (s) =>
+      s.replace('    host.removeEventListener("pageshow", onPageShow);\n', ""),
+  },
+  r: {
+    file: WATCH,
+    describe: "leave the timer running after releasing",
+    expect: "abandoned-redirect (the bfcache and two-checkouts tests)",
+    // The other half. A bfcache restore freezes the timer rather than
+    // dropping it, so an uncleared one really does fire after the release.
+    apply: (s) =>
+      s.replace(
+        "    if (timer !== undefined) host.clearTimeout(timer);\n\n",
+        "",
+      ),
+  },
+  o: {
+    file: WRAPPER,
+    describe: "interpolate the minutes line unconditionally again",
+    expect: "cloud-credits-card-wiring (the no-minutes test)",
+    // Finding 2 on the wrapper's side: the label always carries a string, so
+    // the decision moves back into whoever paints it.
+    apply: (s) =>
+      s.replace(
+        `        minutesRemaining:
+          totalMinutesRemaining > 0
+            ? t("minutesRemaining", { minutes: totalMinutesRemaining })
+            : null,`,
+        `        minutesRemaining: t("minutesRemaining", {
+          minutes: totalMinutesRemaining,
+        }),`,
+      ),
+  },
+  p: {
+    file: VIEW,
+    describe: "paint the minutes line whatever the label says",
+    expect: "cloud-credits-card-view (the null-label test)",
+    // The other half of finding 2, and the reason its test asserts on the
+    // container's class: with a null label this renders an EMPTY `<p>`, whose
+    // bytes contain no "minutes remaining" for a text-only assertion to miss.
+    apply: (s) =>
+      s.replace(
+        `        {labels.minutesRemaining && (
+          <p className="text-sm text-gray-400 mt-0.5">
+            {labels.minutesRemaining}
+          </p>
+        )}`,
+        `        <p className="text-sm text-gray-400 mt-0.5">
+          {labels.minutesRemaining}
+        </p>`,
+      ),
+  },
+  q: {
+    file: WRAPPER,
+    describe: "drop onRedirectScheduled from the object the card builds",
+    expect: "cloud-credits-card-wiring (the collaborators and window tests)",
+    apply: (s) =>
+      s.replace(
+        `    onRedirectScheduled: (release) => {
+      watchForAbandonedRedirect(window, release);
+    },
+`,
+        "",
+      ),
   },
 };
 

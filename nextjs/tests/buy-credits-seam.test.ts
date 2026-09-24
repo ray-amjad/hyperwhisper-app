@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   BUY_CREDITS_ENDPOINT,
+  BUY_CREDITS_HANDLER_STAGE,
   BUY_CREDITS_OPERATION,
   buyCreditsAndRedirect,
   createBuyCreditsHandler,
@@ -341,15 +342,36 @@ test("the seam holds no browser global", async () => {
  * can assert on the SEQUENCE — the card's `finally { setLoadingTier(null) }`
  * cleared busy on the success path too.
  */
+/**
+ * The collaborators a test can replace with one that THROWS. Every one of
+ * them is real: an ad-blocker stubs `posthog.captureException`, a sandboxed
+ * frame refuses the navigation assignment. `CloudCreditsCard.tsx` calls the
+ * handler as `void handleBuyCredits(…)` with no `.catch`, so any of these
+ * escaping is an unhandled rejection at the customer AND a buy block that
+ * never comes back (#947 review round 1, finding 1).
+ */
+interface HandlerOverrides {
+  navigate?: (destination: string) => void;
+  reportError?: (error: unknown, properties: Record<string, unknown>) => void;
+  onRedirectScheduled?: (release: () => void) => void;
+}
+
 function handlerHarness(
   fetchImpl: BuyCreditsFetch,
   licenseKey: string | null = LICENSE_KEY,
+  overrides: HandlerOverrides = {},
 ) {
   const busy: Array<BuyCreditsTier | null> = [];
   const errors: Array<string | null> = [];
   const navigated: string[] = [];
   const reported: ReportedCall[] = [];
   const requests: Array<{ input: string; init: BuyCreditsRequestInit }> = [];
+  /**
+   * Every busy-flag release the handler handed to the abandoned-redirect
+   * watcher. The card passes `watchForAbandonedRedirect` here; this records
+   * the callbacks instead, so a test can hold one and fire it by hand.
+   */
+  const releases: Array<() => void> = [];
 
   const handler = createBuyCreditsHandler({
     licenseKey,
@@ -358,10 +380,15 @@ function handlerHarness(
 
       return fetchImpl(input, init);
     },
-    navigate: (destination) => navigated.push(destination),
-    reportError: (error, properties) => reported.push({ error, properties }),
+    navigate:
+      overrides.navigate ?? ((destination) => navigated.push(destination)),
+    reportError:
+      overrides.reportError ??
+      ((error, properties) => reported.push({ error, properties })),
     setBusy: (tier) => busy.push(tier),
     setError: (message) => errors.push(message),
+    onRedirectScheduled:
+      overrides.onRedirectScheduled ?? ((release) => releases.push(release)),
     checkoutErrorMessage: CHECKOUT_ERROR,
     genericErrorMessage: GENERIC_ERROR,
   });
@@ -377,17 +404,18 @@ function handlerHarness(
     }
   }
 
-  return { busy, errors, navigated, reported, requests, run };
+  return { busy, errors, navigated, releases, reported, requests, run };
 }
 
+/** A 200 carrying a checkout URL — the only response that navigates. */
+const CHECKOUT_OK: BuyCreditsFetch = responds({
+  ok: true,
+  status: 200,
+  json: () => ({ checkoutUrl: "https://checkout.stripe.com/c/pay/ok" }),
+});
+
 test("a successful checkout leaves the tier buttons disarmed", async () => {
-  const { busy, errors, navigated, run } = handlerHarness(
-    responds({
-      ok: true,
-      status: 200,
-      json: () => ({ checkoutUrl: "https://checkout.stripe.com/c/pay/ok" }),
-    }),
-  );
+  const { busy, errors, navigated, run } = handlerHarness(CHECKOUT_OK);
 
   await run(5);
 
@@ -475,6 +503,130 @@ test("a second click clears the previous failure first", async () => {
   assert.deepEqual(errors, [null, "Amount too large", null]);
   assert.deepEqual(busy, [5, null, 5]);
   assert.deepEqual(navigated, ["https://checkout.stripe.com/c/pay/POST"]);
+});
+
+/**
+ * #947 review round 1, findings 1 and 3. One rule, stated once:
+ *
+ *   THE BUSY FLAG HAS EXACTLY ONE OWNER ON EVERY EXIT, AND NO EXIT HAS NONE.
+ *
+ * Every test above covers an exit that stays on the dashboard, where the owner
+ * is the handler itself. The four below cover the two exits that had no owner
+ * at all: a scheduled navigation (the flag was dropped on the floor and only a
+ * reload brought the card back) and a collaborator that throws (the flag was
+ * dropped AND the handler rejected under a `void` call site).
+ */
+
+test("a scheduled redirect hands the busy release over instead of dropping it", async () => {
+  const { busy, navigated, releases, run } = handlerHarness(CHECKOUT_OK);
+
+  await run(5);
+
+  assert.deepEqual(navigated, ["https://checkout.stripe.com/c/pay/ok"]);
+  // Still disarmed on the way out — the half of the rule that must not change.
+  assert.deepEqual(busy, [5]);
+  // …but handed to somebody. Before this, the branch simply returned and
+  // `loadingTier` stayed set for the life of the document: every tier button,
+  // the custom toggle and the amount input dead, with no recovery but a
+  // reload, on a customer who pressed Escape or came Back out of the bfcache.
+  assert.equal(releases.length, 1);
+  assert.equal(typeof releases[0], "function");
+
+  // The card wires this to `watchForAbandonedRedirect`, whose own conditions
+  // are `tests/abandoned-redirect.test.ts`. What it does when it fires is
+  // this: the one thing the handler declined to do itself.
+  releases[0]?.();
+
+  assert.deepEqual(busy, [5, null]);
+});
+
+test("a refused checkout arms no abandoned-redirect watch", async () => {
+  const { busy, releases, run } = handlerHarness(
+    responds({
+      ok: false,
+      status: 400,
+      json: () => ({ error: "Amount too large" }),
+    }),
+  );
+
+  await run(500);
+
+  // The customer never left, so the handler released the flag itself and there
+  // is nothing to hand over. A watch armed here would sit on a live page for
+  // twenty seconds and then clear a flag a LATER click had set.
+  assert.deepEqual(busy, [500, null]);
+  assert.equal(releases.length, 0);
+});
+
+test("a navigation that throws re-arms the card and is not blamed on the network", async () => {
+  const blocked = new Error("The navigation was refused");
+  const { busy, errors, releases, reported, run } = handlerHarness(
+    CHECKOUT_OK,
+    LICENSE_KEY,
+    {
+      navigate: () => {
+        throw blocked;
+      },
+    },
+  );
+
+  // `CloudCreditsCard.tsx` calls this with `void` and no `.catch`, so a
+  // rejection here is an unhandled rejection in the customer's console.
+  await assert.doesNotReject(() => run(5));
+
+  // A navigation that threw is a navigation that did not happen, so this is an
+  // exit that stays on the dashboard and the flag comes back here.
+  assert.deepEqual(busy, [5, null]);
+  assert.equal(releases.length, 0);
+
+  // Reported ONCE, and under its own stage. `buyCreditsAndRedirect` wraps the
+  // REQUEST and nothing else on purpose: widening that `try` would catch this
+  // same throw and send it down the network path, showing the customer
+  // "Something went wrong" about a network that answered 200. So the customer
+  // is told nothing new and the fetch classification is untouched.
+  assert.equal(reported.length, 1);
+  assert.equal(reported[0]?.error, blocked);
+  assert.deepEqual(reported[0]?.properties, {
+    operation: BUY_CREDITS_OPERATION,
+    stage: BUY_CREDITS_HANDLER_STAGE,
+  });
+  // `[null]` alone, and that is the assertion: the network path's
+  // `GENERIC_ERROR` never reached the customer, because the request never
+  // failed. Only the `setError(null)` that every click opens with is here.
+  assert.deepEqual(errors, [null]);
+});
+
+test("an error tracker an ad-blocker broke does not leave the card dead", async () => {
+  // The reported trigger. `posthog.captureException` stubbed by an extension
+  // throws from inside the refusal branch's `reportError`, past the point
+  // where `buyCreditsAndRedirect` can catch anything.
+  let reportAttempts = 0;
+  const { busy, errors, run } = handlerHarness(
+    responds({
+      ok: false,
+      status: 400,
+      json: () => ({ error: "Amount too large" }),
+    }),
+    LICENSE_KEY,
+    {
+      reportError: () => {
+        reportAttempts += 1;
+
+        throw new TypeError("posthog.captureException is not a function");
+      },
+    },
+  );
+
+  await assert.doesNotReject(() => run(5));
+
+  // The customer still sees the route's own message — `onError` ran before
+  // the reporter did — and the buttons still come back.
+  assert.deepEqual(errors, [null, "Amount too large"]);
+  assert.deepEqual(busy, [5, null]);
+  // Twice: the refusal's own report, then one best-effort attempt to record
+  // the reporter's failure. The second throw is swallowed, because the one
+  // collaborator that cannot be trusted to report a fault is the reporter.
+  assert.equal(reportAttempts, 2);
 });
 
 test("no licence key means no request, no spinner and no message", async () => {

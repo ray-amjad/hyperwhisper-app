@@ -14,6 +14,7 @@ import {
   CREDITS_PER_DOLLAR,
   validateCreditPurchaseAmount,
 } from "@/app/api/checkout/credits/validation";
+import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
 import {
   createBuyCreditsHandler,
   type BuyCreditsTier,
@@ -114,6 +115,16 @@ export default function CloudCreditsCard({
     },
     setBusy: setLoadingTier,
     setError,
+    // The busy flag's SECOND owner, and the card's other `window` reference.
+    // The seam deliberately keeps the flag set once a redirect is scheduled,
+    // so that it is not re-armed mid-navigation; this is what brings the
+    // buttons back when that navigation never actually takes the document
+    // away — Escape, an unreachable Stripe host, or Back from Stripe with this
+    // document restored out of the bfcache and this `useState` still holding
+    // the tier. Both halves of the rule live in `src/lib/abandoned-redirect.ts`.
+    onRedirectScheduled: (release) => {
+      watchForAbandonedRedirect(window, release);
+    },
     checkoutErrorMessage: tBuyCredits("errorCheckout"),
     genericErrorMessage: tBuyCredits("errorGeneric"),
   });
@@ -126,9 +137,17 @@ export default function CloudCreditsCard({
       error={error}
       labels={{
         title: t("title"),
-        minutesRemaining: t("minutesRemaining", {
-          minutes: totalMinutesRemaining,
-        }),
+        // ONE decision, in ONE place (#947 review round 1, finding 2). It used
+        // to be two: this wrapper always interpolated the string and the View
+        // separately decided whether to paint it from its own
+        // `totalMinutesRemaining > 0`. Two owners of one rule are two ways to
+        // disagree, and a caller that painted the label without re-running the
+        // test would show `~0 minutes remaining`. `tier.minutesLabel` two
+        // lines above already had the right shape; this now matches it.
+        minutesRemaining:
+          totalMinutesRemaining > 0
+            ? t("minutesRemaining", { minutes: totalMinutesRemaining })
+            : null,
         custom: t("custom"),
         customSub: t("customSub"),
         topUp: t("topUp"),
@@ -139,7 +158,6 @@ export default function CloudCreditsCard({
       showCustom={showCustom}
       tiers={tiers}
       totalCredits={totalCredits}
-      totalMinutesRemaining={totalMinutesRemaining}
       onBuy={(amount, tier) => {
         void handleBuyCredits(amount, tier);
       }}

@@ -27,8 +27,18 @@ export interface CloudCreditsTierView {
 export interface CloudCreditsCardLabels {
   /** `cloudCreditsCard.title` */
   title: string;
-  /** `cloudCreditsCard.minutesRemaining`, already interpolated. */
-  minutesRemaining: string;
+  /**
+   * `cloudCreditsCard.minutesRemaining`, already interpolated, or `null` when
+   * there are no minutes to announce.
+   *
+   * NULLABLE, and that is the point (#947 review round 1, finding 2). Whether
+   * this line is shown is ONE decision and the wrapper makes it, the same way
+   * it already made `CloudCreditsTierView.minutesLabel`. When the string was
+   * non-nullable this component re-decided it from `totalMinutesRemaining > 0`
+   * — two owners for one rule, and a caller that disagreed painted
+   * `~0 minutes remaining`.
+   */
+  minutesRemaining: string | null;
   /** `cloudCreditsCard.custom` */
   custom: string;
   /** `cloudCreditsCard.customSub` */
@@ -39,7 +49,6 @@ export interface CloudCreditsCardLabels {
 
 export interface CloudCreditsCardViewProps {
   totalCredits: number;
-  totalMinutesRemaining: number;
   /** Null hides the whole buy block — and with it the error region. */
   activeLicenseKey: string | null;
   tiers: readonly CloudCreditsTierView[];
@@ -89,7 +98,6 @@ export interface CloudCreditsCardViewProps {
  */
 export default function CloudCreditsCardView({
   totalCredits,
-  totalMinutesRemaining,
   activeLicenseKey,
   tiers,
   labels,
@@ -111,7 +119,9 @@ export default function CloudCreditsCardView({
         <p className="text-2xl font-semibold text-white">
           {totalCredits.toLocaleString()}
         </p>
-        {totalMinutesRemaining > 0 && (
+        {/* No `> 0` test here. The wrapper already made that call and a null
+            string IS the answer — same shape as `tier.minutesLabel` below. */}
+        {labels.minutesRemaining && (
           <p className="text-sm text-gray-400 mt-0.5">
             {labels.minutesRemaining}
           </p>
