@@ -15,6 +15,7 @@ import clsx from "clsx";
 import { Link as HeroUILink } from "@heroui/link";
 import { Download, Github } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
@@ -24,6 +25,14 @@ export const Navbar = () => {
   const { openModal } = useDownloadModal();
   const t = useTranslations("navbar");
   const locale = useLocale();
+  /*
+    The menu is controlled here because nothing else closes it. HeroUI closes it
+    only from the toggle and from its own resize observer, so a tap on a menu
+    item left the full-screen overlay up — and HeroUI's usePreventScroll keeps
+    document.documentElement at overflow:hidden for as long as it is open.
+  */
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeMenu = () => setIsMenuOpen(false);
 
   /*
     The latency and model-chooser pages are English-only — they 404 on every
@@ -72,8 +81,10 @@ export const Navbar = () => {
         // shrank it to its content and made the bar 16px shorter on every page.
         wrapper: "flex-wrap h-auto min-h-[var(--navbar-height)] gap-y-2 py-2",
       }}
+      isMenuOpen={isMenuOpen}
       maxWidth="xl"
       position="static"
+      onMenuOpenChange={setIsMenuOpen}
     >
       {/*
         HeroUI gives this content `flex-basis: 0`, so the word mark's box could end up narrower
@@ -162,7 +173,7 @@ export const Navbar = () => {
         </NavbarItem>
       </NavbarContent>
 
-      <NavbarContent className="sm:hidden basis-1 pl-4" justify="end">
+      <NavbarContent className="lg:hidden pl-4 grow-0!" justify="end">
         <NavbarMenuToggle className="text-gray-400" />
       </NavbarContent>
 
@@ -175,6 +186,7 @@ export const Navbar = () => {
                 <a
                   className="text-gray-300 hover:text-white transition-colors text-lg"
                   href={item.href}
+                  onClick={closeMenu}
                 >
                   {item.label}
                 </a>
@@ -182,14 +194,25 @@ export const Navbar = () => {
                 <LocaleLink
                   className="text-gray-300 hover:text-white transition-colors text-lg"
                   href={item.href}
+                  onClick={closeMenu}
                 >
                   {item.label}
                 </LocaleLink>
               )}
             </NavbarMenuItem>
           ))}
-          <NavbarMenuItem className="mt-4 flex gap-2">
-            <LanguageSwitcher />
+          {/*
+            The `hidden sm:flex` header end-cluster above and this menu stay on
+            screen together from 640px up, so every control in this row would
+            otherwise be drawn twice. Mirror that cluster's own breakpoints: it
+            shows the language switcher from sm (640) and Download from md (768),
+            so hide the switcher from sm and the whole row from md, at which point
+            both of its children are duplicates.
+          */}
+          <NavbarMenuItem className="mt-4 flex gap-2 md:hidden">
+            <span className="contents sm:hidden">
+              <LanguageSwitcher />
+            </span>
             <Button
               className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold"
               startContent={<Download className="w-4 h-4" />}
