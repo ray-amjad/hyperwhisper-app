@@ -16,6 +16,7 @@ import AVFoundation
 protocol SoundEffectPlayer: AnyObject {
     var volume: Float { get set }
     var currentTime: TimeInterval { get set }
+    @discardableResult func prepareToPlay() -> Bool
     @discardableResult func play() -> Bool
 }
 
@@ -35,12 +36,14 @@ final class SoundEffectsManager: @unchecked Sendable {
         self.init(loader: { SoundEffectsManager.loadSound($0) })
     }
 
-    /// Loads both players on `queue`. The queue is serial, so the load always
-    /// runs before the first play.
+    /// Loads and prepares both players once, on `queue`. The queue is serial,
+    /// so the load always runs before the first play.
     init(loader: @escaping @Sendable (String) -> SoundEffectPlayer?) {
         queue.async { [self] in
             startPlayer = loader("start1_quarter")
             stopPlayer = loader("stop2_quarter")
+            startPlayer?.prepareToPlay()
+            stopPlayer?.prepareToPlay()
         }
     }
 
@@ -58,9 +61,7 @@ final class SoundEffectsManager: @unchecked Sendable {
         let url = Bundle.main.url(forResource: name, withExtension: "wav", subdirectory: "Sounds")
             ?? Bundle.main.url(forResource: name, withExtension: "wav")
         guard let url else { return nil }
-        let player = try? AVAudioPlayer(contentsOf: url)
-        player?.prepareToPlay()
-        return player
+        return try? AVAudioPlayer(contentsOf: url)
     }
 
     // `play()` prepares an unprepared player itself, so no `prepareToPlay()` here.
