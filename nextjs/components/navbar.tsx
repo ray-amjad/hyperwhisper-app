@@ -59,10 +59,32 @@ export const Navbar = () => {
   return (
     <HeroUINavbar
       className="bg-black/50 backdrop-blur-xl border-b border-gray-800"
+      /*
+        HeroUI's navbar wrapper is `flex-nowrap` with a fixed `h-[var(--navbar-height)]`, so at a
+        200% text resize nothing wraps and nothing shrinks: the bar overflowed the viewport by
+        277px, the word mark collided with the first link, and the Download button was pushed off
+        the screen (WCAG 2.1 SC 1.4.4). Letting the wrapper wrap and grow keeps every control on
+        screen. At the normal text size the content still fits on one row, so the bar is unchanged.
+      */
+      classNames={{
+        base: "h-auto",
+        // `min-h` keeps the normal-size bar at its usual --navbar-height; `h-auto` alone
+        // shrank it to its content and made the bar 16px shorter on every page.
+        wrapper: "flex-wrap h-auto min-h-[var(--navbar-height)] gap-y-2 py-2",
+      }}
       maxWidth="xl"
       position="static"
     >
-      <NavbarContent className="basis-1/5 sm:basis-full" justify="start">
+      {/*
+        HeroUI gives this content `flex-basis: 0`, so the word mark's box could end up narrower
+        than the word mark itself and the text was painted over the first nav link at a large
+        text size. `min-w-fit` stops the box shrinking below its own content; it changes nothing
+        at the normal text size, where the box is already wider than the text.
+      */}
+      <NavbarContent
+        className="basis-1/5 sm:basis-full min-w-fit"
+        justify="start"
+      >
         <NavbarBrand as="li" className="gap-3 max-w-fit">
           <LocaleLink
             className="flex justify-start items-center gap-2"
@@ -85,7 +107,7 @@ export const Navbar = () => {
         next-intl's Link breaks anchor scrolling by using client-side routing.
       */}
       <NavbarContent className="hidden lg:flex" justify="center">
-        <ul className="flex gap-8">
+        <ul className="flex flex-wrap gap-8">
           {navItems.map((item) => (
             <NavbarItem key={item.href}>
               <a

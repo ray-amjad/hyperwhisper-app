@@ -228,6 +228,12 @@ export default function SignInClient() {
                   onChange={(e) => setLicenseKey(e.target.value)}
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-mono tracking-wide"
                   placeholder="HW-XXXX-XXXX-XXXX-XXXX"
+                  /*
+                    `off` is deliberate: the Account Key is a credential and we do not want a
+                    browser to store it in its address/contact autofill. The email field below
+                    does set `autoComplete="email"` — that one is an identity field and SC 1.3.5
+                    asks for the token.
+                  */
                   autoComplete="off"
                   spellCheck={false}
                 />
@@ -275,6 +281,7 @@ export default function SignInClient() {
                       Email address
                     </label>
                     <input
+                      autoComplete="email"
                       id="email"
                       type="email"
                       required
