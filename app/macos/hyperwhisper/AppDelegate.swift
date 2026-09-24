@@ -116,8 +116,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         memoryPressureMonitor = MemoryPressureMonitor()
 
         // SOUND EFFECTS: load the start/stop players on their queue now, so the
-        // first start chime is not late behind its load (#954).
-        _ = SoundEffectsManager.shared
+        // first start chime is not late behind its load (#954). Only when sound
+        // effects are on: a prepared player holds an output unit on the default
+        // device. If the user turns them on later, the first play loads them.
+        if SettingsManager.shared.enableSoundEffects {
+            _ = SoundEffectsManager.shared
+        }
     }
 
     /// The user clicked the Dock or Finder icon of the already-running app.

@@ -64,7 +64,8 @@ final class SoundEffectsManager: @unchecked Sendable {
         return try? AVAudioPlayer(contentsOf: url)
     }
 
-    // `play()` prepares an unprepared player itself, so no `prepareToPlay()` here.
+    // `play()` prepares an unprepared player itself, so an explicit
+    // `prepareToPlay()` before it is redundant.
     private func play(_ player: SoundEffectPlayer?, volume: Float) {
         guard let player else { return }
         player.volume = volume

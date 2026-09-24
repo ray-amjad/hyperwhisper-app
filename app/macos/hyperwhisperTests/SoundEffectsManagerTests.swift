@@ -130,9 +130,10 @@ struct SoundEffectsManagerTests {
         #expect(start.playRanOnMainThread == nil)
     }
 
-    /// Each player is prepared once, off main, at load; a play does not
-    /// prepare it again (the per-play `prepareToPlay()` was one more HAL trip).
-    @Test func preparesOnceAtLoadOffMainAndNotPerPlay() async {
+    /// The manager calls `prepareToPlay()` on each player once, off main, at
+    /// load, and makes no explicit `prepareToPlay()` call per play. (A real
+    /// `play()` prepares an unprepared player itself; this fake cannot show that.)
+    @Test func preparesOnceAtLoadOffMainWithNoExplicitPreparePerPlay() async {
         let start = BlockingSoundPlayer(blocks: false)
         let stop = BlockingSoundPlayer(blocks: false)
         let manager = Self.makeManager(start: start, stop: stop)
