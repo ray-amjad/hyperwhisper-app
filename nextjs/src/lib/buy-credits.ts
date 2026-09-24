@@ -170,16 +170,38 @@ export async function buyCreditsAndRedirect({
       `${response.status}. No checkout session was created.`,
   );
 
-  // The server's own `error` string IS shown — unlike #870's sign-out copy,
-  // this one is written by our own route for this customer ("Amount too
-  // large", "Insufficient credits"), and the issue's Done-when pins it on
-  // screen verbatim. An EMPTY string is the trap: it is a `string`, it
-  // passes `typeof`, and it would paint an empty alert region that reads as
-  // a button that still does nothing (`sign-out.ts:50-55`). So it falls
-  // through to the translated copy.
+  // The server's own `error` string is shown on a 4xx ONLY (#947 review
+  // round 2, finding 3).
+  //
+  // Read `app/api/checkout/credits/route.ts` alongside this. Its 4xx bodies
+  // are written for THIS customer about THIS request — "Amount too large",
+  // "Invalid license key", "License is revoked", "License has no email
+  // associated" — each of them a sentence that tells the customer what to do
+  // next, and #737's `## Proposed fix` and `## Done when` both pin them on
+  // screen verbatim. That is why they are shown, and unlike #870's sign-out
+  // copy they are safe to show.
+  //
+  // Its 5xx body is a different animal entirely. `route.ts:218-227` answers
+  // EVERY unhandled throw — a Stripe outage, a DB fault, a missing env var —
+  // with the same `{ error: "Failed to create checkout session", details: <the
+  // throw's own message> }`. Painting that verbatim into a 40-locale
+  // `role="alert"` region gives every non-English customer an untranslated
+  // English sentence that tells them nothing they can act on, and it is the
+  // one body on this route whose wording is an internal fault description
+  // rather than a message to a customer. So a 5xx takes the translated
+  // `checkoutErrorMessage` and the raw string stays in the report and the
+  // console line, where the developer reads it.
+  //
+  // An EMPTY string is the other trap, and it is unchanged: `""` is a
+  // `string`, it passes `typeof`, and it would paint an empty alert region
+  // that reads as a button that still does nothing (`sign-out.ts:50-55`). So
+  // it falls through to the translated copy too.
+  const serverMessage =
+    isRecord(data) && typeof data.error === "string" ? data.error : "";
+
   onError(
-    isRecord(data) && typeof data.error === "string" && data.error !== ""
-      ? data.error
+    response.status < 500 && serverMessage !== ""
+      ? serverMessage
       : checkoutErrorMessage,
   );
 

@@ -119,7 +119,88 @@ test("a 400 shows the server's own message and never navigates", async () => {
   assert.equal(logged.length, 1);
 });
 
+test("a 400 about the licence itself is shown verbatim too", async () => {
+  // `route.ts:112-117` — the other 4xx wording, and the one #947 review round
+  // 2 names alongside "Amount too large". Both are sentences written for this
+  // customer about this request, so both are shown. This is the positive
+  // control for the 4xx half of the status-class split: delete the split and
+  // this test and the one above it both go red.
+  const { errors, navigated, run } = harness(
+    responds({
+      ok: false,
+      status: 400,
+      json: () => ({ error: "License is revoked" }),
+    }),
+  );
+
+  await run();
+
+  assert.deepEqual(navigated, []);
+  assert.deepEqual(errors, ["License is revoked"]);
+});
+
+/**
+ * The body `app/api/checkout/credits/route.ts:218-227` really sends on a 500 —
+ * every unhandled throw on that route, a Stripe outage and a DB fault alike,
+ * answers with exactly this shape. The old fixture here was `{}`, a body the
+ * route cannot produce, and it let the 5xx case pass while the code showed the
+ * customer a raw `data.error` (#947 review round 2, finding 5).
+ */
+const ROUTE_500_BODY = {
+  error: "Failed to create checkout session",
+  details: "Stripe API error: connection refused to api.stripe.com",
+};
+
+test("a 500 shows the translated copy, not the route's own words", async () => {
+  // #947 review round 2, finding 3. The string above is not a message to a
+  // customer — it is an internal fault description, in English only, in front
+  // of a 40-locale alert region, and its `details` carries the throw's own
+  // message. A 4xx body is the opposite and is still shown verbatim (the test
+  // above this one). The status class is what decides.
+  const { errors, navigated, reported, run } = harness(
+    responds({ ok: false, status: 500, json: () => ROUTE_500_BODY }),
+  );
+
+  await run();
+
+  assert.deepEqual(navigated, []);
+  assert.deepEqual(errors, [CHECKOUT_ERROR]);
+  // Neither half of the route's body reached the screen.
+  assert.equal(errors[0]?.includes("Failed to create checkout session"), false);
+  assert.equal(errors[0]?.includes("connection refused"), false);
+  // …and the developer still gets the status.
+  assert.deepEqual(reported[0]?.properties, {
+    operation: BUY_CREDITS_OPERATION,
+    status: 500,
+  });
+});
+
+test("a 503 from in front of the route shows the translated copy too", async () => {
+  // The split is on the CLASS, not on the number 500. A proxy or a platform
+  // 503 carries no `error` at all, and a future route 5xx with a different
+  // body must not be paintable either.
+  const { errors, reported, run } = harness(
+    responds({
+      ok: false,
+      status: 503,
+      json: () => ({ error: "upstream connect error" }),
+    }),
+  );
+
+  await run();
+
+  assert.deepEqual(errors, [CHECKOUT_ERROR]);
+  assert.deepEqual(reported[0]?.properties, {
+    operation: BUY_CREDITS_OPERATION,
+    status: 503,
+  });
+});
+
 test("a 500 with an empty body falls back to the translated copy", async () => {
+  // Kept as its own case, separate from the real-body one above. The route
+  // cannot send this, but a body that lost its `error` in transit, or a future
+  // 5xx handler that sends none, must land in the same place — and this is the
+  // only test that proves the fallback is not reached THROUGH the status class.
   const { errors, navigated, reported, run } = harness(
     responds({ ok: false, status: 500, json: () => ({}) }),
   );

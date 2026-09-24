@@ -253,6 +253,45 @@ const mutations = {
         "",
       ),
   },
+
+  // ─── #947 review round 2 ────────────────────────────────────────────────
+  // s–t are finding 3: the raw `data.error` is shown on a 4xx and never on a
+  // 5xx. One row per side, because a single row could be killed by the half
+  // of the split that was already there before this round.
+
+  s: {
+    file: LIB,
+    describe: "paint the route's 5xx words at the customer again",
+    expect: "buy-credits-seam (the 500-real-body and 503 tests)",
+    // Finding 3 exactly as it stood: `route.ts:218-227` answers every
+    // unhandled throw with `{ error: "Failed to create checkout session",
+    // details: <the throw's message> }`, and that went verbatim into a
+    // 40-locale alert region. The empty-body 500 test still passes with this
+    // applied, which is why finding 5 had to replace that fixture first.
+    apply: (s) =>
+      s.replace(
+        "    response.status < 500 && serverMessage !== \"\"",
+        "    serverMessage !== \"\"",
+      ),
+  },
+  t: {
+    file: LIB,
+    describe: "hide the route's 4xx words behind the translated copy",
+    expect: "buy-credits-seam (both 400 tests, and the refused-with-a-URL test)",
+    // The other side of the split. #737's `## Proposed fix` and `## Done when`
+    // both pin "Amount too large" on screen verbatim, so a fix that swept ALL
+    // statuses into the translated copy would fail the issue's own acceptance
+    // test. These rows are what stop the split being flattened either way.
+    apply: (s) =>
+      s.replace(
+        `  onError(
+    response.status < 500 && serverMessage !== ""
+      ? serverMessage
+      : checkoutErrorMessage,
+  );`,
+        "  onError(checkoutErrorMessage);",
+      ),
+  },
 };
 
 function runOne(key) {
