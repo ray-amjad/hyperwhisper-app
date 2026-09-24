@@ -185,25 +185,18 @@ const mutations = {
   n: {
     file: WATCH,
     describe: "leave the pageshow listener registered after releasing",
-    expect: "abandoned-redirect (the bfcache and release-runs-once tests)",
-    // Half of what makes the release at-most-once. A `released` boolean was
-    // written here first; this harness proved it unreachable, so the teardown
-    // IS the guard and these two rows are what hold it.
+    expect: "abandoned-redirect (the bfcache, once and two-checkouts tests)",
+    // What makes the release at-most-once. A `released` boolean was written
+    // here first; this harness proved it unreachable, so the teardown IS the
+    // guard and this row is what holds it.
     apply: (s) =>
       s.replace('    host.removeEventListener("pageshow", onPageShow);\n', ""),
   },
-  r: {
-    file: WATCH,
-    describe: "leave the timer running after releasing",
-    expect: "abandoned-redirect (the bfcache and two-checkouts tests)",
-    // The other half. A bfcache restore freezes the timer rather than
-    // dropping it, so an uncleared one really does fire after the release.
-    apply: (s) =>
-      s.replace(
-        "    if (timer !== undefined) host.clearTimeout(timer);\n\n",
-        "",
-      ),
-  },
+  // Row `r` — "leave the timer running after releasing" — was DELETED in #947
+  // review round 2. Its target code is gone: `watchForAbandonedRedirect` no
+  // longer arms a timer at all, because a timer fires on a slow-but-real
+  // redirect as readily as on an abandoned one. Row `v` below is the row that
+  // now guards that deletion.
   o: {
     file: WRAPPER,
     describe: "interpolate the minutes line unconditionally again",
@@ -291,6 +284,64 @@ const mutations = {
   );`,
         "  onError(checkoutErrorMessage);",
       ),
+  },
+  v: {
+    file: WATCH,
+    describe: "put the 20-second abandoned-redirect timer back",
+    expect: "abandoned-redirect (the arms-no-clock and no-timer-in-source tests)",
+    // Finding 1 exactly as round 1 shipped it. `location.href` leaves this
+    // document live and interactive until the new response's first byte, so a
+    // `checkout.stripe.com` TTFB past the timeout re-armed all four controls
+    // while the real redirect was still in flight — and a second click POSTed
+    // again and created a second checkout session for the same top-up.
+    //
+    // This row is a RESTORATION, not a corruption: it is the deleted code,
+    // pasted back. Everything else in the file still passes with it applied,
+    // which is the measurement that says the two new tests are the only thing
+    // standing between this branch and the money-path fault.
+    apply: (s) =>
+      s
+        .replace(
+          `  removeEventListener: (
+    type: "pageshow",
+    listener: (event: RedirectPageShowEvent) => void,
+  ) => void;
+}`,
+          `  removeEventListener: (
+    type: "pageshow",
+    listener: (event: RedirectPageShowEvent) => void,
+  ) => void;
+  setTimeout: (handler: () => void, timeout: number) => number;
+  clearTimeout: (id: number) => void;
+}`,
+        )
+        .replace(
+          `  host: RedirectWatchHost,
+  release: () => void,
+): void {
+  function finish(): void {`,
+          `  host: RedirectWatchHost,
+  release: () => void,
+  timeoutMs: number = 20_000,
+): void {
+  let timer: number | undefined;
+
+  function finish(): void {`,
+        )
+        .replace(
+          `    host.removeEventListener("pageshow", onPageShow);
+
+    release();`,
+          `    host.removeEventListener("pageshow", onPageShow);
+
+    if (timer !== undefined) host.clearTimeout(timer);
+
+    release();`,
+        )
+        .replace(
+          '  host.addEventListener("pageshow", onPageShow);\n}',
+          '  host.addEventListener("pageshow", onPageShow);\n  timer = host.setTimeout(finish, timeoutMs);\n}',
+        ),
   },
 };
 

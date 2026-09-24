@@ -319,11 +319,18 @@ function reportHandlerFault(
  *   customer is still on the dashboard, so the release runs right here;
  * - a scheduled navigation: the release is handed to `onRedirectScheduled`,
  *   which the card implements with the page-lifecycle watcher in
- *   `src/lib/abandoned-redirect.ts`. A navigation the customer abandons —
- *   Escape, an unreachable Stripe host, or Back with this document restored
- *   from the bfcache — therefore still re-arms the card. Before that, this
+ *   `src/lib/abandoned-redirect.ts`. Back from Stripe, with this document
+ *   restored out of the bfcache, therefore re-arms the card. Before that, this
  *   branch simply dropped the flag on the floor and only a reload brought the
  *   buttons back.
+ *
+ * ONE exit is deliberately left with no release at all, and it is the only one:
+ * a handover that THREW. See the `catch` at the bottom of this function. Both
+ * that exit and the two abandonments the watcher no longer covers (Escape, an
+ * unreachable host) cost a stuck spinner and a reload. That is the price of
+ * never re-arming while a navigation can still commit, and it is the cheaper
+ * side of the trade — a duplicate checkout session costs the customer money
+ * and us a support ticket.
  *
  * AND IT NEVER REJECTS. `CloudCreditsCard.tsx` calls this with `void` and no
  * `.catch`, which is correct for a click handler and fatal for a promise that

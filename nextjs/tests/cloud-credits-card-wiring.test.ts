@@ -341,9 +341,9 @@ test("the abandoned-redirect watch is the card's to arm, not the seam's", async 
   const request = factoryCalls[0];
 
   // The card's OTHER window reference, and the same proof. The watch is a
-  // `pageshow` listener and a timer on the real page, which the seam may not
-  // hold — so a `onRedirectScheduled` that did nothing at all, or one the seam
-  // supplied itself, would both pass the `typeof` check above. Only a call
+  // `pageshow` listener on the real page, which the seam may not hold — so a
+  // `onRedirectScheduled` that did nothing at all, or one the seam supplied
+  // itself, would both pass the `typeof` check above. Only a call
   // that reaches for the page and finds no `window` under Node can tell them
   // apart. What the watch then DOES is `tests/abandoned-redirect.test.ts`.
   //

@@ -118,10 +118,13 @@ export default function CloudCreditsCard({
     // The busy flag's SECOND owner, and the card's other `window` reference.
     // The seam deliberately keeps the flag set once a redirect is scheduled,
     // so that it is not re-armed mid-navigation; this is what brings the
-    // buttons back when that navigation never actually takes the document
-    // away — Escape, an unreachable Stripe host, or Back from Stripe with this
-    // document restored out of the bfcache and this `useState` still holding
-    // the tier. Both halves of the rule live in `src/lib/abandoned-redirect.ts`.
+    // buttons back on the ONE abandonment a browser actually signals — Back
+    // from Stripe, with this document restored out of the bfcache and this
+    // `useState` still holding the tier. Escape and an unreachable Stripe host
+    // signal nothing at all, and #947 review round 2 chose to leave those with
+    // a dead card rather than release them on a clock that also fires on a
+    // slow-but-real redirect. The whole trade is written out in
+    // `src/lib/abandoned-redirect.ts`; read it before adding a timer here.
     onRedirectScheduled: (release) => {
       watchForAbandonedRedirect(window, release);
     },
