@@ -139,6 +139,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               {t("emailLabel")}
             </label>
             <Input
+              autoComplete="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

@@ -85,6 +85,7 @@ export default function DownloadModal() {
 
         <ModalBody className="py-4 space-y-2 text-center">
           <Input
+            autoComplete="email"
             classNames={{
               base: "w-full",
               inputWrapper:
