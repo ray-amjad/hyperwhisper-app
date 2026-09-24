@@ -114,6 +114,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // when macOS signals .warning/.critical pressure. Behavior-neutral when
         // there is no pressure; never evicts a model mid-transcription.
         memoryPressureMonitor = MemoryPressureMonitor()
+
+        // SOUND EFFECTS: load the start/stop players on their queue now, so the
+        // first start chime is not late behind its load (#954).
+        _ = SoundEffectsManager.shared
     }
 
     /// The user clicked the Dock or Finder icon of the already-running app.
