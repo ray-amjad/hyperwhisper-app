@@ -1,3 +1,17 @@
+hyperwhisper (1.14.0) stable; urgency=medium
+
+  * Add AssemblyAI Dictation, which returns cleaned-up text with your
+    vocabulary in 32 languages.
+  * Grok Voice Transcribe 2 is now the default Grok model, with Grok
+    Voice Transcribe 1 still selectable.
+  * The mode editor's Provider list shows one row per company, and the
+    Model list no longer goes blank.
+  * Require a modifier key when recording a global shortcut.
+  * Fix error messages being cut off, the onboarding test-dictation
+    status, and the Local API port setting.
+
+ -- HyperWhisper Contributors <opensource@hyperwhisper.com>  Thu, 24 Sep 2026 11:09:50 +0000
+
 hyperwhisper (1.13.0) stable; urgency=medium
 
   * Fix no microphone being offered on a fresh install, and the audio
