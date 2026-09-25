@@ -820,9 +820,16 @@ static async Task SignalsEndTheProcess()
         string? discovery = null;
         try
         {
-            string? line;
-            do line = await child.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(30));
-            while (line is not null && !line.StartsWith("READY ", StringComparison.Ordinal));
+            string? line = null;
+            using (var readyDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            {
+                try
+                {
+                    do line = await child.StandardOutput.ReadLineAsync(readyDeadline.Token);
+                    while (line is not null && !line.StartsWith("READY ", StringComparison.Ordinal));
+                }
+                catch (OperationCanceledException) { Assert(false, $"{name}: the child listener was not ready within 30 s"); }
+            }
             Assert(line is not null, $"{name}: the child exited before its listener was ready");
             var ready = line!.Split(' ', 3);
             discovery = ready[2];
@@ -2395,7 +2402,8 @@ static class SignalChild
         var state = await host.StartAsync();
         if (!state.IsRunning) throw new InvalidOperationException($"child host did not start: {state.Failure}");
         Console.WriteLine($"READY {state.BaseAddress} {host.DiscoveryPath}");
-        await Task.Delay(Timeout.Infinite);
+        // Bounded, so a parent killed mid-test cannot orphan a live listener.
+        await Task.Delay(TimeSpan.FromMinutes(2));
     }
 
     [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "kill", SetLastError = true)]
