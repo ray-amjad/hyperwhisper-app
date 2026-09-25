@@ -434,8 +434,8 @@ public class ApplicationContextGatherer {
             appElement,
             kAXFocusedWindowAttribute as CFString,
             &focusedWindowRef
-        ) == .success, let win = focusedWindowRef {
-            return (win as! AXUIElement)
+        ) == .success, let win = AXCast.element(focusedWindowRef) {
+            return win
         }
         return nil
     }
@@ -474,15 +474,13 @@ public class ApplicationContextGatherer {
             &focusedElementRef
         )
 
-        if result != .success || focusedElementRef == nil {
+        guard result == .success, let axElement = AXCast.element(focusedElementRef) else {
             // Fallback: attempt to infer focus from the frontmost window hierarchy
             if let fallback = fallbackFocusInfoFromFrontmostWindow(pid: pid) {
                 return fallback
             }
             return FocusedElementInfo(role: nil, title: nil, description: nil, value: nil, placeholder: nil)
         }
-        
-        let axElement = focusedElementRef as! AXUIElement
         
         // Get role
         var roleRef: CFTypeRef?
@@ -552,8 +550,7 @@ public class ApplicationContextGatherer {
         )
         
         if focusedResult == .success,
-           let focused = focusedRef {
-            let focusedElement = focused as! AXUIElement
+           let focusedElement = AXCast.element(focusedRef) {
             
             // Get attributes of the focused element within web area
             var roleRef: CFTypeRef?
@@ -660,7 +657,7 @@ public class ApplicationContextGatherer {
         if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success,
            let childrenArray = childrenRef as? NSArray {
             for childAny in childrenArray {
-                let child = childAny as! AXUIElement
+                guard let child = AXCast.element(childAny as CFTypeRef) else { continue }
                 if let found = findElementByRoleRecursively(in: child, role: targetRole, maxDepth: maxDepth - 1) {
                     return found
                 }
@@ -689,7 +686,7 @@ public class ApplicationContextGatherer {
         if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success,
            let childrenArray = childrenRef as? NSArray {
             for childAny in childrenArray {
-                let child = childAny as! AXUIElement
+                guard let child = AXCast.element(childAny as CFTypeRef) else { continue }
                 if let found = findFirstEditableTextElement(in: child, maxDepth: maxDepth - 1) {
                     return found
                 }
