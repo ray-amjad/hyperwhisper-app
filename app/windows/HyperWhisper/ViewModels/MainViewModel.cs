@@ -556,6 +556,20 @@ public partial class MainViewModel : ViewModelBase
         outcome == PasteOutcome.ClipboardSetFailed;
 
     /// <summary>
+    /// The batch flow's auto-paste delivery (#905): one SmartPaste call, the
+    /// outcome it recorded, the KeystrokeFailed normalisation, and whether the
+    /// transcript reached no sink. Static so the smoke suite drives the same
+    /// wiring with a real SmartPasteService. A null service is (Failed, false),
+    /// as it was before: there is no outcome to read.
+    /// </summary>
+    internal static (SmartPasteResult Result, bool LostTranscript) DeliverAutoPaste(SmartPasteService? paste, string text)
+    {
+        var result = paste?.SmartPaste(text) ?? SmartPasteResult.Failed;
+        var outcome = paste?.LastSmartPasteOutcome;
+        return (NormalizeAutoPasteResult(result, outcome), AutoPasteLostTranscript(outcome));
+    }
+
+    /// <summary>
     /// The status line a cancelled transcription leaves behind, split out for the
     /// same reason: one decision in one place, pinnable without a MainViewModel.
     ///
@@ -1753,10 +1767,7 @@ public partial class MainViewModel : ViewModelBase
             var autoPasteLostTranscript = false;
             if (SettingsService.Instance.AutoPasteEnabled)
             {
-                pasteResult = _pasteService?.SmartPaste(spacedText) ?? SmartPasteResult.Failed;
-                var pasteOutcome = _pasteService?.LastSmartPasteOutcome;
-                pasteResult = NormalizeAutoPasteResult(pasteResult, pasteOutcome);
-                autoPasteLostTranscript = AutoPasteLostTranscript(pasteOutcome);
+                (pasteResult, autoPasteLostTranscript) = DeliverAutoPaste(_pasteService, spacedText);
             }
             else
             {
