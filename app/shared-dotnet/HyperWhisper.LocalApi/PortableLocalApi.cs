@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace HyperWhisper.LocalApi;
 
@@ -47,6 +48,12 @@ public static class PortableLocalApi
             form.MemoryBufferThreshold = options.MaxUploadBytes;
         });
         builder.Services.AddSingleton(backend);
+        // CreateSlimBuilder registers ConsoleLifetime, which takes SIGINT,
+        // SIGTERM and SIGQUIT, cancels the process exit and only stops this web
+        // host. An embedded host in a GUI process must never own process
+        // signals, so the runtime default ends the app as it does with the
+        // Local API off (issue #957).
+        builder.Services.AddSingleton<IHostLifetime, EmbeddedHostLifetime>();
         configure?.Invoke(builder);
         var app = builder.Build();
         Map(app, options);
@@ -419,4 +426,11 @@ public static class LocalApiBindFallback
         || ex.InnerException is SocketException
         || ex.InnerException is not null && IsBindFailure(ex.InnerException)
         || ex.Message.Contains("address already in use", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>An <see cref="IHostLifetime"/> that leaves process signals to the runtime (issue #957).</summary>
+internal sealed class EmbeddedHostLifetime : IHostLifetime
+{
+    public Task WaitForStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

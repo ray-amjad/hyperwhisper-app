@@ -15,6 +15,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
+// Child mode for "process signals end the app" (issue #957): the harness
+// re-launches itself with this flag to host a real listener in a process it
+// can send a signal to.
+if (args is [SignalChild.Mode])
+{
+    await SignalChild.HostUntilSignalledAsync();
+    return;
+}
+
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("route parity", RouteParity),
@@ -54,6 +63,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("transcription failure table comes from the shared core", SharedTranscriptionFailures)
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
+    ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
 };
 foreach (var test in tests)
 {
@@ -785,6 +795,41 @@ static async Task RealLoopbackLifecycle()
     Assert((await host.StartAsync()).Port == state.Port, "start was not idempotent");
     Assert(!(await host.StopAsync()).IsRunning && !File.Exists(host.DiscoveryPath), "stop did not clean discovery");
     Assert(!(await host.StopAsync()).IsRunning, "stop was not idempotent");
+}
+
+/// <summary>
+/// Issue #957. `CreateSlimBuilder` registers `ConsoleLifetime`, which takes
+/// SIGINT/SIGTERM/SIGQUIT, cancels the process exit and only stops the web
+/// host — so the Linux app ignored `kill -TERM` while the Local API was on.
+/// A child process hosts a real listener, gets the signal, and must exit; an
+/// idle `Task.Delay(Infinite)` stands in for the Avalonia main loop.
+/// </summary>
+static async Task SignalsEndTheProcess()
+{
+    await using (var app = PortableLocalApi.Build([], new PortableLocalApiOptions(Fixture.Token, 0), new FakeBackend()))
+    {
+        var lifetime = app.Services.GetRequiredService<IHostLifetime>().GetType().FullName;
+        Assert(lifetime != "Microsoft.Extensions.Hosting.Internal.ConsoleLifetime", $"the embedded host owns process signals through {lifetime}");
+    }
+    if (!OperatingSystem.IsLinux()) return;
+    foreach (var (name, signal) in new[] { ("SIGTERM", 15), ("SIGINT", 2) })
+    {
+        using var child = SignalChild.Start();
+        try
+        {
+            string? line;
+            do line = await child.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(30));
+            while (line is not null && !line.StartsWith("READY ", StringComparison.Ordinal));
+            Assert(line is not null, $"{name}: the child exited before its listener was ready");
+            using var client = new HttpClient { BaseAddress = new Uri(line!["READY ".Length..]) };
+            Assert((await client.GetAsync("/health")).StatusCode == HttpStatusCode.OK, $"{name}: the child listener did not answer /health");
+            Assert(SignalChild.Send(child.Id, signal) == 0, $"{name}: kill() failed");
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try { await child.WaitForExitAsync(deadline.Token); }
+            catch (OperationCanceledException) { Assert(false, $"{name} did not end a process hosting the Local API within 10 s"); }
+        }
+        finally { if (!child.HasExited) child.Kill(entireProcessTree: true); }
+    }
 }
 
 static async Task RealOccupiedPortFallback()
@@ -2316,6 +2361,32 @@ static async Task AssertBusinessFailure(HttpResponseMessage response, string cod
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static class SignalChild
+{
+    public const string Mode = "--host-local-api-until-signalled";
+
+    public static System.Diagnostics.Process Start()
+    {
+        var host = Environment.ProcessPath!;
+        var info = new System.Diagnostics.ProcessStartInfo(host) { RedirectStandardOutput = true, UseShellExecute = false };
+        // `dotnet run` starts the apphost; the coverage script starts `dotnet <dll>`.
+        if (Path.GetFileNameWithoutExtension(host) == "dotnet") info.ArgumentList.Add(typeof(SignalChild).Assembly.Location);
+        info.ArgumentList.Add(Mode);
+        return System.Diagnostics.Process.Start(info)!;
+    }
+
+    public static async Task HostUntilSignalledAsync()
+    {
+        await using var app = PortableLocalApi.Build([], new PortableLocalApiOptions(Fixture.Token, 0), new FakeBackend());
+        await app.StartAsync();
+        Console.WriteLine($"READY {app.Urls.First()}");
+        await Task.Delay(Timeout.Infinite);
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "kill", SetLastError = true)]
+    public static extern int Send(int pid, int signal);
 }
 
 sealed class Fixture : IAsyncDisposable
