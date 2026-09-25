@@ -85,11 +85,19 @@ extension AccessibilityHelper {
                                        hadCapturedTarget: previousAppPID != nil,
                                        characterCount: text.count)
 
-            // Check accessibility permission
+            // Check accessibility permission. A Release build has only the
+            // real check; the Debug-only test seam never reaches shipping code.
+            #if DEBUG
+            guard pastePermissionOverrideForTesting ?? hasAccessibilityPermission() else {
+                self.reportPasteOutcome(.noAccessibilityPermission, attempt: attempt)
+                return .noPermission
+            }
+            #else
             guard hasAccessibilityPermission() else {
                 self.reportPasteOutcome(.noAccessibilityPermission, attempt: attempt)
                 return .noPermission
             }
+            #endif
 
             // Cancel any pending restoration from previous recordings
             cancelPendingClipboardRestoration()
@@ -205,8 +213,9 @@ extension AccessibilityHelper {
             }
             if capturedTargetLost || unknownFrontmostTarget {
                 logger.warning("⚠️ Captured paste target is gone or a different app is frontmost — refusing auto-paste. Text left on clipboard.")
+                // No restoration: nothing was pasted, so the timer would only wipe
+                // the transcript the user now needs for a manual Cmd+V (#783).
                 copyToClipboard(text)
-                scheduleClipboardRestoration(settings: settings)
                 // Both branches return `.noFocusedField` to the caller, which
                 // cannot tell them apart. Report them separately: a lost target
                 // means the app quit or its PID was reused mid-recording, an

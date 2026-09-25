@@ -74,6 +74,15 @@ public class AccessibilityHelper {
     /// This allows us to cancel in-flight paste operations when starting a new one
     var currentPasteTask: Task<SmartPasteResult, Never>?
 
+    #if DEBUG
+    /// TEST SEAM, Debug builds only (tests run against Debug). Always nil in the
+    /// app. When set, `executePasteAsync` uses it in place of
+    /// `hasAccessibilityPermission()`, so a test can reach the branches after the
+    /// permission guard on a CI Mac that never grants Accessibility. A Release
+    /// build has no such property and no way around the permission check.
+    var pastePermissionOverrideForTesting: Bool?
+    #endif
+
     // MARK: - Permission Polling Management
     /// The currently active accessibility permission polling task (if any)
     /// Ensures a single shared polling loop — concurrent callers queue their
