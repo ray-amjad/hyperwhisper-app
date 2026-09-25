@@ -47,6 +47,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("event dispatch isolates failing subscribers", IsolatesSubscribers),
     ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
+    ("Pulse record fragment is 20 ms of whole frames", PulseRecordFragmentSize),
+    ("Pulse buffer attributes match the pa_buffer_attr layout", PulseBufferAttributesLayout),
+    ("Pulse record requests the fragment and playback keeps server defaults", PulseBufferAttributesSelection),
+    ("Pulse recorder reads in fragment-sized blocks", PulseRecorderReadsFragmentBlocks),
     ("Pulse playback delegates PCM and ends safely", PulsePlaybackDelegates),
     ("Pulse playback isolates failing subscribers", PulsePlaybackSubscriberSafety),
     ("WAV reader recomputes an unpatched data length", WaveHeaderRecomputesDataLength),
@@ -688,6 +692,59 @@ static Task PulseRecorderUnavailable()
     Assert.True(result.IsFailure);
     Assert.Equal("pulse_unavailable", result.Error!.Code);
     return Task.CompletedTask;
+}
+
+// Issue #998: with NULL buffer attributes the record stream arrived in ~2 s fragments and
+// Stop() waited up to 2 s on the in-flight 4096-byte read.
+static Task PulseRecordFragmentSize()
+{
+    Assert.Equal(640, new WaveFormat(16_000, 16, 1).FragmentBytes);
+    Assert.Equal(3840, new WaveFormat(48_000, 16, 2).FragmentBytes);
+    Assert.Equal(3528, new WaveFormat(44_100, 16, 2).FragmentBytes);
+    // 441 bytes is half a frame, so it rounds down to 440.
+    Assert.Equal(440, new WaveFormat(11_025, 16, 1).FragmentBytes);
+    // A rate too low for one frame in 20 ms still gets one whole frame.
+    Assert.Equal(2, new WaveFormat(10, 16, 1).FragmentBytes);
+    return Task.CompletedTask;
+}
+
+static Task PulseBufferAttributesLayout()
+{
+    Assert.Equal(20, System.Runtime.InteropServices.Marshal.SizeOf<PulseBufferAttributes>());
+    string[] fields = ["MaxLength", "TLength", "PreBuffer", "MinRequest", "FragSize"];
+    for (var index = 0; index < fields.Length; index++)
+    {
+        Assert.Equal((nint)(index * 4), System.Runtime.InteropServices.Marshal.OffsetOf<PulseBufferAttributes>(fields[index]));
+    }
+    return Task.CompletedTask;
+}
+
+static Task PulseBufferAttributesSelection()
+{
+    var format = new WaveFormat(48_000, 16, 2);
+    Assert.True(PulseAudioApi.BufferAttributesFor(format, record: false) is null);
+    var record = PulseAudioApi.BufferAttributesFor(format, record: true);
+    Assert.Equal(1, record!.Length);
+    Assert.Equal(3840u, record[0].FragSize);
+    Assert.Equal(uint.MaxValue, record[0].MaxLength);
+    Assert.Equal(uint.MaxValue, record[0].TLength);
+    Assert.Equal(uint.MaxValue, record[0].PreBuffer);
+    Assert.Equal(uint.MaxValue, record[0].MinRequest);
+    return Task.CompletedTask;
+}
+
+static async Task PulseRecorderReadsFragmentBlocks()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var session = new FakeRecordSession([1, 0, 2, 0]);
+        using var recorder = new PulseAudioRecorder(new FakePulseApi { RecordSession = session }, new FakeAppPaths(directory));
+        Assert.Success(recorder.Start(new AudioRecordingOptions("default", SampleRate: 11_025)));
+        await session.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(recorder.Stop().IsSuccess);
+        // 11,025 Hz mono is 440 bytes: not the old 4096, not a 640-byte floor, not the unrounded 441.
+        Assert.Equal("440,440", string.Join(",", session.BufferLengths));
+    });
 }
 
 static async Task PulsePlaybackDelegates()
@@ -2794,8 +2851,10 @@ sealed class FakeRecordSession(byte[] bytes) : IPulseAudioRecordSession
 {
     private bool _read;
     public TaskCompletionSource Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public List<int> BufferLengths { get; } = [];
     public PlatformResult<int> Read(byte[] buffer)
     {
+        BufferLengths.Add(buffer.Length);
         if (_read)
         {
             Completed.TrySetResult();

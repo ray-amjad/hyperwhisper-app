@@ -142,7 +142,8 @@ public sealed class PulseAudioRecorder : IAudioRecorder
 
     private void CaptureLoop()
     {
-        var buffer = new byte[4096];
+        // pa_simple_read blocks until the whole buffer fills, so this bounds how long Stop() waits.
+        var buffer = new byte[_format!.FragmentBytes];
         try
         {
             while (!_stopRequested)

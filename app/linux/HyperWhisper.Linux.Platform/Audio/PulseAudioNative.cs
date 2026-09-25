@@ -30,6 +30,8 @@ internal sealed record WaveFormat(int SampleRate, short BitsPerSample, short Cha
 {
     public int BytesPerSecond => SampleRate * Channels * BitsPerSample / 8;
     public short BlockAlign => (short)(Channels * BitsPerSample / 8);
+    // About 20 ms of audio in whole frames: the record fragsize and the capture read size.
+    public int FragmentBytes => Math.Max(BlockAlign, BytesPerSecond / 50 / BlockAlign * BlockAlign);
 }
 
 internal sealed class PulseAudioApi : IPulseAudioApi
@@ -85,12 +87,17 @@ internal sealed class PulseAudioApi : IPulseAudioApi
             record ? "Recording" : "Playback",
             ref sampleSpec,
             IntPtr.Zero,
-            IntPtr.Zero,
+            BufferAttributesFor(format, record),
             out var error);
         return handle == IntPtr.Zero
             ? PlatformResult<IntPtr>.Failure("pulse_open_failed", PulseNative.ErrorMessage(error))
             : PlatformResult<IntPtr>.Success(handle);
     }
+
+    // With NULL attributes PulseAudio and pipewire-pulse deliver a record stream in ~2 s
+    // fragments, so pa_simple_read blocks that long and Stop() waits on it. Playback keeps NULL.
+    internal static PulseBufferAttributes[]? BufferAttributesFor(WaveFormat format, bool record) =>
+        record ? [PulseBufferAttributes.ForRecord(format)] : null;
 
     private sealed class NativePulseSession(IntPtr handle) : IPulseAudioRecordSession, IPulseAudioPlaybackSession
     {
@@ -165,6 +172,26 @@ internal enum PulseSampleFormat
     Signed16LittleEndian = 3,
 }
 
+// C pa_buffer_attr. uint.MaxValue is (uint32_t)-1, the server default for that field.
+[StructLayout(LayoutKind.Sequential)]
+internal struct PulseBufferAttributes
+{
+    public uint MaxLength;
+    public uint TLength;
+    public uint PreBuffer;
+    public uint MinRequest;
+    public uint FragSize;
+
+    public static PulseBufferAttributes ForRecord(WaveFormat format) => new()
+    {
+        MaxLength = uint.MaxValue,
+        TLength = uint.MaxValue,
+        PreBuffer = uint.MaxValue,
+        MinRequest = uint.MaxValue,
+        FragSize = checked((uint)format.FragmentBytes),
+    };
+}
+
 [StructLayout(LayoutKind.Sequential)]
 internal struct PulseSampleSpec
 {
@@ -184,7 +211,8 @@ internal static class PulseNative
         string streamName,
         ref PulseSampleSpec sampleSpec,
         IntPtr channelMap,
-        IntPtr bufferAttributes,
+        // A blittable array is pinned and passed as a pointer; null passes NULL.
+        PulseBufferAttributes[]? bufferAttributes,
         out int error);
 
     [DllImport("libpulse-simple.so.0", EntryPoint = "pa_simple_read", CallingConvention = CallingConvention.Cdecl)]
