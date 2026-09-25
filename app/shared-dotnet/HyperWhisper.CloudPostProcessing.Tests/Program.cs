@@ -51,7 +51,8 @@ static Task TestModelRegistry()
 {
     var expected = new Dictionary<CloudPostProcessingProvider, int>
     {
-        [CloudPostProcessingProvider.OpenAi] = 11,
+        // 11 → 8: gpt-5 / -mini / -nano hidden 2026-09-25 (#1018), matching the Windows picker.
+        [CloudPostProcessingProvider.OpenAi] = 8,
         [CloudPostProcessingProvider.Anthropic] = 4,
         // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
         // dead gemma-4-31b was REPLACED by qwen-3.8-27b, not joined by it.
@@ -63,6 +64,14 @@ static Task TestModelRegistry()
     };
     foreach (var item in expected)
         Assert(PostProcessingModelCatalog.ForProvider(item.Key).Count == item.Value, $"{item.Key} model parity mismatch");
+    // #1018: the retired OpenAI ids resolve to gpt-5.6-luna, not to the provider's first row.
+    foreach (var retired in new[] { "gpt-4.1-nano", "gpt-5-nano", "gpt-5-mini", "gpt-5" })
+    {
+        Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.OpenAi, retired) == "gpt-5.6-luna",
+            $"{retired} did not resolve to gpt-5.6-luna");
+        Assert(PostProcessingModelCatalog.ForProvider(CloudPostProcessingProvider.OpenAi).All(model => model.Id != retired),
+            $"{retired} is still listed");
+    }
     return Task.CompletedTask;
 }
 

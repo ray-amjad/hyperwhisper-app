@@ -741,7 +741,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
 /// drive the transcription Engine/Model split. Persisted to the free-string
 /// `Mode.cloudPostProcessingModel` Core Data field as a **provider-qualified
 /// key** `"<engineId>:<modelId>"` (e.g. `cerebras:gpt-oss-120b`,
-/// `openai:gpt-5-mini`) so Groq and Cerebras don't collide on the shared
+/// `openai:gpt-5.6-luna`) so Groq and Cerebras don't collide on the shared
 /// `gpt-oss-120b` model id. `fromStorageValue` migrates every legacy value.
 struct CloudPostProcessingModel: Identifiable, Hashable {
     /// Catalog engine (provider) id — the storage-key prefix and `X-LLM-Provider` source.

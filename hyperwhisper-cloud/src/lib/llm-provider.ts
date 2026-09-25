@@ -20,7 +20,7 @@ export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
   groq: 'groq-gpt-oss-120b',
   anthropic: 'claude-haiku-4-5',
   grok: 'xai-grok-4.3',
-  openai: 'openai-gpt-5-mini',
+  openai: 'openai-gpt-5.6-luna',
   gemini: 'gemini-2.5-flash',
   mistral: 'mistral-small-latest',
 };
@@ -33,7 +33,7 @@ export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
 // actually used instead of the provider default. MUST stay in sync with
 // LLM_PROVIDER_MODELS allowlists.
 const LLM_SERVED_NAMES: Partial<Record<LLMProvider, Record<string, string>>> = {
-  openai: { 'gpt-5-mini': 'openai-gpt-5-mini', 'gpt-5-nano': 'openai-gpt-5-nano' },
+  openai: { 'gpt-5.6-luna': 'openai-gpt-5.6-luna' },
   gemini: {
     'gemini-2.5-flash': 'gemini-2.5-flash',
     'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
@@ -85,7 +85,10 @@ const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: reado
   groq: { default: 'openai/gpt-oss-120b', allowed: ['openai/gpt-oss-120b'] },
   anthropic: { default: 'claude-haiku-4-5', allowed: ['claude-haiku-4-5'] },
   grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
-  openai: { default: 'gpt-5-mini', allowed: ['gpt-5-mini', 'gpt-5-nano'] },
+  // gpt-5-mini / gpt-5-nano lose their only snapshots 2026-12-11. They are no
+  // longer allowlisted, so an old client still sending either id resolves to the
+  // default and is billed at the luna rate (the open-mistral-nemo precedent).
+  openai: { default: 'gpt-5.6-luna', allowed: ['gpt-5.6-luna'] },
   gemini: {
     default: 'gemini-2.5-flash',
     allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash'],

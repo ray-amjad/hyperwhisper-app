@@ -164,7 +164,7 @@ public sealed class ModelLibraryManager
 
     private IEnumerable<LibraryModel> BuildPostProcessingRows()
     {
-        foreach (var model in LanguageModelInfo.AvailableModels.Where(m => m.Provider != PostProcessingProvider.LocalLlm))
+        foreach (var model in LanguageModelInfo.AvailableModels.Where(m => m.Provider != PostProcessingProvider.LocalLlm && !m.IsHidden))
         {
             var providerKey = SharedModelsCatalog.CatalogKey(model.Provider);
             yield return new LibraryModel

@@ -3,7 +3,8 @@ using System.Text.Json;
 
 namespace HyperWhisper.CloudPostProcessing;
 
-public sealed record PostProcessingModel(string Id, string DisplayName);
+/// <param name="Hidden">Kept only as a redirect source (see <c>Migrate</c>); left out of <see cref="PostProcessingModelCatalog.ForProvider"/>.</param>
+public sealed record PostProcessingModel(string Id, string DisplayName, bool Hidden = false);
 
 /// <summary>Linux BYOK registry kept at feature parity with the Windows model picker.</summary>
 public static class PostProcessingModelCatalog
@@ -14,8 +15,10 @@ public static class PostProcessingModelCatalog
             [CloudPostProcessingProvider.OpenAi] =
             [
                 new("gpt-5.6-luna", "GPT-5.6 Luna"), new("gpt-4.1-mini", "GPT-4.1 Mini"),
-                new("gpt-4.1", "GPT-4.1"), new("gpt-5-nano", "GPT-5 Nano"),
-                new("gpt-5-mini", "GPT-5 Mini"), new("gpt-5", "GPT-5"),
+                new("gpt-4.1", "GPT-4.1"),
+                // Hidden: OpenAI removes these 3 ids 2026-12-11; Migrate sends them to gpt-5.6-luna.
+                new("gpt-5-nano", "GPT-5 Nano", Hidden: true),
+                new("gpt-5-mini", "GPT-5 Mini", Hidden: true), new("gpt-5", "GPT-5", Hidden: true),
                 new("gpt-5.1", "GPT-5.1"), new("gpt-5.2", "GPT-5.2"),
                 new("gpt-5.4-nano", "GPT-5.4 Nano"), new("gpt-5.4-mini", "GPT-5.4 Mini"),
                 new("gpt-5.4", "GPT-5.4"),
@@ -48,7 +51,7 @@ public static class PostProcessingModelCatalog
         };
 
     public static IReadOnlyList<PostProcessingModel> ForProvider(CloudPostProcessingProvider provider) =>
-        Models.TryGetValue(provider, out var models) ? models : [];
+        Models.TryGetValue(provider, out var models) ? models.Where(model => !model.Hidden).ToArray() : [];
 
     public static string? ResolveModel(CloudPostProcessingProvider provider, string? model)
     {
@@ -61,7 +64,9 @@ public static class PostProcessingModelCatalog
 
     private static string? Migrate(string? model) => model switch
     {
-        "gpt-4.1-nano" => "gpt-5-nano",
+        // gpt-4.1-nano retires 2026-10-23; gpt-5 / -mini / -nano lose their only snapshots
+        // 2026-12-11. All four go to gpt-5.6-luna (matches Windows and macOS).
+        "gpt-4.1-nano" or "gpt-5-nano" or "gpt-5-mini" or "gpt-5" => "gpt-5.6-luna",
         "claude-3-haiku-20240307" or "claude-3-5-haiku-latest" or "claude-haiku-4.5" or
             "claude-haiku-4-5-latest" => "claude-haiku-4-5",
         "claude-sonnet-4-20250514" or "claude-sonnet-4-0" or "claude-sonnet-4-5-latest" => "claude-sonnet-4-5",

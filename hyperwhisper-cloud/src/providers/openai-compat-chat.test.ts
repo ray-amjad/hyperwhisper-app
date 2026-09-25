@@ -169,16 +169,17 @@ describe('provider endpoint and auth', () => {
   test('the multi-model providers send the model they were handed, not a default', async () => {
     // resolveLLMModel() has already validated the model against the provider
     // allowlist upstream; the client must not quietly substitute its own.
-    await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-nano');
+    await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna');
     expect(calls[0].url).toBe('https://api.openai.com/v1/chat/completions');
-    expect(lastBody().model).toBe('gpt-5-nano');
+    expect(lastBody().model).toBe('gpt-5.6-luna');
 
     await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash-lite');
     expect(calls[1].url).toBe('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
     expect(lastBody().model).toBe('gemini-2.5-flash-lite');
 
-    // Mistral is down to a single allowlisted model, so the handed model and the
-    // provider default coincide — the client still must send what it was handed.
+    // OpenAI (above) and Mistral are each down to a single allowlisted model, so the
+    // handed model and the provider default coincide — the client still must send
+    // what it was handed.
     await requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest');
     expect(calls[2].url).toBe('https://api.mistral.ai/v1/chat/completions');
     expect(lastBody().model).toBe('mistral-small-latest');
@@ -204,7 +205,7 @@ describe('request body construction', () => {
       () => requestCerebrasChat(PAYLOAD, 'req-1'),
       () => requestGroqChat(PAYLOAD, 'req-1'),
       () => requestXaiGrokChat(PAYLOAD, 'req-1'),
-      () => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-mini'),
+      () => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'),
       () => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'),
       () => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'),
     ];
@@ -218,14 +219,15 @@ describe('request body construction', () => {
     }
   });
 
-  test('openai drops temperature because GPT-5 rejects anything but its default', async () => {
+  test('openai drops temperature and sends the lowest reasoning effort gpt-5.6-luna accepts', async () => {
     expect(PAYLOAD.temperature).toBe(0);
 
-    await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-mini');
+    await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna');
 
     // Sending `temperature: 0` here is a hard 400 from OpenAI, not a nudge.
     expect(lastBody()).not.toHaveProperty('temperature');
-    expect(lastBody().reasoning_effort).toBe('minimal');
+    // gpt-5.6-luna rejects 'minimal'; 'none' is its lowest setting.
+    expect(lastBody().reasoning_effort).toBe('none');
   });
 
   test('the other providers keep the temperature the payload asked for', async () => {
@@ -323,7 +325,7 @@ describe('successful completion', () => {
       [() => requestCerebrasChat(PAYLOAD, 'req-1'), computeCerebrasChatCost(USAGE)],
       [() => requestGroqChat(PAYLOAD, 'req-1'), computeGroqChatCost(USAGE)],
       [() => requestXaiGrokChat(PAYLOAD, 'req-1'), computeXaiGrokFastChatCost(USAGE)],
-      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-mini'), computeOpenAIChatCost('gpt-5-mini', USAGE)],
+      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), computeOpenAIChatCost('gpt-5.6-luna', USAGE)],
       [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), computeGeminiChatCost('gemini-2.5-flash', USAGE)],
       [
         () => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'),
@@ -437,7 +439,7 @@ describe('upstream error propagation', () => {
     const grokError = await captureError(() => requestXaiGrokChat(PAYLOAD, 'req-1'));
     expect(errorProvider(grokError)).toBe('grok');
     expect((grokError as Error).message).toBe('SpaceXAI Grok chat failed with status 500');
-    expect(errorProvider(await captureError(() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-mini')))).toBe('openai');
+    expect(errorProvider(await captureError(() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna')))).toBe('openai');
     expect(errorProvider(await captureError(() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash')))).toBe('gemini');
     expect(errorProvider(await captureError(() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest')))).toBe('mistral');
   });
@@ -476,7 +478,7 @@ describe('missing API key', () => {
 
     await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
     await captureError(() => requestGroqChat(PAYLOAD, 'req-1'));
-    await captureError(() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-mini'));
+    await captureError(() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'));
     await captureError(() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'));
     await captureError(() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'));
     await captureError(() => requestXaiGrokChat(PAYLOAD, 'req-1'));
@@ -489,7 +491,7 @@ describe('missing API key', () => {
     // tagging it 503 lets post-process serve the request off the fallback
     // instead of returning the raw transcript.
     const cases: Array<[() => Promise<unknown>, string, string]> = [
-      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5-mini'), 'openai', 'OPENAI_API_KEY'],
+      [() => requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna'), 'openai', 'OPENAI_API_KEY'],
       [() => requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash'), 'gemini', 'GEMINI_API_KEY'],
       [() => requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest'), 'mistral', 'MISTRAL_API_KEY'],
       [() => requestXaiGrokChat(PAYLOAD, 'req-1'), 'grok', 'XAI_API_KEY'],

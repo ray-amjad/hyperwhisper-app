@@ -22,7 +22,11 @@ struct PostProcessingModelResolutionTests {
             ("claude-sonnet-4-0", .anthropic, "claude-sonnet-4-5"),
             ("meta-llama/llama-4-maverick-17b-128e-instruct", .groq, "openai/gpt-oss-120b"),
             ("zai-glm-4.7", .cerebras, "gpt-oss-120b"),
-            ("gpt-4.1-nano", .openai, "gpt-5-nano"),
+            ("gpt-4.1-nano", .openai, "gpt-5.6-luna"),
+            // OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11 (#1018).
+            ("gpt-5-nano", .openai, "gpt-5.6-luna"),
+            ("gpt-5-mini", .openai, "gpt-5.6-luna"),
+            ("gpt-5", .openai, "gpt-5.6-luna"),
             ("gemini-3-pro-preview", .gemini, "gemini-3.1-pro-preview"),
             ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
             ("gemini-2.0-flash", .gemini, "gemini-3.6-flash"),
@@ -55,7 +59,12 @@ struct PostProcessingModelResolutionTests {
         ])
         #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
         #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")
-        #expect(PostProcessingModels.model(withId: "gpt-5-nano", provider: .openai) != nil)
+        // The gpt-5 family rows stay in the catalog (display names for stored ids)
+        // but are hidden from the picker, because they now redirect to luna.
+        for hidden in ["gpt-5-nano", "gpt-5-mini", "gpt-5"] {
+            #expect(PostProcessingModels.model(withId: hidden, provider: .openai) != nil)
+            #expect(!PostProcessingModels.models(for: .openai).contains(where: { $0.id == hidden }))
+        }
         #expect(PostProcessingModels.model(withId: "qwen-3.8-27b", provider: .cerebras) != nil)
         #expect(PostProcessingModels.model(withId: "qwen/qwen3.8-27b", provider: .groq) != nil)
         // Removing the Cerebras row must not move the provider default, which

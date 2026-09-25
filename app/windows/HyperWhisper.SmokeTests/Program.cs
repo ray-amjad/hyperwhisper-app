@@ -824,7 +824,7 @@ internal static class Program
             {
                 var cases = new (string OldId, string Replacement)[]
                 {
-                    ("gpt-4.1-nano", "gpt-5-nano"),
+                    ("gpt-4.1-nano", "gpt-5.6-luna"),
                     ("gemini-3-pro-preview", "gemini-3.1-pro-preview"),
                     ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
@@ -848,6 +848,24 @@ internal static class Program
 
                 Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
                     "new OpenAI modes should default to GPT-5.6 Luna");
+            });
+
+            // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
+            // rows stay (a stored id keeps its display name) but are hidden from the
+            // picker and the Model Library, and every one migrates to gpt-5.6-luna.
+            Run("Hidden gpt-5 family rows migrate to GPT-5.6 Luna and leave the picker", () =>
+            {
+                var openAiPicker = LanguageModelInfo.GetModelsForProvider(PostProcessingProvider.OpenAI);
+                foreach (var oldId in new[] { "gpt-5-nano", "gpt-5-mini", "gpt-5" })
+                {
+                    Assert(LanguageModelInfo.MigrateModelId(oldId) == "gpt-5.6-luna",
+                        $"{oldId} should migrate to gpt-5.6-luna");
+                    Assert(LanguageModelInfo.GetById(oldId)?.IsHidden == true,
+                        $"{oldId} should stay in the catalog as a hidden row");
+                    Assert(openAiPicker.All(m => m.Id != oldId),
+                        $"hidden model {oldId} is still selectable");
+                }
+                Assert(openAiPicker.Any(m => m.Id == "gpt-5.6-luna"), "gpt-5.6-luna must stay selectable");
             });
 
             // Issue #314: `/post-process` used to project `provider` and `model`

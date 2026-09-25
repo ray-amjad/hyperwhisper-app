@@ -65,21 +65,27 @@ struct PostProcessingModels {
         PostProcessingModel(
             id: "gpt-5-nano",
             displayName: "GPT-5 Nano",
-            isAvailable: true,
+            // Hidden: OpenAI removes this id 2026-12-11 and it now redirects to
+            // gpt-5.6-luna (deprecatedModelMappings). Row kept for display names.
+            isAvailable: false,
             description: "models.postProcessing.gpt5.nano.description".localized,
             provider: .openai
         ),
         PostProcessingModel(
             id: "gpt-5-mini",
             displayName: "GPT-5 Mini",
-            isAvailable: true,
+            // Hidden: OpenAI removes this id 2026-12-11 and it now redirects to
+            // gpt-5.6-luna (deprecatedModelMappings). Row kept for display names.
+            isAvailable: false,
             description: "models.postProcessing.gpt5.mini.description".localized,
             provider: .openai
         ),
         PostProcessingModel(
             id: "gpt-5",
             displayName: "GPT-5",
-            isAvailable: true,
+            // Hidden: OpenAI removes this id 2026-12-11 and it now redirects to
+            // gpt-5.6-luna (deprecatedModelMappings). Row kept for display names.
+            isAvailable: false,
             description: "models.postProcessing.gpt5.description".localized,
             provider: .openai
         ),
@@ -355,7 +361,14 @@ struct PostProcessingModels {
     /// When a provider deprecates a model, add the old ID → new ID under that provider's entry.
     private static let deprecatedModelMappings: [PostProcessingProvider: [String: String]] = [
         .openai: [
-            "gpt-4.1-nano": "gpt-5-nano",
+            // gpt-4.1-nano retires 2026-10-23; OpenAI names gpt-5.6-luna as its replacement.
+            "gpt-4.1-nano": "gpt-5.6-luna",
+            // OpenAI removes the only snapshots behind these 3 aliases 2026-12-11
+            // (deprecations page). OpenAI names gpt-5.6-terra/-sol for mini/full; we
+            // use luna for all three — it is 8x-16x cheaper for a punctuation task.
+            "gpt-5-nano": "gpt-5.6-luna",
+            "gpt-5-mini": "gpt-5.6-luna",
+            "gpt-5": "gpt-5.6-luna",
         ],
         .anthropic: [
             // Deprecated 2026-02-16: claude-haiku-4.5 → claude-haiku-4-5

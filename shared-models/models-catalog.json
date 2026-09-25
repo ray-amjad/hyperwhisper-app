@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-17",
+  "lastUpdated": "2026-09-25",
   "models": [
     {
       "provider": "appleSpeech",
@@ -573,9 +573,9 @@
       "id": "gpt-5.6-luna",
       "kind": "text",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "notes": "OpenAI's named replacement for gpt-4.1-nano, which retires 2026-10-23. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` openai entries in this catalog; disambiguated by `kind`."
+      "notes": "OpenAI's named replacement for gpt-4.1-nano (retires 2026-10-23) and gpt-5-nano (removed 2026-12-11); also the redirect target for gpt-5 and gpt-5-mini. Routed through HyperWhisper Cloud as the only OpenAI model (hyperwhisper-cloud llm-provider.ts, #1018); kept in sync with cloud-pp-catalog.json. Distinct from the existing `kind: voice` openai entries in this catalog; disambiguated by `kind`."
     },
 
     {

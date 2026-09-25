@@ -30,12 +30,20 @@ public class LanguageModelInfo
     /// </summary>
     public string Description { get; }
 
-    public LanguageModelInfo(string id, string displayName, PostProcessingProvider provider, string description)
+    /// <summary>
+    /// True for a row kept only so a stored id still has a display name, while
+    /// <see cref="MigrateModelId"/> redirects it. Hidden rows are left out of the
+    /// picker (<see cref="GetModelsForProvider"/>) and the Model Library.
+    /// </summary>
+    public bool IsHidden { get; }
+
+    public LanguageModelInfo(string id, string displayName, PostProcessingProvider provider, string description, bool isHidden = false)
     {
         Id = id;
         DisplayName = displayName;
         Provider = provider;
         Description = description;
+        IsHidden = isHidden;
     }
 
     /// <summary>
@@ -59,9 +67,10 @@ public class LanguageModelInfo
         new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
         new("gpt-4.1-mini", "GPT-4.1 Mini", PostProcessingProvider.OpenAI, "Balanced (recommended)"),
         new("gpt-4.1", "GPT-4.1", PostProcessingProvider.OpenAI, "High quality"),
-        new("gpt-5-nano", "GPT-5 Nano", PostProcessingProvider.OpenAI, "Next-gen fastest"),
-        new("gpt-5-mini", "GPT-5 Mini", PostProcessingProvider.OpenAI, "Next-gen balanced"),
-        new("gpt-5", "GPT-5", PostProcessingProvider.OpenAI, "Next-gen quality"),
+        // Hidden: OpenAI removes these 3 ids 2026-12-11 and MigrateModelId sends them to gpt-5.6-luna.
+        new("gpt-5-nano", "GPT-5 Nano", PostProcessingProvider.OpenAI, "Next-gen fastest", isHidden: true),
+        new("gpt-5-mini", "GPT-5 Mini", PostProcessingProvider.OpenAI, "Next-gen balanced", isHidden: true),
+        new("gpt-5", "GPT-5", PostProcessingProvider.OpenAI, "Next-gen quality", isHidden: true),
         new("gpt-5.1", "GPT-5.1", PostProcessingProvider.OpenAI, "Latest flagship"),
         new("gpt-5.2", "GPT-5.2", PostProcessingProvider.OpenAI, "Advanced flagship"),
         new("gpt-5.4-nano", "GPT-5.4 Nano", PostProcessingProvider.OpenAI, "Fast, lightweight"),
@@ -126,8 +135,13 @@ public class LanguageModelInfo
     /// </summary>
     public static string? MigrateModelId(string? oldId) => oldId switch
     {
-        // OpenAI retirement: keep existing users on the lower-cost Nano tier.
-        "gpt-4.1-nano" => "gpt-5-nano",
+        // OpenAI: gpt-4.1-nano retires 2026-10-23 (OpenAI names gpt-5.6-luna), and the
+        // only snapshots behind gpt-5 / -mini / -nano are removed 2026-12-11. OpenAI names
+        // gpt-5.6-terra/-sol for mini/full; luna is used for all, 8x-16x cheaper (matches macOS).
+        "gpt-4.1-nano" => "gpt-5.6-luna",
+        "gpt-5-nano" => "gpt-5.6-luna",
+        "gpt-5-mini" => "gpt-5.6-luna",
+        "gpt-5" => "gpt-5.6-luna",
         // Anthropic model ID migrations
         "claude-3-haiku-20240307" => "claude-haiku-4-5",
         "claude-3-5-haiku-latest" => "claude-haiku-4-5",
@@ -199,7 +213,7 @@ public class LanguageModelInfo
     /// Used to populate the model dropdown when provider changes.
     /// </summary>
     public static LanguageModelInfo[] GetModelsForProvider(PostProcessingProvider provider) =>
-        AvailableModels.Where(m => m.Provider == provider).ToArray();
+        AvailableModels.Where(m => m.Provider == provider && !m.IsHidden).ToArray();
 
     /// <summary>
     /// Finds a model by its ID.

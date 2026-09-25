@@ -45,10 +45,18 @@ describe('extractLLMProvider', () => {
 
 describe('resolveLLMModel', () => {
   test('echoes a valid allowlisted model id', () => {
-    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gpt-5-nano');
+    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5.6-luna' }))).toBe('gpt-5.6-luna');
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash-lite' }))).toBe('gemini-2.5-flash-lite');
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-3.8-flash' }))).toBe('gemini-3.8-flash');
     expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'mistral-small-latest' }))).toBe('mistral-small-latest');
+  });
+
+  test('the retired gpt-5-mini and gpt-5-nano ids resolve to gpt-5.6-luna', () => {
+    // OpenAI removes both snapshots 2026-12-11 (#1018). Old clients still send
+    // them; they must route to luna, never to a dead model and never error.
+    expect(defaultModelFor('openai')).toBe('gpt-5.6-luna');
+    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-mini' }))).toBe('gpt-5.6-luna');
+    expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gpt-5.6-luna');
   });
 
   test('the retired open-mistral-nemo id falls back to the mistral default', () => {
@@ -64,8 +72,8 @@ describe('resolveLLMModel', () => {
   });
 
   test('rejects a model that belongs to a different provider', () => {
-    // gpt-5-nano is valid for openai but not for gemini → default.
-    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gemini-2.5-flash');
+    // gpt-5.6-luna is valid for openai but not for gemini → default.
+    expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gpt-5.6-luna' }))).toBe('gemini-2.5-flash');
   });
 
   test('adding gemini-3.8-flash did not move the gemini default', () => {
@@ -82,10 +90,12 @@ describe('cost functions', () => {
   const oneM: GroqUsage = { prompt_tokens: 1_000_000, completion_tokens: 1_000_000, total_tokens: 2_000_000 };
 
   test('computeOpenAIChatCost per model', () => {
-    expect(computeOpenAIChatCost('gpt-5-mini', oneM)).toBeCloseTo(0.25 + 2.00, 6);
-    expect(computeOpenAIChatCost('gpt-5-nano', oneM)).toBeCloseTo(0.05 + 0.40, 6);
-    // Unknown model bills at the default (gpt-5-mini) rate, never $0.
-    expect(computeOpenAIChatCost('unknown', oneM)).toBeCloseTo(0.25 + 2.00, 6);
+    expect(computeOpenAIChatCost('gpt-5.6-luna', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+    // Unknown model bills at the default (gpt-5.6-luna) rate, never $0 — and so
+    // do the retired gpt-5-mini / gpt-5-nano ids.
+    expect(computeOpenAIChatCost('unknown', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+    expect(computeOpenAIChatCost('gpt-5-mini', oneM)).toBeCloseTo(0.20 + 1.20, 6);
+    expect(computeOpenAIChatCost('gpt-5-nano', oneM)).toBeCloseTo(0.20 + 1.20, 6);
   });
 
   test('computeGeminiChatCost per model', () => {
@@ -104,11 +114,11 @@ describe('cost functions', () => {
     expect(computeMistralChatCost('open-mistral-nemo', oneM)).toBeCloseTo(0.15 + 0.60, 6);
   });
 
-  test('a small realistic usage hand-computes correctly (gpt-5-mini)', () => {
-    // 1500 prompt @ 0.25/1M + 300 completion @ 2.00/1M
+  test('a small realistic usage hand-computes correctly (gpt-5.6-luna)', () => {
+    // 1500 prompt @ 0.20/1M + 300 completion @ 1.20/1M
     const usage: GroqUsage = { prompt_tokens: 1500, completion_tokens: 300, total_tokens: 1800 };
-    const expected = 1500 * (0.25 / 1_000_000) + 300 * (2.00 / 1_000_000);
-    expect(computeOpenAIChatCost('gpt-5-mini', usage)).toBeCloseTo(expected, 9);
+    const expected = 1500 * (0.20 / 1_000_000) + 300 * (1.20 / 1_000_000);
+    expect(computeOpenAIChatCost('gpt-5.6-luna', usage)).toBeCloseTo(expected, 9);
   });
 });
 
@@ -120,8 +130,6 @@ describe('servedLLMName', () => {
   });
 
   test('non-default multi-model models echo the resolved model, not the default', () => {
-    expect(servedLLMName('openai', 'gpt-5-nano')).toBe('openai-gpt-5-nano');
-    expect(servedLLMName('openai', 'gpt-5-nano')).not.toBe(LLM_PROVIDER_NAMES.openai);
     expect(servedLLMName('gemini', 'gemini-2.5-flash-lite')).toBe('gemini-2.5-flash-lite');
     expect(servedLLMName('gemini', 'gemini-3.8-flash')).toBe('gemini-3.8-flash');
     expect(servedLLMName('gemini', 'gemini-3.8-flash')).not.toBe(LLM_PROVIDER_NAMES.gemini);
