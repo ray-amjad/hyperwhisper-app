@@ -85,11 +85,19 @@ extension AccessibilityHelper {
                                        hadCapturedTarget: previousAppPID != nil,
                                        characterCount: text.count)
 
-            // Check accessibility permission
+            // Check accessibility permission. A Release build has only the
+            // real check; the Debug-only test seam never reaches shipping code.
+            #if DEBUG
             guard pastePermissionOverrideForTesting ?? hasAccessibilityPermission() else {
                 self.reportPasteOutcome(.noAccessibilityPermission, attempt: attempt)
                 return .noPermission
             }
+            #else
+            guard hasAccessibilityPermission() else {
+                self.reportPasteOutcome(.noAccessibilityPermission, attempt: attempt)
+                return .noPermission
+            }
+            #endif
 
             // Cancel any pending restoration from previous recordings
             cancelPendingClipboardRestoration()

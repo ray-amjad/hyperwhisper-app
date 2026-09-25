@@ -160,18 +160,38 @@ struct PasteOutcomeReportingTests {
     /// run (see StreamingSettingsBindingTests). No other test touches the
     /// general pasteboard or `AccessibilityHelper` paste state, so the suite
     /// needs no `.serialized`.
-    @Test func refusedPasteKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
+    ///
+    /// Two traits SKIP (never fail) the test on a Mac where it cannot run
+    /// honestly. Both read the live state on the main actor, because
+    /// `SettingsManager` is `@MainActor`. CI has an empty DSN and default
+    /// settings, so it runs there.
+    /// - Restore off: the #783 code arms nothing either, so the run could not
+    ///   tell the fix from the defect. The setting is read, never written.
+    /// - Sentry live: the refusal is a reportable `target_lost`, and a test must
+    ///   never send it. `SentryService.shutdown()` would stop that, but it also
+    ///   purges the on-disk Sentry queue this dev Mac shares with the installed
+    ///   app, and nothing restarts the SDK, so the test leaves Sentry alone.
+    ///
+    /// Debug only: the permission seam exists only in a Debug build, which is
+    /// the configuration the scheme and CI test with.
+    #if DEBUG
+    @Test(
+        .enabled("restoreClipboardAfterPaste is off on this Mac, so the run cannot tell the fix from #783", {
+            await MainActor.run { SettingsManager.shared.restoreClipboardAfterPaste }
+        }),
+        .enabled("Sentry reporting is live on this Mac; the refusal would send a real target_lost event", {
+            await MainActor.run { SentryService.isReportingEnabled == false }
+        })
+    )
+    func refusedPasteKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
         let helper = AccessibilityHelper.shared
         let pasteboard = NSPasteboard.general
         let settings = SettingsManager.shared
 
-        // Not vacuous: with restoration off, the #783 code arms nothing either.
-        try #require(settings.restoreClipboardAfterPaste,
-                     "restoreClipboardAfterPaste is off, so this run cannot tell the fix from #783")
-
-        // The refusal is a reportable `target_lost`. A test must never send it,
-        // so close the SDK if this Mac (a dev build with a DSN) started it.
-        if SentryService.isReportingEnabled { SentryService.shutdown() }
+        // The traits checked these before the test began. Check again, so a
+        // state change in between fails the run instead of sending an event or
+        // passing vacuously.
+        try #require(settings.restoreClipboardAfterPaste)
         try #require(SentryService.isReportingEnabled == false)
 
         // Save the tester's clipboard and the helper state this test changes.
@@ -217,4 +237,5 @@ struct PasteOutcomeReportingTests {
         #expect(helper.activeRestorationWorkItem == nil)
         #expect(pasteboard.string(forType: .string) == transcript)
     }
+    #endif
 }
