@@ -59,12 +59,19 @@ public partial class App : Application
             if (!acquired.Value)
             {
                 // A smoke run that hands off renders nothing, so it must fail rather than exit 0.
+                var exitCode = 0;
                 if (Program.IsSmokeTest)
+                {
                     Console.Error.WriteLine("HyperWhisper smoke test failed: another instance is already running.");
-                else
-                    _ = _platformServices.SingleInstance.SignalExistingInstance();
+                    exitCode = 1;
+                }
+                else if (_platformServices.SingleInstance.SignalExistingInstance() is { IsFailure: true } signal)
+                {
+                    Console.Error.WriteLine($"HyperWhisper single-instance handoff failed: {signal.Error!.Code}");
+                    exitCode = 1;
+                }
                 _platformServices.Dispose();
-                ShutdownFromMainLoop(desktop, Program.IsSmokeTest ? 1 : 0);
+                ShutdownFromMainLoop(desktop, exitCode);
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
