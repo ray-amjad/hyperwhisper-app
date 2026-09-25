@@ -428,14 +428,19 @@ export default function PrivacyPolicyPage() {
         , and we do not promise zero data retention there. A HyperWhisper
         Cloud mode can also use Deepgram&apos;s Nova-3 Medical or Nova-2
         Medical model. These options tune transcription for clinical
-        vocabulary. For these medical requests, our edge servers do not write
+        vocabulary. For these HyperWhisper Cloud medical requests, our edge
+        servers do not write
         the audio or the transcript to our own storage. If Deepgram cannot
         take a request,
         HyperWhisper Cloud can send it to Groq or ElevenLabs as described
         above, and they do not use a medical model. Live streaming through
-        HyperWhisper Cloud does not use a medical model. If you choose Nova 3
-        Medical for streaming with your own Deepgram API key, your audio goes
-        from your device directly to Deepgram. If post-processing is on, the
+        HyperWhisper Cloud does not use a medical model. With your own
+        AssemblyAI or Deepgram API key, you can instead choose AssemblyAI&apos;s
+        Universal-2 Medical or Universal-3.5 Pro Medical model, or
+        Deepgram&apos;s Nova-3 Medical or Nova-2 Medical model (Nova-3 Medical
+        also for live streaming); your audio then goes from your device
+        directly to that provider, under your own account, and not through our
+        servers. If post-processing is on, the
         transcript also goes to the post-processing provider you use. Each
         provider processes your data under its own terms, and you must review
         them before you dictate about a patient.
@@ -579,9 +584,10 @@ export default function PrivacyPolicyPage() {
       </p>
       <p>
         If you dictated patient information with the Medical Mode options
-        described above, we hold neither the audio nor the transcript, so
-        delete them on your device as described above. Any copy a provider keeps is governed by
-        that provider&apos;s terms.
+        described above, through HyperWhisper Cloud or your own API key, we hold
+        neither the audio nor the transcript, so delete them on your device as
+        described above. Any copy a provider keeps is governed by that
+        provider&apos;s terms.
       </p>
 
       <h2>International Transfers</h2>
