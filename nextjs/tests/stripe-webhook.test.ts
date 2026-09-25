@@ -17,6 +17,7 @@ import {
   behaviour,
   calls,
   loadWebhook,
+  logLines,
   resetHarness,
   restoreWebhookLogging,
   silenceWebhookLogging,
@@ -531,6 +532,42 @@ test("a failed mint email does not fail the webhook", async () => {
 
   assert.equal(calls.grantCreditsForStripeEvent.length, 1);
   assert.equal(calls.emails[0].kind, "mint");
+});
+
+// ---------------------------------------------------------------------------
+// #717: no webhook log line carries the buyer's address
+// ---------------------------------------------------------------------------
+
+test("no webhook log line carries the buyer's address, on any purchase path", async () => {
+  const from = logLines.length;
+
+  // License purchase: success, then a refused license email.
+  await handleLicensePurchase(checkoutSession());
+  resetHarness();
+  behaviour.emailSuccess = false;
+  await handleLicensePurchase(checkoutSession());
+
+  // Mint, then a pool into the minted key, each with a refused email.
+  resetHarness();
+  behaviour.emailSuccess = false;
+  await handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1");
+  resetHarness();
+  behaviour.byEmail.set("buyer@example.com", [accountKeyRow({ key: "HW-LIVE-0002" })]);
+  behaviour.emailSuccess = false;
+  await handleCreditPurchase(
+    checkoutSession({ id: "cs_2", metadata: { credit_amount: "600" } }),
+    "evt_2",
+  );
+
+  const lines = logLines.slice(from);
+  assert.ok(lines.length > 0, "the handlers logged");
+  assert.deepEqual(
+    lines.filter((line) => /buyer@example\.com/i.test(line)),
+    [],
+  );
+  // Positive control: the lines that used to carry the address carry its tag.
+  assert.ok(lines.some((line) => line.includes("Processing license purchase for 6a6c26195c36")));
+  assert.ok(lines.some((line) => line.includes("Processing credit purchase by 6a6c26195c36")));
 });
 
 // ---------------------------------------------------------------------------
