@@ -70,13 +70,12 @@ function looksLikeIPAddress(value: string): boolean {
  * the same tick is co-batched into one request — an `ip_blocked:` key for a
  * DIFFERENT caller's IP, a `license:` key, and on a `cacheLicense` write the
  * cached licence object itself. The licence key is the bearer credential for
- * every request (`middleware/auth.ts`). This line is the only thing
- * `isIPBlocked` ships — its catch was silent before this diff. It is NOT the
- * only thing in this file that ships that payload: `getCachedLicense` and
- * `cacheLicense` already log the same Error unredacted on the same failure
- * (measured: 20 stderr lines on one 401, with the IP, the licence key and the
- * cached licence value in the clear). That is issue #921, and it is why this
- * helper takes an optional `ip` — so #921 can route those two through it.
+ * every request (`middleware/auth.ts`). So EVERY catch in this file logs
+ * through this helper: `isIPBlocked` (#898 — its catch was silent before), and
+ * `getCachedLicense` / `cacheLicense` (#921 — they used to log the raw Error,
+ * measured at 20 stderr lines on one 401 with the IP, the licence key and the
+ * cached licence value in the clear). Those two have no address to redact,
+ * which is why `ip` is optional.
  *
  * So the design is a BOUND first and redaction second — a deny-list that names
  * the secrets it knows about is what let the licence key through. In order:
@@ -130,9 +129,11 @@ function looksLikeIPAddress(value: string): boolean {
  * catch-path return, not a marker: it replaces the whole line and never meets
  * another pass.)
  *
- * `ip` is optional so #921 can reuse this for the `getCachedLicense` /
- * `cacheLicense` catches, which have no address to redact. Those two lines are
- * deliberately NOT routed through it here — that is #921's scope, not #898's.
+ * `getCachedLicense` and `cacheLicense` call this with no `ip`: their
+ * redaction is passes 1-4 and 6. They keep their own message prefixes, which
+ * existing Axiom queries match on — only the second argument goes through here.
+ * The licence key is REDACTED, not masked to its first/last 4 characters:
+ * whether `README.md`'s masking claim is the contract is still open (#921).
  *
  * Returns a STRING, never the Error: a raw Error prints a multi-line stack,
  * and the line-oriented shipper splits that into several unrelated records.
@@ -225,7 +226,7 @@ export async function getCachedLicense(
     const parsed: unknown = typeof cached === 'string' ? JSON.parse(cached) : cached;
     return isCachedLicense(parsed) ? parsed : null;
   } catch (error) {
-    console.error('Failed to get cached license:', error);
+    console.error('Failed to get cached license:', toRedactedLogLine(error));
     return null;
   }
 }
@@ -238,6 +239,6 @@ export async function cacheLicense(
   try {
     await store().set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS });
   } catch (error) {
-    console.error('Failed to cache license:', error);
+    console.error('Failed to cache license:', toRedactedLogLine(error));
   }
 }

@@ -108,12 +108,38 @@ function spyOnConsoleError() {
   return spyOn(console, 'error').mockImplementation(() => {});
 }
 
+/**
+ * The licence key and cached value the licence-cache tests below must keep off
+ * the log. Shaped like a real key, because the key IS the bearer credential for
+ * every request (middleware/auth.ts).
+ */
+const LIVE_KEY = 'HW-LIVE-7f3a9c2b-CUSTOMER';
+const liveLicense: CachedLicense = { isValid: true, credits: 4200, cachedAt: '2026-09-01T00:00:00Z' };
+
+/**
+ * The redacted payload a licence-cache catch logged on call `index`, with the
+ * arity, the UNCHANGED prefix (existing Axiom queries match on it) and the
+ * string type pinned — the same three pins `isIPBlocked`'s `loggedLine` makes.
+ */
+function licenceLogLine(
+  spy: ReturnType<typeof spyOnConsoleError>,
+  prefix: string,
+  index = 0
+): string {
+  const call = spy.mock.calls[index];
+  expect(call).toHaveLength(2);
+  expect(call?.[0]).toBe(prefix);
+  // A string, not the Error. Never assert on `JSON.stringify(call)`: an
+  // Error's message is non-enumerable, so that passes over a live leak.
+  expect(typeof call?.[1]).toBe('string');
+  return call?.[1] as string;
+}
+
 const validLicense: CachedLicense = { isValid: true, credits: 1000, cachedAt: '2026-09-01T00:00:00Z' };
 
 describe('isIPBlocked', () => {
   // Describe-SCOPED, measured on bun 1.4.2: a hook declared here never runs for
-  // the sibling describes below, so `getCachedLicense` / `cacheLicense` keep the
-  // real console.error and their own logging stays assertable. Hoisted out of
+  // the sibling describes below, which install their own. Hoisted out of
   // the individual tests because the two fail-open tests that assert only the
   // RETURN value now also reach the new console.error, and an unsuppressed
   // `IP block check failed` in the suite output reads as a genuine failure
@@ -213,12 +239,9 @@ describe('isIPBlocked', () => {
     // same tick. A deny-list that redacts `ip_blocked:` and this request's own
     // address leaves a concurrent getCachedLicense / cacheLicense in the clear
     // — and the licence key is the BEARER CREDENTIAL for every request
-    // (middleware/auth.ts). Before this diff `isIPBlocked`'s catch logged
-    // nothing, so this line is the only thing IT ships. It is not the only
-    // thing in this file that ships the payload: getCachedLicense and
-    // cacheLicense log the same Error raw on the same failure today. That is
-    // #921, which owns them; this test pins that isIPBlocked does not join
-    // them.
+    // (middleware/auth.ts). getCachedLicense and cacheLicense route the same
+    // failure through the same helper (#921), and their describes below pin
+    // that; this test pins it for isIPBlocked.
     const coBatched = autoPipelinedFailure(
       'WRONGPASS invalid password',
       ['get', 'ip_blocked:203.0.113.7'],
@@ -512,6 +535,20 @@ describe('isIPBlocked', () => {
 });
 
 describe('getCachedLicense', () => {
+  // Describe-scoped, like isIPBlocked's: the fail-open tests reach the catch,
+  // and the catch's line is asserted below rather than printed into the run.
+  let consoleError: ReturnType<typeof spyOnConsoleError>;
+
+  beforeEach(() => {
+    consoleError = spyOnConsoleError();
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  const PREFIX = 'Failed to get cached license:';
+
   test('reads the license: key and returns a well-formed entry unchanged', async () => {
     const store = recordingStore(validLicense);
 
@@ -561,9 +598,79 @@ describe('getCachedLicense', () => {
   test('returns a MISS when the read itself fails', async () => {
     expect(await getCachedLicense(() => failingStore(), 'KEY-123')).toBeNull();
   });
+
+  test('logs an Upstash failure WITHOUT the licence key, and still returns a MISS', async () => {
+    // #921. The real @upstash/redis message embeds the command it sent, and for
+    // this read that is the bearer credential, once per authenticated request.
+    // The un-pipelined body is ONE command, verbatim the shape #921 names.
+    const wrongPass = new errors.UpstashError(
+      `WRONGPASS invalid password, command was: ["get","license:${LIVE_KEY}"]`
+    );
+
+    expect(await getCachedLicense(() => throwingStore(wrongPass), LIVE_KEY)).toBeNull();
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    const logged = licenceLogLine(consoleError, PREFIX);
+    expect(logged).toBe('UpstashError: WRONGPASS invalid password, command was: <redacted>');
+    expect(logged).not.toContain(LIVE_KEY);
+  });
+
+  test("drops a co-batched write's credit balance and another caller's IP too", async () => {
+    // Auto-pipelining puts every command of the same tick into one failed body:
+    // another request's ip_blocked: read and a cacheLicense write with the
+    // cached licence value beside this read.
+    const coBatched = autoPipelinedFailure(
+      'ERR max daily request limit exceeded',
+      ['get', 'ip_blocked:198.51.100.9'],
+      ['get', `license:${LIVE_KEY}`],
+      ['set', `license:${LIVE_KEY}`, liveLicense]
+    );
+    expect(coBatched.message).toContain('4200');
+    expect(coBatched.message).toContain('198.51.100.9');
+
+    expect(await getCachedLicense(() => throwingStore(coBatched), LIVE_KEY)).toBeNull();
+
+    const logged = licenceLogLine(consoleError, PREFIX);
+    expect(logged).toBe('UpstashError: ERR max daily request limit exceeded, command was: <redacted>');
+    for (const secret of [LIVE_KEY, '4200', 'credits', '198.51.100.9']) {
+      expect(logged).not.toContain(secret);
+    }
+  });
+
+  test('redacts the key when the message names it outside any command payload', async () => {
+    // The per-command error the auto-pipeline executor re-throws has no
+    // `, command was:` suffix, so only the key pass reaches it.
+    const perCommand = new errors.UpstashError(
+      `Command failed: WRONGTYPE key license:${LIVE_KEY} holds the wrong kind of value`
+    );
+
+    expect(await getCachedLicense(() => throwingStore(perCommand), LIVE_KEY)).toBeNull();
+
+    expect(licenceLogLine(consoleError, PREFIX)).toBe(
+      'UpstashError: Command failed: WRONGTYPE key license:<redacted> holds the wrong kind of value'
+    );
+  });
+
+  test('stays silent on a hit and a miss', async () => {
+    expect(await getCachedLicense(() => recordingStore(validLicense), 'KEY-123')).toEqual(validLicense);
+    expect(await getCachedLicense(() => recordingStore(null), 'KEY-123')).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
+  });
 });
 
 describe('cacheLicense', () => {
+  let consoleError: ReturnType<typeof spyOnConsoleError>;
+
+  beforeEach(() => {
+    consoleError = spyOnConsoleError();
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  const PREFIX = 'Failed to cache license:';
+
   test('writes the license under license:<key> with the 1 hour TTL', async () => {
     const store = recordingStore();
 
@@ -591,6 +698,45 @@ describe('cacheLicense', () => {
 
   test('swallows a failure when the write itself fails', async () => {
     expect(await cacheLicense(() => failingStore(), 'KEY-123', validLicense)).toBeUndefined();
+  });
+
+  test('logs an Upstash failure WITHOUT the licence key or the credit balance, and still swallows it', async () => {
+    // #921. On a write the embedded command also carries the cached VALUE.
+    const wrongPass = new errors.UpstashError(
+      `WRONGPASS invalid password, command was: ${JSON.stringify(['set', `license:${LIVE_KEY}`, liveLicense, 'ex', LICENSE_CACHE_TTL_SECONDS])}`
+    );
+    // Guard the FIXTURE: the key and the balance really are in the message.
+    expect(wrongPass.message).toContain(`["set","license:${LIVE_KEY}",{"isValid":true,"credits":4200,`);
+
+    expect(await cacheLicense(() => throwingStore(wrongPass), LIVE_KEY, liveLicense)).toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    const logged = licenceLogLine(consoleError, PREFIX);
+    expect(logged).toBe('UpstashError: WRONGPASS invalid password, command was: <redacted>');
+    for (const secret of [LIVE_KEY, '4200', 'credits', 'isValid']) {
+      expect(logged).not.toContain(secret);
+    }
+  });
+
+  test("drops another caller's IP from a co-batched failure", async () => {
+    const coBatched = autoPipelinedFailure(
+      'ERR max daily request limit exceeded',
+      ['get', 'ip_blocked:198.51.100.9'],
+      ['set', `license:${LIVE_KEY}`, liveLicense, { ex: LICENSE_CACHE_TTL_SECONDS }]
+    );
+
+    expect(await cacheLicense(() => throwingStore(coBatched), LIVE_KEY, liveLicense)).toBeUndefined();
+
+    const logged = licenceLogLine(consoleError, PREFIX);
+    expect(logged).toBe('UpstashError: ERR max daily request limit exceeded, command was: <redacted>');
+    for (const secret of [LIVE_KEY, '4200', '198.51.100.9']) {
+      expect(logged).not.toContain(secret);
+    }
+  });
+
+  test('stays silent on a successful write', async () => {
+    await cacheLicense(() => recordingStore(), 'KEY-123', validLicense);
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
 
