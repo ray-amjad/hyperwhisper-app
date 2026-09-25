@@ -94,8 +94,8 @@ internal sealed class PulseAudioApi : IPulseAudioApi
             : PlatformResult<IntPtr>.Success(handle);
     }
 
-    // With NULL attributes PulseAudio and pipewire-pulse deliver a record stream in ~2 s
-    // fragments, so pa_simple_read blocks that long and Stop() waits on it. Playback keeps NULL.
+    // With NULL attributes PulseAudio and pipewire-pulse deliver a record stream in ~2 s fragments
+    // whatever the read size; a 20 ms fragsize makes them deliver every ~20 ms. Playback keeps NULL.
     internal static PulseBufferAttributes[]? BufferAttributesFor(WaveFormat format, bool record) =>
         record ? [PulseBufferAttributes.ForRecord(format)] : null;
 
