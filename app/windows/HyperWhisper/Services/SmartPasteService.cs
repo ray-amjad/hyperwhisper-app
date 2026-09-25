@@ -761,6 +761,21 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     }
 
     /// <summary>
+    /// The outcome of the last SmartPaste call, or null when TextDeliveryGate
+    /// refused it (that exit reports nothing). SmartPasteResult.Failed covers
+    /// four exits and only one of them lost the text, so a caller that must
+    /// tell them apart reads this (#905). The return values stay as they are:
+    /// streaming keeps a segment for its fallback only on Failed.
+    /// </summary>
+    public PasteOutcome? LastSmartPasteOutcome { get; private set; }
+
+    private void ReportSmartPasteOutcome(PasteOutcome outcome, PasteAttempt attempt, Exception? exception = null)
+    {
+        LastSmartPasteOutcome = outcome;
+        SmartPasteDiagnostics.Report(outcome, attempt, exception);
+    }
+
+    /// <summary>
     /// Pastes text by copying to clipboard, reactivating the previous window,
     /// and simulating Ctrl+V. Uses focus-aware detection for password field safety
     /// and app-specific paste delays.
@@ -768,6 +783,8 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// <returns>SmartPasteResult indicating what happened</returns>
     public SmartPasteResult SmartPaste(string text)
     {
+        LastSmartPasteOutcome = null;
+
         // DIAGNOSTICS: metadata for this attempt, reported at every exit so the
         // last step of the record → transcribe → paste flow is visible in
         // production. Holds counts, flags and durations only — never the text.
@@ -788,7 +805,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         if (string.IsNullOrEmpty(text))
         {
             LoggingService.Warn("SmartPasteService: Empty text, nothing to paste");
-            SmartPasteDiagnostics.Report(PasteOutcome.EmptyText, attempt);
+            ReportSmartPasteOutcome(PasteOutcome.EmptyText, attempt);
             return SmartPasteResult.Failed;
         }
 
@@ -803,7 +820,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         catch (Exception ex)
         {
             LoggingService.Error("SmartPasteService: Failed to set clipboard", ex);
-            SmartPasteDiagnostics.Report(PasteOutcome.ClipboardSetFailed, attempt, ex);
+            ReportSmartPasteOutcome(PasteOutcome.ClipboardSetFailed, attempt, ex);
             return SmartPasteResult.Failed;
         }
 
@@ -811,7 +828,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         if (_previousForegroundWindow == IntPtr.Zero)
         {
             LoggingService.Warn("SmartPasteService: No previous window captured, text is in clipboard only");
-            SmartPasteDiagnostics.Report(PasteOutcome.NoTargetWindow, attempt);
+            ReportSmartPasteOutcome(PasteOutcome.NoTargetWindow, attempt);
             return SmartPasteResult.CopiedToClipboard;
         }
 
@@ -834,7 +851,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         if (isFocusedPassword)
         {
             LoggingService.Info("SmartPasteService: Password field detected - skipping paste, text in clipboard");
-            SmartPasteDiagnostics.Report(PasteOutcome.SecureFieldSkipped, attempt);
+            ReportSmartPasteOutcome(PasteOutcome.SecureFieldSkipped, attempt);
             return SmartPasteResult.SecureFieldSkipped;
         }
 
@@ -848,7 +865,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             if (isPassword)
             {
                 LoggingService.Info("SmartPasteService: Password field detected — skipping paste, text in clipboard");
-                SmartPasteDiagnostics.Report(PasteOutcome.SecureFieldSkipped, attempt);
+                ReportSmartPasteOutcome(PasteOutcome.SecureFieldSkipped, attempt);
                 return SmartPasteResult.SecureFieldSkipped;
             }
 
@@ -866,13 +883,13 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                 VirtualKeyCode.VK_V);
 
             LoggingService.Info("SmartPasteService: Sent Ctrl+V to paste text");
-            SmartPasteDiagnostics.Report(PasteOutcome.Pasted, attempt);
+            ReportSmartPasteOutcome(PasteOutcome.Pasted, attempt);
             return SmartPasteResult.Pasted;
         }
         catch (Exception ex)
         {
             LoggingService.Error("SmartPasteService: Failed to simulate Ctrl+V", ex);
-            SmartPasteDiagnostics.Report(PasteOutcome.KeystrokeFailed, attempt, ex);
+            ReportSmartPasteOutcome(PasteOutcome.KeystrokeFailed, attempt, ex);
             return SmartPasteResult.Failed;
         }
     }

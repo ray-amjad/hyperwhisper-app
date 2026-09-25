@@ -14873,6 +14873,105 @@ internal static class Program
                 }
             });
 
+            Run("delivery: batch auto-paste reports a refused clipboard write and nothing else", () =>
+            {
+                // #905. The rule above was wired only on the auto-paste-DISABLED
+                // branch; with auto-paste on, SmartPasteResult.Failed hit an empty
+                // arm and a clipboard held by another process lost the transcript
+                // in silence. Failed covers four exits, so the arm decides by the
+                // outcome SmartPaste recorded.
+                Assert(MainViewModel.FeedbackForFailedAutoPaste(PasteOutcome.ClipboardSetFailed)
+                        == MainViewModel.FailedPasteFeedback.Undelivered,
+                    "a refused clipboard write reached nothing and must be reported");
+                Assert(MainViewModel.FeedbackForFailedAutoPaste(PasteOutcome.KeystrokeFailed)
+                        == MainViewModel.FailedPasteFeedback.Copied,
+                    "a failed Ctrl+V left the text on the clipboard, so it shows Copied");
+                Assert(MainViewModel.FeedbackForFailedAutoPaste(PasteOutcome.EmptyText)
+                        == MainViewModel.FailedPasteFeedback.Silent,
+                    "an empty transcript has nothing to lose");
+                Assert(MainViewModel.FeedbackForFailedAutoPaste(null)
+                        == MainViewModel.FailedPasteFeedback.Silent,
+                    "a TextDeliveryGate refusal records no outcome and stays silent");
+
+                var previous = TextDeliveryGate.IsSuppressed;
+                using var paste = new SmartPasteService();
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+
+                    // The real sink, with the Win32 clipboard held open by another
+                    // thread the way a clipboard manager or Excel holds it. A thread
+                    // that does not own the clipboard cannot open it, so the write
+                    // fails after WPF's own retry budget (~1 s), as in HYPERWHISPER-YV.
+                    using (var opened = new ManualResetEventSlim())
+                    using (var release = new ManualResetEventSlim())
+                    {
+                        var held = false;
+                        var holder = new Thread(() =>
+                        {
+                            held = OpenClipboard(IntPtr.Zero);
+                            opened.Set();
+                            release.Wait(TimeSpan.FromSeconds(30));
+                            if (held)
+                                CloseClipboard();
+                        }) { IsBackground = true };
+                        holder.Start();
+                        opened.Wait();
+                        try
+                        {
+                            Assert(held, "precondition: the helper thread could not open the clipboard");
+                            Assert(paste.SmartPaste("a held clipboard") == SmartPasteResult.Failed,
+                                "a refused clipboard write must return Failed");
+                            Assert(paste.LastSmartPasteOutcome == PasteOutcome.ClipboardSetFailed,
+                                $"expected ClipboardSetFailed, got {paste.LastSmartPasteOutcome?.ToString() ?? "null"}");
+                            Assert(MainViewModel.FeedbackForFailedAutoPaste(paste.LastSmartPasteOutcome)
+                                    == MainViewModel.FailedPasteFeedback.Undelivered,
+                                "the real refused write must reach the report");
+                            Assert(MainViewModel.ShouldReportUndeliveredTranscript(),
+                                "with no onboarding window open the report is shown");
+                        }
+                        finally
+                        {
+                            release.Set();
+                            holder.Join();
+                        }
+                    }
+
+                    // Positive control: with the clipboard released the same write
+                    // succeeds, so the failure above was the hold and not this box.
+                    // No target window was captured, so the text stays on the clipboard.
+                    Assert(paste.SmartPaste("a free clipboard") == SmartPasteResult.CopiedToClipboard,
+                        "a free clipboard must take the write");
+                    Assert(paste.LastSmartPasteOutcome == PasteOutcome.NoTargetWindow,
+                        $"expected NoTargetWindow, got {paste.LastSmartPasteOutcome?.ToString() ?? "null"}");
+
+                    Assert(paste.SmartPaste(string.Empty) == SmartPasteResult.Failed,
+                        "empty text returns Failed");
+                    Assert(paste.LastSmartPasteOutcome == PasteOutcome.EmptyText,
+                        "empty text records EmptyText");
+                    Assert(MainViewModel.FeedbackForFailedAutoPaste(paste.LastSmartPasteOutcome)
+                            == MainViewModel.FailedPasteFeedback.Silent,
+                        "empty text stays silent");
+
+                    // The gate exit records nothing, and must not inherit the last
+                    // call's outcome.
+                    TextDeliveryGate.SetSuppressed(true);
+                    Assert(paste.SmartPaste("a suppressed transcript") == SmartPasteResult.Failed,
+                        "a suppressed paste returns Failed");
+                    Assert(paste.LastSmartPasteOutcome == null,
+                        "a suppressed paste must leave the outcome null, not the last call's");
+                    Assert(MainViewModel.FeedbackForFailedAutoPaste(paste.LastSmartPasteOutcome)
+                            == MainViewModel.FailedPasteFeedback.Silent,
+                        "a gate refusal stays silent");
+                    Assert(!MainViewModel.ShouldReportUndeliveredTranscript(),
+                        "and the gate silences the report itself");
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previous);
+                }
+            });
+
             Run("shortcuts: the recorder's red border never appears without its reason", () =>
             {
                 // C8. ShowError gated only the TEXT on ShowsInlineError and painted
@@ -15490,6 +15589,16 @@ internal static class Program
     // =========================================================================
     // Harness
     // =========================================================================
+
+    // #905: a helper thread holds the Win32 clipboard open, as a clipboard
+    // manager does, so the real SmartPaste write is refused.
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool CloseClipboard();
 
     private static void Run(string name, Action check)
     {

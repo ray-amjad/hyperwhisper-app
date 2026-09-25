@@ -534,6 +534,21 @@ public partial class MainViewModel : ViewModelBase
     /// </summary>
     internal static bool ShouldReportUndeliveredTranscript() => !TextDeliveryGate.IsSuppressed;
 
+    internal enum FailedPasteFeedback { Silent, Copied, Undelivered }
+
+    /// <summary>
+    /// What a batch auto-paste that returned SmartPasteResult.Failed shows, by
+    /// the outcome SmartPaste recorded (#905). Only a refused clipboard write
+    /// lost the text. A failed Ctrl+V left it on the clipboard. A gate refusal
+    /// (null) and an empty transcript have nothing to report.
+    /// </summary>
+    internal static FailedPasteFeedback FeedbackForFailedAutoPaste(PasteOutcome? outcome) => outcome switch
+    {
+        PasteOutcome.ClipboardSetFailed => FailedPasteFeedback.Undelivered,
+        PasteOutcome.KeystrokeFailed => FailedPasteFeedback.Copied,
+        _ => FailedPasteFeedback.Silent,
+    };
+
     /// <summary>
     /// The status line a cancelled transcription leaves behind, split out for the
     /// same reason: one decision in one place, pinnable without a MainViewModel.
@@ -1727,9 +1742,13 @@ public partial class MainViewModel : ViewModelBase
             string spacedText = TranscriptionTextProcessing.AppendTrailingSpace(textToProcess, modeLanguage);
 
             SmartPasteResult pasteResult = SmartPasteResult.Failed;
+            // Stays Silent on the auto-paste-disabled branch, which reports its
+            // own refused copy below.
+            var failedPasteFeedback = FailedPasteFeedback.Silent;
             if (SettingsService.Instance.AutoPasteEnabled)
             {
                 pasteResult = _pasteService?.SmartPaste(spacedText) ?? SmartPasteResult.Failed;
+                failedPasteFeedback = FeedbackForFailedAutoPaste(_pasteService?.LastSmartPasteOutcome);
             }
             else
             {
@@ -1800,7 +1819,17 @@ public partial class MainViewModel : ViewModelBase
                     ShowCopiedRequested?.Invoke(this, EventArgs.Empty);
                     await Task.Delay(500);
                     break;
+                // Failed covers four exits (#905): a refused clipboard write
+                // reached nothing and is reported, a failed Ctrl+V left the text
+                // on the clipboard, and a gate refusal or empty text stay silent.
                 case SmartPasteResult.Failed:
+                    if (failedPasteFeedback == FailedPasteFeedback.Undelivered)
+                        ReportUndeliveredTranscript();
+                    else if (failedPasteFeedback == FailedPasteFeedback.Copied)
+                    {
+                        ShowCopiedRequested?.Invoke(this, EventArgs.Empty);
+                        await Task.Delay(500);
+                    }
                     break;
             }
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
