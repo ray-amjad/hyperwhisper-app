@@ -794,8 +794,10 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // sites that lead here. Without it a global hotkey pressed while the
         // first-run window is open would paste a test sentence into whatever the
         // user had focused AND clobber their clipboard. Failed is the honest
-        // answer and it is silent: the caller's switch has no case for it beyond
-        // hiding the overlay. See TextDeliveryGate.
+        // answer and it is silent: this exit records no outcome, so
+        // LastSmartPasteOutcome stays null and the batch Failed arm, which
+        // reports only ClipboardSetFailed (#905), shows nothing. See
+        // TextDeliveryGate.
         if (TextDeliveryGate.IsSuppressed)
         {
             LoggingService.Info("SmartPasteService: Paste suppressed by TextDeliveryGate");

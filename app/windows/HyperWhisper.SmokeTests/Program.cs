@@ -14878,22 +14878,37 @@ internal static class Program
                 // #905. The rule above was wired only on the auto-paste-DISABLED
                 // branch; with auto-paste on, SmartPasteResult.Failed hit an empty
                 // arm and a clipboard held by another process lost the transcript
-                // in silence. Failed covers four exits, so the arm decides by the
-                // outcome SmartPaste recorded.
-                Assert(MainViewModel.FeedbackForFailedAutoPaste(PasteOutcome.ClipboardSetFailed)
-                        == MainViewModel.FailedPasteFeedback.Undelivered,
-                    "a refused clipboard write reached nothing and must be reported");
-                Assert(MainViewModel.FeedbackForFailedAutoPaste(PasteOutcome.KeystrokeFailed)
-                        == MainViewModel.FailedPasteFeedback.Copied,
+                // in silence. Failed covers four exits, so the batch flow decides by
+                // the outcome SmartPaste recorded: a failed Ctrl+V becomes
+                // CopiedToClipboard, and only a refused clipboard write is reported.
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, PasteOutcome.KeystrokeFailed)
+                        == SmartPasteResult.CopiedToClipboard,
                     "a failed Ctrl+V left the text on the clipboard, so it shows Copied");
-                Assert(MainViewModel.FeedbackForFailedAutoPaste(PasteOutcome.EmptyText)
-                        == MainViewModel.FailedPasteFeedback.Silent,
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, PasteOutcome.ClipboardSetFailed)
+                        == SmartPasteResult.Failed,
+                    "a refused clipboard write stays Failed");
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, PasteOutcome.EmptyText)
+                        == SmartPasteResult.Failed,
+                    "empty text stays Failed");
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, null)
+                        == SmartPasteResult.Failed,
+                    "a TextDeliveryGate refusal stays Failed");
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Pasted, PasteOutcome.Pasted)
+                        == SmartPasteResult.Pasted,
+                    "a non-Failed result is left alone");
+                Assert(MainViewModel.AutoPasteLostTranscript(PasteOutcome.ClipboardSetFailed),
+                    "a refused clipboard write reached nothing and must be reported");
+                Assert(!MainViewModel.AutoPasteLostTranscript(PasteOutcome.KeystrokeFailed),
+                    "a failed Ctrl+V left the text on the clipboard");
+                Assert(!MainViewModel.AutoPasteLostTranscript(PasteOutcome.EmptyText),
                     "an empty transcript has nothing to lose");
-                Assert(MainViewModel.FeedbackForFailedAutoPaste(null)
-                        == MainViewModel.FailedPasteFeedback.Silent,
+                Assert(!MainViewModel.AutoPasteLostTranscript(null),
                     "a TextDeliveryGate refusal records no outcome and stays silent");
 
                 var previous = TextDeliveryGate.IsSuppressed;
+                // The positive control below writes to the REAL clipboard, so
+                // keep what the operator had and put it back.
+                var savedClipboard = SnapshotClipboard();
                 using var paste = new SmartPasteService();
                 try
                 {
@@ -14924,8 +14939,7 @@ internal static class Program
                                 "a refused clipboard write must return Failed");
                             Assert(paste.LastSmartPasteOutcome == PasteOutcome.ClipboardSetFailed,
                                 $"expected ClipboardSetFailed, got {paste.LastSmartPasteOutcome?.ToString() ?? "null"}");
-                            Assert(MainViewModel.FeedbackForFailedAutoPaste(paste.LastSmartPasteOutcome)
-                                    == MainViewModel.FailedPasteFeedback.Undelivered,
+                            Assert(MainViewModel.AutoPasteLostTranscript(paste.LastSmartPasteOutcome),
                                 "the real refused write must reach the report");
                             Assert(MainViewModel.ShouldReportUndeliveredTranscript(),
                                 "with no onboarding window open the report is shown");
@@ -14949,8 +14963,7 @@ internal static class Program
                         "empty text returns Failed");
                     Assert(paste.LastSmartPasteOutcome == PasteOutcome.EmptyText,
                         "empty text records EmptyText");
-                    Assert(MainViewModel.FeedbackForFailedAutoPaste(paste.LastSmartPasteOutcome)
-                            == MainViewModel.FailedPasteFeedback.Silent,
+                    Assert(!MainViewModel.AutoPasteLostTranscript(paste.LastSmartPasteOutcome),
                         "empty text stays silent");
 
                     // The gate exit records nothing, and must not inherit the last
@@ -14960,8 +14973,7 @@ internal static class Program
                         "a suppressed paste returns Failed");
                     Assert(paste.LastSmartPasteOutcome == null,
                         "a suppressed paste must leave the outcome null, not the last call's");
-                    Assert(MainViewModel.FeedbackForFailedAutoPaste(paste.LastSmartPasteOutcome)
-                            == MainViewModel.FailedPasteFeedback.Silent,
+                    Assert(!MainViewModel.AutoPasteLostTranscript(paste.LastSmartPasteOutcome),
                         "a gate refusal stays silent");
                     Assert(!MainViewModel.ShouldReportUndeliveredTranscript(),
                         "and the gate silences the report itself");
@@ -14969,6 +14981,7 @@ internal static class Program
                 finally
                 {
                     TextDeliveryGate.SetSuppressed(previous);
+                    RestoreClipboardSnapshot(savedClipboard);
                 }
             });
 
@@ -15599,6 +15612,58 @@ internal static class Program
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool CloseClipboard();
+
+    // #905: a copy of every format on the clipboard, detached from it, so a
+    // case that writes the real clipboard can put the operator's content back.
+    // Null when the clipboard could not be read; then nothing is restored.
+    private static System.Windows.DataObject? SnapshotClipboard()
+    {
+        try
+        {
+            var snapshot = new System.Windows.DataObject();
+            var source = System.Windows.Clipboard.GetDataObject();
+            if (source == null)
+                return snapshot;
+            foreach (var format in source.GetFormats(false))
+            {
+                try
+                {
+                    var data = source.GetData(format);
+                    if (data is MemoryStream stream)
+                        data = new MemoryStream(stream.ToArray());
+                    if (data != null)
+                        snapshot.SetData(format, data);
+                }
+                catch (Exception)
+                {
+                    // A format the owner will not render is skipped, as
+                    // SmartPasteService skips it.
+                }
+            }
+            return snapshot;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static void RestoreClipboardSnapshot(System.Windows.DataObject? snapshot)
+    {
+        if (snapshot == null)
+            return;
+        try
+        {
+            if (snapshot.GetFormats(false).Length == 0)
+                System.Windows.Clipboard.Clear();
+            else
+                System.Windows.Clipboard.SetDataObject(snapshot, true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  (could not restore the clipboard: {ex.Message})");
+        }
+    }
 
     private static void Run(string name, Action check)
     {
