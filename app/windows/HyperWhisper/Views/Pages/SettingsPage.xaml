@@ -136,8 +136,6 @@
         <!-- Content Area - Frame for section pages -->
         <Frame x:Name="ContentFrame" Grid.Column="1"
                NavigationUIVisibility="Hidden"
-               JournalOwnership="OwnsJournal"
-               Navigated="ContentFrame_Navigated"
                Background="{DynamicResource ContentBackgroundBrush}"/>
     </Grid>
 </Page>

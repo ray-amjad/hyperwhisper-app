@@ -5,6 +5,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 using HyperWhisper.Views.Pages.Settings;
 
 namespace HyperWhisper.Views.Pages;
@@ -22,6 +23,7 @@ public partial class SettingsPage : Page
     {
         _initialSection = string.IsNullOrWhiteSpace(initialSection) ? "General" : initialSection;
         InitializeComponent();
+        FrameJournal.KeepNoBackStack(ContentFrame); // issue #977
         Loaded += OnLoaded;
     }
 
@@ -44,14 +46,6 @@ public partial class SettingsPage : Page
             return;
 
         NavigateToSection(sectionTag);
-    }
-
-    // Nothing goes back through this frame; its journal would keep every visited
-    // section page alive (issue #977).
-    private void ContentFrame_Navigated(object sender, System.Windows.Navigation.NavigationEventArgs e)
-    {
-        while (ContentFrame.CanGoBack)
-            ContentFrame.RemoveBackEntry();
     }
 
     private void NavigateToSection(string sectionTag)
