@@ -393,7 +393,7 @@ export default function PrivacyPolicyPage() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            xAI (Grok)
+            SpaceXAI (Grok)
           </a>{" "}
           (Grok 4.3). Falls back to Anthropic on failure.
         </li>
