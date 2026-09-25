@@ -46,6 +46,14 @@ public partial class SettingsPage : Page
         NavigateToSection(sectionTag);
     }
 
+    // Nothing goes back through this frame; its journal would keep every visited
+    // section page alive (issue #977).
+    private void ContentFrame_Navigated(object sender, System.Windows.Navigation.NavigationEventArgs e)
+    {
+        while (ContentFrame.CanGoBack)
+            ContentFrame.RemoveBackEntry();
+    }
+
     private void NavigateToSection(string sectionTag)
     {
         // Guard: ContentFrame may be null during InitializeComponent
