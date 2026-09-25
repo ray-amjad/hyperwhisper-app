@@ -666,6 +666,43 @@ describe('getCachedLicense', () => {
     expect(logged).not.toContain(LIVE_KEY);
   });
 
+  test('redacts the key by VALUE when the message names it with no license: prefix', async () => {
+    // An upstream quota body that names the account by its key. No
+    // `license:` in front of it, so the key pass is blind, and it sits BEFORE
+    // the `, command was:` payload, so the cut does not reach it either. Only
+    // the by-value pass, fed the key the caller holds, covers it.
+    const quota = autoPipelinedFailure(
+      `ERR daily quota exceeded for account ${LIVE_KEY} (4200 credits)`,
+      ['get', `license:${LIVE_KEY}`]
+    );
+    // Guard the FIXTURE: the bare key really is in the message, outside the
+    // payload.
+    expect(quota.message).toContain(`account ${LIVE_KEY} `);
+
+    expect(await getCachedLicense(() => throwingStore(quota), LIVE_KEY)).toBeNull();
+
+    expect(consoleError()).toHaveBeenCalledTimes(1);
+    const logged = loggedLine();
+    // The free-text count survives: it has no grammar to bound, and this read
+    // does not hold the balance to redact it by value.
+    expect(logged).toBe(
+      'UpstashError: ERR daily quota exceeded for account <redacted-license-key> (4200 credits), command was: <redacted>'
+    );
+    expect(logged).not.toContain(LIVE_KEY);
+  });
+
+  test('does not rewrite ordinary text when the key is empty or very short', async () => {
+    // The caller passes whatever the request sent. `replaceAll('', m)` puts
+    // `m` between every character, and a 3-letter key rewrites words.
+    const wrongCommand = new errors.UpstashError("ERR unknown command 'set' for this key");
+    for (const key of ['', 'set', 'KEY-123']) {
+      consoleError().mockClear();
+      expect(await getCachedLicense(() => throwingStore(wrongCommand), key)).toBeNull();
+      expect(consoleError()).toHaveBeenCalledTimes(1);
+      expect(loggedLine()).toBe("UpstashError: ERR unknown command 'set' for this key");
+    }
+  });
+
   test('stays silent on a hit and on an empty entry', async () => {
     // Not on every MISS: a non-JSON entry logs its parse failure (pinned in
     // the unrecognised-shape test above).
@@ -750,6 +787,89 @@ describe('cacheLicense', () => {
     for (const secret of [LIVE_KEY, '4200', '198.51.100.9']) {
       expect(logged).not.toContain(secret);
     }
+  });
+
+  test('cuts the cached value wherever the message quotes the command, not only after "command was:"', async () => {
+    // What we really send for this write: the value is serialized into the
+    // command as a JSON string.
+    const setCommand = ['set', `license:${LIVE_KEY}`, JSON.stringify(liveLicense), 'ex', LICENSE_CACHE_TTL_SECONDS];
+    const echoed = JSON.stringify([setCommand]);
+    const cases: Array<{ shape: string; thrown: errors.UpstashError; logged: string }> = [
+      {
+        // A proxy page that echoes the request back. Not JSON, so the client
+        // throws UpstashJSONParseError — which has no `, command was:` suffix.
+        shape: 'parse error, raw echo',
+        thrown: new errors.UpstashJSONParseError(
+          `<html><body><h1>400 Bad Request</h1><pre>${echoed}</pre></body></html>`
+        ),
+        logged:
+          'UpstashJSONParseError: Unable to parse response body: <html><body><h1>400 Bad Request</h1><pre><redacted>',
+      },
+      {
+        // The same page with the quotes HTML-escaped, as a templating proxy
+        // prints them.
+        shape: 'parse error, HTML-escaped echo',
+        thrown: new errors.UpstashJSONParseError(
+          `<html><body><pre>${echoed.replaceAll('"', '&quot;')}</pre></body></html>`
+        ),
+        logged: 'UpstashJSONParseError: Unable to parse response body: <html><body><pre><redacted>',
+      },
+      {
+        // A JSON 500 whose `error` field quotes the request body, BEFORE the
+        // client's own suffix.
+        shape: 'error field quoting the body',
+        thrown: autoPipelinedFailure(`ERR syntax error in request ${JSON.stringify(setCommand)}`, setCommand),
+        logged: 'UpstashError: ERR syntax error in request <redacted>',
+      },
+      {
+        // An error that quotes only the value argument, still in its
+        // backslash-escaped form.
+        shape: 'error field quoting the value',
+        thrown: new errors.UpstashError(
+          `ERR value is not an integer or out of range: ${JSON.stringify(JSON.stringify(liveLicense))}`
+        ),
+        logged: 'UpstashError: ERR value is not an integer or out of range: "<redacted>',
+      },
+    ];
+
+    for (const { shape, thrown, logged } of cases) {
+      // Guard the FIXTURE: the cached value really is in the message, and
+      // there is no `, command was:` suffix IN FRONT of it for an
+      // Upstash-worded cut to find.
+      expect(thrown.message, shape).toContain('4200');
+      expect(thrown.message, shape).toContain('credits');
+      const suffixAt = thrown.message.indexOf(', command was:');
+      expect(suffixAt === -1 || suffixAt > thrown.message.indexOf('4200'), shape).toBe(true);
+
+      consoleError().mockClear();
+      expect(await cacheLicense(() => throwingStore(thrown), LIVE_KEY, liveLicense)).toBeUndefined();
+
+      expect(consoleError(), shape).toHaveBeenCalledTimes(1);
+      const line = loggedLine();
+      expect(line, shape).toBe(logged);
+      for (const secret of [LIVE_KEY, '4200', 'credits', 'isValid']) {
+        expect(line, shape).not.toContain(secret);
+      }
+      // And the cap is not what saved it.
+      expect(line, shape).not.toEndWith('<truncated>');
+    }
+  });
+
+  test('redacts the key by VALUE when the message names it with no license: prefix', async () => {
+    const quota = autoPipelinedFailure(
+      `ERR daily quota exceeded for account ${LIVE_KEY} (4200 credits)`,
+      ['set', `license:${LIVE_KEY}`, JSON.stringify(liveLicense), 'ex', LICENSE_CACHE_TTL_SECONDS]
+    );
+    // Guard the FIXTURE: the bare key really is in the message, outside the
+    // payload.
+    expect(quota.message).toContain(`account ${LIVE_KEY} `);
+
+    expect(await cacheLicense(() => throwingStore(quota), LIVE_KEY, liveLicense)).toBeUndefined();
+
+    expect(consoleError()).toHaveBeenCalledTimes(1);
+    expect(loggedLine()).toBe(
+      'UpstashError: ERR daily quota exceeded for account <redacted-license-key> (4200 credits), command was: <redacted>'
+    );
   });
 
   test('stays silent on a successful write', async () => {

@@ -44,6 +44,24 @@ export type RedisStoreFactory = () => RedisStore;
 const MAX_FAILURE_LOG_CHARS = 200;
 
 /**
+ * Where a SERIALIZED command or cached value starts: a JSON array or object
+ * whose first member is a string — `["get",…`, `[["set",…`, `{"isValid":…`.
+ * The quote may be backslash-escaped (the value as it sits inside the command,
+ * `"{\"isValid\":…}"`) or HTML-escaped (`&quot;`, a proxy page echoing the
+ * request). Everything from there to the end of the line is cut. See pass 2.
+ */
+const SERIALIZED_PAYLOAD = /[[{](?:\s*\[)?\s*(?:\\*"|&quot;)[\s\S]*$/;
+
+/**
+ * The shortest licence key the by-value pass will substitute. The real format
+ * is 19 characters (`HW-XXXX-XXXX-XXXX-XXXX`), but the caller passes whatever
+ * the request sent. An empty string would put a marker between every character
+ * of the line, and a 1-3 character key would rewrite ordinary words. Shorter
+ * keys are left to the key pass and the payload cut.
+ */
+const MIN_BY_VALUE_KEY_CHARS = 8;
+
+/**
  * Is `value` an IP address rather than a word? `getClientIP` (`lib/request-id`)
  * returns the literal `'unknown'` for an off-edge 6PN peer and for a request
  * with neither `Fly-Client-IP` nor `X-Forwarded-For`, and substituting THAT as
@@ -74,8 +92,9 @@ function looksLikeIPAddress(value: string): boolean {
  * through this helper: `isIPBlocked` (#898 — its catch was silent before), and
  * `getCachedLicense` / `cacheLicense` (#921 — they used to log the raw Error,
  * measured at 20 stderr lines on one 401 with the IP, the licence key and the
- * cached licence value in the clear). Those two have no address to redact,
- * which is why `ip` is optional.
+ * cached licence value in the clear). Each caller hands over the secrets it
+ * HOLDS in `byValue`: `isIPBlocked` its `ip`, the licence functions their
+ * `licenseKey`.
  *
  * So the design is a BOUND first and redaction second — a deny-list that names
  * the secrets it knows about is what let the licence key through. In order:
@@ -84,11 +103,18 @@ function looksLikeIPAddress(value: string): boolean {
  *    built from `res.text()` verbatim, so an intermediary's HTML 502 body
  *    arrives with real newlines and would split this record into ~8 in a
  *    line-oriented shipper — on exactly the outage class the log is for.
- * 2. Cut the command payload. Everything from `, command was:` to the end
- *    becomes `<redacted>`, whatever it held. This is the pass that bounds an
- *    UNKNOWN secret: a key, a value or a caller we never thought about is gone
- *    without being named. If Upstash rewords the suffix this degrades to the
- *    passes below — today's behaviour — rather than to a leak.
+ * 2. Cut the serialized payload. Everything from the first JSON array or
+ *    object that opens on a string (`SERIALIZED_PAYLOAD`) to the end becomes
+ *    `<redacted>`, whatever it held. This is the pass that bounds an UNKNOWN
+ *    secret: a key, a value or a caller we never thought about is gone without
+ *    being named. It is anchored on the GRAMMAR of what we send, not on
+ *    Upstash's wording, because the command reaches the message in more places
+ *    than the `, command was:` suffix — an `UpstashJSONParseError` quoting a
+ *    proxy page that echoes the request, or a JSON error whose `error` field
+ *    quotes the body — and in those shapes a key-shaped pass stops at the first
+ *    `"` and leaves the cached `{"isValid":…,"credits":…}` in the clear. The
+ *    suffix text itself survives, so the Upstash shape still reads
+ *    `…, command was: <redacted>`. Over-cutting only costs diagnostic text.
  * 3. Cut the userinfo out of any `scheme://user:password@host` URL. The second
  *    grammar-shaped bound, and it names no secret either. Upstash gives an
  *    operator TWO connection strings for one database — a REST URL, and a
@@ -103,35 +129,50 @@ function looksLikeIPAddress(value: string): boolean {
  *    wrong.
  * 4. Redact `ip_blocked:` and `license:` values wherever else they appear, for
  *    a message that names a key outside the command payload.
- * 5. Redact this request's own `ip` by VALUE, which is the only pass that
- *    reaches an address carried some other way entirely — a DNS failure gives
- *    `TypeError: getaddrinfo ENOTFOUND 203.0.113.7.invalid`, which has no key
- *    and no command suffix. (That example is MEASURED on this runtime. The
- *    `connect ETIMEDOUT <addr>:443` shape this comment used to cite does NOT
- *    occur here: bun's fetch gives `Unable to connect. Is the computer able to
- *    access the url?` with the address only on a non-enumerable property, and
- *    Node/undici hides it on `error.cause`, which this helper never reads.)
- *    Gated on `looksLikeIPAddress` so the `'unknown'` sentinel is not
- *    substituted into English.
+ * 5. Redact the secrets the caller holds, by VALUE. This is the only pass that
+ *    reaches a secret the message carries with no key and no payload around
+ *    it. Each has its own gate and its own marker:
+ *
+ *    - `licenseKey` → `<redacted-license-key>`, e.g. an upstream 429 body
+ *      `daily quota exceeded for account HW-…`. Skipped below
+ *      `MIN_BY_VALUE_KEY_CHARS`, so an empty or tiny key cannot rewrite
+ *      ordinary text.
+ *    - `ip` → `<redacted-ip>`, for an address carried some other way
+ *      entirely — a DNS failure gives
+ *      `TypeError: getaddrinfo ENOTFOUND 203.0.113.7.invalid`, which has no
+ *      key and no command suffix. (That example is MEASURED on this runtime.
+ *      The `connect ETIMEDOUT <addr>:443` shape this comment used to cite does
+ *      NOT occur here: bun's fetch gives `Unable to connect. Is the computer
+ *      able to access the url?` with the address only on a non-enumerable
+ *      property, and Node/undici hides it on `error.cause`, which this helper
+ *      never reads.) Gated on `looksLikeIPAddress` so the `'unknown'`
+ *      sentinel is not substituted into English.
+ *
+ *    These run after 1-4 because a caller's value is arbitrary text: a key
+ *    that happens to be a substring of a marker (`redacted`) could rewrite
+ *    part of one. Running last, such a rewrite only swaps marker text for
+ *    another marker, and only the cap follows it.
  * 6. Truncate to `MAX_FAILURE_LOG_CHARS`.
  *
- * No two passes depend on each other's order for CORRECTNESS. Every marker a
- * pass can WRITE INTO the line — `<redacted>`, `<redacted-ip>`,
- * `<redacted-credentials>` — holds no whitespace, `"`, `'`, `]`, `/`, `?`, `#`
- * or `@`, so it matches no other pass's character class in part: a later pass
+ * Apart from pass 5 running after 1-4 (above), no two passes depend on each
+ * other's order for CORRECTNESS. Every marker a pass can WRITE INTO the line —
+ * `<redacted>`, `<redacted-ip>`, `<redacted-license-key>`,
+ * `<redacted-credentials>` — holds no whitespace, `"`, `'`, `[`, `]`, `{`, `/`,
+ * `?`, `#` or `@`, so it matches no other pass's character class in part: a later pass
  * can only re-match one whole (which is idempotent) and can never truncate
  * one. Pass 3 re-matching its OWN output is the case that needs `@` on that
  * list, and `redis://<redacted-credentials>@host` is a fixed point. Round 1's
  * `<redacted ip>` did have a space, which is what made the old order
- * load-bearing; the hyphen removed the hazard rather than documenting it. The
- * order above is for readability. Dropping any one of 2, 3, 4 or 5 re-opens a
- * leak the tests pin, so none is redundant. (`<unloggable failure>` is the
- * catch-path return, not a marker: it replaces the whole line and never meets
- * another pass.)
+ * load-bearing; the hyphen removed the hazard rather than documenting it.
+ * Dropping any one of 2, 3, 4 or either half of 5 re-opens a leak the tests
+ * pin, so none is redundant. (`<unloggable failure>` is the catch-path
+ * return, not a marker: it replaces the whole line and never meets another
+ * pass.)
  *
- * `getCachedLicense` and `cacheLicense` call this with no `ip`: their
- * redaction is passes 1-4 and 6. They keep their own message prefixes, which
- * existing Axiom queries match on — only the second argument goes through here.
+ * `getCachedLicense` and `cacheLicense` pass no `ip`, so their redaction is
+ * passes 1-4, the licence-key half of 5, and 6. They keep their own message
+ * prefixes, which existing Axiom queries match on — only the second argument
+ * goes through here.
  * The licence key is REDACTED, not masked to its first/last 4 characters:
  * whether `README.md`'s masking claim is the contract is still open (#921).
  *
@@ -140,7 +181,10 @@ function looksLikeIPAddress(value: string): boolean {
  * NEVER throws — a logger that throws inside a catch would turn a fail-open
  * into a 500.
  */
-function toRedactedLogLine(error: unknown, ip?: string): string {
+function toRedactedLogLine(
+  error: unknown,
+  byValue: { readonly ip?: string; readonly licenseKey?: string } = {}
+): string {
   try {
     // `String(x)`, never `` `${x}` ``. MEASURED, because round 1's note had it
     // backwards: `String(aSymbol)` does NOT throw — it has an explicit Symbol
@@ -150,7 +194,7 @@ function toRedactedLogLine(error: unknown, ip?: string): string {
     const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
     let line = raw.replace(/\s+/g, ' ').trim();
-    line = line.replace(/, command was:[\s\S]*$/, ', command was: <redacted>');
+    line = line.replace(SERIALIZED_PAYLOAD, '<redacted>');
     // The class stops at the characters RFC 3986 says end an authority, so the
     // userinfo it can eat is only ever real userinfo. Without `/` this eats a
     // module path — `file:///…/node_modules/@upstash/redis/nodejs.mjs` becomes
@@ -164,6 +208,10 @@ function toRedactedLogLine(error: unknown, ip?: string): string {
     line = line
       .replace(/ip_blocked:[^"'\s\]]*/g, 'ip_blocked:<redacted>')
       .replace(/license:[^"'\s\]]*/g, 'license:<redacted>');
+    const { ip, licenseKey } = byValue;
+    if (licenseKey !== undefined && licenseKey.length >= MIN_BY_VALUE_KEY_CHARS) {
+      line = line.replaceAll(licenseKey, '<redacted-license-key>');
+    }
     if (ip !== undefined && looksLikeIPAddress(ip)) {
       line = line.replaceAll(ip, '<redacted-ip>');
     }
@@ -188,7 +236,7 @@ export async function isIPBlocked(store: RedisStoreFactory, ip: string): Promise
     // disabled gate looks exactly like an hour with no blocked IPs. Nothing
     // secret in the line — see `toRedactedLogLine`; the operation name and the
     // bounded error text are enough to spot the outage.
-    console.error('IP block check failed — failing open:', toRedactedLogLine(error, ip));
+    console.error('IP block check failed — failing open:', toRedactedLogLine(error, { ip }));
     return false;
   }
 }
@@ -226,7 +274,7 @@ export async function getCachedLicense(
     const parsed: unknown = typeof cached === 'string' ? JSON.parse(cached) : cached;
     return isCachedLicense(parsed) ? parsed : null;
   } catch (error) {
-    console.error('Failed to get cached license:', toRedactedLogLine(error));
+    console.error('Failed to get cached license:', toRedactedLogLine(error, { licenseKey }));
     return null;
   }
 }
@@ -239,6 +287,6 @@ export async function cacheLicense(
   try {
     await store().set(`license:${licenseKey}`, license, { ex: LICENSE_CACHE_TTL_SECONDS });
   } catch (error) {
-    console.error('Failed to cache license:', toRedactedLogLine(error));
+    console.error('Failed to cache license:', toRedactedLogLine(error, { licenseKey }));
   }
 }
