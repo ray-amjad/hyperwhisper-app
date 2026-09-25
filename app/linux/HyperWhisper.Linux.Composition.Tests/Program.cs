@@ -1451,11 +1451,11 @@ static async Task SecondLaunchHandsOff()
     try
     {
         var handoff = await LaunchLinuxHead(root);
-        Assert(handoff.Code == 0, $"second launch exited {handoff.Code}: {handoff.Error}");
+        Assert(handoff.Code == 0, $"second launch exited {handoff.Code}: {handoff.Output}");
         Assert(Signalled(), "second launch did not signal the running instance");
         var smoke = await LaunchLinuxHead(root, "--smoke-test");
-        Assert(smoke.Code == 1 && smoke.Error.Contains("another instance is already running", StringComparison.Ordinal),
-            $"second smoke run exited {smoke.Code}: {smoke.Error}");
+        Assert(smoke.Code == 1 && smoke.Output.Contains("another instance is already running", StringComparison.Ordinal),
+            $"second smoke run exited {smoke.Code}: {smoke.Output}");
         Assert(!Signalled(), "a smoke run signalled the running instance");
     }
     finally { DeleteLaunchRoot(root); }
@@ -1471,13 +1471,14 @@ static async Task AcquireFailureExitsOne()
     try
     {
         var launch = await LaunchLinuxHead(root);
-        Assert(launch.Code == 1 && launch.Error.Contains("single-instance startup failed: single_instance.acquire_failed", StringComparison.Ordinal),
-            $"acquire-failure launch exited {launch.Code}: {launch.Error}");
+        Assert(launch.Code == 1 && launch.Output.Contains("single-instance startup failed: single_instance.acquire_failed", StringComparison.Ordinal),
+            $"acquire-failure launch exited {launch.Code}: {launch.Output}");
     }
     finally { DeleteLaunchRoot(root); }
 }
 
-static async Task<(int Code, string Error)> LaunchLinuxHead(string root, params string[] args)
+// Ubuntu 22.04 xvfb-run runs the command with `2>&1`, so the head's stderr can arrive on stdout; read both.
+static async Task<(int Code, string Output)> LaunchLinuxHead(string root, params string[] args)
 {
     const string xvfbRun = "/usr/bin/xvfb-run";
     Assert(File.Exists(xvfbRun), "xvfb-run is required to launch the Linux head");
@@ -1488,16 +1489,16 @@ static async Task<(int Code, string Error)> LaunchLinuxHead(string root, params 
     foreach (var name in (string[])["XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY"]) start.Environment.Remove(name);
     using var process = Process.Start(start)!;
     var error = process.StandardError.ReadToEndAsync();
-    _ = process.StandardOutput.ReadToEndAsync();
+    var output = process.StandardOutput.ReadToEndAsync();
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
     try { await process.WaitForExitAsync(deadline.Token); }
     catch (OperationCanceledException)
     {
         process.Kill(entireProcessTree: true);
-        var partial = await error.WaitAsync(TimeSpan.FromSeconds(5)).ContinueWith(read => read.IsCompletedSuccessfully ? read.Result : "(stderr unavailable)");
-        throw new InvalidOperationException($"the Linux head did not exit within 60 s; stderr: {partial}");
+        var partial = await Task.WhenAll(error, output).WaitAsync(TimeSpan.FromSeconds(5)).ContinueWith(read => read.IsCompletedSuccessfully ? string.Concat(read.Result) : "(output unavailable)");
+        throw new InvalidOperationException($"the Linux head did not exit within 60 s; output: {partial}");
     }
-    return (process.ExitCode, await error);
+    return (process.ExitCode, await error + await output);
 }
 
 // Cleanup must never mask the assertion or timeout that ended the test.
