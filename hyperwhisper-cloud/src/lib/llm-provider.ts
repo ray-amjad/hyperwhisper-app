@@ -27,13 +27,13 @@ export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
 
 // Served name per (provider, resolved-model) pair, for the X-LLM-Provider
 // response header / log. The default model maps back to LLM_PROVIDER_NAMES so
-// single-model providers (and the default of the multi-model ones) are
-// unchanged; the non-default allowlisted models of the multi-model providers
-// (openai/gemini/mistral) get their own label so the response reflects the model
-// actually used instead of the provider default. MUST stay in sync with
-// LLM_PROVIDER_MODELS allowlists.
+// single-model providers (and the default of the multi-model one) are
+// unchanged; the non-default allowlisted models of the multi-model provider
+// (gemini) get their own label so the response reflects the model actually used
+// instead of the provider default. openai has one model since #1018 and needs no
+// entry: servedLLMName falls through to LLM_PROVIDER_NAMES.openai. MUST stay in
+// sync with LLM_PROVIDER_MODELS allowlists.
 const LLM_SERVED_NAMES: Partial<Record<LLMProvider, Record<string, string>>> = {
-  openai: { 'gpt-5.6-luna': 'openai-gpt-5.6-luna' },
   gemini: {
     'gemini-2.5-flash': 'gemini-2.5-flash',
     'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
@@ -78,7 +78,8 @@ const LLM_PROVIDER_RETRIES: Record<LLMProvider, number> = {
 
 // Per-provider allowlist of valid X-LLM-Model ids, with the default first. The
 // resolved model is threaded through callWithRetry to the openai/gemini/mistral
-// clients (the 4 single-model providers ignore it). MUST match the model ids in
+// clients, which put it in the request body (the other 4 providers ignore it).
+// Only gemini allows more than one model today. MUST match the model ids in
 // shared-app-classification/cloud-pp-catalog.json.
 const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: readonly string[] }> = {
   cerebras: { default: 'gpt-oss-120b', allowed: ['gpt-oss-120b'] },
@@ -141,8 +142,8 @@ export function resolveLLMModel(provider: LLMProvider, request: Request): string
 
 /**
  * Retry LLM call with exponential backoff. `model` is the resolved (allowlisted)
- * model id — the multi-model providers (openai/gemini/mistral) route on it; the
- * single-model providers ignore it.
+ * model id — the openai/gemini/mistral clients send it as the request model; the
+ * other providers ignore it.
  */
 export async function callWithRetry(
   provider: LLMProvider,

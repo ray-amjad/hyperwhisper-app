@@ -213,7 +213,9 @@ interface LLMChatRate {
 // OpenAI GPT-5.6 Luna (chat/completions). $0.20/$1.20 per 1M, read 2026-09-25 at
 // https://developers.openai.com/api/docs/models/gpt-5.6-luna. gpt-5-mini and
 // gpt-5-nano are gone (OpenAI removes them 2026-12-11); an old client still
-// sending either id resolves to luna and bills at this rate.
+// sending either id resolves to luna and bills at this rate. One row, but the
+// per-model shape stays (as for Mistral below): an unknown id takes the
+// default-rate fallback, and a second OpenAI model is a one-line add.
 const OPENAI_CHAT_RATES: Record<string, LLMChatRate> = {
   'gpt-5.6-luna': { promptPerToken: 0.20 / 1_000_000, completionPerToken: 1.20 / 1_000_000 },
 };

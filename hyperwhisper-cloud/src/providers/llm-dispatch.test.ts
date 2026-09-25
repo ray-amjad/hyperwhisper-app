@@ -89,7 +89,7 @@ describe('cost functions', () => {
   // 1,000,000 prompt + 1,000,000 completion tokens → cost == (in$ + out$) per 1M.
   const oneM: GroqUsage = { prompt_tokens: 1_000_000, completion_tokens: 1_000_000, total_tokens: 2_000_000 };
 
-  test('computeOpenAIChatCost per model', () => {
+  test('computeOpenAIChatCost bills every id at the one luna rate', () => {
     expect(computeOpenAIChatCost('gpt-5.6-luna', oneM)).toBeCloseTo(0.20 + 1.20, 6);
     // Unknown model bills at the default (gpt-5.6-luna) rate, never $0 — and so
     // do the retired gpt-5-mini / gpt-5-nano ids.
@@ -137,6 +137,11 @@ describe('servedLLMName', () => {
 
   test('the retired open-mistral-nemo has no served name of its own', () => {
     expect(servedLLMName('mistral', 'open-mistral-nemo')).toBe(LLM_PROVIDER_NAMES.mistral);
+  });
+
+  test('the retired gpt-5-mini / gpt-5-nano have no served name of their own', () => {
+    expect(servedLLMName('openai', 'gpt-5-mini')).toBe(LLM_PROVIDER_NAMES.openai);
+    expect(servedLLMName('openai', 'gpt-5-nano')).toBe(LLM_PROVIDER_NAMES.openai);
   });
 
   test('an unknown model falls back to the static provider name', () => {
