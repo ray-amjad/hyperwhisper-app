@@ -65,8 +65,7 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <strong>Crash and performance diagnostics</strong>: The HyperWhisper
-          desktop apps for macOS, Windows, and Linux send crash reports, error
-          reports, and performance data to{" "}
+          desktop apps for macOS, Windows, and Linux send diagnostics to{" "}
           <a
             className="text-blue-600 dark:text-blue-400 hover:underline"
             href="https://sentry.io/privacy/"
@@ -78,18 +77,38 @@ export default function PrivacyPolicyPage() {
           , our error-monitoring provider. This is on by default. You can turn
           it off in Settings → General with the switch labelled &quot;Error
           logging&quot; on macOS and &quot;Send error reports&quot; on Windows
-          and Linux. These reports include your IP address, the app version,
-          your operating system version, and your CPU architecture. They also
-          include release-health session data (counts of app sessions and
-          whether they ended in a crash) and performance traces (timings of
-          operations in the app). An error report can also include technical
-          details about the error, the names of your audio input devices (for
-          example, the name of your microphone), and, on macOS, recent lines
-          from the app&apos;s own log, filtered to remove home-folder paths, IP
-          addresses, and text that looks like transcript content. No audio is
-          attached to a report, so a report cannot give us your recordings.
-          Report fields named for transcripts, text, or prompts are replaced
-          with &quot;[redacted]&quot; before the report is sent.
+          and Linux. On all three platforms, the diagnostics include crash and
+          error reports with technical details about the error, your IP address,
+          the app version, your operating system version, your CPU architecture,
+          and an identifier for your installation of the app that stays the same
+          from one launch to the next. They also include release-health session
+          data: counts of app sessions and whether they ended in a crash, linked
+          to that identifier. What else is sent depends on the platform:
+          <ul>
+            <li>
+              <strong>macOS</strong>: performance traces (timings of operations
+              in the app) and CPU profiles (samples of which parts of the
+              app&apos;s code were running). An error report can also include
+              the names of your audio input devices (for example, the name of
+              your microphone) and recent lines from the app&apos;s own log.
+              Those lines are filtered to remove some personal details, such as
+              home-folder paths, email addresses, IPv4 addresses, and some text
+              that looks like transcript content.
+            </li>
+            <li>
+              <strong>Windows</strong>: performance traces and your
+              computer&apos;s name. An error report can also include the names
+              of your audio input devices.
+            </li>
+            <li>
+              <strong>Linux</strong>: your computer&apos;s name and the name of
+              your user account on it. The Linux app sends no performance traces
+              and no audio device names.
+            </li>
+          </ul>
+          No audio is attached to a report, so a report cannot give us your
+          recordings. Report fields named for transcripts, text, or prompts are
+          replaced with &quot;[redacted]&quot; before the report is sent.
         </li>
         <li>
           <strong>License information</strong>: The app contacts our licensing
@@ -463,10 +482,10 @@ export default function PrivacyPolicyPage() {
           rel="noopener noreferrer"
         >
           Sentry
-        </a>{" "}
-        for crash and performance diagnostics, as described under What We
-        Collect. Sentry processes this data under its own privacy policy. You
-        can turn it off in Settings → General.
+        </a>
+        , our error-monitoring provider, for crash and performance diagnostics,
+        as described under What We Collect. You can turn it off in Settings →
+        General.
       </p>
 
       <h2>Children&apos;s Privacy</h2>
