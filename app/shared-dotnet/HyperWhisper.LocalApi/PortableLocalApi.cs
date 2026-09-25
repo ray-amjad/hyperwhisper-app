@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace HyperWhisper.LocalApi;
@@ -53,7 +54,7 @@ public static class PortableLocalApi
         // host. An embedded host in a GUI process must never own process
         // signals, so the runtime default ends the app as it does with the
         // Local API off (issue #957).
-        builder.Services.AddSingleton<IHostLifetime, EmbeddedHostLifetime>();
+        builder.Services.Replace(ServiceDescriptor.Singleton<IHostLifetime, EmbeddedHostLifetime>());
         configure?.Invoke(builder);
         var app = builder.Build();
         Map(app, options);

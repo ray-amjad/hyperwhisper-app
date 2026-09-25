@@ -812,6 +812,7 @@ static async Task SignalsEndTheProcess()
     {
         var lifetime = app.Services.GetRequiredService<IHostLifetime>().GetType().FullName;
         Assert(lifetime != "Microsoft.Extensions.Hosting.Internal.ConsoleLifetime", $"the embedded host owns process signals through {lifetime}");
+        Assert(app.Services.GetServices<IHostLifetime>().Count() == 1, "the embedded host registers more than one IHostLifetime");
     }
     if (!OperatingSystem.IsLinux()) return;
     foreach (var (name, signal) in new[] { ("SIGTERM", 15), ("SIGINT", 2) })
