@@ -430,7 +430,7 @@ export default function PrivacyPolicyPage() {
         Our website pages embed an AI support chat widget served by{" "}
         <a
           className="text-blue-600 dark:text-blue-400 hover:underline"
-          href="https://www.agentstack.build"
+          href="https://www.agentstack.build/privacy"
           target="_blank"
           rel="noopener noreferrer"
         >
