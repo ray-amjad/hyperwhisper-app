@@ -22,7 +22,7 @@ export default function VideoDemo() {
               allowFullScreen={true}
               loading="lazy"
               title="HyperWhisper demo video"
-              src="https://iframe.mediadelivery.net/embed/523175/379cb709-30bd-4155-8f70-8965c9d0430d?autoplay=false&loop=false&muted=false&preload=true&responsive=true"
+              src="https://iframe.mediadelivery.net/embed/523175/379cb709-30bd-4155-8f70-8965c9d0430d?autoplay=false&loop=false&muted=false&preload=false&responsive=true"
               style={{
                 border: 0,
                 position: "absolute",
