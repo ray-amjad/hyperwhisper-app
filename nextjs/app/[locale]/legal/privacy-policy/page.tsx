@@ -375,7 +375,76 @@ export default function PrivacyPolicyPage() {
           (GPT-OSS-120B) — fallback provider. Falls back to Cerebras on
           failure.
         </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://www.anthropic.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Anthropic (Claude)
+          </a>{" "}
+          (Claude Haiku 4.5). Falls back to Cerebras on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://x.ai/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            SpaceXAI (Grok)
+          </a>{" "}
+          (Grok 4.3). Falls back to Anthropic on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://openai.com/policies/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            OpenAI
+          </a>{" "}
+          (GPT-5 mini or GPT-5 nano). Falls back to Anthropic on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google (Gemini)
+          </a>{" "}
+          (Gemini 2.5 Flash, Gemini 2.5 Flash-Lite or Gemini 3.8 Flash). Falls
+          back to Cerebras on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://mistral.ai/terms/#privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Mistral
+          </a>{" "}
+          (Mistral Small). Falls back to Groq on failure.
+        </li>
       </ul>
+      <p>
+        These providers receive your transcribed text, and the context
+        described under &quot;Screen Text and app context&quot; below, to
+        correct and format it. This post-processing request carries no audio.
+        Grok and Mistral store request data for approximately 30 days for
+        abuse monitoring, and do not use it to train their models. A request
+        goes to the fallback named above in only two cases: the provider still
+        returns a server error after any automatic retries, or its reply
+        repeats our instructions instead of your corrected text. So one
+        request can reach at most three providers in this list — for example
+        Grok, then Anthropic after a server error, then Cerebras if
+        Anthropic&apos;s reply repeats the instructions.
+      </p>
       <p>
         Where available, we have configured zero data retention on our
         provider accounts — for example, Deepgram&apos;s data retention is set
