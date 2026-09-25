@@ -52,14 +52,14 @@ public partial class App : Application
             {
                 Console.Error.WriteLine($"HyperWhisper single-instance startup failed: {acquired.Error!.Code}");
                 _platformServices.Dispose();
-                desktop.Shutdown(1);
+                ShutdownFromMainLoop(desktop, 1);
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
             if (acquired.IsSuccess && acquired.Value == false)
             {
                 _ = _platformServices.SingleInstance.SignalExistingInstance();
-                desktop.Shutdown();
+                ShutdownFromMainLoop(desktop, 0);
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
@@ -94,6 +94,13 @@ public partial class App : Application
 
         base.OnFrameworkInitializationCompleted();
     }
+
+    // The dispatcher has not entered its main loop yet while OnFrameworkInitializationCompleted
+    // runs. Shutting down here makes MainLoop throw "Dispatcher shut down" and the process aborts
+    // with SIGABRT (exit 134, #956), so post the shutdown and let the loop run it. No window is
+    // open on these paths, so nothing else ends the loop first.
+    private static void ShutdownFromMainLoop(IClassicDesktopStyleApplicationLifetime desktop, int exitCode) =>
+        Dispatcher.UIThread.Post(() => desktop.Shutdown(exitCode));
 
     private void SubscribeUnhandledExceptions()
     {
