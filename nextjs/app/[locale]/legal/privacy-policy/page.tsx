@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: September 17, 2026
+        Last Updated: September 25, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -62,6 +62,65 @@ export default function PrivacyPolicyPage() {
             Stripe
           </a>
           ) for purchases, refunds, and fraud prevention.
+        </li>
+        <li>
+          <strong>Crash and performance diagnostics</strong>: The HyperWhisper
+          desktop apps for macOS, Windows, and Linux send diagnostics to{" "}
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://sentry.io/privacy/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Sentry
+          </a>
+          , our error-monitoring provider. This is on by default. You can turn
+          it off in Settings → General with the switch labelled &quot;Error
+          logging&quot; on macOS and &quot;Send error reports&quot; on Windows
+          and Linux. When you turn it off, the app stops collecting new
+          diagnostics. On Windows and Linux, reports that are already waiting on
+          your device can still be sent at that moment, and on macOS one final
+          session record can be sent. The diagnostics include:
+          <ul>
+            <li>
+              Crash and error reports with technical details about the error,
+              and other diagnostic events and records about how the app is
+              running. On macOS, this includes routine diagnostic log records
+              that are sent even when nothing has gone wrong.
+            </li>
+            <li>
+              Release-health session data: records of app sessions and whether
+              they ended in a crash.
+            </li>
+            <li>
+              Performance traces (timings of operations in the app) on macOS and
+              Windows, and CPU profiles (samples of which parts of the
+              app&apos;s code were running) on macOS. The Linux app does not
+              currently record performance traces.
+            </li>
+            <li>
+              Identifiers: your IP address, the app version, your operating
+              system version, your CPU architecture, and an identifier for your
+              installation of the app that stays the same from one launch to the
+              next and is linked to your sessions. On Windows and Linux, this
+              also includes your computer&apos;s name, and on Linux the name of
+              your user account on it.
+            </li>
+            <li>
+              Context about what the app was doing. For example, this can
+              include the names of your audio input devices and the name of the
+              app you were dictating into with the number of characters pasted
+              (macOS and Windows), and file paths on your computer. On macOS, a
+              file path can contain the name of your user account.
+            </li>
+          </ul>
+          No audio is attached to a report, so a report cannot give us your
+          recordings. Report fields named for transcripts, text, or prompts are
+          replaced with &quot;[redacted]&quot; before the report is sent. On
+          macOS, an error report can also include recent lines from the
+          app&apos;s own log. Those lines are filtered to remove some personal
+          details, such as home-folder paths, email addresses, IPv4 addresses,
+          and some text that looks like transcript content.
         </li>
         <li>
           <strong>License information</strong>: The app contacts our licensing
@@ -425,6 +484,20 @@ export default function PrivacyPolicyPage() {
         for analytics to understand how our website is used and to improve the
         experience. PostHog may set its own cookies. We do not use this data for
         advertising purposes.
+      </p>
+      <p>
+        The desktop apps use{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://sentry.io/privacy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Sentry
+        </a>
+        , our error-monitoring provider, for crash and performance diagnostics,
+        as described under What We Collect. You can turn it off in Settings →
+        General.
       </p>
 
       <h2>Children&apos;s Privacy</h2>
