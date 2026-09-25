@@ -3,9 +3,9 @@
 //  hyperwhisper
 //
 //  Type-checked conversion of Accessibility `CFTypeRef` replies (issue #743).
-//  The other app chooses the concrete type of an attribute value, so `as!`
-//  traps on a wrong type, and `as?` to a CoreFoundation type always succeeds.
-//  Only a type-id match makes the conversion safe.
+//  The other app chooses the concrete type of an attribute value. Swift does
+//  not type-check a cast to a CoreFoundation type (`as?` always succeeds), so
+//  only a type-id match proves the value is the type the AX call expects.
 //
 
 import ApplicationServices
