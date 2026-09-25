@@ -348,17 +348,7 @@ public class ApplicationContextGatherer {
         let appElement = AXUIElementCreateApplication(targetPID)
 
         // Focused window
-        var focusedWindowRef: CFTypeRef?
-        let windowResult = AXUIElementCopyAttributeValue(
-            appElement,
-            kAXFocusedWindowAttribute as CFString,
-            &focusedWindowRef
-        )
-        var windowElement: AXUIElement?
-        if windowResult == .success, let win = focusedWindowRef {
-            // Force cast is safe here - AXUIElementCopyAttributeValue guarantees an AXUIElement
-            windowElement = unsafeBitCast(win, to: AXUIElement.self)
-        }
+        let windowElement = focusedWindowElement(for: appElement)
 
         // Try AXWebArea title first
         if let winEl = windowElement,
@@ -600,19 +590,14 @@ public class ApplicationContextGatherer {
         let appElement = AXUIElementCreateApplication(targetPID)
 
         // Get focused window or first window
-        var windowRef: CFTypeRef?
         var windowElement: AXUIElement?
-        if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &windowRef) == .success,
-           let win = windowRef {
-            // Force cast is safe here - AXUIElementCopyAttributeValue guarantees an AXUIElement
-            windowElement = unsafeBitCast(win, to: AXUIElement.self)
+        if let win = focusedWindowElement(for: appElement) {
+            windowElement = win
         } else {
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-               let windowsArray = windowsRef as? NSArray,
-               let first = windowsArray.firstObject as AnyObject? {
-                // Force cast is safe here - window array contains AXUIElements
-                windowElement = unsafeBitCast(first, to: AXUIElement.self)
+               let windowsArray = windowsRef as? NSArray {
+                windowElement = AXCast.element(windowsArray.firstObject as CFTypeRef?)
             }
         }
         guard let windowEl = windowElement else { return nil }

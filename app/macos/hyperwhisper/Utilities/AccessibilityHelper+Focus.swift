@@ -43,7 +43,8 @@ extension AccessibilityHelper {
         )
 
         guard result == .success, let axElement = AXCast.element(focusedElement) else {
-            logger.error("❌ Could not get focused element (error: \(result.rawValue, privacy: .public))")
+            let cause = result == .success ? "reply is not an AXUIElement" : "error: \(result.rawValue)"
+            logger.error("❌ Could not get focused element (\(cause, privacy: .public))")
             // Fallback 1: try the focused window, then search its children for an editable control
             var focusedWindowRef: CFTypeRef?
             let winRes = AXUIElementCopyAttributeValue(systemWideElement, kAXFocusedWindowAttribute as CFString, &focusedWindowRef)
