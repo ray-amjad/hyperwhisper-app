@@ -56,10 +56,15 @@ public partial class App : Application
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
-            if (acquired.IsSuccess && acquired.Value == false)
+            if (!acquired.Value)
             {
-                _ = _platformServices.SingleInstance.SignalExistingInstance();
-                ShutdownFromMainLoop(desktop, 0);
+                // A smoke run that hands off renders nothing, so it must fail rather than exit 0.
+                if (Program.IsSmokeTest)
+                    Console.Error.WriteLine("HyperWhisper smoke test failed: another instance is already running.");
+                else
+                    _ = _platformServices.SingleInstance.SignalExistingInstance();
+                _platformServices.Dispose();
+                ShutdownFromMainLoop(desktop, Program.IsSmokeTest ? 1 : 0);
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
