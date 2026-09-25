@@ -100,6 +100,14 @@ extension AccessibilityHelper {
 
     // MARK: - Clipboard Methods
 
+    /// Leave a refused auto-paste transcript on the clipboard for a manual Cmd+V.
+    /// Nothing was pasted, so there is nothing to restore over: cancel any pending
+    /// restoration instead of scheduling one, or the timer wipes the transcript (#783).
+    func keepRefusedTranscriptOnClipboard(_ text: String) {
+        cancelPendingClipboardRestoration()
+        copyToClipboard(text)
+    }
+
     /// Copy text to the system clipboard
     /// - Parameters:
     ///   - text: The text to copy
@@ -177,13 +185,15 @@ extension AccessibilityHelper {
     /// We must create fresh items from the stored data.
     func scheduleClipboardRestoration(settings: SettingsManager?) {
         // Check if restoration is enabled and we have original content
-        guard let settings = settings,
-              settings.restoreClipboardAfterPaste,
-              let dataToRestore = originalClipboardData else {
-            return
-        }
+        guard let settings = settings, settings.restoreClipboardAfterPaste else { return }
+        scheduleClipboardRestoration(after: settings.clipboardRestoreDelaySeconds)
+    }
 
-        let delay = settings.clipboardRestoreDelaySeconds
+    /// Schedule restoration of `originalClipboardData` after `delay` seconds.
+    /// Split from the settings overload so tests need no `@AppStorage` write.
+    func scheduleClipboardRestoration(after delay: TimeInterval) {
+        guard let dataToRestore = originalClipboardData else { return }
+
         logger.info("⏰ Scheduling clipboard restoration in \(delay, privacy: .public) seconds (\(dataToRestore.count, privacy: .public) item(s))")
 
         // Cancel any existing restoration timer

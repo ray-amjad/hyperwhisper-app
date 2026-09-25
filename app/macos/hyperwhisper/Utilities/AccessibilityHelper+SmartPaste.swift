@@ -205,8 +205,7 @@ extension AccessibilityHelper {
             }
             if capturedTargetLost || unknownFrontmostTarget {
                 logger.warning("⚠️ Captured paste target is gone or a different app is frontmost — refusing auto-paste. Text left on clipboard.")
-                copyToClipboard(text)
-                scheduleClipboardRestoration(settings: settings)
+                keepRefusedTranscriptOnClipboard(text)
                 // Both branches return `.noFocusedField` to the caller, which
                 // cannot tell them apart. Report them separately: a lost target
                 // means the app quit or its PID was reused mid-recording, an

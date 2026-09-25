@@ -7,6 +7,7 @@
 //  and only genuine failures raise an event.
 //
 
+import AppKit
 import Foundation
 import Testing
 @testable import HyperWhisper
@@ -141,5 +142,60 @@ struct PasteOutcomeReportingTests {
             #expect(forbidden.contains { lowered.contains($0) } == false,
                     "PasteAttempt.\(field) may carry transcript content")
         }
+    }
+
+    /// #783: a refused paste (target lost or unknown) leaves the transcript on the
+    /// clipboard for a manual Cmd+V. Nothing was pasted, so a restoration — even one
+    /// already pending from an earlier paste — must not wipe it when its delay passes.
+    ///
+    /// Drives the delay overload, not a `SettingsManager`: its settings are
+    /// `@AppStorage`, and a write from this app-hosted bundle can abort the run
+    /// (see StreamingSettingsBindingTests). No other test touches the general
+    /// pasteboard or the restoration state, so the suite needs no `.serialized`.
+    @Test func refusedPasteKeepsTranscriptOnClipboardAfterRestoreDelay() async throws {
+        let helper = AccessibilityHelper.shared
+        let pasteboard = NSPasteboard.general
+
+        // Save the tester's clipboard and the helper state this test changes.
+        let savedClipboard: [NSPasteboardItem] = (pasteboard.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            return copy
+        }
+        let savedOriginal = helper.originalClipboardData
+        let savedInSession = helper.isInRecordingSession
+        defer {
+            helper.cancelPendingClipboardRestoration()
+            helper.originalClipboardData = savedOriginal
+            helper.isInRecordingSession = savedInSession
+            pasteboard.clearContents()
+            if !savedClipboard.isEmpty { pasteboard.writeObjects(savedClipboard) }
+        }
+
+        let restoreDelay: TimeInterval = 0.05
+        let transcript = "refused transcript #783"
+        helper.isInRecordingSession = true
+        helper.originalClipboardData = [
+            AccessibilityHelper.ClipboardItemData(
+                types: [.string],
+                data: [.string: Data("clipboard before recording".utf8)]
+            )
+        ]
+        // An earlier paste already armed a restoration.
+        helper.scheduleClipboardRestoration(after: restoreDelay)
+        #expect(helper.activeRestorationWorkItem != nil)
+
+        helper.keepRefusedTranscriptOnClipboard(transcript)
+
+        #expect(helper.activeRestorationWorkItem == nil)
+        #expect(pasteboard.string(forType: .string) == transcript)
+
+        // Well past the delay: a surviving timer would have restored the old text.
+        try await Task.sleep(nanoseconds: UInt64(restoreDelay * 10 * 1_000_000_000))
+
+        #expect(helper.activeRestorationWorkItem == nil)
+        #expect(pasteboard.string(forType: .string) == transcript)
     }
 }
