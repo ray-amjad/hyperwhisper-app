@@ -5,6 +5,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 using HyperWhisper.Views.Pages.Settings;
 
 namespace HyperWhisper.Views.Pages;
@@ -22,6 +23,7 @@ public partial class SettingsPage : Page
     {
         _initialSection = string.IsNullOrWhiteSpace(initialSection) ? "General" : initialSection;
         InitializeComponent();
+        FrameJournal.KeepNoBackStack(ContentFrame); // issue #977
         Loaded += OnLoaded;
     }
 
