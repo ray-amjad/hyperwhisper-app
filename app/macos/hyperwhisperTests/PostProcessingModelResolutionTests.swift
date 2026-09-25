@@ -31,6 +31,9 @@ struct PostProcessingModelResolutionTests {
             ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
             ("gemini-2.0-flash", .gemini, "gemini-3.6-flash"),
             ("gemini-2.0-flash-lite", .gemini, "gemini-3.1-flash-lite"),
+            // Gemma hosted models left the Gemini API 2026-03-08 (#1019, matches Windows).
+            ("gemma-3-12b-it", .gemini, "gemini-3.8-flash"),
+            ("gemma-3-27b-it", .gemini, "gemini-3.8-flash"),
             ("llama3.1-8b", .cerebras, "qwen-3.8-27b"),
             ("llama-3.1-8b", .cerebras, "qwen-3.8-27b"),
             // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
