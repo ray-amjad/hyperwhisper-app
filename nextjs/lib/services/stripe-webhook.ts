@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
 import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
+import { emailTag } from "@/lib/shared/redact";
 import {
   findAccountByKey,
   getAccountKeysByEmail,
@@ -53,8 +54,10 @@ export async function handleLicensePurchase(
   if (!stripeCustomerId) {
     throw new Error("No Stripe customer in checkout session");
   }
+  // Logs carry a hash tag of the address, never the address itself (#717).
+  const customerTag = emailTag(customerEmail);
 
-  console.log(`Processing license purchase for ${customerEmail}`);
+  console.log(`Processing license purchase for ${customerTag}`);
 
   // STEP 1: Check if we already processed this session (idempotency)
   const existingLicense = await findAccountByStripeSession(session.id);
@@ -98,10 +101,10 @@ export async function handleLicensePurchase(
   });
 
   if (!user) {
-    throw new Error(`Failed to create user for ${customerEmail}`);
+    throw new Error(`Failed to create user for ${customerTag}`);
   }
 
-  console.log(`User ready for ${customerEmail}: ${user.id}`);
+  console.log(`User ready for ${customerTag}: ${user.id}`);
 
   // STEP 4: Store license in database
   let insertedLicense: Awaited<ReturnType<typeof insertAccountKey>>;
@@ -129,7 +132,7 @@ export async function handleLicensePurchase(
     throw insertError;
   }
 
-  console.log(`License key stored in database for ${customerEmail}`);
+  console.log(`License key stored in database for ${customerTag}`);
 
   // STEP 4b: Grant initial credits
   if (insertedLicense) {
@@ -175,7 +178,8 @@ async function sendLicenseEmail(
     // Log but don't throw - license is created, email can be resent manually
     console.error(`Failed to send license email: ${emailResult.error}`);
   } else {
-    console.log(`License email sent to ${customerEmail}`);
+    const customerTag = emailTag(customerEmail);
+    console.log(`License email sent to ${customerTag}`);
   }
 }
 
@@ -316,8 +320,10 @@ async function handleCreditMint(
   if (!customerEmail) {
     throw new Error("No customer email in credit checkout session");
   }
+  // Logs carry a hash tag of the address, never the address itself (#717).
+  const customerTag = emailTag(customerEmail);
 
-  console.log(`Processing credit purchase by ${customerEmail}`);
+  console.log(`Processing credit purchase by ${customerTag}`);
 
   // STEP 1: Resolve the license for this session (existing on retry, else mint).
   let license = await findAccountByStripeSession(session.id);
@@ -361,7 +367,7 @@ async function handleCreditMint(
       ...(stripeCustomerId ? { stripeCustomerId } : {}),
     });
     if (!user) {
-      throw new Error(`Failed to create user for ${customerEmail}`);
+      throw new Error(`Failed to create user for ${customerTag}`);
     }
 
     try {
@@ -422,7 +428,7 @@ async function handleCreditMint(
   // gets the mint email with its starting balance.
   if (pooledIntoExisting) {
     console.log(
-      `Pooled ${creditAmount} credits into existing key ${license.key.substring(0, 7)}... for ${customerEmail}`
+      `Pooled ${creditAmount} credits into existing key ${license.key.substring(0, 7)}... for ${customerTag}`
     );
 
     const newBalance = await getCreditBalance(license.userId);
@@ -443,7 +449,7 @@ async function handleCreditMint(
   }
 
   console.log(
-    `Minted license ${license.key.substring(0, 7)}... with ${creditAmount} credits for ${customerEmail}`
+    `Minted license ${license.key.substring(0, 7)}... with ${creditAmount} credits for ${customerTag}`
   );
 
   const emailResult = await emailService.sendCreditMint({

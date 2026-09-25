@@ -18,6 +18,7 @@ import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { upsertEmail } from "@/src/lib/db-layer";
+import { emailTag } from "@/lib/shared/redact";
 import { disposableDomains } from "@/lib/disposable_domains";
 import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
@@ -159,7 +160,8 @@ export const downloadRouter = createTRPCRouter({
         }
 
         // Log for monitoring
-        console.log("Download requested by:", input.email);
+        const requesterTag = emailTag(input.email);
+        console.log("Download requested by:", requesterTag);
 
         const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
         const emailDownloadUrl = `${origin}/api/download`;

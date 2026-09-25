@@ -1,4 +1,5 @@
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
+import { emailTag, redactRecipient } from "@/lib/shared/redact";
 import {
   licenseEmailHtml,
   licenseEmailText,
@@ -203,11 +204,13 @@ class EmailService {
     // failure is kept as-is and its message is read behind an `instanceof`
     // check instead of asserting it is an Error.
     let lastError: unknown;
+    // Logs carry a hash tag of the address, never the address itself (#717).
+    const recipientTag = emailTag(customerEmail);
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(
-          `Sending ${kind} email to ${customerEmail} (attempt ${attempt}/${this.maxRetries})`,
+          `Sending ${kind} email to ${recipientTag} (attempt ${attempt}/${this.maxRetries})`,
         );
 
         const result = await send();
@@ -216,14 +219,21 @@ class EmailService {
         // API-level failures, so an error object must be inspected explicitly.
         if (result.error) {
           const err = resendErrorDetailsOf(result.error);
+          // Resend's message can echo the recipient ("alice@corp.com is not a
+          // valid recipient"). Redacted HERE, before it becomes the error's
+          // message, so the catch-block log below and `EmailResult.error` —
+          // which the webhook and download callers log — never carry it (#717).
           throw new ResendSendError(
-            err.message || `Resend returned an error sending ${kind} email`,
+            redactRecipient(
+              err.message || `Resend returned an error sending ${kind} email`,
+              customerEmail,
+            ),
             err.name ?? "",
             err.statusCode ?? null,
           );
         }
 
-        console.log(`${capitalize(kind)} email sent successfully to ${customerEmail}`);
+        console.log(`${capitalize(kind)} email sent successfully to ${recipientTag}`);
 
         await this.safeLogSentEmail({
           recipient: customerEmail,
