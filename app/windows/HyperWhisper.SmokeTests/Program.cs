@@ -14683,6 +14683,55 @@ internal static class Program
                 }
             });
 
+            Run("history: Cleanup lets go of ModeService.ModeChanged — issue #977", () =>
+            {
+                // #977. The constructor subscribed a lambda to ModeService.ModeChanged
+                // and nothing ever removed it. ModeService is a process-wide singleton,
+                // so every History page the user ever opened stayed reachable through
+                // that one event, with its transcript list. Cleanup (called from
+                // HistoryPage.Unloaded) now unsubscribes a named handler. Nothing else
+                // would notice if that line went, so read the event's own invocation
+                // list: the view model must be on it after construction and off it
+                // after Cleanup.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                // A field-like event keeps its delegate in a private field of the same
+                // name; there is no public way to see who is subscribed.
+                var eventField = typeof(ModeService).GetField(
+                    "ModeChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert(eventField is not null,
+                    "ModeService.ModeChanged is no longer a field-like event - this case can no longer see its subscribers");
+
+                bool Subscribed(HistoryViewModel vm) =>
+                    (eventField!.GetValue(ModeService.Instance) as Delegate)?
+                        .GetInvocationList()
+                        .Any(d => ReferenceEquals(d.Target, vm)) == true;
+
+                var history = new HistoryViewModel();
+                var cleanedUp = false;
+                try
+                {
+                    // Positive control: without it, a subscription that moved elsewhere
+                    // would make the assertion below pass for the wrong reason.
+                    Assert(Subscribed(history),
+                        "a new HistoryViewModel is not on ModeService.ModeChanged at all - the retry menu " +
+                        "no longer follows mode edits, or it subscribes some other way this case cannot see");
+
+                    history.Cleanup();
+                    cleanedUp = true;
+
+                    Assert(!Subscribed(history),
+                        "HistoryViewModel.Cleanup() left the view model on ModeService.ModeChanged, so the " +
+                        "singleton keeps every History page the user opened alive (issue #977)");
+                }
+                finally
+                {
+                    if (!cleanedUp)
+                        history.Cleanup();
+                }
+            });
+
             Run("shortcuts/about: the refusal text and the version line are localized — issue #516", () =>
             {
                 // #516. Everything the Shortcuts page says when it REFUSES a chord was
