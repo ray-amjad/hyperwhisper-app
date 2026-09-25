@@ -438,8 +438,7 @@ export default function PrivacyPolicyPage() {
         correct and format it. This post-processing request carries no audio.
         Grok and Mistral store request data for approximately 30 days for
         abuse monitoring, and do not use it to train their models. A request
-        goes
-        to the fallback named above in only two cases: the provider still
+        goes to the fallback named above in only two cases: the provider still
         returns a server error after any automatic retries, or its reply
         repeats our instructions instead of your corrected text. So one
         request can reach at most three providers in this list — for example
