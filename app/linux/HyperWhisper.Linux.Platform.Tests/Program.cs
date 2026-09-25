@@ -706,6 +706,8 @@ static Task PulseRecordFragmentSize()
     Assert.Equal(440, new WaveFormat(11_025, 16, 1).FragmentBytes);
     // A rate too low for one frame in 20 ms still gets one whole frame.
     Assert.Equal(2, new WaveFormat(10, 16, 1).FragmentBytes);
+    // ChannelCount 65536 narrows to 0 channels; the size is 0 instead of a DivideByZeroException.
+    Assert.Equal(0, new WaveFormat(16_000, 16, unchecked((short)65_536)).FragmentBytes);
     return Task.CompletedTask;
 }
 

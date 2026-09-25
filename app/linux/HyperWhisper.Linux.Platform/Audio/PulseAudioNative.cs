@@ -30,8 +30,9 @@ internal sealed record WaveFormat(int SampleRate, short BitsPerSample, short Cha
 {
     public int BytesPerSecond => SampleRate * Channels * BitsPerSample / 8;
     public short BlockAlign => (short)(Channels * BitsPerSample / 8);
-    // About 20 ms of audio in whole frames: the record fragsize and the capture read size.
-    public int FragmentBytes => Math.Max(BlockAlign, BytesPerSecond / 50 / BlockAlign * BlockAlign);
+    // About 20 ms of audio in whole frames (at least one): the record fragsize and the capture read size.
+    // It multiplies by BlockAlign rather than divides, so a zero BlockAlign cannot throw.
+    public int FragmentBytes => Math.Max(1, SampleRate / 50) * BlockAlign;
 }
 
 internal sealed class PulseAudioApi : IPulseAudioApi
