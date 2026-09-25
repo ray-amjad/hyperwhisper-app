@@ -19,7 +19,7 @@ matrix.
 ## Install the Debian package
 
 <Info>
-  The current Linux release is v1.1.0. Each Linux release passes the automated
+  The current Linux release is v1.14.0. Each Linux release passes the automated
   build, package, UI-smoke, and integration gates. The physical GNOME, KDE, and
   GPU matrix is a recommended checklist, and the release does not stop when the
   matrix is absent.
@@ -41,6 +41,10 @@ Launch HyperWhisper from your application menu or from a terminal:
 ```bash
 hyperwhisper
 ```
+
+Only one copy of HyperWhisper runs at a time. If you launch it again while it
+runs, the running copy shows its main window and brings it to the front. The
+second launch then exits with no error.
 
 ## Enable global shortcuts and automatic paste
 
