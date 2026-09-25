@@ -479,6 +479,49 @@ export default function PrivacyPolicyPage() {
         on GitHub.
       </p>
 
+      <h3>Medical Mode</h3>
+      <p>
+        With HyperWhisper Cloud, a mode that uses AssemblyAI can be set to the{" "}
+        <strong>medical</strong> Transcription Domain. Our edge servers then
+        send the audio to AssemblyAI with its Medical Mode add-on turned on.
+        AssemblyAI processes it on HyperWhisper Cloud&apos;s own AssemblyAI
+        account, under{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://www.assemblyai.com/legal/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          AssemblyAI&apos;s privacy policy
+        </a>
+        , and we do not promise zero data retention there. A HyperWhisper
+        Cloud mode can also use Deepgram&apos;s Nova-3 Medical or Nova-2
+        Medical model. These options tune transcription for clinical
+        vocabulary. For these HyperWhisper Cloud medical requests, our edge
+        servers do not write
+        the audio or the transcript to our own storage. If Deepgram cannot
+        take a request,
+        HyperWhisper Cloud can send it to Groq or ElevenLabs as described
+        above, and they do not use a medical model. Live streaming through
+        HyperWhisper Cloud does not use a medical model. With your own
+        AssemblyAI or Deepgram API key, you can instead choose AssemblyAI&apos;s
+        Universal-2 Medical or Universal-3.5 Pro Medical model, or
+        Deepgram&apos;s Nova-3 Medical or Nova-2 Medical model (Nova-3 Medical
+        also for live streaming); your audio then goes from your device
+        directly to that provider, under your own account, and not through our
+        servers. If post-processing is on, the
+        transcript also goes to the post-processing provider you use. Each
+        provider processes your data under its own terms, and you must review
+        them before you dictate about a patient.
+      </p>
+      <p>
+        Medical Mode is a vocabulary and formatting feature only. We are not a
+        healthcare provider, and we do not sign a Business Associate Agreement
+        (BAA). HyperWhisper, including HyperWhisper Cloud and Medical Mode, is
+        not offered as HIPAA-compliant or as fit for regulated clinical record
+        keeping.
+      </p>
+
       <h3>Screen Text and app context</h3>
       <p>
         The post-processing request sent to the provider you choose
@@ -607,6 +650,13 @@ export default function PrivacyPolicyPage() {
         order, or license information we maintain, you may request access or
         deletion by contacting support. Some information must be retained for
         legal/accounting purposes.
+      </p>
+      <p>
+        If you dictated patient information with the Medical Mode options
+        described above, through HyperWhisper Cloud or your own API key, we hold
+        neither the audio nor the transcript, so delete them on your device as
+        described above. Any copy a provider keeps is governed by that
+        provider&apos;s terms.
       </p>
 
       <h2>International Transfers</h2>
