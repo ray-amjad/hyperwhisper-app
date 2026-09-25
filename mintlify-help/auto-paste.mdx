@@ -45,7 +45,7 @@ If the permission is missing, the app shows a banner on the Home screen. The Acc
 - Make sure that the foreground app accepts a paste. Use Notes or TextEdit for a test.
 - If the paste is blocked, read the in-app logs for Accessibility actions.
 - Disable clipboard managers for a test. A clipboard manager can overwrite the restored entry.
-- **macOS only:** HyperWhisper does not paste automatically when the target app quits during the recording. It also does not paste automatically when a new app takes the process ID of the target app before the paste. This guard keeps the transcript out of the wrong window. The transcript stays on the clipboard, and the app shows no message. Paste the transcript manually with **⌘V**.
+- **macOS only:** HyperWhisper does not paste automatically when the target app quits during the recording. It also does not paste automatically when a new app takes the process ID of the target app before the paste. HyperWhisper also does not paste automatically when it did not capture a target app and a different app is in front. This guard keeps the transcript out of the wrong window. The transcript stays on the clipboard, and the app shows no message. The clipboard restore does not run in this case, so the transcript does not disappear after the restore delay. Paste the transcript manually with **⌘V**.
 
 <Tip>
   For global hotkeys and permissions, see **Keyboard Shortcuts & Accessibility**.
