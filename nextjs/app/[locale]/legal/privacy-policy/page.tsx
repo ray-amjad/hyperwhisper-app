@@ -651,6 +651,25 @@ export default function PrivacyPolicyPage() {
         as described under What We Collect. You can turn it off in Settings →
         General.
       </p>
+      <p>
+        Our website pages embed an AI support chat widget served by{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://www.agentstack.build/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          AgentStack
+        </a>{" "}
+        (agentstack.build), another product by Ray Amjad. When the widget
+        loads, that service receives your IP address, your browser user agent,
+        and our website&apos;s address. Anything you type into the chat is sent
+        to that service. The
+        widget also loads its own analytics, a separate PostHog instance on
+        AgentStack&apos;s domain (t.agentstack.build), which may set its own
+        cookies or local storage. The widget has no access to your audio, your
+        transcripts, or the desktop app.
+      </p>
 
       <h2>Children&apos;s Privacy</h2>
       <p>
@@ -682,7 +701,8 @@ export default function PrivacyPolicyPage() {
         European Economic Area, and the United States. Where required,
         appropriate safeguards are used by those providers (for example,
         adequacy decisions, Standard Contractual Clauses, or equivalent
-        mechanisms).
+        mechanisms). The AgentStack support chat widget described above is
+        served from the United States.
       </p>
 
       <h2>Changes to This Policy</h2>
