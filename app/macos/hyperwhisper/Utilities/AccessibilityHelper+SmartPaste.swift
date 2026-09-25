@@ -86,7 +86,7 @@ extension AccessibilityHelper {
                                        characterCount: text.count)
 
             // Check accessibility permission
-            guard hasAccessibilityPermission() else {
+            guard pastePermissionOverrideForTesting ?? hasAccessibilityPermission() else {
                 self.reportPasteOutcome(.noAccessibilityPermission, attempt: attempt)
                 return .noPermission
             }
@@ -205,7 +205,9 @@ extension AccessibilityHelper {
             }
             if capturedTargetLost || unknownFrontmostTarget {
                 logger.warning("⚠️ Captured paste target is gone or a different app is frontmost — refusing auto-paste. Text left on clipboard.")
-                keepRefusedTranscriptOnClipboard(text)
+                // No restoration: nothing was pasted, so the timer would only wipe
+                // the transcript the user now needs for a manual Cmd+V (#783).
+                copyToClipboard(text)
                 // Both branches return `.noFocusedField` to the caller, which
                 // cannot tell them apart. Report them separately: a lost target
                 // means the app quit or its PID was reused mid-recording, an

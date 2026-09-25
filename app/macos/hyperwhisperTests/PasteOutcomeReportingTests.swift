@@ -144,17 +144,35 @@ struct PasteOutcomeReportingTests {
         }
     }
 
-    /// #783: a refused paste (target lost or unknown) leaves the transcript on the
-    /// clipboard for a manual Cmd+V. Nothing was pasted, so a restoration — even one
-    /// already pending from an earlier paste — must not wipe it when its delay passes.
+    /// #783: when the captured paste target is gone, `executePasteAsync` refuses
+    /// to paste and leaves the transcript on the clipboard for a manual Cmd+V.
+    /// Nothing was pasted, so it must not arm a clipboard restoration: with the
+    /// default settings that timer overwrites the transcript 10 s later.
     ///
-    /// Drives the delay overload, not a `SettingsManager`: its settings are
-    /// `@AppStorage`, and a write from this app-hosted bundle can abort the run
-    /// (see StreamingSettingsBindingTests). No other test touches the general
-    /// pasteboard or the restoration state, so the suite needs no `.serialized`.
-    @Test func refusedPasteKeepsTranscriptOnClipboardAfterRestoreDelay() async throws {
+    /// Drives the real refuse branch. The permission seam gets past the
+    /// Accessibility guard (CI never grants it). The target is this process
+    /// under a bundle ID it does not have, so `resolveCapturedTarget` rejects it
+    /// (bundle mismatch, or process not found) and `capturedTargetLost` is true.
+    /// No app is activated and no keystroke is sent.
+    ///
+    /// Settings are READ from the live `SettingsManager`, never written: they
+    /// are `@AppStorage`, and a write from this app-hosted bundle can abort the
+    /// run (see StreamingSettingsBindingTests). No other test touches the
+    /// general pasteboard or `AccessibilityHelper` paste state, so the suite
+    /// needs no `.serialized`.
+    @Test func refusedPasteKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
         let helper = AccessibilityHelper.shared
         let pasteboard = NSPasteboard.general
+        let settings = SettingsManager.shared
+
+        // Not vacuous: with restoration off, the #783 code arms nothing either.
+        try #require(settings.restoreClipboardAfterPaste,
+                     "restoreClipboardAfterPaste is off, so this run cannot tell the fix from #783")
+
+        // The refusal is a reportable `target_lost`. A test must never send it,
+        // so close the SDK if this Mac (a dev build with a DSN) started it.
+        if SentryService.isReportingEnabled { SentryService.shutdown() }
+        try #require(SentryService.isReportingEnabled == false)
 
         // Save the tester's clipboard and the helper state this test changes.
         let savedClipboard: [NSPasteboardItem] = (pasteboard.pasteboardItems ?? []).map { item in
@@ -165,36 +183,37 @@ struct PasteOutcomeReportingTests {
             return copy
         }
         let savedOriginal = helper.originalClipboardData
-        let savedInSession = helper.isInRecordingSession
         defer {
+            helper.pastePermissionOverrideForTesting = nil
+            // Also disarms the timer if a regression armed one.
             helper.cancelPendingClipboardRestoration()
+            helper.currentPasteTask = nil
             helper.originalClipboardData = savedOriginal
-            helper.isInRecordingSession = savedInSession
             pasteboard.clearContents()
             if !savedClipboard.isEmpty { pasteboard.writeObjects(savedClipboard) }
         }
 
-        let restoreDelay: TimeInterval = 0.05
-        let transcript = "refused transcript #783"
-        helper.isInRecordingSession = true
+        // The clipboard record-start captured: what a restoration would write back.
         helper.originalClipboardData = [
             AccessibilityHelper.ClipboardItemData(
                 types: [.string],
                 data: [.string: Data("clipboard before recording".utf8)]
             )
         ]
-        // An earlier paste already armed a restoration.
-        helper.scheduleClipboardRestoration(after: restoreDelay)
-        #expect(helper.activeRestorationWorkItem != nil)
+        helper.pastePermissionOverrideForTesting = true
 
-        helper.keepRefusedTranscriptOnClipboard(transcript)
+        let transcript = "refused transcript #783"
+        let result = await helper.executePasteAsync(
+            transcript,
+            previousAppPID: ProcessInfo.processInfo.processIdentifier,
+            previousAppBundleID: "com.example.hyperwhisper-tests.not-this-process",
+            settings: settings
+        )
 
-        #expect(helper.activeRestorationWorkItem == nil)
-        #expect(pasteboard.string(forType: .string) == transcript)
-
-        // Well past the delay: a surviving timer would have restored the old text.
-        try await Task.sleep(nanoseconds: UInt64(restoreDelay * 10 * 1_000_000_000))
-
+        let refused: Bool
+        if case .noFocusedField = result { refused = true } else { refused = false }
+        #expect(refused, "expected the target-lost refusal (.noFocusedField), got \(result)")
+        // The #783 defect armed the restoration here, before it returned.
         #expect(helper.activeRestorationWorkItem == nil)
         #expect(pasteboard.string(forType: .string) == transcript)
     }
