@@ -829,6 +829,9 @@ internal static class Program
                     ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
                     ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
+                    // #1019: 3.8 Flash, not the 2.5 Flash that Google now gates to past users.
+                    ("gemma-3-12b-it", "gemini-3.8-flash"),
+                    ("gemma-3-27b-it", "gemini-3.8-flash"),
                     ("llama3.1-8b", "qwen-3.8-27b"),
                     ("llama-3.1-8b", "qwen-3.8-27b"),
                     // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.

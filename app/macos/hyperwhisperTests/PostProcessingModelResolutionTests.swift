@@ -70,6 +70,11 @@ struct PostProcessingModelResolutionTests {
         // Removing the Cerebras row must not move the provider default, which
         // pickers resolve as `models(for:).first`.
         #expect(PostProcessingModels.defaultModel(for: .cerebras)?.id == "gpt-oss-120b")
+        // #1019: Google gates the 2.5 models to past users, so a new BYOK Gemini key
+        // defaults to 3.8 Flash. The 2.5 rows stay selectable for existing users.
+        #expect(PostProcessingProvider.gemini.defaultModel == "gemini-3.8-flash")
+        #expect(PostProcessingModels.defaultModel(for: .gemini)?.id == "gemini-3.8-flash")
+        #expect(PostProcessingModels.models(for: .gemini).contains(where: { $0.id == "gemini-2.5-flash" }))
     }
 
     @Test func unknownIdIsLeftUnresolvedSoCallersFallBackToOptionsFirst() {

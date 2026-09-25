@@ -198,9 +198,10 @@ public class LanguageModelInfo
         // moved to Unsloth's lowercase filename. A backup restored from such a Mac
         // carries the old id, so map it here too (macOS migrates it in-app).
         "gemma-4-12B-it-Q4_K_M.gguf" => "gemma-4-12b-it-Q4_K_M.gguf",
-        // Gemini: Gemma hosted models removed from API 2026-03-08
-        "gemma-3-12b-it" => "gemini-2.5-flash",
-        "gemma-3-27b-it" => "gemini-2.5-flash",
+        // Gemini: Gemma hosted models removed from API 2026-03-08. Target is 3.8 Flash,
+        // not 2.5 Flash: Google gates 2.5 to past users since 2026-09-18 (#1019).
+        "gemma-3-12b-it" => "gemini-3.8-flash",
+        "gemma-3-27b-it" => "gemini-3.8-flash",
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",

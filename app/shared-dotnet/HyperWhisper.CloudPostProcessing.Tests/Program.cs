@@ -72,6 +72,13 @@ static Task TestModelRegistry()
         Assert(PostProcessingModelCatalog.ForProvider(CloudPostProcessingProvider.OpenAi).All(model => model.Id != retired),
             $"{retired} is still listed");
     }
+    // #1019: the retired Gemma ids resolve to gemini-3.8-flash (not the gated 2.5 Flash,
+    // and not the provider first row gemini-3-flash-preview).
+    foreach (var retired in new[] { "gemma-3-12b-it", "gemma-3-27b-it" })
+        Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, retired) == "gemini-3.8-flash",
+            $"{retired} did not resolve to gemini-3.8-flash");
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-2.5-flash") == "gemini-2.5-flash",
+        "gemini-2.5-flash must stay a selectable row, not a redirect");
     return Task.CompletedTask;
 }
 

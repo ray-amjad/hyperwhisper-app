@@ -80,7 +80,9 @@ public static class PostProcessingModelCatalog
         "grok-4-1-fast-non-reasoning" or "grok-4.1-fast-non-reasoning" or "grok-4-fast-non-reasoning" or
             "grok-4-1-fast-reasoning" or "grok-4-fast-reasoning" => "grok-4.3",
         "open-mistral-nemo" => "mistral-small-latest",
-        "gemma-3-12b-it" or "gemma-3-27b-it" => "gemini-2.5-flash",
+        // Gemma hosted models left the API 2026-03-08. 3.8 Flash, not 2.5 Flash: Google
+        // gates 2.5 to past users since 2026-09-18 (#1019). Matches Windows.
+        "gemma-3-12b-it" or "gemma-3-27b-it" => "gemini-3.8-flash",
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",
