@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: September 17, 2026
+        Last Updated: September 25, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -317,6 +317,25 @@ export default function PrivacyPolicyPage() {
           failure.
         </li>
       </ul>
+      <p>
+        <strong>Screen Text and app context</strong> — the post-processing
+        request sent to the provider you choose (HyperWhisper Cloud or a
+        bring-your-own-key provider above) carries more than your transcribed
+        text. It includes your computer&apos;s name, local time, time zone and
+        locale. It can also include the name of the app you are using, the
+        window or browser tab title, the website host, the type and label of
+        the field you are typing in, and up to 100 characters of text from that
+        field. A mode can also turn on <strong>Screen Text</strong>, which is
+        off by default in every mode. When a recording starts, the app reads the
+        text on the display that shows your active window (on Linux, the area
+        you select in the screenshot prompt) and adds up to 2,000 characters of
+        it to the request. Text recognition runs on your device: the screenshot
+        itself is never sent, only the recognized text. On macOS and Windows, no
+        screenshot is taken when HyperWhisper itself is the app in front. Screen
+        text is left out when the app you are using is classified as sensitive,
+        such as a password manager. When post-processing is off, none of this
+        is sent to a post-processing provider.
+      </p>
       <p>
         Where available, we have configured zero data retention on our
         provider accounts — for example, Deepgram&apos;s data retention is set
