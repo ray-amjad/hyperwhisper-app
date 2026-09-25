@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: September 17, 2026
+        Last Updated: September 25, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -426,6 +426,23 @@ export default function PrivacyPolicyPage() {
         experience. PostHog may set its own cookies. We do not use this data for
         advertising purposes.
       </p>
+      <p>
+        Our website pages embed an AI support chat widget served by{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://www.agentstack.build"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          AgentStack
+        </a>{" "}
+        (agentstack.build), another product by Ray Amjad. When a page loads,
+        that service receives your IP address, browser user agent, and the page
+        URL. Anything you type into the chat is sent to that service. The widget
+        also loads its own analytics, a separate PostHog instance on
+        AgentStack&apos;s domain (t.agentstack.build). The widget has no access
+        to your audio, your transcripts, or the desktop app.
+      </p>
 
       <h2>Children&apos;s Privacy</h2>
       <p>
@@ -450,7 +467,8 @@ export default function PrivacyPolicyPage() {
         European Economic Area, and the United States. Where required,
         appropriate safeguards are used by those providers (for example,
         adequacy decisions, Standard Contractual Clauses, or equivalent
-        mechanisms).
+        mechanisms). The AgentStack support chat widget described above is
+        served from the United States.
       </p>
 
       <h2>Changes to This Policy</h2>
