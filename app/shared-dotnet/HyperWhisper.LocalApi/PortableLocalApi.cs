@@ -49,13 +49,15 @@ public static class PortableLocalApi
             form.MemoryBufferThreshold = options.MaxUploadBytes;
         });
         builder.Services.AddSingleton(backend);
+        configure?.Invoke(builder);
         // CreateSlimBuilder registers ConsoleLifetime, which takes SIGINT,
         // SIGTERM and SIGQUIT, cancels the process exit and only stops this web
         // host. An embedded host in a GUI process must never own process
         // signals, so the runtime default ends the app as it does with the
-        // Local API off (issue #957).
-        builder.Services.Replace(ServiceDescriptor.Singleton<IHostLifetime, EmbeddedHostLifetime>());
-        configure?.Invoke(builder);
+        // Local API off (issue #957). After `configure`, so no callback can
+        // bring a signal-owning lifetime back.
+        builder.Services.RemoveAll<IHostLifetime>();
+        builder.Services.AddSingleton<IHostLifetime, EmbeddedHostLifetime>();
         var app = builder.Build();
         Map(app, options);
         return app;

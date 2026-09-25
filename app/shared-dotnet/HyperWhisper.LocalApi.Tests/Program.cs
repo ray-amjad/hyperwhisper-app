@@ -808,12 +808,20 @@ static async Task RealLoopbackLifecycle()
 /// </summary>
 static async Task SignalsEndTheProcess()
 {
-    await using (var app = PortableLocalApi.Build([], new PortableLocalApiOptions(Fixture.Token, 0), new FakeBackend()))
+    static void AssertEmbeddedLifetime(Microsoft.AspNetCore.Builder.WebApplication app, string when)
     {
-        var lifetime = app.Services.GetRequiredService<IHostLifetime>().GetType().FullName;
-        Assert(lifetime != "Microsoft.Extensions.Hosting.Internal.ConsoleLifetime", $"the embedded host owns process signals through {lifetime}");
-        Assert(app.Services.GetServices<IHostLifetime>().Count() == 1, "the embedded host registers more than one IHostLifetime");
+        var lifetimes = app.Services.GetServices<IHostLifetime>().ToArray();
+        Assert(lifetimes.Length == 1, $"{when}: the embedded host registers {lifetimes.Length} IHostLifetime services, not 1");
+        var lifetime = lifetimes[0].GetType().FullName;
+        Assert(lifetime == "HyperWhisper.LocalApi.EmbeddedHostLifetime", $"{when}: the embedded host owns process signals through {lifetime}");
     }
+    var options = new PortableLocalApiOptions(Fixture.Token, 0);
+    await using (var app = PortableLocalApi.Build([], options, new FakeBackend()))
+        AssertEmbeddedLifetime(app, "no configure callback");
+    await using (var app = PortableLocalApi.Build([], options, new FakeBackend(), builder => builder.Host.UseConsoleLifetime()))
+        AssertEmbeddedLifetime(app, "a callback that registers ConsoleLifetime");
+    await using (var app = PortableLocalApi.Build([], options, new FakeBackend(), builder => builder.WebHost.UseTestServer()))
+        AssertEmbeddedLifetime(app, "a callback that calls UseTestServer");
     if (!OperatingSystem.IsLinux()) return;
     foreach (var (name, signal) in new[] { ("SIGTERM", 15), ("SIGINT", 2) })
     {
