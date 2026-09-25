@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { emailTag } from "../lib/shared/redact";
+import { emailTag, redactRecipient } from "../lib/shared/redact";
 import { sha256Hex } from "../lib/shared/sha256";
 
 test("emailTag: case and surrounding whitespace do not change the tag", () => {
@@ -40,4 +40,22 @@ test("emailTag: is 12 lowercase hex chars and never contains the address", () =>
 
 test("emailTag: different addresses give different tags", () => {
   assert.notEqual(emailTag("bob@x.com"), emailTag("alice@x.com"));
+});
+
+test("redactRecipient: the recipient becomes its tag in any case; the reason survives", () => {
+  // Stripe hands the address padded and mixed-case; Resend echoes it lower-cased.
+  assert.equal(
+    redactRecipient(
+      "validation_error: buyer@example.com is not a valid recipient",
+      "Buyer@Example.com ",
+    ),
+    `validation_error: ${emailTag("buyer@example.com")} is not a valid recipient`,
+  );
+});
+
+test("redactRecipient: other addresses and the recipient's domain are redacted too", () => {
+  assert.equal(
+    redactRecipient("The EXAMPLE.com domain is not verified for bob@other.org", "a@example.com"),
+    "The [redacted] domain is not verified for [redacted]",
+  );
 });

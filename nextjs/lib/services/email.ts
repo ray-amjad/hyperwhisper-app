@@ -1,5 +1,5 @@
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
-import { emailTag } from "@/lib/shared/redact";
+import { emailTag, redactRecipient } from "@/lib/shared/redact";
 import {
   licenseEmailHtml,
   licenseEmailText,
@@ -219,8 +219,15 @@ class EmailService {
         // API-level failures, so an error object must be inspected explicitly.
         if (result.error) {
           const err = resendErrorDetailsOf(result.error);
+          // Resend's message can echo the recipient ("alice@corp.com is not a
+          // valid recipient"). Redacted HERE, before it becomes the error's
+          // message, so the catch-block log below and `EmailResult.error` —
+          // which the webhook and download callers log — never carry it (#717).
           throw new ResendSendError(
-            err.message || `Resend returned an error sending ${kind} email`,
+            redactRecipient(
+              err.message || `Resend returned an error sending ${kind} email`,
+              customerEmail,
+            ),
             err.name ?? "",
             err.statusCode ?? null,
           );
