@@ -67,6 +67,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("packaged Silero ONNX model executes silence fixture", PackagedSileroExecutes),
     ("first-run onboarding persists decisions and gates real readiness", OnboardingStateMachine),
     ("onboarding checks secure credentials and installed local models", OnboardingModeReadiness),
+    ("a second launch hands off and exits 0, a second smoke run fails", SecondLaunchHandsOff),
 };
 
 foreach (var test in tests)
@@ -1426,6 +1427,54 @@ static async Task LocalApiPostProcessingTransientModes()
     {
         Directory.Delete(root, recursive: true);
     }
+}
+
+// #956: the real app head, launched while a listener holds its instance socket. A Shutdown that runs
+// before the dispatcher loop aborts with SIGABRT (134); a smoke run that hands off would pass with nothing drawn.
+static async Task SecondLaunchHandsOff()
+{
+    const string xvfbRun = "/usr/bin/xvfb-run";
+    Assert(File.Exists(xvfbRun), "xvfb-run is required to launch the Linux head");
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-second-launch-{Guid.NewGuid():N}");
+    var socketPath = Path.Combine(root, "run", "hyperwhisper", "instance.sock");
+    Directory.CreateDirectory(Path.GetDirectoryName(socketPath)!);
+    using var holder = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.Unix, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Unspecified);
+    holder.Bind(new System.Net.Sockets.UnixDomainSocketEndPoint(socketPath));
+    holder.Listen(4);
+    async Task<(int Code, string Error)> Launch(params string[] args)
+    {
+        var start = new ProcessStartInfo(xvfbRun) { RedirectStandardError = true, RedirectStandardOutput = true };
+        foreach (var argument in (string[])["-a", Path.Combine(AppContext.BaseDirectory, "HyperWhisper"), .. args]) start.ArgumentList.Add(argument);
+        start.Environment["HOME"] = root;
+        start.Environment["XDG_RUNTIME_DIR"] = Path.Combine(root, "run");
+        foreach (var name in (string[])["XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY"]) start.Environment.Remove(name);
+        using var process = Process.Start(start)!;
+        var error = process.StandardError.ReadToEndAsync();
+        _ = process.StandardOutput.ReadToEndAsync();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        try { await process.WaitForExitAsync(deadline.Token); }
+        catch (OperationCanceledException) { process.Kill(entireProcessTree: true); throw new InvalidOperationException("second launch did not exit"); }
+        return (process.ExitCode, await error);
+    }
+    // TryAcquire probes the socket with an empty connection first; only the handoff sends a byte.
+    bool Signalled()
+    {
+        var signalled = false;
+        while (holder.Poll(0, System.Net.Sockets.SelectMode.SelectRead))
+            using (var client = holder.Accept()) signalled |= client.Receive(new byte[1]) == 1;
+        return signalled;
+    }
+    try
+    {
+        var handoff = await Launch();
+        Assert(handoff.Code == 0, $"second launch exited {handoff.Code}: {handoff.Error}");
+        Assert(Signalled(), "second launch did not signal the running instance");
+        var smoke = await Launch("--smoke-test");
+        Assert(smoke.Code == 1 && smoke.Error.Contains("another instance is already running", StringComparison.Ordinal),
+            $"second smoke run exited {smoke.Code}: {smoke.Error}");
+        Assert(!Signalled(), "a smoke run signalled the running instance");
+    }
+    finally { Directory.Delete(root, recursive: true); }
 }
 
 static async Task UntilAsync(Func<bool> condition)
