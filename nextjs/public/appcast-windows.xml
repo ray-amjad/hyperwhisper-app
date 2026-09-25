@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.14.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.14.0 - ARM64 -->
+<item>
+<title>1.14.0 (ARM64)</title>
+<pubDate>Fri, 25 Sep 2026 01:00:14 +0000</pubDate>
+<sparkle:version>1.14.0</sparkle:version>
+<sparkle:shortVersionString>1.14.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.14.0-arm64-Setup.exe"
+length="145206896"
+type="application/octet-stream"
+sparkle:edSignature="8Wg81QadyfkmXvMyJQk5I1dkhq7tDPrHDCDPqqnncIlpiCYK5Z+8ZfIOLx6z0rTq94P+COXHSjR04PRpAD6jDA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.14.0</h2>
+<ul>
+<li>New model: AssemblyAI Dictation returns cleaned-up, ready-to-paste text, with your vocabulary and 32 languages</li><li>Grok Voice Transcribe 2 is now the default Grok model, and Grok Voice Transcribe 1 is still available</li><li>Model names are now consistent across the app, and Streaming shows the same model names as everywhere else</li><li>Fixed Settings → Streaming saving a half-typed shortcut like Ctrl+Shift as your streaming hotkey</li><li>Error reports no longer include your Windows account name</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.14.0 - x64 -->
+<item>
+<title>1.14.0 (x64)</title>
+<pubDate>Fri, 25 Sep 2026 01:00:14 +0000</pubDate>
+<sparkle:version>1.14.0</sparkle:version>
+<sparkle:shortVersionString>1.14.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.14.0-x64-Setup.exe"
+length="188230488"
+type="application/octet-stream"
+sparkle:edSignature="PyuOtzO7U8ifXTKEf1gNDRHMACbF/Yt6PrG0Clp08LEScMKlNI69P2BuRbNjVXkdX5o17j8PGqNM2yk8TaAaCg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.14.0</h2>
+<ul>
+<li>New model: AssemblyAI Dictation returns cleaned-up, ready-to-paste text, with your vocabulary and 32 languages</li><li>Grok Voice Transcribe 2 is now the default Grok model, and Grok Voice Transcribe 1 is still available</li><li>Model names are now consistent across the app, and Streaming shows the same model names as everywhere else</li><li>Fixed Settings → Streaming saving a half-typed shortcut like Ctrl+Shift as your streaming hotkey</li><li>Error reports no longer include your Windows account name</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.13.1 -->
 <!-- ================================================================== -->
 
