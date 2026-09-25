@@ -354,21 +354,22 @@ export default function PrivacyPolicyPage() {
       <h3>Screen Text and app context</h3>
       <p>
         The post-processing request sent to the provider you choose
-        (HyperWhisper Cloud or a bring-your-own-key provider, both listed
-        above) carries more than your transcribed text. It includes your
+        (HyperWhisper Cloud, a bring-your-own-key provider, or a custom
+        endpoint you add) carries more than your transcribed text. It includes your
         computer&apos;s name, local time, time zone and locale. It can also
-        include the name of the app you are using, the window or browser tab
-        title, the website host, the type and label of the field you are typing
-        in, and up to 100 characters of the text in that field or of the text
-        you have selected. A mode can also turn on <strong>Screen Text</strong>,
+        include the name of the app in front, the window or browser tab title,
+        the website host, the type and label of the focused field, and up to
+        100 characters of the text in that field or of the text you have
+        selected. A mode can also turn on <strong>Screen Text</strong>,
         which is off by default in every mode. When a recording starts, the app
-        reads the text on the display that shows your active window (on Linux,
-        the area you select in the screenshot prompt) and adds up to 2,000
+        reads the text on the display that shows your active window (on macOS,
+        the main display when it cannot find that window; on Linux, the area
+        you select in the screenshot prompt) and adds up to 2,000
         characters of it to the request. Text recognition runs on your device:
         the screenshot itself is never sent, only the recognized text. On macOS
         and Windows, no screenshot is taken when HyperWhisper itself is the app
-        in front. When the app you are using is classified as sensitive, such
-        as a password manager, the screen text and the field or selected text
+        in front. When HyperWhisper identifies the app in front as sensitive,
+        such as a password manager, the screen text and the field or selected text
         are left out, but the app name, the window or tab title, the website host
         and the field type and label are still sent. When post-processing is
         off, none of this is sent to a post-processing provider.
