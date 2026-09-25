@@ -46,4 +46,13 @@ struct AXCastTests {
         #expect(roundTrip.location == 3 && roundTrip.length == 5)
         #expect(AXCast.element(ref) == nil)
     }
+
+    @Test func filtersBridgedNSArray() throws {
+        let system = AXUIElementCreateSystemWide()
+        let array = [system, "x" as CFString] as NSArray
+        let elements = array.compactMap { AXCast.element($0 as CFTypeRef) }
+        #expect(elements.count == 1)
+        let element = try #require(elements.first)
+        #expect(CFEqual(element, system))
+    }
 }

@@ -597,7 +597,7 @@ public class ApplicationContextGatherer {
             var windowsRef: CFTypeRef?
             if AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
                let windowsArray = windowsRef as? NSArray {
-                windowElement = AXCast.element(windowsArray.firstObject as CFTypeRef?)
+                windowElement = windowsArray.lazy.compactMap { AXCast.element($0 as CFTypeRef) }.first
             }
         }
         guard let windowEl = windowElement else { return nil }

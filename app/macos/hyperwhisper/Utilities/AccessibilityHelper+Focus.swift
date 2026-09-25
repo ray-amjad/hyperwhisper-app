@@ -43,7 +43,14 @@ extension AccessibilityHelper {
         )
 
         guard result == .success, let axElement = AXCast.element(focusedElement) else {
-            let cause = result == .success ? "reply is not an AXUIElement" : "error: \(result.rawValue)"
+            let cause: String
+            if result != .success {
+                cause = "error: \(result.rawValue)"
+            } else if focusedElement == nil {
+                cause = "no value"
+            } else {
+                cause = "reply is not an AXUIElement"
+            }
             logger.error("❌ Could not get focused element (\(cause, privacy: .public))")
             // Fallback 1: try the focused window, then search its children for an editable control
             var focusedWindowRef: CFTypeRef?
@@ -278,8 +285,9 @@ extension AccessibilityHelper {
         let system = AXUIElementCreateSystemWide()
         var focused: CFTypeRef?
         let res = AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused)
-        guard res == .success,
-              let axElement = AXCast.element(focused) else { return false }
+        guard res == .success, focused != nil else { return false }
+        // A reply of the wrong type fails closed: we cannot rule out a password field, so skip the paste.
+        guard let axElement = AXCast.element(focused) else { return true }
         var subroleValue: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(axElement, kAXSubroleAttribute as CFString, &subroleValue)
         let subrole = subroleValue as? String ?? ""
