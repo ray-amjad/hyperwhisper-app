@@ -66,7 +66,11 @@ internal sealed class PulseAudioApi : IPulseAudioApi
         Open(null, format, record: false)
             .Map<IPulseAudioPlaybackSession>(handle => new NativePulseSession(handle));
 
-    private static PlatformResult<IntPtr> Open(string? device, WaveFormat format, bool record)
+    private static PlatformResult<IntPtr> Open(string? device, WaveFormat format, bool record) =>
+        Open(device, format, record, PulseNative.SimpleNew);
+
+    // The simpleNew parameter lets a test see the arguments without a native handle.
+    internal static PlatformResult<IntPtr> Open(string? device, WaveFormat format, bool record, PulseSimpleNew simpleNew)
     {
         if (!OperatingSystem.IsLinux())
         {
@@ -79,7 +83,7 @@ internal sealed class PulseAudioApi : IPulseAudioApi
             Rate = checked((uint)format.SampleRate),
             Channels = checked((byte)format.Channels),
         };
-        var handle = PulseNative.SimpleNew(
+        var handle = simpleNew(
             null,
             "HyperWhisper",
             record ? PulseStreamDirection.Record : PulseStreamDirection.Playback,
@@ -199,6 +203,17 @@ internal struct PulseSampleSpec
     public uint Rate;
     public byte Channels;
 }
+
+internal delegate IntPtr PulseSimpleNew(
+    string? server,
+    string applicationName,
+    PulseStreamDirection direction,
+    string? device,
+    string streamName,
+    ref PulseSampleSpec sampleSpec,
+    IntPtr channelMap,
+    PulseBufferAttributes[]? bufferAttributes,
+    out int error);
 
 internal static class PulseNative
 {

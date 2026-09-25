@@ -51,6 +51,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse buffer attributes match the pa_buffer_attr layout", PulseBufferAttributesLayout),
     ("Pulse record requests the fragment and playback keeps server defaults", PulseBufferAttributesSelection),
     ("Pulse recorder reads in fragment-sized blocks", PulseRecorderReadsFragmentBlocks),
+    ("Pulse open passes the buffer attributes to pa_simple_new", PulseOpenPassesBufferAttributes),
     ("Pulse playback delegates PCM and ends safely", PulsePlaybackDelegates),
     ("Pulse playback isolates failing subscribers", PulsePlaybackSubscriberSafety),
     ("WAV reader recomputes an unpatched data length", WaveHeaderRecomputesDataLength),
@@ -730,6 +731,29 @@ static Task PulseBufferAttributesSelection()
     Assert.Equal(uint.MaxValue, record[0].TLength);
     Assert.Equal(uint.MaxValue, record[0].PreBuffer);
     Assert.Equal(uint.MaxValue, record[0].MinRequest);
+    return Task.CompletedTask;
+}
+
+static Task PulseOpenPassesBufferAttributes()
+{
+    var format = new WaveFormat(48_000, 16, 2);
+    var seen = new List<(PulseStreamDirection Direction, PulseBufferAttributes[]? Attributes)>();
+    // Returning IntPtr.Zero makes Open fail, so no native handle is ever made.
+    PulseSimpleNew simpleNew = (string? server, string applicationName, PulseStreamDirection direction, string? device,
+        string streamName, ref PulseSampleSpec sampleSpec, IntPtr channelMap, PulseBufferAttributes[]? bufferAttributes, out int error) =>
+    {
+        seen.Add((direction, bufferAttributes));
+        error = 0;
+        return IntPtr.Zero;
+    };
+    Assert.Equal("pulse_open_failed", PulseAudioApi.Open("mic", format, record: true, simpleNew).Error!.Code);
+    Assert.Equal("pulse_open_failed", PulseAudioApi.Open(null, format, record: false, simpleNew).Error!.Code);
+    Assert.Equal(2, seen.Count);
+    Assert.Equal(PulseStreamDirection.Record, seen[0].Direction);
+    Assert.Equal(1, seen[0].Attributes!.Length);
+    Assert.Equal(3840u, seen[0].Attributes![0].FragSize);
+    Assert.Equal(PulseStreamDirection.Playback, seen[1].Direction);
+    Assert.True(seen[1].Attributes is null);
     return Task.CompletedTask;
 }
 
