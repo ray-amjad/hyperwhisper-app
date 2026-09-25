@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: September 17, 2026
+        Last Updated: September 25, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -62,6 +62,34 @@ export default function PrivacyPolicyPage() {
             Stripe
           </a>
           ) for purchases, refunds, and fraud prevention.
+        </li>
+        <li>
+          <strong>Crash and performance diagnostics</strong>: The HyperWhisper
+          desktop apps for macOS, Windows, and Linux send crash reports, error
+          reports, and performance data to{" "}
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://sentry.io/privacy/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Sentry
+          </a>
+          , our error-monitoring provider. This is on by default. You can turn
+          it off in Settings → General with the switch labelled &quot;Error
+          logging&quot; on macOS and &quot;Send error reports&quot; on Windows
+          and Linux. These reports include your IP address, the app version,
+          your operating system version, and your CPU architecture. They also
+          include release-health session data (counts of app sessions and
+          whether they ended in a crash) and performance traces (timings of
+          operations in the app). An error report can also include technical
+          details about the error, the names of your audio input devices (for
+          example, the name of your microphone), and, on macOS, recent lines
+          from the app&apos;s own log, filtered to remove home-folder paths, IP
+          addresses, and text that looks like transcript content. No audio is
+          attached to a report, so a report cannot give us your recordings.
+          Report fields named for transcripts, text, or prompts are replaced
+          with &quot;[redacted]&quot; before the report is sent.
         </li>
         <li>
           <strong>License information</strong>: The app contacts our licensing
@@ -425,6 +453,20 @@ export default function PrivacyPolicyPage() {
         for analytics to understand how our website is used and to improve the
         experience. PostHog may set its own cookies. We do not use this data for
         advertising purposes.
+      </p>
+      <p>
+        The desktop apps use{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://sentry.io/privacy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Sentry
+        </a>{" "}
+        for crash and performance diagnostics, as described under What We
+        Collect. Sentry processes this data under its own privacy policy. You
+        can turn it off in Settings → General.
       </p>
 
       <h2>Children&apos;s Privacy</h2>
