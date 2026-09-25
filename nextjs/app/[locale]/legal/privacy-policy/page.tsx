@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: September 17, 2026
+        Last Updated: September 25, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -89,7 +89,14 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <strong>Settings and vocabulary</strong>: App preferences and optional
-          custom vocabulary are stored locally.
+          custom vocabulary are stored locally. When you use cloud
+          transcription, the transcription provider receives your vocabulary
+          terms (the entries without a replacement) with your audio as a
+          spelling hint. With HyperWhisper Cloud, the terms pass through our
+          servers to that provider, and to the post-processing provider when you
+          use HyperWhisper Cloud post-processing. When you use local models for
+          both transcription and post-processing, your vocabulary does not leave
+          your device.
         </li>
       </ul>
 
@@ -187,8 +194,9 @@ export default function PrivacyPolicyPage() {
       </ul>
       <p>
         <strong>Third-party post-processing providers</strong> (bring your own
-        API key) — these services receive your transcribed text for correction
-        and formatting:
+        API key) — these services receive your transcribed text and your custom
+        vocabulary terms (the entries without a replacement) for correction and
+        formatting:
       </p>
       <ul>
         <li>
