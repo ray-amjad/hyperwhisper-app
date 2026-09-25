@@ -1579,8 +1579,16 @@ mod tests {
 
         let luna = cloud_pp_default_model("openai".to_string()).expect("openai has a default model");
         assert_eq!(luna.id, "gpt-5.6-luna");
+        assert_eq!(luna.display_name, "GPT-5.6 Luna");
+        assert_eq!(luna.llm_model_header.as_deref(), Some("gpt-5.6-luna"));
         assert_eq!(luna.price_per_m_input, Some(0.20));
         assert_eq!(luna.price_per_m_output, Some(1.2));
+        assert_eq!(luna.is_default, Some(true));
+        assert_eq!(luna.is_recommended, Some(true));
+        assert_eq!(luna.accuracy, Some(4));
+        assert_eq!(luna.speed, Some(4));
+        assert_eq!(luna.preview_status, Some(false));
+        assert_eq!(luna.enabled, Some(true));
 
         assert!(cloud_pp_default_model("noSuchEngine".to_string()).is_none());
     }
