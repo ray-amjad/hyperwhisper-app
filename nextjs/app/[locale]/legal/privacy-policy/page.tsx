@@ -130,6 +130,12 @@ export default function PrivacyPolicyPage() {
           device&apos;s hostname. This information is used to enforce our fair
           usage policy. No audio or transcripts are transmitted.
         </li>
+        <li>
+          <strong>Custom vocabulary</strong>: When you use HyperWhisper Cloud,
+          our servers receive your custom vocabulary terms with each
+          transcription or post-processing request and pass them to the
+          provider that handles it.
+        </li>
       </ul>
 
       <p className="font-semibold">
@@ -148,7 +154,16 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <strong>Settings and vocabulary</strong>: App preferences and optional
-          custom vocabulary are stored locally.
+          custom vocabulary are stored locally. When you use cloud
+          transcription, the transcription provider receives your vocabulary
+          terms with your audio as a spelling hint. With HyperWhisper Cloud,
+          the terms pass through our servers to that provider, and to the
+          post-processing provider when you use HyperWhisper Cloud
+          post-processing. When you use local models for
+          both transcription and post-processing, no transcription or
+          post-processing provider receives your vocabulary. On macOS, if you
+          turn on iCloud Sync for vocabulary, Apple stores your vocabulary
+          (words and replacements) in your iCloud account.
         </li>
       </ul>
 
@@ -246,7 +261,8 @@ export default function PrivacyPolicyPage() {
       </ul>
       <p>
         <strong>Third-party post-processing providers</strong> (bring your own
-        API key) — these services receive your transcribed text for correction
+        API key) — these services, and any custom endpoint you add, receive
+        your transcribed text and your custom vocabulary terms for correction
         and formatting:
       </p>
       <ul>
