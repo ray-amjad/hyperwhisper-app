@@ -436,11 +436,10 @@ export default function PrivacyPolicyPage() {
         >
           AgentStack
         </a>{" "}
-        (agentstack.build), another product by Ray Amjad. When a page loads,
-        that service receives your IP address, browser user agent, and the full
-        page URL, including any query parameters in it. A link opened from the
-        desktop app can carry your Account Key or device ID in those
-        parameters. Anything you type into the chat is sent to that service. The
+        (agentstack.build), another product by Ray Amjad. When the widget
+        loads, that service receives your IP address, your browser user agent,
+        and our website&apos;s address. Anything you type into the chat is sent
+        to that service. The
         widget also loads its own analytics, a separate PostHog instance on
         AgentStack&apos;s domain (t.agentstack.build), which may set its own
         cookies or local storage. The widget has no access to your audio, your
