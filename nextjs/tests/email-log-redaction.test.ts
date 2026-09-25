@@ -157,12 +157,12 @@ test("email service: a Resend error echoing the recipient is redacted in the log
   assert.equal(sentEmailRows[0]?.errorMessage, `${TAG} is not a valid recipient`);
 });
 
-async function recordDownload(): Promise<unknown> {
+async function recordDownload(email: string = RAW_FORM): Promise<unknown> {
   const { downloadRouter } = await import(DOWNLOAD_PATH);
   return callTRPCProcedure({
     router: downloadRouter as unknown as AnyRouter,
     path: "recordDownload",
-    getRawInput: async () => ({ email: RAW_FORM }),
+    getRawInput: async () => ({ email }),
     ctx: { headers: new Headers({ "x-real-ip": "203.0.113.7" }), user: null, isAdmin: false },
     type: "mutation",
     signal: undefined,
@@ -191,4 +191,30 @@ test("download: a welcome email Resend refuses is logged without the address", a
     ),
     "download.ts logs EmailResult.error, redacted at the source",
   );
+});
+
+test("download: a 60 KB address Resend echoes back reaches no log line and no EmailResult.error (review r2)", async () => {
+  // The public form's `z.string().email()` has no length bound. On the old
+  // RegExp-based redaction this address threw `Regular expression too large`,
+  // and that SyntaxError's text — the address, regex-escaped — was logged on
+  // every retry and returned as `EmailResult.error`.
+  const huge = `${"alice.smith".repeat(5500)}@acme-widgets.com`;
+  behaviour.result = {
+    data: null,
+    error: { name: "validation_error", statusCode: 422, message: `${huge} is not a valid recipient` },
+  };
+
+  const started = performance.now();
+  const result = (await recordDownload(huge)) as { success: boolean };
+
+  assert.equal(result.success, true);
+  assert.ok(performance.now() - started < 2000, "no retry backoff: the error stays non-retryable");
+  assertNoAddressIn(lines);
+  assert.ok(
+    lines.some((line) =>
+      line.startsWith("error Welcome email failed to send: [redacted] is not a valid recipient"),
+    ),
+    "the reason survives, fail-closed",
+  );
+  assert.ok(!lines.some((line) => line.includes("Invalid regular expression")));
 });

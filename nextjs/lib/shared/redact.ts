@@ -16,16 +16,45 @@ export function emailTag(email: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Provider prose. Moved here unchanged from `src/lib/auth.ts` (#736) so the
-// magic-link send and `lib/services/email.ts` share one redaction (#717).
+// Provider prose. Moved here from `src/lib/auth.ts` (#736) so the magic-link
+// send and `lib/services/email.ts` share one redaction (#717).
+//
+// No RegExp in this section is built from its input, and every pass is linear
+// in the input (review r2, #717). The recipient reaches `redactRecipient` from
+// the PUBLIC `recordDownload` form, whose `z.string().email()` has no length
+// bound, and the text is provider prose; so a pattern built from either one,
+// or a pattern that backtracks, is attacker-sized work. Measured on the old
+// shape: an 8,000-char domain built a ~19 MB alternation and ABORTED the Node
+// process (`RegExpCompiler` OOM, uncatchable); a 60 KB local part threw
+// `Regular expression too large` with the address in the error text; and a
+// 50,000-char token cost ~2.2 s in the `[^\s=]*@\S*` pattern alone.
 // ---------------------------------------------------------------------------
 
 /** Written in place of anything in a log line that could be an address. */
 const REDACTED = "[redacted]";
 
 /**
+ * The longest text the precise redaction will scan. Longer text fails CLOSED
+ * through `redactCoarse` — every token holding an `@` or a `.` redacted, then
+ * the result truncated to this length.
+ *
+ * Every pass below is linear, so this bound is not what keeps the CPU down; it
+ * is a second line of defence and a cap on how much provider prose one log line
+ * can carry. A real Resend `message` is well under 1 KiB.
+ */
+const MAX_TEXT_LENGTH = 16 * 1024;
+
+/**
+ * The longest recipient the precise redaction accepts: RFC 5321's 254-char
+ * limit on an address in a forward-path, and so on its domain too. No mail
+ * server delivers to anything longer, so a longer "recipient" is hostile or
+ * broken input, and the text it came with fails CLOSED through `redactCoarse`.
+ */
+const MAX_ADDRESS_LENGTH = 254;
+
+/**
  * Anything holding an `@`, out to the surrounding whitespace — but never across
- * a `=`.
+ * a `=`. Applied per whitespace-separated token by `redactAddressShaped`.
  *
  * Deliberately greedy on the right and imprecise. The job is not to parse an
  * address correctly, it is to make sure nothing address-shaped survives:
@@ -33,8 +62,8 @@ const REDACTED = "[redacted]";
  * forbids the address).
  *
  * The left side stops at `=`, and that is not cosmetic. This runs over the
- * WHOLE assembled `key=value` line, so a `\S+` left side swallowed the KEY
- * whenever Resend's text STARTED with the address:
+ * WHOLE assembled `key=value` line, so a left side that ran to the whitespace
+ * swallowed the KEY whenever Resend's text STARTED with the address:
  *
  *   message=alice@corp.com is not a valid recipient
  *        -> [redacted] is not a valid recipient
@@ -44,21 +73,81 @@ const REDACTED = "[redacted]";
  * loss whenever Resend's error name was address-shaped. The structured shape of
  * this line is the point of it; the redaction must not eat the structure.
  *
- * The left side is `*` rather than `+`, and the right side `\S*` rather than
- * `\S+`, so a bare `@` and an `@` with nothing before it are matched too. Every
- * `@` in the line is therefore inside some match, which is what makes "no `@`
- * survives" a property of the pattern instead of a property of the wordings we
- * happened to test.
+ * A bare `@` and an `@` with nothing before it are matched too. Every `@` in the
+ * line is therefore inside some redaction, which is what makes "no `@`
+ * survives" a property of the mechanism instead of a property of the wordings
+ * we happened to test.
  *
  * The cost of excluding `=`: an address whose LOCAL-PART contains a `=` (legal
  * per RFC 5322) leaves the text up to its last `=` behind, so `a=b@corp.com`
  * redacts to `a=[redacted]`. What survives is a fragment of a local part, which
  * this function already declines to redact on its own — see below.
+ *
+ * This is exactly what the old `[^\s=]*@\S*` pattern (global) replaced, done as ONE linear
+ * token scan: that pattern retried its `[^\s=]*` from every start position of a
+ * long token, which is quadratic (review r2).
  */
-const ADDRESS_SHAPED = /[^\s=]*@\S*/g;
+function redactTokens(line: string, markers: readonly string[]): string {
+  // `\S+` is a fixed pattern with no backtracking between tokens: linear.
+  return line.replace(/\S+/g, (token) => {
+    let first = -1;
+    for (const marker of markers) {
+      const at = token.indexOf(marker);
+      if (at !== -1 && (first === -1 || at < first)) first = at;
+    }
+    if (first === -1) return token;
+    // Keep the token up to its last `=` before the marker (the `key=`).
+    const keep = token.lastIndexOf("=", first) + 1;
+    return token.slice(0, keep) + REDACTED;
+  });
+}
 
-function escapeForRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function redactAddressShaped(line: string): string {
+  return redactTokens(line, ["@"]);
+}
+
+/**
+ * The fail-CLOSED form, for input too large or too odd to redact precisely.
+ *
+ * Redacts every token holding an `@` OR a `.` — every address, and every
+ * domain of 2 or more labels, whatever the recipient was — and only THEN cuts
+ * the result to `MAX_TEXT_LENGTH`. That order matters twice: the cut can only
+ * land in text that is already clean, so it cannot leave a fragment of an
+ * address behind; and an oversized address at the front of the text collapses
+ * to `[redacted]` instead of pushing the reason after it past the cut
+ * ("[redacted] is not a valid recipient" survives a 60 KB local part). The
+ * `key=` tokens of a structured line carry no `.`, so `name=`, `statusCode=`
+ * and `recipientHash=` survive too: the diagnosis is kept, no address is.
+ *
+ * One linear pass. It cannot throw on any string that exists; the `catch` is
+ * for an allocation failure, and still returns something safe to log.
+ */
+function redactCoarse(text: string): string {
+  try {
+    const redacted = redactTokens(text, ["@", "."]);
+    if (redacted.length <= MAX_TEXT_LENGTH) return redacted;
+    return `${redacted.slice(0, MAX_TEXT_LENGTH)} [truncated ${redacted.length - MAX_TEXT_LENGTH} chars]`;
+  } catch {
+    return REDACTED;
+  }
+}
+
+/**
+ * Lower-case `value` WITHOUT changing its length, so an index into the result is
+ * an index into `value`. `toLowerCase` keeps the length for everything except a
+ * handful of code points (`İ` becomes 2 code units); only then is it done per
+ * code unit, leaving any such character as it was.
+ */
+function foldCase(value: string): string {
+  const lowered = value.toLowerCase();
+  if (lowered.length === value.length) return lowered;
+
+  let folded = "";
+  for (let i = 0; i < value.length; i += 1) {
+    const unit = value[i].toLowerCase();
+    folded += unit.length === 1 ? unit : value[i];
+  }
+  return folded;
 }
 
 /**
@@ -79,30 +168,55 @@ function escapeForRegExp(value: string): string {
 const MIN_DOMAIN_LABELS = 2;
 
 /**
- * The recipient's own domain plus every parent of it at or above the label
- * floor, longest first.
+ * `line` with the recipient's domain, and every parent of it at or above the
+ * label floor, replaced by `[redacted]`, in any case.
  *
  * The parents are the fix for a subdomained recipient. Resend answers by naming
  * the domain it actually checked rather than the one that was submitted: for
  * `alice@mail.corp.com` the reply is "The corp.com domain is not verified.",
- * which carries no `@` for the pass above to catch and is not the literal
- * `mail.corp.com` an exact-match pass searches for. That bare-domain shape is
- * one of the two `redactAddresses` exists to handle, and it used to survive
- * verbatim.
+ * which carries no `@` for the token pass to catch and is not the literal
+ * `mail.corp.com` an exact-match pass searches for.
  *
- * Longest first, because the alternation built from this list takes the first
- * branch that matches at a position — so the full domain wins and no `mail.`
- * is left stranded in front of a redaction.
+ * How, without a pattern built from the domain: every candidate (`mail.corp.com`,
+ * `corp.com`) ENDS with the shortest one (`corp.com`), so every occurrence of a
+ * candidate contains an occurrence of the shortest. Find each occurrence of the
+ * shortest with `indexOf`, then extend it LEFT one label at a time while the
+ * text before it spells the domain's next label and a `.`, so the full domain
+ * wins and no `mail.` is left stranded in front of a redaction. The extension
+ * never reaches back past the end of the previous redaction, so the work is
+ * linear in the line, however many labels the domain has.
+ *
+ * Replacing every occurrence of the shortest candidate is what guarantees that
+ * no candidate survives. (For a domain that repeats its own labels —
+ * `b.a.b.a` — this can split one match the old alternation made into two
+ * adjacent redactions. Both are redacted either way.)
  */
-function domainCandidatesOf(recipientDomain: string): string[] {
-  const labels = recipientDomain.split(".");
-  const candidates: string[] = [];
+function redactDomain(line: string, recipientDomain: string): string {
+  const labels = foldCase(recipientDomain).split(".");
 
-  for (let i = 0; labels.length - i >= MIN_DOMAIN_LABELS; i += 1) {
-    candidates.push(labels.slice(i).join("."));
+  // No candidate at all: an empty domain (a recipient with no `@`) or a
+  // single-label one. The early return is load-bearing, not tidiness — there
+  // is nothing to search for, and an empty needle matches between every
+  // character of the line.
+  if (labels.length < MIN_DOMAIN_LABELS) return line;
+
+  const shortest = labels.slice(-MIN_DOMAIN_LABELS).join(".");
+  const folded = foldCase(line);
+
+  let out = "";
+  let done = 0;
+  for (let at = folded.indexOf(shortest); at !== -1; at = folded.indexOf(shortest, done)) {
+    let start = at;
+    for (let label = labels.length - MIN_DOMAIN_LABELS - 1; label >= 0; label -= 1) {
+      const piece = `${labels[label]}.`;
+      const from = start - piece.length;
+      if (from < done || !folded.startsWith(piece, from)) break;
+      start = from;
+    }
+    out += line.slice(done, start) + REDACTED;
+    done = at + shortest.length;
   }
-
-  return candidates;
+  return out + line.slice(done);
 }
 
 /**
@@ -119,14 +233,19 @@ function domainCandidatesOf(recipientDomain: string): string[] {
  *   - a bare domain — "the corp.com domain is not verified".
  *
  * What this GUARANTEES, for any input:
+ *   - it returns, and does not throw; its work is linear in the input;
  *   - no `@` survives anywhere in the returned line;
  *   - neither the recipient's domain nor any parent of it down to the label
  *     floor survives, in any case, whether or not it arrived attached to an `@`;
  *   - the `key=` tokens of this line's own format survive, so the line stays
  *     greppable.
  *
+ * A line longer than `MAX_TEXT_LENGTH`, or a domain longer than
+ * `MAX_ADDRESS_LENGTH`, fails CLOSED through `redactCoarse`: every token with an
+ * `@` or a `.` redacted, and the result truncated. So does any unexpected throw.
+ *
  * What it does NOT guarantee, and cannot: Resend owns the `message` text, so it
- * may name the recipient in a form no pattern here matches — the local part on
+ * may name the recipient in a form nothing here matches — the local part on
  * its own ("the user alice is blocked"), a percent-encoded address
  * (`alice%40corp.com`), an address written with spaces around its `@`, or some
  * other identifier entirely. **Complete redaction of provider prose is not
@@ -138,21 +257,33 @@ function domainCandidatesOf(recipientDomain: string): string[] {
  * "me", "info") would shred the surrounding message.
  */
 export function redactAddresses(line: string, recipientDomain: string): string {
-  const withoutAddresses = line.replace(ADDRESS_SHAPED, REDACTED);
+  if (line.length > MAX_TEXT_LENGTH || recipientDomain.length > MAX_ADDRESS_LENGTH) {
+    return redactCoarse(line);
+  }
+  try {
+    return redactDomain(redactAddressShaped(line), recipientDomain);
+  } catch {
+    return redactCoarse(line);
+  }
+}
 
-  const candidates = domainCandidatesOf(recipientDomain);
+/**
+ * `text` with every occurrence of `address` (compared case-insensitively)
+ * written as `replacement`. An `indexOf` loop, not a RegExp: the address is
+ * caller-controlled, and a pattern built from it is attacker-sized work.
+ */
+function replaceIgnoringCase(text: string, address: string, replacement: string): string {
+  const needle = foldCase(address);
+  if (needle === "") return text;
+  const folded = foldCase(text);
 
-  // No candidate at all: an empty domain (a recipient with no `@`) or a
-  // single-label one. The early return is load-bearing, not tidiness — joining
-  // an empty list gives an empty pattern, and a global empty pattern makes
-  // `String.replace` insert the replacement between every character of the
-  // line.
-  if (candidates.length === 0) return withoutAddresses;
-
-  return withoutAddresses.replace(
-    new RegExp(candidates.map(escapeForRegExp).join("|"), "gi"),
-    REDACTED,
-  );
+  let out = "";
+  let done = 0;
+  for (let at = folded.indexOf(needle); at !== -1; at = folded.indexOf(needle, done)) {
+    out += text.slice(done, at) + replacement;
+    done = at + needle.length;
+  }
+  return out + text.slice(done);
 }
 
 /**
@@ -168,13 +299,25 @@ export function redactAddresses(line: string, recipientDomain: string): string {
  * The recipient is matched after `trim()` and case-insensitively, because
  * Stripe hands us the address as typed ("Buyer@Example.com ") and Resend may
  * echo it in another case. `redactAddresses` then runs over the result, so
- * its guarantees (no `@` survives, nor the recipient's domain) hold here too.
+ * its guarantees (it returns, linearly; no `@` survives, nor the recipient's
+ * domain) hold here too.
+ *
+ * A recipient longer than `MAX_ADDRESS_LENGTH` or text longer than
+ * `MAX_TEXT_LENGTH` fails CLOSED through `redactCoarse` — no tag, no address,
+ * no domain. The caller keeps its own diagnosis (`ResendSendError` carries
+ * Resend's `name` and `statusCode` beside this message).
  */
 export function redactRecipient(text: string, recipient: string): string {
   const address = recipient.trim();
-  const tagged = address.includes("@")
-    ? text.replace(new RegExp(escapeForRegExp(address), "gi"), emailTag(address))
-    : text;
-
-  return redactAddresses(tagged, address.toLowerCase().split("@")[1] ?? "");
+  if (text.length > MAX_TEXT_LENGTH || address.length > MAX_ADDRESS_LENGTH) {
+    return redactCoarse(text);
+  }
+  try {
+    const tagged = address.includes("@")
+      ? replaceIgnoringCase(text, address, emailTag(address))
+      : text;
+    return redactAddresses(tagged, address.toLowerCase().split("@")[1] ?? "");
+  } catch {
+    return redactCoarse(text);
+  }
 }
