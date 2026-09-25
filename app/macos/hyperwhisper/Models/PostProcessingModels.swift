@@ -62,27 +62,8 @@ struct PostProcessingModels {
             description: "models.postProcessing.gpt4.1.description".localized,
             provider: .openai
         ),
-        PostProcessingModel(
-            id: "gpt-5-nano",
-            displayName: "GPT-5 Nano",
-            isAvailable: true,
-            description: "models.postProcessing.gpt5.nano.description".localized,
-            provider: .openai
-        ),
-        PostProcessingModel(
-            id: "gpt-5-mini",
-            displayName: "GPT-5 Mini",
-            isAvailable: true,
-            description: "models.postProcessing.gpt5.mini.description".localized,
-            provider: .openai
-        ),
-        PostProcessingModel(
-            id: "gpt-5",
-            displayName: "GPT-5",
-            isAvailable: true,
-            description: "models.postProcessing.gpt5.description".localized,
-            provider: .openai
-        ),
+        // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
+        // 2026-12-11, and deprecatedModelMappings redirects all 3 to gpt-5.6-luna.
         PostProcessingModel(
             id: "gpt-5.1",
             displayName: "GPT-5.1",
@@ -355,7 +336,14 @@ struct PostProcessingModels {
     /// When a provider deprecates a model, add the old ID → new ID under that provider's entry.
     private static let deprecatedModelMappings: [PostProcessingProvider: [String: String]] = [
         .openai: [
-            "gpt-4.1-nano": "gpt-5-nano",
+            // gpt-4.1-nano retires 2026-10-23; OpenAI names gpt-5.6-luna as its replacement.
+            "gpt-4.1-nano": "gpt-5.6-luna",
+            // OpenAI removes the only snapshots behind these 3 aliases 2026-12-11
+            // (deprecations page). OpenAI names gpt-5.6-terra/-sol for mini/full; we
+            // use luna for all three — it is 8x-16x cheaper for a punctuation task.
+            "gpt-5-nano": "gpt-5.6-luna",
+            "gpt-5-mini": "gpt-5.6-luna",
+            "gpt-5": "gpt-5.6-luna",
         ],
         .anthropic: [
             // Deprecated 2026-02-16: claude-haiku-4.5 → claude-haiku-4-5
@@ -393,6 +381,12 @@ struct PostProcessingModels {
             "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
             "gemini-2.0-flash": "gemini-3.6-flash",
             "gemini-2.0-flash-lite": "gemini-3.1-flash-lite",
+            // Gemma hosted models left the Gemini API 2026-03-08. 3.8 Flash, not
+            // 2.5 Flash: Google gates 2.5 to past users since 2026-09-18 (#1019).
+            // Matches Windows MigrateModelId, so a mode restored from Windows keeps
+            // the same model instead of falling to the first picker row.
+            "gemma-3-12b-it": "gemini-3.8-flash",
+            "gemma-3-27b-it": "gemini-3.8-flash",
         ],
         .groq: [
             // Decommissioned by Groq 2026-07-17 → openai/gpt-oss-120b (GroqCloud deprecation notice)

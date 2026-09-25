@@ -17,6 +17,7 @@ import {
   behaviour,
   calls,
   loadWebhook,
+  logLines,
   resetHarness,
   restoreWebhookLogging,
   silenceWebhookLogging,
@@ -155,7 +156,9 @@ test("a license purchase fails loudly when the user cannot be created", async ()
   behaviour.user = null;
 
   await assert.rejects(handleLicensePurchase(checkoutSession()), {
-    message: "Failed to create user for Buyer@Example.com ",
+    // The address is logged as its #717 tag (sha256 of "buyer@example.com"),
+    // never in the clear — the webhook route logs this message.
+    message: "Failed to create user for 6a6c26195c36",
   });
 
   assert.deepEqual(calls.insertAccountKey, []);
@@ -358,6 +361,9 @@ test("a guest credit purchase mints a key, grants the credits and sends the mint
   assert.equal(calls.emails.length, 1);
   assert.equal(calls.emails[0].kind, "mint");
   assert.equal(calls.emails[0].payload.licenseKey, "HW-MINT-0001");
+  // Threaded through as the session gave it (RFC 5321 local parts are case-sensitive).
+  assert.deepEqual(calls.getOrCreateUser.map((call) => call.email), ["Buyer@Example.com "]);
+  assert.equal(calls.emails[0].payload.customerEmail, "Buyer@Example.com ");
 });
 
 test("a guest credit purchase pools into the buyer's existing granted key", async () => {
@@ -484,9 +490,16 @@ test("a mint fails loudly when the user cannot be created", async () => {
 
   await assert.rejects(
     handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1"),
-    { message: "Failed to create user for Buyer@Example.com " },
+    // #717: the tag of "buyer@example.com", not the address.
+    { message: "Failed to create user for 6a6c26195c36" },
   );
 
+  // The tag is the same for any case or padding, so it cannot show that the raw
+  // session address reached the user lookup untouched. This does.
+  assert.deepEqual(
+    calls.getOrCreateUser.map((call) => call.email),
+    ["Buyer@Example.com "],
+  );
   assert.deepEqual(calls.insertAccountKey, []);
 });
 
@@ -528,6 +541,42 @@ test("a failed mint email does not fail the webhook", async () => {
 
   assert.equal(calls.grantCreditsForStripeEvent.length, 1);
   assert.equal(calls.emails[0].kind, "mint");
+});
+
+// ---------------------------------------------------------------------------
+// #717: no webhook log line carries the buyer's address
+// ---------------------------------------------------------------------------
+
+test("no webhook log line carries the buyer's address, on any purchase path", async () => {
+  const from = logLines.length;
+
+  // License purchase: success, then a refused license email.
+  await handleLicensePurchase(checkoutSession());
+  resetHarness();
+  behaviour.emailSuccess = false;
+  await handleLicensePurchase(checkoutSession());
+
+  // Mint, then a pool into the minted key, each with a refused email.
+  resetHarness();
+  behaviour.emailSuccess = false;
+  await handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1");
+  resetHarness();
+  behaviour.byEmail.set("buyer@example.com", [accountKeyRow({ key: "HW-LIVE-0002" })]);
+  behaviour.emailSuccess = false;
+  await handleCreditPurchase(
+    checkoutSession({ id: "cs_2", metadata: { credit_amount: "600" } }),
+    "evt_2",
+  );
+
+  const lines = logLines.slice(from);
+  assert.ok(lines.length > 0, "the handlers logged");
+  assert.deepEqual(
+    lines.filter((line) => /buyer@example\.com/i.test(line)),
+    [],
+  );
+  // Positive control: the lines that used to carry the address carry its tag.
+  assert.ok(lines.some((line) => line.includes("Processing license purchase for 6a6c26195c36")));
+  assert.ok(lines.some((line) => line.includes("Processing credit purchase by 6a6c26195c36")));
 });
 
 // ---------------------------------------------------------------------------

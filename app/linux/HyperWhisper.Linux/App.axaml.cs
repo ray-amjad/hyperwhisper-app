@@ -52,14 +52,26 @@ public partial class App : Application
             {
                 Console.Error.WriteLine($"HyperWhisper single-instance startup failed: {acquired.Error!.Code}");
                 _platformServices.Dispose();
-                desktop.Shutdown(1);
+                ShutdownFromMainLoop(desktop, 1);
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
-            if (acquired.IsSuccess && acquired.Value == false)
+            if (!acquired.Value)
             {
-                _ = _platformServices.SingleInstance.SignalExistingInstance();
-                desktop.Shutdown();
+                // A smoke run that hands off renders nothing, so it must fail rather than exit 0.
+                var exitCode = 0;
+                if (Program.IsSmokeTest)
+                {
+                    Console.Error.WriteLine("HyperWhisper smoke test failed: another instance is already running.");
+                    exitCode = 1;
+                }
+                else if (_platformServices.SingleInstance.SignalExistingInstance() is { IsFailure: true } signal)
+                {
+                    Console.Error.WriteLine($"HyperWhisper single-instance handoff failed: {signal.Error!.Code}");
+                    exitCode = 1;
+                }
+                _platformServices.Dispose();
+                ShutdownFromMainLoop(desktop, exitCode);
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
@@ -84,16 +96,20 @@ public partial class App : Application
                 {
                     var exitCode = await window.RunSmokeTestAsync();
                     Console.Error.WriteLine($"Smoke result: {exitCode}");
-                    // Opened can raise before the dispatcher enters its main loop. Shutting down
-                    // from here then aborts the process with "Dispatcher shut down" and loses the
-                    // result, so hand the shutdown back to the loop.
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => desktop.Shutdown(exitCode));
+                    ShutdownFromMainLoop(desktop, exitCode);
                 };
             }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
+
+    // OnFrameworkInitializationCompleted, and the first window Opened, can run before the
+    // dispatcher enters its main loop. A synchronous Shutdown there makes MainLoop throw
+    // "Dispatcher shut down" and the process aborts with SIGABRT (exit 134, #956) and loses the
+    // exit code, so post the shutdown and let the loop run it.
+    private static void ShutdownFromMainLoop(IClassicDesktopStyleApplicationLifetime desktop, int exitCode) =>
+        Dispatcher.UIThread.Post(() => desktop.Shutdown(exitCode));
 
     private void SubscribeUnhandledExceptions()
     {

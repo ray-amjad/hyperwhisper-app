@@ -824,11 +824,14 @@ internal static class Program
             {
                 var cases = new (string OldId, string Replacement)[]
                 {
-                    ("gpt-4.1-nano", "gpt-5-nano"),
+                    ("gpt-4.1-nano", "gpt-5.6-luna"),
                     ("gemini-3-pro-preview", "gemini-3.1-pro-preview"),
                     ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
                     ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
+                    // #1019: 3.8 Flash, not the 2.5 Flash that Google now gates to past users.
+                    ("gemma-3-12b-it", "gemini-3.8-flash"),
+                    ("gemma-3-27b-it", "gemini-3.8-flash"),
                     ("llama3.1-8b", "qwen-3.8-27b"),
                     ("llama-3.1-8b", "qwen-3.8-27b"),
                     // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
@@ -848,6 +851,29 @@ internal static class Program
 
                 Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
                     "new OpenAI modes should default to GPT-5.6 Luna");
+            });
+
+            // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
+            // rows are deleted and every id migrates to gpt-5.6-luna, so a mode card for a
+            // stored id names luna, the model that runs.
+            Run("Retired gpt-5 family ids migrate to GPT-5.6 Luna and display as Luna", () =>
+            {
+                var openAiPicker = LanguageModelInfo.GetModelsForProvider(PostProcessingProvider.OpenAI);
+                var converter = new PostProcessingDisplayConverter();
+                foreach (var oldId in new[] { "gpt-5-nano", "gpt-5-mini", "gpt-5" })
+                {
+                    Assert(LanguageModelInfo.MigrateModelId(oldId) == "gpt-5.6-luna",
+                        $"{oldId} should migrate to gpt-5.6-luna");
+                    Assert(LanguageModelInfo.GetById(oldId) == null,
+                        $"{oldId} should have no catalog row");
+                    Assert(openAiPicker.All(m => m.Id != oldId),
+                        $"retired model {oldId} is still selectable");
+                    var mode = new Mode { PostProcessingProvider = "openai", LanguageModel = oldId };
+                    var shown = converter.Convert(mode, typeof(string), null!, CultureInfo.InvariantCulture) as string;
+                    Assert(shown == "GPT-5.6 Luna",
+                        $"a mode storing {oldId} should display GPT-5.6 Luna, got {shown}");
+                }
+                Assert(openAiPicker.Any(m => m.Id == "gpt-5.6-luna"), "gpt-5.6-luna must stay selectable");
             });
 
             // Issue #314: `/post-process` used to project `provider` and `model`
@@ -14683,6 +14709,98 @@ internal static class Program
                 }
             });
 
+            Run("history: Cleanup lets go of ModeService.ModeChanged — issue #977", () =>
+            {
+                // #977. The constructor subscribed a lambda to ModeService.ModeChanged
+                // and nothing ever removed it. ModeService is a process-wide singleton,
+                // so every History page the user ever opened stayed reachable through
+                // that one event, with its transcript list. Cleanup (called from
+                // HistoryPage.Unloaded) now unsubscribes a named handler. Nothing else
+                // would notice if that line went, so read the event's own invocation
+                // list: the view model must be on it after construction and off it
+                // after Cleanup.
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                EnsureSmokeApplication();
+
+                // A field-like event keeps its delegate in a private field of the same
+                // name; there is no public way to see who is subscribed.
+                var eventField = typeof(ModeService).GetField(
+                    "ModeChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert(eventField is not null,
+                    "ModeService.ModeChanged is no longer a field-like event - this case can no longer see its subscribers");
+
+                bool Subscribed(HistoryViewModel vm) =>
+                    (eventField!.GetValue(ModeService.Instance) as Delegate)?
+                        .GetInvocationList()
+                        .Any(d => ReferenceEquals(d.Target, vm)) == true;
+
+                var history = new HistoryViewModel();
+                try
+                {
+                    // Positive control: without it, a subscription that moved elsewhere
+                    // would make the assertion below pass for the wrong reason.
+                    Assert(Subscribed(history),
+                        "a new HistoryViewModel is not on ModeService.ModeChanged at all - the retry menu " +
+                        "no longer follows mode edits, or it subscribes some other way this case cannot see");
+                }
+                finally
+                {
+                    history.Cleanup();
+                }
+
+                Assert(!Subscribed(history),
+                    "HistoryViewModel.Cleanup() left the view model on ModeService.ModeChanged, so the " +
+                    "singleton keeps every History page the user opened alive (issue #977)");
+            });
+
+            Run("frames: the Settings section frame keeps no back stack — issue #977", () =>
+            {
+                // #977. A WPF Frame journals every page it leaves, and a journaled page
+                // lives as long as the Frame. FrameJournal.KeepNoBackStack gives a Frame
+                // its own journal and empties it after each navigation. MainWindow and
+                // SettingsPage call it; nothing else would notice if either call went,
+                // so check the one this harness can build (a real SettingsPage) and
+                // then drive the helper itself on a fresh Frame.
+                EnsureSmokeApplication();
+
+                var settings = new HyperWhisper.Views.Pages.SettingsPage();
+                var sectionFrame = (System.Windows.Controls.Frame)settings.FindName("ContentFrame")!;
+                Assert(sectionFrame.JournalOwnership == System.Windows.Navigation.JournalOwnership.OwnsJournal,
+                    $"SettingsPage's section frame has JournalOwnership={sectionFrame.JournalOwnership}, so its " +
+                    "section pages go into MainWindow's journal and stay alive (FrameJournal.KeepNoBackStack " +
+                    "is no longer applied)");
+
+                var kept = new System.Windows.Controls.Frame();
+                FrameJournal.KeepNoBackStack(kept);
+                Assert(kept.JournalOwnership == System.Windows.Navigation.JournalOwnership.OwnsJournal,
+                    $"FrameJournal.KeepNoBackStack left JournalOwnership={kept.JournalOwnership}");
+
+                // Navigation is queued on the dispatcher, so pump it after each step.
+                // The plain Frame is the positive control: it must be able to go back,
+                // or CanGoBack == false below would prove nothing.
+                var plain = new System.Windows.Controls.Frame { JournalOwnership = System.Windows.Navigation.JournalOwnership.OwnsJournal };
+                foreach (var frame in new[] { kept, plain })
+                {
+                    frame.Navigate(new System.Windows.Controls.Page());
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+                        () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    var second = new System.Windows.Controls.Page();
+                    frame.Navigate(second);
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+                        () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    Assert(ReferenceEquals(frame.Content, second),
+                        "a Frame did not finish navigating after the dispatcher was pumped - this case " +
+                        "can no longer see a back stack");
+                }
+
+                Assert(plain.CanGoBack,
+                    "a plain Frame cannot go back after two navigations - the control is broken, so the " +
+                    "check below proves nothing");
+                Assert(!kept.CanGoBack,
+                    "a Frame under FrameJournal.KeepNoBackStack still has a back stack after two " +
+                    "navigations, so every page it leaves stays alive (issue #977)");
+            });
+
             Run("shortcuts/about: the refusal text and the version line are localized — issue #516", () =>
             {
                 // #516. Everything the Shortcuts page says when it REFUSES a chord was
@@ -14866,6 +14984,131 @@ internal static class Program
                     TextDeliveryGate.SetSuppressed(true);
                     Assert(!MainViewModel.ShouldReportUndeliveredTranscript(),
                         "a deliberate refusal is not a failure to report");
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(previous);
+                }
+            });
+
+            Run("delivery: batch auto-paste reports a refused clipboard write and nothing else", () =>
+            {
+                // #905. The rule above was wired only on the auto-paste-DISABLED
+                // branch; with auto-paste on, SmartPasteResult.Failed hit an empty
+                // arm and a clipboard held by another process lost the transcript
+                // in silence. Failed covers four exits, so the batch flow decides by
+                // the outcome SmartPaste recorded: a failed Ctrl+V becomes
+                // CopiedToClipboard, and only a refused clipboard write is reported.
+                // KeystrokeFailed is pinned as a mapping only: a real one needs
+                // SendInput to throw, which needs an injectable input simulator.
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, PasteOutcome.KeystrokeFailed)
+                        == SmartPasteResult.CopiedToClipboard,
+                    "a failed Ctrl+V left the text on the clipboard, so it shows Copied");
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, PasteOutcome.ClipboardSetFailed)
+                        == SmartPasteResult.Failed,
+                    "a refused clipboard write stays Failed");
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, PasteOutcome.EmptyText)
+                        == SmartPasteResult.Failed,
+                    "empty text stays Failed");
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Failed, null)
+                        == SmartPasteResult.Failed,
+                    "a TextDeliveryGate refusal stays Failed");
+                Assert(MainViewModel.NormalizeAutoPasteResult(SmartPasteResult.Pasted, PasteOutcome.Pasted)
+                        == SmartPasteResult.Pasted,
+                    "a non-Failed result is left alone");
+                Assert(MainViewModel.AutoPasteLostTranscript(PasteOutcome.ClipboardSetFailed),
+                    "a refused clipboard write reached nothing and must be reported");
+                Assert(!MainViewModel.AutoPasteLostTranscript(PasteOutcome.KeystrokeFailed),
+                    "a failed Ctrl+V left the text on the clipboard");
+                Assert(!MainViewModel.AutoPasteLostTranscript(PasteOutcome.EmptyText),
+                    "an empty transcript has nothing to lose");
+                Assert(!MainViewModel.AutoPasteLostTranscript(null),
+                    "a TextDeliveryGate refusal records no outcome and stays silent");
+
+                // No positive control, on purpose. Every real SmartPaste call below
+                // runs while another thread holds the clipboard, so the one that
+                // reaches the write is refused, and the gate and EmptyText exits
+                // return before any write. So this case never changes the
+                // operator's clipboard and needs no snapshot. The "held"
+                // precondition assert already proves the failure came from the hold.
+                var previous = TextDeliveryGate.IsSuppressed;
+                using var paste = new SmartPasteService();
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+
+                    // No service: nothing to read, so Failed and silent, as before.
+                    var noService = MainViewModel.DeliverAutoPaste(null, "no service");
+                    Assert(noService.Result == SmartPasteResult.Failed && !noService.LostTranscript,
+                        $"a null paste service must be (Failed, False), got {noService}");
+
+                    // The real sink, with the Win32 clipboard held open by another
+                    // thread the way a clipboard manager or Excel holds it. A thread
+                    // that does not own the clipboard cannot open it, so the write
+                    // fails after WPF's own retry budget (~1 s), as in HYPERWHISPER-YV.
+                    // The events are not disposed: if the Join below ever times
+                    // out, the helper thread must not wake on a disposed event.
+                    var opened = new ManualResetEventSlim();
+                    var release = new ManualResetEventSlim();
+                    var held = false;
+                    var holder = new Thread(() =>
+                    {
+                        // A clipboard manager can hold the clipboard for a moment
+                        // after any change, so retry for about 2 s before giving up.
+                        for (var attempt = 0; attempt < 40 && !held; attempt++)
+                        {
+                            held = OpenClipboard(IntPtr.Zero);
+                            if (!held)
+                                Thread.Sleep(50);
+                        }
+                        opened.Set();
+                        if (held)
+                        {
+                            release.Wait(TimeSpan.FromSeconds(30));
+                            CloseClipboard();
+                        }
+                    }) { IsBackground = true };
+                    try
+                    {
+                        holder.Start();
+                        Assert(opened.Wait(TimeSpan.FromSeconds(10)),
+                            "precondition: the helper thread never tried to open the clipboard");
+                        Assert(held, "precondition: the helper thread could not open the clipboard");
+
+                        var refused = MainViewModel.DeliverAutoPaste(paste, "a held clipboard");
+                        Assert(paste.LastSmartPasteOutcome == PasteOutcome.ClipboardSetFailed,
+                            $"expected ClipboardSetFailed, got {paste.LastSmartPasteOutcome?.ToString() ?? "null"}");
+                        Assert(refused.Result == SmartPasteResult.Failed && refused.LostTranscript,
+                            $"a refused clipboard write must be (Failed, True), got {refused}");
+                        Assert(MainViewModel.ShouldReportUndeliveredTranscript(),
+                            "with no onboarding window open the report is shown");
+
+                        // The gate exit records nothing, and must not inherit the
+                        // ClipboardSetFailed the call above recorded.
+                        TextDeliveryGate.SetSuppressed(true);
+                        var suppressed = MainViewModel.DeliverAutoPaste(paste, "a suppressed transcript");
+                        Assert(paste.LastSmartPasteOutcome == null,
+                            "a suppressed paste must leave the outcome null, not the last call's");
+                        Assert(suppressed.Result == SmartPasteResult.Failed && !suppressed.LostTranscript,
+                            $"a gate refusal must be (Failed, False), got {suppressed}");
+                        Assert(!MainViewModel.ShouldReportUndeliveredTranscript(),
+                            "and the gate silences the report itself");
+                        TextDeliveryGate.SetSuppressed(false);
+
+                        var empty = MainViewModel.DeliverAutoPaste(paste, string.Empty);
+                        Assert(paste.LastSmartPasteOutcome == PasteOutcome.EmptyText,
+                            "empty text records EmptyText");
+                        Assert(empty.Result == SmartPasteResult.Failed && !empty.LostTranscript,
+                            $"empty text must be (Failed, False), got {empty}");
+                    }
+                    finally
+                    {
+                        // Always let go of the clipboard, and never park on the
+                        // helper thread.
+                        release.Set();
+                        if (holder.IsAlive)
+                            holder.Join(TimeSpan.FromSeconds(10));
+                    }
                 }
                 finally
                 {
@@ -15490,6 +15733,16 @@ internal static class Program
     // =========================================================================
     // Harness
     // =========================================================================
+
+    // #905: a helper thread holds the Win32 clipboard open, as a clipboard
+    // manager does, so the real SmartPaste write is refused.
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool CloseClipboard();
 
     private static void Run(string name, Action check)
     {

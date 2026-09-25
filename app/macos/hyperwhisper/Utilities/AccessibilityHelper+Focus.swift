@@ -42,13 +42,20 @@ extension AccessibilityHelper {
             &focusedElement
         )
 
-        if result != .success || focusedElement == nil {
-            logger.error("❌ Could not get focused element (error: \(result.rawValue, privacy: .public))")
+        guard result == .success, let axElement = AXCast.element(focusedElement) else {
+            let cause: String
+            if result != .success {
+                cause = "error: \(result.rawValue)"
+            } else if focusedElement == nil {
+                cause = "no value"
+            } else {
+                cause = "reply is not an AXUIElement"
+            }
+            logger.error("❌ Could not get focused element (\(cause, privacy: .public))")
             // Fallback 1: try the focused window, then search its children for an editable control
             var focusedWindowRef: CFTypeRef?
             let winRes = AXUIElementCopyAttributeValue(systemWideElement, kAXFocusedWindowAttribute as CFString, &focusedWindowRef)
-            if winRes == .success, let fw = focusedWindowRef {
-                let winRef = fw as! AXUIElement
+            if winRes == .success, let winRef = AXCast.element(focusedWindowRef) {
                 if let editable = findEditableChildRecursively(winRef, maxDepth: 5) {
                     logger.info("✅ Found editable element via focused window fallback: \(String(describing: editable), privacy: .public)")
                     return editable
@@ -60,7 +67,7 @@ extension AccessibilityHelper {
                 var appWindowsRef: CFTypeRef?
                 if AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &appWindowsRef) == .success,
                    let windowsArray = appWindowsRef as? NSArray {
-                    let windows = windowsArray.map { $0 as! AXUIElement }
+                    let windows = windowsArray.compactMap { AXCast.element($0 as CFTypeRef) }
                     for window in windows.prefix(3) { // check a few windows
                         if let editable = findEditableChildRecursively(window, maxDepth: 3) {
                             logger.info("✅ Found editable element via windows fallback: \(String(describing: editable), privacy: .public)")
@@ -71,8 +78,6 @@ extension AccessibilityHelper {
             }
             return nil
         }
-
-        let axElement = focusedElement as! AXUIElement
 
         // Check if the focused element is text-editable
         if isElementTextEditable(axElement) {
@@ -197,8 +202,8 @@ extension AccessibilityHelper {
             return nil
         }
 
-        // Cast children array - these are always AXUIElements
-        let children = childrenArray.map { $0 as! AXUIElement }
+        // Children come from the other app; drop any entry that is not an AXUIElement
+        let children = childrenArray.compactMap { AXCast.element($0 as CFTypeRef) }
 
         // Limit search breadth to avoid performance issues
         for child in children.prefix(25) {
@@ -280,9 +285,9 @@ extension AccessibilityHelper {
         let system = AXUIElementCreateSystemWide()
         var focused: CFTypeRef?
         let res = AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused)
-        guard res == .success,
-              let element = focused else { return false }
-        let axElement = element as! AXUIElement
+        guard res == .success, focused != nil else { return false }
+        // A reply of the wrong type fails closed: we cannot rule out a password field, so skip the paste.
+        guard let axElement = AXCast.element(focused) else { return true }
         var subroleValue: CFTypeRef?
         _ = AXUIElementCopyAttributeValue(axElement, kAXSubroleAttribute as CFString, &subroleValue)
         let subrole = subroleValue as? String ?? ""

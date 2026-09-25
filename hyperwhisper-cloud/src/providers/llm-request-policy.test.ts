@@ -8,7 +8,7 @@ import { buildOpenAIBody } from './openai-llm';
 
 describe('hosted LLM output-limit policy', () => {
   test('does not translate an output cap into the OpenAI request', () => {
-    const body = buildOpenAIBody(buildCorrectionRequest('system', 'transcript'), 'gpt-5-mini');
+    const body = buildOpenAIBody(buildCorrectionRequest('system', 'transcript'), 'gpt-5.6-luna');
 
     expect(body).not.toHaveProperty('max_tokens');
     expect(body).not.toHaveProperty('max_completion_tokens');

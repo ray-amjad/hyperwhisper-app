@@ -12,15 +12,17 @@ const OPENAI_BASE_URL = 'https://api.openai.com/v1';
  * payload that buildCorrectionRequest() produces:
  *   - only the default `temperature` (1) is supported → `temperature: 0` errors,
  *     so we drop it entirely.
- * `reasoning_effort: 'minimal'` is the lowest-latency setting GPT-5 accepts and
- * keeps post-processing fast/cheap. Verified against OpenAI docs 2026-06-19.
+ * `reasoning_effort: 'none'` is the lowest-latency setting gpt-5.6-luna accepts
+ * (none|low|medium|high|xhigh|max, default medium; `'minimal'` is NOT accepted)
+ * and keeps post-processing fast/cheap. Verified against the OpenAI model doc
+ * 2026-09-25: https://developers.openai.com/api/docs/models/gpt-5.6-luna
  */
 export function buildOpenAIBody(payload: CorrectionRequestPayload, model: string): Record<string, unknown> {
   const { temperature, ...rest } = payload;
   return {
     model,
     ...rest,
-    reasoning_effort: 'minimal',
+    reasoning_effort: 'none',
     stream: false,
   };
 }

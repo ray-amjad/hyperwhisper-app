@@ -7,6 +7,7 @@
 //  and only genuine failures raise an event.
 //
 
+import AppKit
 import Foundation
 import Testing
 @testable import HyperWhisper
@@ -142,4 +143,99 @@ struct PasteOutcomeReportingTests {
                     "PasteAttempt.\(field) may carry transcript content")
         }
     }
+
+    /// #783: when the captured paste target is gone, `executePasteAsync` refuses
+    /// to paste and leaves the transcript on the clipboard for a manual Cmd+V.
+    /// Nothing was pasted, so it must not arm a clipboard restoration: with the
+    /// default settings that timer overwrites the transcript 10 s later.
+    ///
+    /// Drives the real refuse branch. The permission seam gets past the
+    /// Accessibility guard (CI never grants it). The target is this process
+    /// under a bundle ID it does not have, so `resolveCapturedTarget` rejects it
+    /// (bundle mismatch, or process not found) and `capturedTargetLost` is true.
+    /// No app is activated and no keystroke is sent.
+    ///
+    /// Settings are READ from the live `SettingsManager`, never written: they
+    /// are `@AppStorage`, and a write from this app-hosted bundle can abort the
+    /// run (see StreamingSettingsBindingTests). No other test touches the
+    /// general pasteboard or `AccessibilityHelper` paste state, so the suite
+    /// needs no `.serialized`.
+    ///
+    /// Two traits SKIP (never fail) the test on a Mac where it cannot run
+    /// honestly. Both read the live state on the main actor, because
+    /// `SettingsManager` is `@MainActor`. CI has an empty DSN and default
+    /// settings, so it runs there.
+    /// - Restore off: the #783 code arms nothing either, so the run could not
+    ///   tell the fix from the defect. The setting is read, never written.
+    /// - Sentry live: the refusal is a reportable `target_lost`, and a test must
+    ///   never send it. `SentryService.shutdown()` would stop that, but it also
+    ///   purges the on-disk Sentry queue this dev Mac shares with the installed
+    ///   app, and nothing restarts the SDK, so the test leaves Sentry alone.
+    ///
+    /// Debug only: the permission seam exists only in a Debug build, which is
+    /// the configuration the scheme and CI test with.
+    #if DEBUG
+    @Test(
+        .enabled("restoreClipboardAfterPaste is off on this Mac, so the run cannot tell the fix from #783", {
+            await MainActor.run { SettingsManager.shared.restoreClipboardAfterPaste }
+        }),
+        .enabled("Sentry reporting is live on this Mac; the refusal would send a real target_lost event", {
+            await MainActor.run { SentryService.isReportingEnabled == false }
+        })
+    )
+    func refusedPasteKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
+        let helper = AccessibilityHelper.shared
+        let pasteboard = NSPasteboard.general
+        let settings = SettingsManager.shared
+
+        // The traits checked these before the test began. Check again, so a
+        // state change in between fails the run instead of sending an event or
+        // passing vacuously.
+        try #require(settings.restoreClipboardAfterPaste)
+        try #require(SentryService.isReportingEnabled == false)
+
+        // Save the tester's clipboard and the helper state this test changes.
+        let savedClipboard: [NSPasteboardItem] = (pasteboard.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            return copy
+        }
+        let savedOriginal = helper.originalClipboardData
+        defer {
+            helper.pastePermissionOverrideForTesting = nil
+            // Also disarms the timer if a regression armed one.
+            helper.cancelPendingClipboardRestoration()
+            helper.currentPasteTask = nil
+            helper.originalClipboardData = savedOriginal
+            pasteboard.clearContents()
+            if !savedClipboard.isEmpty { pasteboard.writeObjects(savedClipboard) }
+        }
+
+        // The clipboard record-start captured: what a restoration would write back.
+        helper.originalClipboardData = [
+            AccessibilityHelper.ClipboardItemData(
+                types: [.string],
+                data: [.string: Data("clipboard before recording".utf8)]
+            )
+        ]
+        helper.pastePermissionOverrideForTesting = true
+
+        let transcript = "refused transcript #783"
+        let result = await helper.executePasteAsync(
+            transcript,
+            previousAppPID: ProcessInfo.processInfo.processIdentifier,
+            previousAppBundleID: "com.example.hyperwhisper-tests.not-this-process",
+            settings: settings
+        )
+
+        let refused: Bool
+        if case .noFocusedField = result { refused = true } else { refused = false }
+        #expect(refused, "expected the target-lost refusal (.noFocusedField), got \(result)")
+        // The #783 defect armed the restoration here, before it returned.
+        #expect(helper.activeRestorationWorkItem == nil)
+        #expect(pasteboard.string(forType: .string) == transcript)
+    }
+    #endif
 }

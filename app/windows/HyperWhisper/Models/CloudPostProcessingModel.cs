@@ -13,7 +13,7 @@ namespace HyperWhisper.Models;
 /// the macOS <c>CloudPostProcessingModel</c> struct. Persisted to the free-string
 /// <c>Mode.CloudPostProcessingModel</c> column as a <b>provider-qualified key</b>
 /// <c>"&lt;engineId&gt;:&lt;modelId&gt;"</c> (e.g. <c>cerebras:gpt-oss-120b</c>,
-/// <c>openai:gpt-5-mini</c>) so Groq and Cerebras don't collide on the shared
+/// <c>openai:gpt-5.6-luna</c>) so Groq and Cerebras don't collide on the shared
 /// <c>gpt-oss-120b</c> model id. <see cref="CloudPostProcessingModelExtensions.FromString"/>
 /// migrates every legacy value.
 /// </summary>

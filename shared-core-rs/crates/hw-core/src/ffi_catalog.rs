@@ -1540,11 +1540,11 @@ mod tests {
     #[test]
     fn cloud_pp_llm_model_header_takes_the_engine_id_first() {
         assert_eq!(
-            cloud_pp_llm_model_header("openai".to_string(), "gpt-5-nano".to_string()).as_deref(),
-            Some("gpt-5-nano")
+            cloud_pp_llm_model_header("openai".to_string(), "gpt-5.6-luna".to_string()).as_deref(),
+            Some("gpt-5.6-luna")
         );
         assert_eq!(
-            cloud_pp_llm_model_header("gpt-5-nano".to_string(), "openai".to_string()),
+            cloud_pp_llm_model_header("gpt-5.6-luna".to_string(), "openai".to_string()),
             None
         );
         assert_eq!(
@@ -1562,18 +1562,33 @@ mod tests {
     /// differ, and so do accuracy and speed, so a swapped pair fails.
     #[test]
     fn cloud_pp_default_model_mirrors_every_field() {
-        let m = cloud_pp_default_model("openai".to_string()).expect("openai has a default model");
-        assert_eq!(m.id, "gpt-5-mini");
-        assert_eq!(m.display_name, "GPT-5 mini");
-        assert_eq!(m.llm_model_header.as_deref(), Some("gpt-5-mini"));
-        assert_eq!(m.price_per_m_input, Some(0.25));
-        assert_eq!(m.price_per_m_output, Some(2.0));
+        // gemini, not openai: gpt-5.6-luna has accuracy == speed (4, 4), so it
+        // could not catch a swapped pair.
+        let m = cloud_pp_default_model("gemini".to_string()).expect("gemini has a default model");
+        assert_eq!(m.id, "gemini-2.5-flash");
+        assert_eq!(m.display_name, "Gemini 2.5 Flash");
+        assert_eq!(m.llm_model_header.as_deref(), Some("gemini-2.5-flash"));
+        assert_eq!(m.price_per_m_input, Some(0.30));
+        assert_eq!(m.price_per_m_output, Some(2.5));
         assert_eq!(m.is_default, Some(true));
         assert_eq!(m.is_recommended, Some(true));
-        assert_eq!(m.accuracy, Some(4));
+        assert_eq!(m.accuracy, Some(3));
         assert_eq!(m.speed, Some(1));
         assert_eq!(m.preview_status, Some(false));
         assert_eq!(m.enabled, Some(true));
+
+        let luna = cloud_pp_default_model("openai".to_string()).expect("openai has a default model");
+        assert_eq!(luna.id, "gpt-5.6-luna");
+        assert_eq!(luna.display_name, "GPT-5.6 Luna");
+        assert_eq!(luna.llm_model_header.as_deref(), Some("gpt-5.6-luna"));
+        assert_eq!(luna.price_per_m_input, Some(0.20));
+        assert_eq!(luna.price_per_m_output, Some(1.2));
+        assert_eq!(luna.is_default, Some(true));
+        assert_eq!(luna.is_recommended, Some(true));
+        assert_eq!(luna.accuracy, Some(4));
+        assert_eq!(luna.speed, Some(4));
+        assert_eq!(luna.preview_status, Some(false));
+        assert_eq!(luna.enabled, Some(true));
 
         assert!(cloud_pp_default_model("noSuchEngine".to_string()).is_none());
     }
@@ -1581,32 +1596,43 @@ mod tests {
     /// A non-default model is reachable by id, and carries its own flags.
     #[test]
     fn cloud_pp_model_looks_up_a_non_default_model_by_id() {
-        let m = cloud_pp_model("openai".to_string(), "gpt-5-nano".to_string())
-            .expect("gpt-5-nano is catalogued");
-        assert_eq!(m.id, "gpt-5-nano");
-        assert_eq!(m.display_name, "GPT-5 nano");
-        assert_eq!(m.price_per_m_input, Some(0.05));
+        let m = cloud_pp_model("gemini".to_string(), "gemini-2.5-flash-lite".to_string())
+            .expect("gemini-2.5-flash-lite is catalogued");
+        assert_eq!(m.id, "gemini-2.5-flash-lite");
+        assert_eq!(m.display_name, "Gemini 2.5 Flash Lite");
+        assert_eq!(m.price_per_m_input, Some(0.10));
         assert_eq!(m.price_per_m_output, Some(0.4));
         assert_eq!(m.is_default, Some(false));
         assert_eq!(m.is_recommended, Some(false));
         assert_eq!(m.accuracy, Some(2));
         assert_eq!(m.speed, Some(2));
 
-        assert!(cloud_pp_model("openai".to_string(), "no-such-model".to_string()).is_none());
-        assert!(cloud_pp_model("noSuchEngine".to_string(), "gpt-5-nano".to_string()).is_none());
+        assert!(cloud_pp_model("gemini".to_string(), "no-such-model".to_string()).is_none());
+        // Retired from the Cloud OpenAI tier (#1018).
+        assert!(cloud_pp_model("openai".to_string(), "gpt-5-nano".to_string()).is_none());
+        assert!(cloud_pp_model("noSuchEngine".to_string(), "gemini-2.5-flash-lite".to_string()).is_none());
     }
 
     /// The engine's models come back in catalog order, default first here.
     #[test]
     fn cloud_pp_models_list_the_engines_visible_models_in_catalog_order() {
-        let ids: Vec<String> = cloud_pp_models("openai".to_string())
+        let ids: Vec<String> = cloud_pp_models("gemini".to_string())
             .into_iter()
             .map(|m| m.id)
             .collect();
         assert_eq!(
             ids,
-            vec!["gpt-5-mini".to_string(), "gpt-5-nano".to_string()]
+            vec![
+                "gemini-2.5-flash".to_string(),
+                "gemini-2.5-flash-lite".to_string(),
+                "gemini-3.8-flash".to_string()
+            ]
         );
+        let openai: Vec<String> = cloud_pp_models("openai".to_string())
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        assert_eq!(openai, vec!["gpt-5.6-luna".to_string()]);
         assert!(cloud_pp_models("noSuchEngine".to_string()).is_empty());
     }
 }

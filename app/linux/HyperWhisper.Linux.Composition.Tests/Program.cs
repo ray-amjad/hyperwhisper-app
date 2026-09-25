@@ -67,6 +67,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("packaged Silero ONNX model executes silence fixture", PackagedSileroExecutes),
     ("first-run onboarding persists decisions and gates real readiness", OnboardingStateMachine),
     ("onboarding checks secure credentials and installed local models", OnboardingModeReadiness),
+    ("a second launch hands off and exits 0, a second smoke run fails", SecondLaunchHandsOff),
+    ("a failed instance acquire exits 1 from the main loop", AcquireFailureExitsOne),
 };
 
 foreach (var test in tests)
@@ -1426,6 +1428,84 @@ static async Task LocalApiPostProcessingTransientModes()
     {
         Directory.Delete(root, recursive: true);
     }
+}
+
+// #956: the real app head, launched while a listener holds its instance socket. A Shutdown that runs
+// before the dispatcher loop aborts with SIGABRT (134); a smoke run that hands off would pass with nothing drawn.
+static async Task SecondLaunchHandsOff()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-second-launch-{Guid.NewGuid():N}");
+    var socketPath = Path.Combine(root, "run", "hyperwhisper", "instance.sock");
+    Directory.CreateDirectory(Path.GetDirectoryName(socketPath)!);
+    using var holder = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.Unix, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Unspecified);
+    holder.Bind(new System.Net.Sockets.UnixDomainSocketEndPoint(socketPath));
+    holder.Listen(4);
+    // TryAcquire probes the socket with an empty connection first; only the handoff sends a byte.
+    bool Signalled()
+    {
+        var signalled = false;
+        while (holder.Poll(0, System.Net.Sockets.SelectMode.SelectRead))
+            using (var client = holder.Accept()) signalled |= client.Receive(new byte[1]) == 1;
+        return signalled;
+    }
+    try
+    {
+        var handoff = await LaunchLinuxHead(root);
+        Assert(handoff.Code == 0, $"second launch exited {handoff.Code}: {handoff.Output}");
+        Assert(Signalled(), "second launch did not signal the running instance");
+        var smoke = await LaunchLinuxHead(root, "--smoke-test");
+        Assert(smoke.Code == 1 && smoke.Output.Contains("another instance is already running", StringComparison.Ordinal),
+            $"second smoke run exited {smoke.Code}: {smoke.Output}");
+        Assert(!Signalled(), "a smoke run signalled the running instance");
+    }
+    finally { DeleteLaunchRoot(root); }
+}
+
+// #956: a regular file where the instance directory must go makes TryAcquire fail; that early exit
+// must also reach the loop (exit 1 with its stderr line), not abort with 134.
+static async Task AcquireFailureExitsOne()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-acquire-fail-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(Path.Combine(root, "run"));
+    File.WriteAllText(Path.Combine(root, "run", "hyperwhisper"), string.Empty);
+    try
+    {
+        var launch = await LaunchLinuxHead(root);
+        Assert(launch.Code == 1 && launch.Output.Contains("single-instance startup failed: single_instance.acquire_failed", StringComparison.Ordinal),
+            $"acquire-failure launch exited {launch.Code}: {launch.Output}");
+    }
+    finally { DeleteLaunchRoot(root); }
+}
+
+// Ubuntu 22.04 xvfb-run runs the command with `2>&1`, so the head's stderr can arrive on stdout; read both.
+static async Task<(int Code, string Output)> LaunchLinuxHead(string root, params string[] args)
+{
+    const string xvfbRun = "/usr/bin/xvfb-run";
+    Assert(File.Exists(xvfbRun), "xvfb-run is required to launch the Linux head");
+    var start = new ProcessStartInfo(xvfbRun) { RedirectStandardError = true, RedirectStandardOutput = true };
+    foreach (var argument in (string[])["-a", Path.Combine(AppContext.BaseDirectory, "HyperWhisper"), .. args]) start.ArgumentList.Add(argument);
+    start.Environment["HOME"] = root;
+    start.Environment["XDG_RUNTIME_DIR"] = Path.Combine(root, "run");
+    foreach (var name in (string[])["XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY"]) start.Environment.Remove(name);
+    using var process = Process.Start(start)!;
+    var error = process.StandardError.ReadToEndAsync();
+    var output = process.StandardOutput.ReadToEndAsync();
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+    try { await process.WaitForExitAsync(deadline.Token); }
+    catch (OperationCanceledException)
+    {
+        process.Kill(entireProcessTree: true);
+        var partial = await Task.WhenAll(error, output).WaitAsync(TimeSpan.FromSeconds(5)).ContinueWith(read => read.IsCompletedSuccessfully ? string.Concat(read.Result) : "(output unavailable)");
+        throw new InvalidOperationException($"the Linux head did not exit within 60 s; output: {partial}");
+    }
+    return (process.ExitCode, await error + await output);
+}
+
+// Cleanup must never mask the assertion or timeout that ended the test.
+static void DeleteLaunchRoot(string root)
+{
+    try { Directory.Delete(root, recursive: true); }
+    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { Console.Error.WriteLine($"could not delete {root}: {exception.Message}"); }
 }
 
 static async Task UntilAsync(Func<bool> condition)

@@ -59,9 +59,8 @@ public class LanguageModelInfo
         new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
         new("gpt-4.1-mini", "GPT-4.1 Mini", PostProcessingProvider.OpenAI, "Balanced (recommended)"),
         new("gpt-4.1", "GPT-4.1", PostProcessingProvider.OpenAI, "High quality"),
-        new("gpt-5-nano", "GPT-5 Nano", PostProcessingProvider.OpenAI, "Next-gen fastest"),
-        new("gpt-5-mini", "GPT-5 Mini", PostProcessingProvider.OpenAI, "Next-gen balanced"),
-        new("gpt-5", "GPT-5", PostProcessingProvider.OpenAI, "Next-gen quality"),
+        // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
+        // 2026-12-11, and MigrateModelId sends all 3 to gpt-5.6-luna.
         new("gpt-5.1", "GPT-5.1", PostProcessingProvider.OpenAI, "Latest flagship"),
         new("gpt-5.2", "GPT-5.2", PostProcessingProvider.OpenAI, "Advanced flagship"),
         new("gpt-5.4-nano", "GPT-5.4 Nano", PostProcessingProvider.OpenAI, "Fast, lightweight"),
@@ -126,8 +125,13 @@ public class LanguageModelInfo
     /// </summary>
     public static string? MigrateModelId(string? oldId) => oldId switch
     {
-        // OpenAI retirement: keep existing users on the lower-cost Nano tier.
-        "gpt-4.1-nano" => "gpt-5-nano",
+        // OpenAI: gpt-4.1-nano retires 2026-10-23 (OpenAI names gpt-5.6-luna), and the
+        // only snapshots behind gpt-5 / -mini / -nano are removed 2026-12-11. OpenAI names
+        // gpt-5.6-terra/-sol for mini/full; luna is used for all, 8x-16x cheaper (matches macOS).
+        "gpt-4.1-nano" => "gpt-5.6-luna",
+        "gpt-5-nano" => "gpt-5.6-luna",
+        "gpt-5-mini" => "gpt-5.6-luna",
+        "gpt-5" => "gpt-5.6-luna",
         // Anthropic model ID migrations
         "claude-3-haiku-20240307" => "claude-haiku-4-5",
         "claude-3-5-haiku-latest" => "claude-haiku-4-5",
@@ -184,9 +188,10 @@ public class LanguageModelInfo
         // moved to Unsloth's lowercase filename. A backup restored from such a Mac
         // carries the old id, so map it here too (macOS migrates it in-app).
         "gemma-4-12B-it-Q4_K_M.gguf" => "gemma-4-12b-it-Q4_K_M.gguf",
-        // Gemini: Gemma hosted models removed from API 2026-03-08
-        "gemma-3-12b-it" => "gemini-2.5-flash",
-        "gemma-3-27b-it" => "gemini-2.5-flash",
+        // Gemini: Gemma hosted models removed from API 2026-03-08. Target is 3.8 Flash,
+        // not 2.5 Flash: Google gates 2.5 to past users since 2026-09-18 (#1019).
+        "gemma-3-12b-it" => "gemini-3.8-flash",
+        "gemma-3-27b-it" => "gemini-3.8-flash",
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",

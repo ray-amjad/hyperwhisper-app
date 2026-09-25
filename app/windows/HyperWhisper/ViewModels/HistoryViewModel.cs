@@ -305,10 +305,12 @@ public partial class HistoryViewModel : ViewModelBase
 
         // Load modes for retry menu
         _availableModes = ModeService.Instance.GetAllModes();
-        ModeService.Instance.ModeChanged += (s, e) =>
-        {
-            AvailableModes = ModeService.Instance.GetAllModes();
-        };
+        ModeService.Instance.ModeChanged += OnModeChanged;
+    }
+
+    private void OnModeChanged(object? sender, Mode e)
+    {
+        AvailableModes = ModeService.Instance.GetAllModes();
     }
 
     private readonly DispatcherTimer _searchDebounceTimer;
@@ -964,6 +966,9 @@ public partial class HistoryViewModel : ViewModelBase
         _playbackService.PlaybackEnded -= HandlePlaybackEnded;
         _playbackService.DurationReady -= HandleDurationReady;
         _playbackService.PlaybackFailed -= HandlePlaybackFailed;
+
+        // ModeService is a singleton; this subscription would root the VM (issue #977).
+        ModeService.Instance.ModeChanged -= OnModeChanged;
 
         _playbackService.Dispose();
         _retryHandler.Dispose();

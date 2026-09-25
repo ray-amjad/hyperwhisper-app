@@ -22,11 +22,18 @@ struct PostProcessingModelResolutionTests {
             ("claude-sonnet-4-0", .anthropic, "claude-sonnet-4-5"),
             ("meta-llama/llama-4-maverick-17b-128e-instruct", .groq, "openai/gpt-oss-120b"),
             ("zai-glm-4.7", .cerebras, "gpt-oss-120b"),
-            ("gpt-4.1-nano", .openai, "gpt-5-nano"),
+            ("gpt-4.1-nano", .openai, "gpt-5.6-luna"),
+            // OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11 (#1018).
+            ("gpt-5-nano", .openai, "gpt-5.6-luna"),
+            ("gpt-5-mini", .openai, "gpt-5.6-luna"),
+            ("gpt-5", .openai, "gpt-5.6-luna"),
             ("gemini-3-pro-preview", .gemini, "gemini-3.1-pro-preview"),
             ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
             ("gemini-2.0-flash", .gemini, "gemini-3.6-flash"),
             ("gemini-2.0-flash-lite", .gemini, "gemini-3.1-flash-lite"),
+            // Gemma hosted models left the Gemini API 2026-03-08 (#1019, matches Windows).
+            ("gemma-3-12b-it", .gemini, "gemini-3.8-flash"),
+            ("gemma-3-27b-it", .gemini, "gemini-3.8-flash"),
             ("llama3.1-8b", .cerebras, "qwen-3.8-27b"),
             ("llama-3.1-8b", .cerebras, "qwen-3.8-27b"),
             // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
@@ -55,12 +62,22 @@ struct PostProcessingModelResolutionTests {
         ])
         #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
         #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")
-        #expect(PostProcessingModels.model(withId: "gpt-5-nano", provider: .openai) != nil)
+        // #1018: the gpt-5 family rows are deleted, not hidden. A stored id still
+        // shows the name of the model that runs, through the redirect to luna.
+        for retiredId in ["gpt-5-nano", "gpt-5-mini", "gpt-5"] {
+            #expect(PostProcessingModels.model(withId: retiredId, provider: .openai) == nil)
+            #expect(PostProcessingModels.displayName(for: retiredId, provider: .openai) == "GPT-5.6 Luna")
+        }
         #expect(PostProcessingModels.model(withId: "qwen-3.8-27b", provider: .cerebras) != nil)
         #expect(PostProcessingModels.model(withId: "qwen/qwen3.8-27b", provider: .groq) != nil)
         // Removing the Cerebras row must not move the provider default, which
         // pickers resolve as `models(for:).first`.
         #expect(PostProcessingModels.defaultModel(for: .cerebras)?.id == "gpt-oss-120b")
+        // #1019: Google gates the 2.5 models to past users, so a new BYOK Gemini key
+        // defaults to 3.8 Flash. The 2.5 rows stay selectable for existing users.
+        #expect(PostProcessingProvider.gemini.defaultModel == "gemini-3.8-flash")
+        #expect(PostProcessingModels.defaultModel(for: .gemini)?.id == "gemini-3.8-flash")
+        #expect(PostProcessingModels.models(for: .gemini).contains(where: { $0.id == "gemini-2.5-flash" }))
     }
 
     @Test func unknownIdIsLeftUnresolvedSoCallersFallBackToOptionsFirst() {

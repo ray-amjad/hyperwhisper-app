@@ -46,8 +46,7 @@ extension AccessibilityHelper {
             kAXFocusedUIElementAttribute as CFString,
             &focused
         )
-        guard focusResult == .success, let element = focused else { return .unknown }
-        let axElement = element as! AXUIElement
+        guard focusResult == .success, let axElement = AXCast.element(focused) else { return .unknown }
 
         var rangeValue: CFTypeRef?
         let rangeResult = AXUIElementCopyAttributeValue(
@@ -55,9 +54,9 @@ extension AccessibilityHelper {
             kAXSelectedTextRangeAttribute as CFString,
             &rangeValue
         )
-        guard rangeResult == .success, let rangeRef = rangeValue else { return .unknown }
+        guard rangeResult == .success, let rangeRef = AXCast.value(rangeValue) else { return .unknown }
         var range = CFRange(location: 0, length: 0)
-        guard AXValueGetValue(rangeRef as! AXValue, .cfRange, &range) else { return .unknown }
+        guard AXValueGetValue(rangeRef, .cfRange, &range) else { return .unknown }
 
         // Caret at very start of field → sentence start.
         if range.location <= 0 { return .startOfSentence }

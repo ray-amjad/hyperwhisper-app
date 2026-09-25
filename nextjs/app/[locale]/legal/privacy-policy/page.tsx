@@ -64,12 +64,77 @@ export default function PrivacyPolicyPage() {
           ) for purchases, refunds, and fraud prevention.
         </li>
         <li>
+          <strong>Crash and performance diagnostics</strong>: The HyperWhisper
+          desktop apps for macOS, Windows, and Linux send diagnostics to{" "}
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://sentry.io/privacy/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Sentry
+          </a>
+          , our error-monitoring provider. This is on by default. You can turn
+          it off in Settings → General with the switch labelled &quot;Error
+          logging&quot; on macOS and &quot;Send error reports&quot; on Windows
+          and Linux. When you turn it off, the app stops collecting new
+          diagnostics. On Windows and Linux, reports that are already waiting on
+          your device can still be sent at that moment, and on macOS one final
+          session record can be sent. The diagnostics include:
+          <ul>
+            <li>
+              Crash and error reports with technical details about the error,
+              and other diagnostic events and records about how the app is
+              running. On macOS, this includes routine diagnostic log records
+              that are sent even when nothing has gone wrong.
+            </li>
+            <li>
+              Release-health session data: records of app sessions and whether
+              they ended in a crash.
+            </li>
+            <li>
+              Performance traces (timings of operations in the app) on macOS and
+              Windows, and CPU profiles (samples of which parts of the
+              app&apos;s code were running) on macOS. The Linux app does not
+              currently record performance traces.
+            </li>
+            <li>
+              Identifiers: your IP address, the app version, your operating
+              system version, your CPU architecture, and an identifier for your
+              installation of the app that stays the same from one launch to the
+              next and is linked to your sessions. On Windows and Linux, this
+              also includes your computer&apos;s name, and on Linux the name of
+              your user account on it.
+            </li>
+            <li>
+              Context about what the app was doing. For example, this can
+              include the names of your audio input devices and the name of the
+              app you were dictating into with the number of characters pasted
+              (macOS and Windows), and file paths on your computer. On macOS, a
+              file path can contain the name of your user account.
+            </li>
+          </ul>
+          No audio is attached to a report, so a report cannot give us your
+          recordings. Report fields named for transcripts, text, or prompts are
+          replaced with &quot;[redacted]&quot; before the report is sent. On
+          macOS, an error report can also include recent lines from the
+          app&apos;s own log. Those lines are filtered to remove some personal
+          details, such as home-folder paths, email addresses, IPv4 addresses,
+          and some text that looks like transcript content.
+        </li>
+        <li>
           <strong>License information</strong>: The app contacts our licensing
           service to activate and validate your license. During this process, we
           receive your Account Key, a SHA-256 hash of your device&apos;s
           hardware identifier (we never receive the raw identifier), and your
           device&apos;s hostname. This information is used to enforce our fair
           usage policy. No audio or transcripts are transmitted.
+        </li>
+        <li>
+          <strong>Custom vocabulary</strong>: When you use HyperWhisper Cloud,
+          our servers receive your custom vocabulary terms with each
+          transcription or post-processing request and pass them to the
+          provider that handles it.
         </li>
       </ul>
 
@@ -89,7 +154,16 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <strong>Settings and vocabulary</strong>: App preferences and optional
-          custom vocabulary are stored locally.
+          custom vocabulary are stored locally. When you use cloud
+          transcription, the transcription provider receives your vocabulary
+          terms with your audio as a spelling hint. With HyperWhisper Cloud,
+          the terms pass through our servers to that provider, and to the
+          post-processing provider when you use HyperWhisper Cloud
+          post-processing. When you use local models for
+          both transcription and post-processing, no transcription or
+          post-processing provider receives your vocabulary. On macOS, if you
+          turn on iCloud Sync for vocabulary, Apple stores your vocabulary
+          (words and replacements) in your iCloud account.
         </li>
       </ul>
 
@@ -187,7 +261,8 @@ export default function PrivacyPolicyPage() {
       </ul>
       <p>
         <strong>Third-party post-processing providers</strong> (bring your own
-        API key) — these services receive your transcribed text for correction
+        API key) — these services, and any custom endpoint you add, receive
+        your transcribed text and your custom vocabulary terms for correction
         and formatting:
       </p>
       <ul>
@@ -316,7 +391,76 @@ export default function PrivacyPolicyPage() {
           (GPT-OSS-120B) — fallback provider. Falls back to Cerebras on
           failure.
         </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://www.anthropic.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Anthropic (Claude)
+          </a>{" "}
+          (Claude Haiku 4.5). Falls back to Cerebras on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://x.ai/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            SpaceXAI (Grok)
+          </a>{" "}
+          (Grok 4.3). Falls back to Anthropic on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://openai.com/policies/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            OpenAI
+          </a>{" "}
+          (GPT-5 mini or GPT-5 nano). Falls back to Anthropic on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://policies.google.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google (Gemini)
+          </a>{" "}
+          (Gemini 2.5 Flash, Gemini 2.5 Flash-Lite or Gemini 3.8 Flash). Falls
+          back to Cerebras on failure.
+        </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://mistral.ai/terms/#privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Mistral
+          </a>{" "}
+          (Mistral Small). Falls back to Groq on failure.
+        </li>
       </ul>
+      <p>
+        These providers receive your transcribed text, and the context
+        described under &quot;Screen Text and app context&quot; below, to
+        correct and format it. This post-processing request carries no audio.
+        Grok and Mistral store request data for approximately 30 days for
+        abuse monitoring, and do not use it to train their models. A request
+        goes to the fallback named above in only two cases: the provider still
+        returns a server error after any automatic retries, or its reply
+        repeats our instructions instead of your corrected text. So one
+        request can reach at most three providers in this list — for example
+        Grok, then Anthropic after a server error, then Cerebras if
+        Anthropic&apos;s reply repeats the instructions.
+      </p>
       <p>
         Where available, we have configured zero data retention on our
         provider accounts — for example, Deepgram&apos;s data retention is set
@@ -349,6 +493,73 @@ export default function PrivacyPolicyPage() {
           apps
         </a>{" "}
         on GitHub.
+      </p>
+
+      <h3>Medical Mode</h3>
+      <p>
+        With HyperWhisper Cloud, a mode that uses AssemblyAI can be set to the{" "}
+        <strong>medical</strong> Transcription Domain. Our edge servers then
+        send the audio to AssemblyAI with its Medical Mode add-on turned on.
+        AssemblyAI processes it on HyperWhisper Cloud&apos;s own AssemblyAI
+        account, under{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://www.assemblyai.com/legal/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          AssemblyAI&apos;s privacy policy
+        </a>
+        , and we do not promise zero data retention there. A HyperWhisper
+        Cloud mode can also use Deepgram&apos;s Nova-3 Medical or Nova-2
+        Medical model. These options tune transcription for clinical
+        vocabulary. For these HyperWhisper Cloud medical requests, our edge
+        servers do not write
+        the audio or the transcript to our own storage. If Deepgram cannot
+        take a request,
+        HyperWhisper Cloud can send it to Groq or ElevenLabs as described
+        above, and they do not use a medical model. Live streaming through
+        HyperWhisper Cloud does not use a medical model. With your own
+        AssemblyAI or Deepgram API key, you can instead choose AssemblyAI&apos;s
+        Universal-2 Medical or Universal-3.5 Pro Medical model, or
+        Deepgram&apos;s Nova-3 Medical or Nova-2 Medical model (Nova-3 Medical
+        also for live streaming); your audio then goes from your device
+        directly to that provider, under your own account, and not through our
+        servers. If post-processing is on, the
+        transcript also goes to the post-processing provider you use. Each
+        provider processes your data under its own terms, and you must review
+        them before you dictate about a patient.
+      </p>
+      <p>
+        Medical Mode is a vocabulary and formatting feature only. We are not a
+        healthcare provider, and we do not sign a Business Associate Agreement
+        (BAA). HyperWhisper, including HyperWhisper Cloud and Medical Mode, is
+        not offered as HIPAA-compliant or as fit for regulated clinical record
+        keeping.
+      </p>
+
+      <h3>Screen Text and app context</h3>
+      <p>
+        The post-processing request sent to the provider you choose
+        (HyperWhisper Cloud, a bring-your-own-key provider, or a custom
+        endpoint you add) carries more than your transcribed text. It includes your
+        computer&apos;s name, local time, time zone and locale. It can also
+        include the name of the app in front, the window or browser tab title,
+        the website host, the type and label of the focused field, and up to
+        100 characters of the text in that field or of the text you have
+        selected. A mode can also turn on <strong>Screen Text</strong>,
+        which is off by default in every mode. When a recording starts, the app
+        reads the text on the display that shows your active window (on macOS,
+        the main display when it cannot find that window; on Linux, the area
+        you select in the screenshot prompt) and adds up to 2,000
+        characters of it to the request. Text recognition runs on your device:
+        the screenshot itself is never sent, only the recognized text. On macOS
+        and Windows, no screenshot is taken when HyperWhisper itself is the app
+        in front. When HyperWhisper identifies the app in front as sensitive,
+        such as a password manager, the screen text and the field or selected text
+        are left out, but the app name, the window or tab title, the website host
+        and the field type and label are still sent. When post-processing is
+        off, none of this is sent to a post-processing provider.
       </p>
 
       <h2>Payments and Licensing</h2>
@@ -427,6 +638,20 @@ export default function PrivacyPolicyPage() {
         advertising purposes.
       </p>
       <p>
+        The desktop apps use{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://sentry.io/privacy/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Sentry
+        </a>
+        , our error-monitoring provider, for crash and performance diagnostics,
+        as described under What We Collect. You can turn it off in Settings →
+        General.
+      </p>
+      <p>
         Our website pages embed an AI support chat widget served by{" "}
         <a
           className="text-blue-600 dark:text-blue-400 hover:underline"
@@ -460,6 +685,13 @@ export default function PrivacyPolicyPage() {
         order, or license information we maintain, you may request access or
         deletion by contacting support. Some information must be retained for
         legal/accounting purposes.
+      </p>
+      <p>
+        If you dictated patient information with the Medical Mode options
+        described above, through HyperWhisper Cloud or your own API key, we hold
+        neither the audio nor the transcript, so delete them on your device as
+        described above. Any copy a provider keeps is governed by that
+        provider&apos;s terms.
       </p>
 
       <h2>International Transfers</h2>

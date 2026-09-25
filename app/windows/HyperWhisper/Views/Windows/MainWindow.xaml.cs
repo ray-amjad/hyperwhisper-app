@@ -63,6 +63,9 @@ public partial class MainWindow : Window
         // call to action rather than navigating, because navigation lives here.
         Sidebar.CloudCreditsRequested += CloudCreditsSidebar_Click;
 
+        // No back UI, so the journal would only keep every visited page alive (issue #977).
+        FrameJournal.KeepNoBackStack(ContentFrame);
+
         // RECORDING OVERLAY EVENTS
         // Show/hide overlay based on ViewModel state and ShowRecordingWindow setting
         _viewModel.ShowOverlayRequested += (s, e) => Dispatcher.Invoke(() =>

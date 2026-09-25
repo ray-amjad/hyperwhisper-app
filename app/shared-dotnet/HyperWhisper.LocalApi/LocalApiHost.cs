@@ -1,4 +1,5 @@
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using HyperWhisper.Platform.Abstractions;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -47,6 +48,7 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
     private readonly string[] _allowedFileRoots;
     private readonly Func<int, string, CancellationToken, Task<Microsoft.AspNetCore.Builder.WebApplication>> _startApplication;
     private Microsoft.AspNetCore.Builder.WebApplication? _application;
+    private PosixSignalRegistration[] _signalCleanup = [];
     private LocalApiHostState _state = LocalApiHostState.Stopped;
     private int _disposed;
 
@@ -156,18 +158,23 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
                     : LocalApiHostState.Failed("local_api.cleanup", "The invalid Local API listener stopped, but discovery cleanup could not be confirmed.");
             }
 
+            // Register before the write, so the file never exists without a
+            // signal cleanup behind it (issue #957).
+            var signalCleanup = RegisterSignalCleanup();
             var discovery = new LocalApiDiscovery(address.Port, Environment.ProcessId, DateTimeOffset.UtcNow.ToString("O"), 1, _appVersion, token);
             var write = _privateFiles.WriteAllTextAtomically(_discoveryPath, JsonSerializer.Serialize(discovery, DiscoveryJson));
             var restricted = write.IsSuccess ? _privateFiles.IsRestrictedToCurrentUser(_discoveryPath) : PlatformResult<bool>.Failure("local_api.discovery", "Discovery write failed.");
             if (write.IsFailure || restricted.IsFailure || restricted.Value != true)
             {
                 var cleaned = await CleanupFailedStartAsync(application).ConfigureAwait(false);
+                DisposeAll(signalCleanup);
                 return _state = cleaned
                     ? LocalApiHostState.Failed("local_api.discovery", "The Local API discovery file could not be written privately.")
                     : LocalApiHostState.Failed("local_api.cleanup", "The Local API discovery write failed and cleanup could not be confirmed.");
             }
 
             _application = application;
+            _signalCleanup = signalCleanup;
             return _state = new(true, address.Port, address.ToString(), null);
         }
         finally { _lifecycle.Release(); }
@@ -193,6 +200,9 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
                 catch (Exception exception) { shutdownFailure ??= exception; }
             }
             var deleted = _privateFiles.Delete(_discoveryPath);
+            // Only now: a signal during the drain above must still delete the file.
+            DisposeAll(_signalCleanup);
+            _signalCleanup = [];
             if (deleted.IsFailure) return _state = LocalApiHostState.Failed("local_api.cleanup", "The Local API stopped but its discovery file could not be removed.");
             if (shutdownFailure is not null)
                 return _state = LocalApiHostState.Failed("local_api.shutdown", "The Local API discovery file was removed, but the web host reported a shutdown failure.");
@@ -224,6 +234,40 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
         {
             await application.DisposeAsync().ConfigureAwait(false);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Issue #957: SIGTERM, SIGINT and SIGQUIT end the process by the runtime
+    /// default, so StopAsync never runs, and ProcessExit does not fire for them
+    /// (measured on .NET 10). Delete the discovery file, which names a live
+    /// token, and leave Cancel false so the default still ends the process.
+    /// Never throws: if a registration fails, the API still runs, without the
+    /// signal cleanup, so StartAsync keeps returning a state.
+    /// </summary>
+    private PosixSignalRegistration[] RegisterSignalCleanup()
+    {
+        void Cleanup(PosixSignalContext _) { try { _privateFiles.Delete(_discoveryPath); } catch (Exception) { } }
+        var registrations = new List<PosixSignalRegistration>(3);
+        try
+        {
+            foreach (var signal in new[] { PosixSignal.SIGTERM, PosixSignal.SIGINT, PosixSignal.SIGQUIT })
+                registrations.Add(PosixSignalRegistration.Create(signal, Cleanup));
+            return [.. registrations];
+        }
+        catch (Exception)
+        {
+            DisposeAll(registrations);
+            return [];
+        }
+    }
+
+    private static void DisposeAll(IEnumerable<PosixSignalRegistration> registrations)
+    {
+        foreach (var registration in registrations)
+        {
+            try { registration.Dispose(); }
+            catch (Exception) { }
         }
     }
 
