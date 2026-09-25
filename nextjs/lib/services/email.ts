@@ -1,4 +1,5 @@
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
+import { emailTag } from "@/lib/shared/redact";
 import {
   licenseEmailHtml,
   licenseEmailText,
@@ -203,11 +204,13 @@ class EmailService {
     // failure is kept as-is and its message is read behind an `instanceof`
     // check instead of asserting it is an Error.
     let lastError: unknown;
+    // Logs carry a hash tag of the address, never the address itself (#717).
+    const recipientTag = emailTag(customerEmail);
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(
-          `Sending ${kind} email to ${customerEmail} (attempt ${attempt}/${this.maxRetries})`,
+          `Sending ${kind} email to ${recipientTag} (attempt ${attempt}/${this.maxRetries})`,
         );
 
         const result = await send();
@@ -223,7 +226,7 @@ class EmailService {
           );
         }
 
-        console.log(`${capitalize(kind)} email sent successfully to ${customerEmail}`);
+        console.log(`${capitalize(kind)} email sent successfully to ${recipientTag}`);
 
         await this.safeLogSentEmail({
           recipient: customerEmail,

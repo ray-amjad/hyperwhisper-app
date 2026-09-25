@@ -155,7 +155,9 @@ test("a license purchase fails loudly when the user cannot be created", async ()
   behaviour.user = null;
 
   await assert.rejects(handleLicensePurchase(checkoutSession()), {
-    message: "Failed to create user for Buyer@Example.com ",
+    // The address is logged as its #717 tag (sha256 of "buyer@example.com"),
+    // never in the clear — the webhook route logs this message.
+    message: "Failed to create user for 6a6c26195c36",
   });
 
   assert.deepEqual(calls.insertAccountKey, []);
@@ -484,7 +486,8 @@ test("a mint fails loudly when the user cannot be created", async () => {
 
   await assert.rejects(
     handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1"),
-    { message: "Failed to create user for Buyer@Example.com " },
+    // #717: the tag of "buyer@example.com", not the address.
+    { message: "Failed to create user for 6a6c26195c36" },
   );
 
   assert.deepEqual(calls.insertAccountKey, []);
