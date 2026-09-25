@@ -414,11 +414,23 @@ export default function PrivacyPolicyPage() {
       <p>
         With HyperWhisper Cloud, a mode that uses AssemblyAI can be set to the{" "}
         <strong>medical</strong> Transcription Domain. Our edge servers then
-        send the audio to AssemblyAI with its Medical Mode add-on turned on. A
-        HyperWhisper Cloud mode can also use Deepgram&apos;s Nova-3 Medical or
-        Nova-2 Medical model. These options tune transcription for clinical
-        vocabulary. As with every HyperWhisper Cloud request, we do not store
-        the audio or the transcript. If Deepgram cannot take a request,
+        send the audio to AssemblyAI with its Medical Mode add-on turned on.
+        AssemblyAI processes it on HyperWhisper Cloud&apos;s own AssemblyAI
+        account, under{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://www.assemblyai.com/legal/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          AssemblyAI&apos;s privacy policy
+        </a>
+        , and we do not promise zero data retention there. A HyperWhisper
+        Cloud mode can also use Deepgram&apos;s Nova-3 Medical or Nova-2
+        Medical model. These options tune transcription for clinical
+        vocabulary. For these medical requests, our edge servers do not write
+        the audio or the transcript to our own storage. If Deepgram cannot
+        take a request,
         HyperWhisper Cloud can send it to Groq or ElevenLabs as described
         above, and they do not use a medical model. Live streaming through
         HyperWhisper Cloud does not use a medical model. If you choose Nova 3
@@ -566,9 +578,9 @@ export default function PrivacyPolicyPage() {
         legal/accounting purposes.
       </p>
       <p>
-        If you dictated patient information, including in Medical Mode, we
-        hold neither the audio nor the transcript, so delete them on your
-        device as described above. Any copy a provider keeps is governed by
+        If you dictated patient information with the Medical Mode options
+        described above, we hold neither the audio nor the transcript, so
+        delete them on your device as described above. Any copy a provider keeps is governed by
         that provider&apos;s terms.
       </p>
 
