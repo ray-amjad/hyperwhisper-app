@@ -802,7 +802,9 @@ static async Task RealLoopbackLifecycle()
 /// SIGINT/SIGTERM/SIGQUIT, cancels the process exit and only stops the web
 /// host — so the Linux app ignored `kill -TERM` while the Local API was on.
 /// A child process hosts a real listener, gets the signal, and must exit; an
-/// idle `Task.Delay(Infinite)` stands in for the Avalonia main loop.
+/// idle `Task.Delay` stands in for the Avalonia main loop. The child runs the
+/// real `PortableLocalApiHost`, so its discovery file (port, pid, live token)
+/// must be gone once the signal has ended it.
 /// </summary>
 static async Task SignalsEndTheProcess()
 {
@@ -815,20 +817,29 @@ static async Task SignalsEndTheProcess()
     foreach (var (name, signal) in new[] { ("SIGTERM", 15), ("SIGINT", 2) })
     {
         using var child = SignalChild.Start();
+        string? discovery = null;
         try
         {
             string? line;
             do line = await child.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(30));
             while (line is not null && !line.StartsWith("READY ", StringComparison.Ordinal));
             Assert(line is not null, $"{name}: the child exited before its listener was ready");
-            using var client = new HttpClient { BaseAddress = new Uri(line!["READY ".Length..]) };
+            var ready = line!.Split(' ', 3);
+            discovery = ready[2];
+            Assert(File.Exists(discovery), $"{name}: the child did not write its discovery file");
+            using var client = new HttpClient { BaseAddress = new Uri(ready[1]) };
             Assert((await client.GetAsync("/health")).StatusCode == HttpStatusCode.OK, $"{name}: the child listener did not answer /health");
             Assert(SignalChild.Send(child.Id, signal) == 0, $"{name}: kill() failed");
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             try { await child.WaitForExitAsync(deadline.Token); }
             catch (OperationCanceledException) { Assert(false, $"{name} did not end a process hosting the Local API within 10 s"); }
+            Assert(!File.Exists(discovery), $"{name} left the discovery file and its bearer token on disk");
         }
-        finally { if (!child.HasExited) child.Kill(entireProcessTree: true); }
+        finally
+        {
+            if (!child.HasExited) child.Kill(entireProcessTree: true);
+            if (discovery is not null) Directory.Delete(Path.GetDirectoryName(discovery)!, recursive: true);
+        }
     }
 }
 
@@ -2379,9 +2390,11 @@ static class SignalChild
 
     public static async Task HostUntilSignalledAsync()
     {
-        await using var app = PortableLocalApi.Build([], new PortableLocalApiOptions(Fixture.Token, 0), new FakeBackend());
-        await app.StartAsync();
-        Console.WriteLine($"READY {app.Urls.First()}");
+        var paths = new TempPaths();
+        var host = new PortableLocalApiHost(new DiskPrivateFiles(), paths, new FakeBackend(), "1.0", 0);
+        var state = await host.StartAsync();
+        if (!state.IsRunning) throw new InvalidOperationException($"child host did not start: {state.Failure}");
+        Console.WriteLine($"READY {state.BaseAddress} {host.DiscoveryPath}");
         await Task.Delay(Timeout.Infinite);
     }
 

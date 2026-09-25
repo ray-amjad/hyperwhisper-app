@@ -1,4 +1,5 @@
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using HyperWhisper.Platform.Abstractions;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -47,6 +48,7 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
     private readonly string[] _allowedFileRoots;
     private readonly Func<int, string, CancellationToken, Task<Microsoft.AspNetCore.Builder.WebApplication>> _startApplication;
     private Microsoft.AspNetCore.Builder.WebApplication? _application;
+    private PosixSignalRegistration[] _signalCleanup = [];
     private LocalApiHostState _state = LocalApiHostState.Stopped;
     private int _disposed;
 
@@ -168,6 +170,7 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
             }
 
             _application = application;
+            _signalCleanup = RegisterSignalCleanup();
             return _state = new(true, address.Port, address.ToString(), null);
         }
         finally { _lifecycle.Release(); }
@@ -184,6 +187,8 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
             var wasCancelled = cancellationToken.IsCancellationRequested;
             var application = _application;
             _application = null;
+            foreach (var registration in _signalCleanup) registration.Dispose();
+            _signalCleanup = [];
             Exception? shutdownFailure = null;
             if (application is not null)
             {
@@ -225,6 +230,19 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
             await application.DisposeAsync().ConfigureAwait(false);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Issue #957: SIGTERM, SIGINT and SIGQUIT end the process by the runtime
+    /// default, so StopAsync never runs, and ProcessExit does not fire for them
+    /// (measured on .NET 10). Delete the discovery file, which names a live
+    /// token, and leave Cancel false so the default still ends the process.
+    /// </summary>
+    private PosixSignalRegistration[] RegisterSignalCleanup()
+    {
+        void Cleanup(PosixSignalContext _) { try { _privateFiles.Delete(_discoveryPath); } catch (Exception) { } }
+        try { return [PosixSignalRegistration.Create(PosixSignal.SIGTERM, Cleanup), PosixSignalRegistration.Create(PosixSignal.SIGINT, Cleanup), PosixSignalRegistration.Create(PosixSignal.SIGQUIT, Cleanup)]; }
+        catch (PlatformNotSupportedException) { return []; }
     }
 
     private async Task<bool> CleanupFailedStartAsync(Microsoft.AspNetCore.Builder.WebApplication application)
