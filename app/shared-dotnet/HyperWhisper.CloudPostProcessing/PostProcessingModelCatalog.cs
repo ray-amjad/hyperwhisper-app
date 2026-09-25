@@ -14,8 +14,7 @@ public static class PostProcessingModelCatalog
             [CloudPostProcessingProvider.OpenAi] =
             [
                 new("gpt-5.6-luna", "GPT-5.6 Luna"), new("gpt-4.1-mini", "GPT-4.1 Mini"),
-                new("gpt-4.1", "GPT-4.1"), new("gpt-5-nano", "GPT-5 Nano"),
-                new("gpt-5-mini", "GPT-5 Mini"), new("gpt-5", "GPT-5"),
+                new("gpt-4.1", "GPT-4.1"),
                 new("gpt-5.1", "GPT-5.1"), new("gpt-5.2", "GPT-5.2"),
                 new("gpt-5.4-nano", "GPT-5.4 Nano"), new("gpt-5.4-mini", "GPT-5.4 Mini"),
                 new("gpt-5.4", "GPT-5.4"),
@@ -61,7 +60,9 @@ public static class PostProcessingModelCatalog
 
     private static string? Migrate(string? model) => model switch
     {
-        "gpt-4.1-nano" => "gpt-5-nano",
+        // gpt-4.1-nano retires 2026-10-23; gpt-5 / -mini / -nano lose their only snapshots
+        // 2026-12-11. All four go to gpt-5.6-luna (matches Windows and macOS).
+        "gpt-4.1-nano" or "gpt-5-nano" or "gpt-5-mini" or "gpt-5" => "gpt-5.6-luna",
         "claude-3-haiku-20240307" or "claude-3-5-haiku-latest" or "claude-haiku-4.5" or
             "claude-haiku-4-5-latest" => "claude-haiku-4-5",
         "claude-sonnet-4-20250514" or "claude-sonnet-4-0" or "claude-sonnet-4-5-latest" => "claude-sonnet-4-5",
@@ -75,7 +76,9 @@ public static class PostProcessingModelCatalog
         "grok-4-1-fast-non-reasoning" or "grok-4.1-fast-non-reasoning" or "grok-4-fast-non-reasoning" or
             "grok-4-1-fast-reasoning" or "grok-4-fast-reasoning" => "grok-4.3",
         "open-mistral-nemo" => "mistral-small-latest",
-        "gemma-3-12b-it" or "gemma-3-27b-it" => "gemini-2.5-flash",
+        // Gemma hosted models left the API 2026-03-08. 3.8 Flash, not 2.5 Flash: Google
+        // gates 2.5 to past users since 2026-09-18 (#1019). Matches Windows.
+        "gemma-3-12b-it" or "gemma-3-27b-it" => "gemini-3.8-flash",
         "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
         "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
         "gemini-2.0-flash" => "gemini-3.6-flash",

@@ -264,7 +264,9 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
         case .anthropic:
             return "claude-3-5-haiku-latest"
         case .gemini:
-            return "gemini-2.5-flash"
+            // Google limits the 2.5 models to past users since 2026-09-18 and tells new
+            // projects to use 3.8 Flash, so a fresh BYOK key must not land on 2.5 (#1019).
+            return "gemini-3.8-flash"
         case .groq:
             return "openai/gpt-oss-120b"
         case .grok:

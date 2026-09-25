@@ -51,7 +51,8 @@ static Task TestModelRegistry()
 {
     var expected = new Dictionary<CloudPostProcessingProvider, int>
     {
-        [CloudPostProcessingProvider.OpenAi] = 11,
+        // 11 → 8: gpt-5 / -mini / -nano deleted 2026-09-25 (#1018); Migrate sends them to gpt-5.6-luna.
+        [CloudPostProcessingProvider.OpenAi] = 8,
         [CloudPostProcessingProvider.Anthropic] = 4,
         // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
         // dead gemma-4-31b was REPLACED by qwen-3.8-27b, not joined by it.
@@ -63,6 +64,21 @@ static Task TestModelRegistry()
     };
     foreach (var item in expected)
         Assert(PostProcessingModelCatalog.ForProvider(item.Key).Count == item.Value, $"{item.Key} model parity mismatch");
+    // #1018: the retired OpenAI ids resolve to gpt-5.6-luna, not to the provider's first row.
+    foreach (var retired in new[] { "gpt-4.1-nano", "gpt-5-nano", "gpt-5-mini", "gpt-5" })
+    {
+        Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.OpenAi, retired) == "gpt-5.6-luna",
+            $"{retired} did not resolve to gpt-5.6-luna");
+        Assert(PostProcessingModelCatalog.ForProvider(CloudPostProcessingProvider.OpenAi).All(model => model.Id != retired),
+            $"{retired} is still listed");
+    }
+    // #1019: the retired Gemma ids resolve to gemini-3.8-flash (not the gated 2.5 Flash,
+    // and not the provider first row gemini-3-flash-preview).
+    foreach (var retired in new[] { "gemma-3-12b-it", "gemma-3-27b-it" })
+        Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, retired) == "gemini-3.8-flash",
+            $"{retired} did not resolve to gemini-3.8-flash");
+    Assert(PostProcessingModelCatalog.ResolveModel(CloudPostProcessingProvider.Gemini, "gemini-2.5-flash") == "gemini-2.5-flash",
+        "gemini-2.5-flash must stay a selectable row, not a redirect");
     return Task.CompletedTask;
 }
 

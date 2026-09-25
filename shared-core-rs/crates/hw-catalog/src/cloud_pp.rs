@@ -290,14 +290,19 @@ mod tests {
     #[test]
     fn multi_model_default_and_visible_models() {
         let c = catalog();
-        // openai lists gpt-5-mini (default) + gpt-5-nano.
-        let models = c.models("openai");
-        assert_eq!(models.len(), 2);
-        let dm = c.default_model("openai").unwrap();
-        assert_eq!(dm.id, "gpt-5-mini");
+        // gemini lists gemini-2.5-flash (default) + 2.5-flash-lite + 3.8-flash.
+        let models = c.models("gemini");
+        assert_eq!(models.len(), 3);
+        let dm = c.default_model("gemini").unwrap();
+        assert_eq!(dm.id, "gemini-2.5-flash");
         // Specific lookup.
-        let nano = c.model("openai", "gpt-5-nano").unwrap();
-        assert_eq!(nano.price_per_m_input, Some(0.05));
+        let lite = c.model("gemini", "gemini-2.5-flash-lite").unwrap();
+        assert_eq!(lite.price_per_m_input, Some(0.10));
+        // openai is down to gpt-5.6-luna alone (#1018): gpt-5-mini / gpt-5-nano
+        // lose their only snapshots 2026-12-11.
+        assert_eq!(c.models("openai").len(), 1);
+        assert_eq!(c.default_model("openai").unwrap().id, "gpt-5.6-luna");
+        assert!(c.model("openai", "gpt-5-nano").is_none());
     }
 
     // --- Golden: disabled gate hides engine + model -------------------------

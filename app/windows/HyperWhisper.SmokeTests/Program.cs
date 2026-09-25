@@ -824,11 +824,14 @@ internal static class Program
             {
                 var cases = new (string OldId, string Replacement)[]
                 {
-                    ("gpt-4.1-nano", "gpt-5-nano"),
+                    ("gpt-4.1-nano", "gpt-5.6-luna"),
                     ("gemini-3-pro-preview", "gemini-3.1-pro-preview"),
                     ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
                     ("gemini-2.0-flash", "gemini-3.6-flash"),
                     ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
+                    // #1019: 3.8 Flash, not the 2.5 Flash that Google now gates to past users.
+                    ("gemma-3-12b-it", "gemini-3.8-flash"),
+                    ("gemma-3-27b-it", "gemini-3.8-flash"),
                     ("llama3.1-8b", "qwen-3.8-27b"),
                     ("llama-3.1-8b", "qwen-3.8-27b"),
                     // Cerebras removed gemma-4-31b from the public endpoints 2026-09-03.
@@ -848,6 +851,29 @@ internal static class Program
 
                 Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
                     "new OpenAI modes should default to GPT-5.6 Luna");
+            });
+
+            // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
+            // rows are deleted and every id migrates to gpt-5.6-luna, so a mode card for a
+            // stored id names luna, the model that runs.
+            Run("Retired gpt-5 family ids migrate to GPT-5.6 Luna and display as Luna", () =>
+            {
+                var openAiPicker = LanguageModelInfo.GetModelsForProvider(PostProcessingProvider.OpenAI);
+                var converter = new PostProcessingDisplayConverter();
+                foreach (var oldId in new[] { "gpt-5-nano", "gpt-5-mini", "gpt-5" })
+                {
+                    Assert(LanguageModelInfo.MigrateModelId(oldId) == "gpt-5.6-luna",
+                        $"{oldId} should migrate to gpt-5.6-luna");
+                    Assert(LanguageModelInfo.GetById(oldId) == null,
+                        $"{oldId} should have no catalog row");
+                    Assert(openAiPicker.All(m => m.Id != oldId),
+                        $"retired model {oldId} is still selectable");
+                    var mode = new Mode { PostProcessingProvider = "openai", LanguageModel = oldId };
+                    var shown = converter.Convert(mode, typeof(string), null!, CultureInfo.InvariantCulture) as string;
+                    Assert(shown == "GPT-5.6 Luna",
+                        $"a mode storing {oldId} should display GPT-5.6 Luna, got {shown}");
+                }
+                Assert(openAiPicker.Any(m => m.Id == "gpt-5.6-luna"), "gpt-5.6-luna must stay selectable");
             });
 
             // Issue #314: `/post-process` used to project `provider` and `model`

@@ -623,9 +623,10 @@ describe('LLM chat costs', () => {
   });
 
   test('the multi-model chat providers price each model separately', () => {
-    // gpt-5-nano is cheaper than gpt-5-mini; flash-lite cheaper than flash.
-    expect(computeOpenAIChatCost('gpt-5-mini', usage(1_000_000, 0))).toBeCloseTo(0.25, 6);
-    expect(computeOpenAIChatCost('gpt-5-nano', usage(1_000_000, 0))).toBeCloseTo(0.05, 6);
+    // OpenAI is not here: it is down to one model, gpt-5.6-luna (#1018), so it has
+    // no second rate to tell apart. Its one rate is pinned by the "bills every id
+    // at the one luna rate" test in src/providers/llm-dispatch.test.ts and by the
+    // catalog-parity block below. Flash-lite is cheaper than flash.
     expect(computeGeminiChatCost('gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
     expect(computeGeminiChatCost('gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
     expect(computeMistralChatCost('mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
@@ -646,7 +647,7 @@ describe('LLM chat costs', () => {
     // Catalog or response-header drift must fail closed: a model id we do not
     // recognise bills at the provider default, not free.
     const tokens = usage(1_000_000, 1_000_000);
-    expect(computeOpenAIChatCost('gpt-9-imaginary', tokens)).toBe(computeOpenAIChatCost('gpt-5-mini', tokens));
+    expect(computeOpenAIChatCost('gpt-9-imaginary', tokens)).toBe(computeOpenAIChatCost('gpt-5.6-luna', tokens));
     expect(computeGeminiChatCost('gemini-99-ultra', tokens)).toBe(computeGeminiChatCost('gemini-2.5-flash', tokens));
     // The retired Nemo id is no longer allowlisted; old clients still sending
     // it resolve to the Mistral default rate.
@@ -658,7 +659,7 @@ describe('LLM chat costs', () => {
     // The 0.1-credit minimum is applied later by creditsForCost, not here —
     // the raw USD figure for zero tokens is genuinely 0.
     expect(computeGroqChatCost(usage(0, 0))).toBe(0);
-    expect(computeOpenAIChatCost('gpt-5-mini', usage(0, 0))).toBe(0);
+    expect(computeOpenAIChatCost('gpt-5.6-luna', usage(0, 0))).toBe(0);
     expect(creditsForCost(computeGroqChatCost(usage(0, 0)))).toBe(0.1);
   });
 });
