@@ -18,9 +18,9 @@ using Microsoft.Extensions.Hosting;
 // Child mode for "process signals end the app" (issue #957): the harness
 // re-launches itself with this flag to host a real listener in a process it
 // can send a signal to.
-if (args is [SignalChild.Mode])
+if (args is [SignalChild.Mode, var signalRoot, var signalScenario])
 {
-    await SignalChild.HostUntilSignalledAsync();
+    await SignalChild.HostUntilSignalledAsync(signalRoot, signalScenario);
     return;
 }
 
@@ -804,7 +804,9 @@ static async Task RealLoopbackLifecycle()
 /// A child process hosts a real listener, gets the signal, and must exit; an
 /// idle `Task.Delay` stands in for the Avalonia main loop. The child runs the
 /// real `PortableLocalApiHost`, so its discovery file (port, pid, live token)
-/// must be gone once the signal has ended it.
+/// must be gone once the signal has ended it — also when the signal lands
+/// during the discovery write or during StopAsync's drain, and the cleanup
+/// must not outlive a normal StopAsync.
 /// </summary>
 static async Task SignalsEndTheProcess()
 {
@@ -823,10 +825,24 @@ static async Task SignalsEndTheProcess()
     await using (var app = PortableLocalApi.Build([], options, new FakeBackend(), builder => builder.WebHost.UseTestServer()))
         AssertEmbeddedLifetime(app, "a callback that calls UseTestServer");
     if (!OperatingSystem.IsLinux()) return;
-    foreach (var (name, signal) in new[] { ("SIGTERM", 15), ("SIGINT", 2) })
+    await RunSignalChild("live", "SIGTERM", 15, discoveryRemains: false);
+    await RunSignalChild("live", "SIGINT", 2, discoveryRemains: false);
+    await RunSignalChild("write", "SIGTERM during the discovery write", 15, discoveryRemains: false);
+    await RunSignalChild("drain", "SIGTERM during StopAsync's drain", 15, discoveryRemains: false);
+    await RunSignalChild("stopped", "SIGTERM after a normal StopAsync", 15, discoveryRemains: true);
+}
+
+/// <summary>
+/// The parent owns the child's data directory, so it is deleted however
+/// the child ends — a signal, a crash before READY, or a timeout.
+/// </summary>
+static async Task RunSignalChild(string scenario, string name, int signal, bool discoveryRemains)
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-signal-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
     {
-        using var child = SignalChild.Start();
-        string? discovery = null;
+        using var child = SignalChild.Start(root, scenario);
         try
         {
             string? line = null;
@@ -837,26 +853,31 @@ static async Task SignalsEndTheProcess()
                     do line = await child.StandardOutput.ReadLineAsync(readyDeadline.Token);
                     while (line is not null && !line.StartsWith("READY ", StringComparison.Ordinal));
                 }
-                catch (OperationCanceledException) { Assert(false, $"{name}: the child listener was not ready within 30 s"); }
+                catch (OperationCanceledException) { Assert(false, $"{name}: the child was not ready within 30 s"); }
             }
-            Assert(line is not null, $"{name}: the child exited before its listener was ready");
+            Assert(line is not null, $"{name}: the child exited before it was ready");
             var ready = line!.Split(' ', 3);
-            discovery = ready[2];
-            Assert(File.Exists(discovery), $"{name}: the child did not write its discovery file");
-            using var client = new HttpClient { BaseAddress = new Uri(ready[1]) };
-            Assert((await client.GetAsync("/health")).StatusCode == HttpStatusCode.OK, $"{name}: the child listener did not answer /health");
+            var discovery = ready[2];
+            Assert(File.Exists(discovery), $"{name}: the discovery path was not on disk before the signal");
+            if (ready[1] != "-")
+            {
+                using var client = new HttpClient { BaseAddress = new Uri(ready[1]) };
+                Assert((await client.GetAsync("/health")).StatusCode == HttpStatusCode.OK, $"{name}: the child listener did not answer /health");
+            }
             Assert(SignalChild.Send(child.Id, signal) == 0, $"{name}: kill() failed");
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             try { await child.WaitForExitAsync(deadline.Token); }
             catch (OperationCanceledException) { Assert(false, $"{name} did not end a process hosting the Local API within 10 s"); }
-            Assert(!File.Exists(discovery), $"{name} left the discovery file and its bearer token on disk");
+            Assert(File.Exists(discovery) == discoveryRemains, discoveryRemains
+                ? $"{name}: a signal cleanup outlived StopAsync and deleted a file it no longer owns"
+                : $"{name} left the discovery file and its bearer token on disk");
         }
         finally
         {
-            if (!child.HasExited) child.Kill(entireProcessTree: true);
-            if (discovery is not null) Directory.Delete(Path.GetDirectoryName(discovery)!, recursive: true);
+            if (!child.HasExited) { child.Kill(entireProcessTree: true); child.WaitForExit(5000); }
         }
     }
+    finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
 }
 
 static async Task RealOccupiedPortFallback()
@@ -2394,25 +2415,83 @@ static class SignalChild
 {
     public const string Mode = "--host-local-api-until-signalled";
 
-    public static System.Diagnostics.Process Start()
+    public static System.Diagnostics.Process Start(string root, string scenario)
     {
         var host = Environment.ProcessPath!;
         var info = new System.Diagnostics.ProcessStartInfo(host) { RedirectStandardOutput = true, UseShellExecute = false };
         // `dotnet run` starts the apphost; the coverage script starts `dotnet <dll>`.
         if (Path.GetFileNameWithoutExtension(host) == "dotnet") info.ArgumentList.Add(typeof(SignalChild).Assembly.Location);
         info.ArgumentList.Add(Mode);
+        info.ArgumentList.Add(root);
+        info.ArgumentList.Add(scenario);
         return System.Diagnostics.Process.Start(info)!;
     }
 
-    public static async Task HostUntilSignalledAsync()
+    /// <summary>
+    /// Prints `READY &lt;base address or -&gt; &lt;discovery path&gt;` at the
+    /// moment the parent must send its signal.
+    /// </summary>
+    public static async Task HostUntilSignalledAsync(string root, string scenario)
     {
-        var paths = new TempPaths();
-        var host = new PortableLocalApiHost(new DiskPrivateFiles(), paths, new FakeBackend(), "1.0", 0);
+        using var paths = new TempPaths(root);
+        var discovery = Path.Combine(root, "local-api.json");
+        var backend = new FakeBackend();
+        Func<int, string, CancellationToken, Task<Microsoft.AspNetCore.Builder.WebApplication>>? starter = scenario != "drain" ? null : async (port, token, cancellationToken) =>
+        {
+            var app = PortableLocalApi.Build([], new PortableLocalApiOptions(token, port), backend, builder => builder.Services.AddHostedService(_ => new SlowDrain(discovery)));
+            await app.StartAsync(cancellationToken);
+            return app;
+        };
+        IPrivateFileService files = scenario == "write" ? new BlockingDiscoveryWrite() : new DiskPrivateFiles();
+        var host = new PortableLocalApiHost(files, paths, backend, "1.0", 0, applicationStarter: starter);
         var state = await host.StartAsync();
         if (!state.IsRunning) throw new InvalidOperationException($"child host did not start: {state.Failure}");
-        Console.WriteLine($"READY {state.BaseAddress} {host.DiscoveryPath}");
+        if (host.DiscoveryPath != discovery) throw new InvalidOperationException($"unexpected discovery path {host.DiscoveryPath}");
+        switch (scenario)
+        {
+            case "live":
+                Console.WriteLine($"READY {state.BaseAddress} {discovery}");
+                break;
+            case "drain":
+                _ = host.StopAsync(); // SlowDrain prints READY and holds the drain open
+                break;
+            case "stopped":
+                if ((await host.StopAsync()).IsRunning) throw new InvalidOperationException("child host did not stop");
+                // Stands in for a file the next host instance would own.
+                File.WriteAllText(discovery, "{}");
+                Console.WriteLine($"READY - {discovery}");
+                break;
+            default:
+                throw new InvalidOperationException($"unknown scenario {scenario}");
+        }
         // Bounded, so a parent killed mid-test cannot orphan a live listener.
         await Task.Delay(TimeSpan.FromMinutes(2));
+    }
+
+    /// <summary>Holds StartAsync inside the discovery write, after the file is on disk.</summary>
+    private sealed class BlockingDiscoveryWrite : DiskPrivateFiles
+    {
+        public override PlatformResult WriteAllTextAtomically(string path, string contents)
+        {
+            var result = base.WriteAllTextAtomically(path, contents);
+            if (path.EndsWith("local-api.json", StringComparison.Ordinal))
+            {
+                Console.WriteLine($"READY - {path}");
+                Thread.Sleep(TimeSpan.FromMinutes(2));
+            }
+            return result;
+        }
+    }
+
+    /// <summary>Holds StopAsync inside the web host's drain.</summary>
+    private sealed class SlowDrain(string discovery) : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"READY - {discovery}");
+            await Task.Delay(TimeSpan.FromMinutes(2), CancellationToken.None);
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "kill", SetLastError = true)]
@@ -2523,9 +2602,10 @@ sealed class FakePrivateFiles : IPrivateFileService
 
 sealed class TempPaths : IAppPaths, IDisposable
 {
-    public TempPaths()
+    public TempPaths() : this(Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-tests-{Guid.NewGuid():N}")) { }
+    public TempPaths(string dataDirectory)
     {
-        DataDirectory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-tests-{Guid.NewGuid():N}");
+        DataDirectory = dataDirectory;
         Directory.CreateDirectory(DataDirectory);
     }
     public string DataDirectory { get; }
