@@ -51,7 +51,7 @@ static Task TestModelRegistry()
 {
     var expected = new Dictionary<CloudPostProcessingProvider, int>
     {
-        // 11 → 8: gpt-5 / -mini / -nano hidden 2026-09-25 (#1018), matching the Windows picker.
+        // 11 → 8: gpt-5 / -mini / -nano deleted 2026-09-25 (#1018); Migrate sends them to gpt-5.6-luna.
         [CloudPostProcessingProvider.OpenAi] = 8,
         [CloudPostProcessingProvider.Anthropic] = 4,
         // 3 → 4: Groq qwen/qwen3.8-27b added 2026-09-11. Cerebras stays 2 — the
