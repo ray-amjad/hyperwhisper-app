@@ -97,9 +97,10 @@ export default function PrivacyPolicyPage() {
           <strong>Settings and vocabulary</strong>: App preferences and optional
           custom vocabulary are stored locally. When you use cloud
           transcription, the transcription provider receives your vocabulary
-          terms with your audio as a spelling hint. With HyperWhisper Cloud, the terms pass through our
-          servers to that provider, and to the post-processing provider when you
-          use HyperWhisper Cloud post-processing. When you use local models for
+          terms with your audio as a spelling hint. With HyperWhisper Cloud,
+          the terms pass through our servers to that provider, and to the
+          post-processing provider when you use HyperWhisper Cloud
+          post-processing. When you use local models for
           both transcription and post-processing, no transcription or
           post-processing provider receives your vocabulary. On macOS, if you
           turn on iCloud Sync for vocabulary, Apple stores your vocabulary
