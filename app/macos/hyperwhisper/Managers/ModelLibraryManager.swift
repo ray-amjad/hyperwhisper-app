@@ -489,8 +489,6 @@ final class ModelLibraryManager: ObservableObject {
         let statusesByProvider: [PostProcessingProvider: ProviderHealth] = cloudHealth?.postProcessingStatuses ?? [:]
         return PostProcessingModels.availableModels.compactMap { model -> LibraryModel? in
             if model.provider == .localLLM { return nil }
-            // Hidden rows are redirect-only ids (e.g. gpt-5-nano → gpt-5.6-luna).
-            guard model.isAvailable else { return nil }
             let providerKey = SharedModelsCatalog.providerKey(model.provider)
             let providerStatus = statusesByProvider[model.provider] ?? .unknown
             let status = libraryStatus(forPost: model.provider, health: providerStatus)

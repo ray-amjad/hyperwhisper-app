@@ -854,19 +854,24 @@ internal static class Program
             });
 
             // #1018: OpenAI removes the gpt-5 / -mini / -nano snapshots 2026-12-11. The
-            // rows stay (a stored id keeps its display name) but are hidden from the
-            // picker and the Model Library, and every one migrates to gpt-5.6-luna.
-            Run("Hidden gpt-5 family rows migrate to GPT-5.6 Luna and leave the picker", () =>
+            // rows are deleted and every id migrates to gpt-5.6-luna, so a mode card for a
+            // stored id names luna, the model that runs.
+            Run("Retired gpt-5 family ids migrate to GPT-5.6 Luna and display as Luna", () =>
             {
                 var openAiPicker = LanguageModelInfo.GetModelsForProvider(PostProcessingProvider.OpenAI);
+                var converter = new PostProcessingDisplayConverter();
                 foreach (var oldId in new[] { "gpt-5-nano", "gpt-5-mini", "gpt-5" })
                 {
                     Assert(LanguageModelInfo.MigrateModelId(oldId) == "gpt-5.6-luna",
                         $"{oldId} should migrate to gpt-5.6-luna");
-                    Assert(LanguageModelInfo.GetById(oldId)?.IsHidden == true,
-                        $"{oldId} should stay in the catalog as a hidden row");
+                    Assert(LanguageModelInfo.GetById(oldId) == null,
+                        $"{oldId} should have no catalog row");
                     Assert(openAiPicker.All(m => m.Id != oldId),
-                        $"hidden model {oldId} is still selectable");
+                        $"retired model {oldId} is still selectable");
+                    var mode = new Mode { PostProcessingProvider = "openai", LanguageModel = oldId };
+                    var shown = converter.Convert(mode, typeof(string), null!, CultureInfo.InvariantCulture) as string;
+                    Assert(shown == "GPT-5.6 Luna",
+                        $"a mode storing {oldId} should display GPT-5.6 Luna, got {shown}");
                 }
                 Assert(openAiPicker.Any(m => m.Id == "gpt-5.6-luna"), "gpt-5.6-luna must stay selectable");
             });

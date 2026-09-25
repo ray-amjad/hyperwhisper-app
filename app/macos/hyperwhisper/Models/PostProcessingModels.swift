@@ -62,33 +62,8 @@ struct PostProcessingModels {
             description: "models.postProcessing.gpt4.1.description".localized,
             provider: .openai
         ),
-        PostProcessingModel(
-            id: "gpt-5-nano",
-            displayName: "GPT-5 Nano",
-            // Hidden: OpenAI removes this id 2026-12-11 and it now redirects to
-            // gpt-5.6-luna (deprecatedModelMappings). Row kept for display names.
-            isAvailable: false,
-            description: "models.postProcessing.gpt5.nano.description".localized,
-            provider: .openai
-        ),
-        PostProcessingModel(
-            id: "gpt-5-mini",
-            displayName: "GPT-5 Mini",
-            // Hidden: OpenAI removes this id 2026-12-11 and it now redirects to
-            // gpt-5.6-luna (deprecatedModelMappings). Row kept for display names.
-            isAvailable: false,
-            description: "models.postProcessing.gpt5.mini.description".localized,
-            provider: .openai
-        ),
-        PostProcessingModel(
-            id: "gpt-5",
-            displayName: "GPT-5",
-            // Hidden: OpenAI removes this id 2026-12-11 and it now redirects to
-            // gpt-5.6-luna (deprecatedModelMappings). Row kept for display names.
-            isAvailable: false,
-            description: "models.postProcessing.gpt5.description".localized,
-            provider: .openai
-        ),
+        // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
+        // 2026-12-11, and deprecatedModelMappings redirects all 3 to gpt-5.6-luna.
         PostProcessingModel(
             id: "gpt-5.1",
             displayName: "GPT-5.1",

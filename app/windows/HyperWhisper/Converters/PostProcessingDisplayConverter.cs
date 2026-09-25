@@ -39,8 +39,10 @@ public class PostProcessingDisplayConverter : IValueConverter
         if (string.IsNullOrEmpty(modelId))
             return string.Empty;
 
-        // Get display name from LanguageModelInfo
-        var modelInfo = LanguageModelInfo.GetById(modelId);
+        // Get display name from LanguageModelInfo. A retired id (e.g. gpt-5-mini) has
+        // no row, so name the model it migrates to, which is the one that runs.
+        var modelInfo = LanguageModelInfo.GetById(modelId)
+            ?? LanguageModelInfo.GetById(LanguageModelInfo.MigrateModelId(modelId));
         return modelInfo?.DisplayName ?? modelId;
     }
 

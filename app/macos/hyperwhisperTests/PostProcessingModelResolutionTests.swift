@@ -62,11 +62,11 @@ struct PostProcessingModelResolutionTests {
         ])
         #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
         #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")
-        // The gpt-5 family rows stay in the catalog (display names for stored ids)
-        // but are hidden from the picker, because they now redirect to luna.
-        for hidden in ["gpt-5-nano", "gpt-5-mini", "gpt-5"] {
-            #expect(PostProcessingModels.model(withId: hidden, provider: .openai) != nil)
-            #expect(!PostProcessingModels.models(for: .openai).contains(where: { $0.id == hidden }))
+        // #1018: the gpt-5 family rows are deleted, not hidden. A stored id still
+        // shows the name of the model that runs, through the redirect to luna.
+        for retiredId in ["gpt-5-nano", "gpt-5-mini", "gpt-5"] {
+            #expect(PostProcessingModels.model(withId: retiredId, provider: .openai) == nil)
+            #expect(PostProcessingModels.displayName(for: retiredId, provider: .openai) == "GPT-5.6 Luna")
         }
         #expect(PostProcessingModels.model(withId: "qwen-3.8-27b", provider: .cerebras) != nil)
         #expect(PostProcessingModels.model(withId: "qwen/qwen3.8-27b", provider: .groq) != nil)

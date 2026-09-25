@@ -30,20 +30,12 @@ public class LanguageModelInfo
     /// </summary>
     public string Description { get; }
 
-    /// <summary>
-    /// True for a row kept only so a stored id still has a display name, while
-    /// <see cref="MigrateModelId"/> redirects it. Hidden rows are left out of the
-    /// picker (<see cref="GetModelsForProvider"/>) and the Model Library.
-    /// </summary>
-    public bool IsHidden { get; }
-
-    public LanguageModelInfo(string id, string displayName, PostProcessingProvider provider, string description, bool isHidden = false)
+    public LanguageModelInfo(string id, string displayName, PostProcessingProvider provider, string description)
     {
         Id = id;
         DisplayName = displayName;
         Provider = provider;
         Description = description;
-        IsHidden = isHidden;
     }
 
     /// <summary>
@@ -67,10 +59,8 @@ public class LanguageModelInfo
         new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
         new("gpt-4.1-mini", "GPT-4.1 Mini", PostProcessingProvider.OpenAI, "Balanced (recommended)"),
         new("gpt-4.1", "GPT-4.1", PostProcessingProvider.OpenAI, "High quality"),
-        // Hidden: OpenAI removes these 3 ids 2026-12-11 and MigrateModelId sends them to gpt-5.6-luna.
-        new("gpt-5-nano", "GPT-5 Nano", PostProcessingProvider.OpenAI, "Next-gen fastest", isHidden: true),
-        new("gpt-5-mini", "GPT-5 Mini", PostProcessingProvider.OpenAI, "Next-gen balanced", isHidden: true),
-        new("gpt-5", "GPT-5", PostProcessingProvider.OpenAI, "Next-gen quality", isHidden: true),
+        // gpt-5 / gpt-5-mini / gpt-5-nano rows removed (#1018): OpenAI removes them
+        // 2026-12-11, and MigrateModelId sends all 3 to gpt-5.6-luna.
         new("gpt-5.1", "GPT-5.1", PostProcessingProvider.OpenAI, "Latest flagship"),
         new("gpt-5.2", "GPT-5.2", PostProcessingProvider.OpenAI, "Advanced flagship"),
         new("gpt-5.4-nano", "GPT-5.4 Nano", PostProcessingProvider.OpenAI, "Fast, lightweight"),
@@ -214,7 +204,7 @@ public class LanguageModelInfo
     /// Used to populate the model dropdown when provider changes.
     /// </summary>
     public static LanguageModelInfo[] GetModelsForProvider(PostProcessingProvider provider) =>
-        AvailableModels.Where(m => m.Provider == provider && !m.IsHidden).ToArray();
+        AvailableModels.Where(m => m.Provider == provider).ToArray();
 
     /// <summary>
     /// Finds a model by its ID.
