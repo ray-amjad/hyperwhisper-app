@@ -142,9 +142,11 @@ public sealed class PulseAudioRecorder : IAudioRecorder
 
     private void CaptureLoop()
     {
-        var buffer = new byte[4096];
+        // The record fragsize makes the server deliver every ~20 ms; reading one fragment per call
+        // keeps Stop()'s wait on the in-flight read to about one fragment rather than several.
         try
         {
+            var buffer = new byte[_format!.FragmentBytes];
             while (!_stopRequested)
             {
                 var read = _session!.Read(buffer);
