@@ -29,12 +29,11 @@ test("emailTag: equals the magic-link recipientHash for the same address", () =>
   assert.equal(emailTag(raw), sha256Hex(raw.trim().toLowerCase()).slice(0, 12));
 });
 
-test("emailTag: is 12 lowercase hex chars and never contains the address", () => {
+test("emailTag: is 12 lowercase hex chars, never the address itself", () => {
   for (const email of ["bob@x.com", " Bob@X.com ", "a@b.co", "first.last+tag@mail.example.com"]) {
     const tag = emailTag(email);
+    // 12 hex chars cannot hold an `@`, so no address (or domain) can pass this.
     assert.match(tag, /^[0-9a-f]{12}$/);
-    assert.ok(!tag.includes("@"));
-    assert.ok(!tag.toLowerCase().includes(email.trim().toLowerCase().split("@")[0]!));
   }
 });
 

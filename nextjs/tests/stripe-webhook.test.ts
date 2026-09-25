@@ -361,6 +361,9 @@ test("a guest credit purchase mints a key, grants the credits and sends the mint
   assert.equal(calls.emails.length, 1);
   assert.equal(calls.emails[0].kind, "mint");
   assert.equal(calls.emails[0].payload.licenseKey, "HW-MINT-0001");
+  // Threaded through as the session gave it (RFC 5321 local parts are case-sensitive).
+  assert.deepEqual(calls.getOrCreateUser.map((call) => call.email), ["Buyer@Example.com "]);
+  assert.equal(calls.emails[0].payload.customerEmail, "Buyer@Example.com ");
 });
 
 test("a guest credit purchase pools into the buyer's existing granted key", async () => {
@@ -491,6 +494,12 @@ test("a mint fails loudly when the user cannot be created", async () => {
     { message: "Failed to create user for 6a6c26195c36" },
   );
 
+  // The tag is the same for any case or padding, so it cannot show that the raw
+  // session address reached the user lookup untouched. This does.
+  assert.deepEqual(
+    calls.getOrCreateUser.map((call) => call.email),
+    ["Buyer@Example.com "],
+  );
   assert.deepEqual(calls.insertAccountKey, []);
 });
 
