@@ -6,8 +6,8 @@
 // visited page, its view model and whatever the view model holds.
 //
 // The rule lives here so each such Frame opts in with one call. The handler is
-// static and reads the Frame from sender, so the subscription roots nothing and
-// needs no unsubscribe, whatever the Frame's lifetime.
+// static, so the subscription roots nothing and needs no unsubscribe, whatever
+// the Frame's lifetime. WPF raises Frame.Navigated with that Frame as sender.
 
 using System.Windows.Controls;
 using System.Windows.Navigation;
@@ -31,9 +31,9 @@ internal static class FrameJournal
 
     private static void DropBackStack(object sender, NavigationEventArgs e)
     {
-        if (sender is not Frame frame)
-            return;
+        var frame = (Frame)sender;
 
+        // A loop, so a Frame that navigated before it opted in is emptied too.
         while (frame.CanGoBack)
             frame.RemoveBackEntry();
     }

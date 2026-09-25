@@ -14709,7 +14709,6 @@ internal static class Program
                         .Any(d => ReferenceEquals(d.Target, vm)) == true;
 
                 var history = new HistoryViewModel();
-                var cleanedUp = false;
                 try
                 {
                     // Positive control: without it, a subscription that moved elsewhere
@@ -14717,19 +14716,63 @@ internal static class Program
                     Assert(Subscribed(history),
                         "a new HistoryViewModel is not on ModeService.ModeChanged at all - the retry menu " +
                         "no longer follows mode edits, or it subscribes some other way this case cannot see");
-
-                    history.Cleanup();
-                    cleanedUp = true;
-
-                    Assert(!Subscribed(history),
-                        "HistoryViewModel.Cleanup() left the view model on ModeService.ModeChanged, so the " +
-                        "singleton keeps every History page the user opened alive (issue #977)");
                 }
                 finally
                 {
-                    if (!cleanedUp)
-                        history.Cleanup();
+                    history.Cleanup();
                 }
+
+                Assert(!Subscribed(history),
+                    "HistoryViewModel.Cleanup() left the view model on ModeService.ModeChanged, so the " +
+                    "singleton keeps every History page the user opened alive (issue #977)");
+            });
+
+            Run("frames: the Settings section frame keeps no back stack — issue #977", () =>
+            {
+                // #977. A WPF Frame journals every page it leaves, and a journaled page
+                // lives as long as the Frame. FrameJournal.KeepNoBackStack gives a Frame
+                // its own journal and empties it after each navigation. MainWindow and
+                // SettingsPage call it; nothing else would notice if either call went,
+                // so check the one this harness can build (a real SettingsPage) and
+                // then drive the helper itself on a fresh Frame.
+                EnsureSmokeApplication();
+
+                var settings = new HyperWhisper.Views.Pages.SettingsPage();
+                var sectionFrame = (System.Windows.Controls.Frame)settings.FindName("ContentFrame")!;
+                Assert(sectionFrame.JournalOwnership == System.Windows.Navigation.JournalOwnership.OwnsJournal,
+                    $"SettingsPage's section frame has JournalOwnership={sectionFrame.JournalOwnership}, so its " +
+                    "section pages go into MainWindow's journal and stay alive (FrameJournal.KeepNoBackStack " +
+                    "is no longer applied)");
+
+                var kept = new System.Windows.Controls.Frame();
+                FrameJournal.KeepNoBackStack(kept);
+                Assert(kept.JournalOwnership == System.Windows.Navigation.JournalOwnership.OwnsJournal,
+                    $"FrameJournal.KeepNoBackStack left JournalOwnership={kept.JournalOwnership}");
+
+                // Navigation is queued on the dispatcher, so pump it after each step.
+                // The plain Frame is the positive control: it must be able to go back,
+                // or CanGoBack == false below would prove nothing.
+                var plain = new System.Windows.Controls.Frame { JournalOwnership = System.Windows.Navigation.JournalOwnership.OwnsJournal };
+                foreach (var frame in new[] { kept, plain })
+                {
+                    frame.Navigate(new System.Windows.Controls.Page());
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+                        () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    var second = new System.Windows.Controls.Page();
+                    frame.Navigate(second);
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+                        () => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+                    Assert(ReferenceEquals(frame.Content, second),
+                        "a Frame did not finish navigating after the dispatcher was pumped - this case " +
+                        "can no longer see a back stack");
+                }
+
+                Assert(plain.CanGoBack,
+                    "a plain Frame cannot go back after two navigations - the control is broken, so the " +
+                    "check below proves nothing");
+                Assert(!kept.CanGoBack,
+                    "a Frame under FrameJournal.KeepNoBackStack still has a back stack after two " +
+                    "navigations, so every page it leaves stays alive (issue #977)");
             });
 
             Run("shortcuts/about: the refusal text and the version line are localized — issue #516", () =>
