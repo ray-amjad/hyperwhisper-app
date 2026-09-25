@@ -13,7 +13,7 @@
 // `./redis-core`, so a plain import always resolves to the real thing whatever
 // order bun walks the tree in.
 
-import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 // The REAL error classes, not a hand-rolled stand-in. A fixture that assigns
 // `error.name = 'UpstashError'` only ever confirms the fixture's own field, so
 // it cannot notice the library renaming or restructuring what it throws. This
@@ -107,25 +107,33 @@ type ConsoleErrorSpy = ReturnType<typeof spyOn<Console, 'error'>>;
 
 /**
  * Installs a silenced console.error spy before each test of the enclosing
- * describe and restores it after, and returns a getter for the current spy.
- * Call it from a describe body. Describe-SCOPED, measured on bun 1.4.2: a hook
+ * describe and restores it after. Returns a getter for the current spy, and
+ * `loggedLine(index)`: the redacted string call `index` received after
+ * `prefix` (see `readLoggedLine`). Call it from a describe body. Describe-SCOPED, measured on bun 1.4.2: a hook
  * declared in one describe never runs for its siblings. The fail-open tests
  * reach each catch, and an unsuppressed failure line in the suite output reads
  * as a genuine failure sitting next to a green result — so the line is
  * asserted, not printed.
  */
-function silenceConsoleError(): () => ConsoleErrorSpy {
+function silenceConsoleError(prefix: string): {
+  consoleError: () => ConsoleErrorSpy;
+  loggedLine: (index?: number) => string;
+} {
   let spy: ConsoleErrorSpy | undefined;
   beforeEach(() => {
     spy = spyOn(console, 'error').mockImplementation(() => {});
   });
   afterEach(() => {
     spy?.mockRestore();
+    // Back to undefined, so a read after this test — not only one before the
+    // first — hits the guard below instead of a restored spy.
+    spy = undefined;
   });
-  return () => {
+  const consoleError = (): ConsoleErrorSpy => {
     if (spy === undefined) throw new Error('console.error spy read outside a test');
     return spy;
   };
+  return { consoleError, loggedLine: (index = 0) => readLoggedLine(consoleError(), prefix, index) };
 }
 
 /**
@@ -150,23 +158,24 @@ function readLoggedLine(spy: ConsoleErrorSpy, prefix: string, index = 0): string
 
 /**
  * The licence key and cached value the tests below must keep off the log. The
- * key has the real shape — `HW-XXXX-XXXX-XXXX-XXXX` over the 31-character
- * alphabet `nextjs/lib/services/license-key.ts` draws from — because the key
- * IS the bearer credential for every request (middleware/auth.ts).
+ * key has the real SHAPE — `HW-XXXX-XXXX-XXXX-XXXX` — because the key IS the
+ * bearer credential for every request (middleware/auth.ts). But every group
+ * holds a character the real alphabet leaves out (`0`, `1`, `I`, `O`; see
+ * `nextjs/lib/services/license-key.ts`), so `isValidKeyFormat` rejects it
+ * and it can never be a real key. This is a public repo.
  */
-const LIVE_KEY = 'HW-7F3A-9C2B-K4MN-PQRS';
+const LIVE_KEY = 'HW-7F0A-9C1B-K4IN-PQOS';
 const liveLicense: CachedLicense = { isValid: true, credits: 4200, cachedAt: '2026-09-01T00:00:00Z' };
 
 const validLicense: CachedLicense = { isValid: true, credits: 1000, cachedAt: '2026-09-01T00:00:00Z' };
 
 describe('isIPBlocked', () => {
-  const consoleError = silenceConsoleError();
-  const PREFIX = 'IP block check failed — failing open:';
+  const { consoleError, loggedLine } = silenceConsoleError('IP block check failed — failing open:');
 
-  /** The redacted string `console.error` received on call `index`. */
-  function loggedLine(index = 0): string {
-    return readLoggedLine(consoleError(), PREFIX, index);
-  }
+  afterAll(() => {
+    // The guard holds AFTER the tests too, not only before the first one.
+    expect(consoleError).toThrow('console.error spy read outside a test');
+  });
 
   test('reads the ip_blocked: key for the address it was given', async () => {
     const store = recordingStore('true');
@@ -535,19 +544,15 @@ describe('isIPBlocked', () => {
 });
 
 describe('getCachedLicense', () => {
-  const consoleError = silenceConsoleError();
-  const PREFIX = 'Failed to get cached license:';
-
-  /** The redacted string `console.error` received on call `index`. */
-  function loggedLine(index = 0): string {
-    return readLoggedLine(consoleError(), PREFIX, index);
-  }
+  const { consoleError, loggedLine } = silenceConsoleError('Failed to get cached license:');
 
   test('reads the license: key and returns a well-formed entry unchanged', async () => {
     const store = recordingStore(validLicense);
 
     expect(await getCachedLicense(() => store, 'KEY-123')).toEqual(validLicense);
     expect(store.gets).toEqual(['license:KEY-123']);
+    // A hit is the normal case; a line here would bury the failures below.
+    expect(consoleError()).not.toHaveBeenCalled();
   });
 
   test('parses an entry stored as a JSON string', async () => {
@@ -582,16 +587,19 @@ describe('getCachedLicense', () => {
 
     // Five of these are a silent MISS. The non-JSON string is not: the catch
     // also wraps `JSON.parse`, so it logs once, through the same redaction,
-    // under the same prefix. Measured on bun 1.4.2: the parser quotes the first
-    // bad token of the STORED VALUE (never the key) back in its message.
+    // under the same prefix (`loggedLine` pins it). The parser's own wording
+    // is the engine's, so only the error class is pinned.
     expect(consoleError()).toHaveBeenCalledTimes(1);
     const logged = loggedLine();
-    expect(logged).toBe('SyntaxError: JSON Parse error: Unexpected identifier "not"');
+    expect(logged).toStartWith('SyntaxError');
     expect(logged).not.toContain(LIVE_KEY);
   });
 
-  test('returns a MISS for an empty entry', async () => {
+  test('returns a MISS for an empty entry, silently', async () => {
+    // Not every MISS is silent: a non-JSON entry logs its parse failure
+    // (pinned in the unrecognised-shape test above). An empty one does not.
     expect(await getCachedLicense(() => recordingStore(null), 'KEY-123')).toBeNull();
+    expect(consoleError()).not.toHaveBeenCalled();
   });
 
   test('returns a MISS when Redis is not configured, rather than throwing', async () => {
@@ -702,24 +710,10 @@ describe('getCachedLicense', () => {
       expect(loggedLine()).toBe("UpstashError: ERR unknown command 'set' for this key");
     }
   });
-
-  test('stays silent on a hit and on an empty entry', async () => {
-    // Not on every MISS: a non-JSON entry logs its parse failure (pinned in
-    // the unrecognised-shape test above).
-    expect(await getCachedLicense(() => recordingStore(validLicense), 'KEY-123')).toEqual(validLicense);
-    expect(await getCachedLicense(() => recordingStore(null), 'KEY-123')).toBeNull();
-    expect(consoleError()).not.toHaveBeenCalled();
-  });
 });
 
 describe('cacheLicense', () => {
-  const consoleError = silenceConsoleError();
-  const PREFIX = 'Failed to cache license:';
-
-  /** The redacted string `console.error` received on call `index`. */
-  function loggedLine(index = 0): string {
-    return readLoggedLine(consoleError(), PREFIX, index);
-  }
+  const { consoleError, loggedLine } = silenceConsoleError('Failed to cache license:');
 
   test('writes the license under license:<key> with the 1 hour TTL', async () => {
     const store = recordingStore();
@@ -787,6 +781,29 @@ describe('cacheLicense', () => {
     for (const secret of [LIVE_KEY, '4200', '198.51.100.9']) {
       expect(logged).not.toContain(secret);
     }
+  });
+
+  test('redacts the license: key when the message names it outside any command payload', async () => {
+    // The per-command error the auto-pipeline executor re-throws has no
+    // payload for the cut to find. The by-value pass would also catch the bare
+    // key, but it would log `license:<redacted-license-key>`, so the exact
+    // line below is what holds the key pass on this path.
+    const perCommand = new errors.UpstashError(
+      `Command failed: WRONGTYPE key license:${LIVE_KEY} holds the wrong kind of value`
+    );
+    // Guard the FIXTURE: the key really is in the message, and there is no
+    // command suffix for the payload cut to find.
+    expect(perCommand.message).toContain(`license:${LIVE_KEY}`);
+    expect(perCommand.message).not.toContain(', command was:');
+
+    expect(await cacheLicense(() => throwingStore(perCommand), LIVE_KEY, liveLicense)).toBeUndefined();
+
+    expect(consoleError()).toHaveBeenCalledTimes(1);
+    const logged = loggedLine();
+    expect(logged).toBe(
+      'UpstashError: Command failed: WRONGTYPE key license:<redacted> holds the wrong kind of value'
+    );
+    expect(logged).not.toContain(LIVE_KEY);
   });
 
   test('cuts the cached value wherever the message quotes the command, not only after "command was:"', async () => {
