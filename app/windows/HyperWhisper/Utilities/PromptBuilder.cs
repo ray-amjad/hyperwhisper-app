@@ -182,32 +182,27 @@ public static class PromptBuilder
 
     /// <summary>A fresh context, or null when HyperWhisper.AppClassification cannot load.</summary>
     private static ApplicationContext? TryGatherContext() =>
-        GatherContextGuarded(
-            OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.AppClassificationAssembly),
-            OptionalAssemblyGuard.MarkUnavailable);
-
-    // The same call as OptionalAssemblyGuard.TryRun, with the availability answer
-    // and the failure reporter handed in. HyperWhisper.SmokeTests drives the
-    // degraded path through it without blocking the real assembly. Same test
-    // seam as OptionalAssemblyGuard.RunGuarded.
-    internal static ApplicationContext? GatherContextGuarded(
-        bool isAvailable,
-        Action<string, Exception, string> onLoadFailure)
-    {
-        ApplicationContext? gathered = null;
-        OptionalAssemblyGuard.RunGuarded(
-            isAvailable,
+        OptionalAssemblyGuard.TryRun<ApplicationContext?>(
             OptionalAssemblyGuard.AppClassificationAssembly,
-            "prompt_gather_context",
-            () => gathered = GatherContext(),
-            onLoadFailure);
-        return gathered;
-    }
+            GatherContextStage,
+            GatherContext,
+            fallback: null);
+
+    /// <summary>The guard's stage slug for <see cref="TryGatherContext"/>.</summary>
+    internal const string GatherContextStage = "prompt_gather_context";
+
+    /// <summary>The guard's stage slug for <see cref="TryReadHwAppType"/>.</summary>
+    internal const string AppTypeStage = "prompt_app_type";
 
     /// <summary>Warning: do not inline. See <see cref="TryGatherContext"/>.</summary>
+    /// <remarks>
+    /// Internal only so HyperWhisper.SmokeTests can hand it to
+    /// OptionalAssemblyGuard.RunGuarded; production code reaches it only through
+    /// OptionalAssemblyGuard.TryRun.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static ApplicationContext? GatherContext() =>
-        // ast-grep-ignore: no-unguarded-optional-assembly-use -- this IS the guarded boundary, reached only through OptionalAssemblyGuard.RunGuarded in GatherContextGuarded.
+    internal static ApplicationContext? GatherContext() =>
+        // ast-grep-ignore: no-unguarded-optional-assembly-use -- this IS the guarded boundary, reached only through OptionalAssemblyGuard.TryRun in TryGatherContext.
         ApplicationContextService.Instance.GatherContext();
 
     /// <summary>
@@ -221,30 +216,16 @@ public static class PromptBuilder
     internal static HwAppType TryReadHwAppType(ApplicationContext? appContext) =>
         appContext == null
             ? HwAppType.Other
-            : ReadHwAppTypeGuarded(
-                appContext,
-                OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.AppClassificationAssembly),
-                OptionalAssemblyGuard.MarkUnavailable);
-
-    // The test seam for TryReadHwAppType. See GatherContextGuarded.
-    internal static HwAppType ReadHwAppTypeGuarded(
-        ApplicationContext appContext,
-        bool isAvailable,
-        Action<string, Exception, string> onLoadFailure)
-    {
-        var appType = HwAppType.Other;
-        OptionalAssemblyGuard.RunGuarded(
-            isAvailable,
-            OptionalAssemblyGuard.AppClassificationAssembly,
-            "prompt_app_type",
-            () => appType = ReadHwAppType(appContext),
-            onLoadFailure);
-        return appType;
-    }
+            : OptionalAssemblyGuard.TryRun(
+                OptionalAssemblyGuard.AppClassificationAssembly,
+                AppTypeStage,
+                () => ReadHwAppType(appContext),
+                fallback: HwAppType.Other);
 
     /// <summary>Warning: do not inline. Its body names <c>AppType</c>.</summary>
+    /// <remarks>Internal for the same reason as <see cref="GatherContext"/>.</remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static HwAppType ReadHwAppType(ApplicationContext appContext) =>
+    internal static HwAppType ReadHwAppType(ApplicationContext appContext) =>
         HwAppTypeFromNative(appContext.AppType);
 
     /// <summary>Map the native <see cref="PresetType"/> to the shared-core <c>Preset</c>.</summary>

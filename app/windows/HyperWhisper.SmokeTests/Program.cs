@@ -443,29 +443,56 @@ internal static class Program
 
             // #960. When HyperWhisper.AppClassification cannot load, PromptBuilder
             // must still build the recording path's prompt: no fresh context and
-            // AppType Other. The
-            // guarded seams take the availability answer, so this drives the
-            // degraded path without blocking the real assembly.
+            // AppType Other. OptionalAssemblyGuard.RunGuarded<T> takes the
+            // availability answer, so this drives PromptBuilder's own boundary
+            // methods down the degraded path without blocking the real assembly.
             Run("PromptBuilder degrades to AppType Other when HyperWhisper.AppClassification is unavailable", () =>
             {
                 var failures = 0;
                 Action<string, Exception, string> Record = (_, _, _) => failures++;
                 var code = new Services.ApplicationContext { AppType = AppType.Code };
 
-                Assert(PromptBuilder.ReadHwAppTypeGuarded(code, false, Record) ==
+                var gathers = 0;
+                Services.ApplicationContext? CountedGather()
+                {
+                    gathers++;
+                    return PromptBuilder.GatherContext();
+                }
+
+                // The same calls PromptBuilder hands to OptionalAssemblyGuard.TryRun,
+                // through its RunGuarded<T> seam with the availability answer forced.
+                Assert(OptionalAssemblyGuard.RunGuarded(
+                        false, OptionalAssemblyGuard.AppClassificationAssembly, PromptBuilder.AppTypeStage,
+                        () => PromptBuilder.ReadHwAppType(code), uniffi.hyperwhisper_core.HwAppType.Other, Record) ==
                     uniffi.hyperwhisper_core.HwAppType.Other,
                     "an unavailable classifier assembly did not degrade the app type to Other");
-                Assert(PromptBuilder.GatherContextGuarded(false, Record) == null,
-                    "an unavailable classifier assembly still produced a fresh context");
+                Assert(OptionalAssemblyGuard.RunGuarded<Services.ApplicationContext?>(
+                        false, OptionalAssemblyGuard.AppClassificationAssembly, PromptBuilder.GatherContextStage,
+                        CountedGather, null, Record) == null && gathers == 0,
+                    "an unavailable classifier assembly still gathered a fresh context");
                 Assert(PromptBuilder.TryReadHwAppType(null) == uniffi.hyperwhisper_core.HwAppType.Other,
                     "a missing context did not give AppType Other");
 
-                Assert(PromptBuilder.ReadHwAppTypeGuarded(code, true, Record) ==
+                Assert(OptionalAssemblyGuard.RunGuarded(
+                        true, OptionalAssemblyGuard.AppClassificationAssembly, PromptBuilder.AppTypeStage,
+                        () => PromptBuilder.ReadHwAppType(code), uniffi.hyperwhisper_core.HwAppType.Other, Record) ==
                     uniffi.hyperwhisper_core.HwAppType.Code,
                     "an available classifier assembly lost the context's app type");
                 Assert(PromptBuilder.TryReadHwAppType(code) == uniffi.hyperwhisper_core.HwAppType.Code,
                     "the guarded prompt path lost the context's app type on a machine that loads the assembly");
                 Assert(failures == 0, "a degraded read reported a load failure it never had");
+
+                // The generic seam itself: the work's value when it completes, the
+                // fallback when the assembly is unavailable or the work hits a load
+                // failure, and the failure goes to the reporter.
+                Assert(OptionalAssemblyGuard.RunGuarded(true, "HyperWhisper.Fake", "smoke", () => 7, -1, Record) == 7,
+                    "RunGuarded<T> lost the work's value");
+                Assert(OptionalAssemblyGuard.RunGuarded(false, "HyperWhisper.Fake", "smoke", () => 7, -1, Record) == -1,
+                    "RunGuarded<T> ignored an unavailable assembly");
+                Assert(OptionalAssemblyGuard.RunGuarded<int>(
+                        true, "HyperWhisper.Fake", "smoke",
+                        () => throw new FileLoadException("blocked"), -1, Record) == -1 && failures == 1,
+                    "RunGuarded<T> did not fall back and report a load failure");
             });
 
             Run("ApplicationContextService exception evidence is privacy-safe", () =>
