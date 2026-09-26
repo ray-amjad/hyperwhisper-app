@@ -58,9 +58,10 @@ export default function PrivacyPolicyPage() {
           >
             Upstash
           </a>
-          , as an hourly count of requests and whether each one was allowed.
-          That store does not hold your email address, browser user agent, or
-          country, and it has no automatic deletion period today.
+          , in two forms: request counters, which expire within about two
+          hours, and an hourly summary of requests per IP address and whether
+          each one was allowed, which has no automatic deletion period today.
+          Neither holds your email address, browser user agent, or country.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
@@ -143,8 +144,10 @@ export default function PrivacyPolicyPage() {
           usage policy. No audio or transcripts are transmitted. The licensing
           service also sees the IP address of each activation and validation
           request. We use it only to rate limit those endpoints (30 requests per
-          IP address per minute), and it goes into the same Upstash rate-limit
-          store, on the same terms as the download form above.
+          IP address per minute). It goes into the same Upstash rate-limit
+          store: its request counters expire within a few minutes, and the
+          hourly summary of requests per IP address and whether each one was
+          allowed has no automatic deletion period today.
         </li>
         <li>
           <strong>Custom vocabulary</strong>: When you use HyperWhisper Cloud,
@@ -713,10 +716,13 @@ export default function PrivacyPolicyPage() {
       <h2>International Transfers</h2>
       <p>
         Our payment and licensing providers, and Upstash, which hosts our
-        rate-limit store, may process limited personal information in multiple
+        rate-limit store, a one-hour cache of Account Key validation results,
+        and the block list HyperWhisper Cloud checks request IP addresses
+        against, may process limited personal information in multiple
         countries, including the United Kingdom, the
         European Economic Area, and the United States. Where required,
-        appropriate safeguards are used by those providers (for example,
+        appropriate safeguards are used by those providers, including Upstash
+        (for example,
         adequacy decisions, Standard Contractual Clauses, or equivalent
         mechanisms). The AgentStack support chat widget described above is
         served from the United States.
