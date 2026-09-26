@@ -37,8 +37,8 @@ enum LocalAPIAuth {
     }
 
     /// Wipe the stored token and generate a new one. Used by Settings →
-    /// "Regenerate token". The caller is responsible for restarting the
-    /// server so the new token gets written into local-api.json.
+    /// "Regenerate token". The caller republishes local-api.json with the
+    /// new token; it must not stop or rebind a live server (issue #641).
     @discardableResult
     static func regenerateToken() -> String {
         deleteToken()
