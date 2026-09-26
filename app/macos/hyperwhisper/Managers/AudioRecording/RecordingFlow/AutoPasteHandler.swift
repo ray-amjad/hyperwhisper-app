@@ -128,8 +128,10 @@ class AutoPasteHandler {
             return false  // Keep dialog open
 
         case .noFocusedField, .secureField:
-            // Text is on clipboard. A refused paste (target lost or unknown) keeps it
-            // there; a secure field or no focused field schedules restoration if enabled.
+            // Text is on clipboard. A refused paste or no focused field pasted nothing,
+            // so it stays there for a manual Cmd+V while the dialog stays open, and no
+            // restore overwrites it (#783, #1034); a secure field schedules restoration
+            // if enabled.
             AppLogger.audio.info("ℹ️ No valid paste target. Text on clipboard.")
             return false  // Keep dialog open
 

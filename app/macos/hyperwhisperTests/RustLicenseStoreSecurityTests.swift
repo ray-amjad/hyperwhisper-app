@@ -879,13 +879,18 @@ private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
         }
     }
 
-    /// Yields until `count` validations are in flight. On timeout, resume every
-    /// pending continuation before returning false so a failed precondition
+    /// Waits up to 2 s until `count` validations are in flight. On timeout, resume
+    /// every pending continuation before returning false so a failed precondition
     /// cannot leave an unstructured validation Task hanging in the test host.
+    ///
+    /// The bound is wall-clock, not a yield count: 100 `Task.yield()` calls ran
+    /// out whenever another main-actor suite was busy in parallel, and the test
+    /// failed with "validation did not start" (#1034 CI).
     func waitForValidationCount(_ count: Int) async -> Bool {
-        for _ in 0..<100 {
+        let deadline = ContinuousClock.now + .seconds(2)
+        while ContinuousClock.now < deadline {
             if pending.count >= count { return true }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(1))
         }
         guard pending.count < count else { return true }
 

@@ -81,6 +81,16 @@ public class AccessibilityHelper {
     /// permission guard on a CI Mac that never grants Accessibility. A Release
     /// build has no such property and no way around the permission check.
     var pastePermissionOverrideForTesting: Bool?
+
+    /// TEST SEAM, Debug builds only. Always nil in the app. When set,
+    /// `canPasteIntoFocusedElement()` returns its result instead of reading the
+    /// focused element, so a test can drive the no-focused-field, cancelled and
+    /// send-failed exits of `executePasteAsync` (#1034). It also answers the focus
+    /// guard inside `sendPasteCommand()`, so a test that sets it to true and
+    /// reaches that guard with `TextDeliveryGate` open would post a real Cmd+V on
+    /// a Mac that grants Accessibility; that is why such a test skips when
+    /// `AXIsProcessTrusted()`. Release has no such property.
+    var canPasteOverrideForTesting: (@MainActor () -> Bool)?
     #endif
 
     // MARK: - Permission Polling Management
