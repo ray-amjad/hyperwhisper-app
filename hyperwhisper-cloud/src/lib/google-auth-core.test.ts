@@ -415,11 +415,11 @@ describe('cache failure logs (#1029)', () => {
     expect(record.ttlSeconds).toBe(3000);
   });
 
-  test('cache_write_failed redacts the token BY VALUE when a proxy echoes the command as plain text', async () => {
+  test('cache_write_failed redacts the token when a proxy echoes the command as plain text', async () => {
     // An `UpstashJSONParseError` quotes the raw response body. A proxy page
     // that echoes the request as plain text puts the token there with no
-    // bracket and no quote, so the serialized-payload cut never fires; only
-    // the by-value pass, fed the token the write catch holds, reaches it.
+    // bracket and no quote, so the serialized-payload cut never fires; the
+    // `google_oauth_token` key pass reaches it.
     const parseFailure = new errors.UpstashJSONParseError(
       `<html>413: set google_oauth_token ${GOOGLE_TOKEN} ex 3540</html>`,
     );
@@ -439,9 +439,107 @@ describe('cache failure logs (#1029)', () => {
     expect(shipped).not.toContain(GOOGLE_TOKEN);
     expect(record.message).toBe(
       'UpstashJSONParseError: Unable to parse response body: ' +
-        '<html>413: set google_oauth_token <redacted-secret> ex 3540</html>',
+        '<html>413: set google_oauth_token <redacted> ex 3540</html>',
     );
     expect(record.ttlSeconds).toBe(3000);
+  });
+
+  test('cache_write_failed redacts the token BY VALUE where no key or format pass can see it', async () => {
+    // A token with no `ya29.` prefix, with no key in front of it: only the
+    // by-value pass, fed the token the write catch holds, reaches it.
+    const OPAQUE_TOKEN = 'opaque-minted-TEST-TOKEN';
+    const parseFailure = new errors.UpstashJSONParseError(`<html>413: payload ${OPAQUE_TOKEN} too large</html>`);
+    expect(parseFailure.message).toContain(OPAQUE_TOKEN);
+
+    const auth = createGoogleAuth(countingMinter(OPAQUE_TOKEN).minter, {
+      read: async () => null,
+      write: async () => { throw parseFailure; },
+      clear: async () => {},
+    });
+
+    expect(await auth.getGoogleAccessToken()).toBe(OPAQUE_TOKEN);
+
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_write_failed');
+    expect(shipped).not.toContain(OPAQUE_TOKEN);
+    expect(record.message).toBe(
+      'UpstashJSONParseError: Unable to parse response body: ' +
+        '<html>413: payload <redacted-secret> too large</html>',
+    );
+  });
+
+  // The read and delete catches hold NO token, so the by-value pass cannot
+  // help them. Auto-pipelining can still co-batch a concurrent
+  // `set google_oauth_token <TOKEN> ex 3540` into their request, and a proxy
+  // can echo it back as plain text — no bracket, no quote. The
+  // `google_oauth_token` key pass is their bound (Codex [P1], round 2).
+  test('cache_read_failed does not ship a co-batched token a proxy echoes as plain text', async () => {
+    const parseFailure = new errors.UpstashJSONParseError(
+      ['<html>502:', 'get google_oauth_token', `set google_oauth_token ${GOOGLE_TOKEN} ex 3540</html>`].join('\n'),
+    );
+    expect(parseFailure.message).toContain(GOOGLE_TOKEN);
+
+    const auth = createGoogleAuth(countingMinter('minted-after-read-failure').minter, {
+      read: async () => { throw parseFailure; },
+      write: async () => {},
+      clear: async () => {},
+    });
+
+    expect(await auth.getGoogleAccessToken()).toBe('minted-after-read-failure');
+
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_read_failed');
+    expect(shipped).not.toContain(GOOGLE_TOKEN);
+    expect(shipped).not.toContain('TEST-TOKEN');
+    expect(record.message).toBe(
+      'UpstashJSONParseError: Unable to parse response body: ' +
+        '<html>502: get google_oauth_token <redacted> google_oauth_token <redacted> ex 3540</html>',
+    );
+  });
+
+  test('cache_delete_failed does not ship a co-batched token a proxy echoes as plain text', async () => {
+    const upstashError = new errors.UpstashError(
+      `502: del google_oauth_token; set google_oauth_token ${GOOGLE_TOKEN} ex 3540`,
+    );
+    expect(upstashError.message).toContain(GOOGLE_TOKEN);
+
+    const auth = createGoogleAuth(countingMinter().minter, {
+      read: async () => null,
+      write: async () => {},
+      clear: async () => { throw upstashError; },
+    });
+
+    await auth.invalidateGoogleAccessToken();
+
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_delete_failed');
+    expect(shipped).not.toContain(GOOGLE_TOKEN);
+    expect(shipped).not.toContain('TEST-TOKEN');
+    expect(record.message).toBe(
+      'UpstashError: 502: del google_oauth_token; set google_oauth_token <redacted> ex 3540',
+    );
+  });
+
+  test('cache_delete_failed does not ship an HTML-escaped co-batched token either', async () => {
+    const upstashError = new errors.UpstashError(
+      `<pre>&quot;set&quot;,&quot;google_oauth_token&quot;,&quot;${GOOGLE_TOKEN}&quot;</pre>`,
+    );
+    expect(upstashError.message).toContain(GOOGLE_TOKEN);
+
+    const auth = createGoogleAuth(countingMinter().minter, {
+      read: async () => null,
+      write: async () => {},
+      clear: async () => { throw upstashError; },
+    });
+
+    await auth.invalidateGoogleAccessToken();
+
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_delete_failed');
+    expect(shipped).not.toContain('TEST-TOKEN');
+    expect(record.message).toBe(
+      'UpstashError: <pre>&quot;set&quot;,&quot;google_oauth_token&quot;,&quot;<redacted>&quot;</pre>',
+    );
   });
 
   test('cache_read_failed logs neither the Google token nor a co-batched licence key', async () => {
@@ -492,5 +590,87 @@ describe('cache failure logs (#1029)', () => {
     expect(record.message).toBe(
       'UpstashJSONParseError: Unable to parse response body: <html> <head><title>502 Bad Gateway</title></head> </html>',
     );
+  });
+});
+
+describe('token_mint_failed logs (#1029, round 2)', () => {
+  // The mint catch is the singleton failure surface for the whole Chirp chain.
+  // It logs ONE JSON line like the cache catches — an object literal as a
+  // second argument is pretty-printed across several lines and a line-oriented
+  // shipper splits the event name from its message — and its message goes
+  // through the same redactor: `getJwtClient()` throws inside this try with
+  // the runtime's JSON.parse text for a bad GOOGLE_SERVICE_ACCOUNT_JSON.
+  let error: ReturnType<typeof spyOn<Console, 'error'>> | undefined;
+  beforeEach(() => {
+    error = spyOn(console, 'error').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    error?.mockRestore();
+    error = undefined;
+  });
+
+  function loggedRecord(): Record<string, unknown> {
+    expect(error).toHaveBeenCalledTimes(1);
+    const args = error!.mock.calls[0]!;
+    expect(args).toHaveLength(1);
+    const [shipped] = args;
+    expect(typeof shipped).toBe('string');
+    expect(shipped as string).not.toContain('\n');
+    return JSON.parse(shipped as string) as Record<string, unknown>;
+  }
+
+  test('a rejected authorize logs one redacted line carrying the event name', async () => {
+    const auth = createGoogleAuth(
+      {
+        authorize: async () => {
+          throw new Error('invalid_grant: token ya29.LEAKED-TEST-TOKEN\nwas revoked');
+        },
+      },
+      alwaysMissCache(),
+    );
+
+    // The thrown error itself is unchanged; only the LOG is redacted.
+    await expect(auth.getGoogleAccessToken()).rejects.toThrow('ya29.LEAKED-TEST-TOKEN');
+
+    const record = loggedRecord();
+    expect(record).toEqual({
+      event: 'google-auth.token_mint_failed',
+      message: 'Error: invalid_grant: token ya29.<redacted> was revoked',
+    });
+  });
+
+  test('a service-account JSON parse failure is bounded to one capped line', async () => {
+    const auth = createGoogleAuth(
+      {
+        authorize: async () => {
+          throw new Error(
+            'GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON: JSON Parse error: ' +
+              `Unexpected identifier "${'x'.repeat(300)}"`,
+          );
+        },
+      },
+      alwaysMissCache(),
+    );
+
+    await auth.getGoogleAccessToken().catch(() => {});
+
+    const record = loggedRecord();
+    expect(record.event).toBe('google-auth.token_mint_failed');
+    expect(record.message as string).toEndWith('<truncated>');
+    expect((record.message as string).length).toBe(200 + '<truncated>'.length);
+  });
+
+  test('a response with no access_token logs the same one-line shape', async () => {
+    const auth = createGoogleAuth(
+      { authorize: async () => ({ access_token: null, expiry_date: null }) },
+      alwaysMissCache(),
+    );
+
+    await auth.getGoogleAccessToken().catch(() => {});
+
+    expect(loggedRecord()).toEqual({
+      event: 'google-auth.token_mint_failed',
+      message: 'Error: Google service account did not return an access_token',
+    });
   });
 });

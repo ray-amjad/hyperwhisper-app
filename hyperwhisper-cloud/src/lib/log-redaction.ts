@@ -39,6 +39,32 @@ const SERIALIZED_PAYLOAD = /[[{](?:\s*\[)?\s*(?:\\*"|&quot;)[\s\S]*$/;
 const MIN_BY_VALUE_KEY_CHARS = 8;
 
 /**
+ * The value that follows the `google_oauth_token` key, in any shape the key can
+ * reach a message: a command echoed as plain text (`set google_oauth_token
+ * <TOKEN> ex 3540`), `key=value` / `key: value`, or a quoted pair whose
+ * brackets were lost (`"google_oauth_token","<TOKEN>"`, backslash-escaped
+ * `\"`, or HTML-escaped `&quot;`). Group 1 is the key and its separator,
+ * kept; the value becomes `<redacted>`. A comma separates only a QUOTED pair,
+ * so an Upstash `…google_oauth_token, command was: …` does not lose the word
+ * `command`. The value stops at whitespace, a quote, `<`, `>`, `&`, `,`,
+ * `]` or a backslash — none of which a Google access token contains — and
+ * cannot start at `<`, so the pass is a fixed point on its own output. See
+ * pass 4.
+ */
+const GOOGLE_TOKEN_KEY_VALUE =
+  /(google_oauth_token(?:(?:\\*"|&quot;|') ?[,:=] ?(?:\\*"|&quot;|')?|[ :=]+))[^\s"'<>&,\]\\]+/g;
+
+/**
+ * A Google OAuth access token by its FORMAT: Google issues them as `ya29.`
+ * followed by base64url text. This bounds the token wherever it appears —
+ * after a key this module does not know, or in an encoding the key pass does
+ * not parse (`%22`, `&#34;`) — for the read and delete catches, which hold
+ * no token to hand over by value. The `ya29.` prefix is kept so an operator
+ * can still see that a Google token was there. See pass 4.
+ */
+const GOOGLE_ACCESS_TOKEN = /ya29\.[A-Za-z0-9_.-]+/g;
+
+/**
  * Is `value` an IP address rather than a word? `getClientIP` (`lib/request-id`)
  * returns the literal `'unknown'` for an off-edge 6PN peer and for a request
  * with neither `Fly-Client-IP` nor `X-Forwarded-For`, and substituting THAT as
@@ -93,6 +119,9 @@ export interface RedactByValue {
  * its minted `access_token` in `secrets`. The Google cache read and delete
  * catches hold no token — the read failed before one arrived, and a delete
  * sends only the key — so they pass nothing, and passes 2-4 are their bound.
+ * A co-batched `set google_oauth_token <TOKEN> …` can still reach THEIR
+ * message, echoed as plain text by a proxy; pass 4's `google_oauth_token` key
+ * pass and `ya29.` format pass are what bound it there.
  *
  * So the design is a BOUND first and redaction second — a deny-list that names
  * the secrets it knows about is what let the licence key through. In order:
@@ -115,7 +144,8 @@ export interface RedactByValue {
  *    `…, command was: <redacted>`. Over-cutting only costs diagnostic text.
  *    It does NOT reach a command echoed as plain text (a proxy page reading
  *    `set google_oauth_token ya29.… ex 3540`): no bracket, no quote. That is
- *    what pass 5 is for.
+ *    what the `google_oauth_token` and `ya29.` parts of pass 4 are for, and
+ *    pass 5 for a secret the caller holds.
  * 3. Cut the userinfo out of any `scheme://user:password@host` URL. The second
  *    grammar-shaped bound, and it names no secret either. Upstash gives an
  *    operator TWO connection strings for one database — a REST URL, and a
@@ -129,7 +159,14 @@ export interface RedactByValue {
  *    help. The host is deliberately kept, or an operator cannot see WHICH url
  *    is wrong.
  * 4. Redact `ip_blocked:` and `license:` values wherever else they appear, for
- *    a message that names a key outside the command payload.
+ *    a message that names a key outside the command payload. Then the value
+ *    after the `google_oauth_token` key (`GOOGLE_TOKEN_KEY_VALUE`) — this is
+ *    what bounds a Google token in a co-batched write echoed as PLAIN TEXT
+ *    (`502: set google_oauth_token ya29.… ex 3540`) in the read and delete
+ *    catches, which hold no token for pass 5 — and last any `ya29.` Google
+ *    access token by format (`GOOGLE_ACCESS_TOKEN`), for one that reaches the
+ *    message with no key in front of it. The key pass runs first so the
+ *    format pass cannot leave a half-marker for it to re-match.
  * 5. Redact the secrets the caller holds, by VALUE. This is the only pass that
  *    reaches a secret the message carries with no key and no payload around
  *    it. Each has its own gate and its own marker:
@@ -138,9 +175,10 @@ export interface RedactByValue {
  *      `daily quota exceeded for account HW-…`. Skipped below
  *      `MIN_BY_VALUE_KEY_CHARS`, so an empty or tiny key cannot rewrite
  *      ordinary text.
- *    - each of `secrets` → `<redacted-secret>`, e.g. the Google access token
- *      in a proxy page that echoes `set google_oauth_token <TOKEN> ex 3540`
- *      as plain text. Same `MIN_BY_VALUE_KEY_CHARS` gate, same reason.
+ *    - each of `secrets` → `<redacted-secret>`, e.g. the minted Google
+ *      access token the write catch holds, wherever the message carries it
+ *      outside the key and `ya29.` shapes pass 4 knows. Same
+ *      `MIN_BY_VALUE_KEY_CHARS` gate, same reason.
  *    - `ip` → `<redacted-ip>`, for an address carried some other way
  *      entirely — a DNS failure gives
  *      `TypeError: getaddrinfo ENOTFOUND 203.0.113.7.invalid`, which has no
@@ -152,6 +190,12 @@ export interface RedactByValue {
  *      never reads.) Gated on `looksLikeIPAddress` so the `'unknown'`
  *      sentinel is not substituted into English.
  *
+ *    The licence key and each secret are searched for with their whitespace
+ *    collapsed the way pass 1 collapsed the line (and trimmed), or a value
+ *    holding a newline or a run of spaces would no longer match and would
+ *    ship. The length gate applies to that collapsed needle — it is what is
+ *    searched for — so padding cannot carry a short value past it.
+ *
  *    These run after 1-4 because a caller's value is arbitrary text: a value
  *    that happens to be a substring of a marker (`redacted`) could rewrite
  *    part of one. Running last, such a rewrite only swaps marker text for
@@ -161,8 +205,8 @@ export interface RedactByValue {
  * Apart from pass 5 running after 1-4 (above), no two passes depend on each
  * other's order for CORRECTNESS. Every marker a pass can WRITE INTO the line —
  * `<redacted>`, `<redacted-ip>`, `<redacted-license-key>`, `<redacted-secret>`,
- * `<redacted-credentials>` — holds no whitespace, `"`, `'`, `[`, `]`, `{`, `/`,
- * `?`, `#` or `@`, so it matches no other pass's character class in part: a
+ * `<redacted-credentials>`, and the `ya29.<redacted>` pass 4 forms — holds no
+ * whitespace, `"`, `'`, `[`, `]`, `{`, `/`, `?`, `#` or `@`, so it matches no other pass's character class in part: a
  * later pass can only re-match one whole (which is idempotent) and can never
  * truncate one. Pass 3 re-matching its OWN output is the case that needs `@`
  * on that list, and `redis://<redacted-credentials>@host` is a fixed point.
@@ -210,16 +254,21 @@ export function toRedactedLogLine(error: unknown, byValue: RedactByValue = {}): 
     );
     line = line
       .replace(/ip_blocked:[^"'\s\]]*/g, 'ip_blocked:<redacted>')
-      .replace(/license:[^"'\s\]]*/g, 'license:<redacted>');
+      .replace(/license:[^"'\s\]]*/g, 'license:<redacted>')
+      .replace(GOOGLE_TOKEN_KEY_VALUE, '$1<redacted>')
+      .replace(GOOGLE_ACCESS_TOKEN, 'ya29.<redacted>');
     const { ip, licenseKey, secrets = [] } = byValue;
-    if (licenseKey !== undefined && licenseKey.length >= MIN_BY_VALUE_KEY_CHARS) {
-      line = line.replaceAll(licenseKey, '<redacted-license-key>');
-    }
-    for (const secret of secrets) {
-      if (secret.length >= MIN_BY_VALUE_KEY_CHARS) {
-        line = line.replaceAll(secret, '<redacted-secret>');
+    // Pass 1 collapsed the LINE's whitespace, so a secret holding a newline or
+    // a run of spaces would no longer match as given. Collapse the needle the
+    // same way, and apply the length gate to what is actually searched for.
+    const redactByValue = (value: string, marker: string): void => {
+      const needle = value.replace(/\s+/g, ' ').trim();
+      if (needle.length >= MIN_BY_VALUE_KEY_CHARS) {
+        line = line.replaceAll(needle, marker);
       }
-    }
+    };
+    if (licenseKey !== undefined) redactByValue(licenseKey, '<redacted-license-key>');
+    for (const secret of secrets) redactByValue(secret, '<redacted-secret>');
     if (ip !== undefined && looksLikeIPAddress(ip)) {
       line = line.replaceAll(ip, '<redacted-ip>');
     }

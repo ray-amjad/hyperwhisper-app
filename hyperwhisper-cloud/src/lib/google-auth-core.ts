@@ -19,11 +19,16 @@
 // production cache is Upstash, whose error message quotes the command it sent
 // — here `set google_oauth_token <ACCESS_TOKEN> ex …`, plus every command
 // auto-pipelined into the same request. `./log-redaction` is pure and nothing
-// mocks it, so this file stays off every mocked path. Each cache failure is ONE
-// `JSON.stringify`'d line with the event name and the redacted message in the
-// same record — the `logEvent` / `latency_report.*` shape. An object literal
-// passed to `console.warn` is pretty-printed across several lines, and a
-// line-oriented shipper would split the event name from its message.
+// mocks it, so this file stays off every mocked path. Each cache failure, and
+// each mint failure, is ONE `JSON.stringify`'d line with the event name and
+// the redacted message in the same record. That is the one-line `{ event, … }`
+// convention of `logEvent` (`lib/logging.ts`), but NOT its full shape: these
+// records carry no `requestId` or `elapsedMs`, because `createGoogleAuth` has
+// no request context to take them from — one minted token serves every
+// request. A query that filters or joins on `requestId` will not find them;
+// match on `event`. An object literal passed to `console.warn` is
+// pretty-printed across several lines, and a line-oriented shipper would split
+// the event name from its message.
 
 import { toRedactedLogLine } from './log-redaction';
 
@@ -86,10 +91,17 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
       ({ access_token, expiry_date } = await minter.authorize());
     } catch (error) {
       // Singleton failure surface — this is the entire health of the Chirp
-      // self-only chain hanging on it, so the log line matters.
-      console.error('google-auth.token_mint_failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
+      // self-only chain hanging on it, so the log line matters. ONE line, and
+      // through the same redactor as the cache catches: `getJwtClient()`
+      // throws inside this try with the runtime's JSON.parse text for a bad
+      // GOOGLE_SERVICE_ACCOUNT_JSON, and bun quotes the offending token
+      // (measured: `JSON Parse error: Unexpected identifier "MIIE…"`). The
+      // redactor bounds that to one capped line and takes out any `ya29.`
+      // token or serialized payload; it cannot name an arbitrary fragment.
+      console.error(JSON.stringify({
+        event: 'google-auth.token_mint_failed',
+        message: toRedactedLogLine(error),
+      }));
       // Clear inflight on failure so the next request retries instead of
       // hanging on a permanently-rejected promise.
       inflight = null;
@@ -98,7 +110,10 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
 
     if (!access_token) {
       const err = new Error('Google service account did not return an access_token');
-      console.error('google-auth.token_mint_failed', { message: err.message });
+      console.error(JSON.stringify({
+        event: 'google-auth.token_mint_failed',
+        message: toRedactedLogLine(err),
+      }));
       inflight = null;
       throw err;
     }
