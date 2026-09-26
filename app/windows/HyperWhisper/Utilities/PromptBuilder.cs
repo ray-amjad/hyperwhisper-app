@@ -175,6 +175,8 @@ public static class PromptBuilder
             @capitalization: mode.Capitalization,
             @profanityFilter: mode.ProfanityFilter
         );
+    }
+
     /// <summary>A fresh context, or null when HyperWhisper.AppClassification cannot load.</summary>
     private static ApplicationContext? TryGatherContext() =>
         GatherContextGuarded(
@@ -241,6 +243,7 @@ public static class PromptBuilder
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static HwAppType ReadHwAppType(ApplicationContext appContext) =>
         HwAppTypeFromNative(appContext.AppType);
+
     /// <summary>Map the native <see cref="PresetType"/> to the shared-core <c>Preset</c>.</summary>
     // TODO-verify (Windows/CI): Rust shared-core swap.
     private static uniffi.hyperwhisper_core.Preset PresetFromNative(PresetType preset) => preset switch
