@@ -27,7 +27,7 @@ import {
   updateCustomerEmail,
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
-import { describeDbError, dbErrorCode } from "@/lib/shared/db-error";
+import { dbErrorCode, describeDbError, isDbError } from "@/lib/shared/db-error";
 import { emailService } from "@/lib/services/email";
 import { createCustomerPaymentRefunder } from "./customer-refund";
 import { createCustomerSpendReader } from "./customer-spend";
@@ -270,7 +270,7 @@ export const customersRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error && describeDbError(error) === error
+            error instanceof Error && !isDbError(error)
               ? error.message
               : "Failed to fetch customers",
         });
@@ -331,7 +331,7 @@ export const customersRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error && describeDbError(error) === error
+            error instanceof Error && !isDbError(error)
               ? error.message
               : "Failed to update email",
         });

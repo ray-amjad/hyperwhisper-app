@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { DrizzleQueryError } from "drizzle-orm";
 
-import { dbErrorCode, dbErrorConstraint, describeDbError } from "../lib/shared/db-error";
+import { dbErrorCode, dbErrorConstraint, describeDbError, isDbError } from "../lib/shared/db-error";
 import {
   LEAKY_EMAIL,
   LEAKY_KEY,
@@ -103,4 +103,17 @@ test("describeDbError never keeps a pg server error's message as a reason", () =
   assert.equal("reason" in described, false);
   const bare = describeDbError(leakyDbError("22P02").cause) as Record<string, unknown>;
   assert.equal("reason" in bare, false);
+});
+
+test("isDbError: a drizzle query error or a bare pg server error, and nothing else", () => {
+  assert.equal(isDbError(leakyDbError("22P02")), true);
+  assert.equal(isDbError(leakyDbError("22P02").cause), true);
+  assert.equal(
+    isDbError(new DrizzleQueryError(LEAKY_SQL, [], new Error("Connection terminated unexpectedly"))),
+    true,
+  );
+  assert.equal(isDbError(new Error("Connection terminated unexpectedly")), false);
+  assert.equal(isDbError(Object.assign(new Error("x"), { code: "23505" })), false);
+  assert.equal(isDbError("text"), false);
+  assert.equal(isDbError(null), false);
 });

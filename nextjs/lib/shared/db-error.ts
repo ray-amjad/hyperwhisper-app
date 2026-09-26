@@ -62,17 +62,31 @@ function causeReason(cause: unknown): string | undefined {
 }
 
 /**
+ * A drizzle query error (own `query` string and `params`) or a bare pg server
+ * error. Duck-typed, not `instanceof`, so a second copy of drizzle-orm or pg
+ * in the bundle cannot silently skip redaction.
+ */
+export function isDbError(err: unknown): boolean {
+  const e = fields(err);
+
+  return isQueryErrorShape(e) || isPgServerError(e);
+}
+
+function isQueryErrorShape(value: Fields): boolean {
+  return typeof value.query === "string" && "params" in value;
+}
+
+/**
  * A drizzle query error, or a bare pg error, becomes its kind, SQLSTATE, SQL
  * text and the constraint/table/column it names — never `params`, `message`
  * or `stack`. A drizzle error whose cause is not a pg server error also keeps
- * that cause's (redacted) message as `reason`. Anything else is returned unchanged, so non-DB log lines keep
- * their diagnosis.
+ * that cause's (redacted) message as `reason`. Anything else is returned
+ * unchanged, so non-DB log lines keep their diagnosis.
  */
 export function describeDbError(err: unknown): unknown {
+  if (!isDbError(err)) return err;
   const e = fields(err);
-  const isQueryError = typeof e.query === "string" && "params" in e;
-
-  if (!isQueryError && !isPgServerError(e)) return err;
+  const isQueryError = isQueryErrorShape(e);
   const pg = isQueryError ? fields(e.cause) : e;
   const reason = isQueryError ? causeReason(e.cause) : undefined;
 
