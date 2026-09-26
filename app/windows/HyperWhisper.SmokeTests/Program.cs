@@ -338,24 +338,80 @@ internal static class Program
                 Assert(optional.GetName().Name == OptionalAssemblyGuard.AppClassificationAssembly,
                     "AppType moved out of the guarded optional assembly; update this test");
 
+                // A field names the optional assembly when its type does, or when
+                // any generic argument or element type does: AppType?,
+                // (AppType, string), AppType[] and List<AppType> all count.
+                bool NamesOptional(Type type)
+                {
+                    if (type.HasElementType)
+                    {
+                        return NamesOptional(type.GetElementType()!);
+                    }
+
+                    return !type.IsGenericParameter &&
+                        (type.Assembly == optional ||
+                         (type.IsGenericType && type.GetGenericArguments().Any(NamesOptional)));
+                }
+
+                // The scan covers every type whose layout the recording path can
+                // load: the 3 roots, their base types, their nested types at any
+                // depth (async state machines and closure display classes hoist
+                // locals into fields), and every struct from this assembly held
+                // by value, because a struct field is part of the holder's layout.
+                // No nested type is exempt. Only the guarded Capture* boundaries
+                // name ApplicationContext, and they hoist nothing typed from the
+                // optional assembly.
                 const BindingFlags allFields = BindingFlags.Instance | BindingFlags.Static |
                     BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-                foreach (var type in new[]
-                         {
-                             typeof(Services.ApplicationContext),
-                             typeof(ApplicationContextService),
-                             typeof(MainViewModel),
-                         })
+                const BindingFlags allNested = BindingFlags.Public | BindingFlags.NonPublic;
+                var appAssembly = typeof(MainViewModel).Assembly;
+                var scanned = new HashSet<Type>();
+                var pending = new Stack<Type>(new[]
                 {
-                    var leaks = type.GetFields(allFields)
-                        .Where(field => (Nullable.GetUnderlyingType(field.FieldType) ?? field.FieldType).Assembly == optional)
-                        .Select(field => field.Name)
-                        .ToList();
-                    Assert(leaks.Count == 0,
-                        $"{type.Name} has a field typed from {optional.GetName().Name} " +
-                        $"({string.Join(", ", leaks)}); a blocked DLL would fail every method " +
-                        "that touches it (#960)");
+                    typeof(Services.ApplicationContext),
+                    typeof(ApplicationContextService),
+                    typeof(MainViewModel),
+                });
+                var leaks = new List<string>();
+                while (pending.Count > 0)
+                {
+                    var type = pending.Pop();
+                    if (type == typeof(object) || !scanned.Add(type))
+                    {
+                        continue;
+                    }
+
+                    if (type.BaseType != null)
+                    {
+                        pending.Push(type.BaseType);
+                    }
+
+                    foreach (var nested in type.GetNestedTypes(allNested))
+                    {
+                        pending.Push(nested);
+                    }
+
+                    foreach (var field in type.GetFields(allFields))
+                    {
+                        if (NamesOptional(field.FieldType))
+                        {
+                            leaks.Add($"{type.FullName}.{field.Name}");
+                        }
+                        else if (field.FieldType.IsValueType && !field.FieldType.IsEnum &&
+                                 field.FieldType.Assembly == appAssembly)
+                        {
+                            pending.Push(field.FieldType);
+                        }
+                    }
                 }
+
+                Assert(scanned.Any(type => type.IsNested && type.DeclaringType == typeof(MainViewModel) &&
+                        type.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false)),
+                    "the scan reached no compiler-generated type nested in MainViewModel");
+                Assert(leaks.Count == 0,
+                    $"a recording-path type has a field typed from {optional.GetName().Name} " +
+                    $"({string.Join(", ", leaks)}); a blocked DLL would fail every method " +
+                    "that touches it (#960)");
 
                 Assert(new Services.ApplicationContext().AppType == AppType.Other,
                     "a fresh ApplicationContext no longer defaults to AppType.Other");
