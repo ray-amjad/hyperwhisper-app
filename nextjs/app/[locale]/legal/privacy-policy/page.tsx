@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: September 25, 2026
+        Last Updated: September 26, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -48,7 +48,19 @@ export default function PrivacyPolicyPage() {
           submit so we can send it. We use the IP address of that request only
           to rate limit the form (10 requests per IP address per hour) and we
           do not store the IP address, browser user agent, or country with the
-          record.
+          email record. The rate limit does write the IP address to our
+          rate-limit store, hosted by{" "}
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://upstash.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Upstash
+          </a>
+          , as an hourly count of requests and whether each one was allowed.
+          That store does not hold your email address, browser user agent, or
+          country, and it has no automatic deletion period today.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
@@ -128,7 +140,11 @@ export default function PrivacyPolicyPage() {
           receive your Account Key, a SHA-256 hash of your device&apos;s
           hardware identifier (we never receive the raw identifier), and your
           device&apos;s hostname. This information is used to enforce our fair
-          usage policy. No audio or transcripts are transmitted.
+          usage policy. No audio or transcripts are transmitted. The licensing
+          service also sees the IP address of each activation and validation
+          request. We use it only to rate limit those endpoints (30 requests per
+          IP address per minute), and it goes into the same Upstash rate-limit
+          store, on the same terms as the download form above.
         </li>
         <li>
           <strong>Custom vocabulary</strong>: When you use HyperWhisper Cloud,
@@ -696,8 +712,9 @@ export default function PrivacyPolicyPage() {
 
       <h2>International Transfers</h2>
       <p>
-        Our payment and licensing providers may process limited personal
-        information in multiple countries, including the United Kingdom, the
+        Our payment and licensing providers, and Upstash, which hosts our
+        rate-limit store, may process limited personal information in multiple
+        countries, including the United Kingdom, the
         European Economic Area, and the United States. Where required,
         appropriate safeguards are used by those providers (for example,
         adequacy decisions, Standard Contractual Clauses, or equivalent
