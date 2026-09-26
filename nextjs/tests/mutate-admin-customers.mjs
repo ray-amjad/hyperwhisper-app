@@ -76,6 +76,13 @@ const MUTANTS = [
   { name: "list: 0 pages for an empty result", from: "totalPages: Math.max(1, Math.ceil(", to: "totalPages: Math.max(0, Math.ceil(" },
   { name: "list: floor the page count", from: "Math.ceil(totalCustomers / CUSTOMERS_PAGE_SIZE)", to: "Math.floor(totalCustomers / CUSTOMERS_PAGE_SIZE)" },
   { name: "list: spend from dispute-lost charges too (shared reader wiring)", from: "    return disputes.data[0]?.status ?? null;", to: '    return "won";' },
+  // --- #1039 redaction ------------------------------------------------------
+  { name: "list: log the raw drizzle error", from: 'console.error("Customers fetch error:", describeDbError(error));', to: 'console.error("Customers fetch error:", error);' },
+  { name: "updateEmail: log the raw drizzle error", from: 'console.error("Update customer email error:", describeDbError(error));', to: 'console.error("Update customer email error:", error);' },
+  { name: "list: return a DB error's raw message", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch customers"', to: 'error instanceof Error\n              ? error.message\n              : "Failed to fetch customers"' },
+  { name: "updateEmail: return a DB error's raw message", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to update email"', to: 'error instanceof Error\n              ? error.message\n              : "Failed to update email"' },
+  { name: "list: hide a non-DB error's message too", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch customers"', to: 'false\n              ? error.message\n              : "Failed to fetch customers"' },
+  { name: "updateEmail: hide a non-DB error's message too", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to update email"', to: 'false\n              ? error.message\n              : "Failed to update email"' },
 ];
 
 const results = [];
