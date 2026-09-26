@@ -12,6 +12,7 @@
 // suite's stub. Both I/O edges are injected instead.
 
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { errors } from '@upstash/redis';
 import { computeCacheTtlSeconds, createGoogleAuth, type GoogleTokenCache } from './google-auth-core';
 
 /** A cache that always misses, so every call reaches the minter. */
@@ -351,10 +352,16 @@ describe('cache failure logs (#1029)', () => {
   // issued in the same tick: the Google token write, and here a co-batched
   // licence lookup whose key is a customer's bearer credential. Neither may
   // reach the log line.
+  //
+  // The fixtures are the REAL `@upstash/redis` error classes, as in
+  // redis-core.test.ts: a hand-rolled `new Error` only confirms the fixture's
+  // own text, so it cannot notice the library renaming a class or reshaping
+  // what it throws. Nothing in `src/` does `mock.module('@upstash/redis')`,
+  // so this import always resolves to the real package.
   const GOOGLE_TOKEN = 'ya29.TEST-TOKEN';
   const LICENSE_KEY = 'HW-ABCD-EFGH-IJKL-MNOP';
-  const upstashFailure = (): Error =>
-    new Error(
+  const upstashFailure = (): errors.UpstashError =>
+    new errors.UpstashError(
       'WRONGPASS invalid password, command was: ' +
         JSON.stringify([
           ['set', 'google_oauth_token', GOOGLE_TOKEN, 'ex', 3540],
@@ -371,20 +378,26 @@ describe('cache failure logs (#1029)', () => {
     warn = undefined;
   });
 
-  /** The single console.warn call's event name and payload, both asserted on. */
-  function loggedWarn(): { event: unknown; payload: Record<string, unknown> } {
+  /**
+   * The single console.warn call, as the ONE line a shipper sees. It must be
+   * a single string argument with no newline: an object argument is
+   * pretty-printed across several lines by the runtime, which splits the
+   * event name from the redacted message into unrelated records.
+   */
+  function loggedRecord(): { shipped: string; record: Record<string, unknown> } {
     expect(warn).toHaveBeenCalledTimes(1);
-    const [event, payload] = warn!.mock.calls[0]!;
-    return { event, payload: payload as Record<string, unknown> };
+    const args = warn!.mock.calls[0]!;
+    expect(args).toHaveLength(1);
+    const [shipped] = args;
+    expect(typeof shipped).toBe('string');
+    expect(shipped as string).not.toContain('\n');
+    return { shipped: shipped as string, record: JSON.parse(shipped as string) as Record<string, unknown> };
   }
 
-  function expectNoSecrets(payload: Record<string, unknown>): void {
-    // The payload is a plain object of strings and numbers, so its JSON is
-    // everything a shipper would see.
-    const shipped = JSON.stringify(payload);
+  function expectNoSecrets(shipped: string, record: Record<string, unknown>): void {
     expect(shipped).not.toContain(GOOGLE_TOKEN);
     expect(shipped).not.toContain(LICENSE_KEY);
-    expect(payload.message).toBe('Error: WRONGPASS invalid password, command was: <redacted>');
+    expect(record.message).toBe('UpstashError: WRONGPASS invalid password, command was: <redacted>');
   }
 
   test('cache_write_failed logs neither the Google token nor a co-batched licence key', async () => {
@@ -396,10 +409,39 @@ describe('cache failure logs (#1029)', () => {
 
     expect(await auth.getGoogleAccessToken()).toBe(GOOGLE_TOKEN);
 
-    const { event, payload } = loggedWarn();
-    expect(event).toBe('google-auth.cache_write_failed');
-    expectNoSecrets(payload);
-    expect(payload.ttlSeconds).toBe(3000);
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_write_failed');
+    expectNoSecrets(shipped, record);
+    expect(record.ttlSeconds).toBe(3000);
+  });
+
+  test('cache_write_failed redacts the token BY VALUE when a proxy echoes the command as plain text', async () => {
+    // An `UpstashJSONParseError` quotes the raw response body. A proxy page
+    // that echoes the request as plain text puts the token there with no
+    // bracket and no quote, so the serialized-payload cut never fires; only
+    // the by-value pass, fed the token the write catch holds, reaches it.
+    const parseFailure = new errors.UpstashJSONParseError(
+      `<html>413: set google_oauth_token ${GOOGLE_TOKEN} ex 3540</html>`,
+    );
+    // Guard the FIXTURE: the token really is in the message.
+    expect(parseFailure.message).toContain(GOOGLE_TOKEN);
+
+    const auth = createGoogleAuth(countingMinter(GOOGLE_TOKEN).minter, {
+      read: async () => null,
+      write: async () => { throw parseFailure; },
+      clear: async () => {},
+    });
+
+    expect(await auth.getGoogleAccessToken()).toBe(GOOGLE_TOKEN);
+
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_write_failed');
+    expect(shipped).not.toContain(GOOGLE_TOKEN);
+    expect(record.message).toBe(
+      'UpstashJSONParseError: Unable to parse response body: ' +
+        '<html>413: set google_oauth_token <redacted-secret> ex 3540</html>',
+    );
+    expect(record.ttlSeconds).toBe(3000);
   });
 
   test('cache_read_failed logs neither the Google token nor a co-batched licence key', async () => {
@@ -411,9 +453,9 @@ describe('cache failure logs (#1029)', () => {
 
     expect(await auth.getGoogleAccessToken()).toBe('minted-after-read-failure');
 
-    const { event, payload } = loggedWarn();
-    expect(event).toBe('google-auth.cache_read_failed');
-    expectNoSecrets(payload);
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_read_failed');
+    expectNoSecrets(shipped, record);
   });
 
   test('cache_delete_failed logs neither the Google token nor a co-batched licence key', async () => {
@@ -425,8 +467,30 @@ describe('cache failure logs (#1029)', () => {
 
     await auth.invalidateGoogleAccessToken();
 
-    const { event, payload } = loggedWarn();
-    expect(event).toBe('google-auth.cache_delete_failed');
-    expectNoSecrets(payload);
+    const { shipped, record } = loggedRecord();
+    expect(record.event).toBe('google-auth.cache_delete_failed');
+    expectNoSecrets(shipped, record);
+  });
+
+  test('a multi-line upstream body still ships as ONE record carrying the event name', async () => {
+    const parseFailure = new errors.UpstashJSONParseError(
+      ['<html>', '<head><title>502 Bad Gateway</title></head>', '</html>'].join('\r\n'),
+    );
+    expect(parseFailure.message).toContain('\r\n');
+
+    const auth = createGoogleAuth(countingMinter().minter, {
+      read: async () => { throw parseFailure; },
+      write: async () => {},
+      clear: async () => {},
+    });
+
+    await auth.getGoogleAccessToken();
+
+    const { shipped, record } = loggedRecord();
+    expect(shipped).not.toContain('\r');
+    expect(record.event).toBe('google-auth.cache_read_failed');
+    expect(record.message).toBe(
+      'UpstashJSONParseError: Unable to parse response body: <html> <head><title>502 Bad Gateway</title></head> </html>',
+    );
   });
 });
