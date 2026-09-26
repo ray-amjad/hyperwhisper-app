@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { DrizzleQueryError } from "drizzle-orm";
+
 import { dbErrorCode, dbErrorConstraint, describeDbError } from "../lib/shared/db-error";
 import {
   LEAKY_EMAIL,
@@ -68,4 +70,36 @@ test("dbErrorConstraint reads drizzle's .cause.constraint, and an own .constrain
   assert.equal(dbErrorConstraint(Object.assign(new Error("x"), { constraint: "own" })), "own");
   assert.equal(dbErrorConstraint(new Error("x")), undefined);
   assert.equal(dbErrorConstraint(null), undefined);
+});
+
+// A drizzle error whose cause is NOT a pg server error (a dropped connection,
+// a connect timeout) keeps the cause's message as `reason` — redacted.
+test("describeDbError keeps a non-pg cause's message as a redacted reason", () => {
+  const dropped = new DrizzleQueryError(
+    LEAKY_SQL,
+    [LEAKY_KEY, LEAKY_EMAIL],
+    new Error("Connection terminated unexpectedly"),
+  );
+  const described = describeDbError(dropped) as Record<string, unknown>;
+  assert.equal(described.reason, "Connection terminated unexpectedly");
+  assert.equal(described.query, LEAKY_SQL);
+  assert.deepEqual(leakyLines([formatLogArgs([described])]), []);
+
+  const timeout = new DrizzleQueryError(
+    LEAKY_SQL,
+    [LEAKY_KEY],
+    new Error(`timeout exceeded when trying to connect for ${LEAKY_EMAIL}`),
+  );
+  const t = describeDbError(timeout) as Record<string, unknown>;
+  assert.equal(t.reason, "timeout exceeded when trying to connect for [redacted]");
+
+  const long = new DrizzleQueryError(LEAKY_SQL, [], new Error("x".repeat(5000)));
+  assert.equal((describeDbError(long) as { reason: string }).reason.length, 300);
+});
+
+test("describeDbError never keeps a pg server error's message as a reason", () => {
+  const described = describeDbError(leakyDbError("22P02")) as Record<string, unknown>;
+  assert.equal("reason" in described, false);
+  const bare = describeDbError(leakyDbError("22P02").cause) as Record<string, unknown>;
+  assert.equal("reason" in bare, false);
 });
