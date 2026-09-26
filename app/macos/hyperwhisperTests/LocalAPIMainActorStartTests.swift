@@ -726,6 +726,12 @@ struct LocalAPIMainActorStartTests {
             port (issue #641).
             """
         )
+        // restart() is stop() then start(), so it hides the same stop. Comment
+        // lines are already gone from `body`, so prose naming it cannot trip this.
+        #expect(
+            !body.contains("restart()"),
+            "regenerateBearerToken() calls restart(), which stops the server first (issue #641)"
+        )
         #expect(
             body.contains("Self.regenerationOutcome("),
             "regenerateBearerToken() must act on regenerationOutcome(), the decision the test above calls"
@@ -740,17 +746,18 @@ struct LocalAPIMainActorStartTests {
                 && !republish.contains("bindAndRun()"),
             "a live server must get local-api.json rewritten on the port it already holds, and no rebind"
         )
-        // The last arm: switchArm runs to the end of `body`, so cut it at the
-        // switch's closing brace.
+        // The last arm, so switchArm runs to the end of `body`: the arm, then
+        // only closing braces. Not cut at the first "}", which a nested
+        // `if { }` inside the arm would end early.
         let awaitArm = try ProductionSource.switchArm(
             named: "case .awaitBindInFlight:",
             in: body,
             of: "LocalAPIServer.swift"
         )
-        let awaitArmBody = awaitArm.prefix(while: { $0 != "}" })
         #expect(
-            !awaitArmBody.contains("bindAndRun()") && !awaitArmBody.contains("writePortFile"),
-            "a bind in flight writes the port file itself; a second bind or write here races it"
+            !awaitArm.contains("bindAndRun()") && !awaitArm.contains("writePortFile")
+                && !awaitArm.contains("stop()") && !awaitArm.contains("restart()"),
+            "a bind in flight writes the port file itself; a second bind, write or stop here races it"
         )
     }
 }

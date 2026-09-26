@@ -436,10 +436,9 @@ final class LocalAPIServer: ObservableObject {
     /// Nothing in the app calls this today: the Settings switch calls `start()`
     /// and `stop()` directly, and `regenerateBearerToken()` deliberately does
     /// not use it — it already holds the fresh token, and coming back through
-    /// `start()` would read the same Keychain item a second time. Kept as the
-    /// honest spelling of "stop then start" for a caller that has no token in
-    /// hand; anything that does have one should call `stop()` and re-enter the
-    /// bind step instead (issue #655).
+    /// `start()` would read the same Keychain item a second time; and regeneration
+    /// never rebinds a live server (issue #641). `stop()` returns before the old socket
+    /// closes, so an immediate rebind of the same port can fail.
     func restart() {
         stop()
         start()
