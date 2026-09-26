@@ -18,10 +18,10 @@
 // The cache failure logs go through `toRedactedLogLine` (#1029): the
 // production cache is Upstash, whose error message quotes the command it sent
 // — here `set google_oauth_token <ACCESS_TOKEN> ex …`, plus every command
-// auto-pipelined into the same request. `./redis-core` imports no Upstash
-// client and nothing mocks it, so this file stays off every mocked path.
+// auto-pipelined into the same request. `./log-redaction` is pure and nothing
+// mocks it, so this file stays off every mocked path.
 
-import { toRedactedLogLine } from './redis-core';
+import { toRedactedLogLine } from './log-redaction';
 
 const FALLBACK_TTL_SECONDS = 3000;            // 50 min — used when the minter omits expiry_date
 const TOKEN_TTL_SAFETY_MARGIN_SECONDS = 600;  // expire 10 min before Google's stated expiry
@@ -107,7 +107,10 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
       // Cache-write failure isn't fatal — the caller already has a usable
       // token. The next request just pays the mint cost again.
       console.warn('google-auth.cache_write_failed', {
-        message: toRedactedLogLine(error),
+        // The write is the one catch that HOLDS the token, so it hands it over
+        // by value: a proxy page that echoes the command as plain text carries
+        // it with no bracket or quote around it for the payload cut to find.
+        message: toRedactedLogLine(error, { secrets: [access_token] }),
         ttlSeconds,
       });
     }
