@@ -1464,15 +1464,18 @@ public partial class MainViewModel : ViewModelBase
     // Application context is an OPTIONAL enrichment for post-processing prompts.
     // It is backed by HyperWhisper.AppClassification, which Windows Application
     // Control can block on an individual machine. A blocked load used to take the
-    // whole recording start with it: ApplicationContext carries an AppType from
-    // that assembly, so naming the type in StartRecordingAsync made the CLR load
-    // the assembly while it PREPARED that method — before any `try` in it could
-    // run. The FileLoadException escaped the async void shortcut handler and the
-    // user could not record at all.
+    // whole recording start with it: the CLR loads an assembly while it PREPARES a
+    // method — before any `try` in it could run. The FileLoadException escaped the
+    // async void shortcut handler and the user could not record at all.
     //
-    // The two Capture* methods below are the only ones in this flow that name a
-    // type from that assembly, they are NoInlining, and they are called only after
-    // the guard says the assembly loads. See Services/OptionalAssemblyGuard.cs.
+    // The two Capture* methods below are NoInlining and are called only after the
+    // guard says the assembly loads. That alone was not enough (#960): while
+    // ApplicationContext.AppType was an auto-property, its AppType backing field
+    // put the assembly into the class LAYOUT, and every method that stored, passed
+    // or tested an ApplicationContext — `_capturedApplicationContext = null` in
+    // TryCaptureApplicationContextAsync included — failed to prepare. The property
+    // is now backed by an int, so only a read of AppType itself needs the assembly.
+    // See Services/OptionalAssemblyGuard.cs.
     // =========================================================================
 
     /// <summary>

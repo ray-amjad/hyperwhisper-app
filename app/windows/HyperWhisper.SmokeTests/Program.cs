@@ -323,6 +323,47 @@ internal static class Program
                 AssertNoInlining(typeof(MainViewModel), "CaptureApplicationContextAsync");
                 AssertNoInlining(typeof(HyperWhisper.Views.Pages.HomePage), "LoadStatsBarAsync");
                 AssertNoInlining(typeof(HyperWhisper.Views.Pages.HomePage), "DetachStatsViewModel");
+                AssertNoInlining(typeof(PromptBuilder), "GatherContext");
+                AssertNoInlining(typeof(PromptBuilder), "ReadHwAppType");
+            });
+
+            // #960. A field typed from HyperWhisper.AppClassification puts that
+            // assembly into its class's LAYOUT, and the CLR loads the layout for
+            // every method that stores, passes or tests an instance — even a null
+            // one. ApplicationContext.AppType was an auto-property, so its backing
+            // field made a blocked DLL fail every recording start, guard or not.
+            Run("Recording-path types hold no field typed from HyperWhisper.AppClassification", () =>
+            {
+                var optional = typeof(AppType).Assembly;
+                Assert(optional.GetName().Name == OptionalAssemblyGuard.AppClassificationAssembly,
+                    "AppType moved out of the guarded optional assembly; update this test");
+
+                const BindingFlags allFields = BindingFlags.Instance | BindingFlags.Static |
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+                foreach (var type in new[]
+                         {
+                             typeof(Services.ApplicationContext),
+                             typeof(ApplicationContextService),
+                             typeof(MainViewModel),
+                         })
+                {
+                    var leaks = type.GetFields(allFields)
+                        .Where(field => (Nullable.GetUnderlyingType(field.FieldType) ?? field.FieldType).Assembly == optional)
+                        .Select(field => field.Name)
+                        .ToList();
+                    Assert(leaks.Count == 0,
+                        $"{type.Name} has a field typed from {optional.GetName().Name} " +
+                        $"({string.Join(", ", leaks)}); a blocked DLL would fail every method " +
+                        "that touches it (#960)");
+                }
+
+                Assert(new Services.ApplicationContext().AppType == AppType.Other,
+                    "a fresh ApplicationContext no longer defaults to AppType.Other");
+                foreach (var appType in Enum.GetValues<AppType>())
+                {
+                    Assert(new Services.ApplicationContext { AppType = appType }.AppType == appType,
+                        $"ApplicationContext.AppType did not round-trip {appType}");
+                }
             });
 
             Run("ApplicationContextService exception evidence is privacy-safe", () =>

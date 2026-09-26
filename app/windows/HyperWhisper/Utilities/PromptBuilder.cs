@@ -24,6 +24,7 @@
 // - WrapTranscript stays native
 
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
@@ -95,14 +96,13 @@ public static class PromptBuilder
         ApplicationContext? applicationContext,
         List<string>? vocabulary)
     {
-        // Use the passed context if available, otherwise gather fresh. Both real
-        // call sites pass a context, so this gather-when-null branch is defensive;
-        // it intentionally unifies Windows with macOS PromptBuilder.makeContext,
-        // which also gathers when nil. (Windows HEAD passed null through, but the
-        // `@hasApplicationContext` gate makes the assembled output equivalent.)
-        var appContext = applicationContext
-            // ast-grep-ignore: no-unguarded-optional-assembly-use -- KNOWN GAP, not a boundary. Post-processing is not guarded yet (HYPERWHISPER-Y5 follow-up); both real call sites pass a context, so this branch is defensive.
-            ?? ApplicationContextService.Instance.GatherContext();
+        // Use the passed context if available, otherwise gather fresh. It is null
+        // whenever the recording-start capture was skipped, e.g. when Application
+        // Control blocks HyperWhisper.AppClassification; this also unifies Windows
+        // with macOS PromptBuilder.makeContext, which gathers when nil.
+        // Warning: name no AppClassification type in this method (#960). Both reads
+        // below go through OptionalAssemblyGuard, so post-processing still runs.
+        var appContext = applicationContext ?? TryGatherContext();
 
         var preset = PresetFromNative(PresetTypeExtensions.FromString(mode.Preset));
         var customInstructions = preset == uniffi.hyperwhisper_core.Preset.Custom
@@ -146,7 +146,7 @@ public static class PromptBuilder
             @englishSpelling: HyperwhisperCoreMethods.EnglishSpellingFromRaw(mode.EnglishSpelling ?? ""),
             @language: resolvedLanguage,
             @userSystemPrompt: mode.UserSystemPrompt ?? "",
-            @appType: HwAppTypeFromNative(appContext?.AppType ?? AppType.Other),
+            @appType: TryReadHwAppType(appContext),
             @appName: appName,
             @category: appContext?.Category ?? "",
             // Windows ApplicationContext carries no free-text "description" field.
@@ -174,6 +174,47 @@ public static class PromptBuilder
             @profanityFilter: mode.ProfanityFilter
         );
     }
+
+    /// <summary>A fresh context, or null when HyperWhisper.AppClassification cannot load.</summary>
+    private static ApplicationContext? TryGatherContext()
+    {
+        ApplicationContext? gathered = null;
+        OptionalAssemblyGuard.TryRun(
+            OptionalAssemblyGuard.AppClassificationAssembly,
+            "prompt_gather_context",
+            () => gathered = GatherContext());
+        return gathered;
+    }
+
+    /// <summary>Warning: do not inline. See <see cref="TryGatherContext"/>.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static ApplicationContext? GatherContext() =>
+        // ast-grep-ignore: no-unguarded-optional-assembly-use -- this IS the guarded boundary, reached only through OptionalAssemblyGuard.TryRun in TryGatherContext.
+        ApplicationContextService.Instance.GatherContext();
+
+    /// <summary>
+    /// The context's app type, or Other when there is no context or when
+    /// HyperWhisper.AppClassification cannot load on this machine.
+    /// </summary>
+    private static HwAppType TryReadHwAppType(ApplicationContext? appContext)
+    {
+        if (appContext == null)
+        {
+            return HwAppType.Other;
+        }
+
+        var appType = HwAppType.Other;
+        OptionalAssemblyGuard.TryRun(
+            OptionalAssemblyGuard.AppClassificationAssembly,
+            "prompt_app_type",
+            () => appType = ReadHwAppType(appContext));
+        return appType;
+    }
+
+    /// <summary>Warning: do not inline. Its body names <c>AppType</c>.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static HwAppType ReadHwAppType(ApplicationContext appContext) =>
+        HwAppTypeFromNative(appContext.AppType);
 
     /// <summary>Map the native <see cref="PresetType"/> to the shared-core <c>Preset</c>.</summary>
     // TODO-verify (Windows/CI): Rust shared-core swap.
