@@ -41,6 +41,7 @@ import {
   silenceRouteLogging,
   webhookRequest,
 } from "./stripe-webhook-route-harness";
+import { leakyDbError, leakyLines } from "./db-error-fixture";
 
 /** A made-up secret. Only the stand-in verifier in the harness ever sees it. */
 const WEBHOOK_SECRET = "whsec_harness_only";
@@ -407,4 +408,28 @@ describe("POST /api/webhooks/stripe — refunds", () => {
       "a swallowed refund fault must still be logged",
     );
   });
+});
+
+describe("POST /api/webhooks/stripe — a drizzle error in a handler (#1039)", () => {
+  const cases = [
+    { name: "license", event: () => checkoutEvent({ purchaseType: "license" }), set: (e: unknown) => { behaviour.licenseError = e; }, status: 500 },
+    { name: "credit", event: () => checkoutEvent({ purchaseType: "credits" }), set: (e: unknown) => { behaviour.creditError = e; }, status: 500 },
+    { name: "refund", event: () => refundEvent(), set: (e: unknown) => { behaviour.refundError = e; }, status: 200 },
+  ];
+
+  for (const c of cases) {
+    test(`the ${c.name} catch logs the SQLSTATE and SQL, never the bound email or licence key`, async () => {
+      behaviour.verifiedEvent = c.event();
+      c.set(leakyDbError("22P02"));
+
+      const response = await signedPost(behaviour.verifiedEvent);
+
+      assert.equal(response.status, c.status);
+      const errors = logLines.filter((line) => line.startsWith("error "));
+      assert.equal(errors.length, 1);
+      assert.deepEqual(leakyLines(logLines), []);
+      assert.match(errors[0], /22P02/);
+      assert.match(errors[0], /insert into "account_keys"/);
+    });
+  }
 });

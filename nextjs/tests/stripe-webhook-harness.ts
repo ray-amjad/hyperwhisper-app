@@ -15,6 +15,8 @@
  */
 import { mock } from "node:test";
 
+import { formatLogArgs } from "./db-error-fixture";
+
 import type { AccountKeyInsert, AccountKeyRow } from "@/src/lib/db-layer";
 
 export interface SentEmail {
@@ -148,7 +150,7 @@ export function silenceWebhookLogging(): void {
   const capture =
     (level: string) =>
     (...args: unknown[]): void => {
-      logLines.push(`${level} ${args.map((a) => String(a)).join(" ")}`);
+      logLines.push(`${level} ${formatLogArgs(args)}`);
     };
   console.log = capture("log");
   console.warn = capture("warn");

@@ -27,6 +27,7 @@ import {
   updateCustomerEmail,
 } from "@/src/lib/db-layer";
 import { generateLicenseKey } from "@/lib/services/license-key";
+import { describeDbError, dbErrorCode } from "@/lib/shared/db-error";
 import { emailService } from "@/lib/services/email";
 import { createCustomerPaymentRefunder } from "./customer-refund";
 import { createCustomerSpendReader } from "./customer-spend";
@@ -264,11 +265,14 @@ export const customersRouter = createTRPCRouter({
           totalPages: Math.max(1, Math.ceil(totalCustomers / CUSTOMERS_PAGE_SIZE)),
         };
       } catch (error) {
-        console.error("Customers fetch error:", error);
+        console.error("Customers fetch error:", describeDbError(error));
+        // tRPC's onError logs a 500's message: a drizzle one embeds params.
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error ? error.message : "Failed to fetch customers",
+            error instanceof Error && describeDbError(error) === error
+              ? error.message
+              : "Failed to fetch customers",
         });
       }
     }),
@@ -317,21 +321,19 @@ export const customersRouter = createTRPCRouter({
         });
       } catch (error) {
         // Unique-constraint race on user.email (Postgres 23505).
-        const code =
-          typeof error === "object" && error !== null && "code" in error
-            ? error.code
-            : undefined;
-        if (code === "23505") {
+        if (dbErrorCode(error) === "23505") {
           throw new TRPCError({
             code: "CONFLICT",
             message: "That email already belongs to another account",
           });
         }
-        console.error("Update customer email error:", error);
+        console.error("Update customer email error:", describeDbError(error));
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error ? error.message : "Failed to update email",
+            error instanceof Error && describeDbError(error) === error
+              ? error.message
+              : "Failed to update email",
         });
       }
 

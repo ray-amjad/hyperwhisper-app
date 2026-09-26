@@ -3,6 +3,7 @@ import { stripe } from "@/lib/clients/stripe";
 import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailTag } from "@/lib/shared/redact";
+import { describeDbError, dbErrorCode } from "@/lib/shared/db-error";
 import {
   findAccountByKey,
   getAccountKeysByEmail,
@@ -119,16 +120,11 @@ export async function handleLicensePurchase(
     });
   } catch (insertError: unknown) {
     // Check if it's a duplicate (race condition with webhook retry)
-    if (
-      insertError &&
-      typeof insertError === "object" &&
-      "code" in insertError &&
-      insertError.code === "23505"
-    ) {
+    if (dbErrorCode(insertError) === "23505") {
       console.log("License already inserted by concurrent request");
       return;
     }
-    console.error("Failed to store license key:", insertError);
+    console.error("Failed to store license key:", describeDbError(insertError));
     throw insertError;
   }
 
@@ -145,7 +141,10 @@ export async function handleLicensePurchase(
       });
       console.log(`Granted 5000 initial credits for license ${licenseKey.substring(0, 7)}...`);
     } catch (creditError) {
-      console.error("Failed to create initial credit balance:", creditError);
+      console.error(
+        "Failed to create initial credit balance:",
+        describeDbError(creditError),
+      );
       // Don't throw - license was created, credits can be added later
     }
   }
@@ -382,16 +381,14 @@ async function handleCreditMint(
     } catch (insertError: unknown) {
       // Concurrent webhook delivery inserted the row first (unique
       // stripe_session_id): fall back to the existing row.
-      if (
-        insertError &&
-        typeof insertError === "object" &&
-        "code" in insertError &&
-        insertError.code === "23505"
-      ) {
+      if (dbErrorCode(insertError) === "23505") {
         console.log("License already inserted by concurrent request");
         license = await findAccountByStripeSession(session.id);
       } else {
-        console.error("Failed to store license key:", insertError);
+        console.error(
+          "Failed to store license key:",
+          describeDbError(insertError),
+        );
         throw insertError;
       }
     }

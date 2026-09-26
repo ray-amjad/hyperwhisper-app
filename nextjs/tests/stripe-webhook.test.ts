@@ -22,6 +22,7 @@ import {
   restoreWebhookLogging,
   silenceWebhookLogging,
 } from "./stripe-webhook-harness";
+import { LEAKY_KEY, leakyDbError, leakyLines } from "./db-error-fixture";
 
 type Webhook = Awaited<ReturnType<typeof loadWebhook>>;
 
@@ -735,4 +736,52 @@ test("a redelivered credit refund does not deduct twice", async () => {
 
   assert.equal(calls.refundCreditGrant.length, 1);
   assert.deepEqual(calls.revokeAccountKey, []);
+});
+
+// ---------------------------------------------------------------------------
+// #1039: a REAL drizzle error — 23505 lives on .cause, params hold the secrets
+// ---------------------------------------------------------------------------
+
+test("a redelivered license purchase whose insert fails with drizzle's 23505 takes the duplicate path", async () => {
+  behaviour.insertError = leakyDbError("23505");
+
+  await handleLicensePurchase(checkoutSession());
+
+  assert.equal(calls.insertAccountKey.length, 1);
+  assert.deepEqual(calls.grantCreditLot, []);
+  assert.deepEqual(calls.emails, []);
+});
+
+test("a mint whose insert fails with drizzle's 23505 falls back to the winner's row", async () => {
+  behaviour.insertError = leakyDbError("23505");
+  let sessionLookups = 0;
+  const winner = accountKeyRow({ key: "HW-WINNER-0002", userId: "user_winner" });
+  behaviour.bySession = {
+    get: () => (sessionLookups++ === 0 ? undefined : winner),
+  } as unknown as Map<string, ReturnType<typeof accountKeyRow>>;
+
+  await handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1");
+
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_winner");
+});
+
+test("no webhook log line carries a drizzle error's bound email or licence key", async () => {
+  const from = logLines.length;
+
+  behaviour.insertError = leakyDbError("22P02");
+  await assert.rejects(handleLicensePurchase(checkoutSession()));
+  resetHarness();
+  behaviour.insertError = leakyDbError("22P02");
+  await assert.rejects(
+    handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1"),
+  );
+  resetHarness();
+  behaviour.generatedKeys = [LEAKY_KEY];
+  behaviour.grantLotError = leakyDbError("22P02");
+  await handleLicensePurchase(checkoutSession());
+
+  const errors = logLines.slice(from).filter((line) => line.startsWith("error "));
+  assert.equal(errors.length, 3, errors.join("\n"));
+  assert.deepEqual(leakyLines(logLines.slice(from)), []);
+  assert.ok(errors.every((line) => line.includes("22P02")), "the SQLSTATE survives");
 });

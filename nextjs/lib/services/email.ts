@@ -1,5 +1,6 @@
 import { resend, DEFAULT_FROM_EMAIL } from "@/lib/clients/resend";
 import { emailTag, redactRecipient } from "@/lib/shared/redact";
+import { describeDbError } from "@/lib/shared/db-error";
 import {
   licenseEmailHtml,
   licenseEmailText,
@@ -298,7 +299,7 @@ class EmailService {
     } catch (logError) {
       console.error(
         `Failed to log ${data.status} ${data.emailType} email:`,
-        logError,
+        describeDbError(logError),
       );
     }
   }

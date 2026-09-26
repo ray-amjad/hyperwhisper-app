@@ -59,7 +59,7 @@ const MUTANTS = [
   { name: "updateEmail: never a no-op", from: "if (target.email.toLowerCase() === email) {", to: "if (false) {" },
   { name: "updateEmail: carry on for an unknown customer", from: "      if (!target) {", to: "      if (false) {" },
   { name: "updateEmail: drop the acting admin", from: "        await updateCustomerEmail(input.userId, email, {\n          actingUserId: ctx.user.id,\n        });", to: "        await updateCustomerEmail(input.userId, email, {});" },
-  { name: "updateEmail: 23505 becomes a 500", from: 'if (code === "23505") {', to: 'if (code === "23503") {' },
+  { name: "updateEmail: 23505 becomes a 500", from: 'if (dbErrorCode(error) === "23505") {', to: 'if (dbErrorCode(error) === "23503") {' },
   // --- list -----------------------------------------------------------------
   { name: "list: sum the pooled balance per key", from: "customer.totalCredits = l.credits;", to: "customer.totalCredits += l.credits;" },
   { name: "list: keep the latest date, not the earliest", from: "if (created < customer.created) customer.created = created;", to: "if (created > customer.created) customer.created = created;" },
