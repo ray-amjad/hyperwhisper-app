@@ -353,14 +353,30 @@ internal static class Program
                          (type.IsGenericType && type.GetGenericArguments().Any(NamesOptional)));
                 }
 
-                // The scan covers every type whose layout the recording path can
-                // load: the 3 roots, their base types, their nested types at any
-                // depth (async state machines and closure display classes hoist
-                // locals into fields), and every struct from this assembly held
-                // by value, because a struct field is part of the holder's layout.
-                // No nested type is exempt. Only the guarded Capture* boundaries
-                // name ApplicationContext, and they hoist nothing typed from the
-                // optional assembly.
+                // Positive control: the detector must see every wrapped shape, or
+                // the scan below passes as a silent no-op.
+                Assert(NamesOptional(typeof(AppType)), "the detector missed AppType");
+                Assert(NamesOptional(typeof(AppType?)), "the detector missed AppType?");
+                Assert(NamesOptional(typeof(AppType[])), "the detector missed AppType[]");
+                Assert(NamesOptional(typeof(List<AppType>)), "the detector missed List<AppType>");
+                Assert(NamesOptional(typeof((AppType, string))), "the detector missed (AppType, string)");
+                Assert(!NamesOptional(typeof(int)), "the detector flagged int");
+                Assert(!NamesOptional(typeof(string)), "the detector flagged string");
+                Assert(!NamesOptional(typeof(Services.ApplicationContext)),
+                    "the detector flagged ApplicationContext itself");
+
+                // What the scan covers, exactly: the 6 root types below, their
+                // base types up to object, their nested types at any depth (async
+                // state machines and closure display classes hoist locals into
+                // fields), and every struct from this assembly that one of those
+                // holds BY VALUE, because a struct field is part of the holder's
+                // layout. It does NOT follow a reference-typed field into the
+                // type it points at: that walks the whole object graph, and a
+                // reference field's type is not part of the holder's layout.
+                // No nested type is exempt, so a hit here is a real leak. The
+                // methods that name AppType (ApplicationContextService.GatherContext
+                // and PromptBuilder's NoInlining readers) are synchronous and
+                // capture no AppType in a closure, so they hoist nothing.
                 const BindingFlags allFields = BindingFlags.Instance | BindingFlags.Static |
                     BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
                 const BindingFlags allNested = BindingFlags.Public | BindingFlags.NonPublic;
@@ -371,6 +387,9 @@ internal static class Program
                     typeof(Services.ApplicationContext),
                     typeof(ApplicationContextService),
                     typeof(MainViewModel),
+                    typeof(HyperWhisper.Utilities.PromptBuilder),
+                    typeof(HyperWhisper.Services.PostProcessingService),
+                    typeof(HyperWhisper.Services.Transcription.TranscriptionOrchestrator),
                 });
                 var leaks = new List<string>();
                 while (pending.Count > 0)
