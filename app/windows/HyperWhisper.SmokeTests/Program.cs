@@ -422,6 +422,32 @@ internal static class Program
                 }
             });
 
+            // #960. When HyperWhisper.AppClassification cannot load, post-processing
+            // must still build its prompt: no fresh context and AppType Other. The
+            // guarded seams take the availability answer, so this drives the
+            // degraded path without blocking the real assembly.
+            Run("PromptBuilder degrades to AppType Other when HyperWhisper.AppClassification is unavailable", () =>
+            {
+                var failures = 0;
+                Action<string, Exception, string> Record = (_, _, _) => failures++;
+                var code = new Services.ApplicationContext { AppType = AppType.Code };
+
+                Assert(PromptBuilder.ReadHwAppTypeGuarded(code, false, Record) ==
+                    uniffi.hyperwhisper_core.HwAppType.Other,
+                    "an unavailable classifier assembly did not degrade the app type to Other");
+                Assert(PromptBuilder.GatherContextGuarded(false, Record) == null,
+                    "an unavailable classifier assembly still produced a fresh context");
+                Assert(PromptBuilder.TryReadHwAppType(null) == uniffi.hyperwhisper_core.HwAppType.Other,
+                    "a missing context did not give AppType Other");
+
+                Assert(PromptBuilder.ReadHwAppTypeGuarded(code, true, Record) ==
+                    uniffi.hyperwhisper_core.HwAppType.Code,
+                    "an available classifier assembly lost the context's app type");
+                Assert(PromptBuilder.TryReadHwAppType(code) == uniffi.hyperwhisper_core.HwAppType.Code,
+                    "the guarded prompt path lost the context's app type on a machine that loads the assembly");
+                Assert(failures == 0, "a degraded read reported a load failure it never had");
+            });
+
             Run("ApplicationContextService exception evidence is privacy-safe", () =>
             {
                 const string privatePath = @"C:\Users\private-user\Documents\spoken-note.txt";

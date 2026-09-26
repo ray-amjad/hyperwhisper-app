@@ -96,10 +96,12 @@ public static class PromptBuilder
         ApplicationContext? applicationContext,
         List<string>? vocabulary)
     {
-        // Use the passed context if available, otherwise gather fresh. It is null
-        // whenever the recording-start capture was skipped, e.g. when Application
-        // Control blocks HyperWhisper.AppClassification; this also unifies Windows
-        // with macOS PromptBuilder.makeContext, which gathers when nil.
+        // Use the passed context if available, otherwise gather fresh. The gather
+        // is defensive: callers forward the context captured at recording start.
+        // When Application Control blocks HyperWhisper.AppClassification, that
+        // capture was skipped, TryGatherContext is skipped too, and the context
+        // stays null. The branch unifies Windows with macOS
+        // PromptBuilder.makeContext, which also gathers when nil.
         // Warning: name no AppClassification type in this method (#960). Both reads
         // below go through OptionalAssemblyGuard, so post-processing still runs.
         var appContext = applicationContext ?? TryGatherContext();
@@ -173,41 +175,65 @@ public static class PromptBuilder
             @capitalization: mode.Capitalization,
             @profanityFilter: mode.ProfanityFilter
         );
-    }
-
     /// <summary>A fresh context, or null when HyperWhisper.AppClassification cannot load.</summary>
-    private static ApplicationContext? TryGatherContext()
+    private static ApplicationContext? TryGatherContext() =>
+        GatherContextGuarded(
+            OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.AppClassificationAssembly),
+            OptionalAssemblyGuard.MarkUnavailable);
+
+    // The same call as OptionalAssemblyGuard.TryRun, with the availability answer
+    // and the failure reporter handed in. HyperWhisper.SmokeTests drives the
+    // degraded path through it without blocking the real assembly. Same test
+    // seam as OptionalAssemblyGuard.RunGuarded.
+    internal static ApplicationContext? GatherContextGuarded(
+        bool isAvailable,
+        Action<string, Exception, string> onLoadFailure)
     {
         ApplicationContext? gathered = null;
-        OptionalAssemblyGuard.TryRun(
+        OptionalAssemblyGuard.RunGuarded(
+            isAvailable,
             OptionalAssemblyGuard.AppClassificationAssembly,
             "prompt_gather_context",
-            () => gathered = GatherContext());
+            () => gathered = GatherContext(),
+            onLoadFailure);
         return gathered;
     }
 
     /// <summary>Warning: do not inline. See <see cref="TryGatherContext"/>.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static ApplicationContext? GatherContext() =>
-        // ast-grep-ignore: no-unguarded-optional-assembly-use -- this IS the guarded boundary, reached only through OptionalAssemblyGuard.TryRun in TryGatherContext.
+        // ast-grep-ignore: no-unguarded-optional-assembly-use -- this IS the guarded boundary, reached only through OptionalAssemblyGuard.RunGuarded in GatherContextGuarded.
         ApplicationContextService.Instance.GatherContext();
 
     /// <summary>
     /// The context's app type, or Other when there is no context or when
     /// HyperWhisper.AppClassification cannot load on this machine.
     /// </summary>
-    private static HwAppType TryReadHwAppType(ApplicationContext? appContext)
-    {
-        if (appContext == null)
-        {
-            return HwAppType.Other;
-        }
+    /// <remarks>
+    /// A null context returns Other without asking the guard, so no context
+    /// logs no "skipped" warning.
+    /// </remarks>
+    internal static HwAppType TryReadHwAppType(ApplicationContext? appContext) =>
+        appContext == null
+            ? HwAppType.Other
+            : ReadHwAppTypeGuarded(
+                appContext,
+                OptionalAssemblyGuard.IsAvailable(OptionalAssemblyGuard.AppClassificationAssembly),
+                OptionalAssemblyGuard.MarkUnavailable);
 
+    // The test seam for TryReadHwAppType. See GatherContextGuarded.
+    internal static HwAppType ReadHwAppTypeGuarded(
+        ApplicationContext appContext,
+        bool isAvailable,
+        Action<string, Exception, string> onLoadFailure)
+    {
         var appType = HwAppType.Other;
-        OptionalAssemblyGuard.TryRun(
+        OptionalAssemblyGuard.RunGuarded(
+            isAvailable,
             OptionalAssemblyGuard.AppClassificationAssembly,
             "prompt_app_type",
-            () => appType = ReadHwAppType(appContext));
+            () => appType = ReadHwAppType(appContext),
+            onLoadFailure);
         return appType;
     }
 
@@ -215,7 +241,6 @@ public static class PromptBuilder
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static HwAppType ReadHwAppType(ApplicationContext appContext) =>
         HwAppTypeFromNative(appContext.AppType);
-
     /// <summary>Map the native <see cref="PresetType"/> to the shared-core <c>Preset</c>.</summary>
     // TODO-verify (Windows/CI): Rust shared-core swap.
     private static uniffi.hyperwhisper_core.Preset PresetFromNative(PresetType preset) => preset switch
