@@ -715,16 +715,24 @@ export default function PrivacyPolicyPage() {
 
       <h2>International Transfers</h2>
       <p>
-        Our payment and licensing providers, and Upstash, which hosts our
-        rate-limit store, a one-hour cache of Account Key validation results,
-        and the block list HyperWhisper Cloud checks request IP addresses
-        against, may process limited personal information in multiple
-        countries, including the United Kingdom, the
-        European Economic Area, and the United States. Where required,
-        appropriate safeguards are used by those providers, including Upstash
-        (for example,
-        adequacy decisions, Standard Contractual Clauses, or equivalent
-        mechanisms). The AgentStack support chat widget described above is
+        Our payment and licensing providers, and Upstash, may process limited
+        personal information in multiple countries, including the United
+        Kingdom, the European Economic Area, and the United States. Upstash
+        hosts our rate-limit store. It also holds a one-hour cache, keyed by
+        your Account Key, of whether the key is valid and its remaining credit
+        balance. HyperWhisper Cloud checks request IP addresses against a block
+        list held there. See the{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://upstash.com/trust/privacy.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Upstash Privacy Policy
+        </a>{" "}
+        for details. Where required, appropriate safeguards are used by those
+        providers, including Upstash (for example, adequacy decisions,
+        Standard Contractual Clauses, or equivalent mechanisms). The AgentStack support chat widget described above is
         served from the United States.
       </p>
 
