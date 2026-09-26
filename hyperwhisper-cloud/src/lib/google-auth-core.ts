@@ -14,6 +14,23 @@
 // `../lib/google-auth` for the whole run. A test that imported the factory
 // from there would get that suite's stub instead of this code. Nothing mocks
 // this module, so its test always exercises the real thing.
+//
+// The cache failure logs go through `toRedactedLogLine` (#1029): the
+// production cache is Upstash, whose error message quotes the command it sent
+// — here `set google_oauth_token <ACCESS_TOKEN> ex …`, plus every command
+// auto-pipelined into the same request. `./log-redaction` is pure and nothing
+// mocks it, so this file stays off every mocked path. Each cache failure, and
+// each mint failure, is ONE `JSON.stringify`'d line with the event name and
+// the redacted message in the same record. That is the one-line `{ event, … }`
+// convention of `logEvent` (`lib/logging.ts`), but NOT its full shape: these
+// records carry no `requestId` or `elapsedMs`, because `createGoogleAuth` has
+// no request context to take them from — one minted token serves every
+// request. A query that filters or joins on `requestId` will not find them;
+// match on `event`. An object literal passed to `console.warn` is
+// pretty-printed across several lines, and a line-oriented shipper would split
+// the event name from its message.
+
+import { toRedactedLogLine } from './log-redaction';
 
 const FALLBACK_TTL_SECONDS = 3000;            // 50 min — used when the minter omits expiry_date
 const TOKEN_TTL_SAFETY_MARGIN_SECONDS = 600;  // expire 10 min before Google's stated expiry
@@ -74,10 +91,17 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
       ({ access_token, expiry_date } = await minter.authorize());
     } catch (error) {
       // Singleton failure surface — this is the entire health of the Chirp
-      // self-only chain hanging on it, so the log line matters.
-      console.error('google-auth.token_mint_failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
+      // self-only chain hanging on it, so the log line matters. ONE line, and
+      // through the same redactor as the cache catches: `getJwtClient()`
+      // throws inside this try with the runtime's JSON.parse text for a bad
+      // GOOGLE_SERVICE_ACCOUNT_JSON, and bun quotes the offending token
+      // (measured: `JSON Parse error: Unexpected identifier "MIIE…"`). The
+      // redactor bounds that to one capped line and takes out any `ya29.`
+      // token or serialized payload; it cannot name an arbitrary fragment.
+      console.error(JSON.stringify({
+        event: 'google-auth.token_mint_failed',
+        message: toRedactedLogLine(error),
+      }));
       // Clear inflight on failure so the next request retries instead of
       // hanging on a permanently-rejected promise.
       inflight = null;
@@ -86,7 +110,10 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
 
     if (!access_token) {
       const err = new Error('Google service account did not return an access_token');
-      console.error('google-auth.token_mint_failed', { message: err.message });
+      console.error(JSON.stringify({
+        event: 'google-auth.token_mint_failed',
+        message: toRedactedLogLine(err),
+      }));
       inflight = null;
       throw err;
     }
@@ -98,10 +125,14 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
     } catch (error) {
       // Cache-write failure isn't fatal — the caller already has a usable
       // token. The next request just pays the mint cost again.
-      console.warn('google-auth.cache_write_failed', {
-        message: error instanceof Error ? error.message : String(error),
+      // The write is the one catch that HOLDS the token, so it hands it over
+      // by value: a proxy page that echoes the command as plain text carries
+      // it with no bracket or quote around it for the payload cut to find.
+      console.warn(JSON.stringify({
+        event: 'google-auth.cache_write_failed',
+        message: toRedactedLogLine(error, { secrets: [access_token] }),
         ttlSeconds,
-      });
+      }));
     }
 
     // Only clear `inflight` AFTER the cache write attempt resolves. Clearing
@@ -120,9 +151,11 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
           return cached;
         }
       } catch (error) {
-        console.warn('google-auth.cache_read_failed', {
-          message: error instanceof Error ? error.message : String(error),
-        });
+        // No token in hand — the read is what failed to produce one.
+        console.warn(JSON.stringify({
+          event: 'google-auth.cache_read_failed',
+          message: toRedactedLogLine(error),
+        }));
       }
 
       if (inflight) {
@@ -142,9 +175,11 @@ export function createGoogleAuth(minter: GoogleTokenMinter, cache: GoogleTokenCa
       try {
         await cache.clear();
       } catch (error) {
-        console.warn('google-auth.cache_delete_failed', {
-          message: error instanceof Error ? error.message : String(error),
-        });
+        // No token in hand — a delete sends only the key.
+        console.warn(JSON.stringify({
+          event: 'google-auth.cache_delete_failed',
+          message: toRedactedLogLine(error),
+        }));
       }
       inflight = null;
     },
