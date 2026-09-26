@@ -59,7 +59,7 @@ const MUTANTS = [
   { name: "updateEmail: never a no-op", from: "if (target.email.toLowerCase() === email) {", to: "if (false) {" },
   { name: "updateEmail: carry on for an unknown customer", from: "      if (!target) {", to: "      if (false) {" },
   { name: "updateEmail: drop the acting admin", from: "        await updateCustomerEmail(input.userId, email, {\n          actingUserId: ctx.user.id,\n        });", to: "        await updateCustomerEmail(input.userId, email, {});" },
-  { name: "updateEmail: 23505 becomes a 500", from: 'if (code === "23505") {', to: 'if (code === "23503") {' },
+  { name: "updateEmail: 23505 becomes a 500", from: 'if (dbErrorCode(error) === "23505") {', to: 'if (dbErrorCode(error) === "23503") {' },
   // --- list -----------------------------------------------------------------
   { name: "list: sum the pooled balance per key", from: "customer.totalCredits = l.credits;", to: "customer.totalCredits += l.credits;" },
   { name: "list: keep the latest date, not the earliest", from: "if (created < customer.created) customer.created = created;", to: "if (created > customer.created) customer.created = created;" },
@@ -76,6 +76,13 @@ const MUTANTS = [
   { name: "list: 0 pages for an empty result", from: "totalPages: Math.max(1, Math.ceil(", to: "totalPages: Math.max(0, Math.ceil(" },
   { name: "list: floor the page count", from: "Math.ceil(totalCustomers / CUSTOMERS_PAGE_SIZE)", to: "Math.floor(totalCustomers / CUSTOMERS_PAGE_SIZE)" },
   { name: "list: spend from dispute-lost charges too (shared reader wiring)", from: "    return disputes.data[0]?.status ?? null;", to: '    return "won";' },
+  // --- #1039 redaction ------------------------------------------------------
+  { name: "list: log the raw drizzle error", from: 'console.error("Customers fetch error:", describeDbError(error));', to: 'console.error("Customers fetch error:", error);' },
+  { name: "updateEmail: log the raw drizzle error", from: 'console.error("Update customer email error:", describeDbError(error));', to: 'console.error("Update customer email error:", error);' },
+  { name: "list: return a DB error's raw message", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch customers"', to: 'error instanceof Error\n              ? error.message\n              : "Failed to fetch customers"' },
+  { name: "updateEmail: return a DB error's raw message", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to update email"', to: 'error instanceof Error\n              ? error.message\n              : "Failed to update email"' },
+  { name: "list: hide a non-DB error's message too", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch customers"', to: 'false\n              ? error.message\n              : "Failed to fetch customers"' },
+  { name: "updateEmail: hide a non-DB error's message too", from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to update email"', to: 'false\n              ? error.message\n              : "Failed to update email"' },
 ];
 
 const results = [];

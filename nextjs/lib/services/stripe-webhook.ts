@@ -4,6 +4,11 @@ import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailTag } from "@/lib/shared/redact";
 import {
+  dbErrorCode,
+  dbErrorConstraint,
+  describeDbError,
+} from "@/lib/shared/db-error";
+import {
   findAccountByKey,
   getAccountKeysByEmail,
   findAccountByStripeSession,
@@ -30,6 +35,24 @@ function getStripeCustomerId(
  * Service module for processing Stripe webhook events.
  * Handles license purchases and credit purchases.
  */
+
+/**
+ * A concurrent delivery of the same Checkout Session inserted its licence row
+ * first: a 23505 on the unique stripe_session_id index, and ONLY that. A 23505
+ * on any other account_keys unique index (the key itself, the Polar id) is not
+ * a duplicate delivery, and taking the duplicate path for it would answer 200
+ * with no licence and no email (#1039 review). An error that names no
+ * constraint fails closed too: it throws, Stripe retries, and the retry's
+ * session lookup finds the row if there is one.
+ */
+const STRIPE_SESSION_INDEX = "idx_account_keys_stripe_session";
+
+function isDuplicateSessionInsert(err: unknown): boolean {
+  return (
+    dbErrorCode(err) === "23505" &&
+    dbErrorConstraint(err) === STRIPE_SESSION_INDEX
+  );
+}
 
 /**
  * Process a completed license purchase.
@@ -119,16 +142,11 @@ export async function handleLicensePurchase(
     });
   } catch (insertError: unknown) {
     // Check if it's a duplicate (race condition with webhook retry)
-    if (
-      insertError &&
-      typeof insertError === "object" &&
-      "code" in insertError &&
-      insertError.code === "23505"
-    ) {
+    if (isDuplicateSessionInsert(insertError)) {
       console.log("License already inserted by concurrent request");
       return;
     }
-    console.error("Failed to store license key:", insertError);
+    console.error("Failed to store license key:", describeDbError(insertError));
     throw insertError;
   }
 
@@ -145,7 +163,10 @@ export async function handleLicensePurchase(
       });
       console.log(`Granted 5000 initial credits for license ${licenseKey.substring(0, 7)}...`);
     } catch (creditError) {
-      console.error("Failed to create initial credit balance:", creditError);
+      console.error(
+        "Failed to create initial credit balance:",
+        describeDbError(creditError),
+      );
       // Don't throw - license was created, credits can be added later
     }
   }
@@ -382,16 +403,14 @@ async function handleCreditMint(
     } catch (insertError: unknown) {
       // Concurrent webhook delivery inserted the row first (unique
       // stripe_session_id): fall back to the existing row.
-      if (
-        insertError &&
-        typeof insertError === "object" &&
-        "code" in insertError &&
-        insertError.code === "23505"
-      ) {
+      if (isDuplicateSessionInsert(insertError)) {
         console.log("License already inserted by concurrent request");
         license = await findAccountByStripeSession(session.id);
       } else {
-        console.error("Failed to store license key:", insertError);
+        console.error(
+          "Failed to store license key:",
+          describeDbError(insertError),
+        );
         throw insertError;
       }
     }

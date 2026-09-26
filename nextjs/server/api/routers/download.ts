@@ -19,6 +19,7 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { upsertEmail } from "@/src/lib/db-layer";
 import { emailTag } from "@/lib/shared/redact";
+import { describeDbError } from "@/lib/shared/db-error";
 import { disposableDomains } from "@/lib/disposable_domains";
 import { emailService } from "@/lib/services/email";
 import { downloadEmailRateLimiter } from "@/lib/rate-limit";
@@ -155,7 +156,7 @@ export const downloadRouter = createTRPCRouter({
             source: "hyperwhisper-download",
           });
         } catch (insertError) {
-          console.error("Error storing email:", insertError);
+          console.error("Error storing email:", describeDbError(insertError));
           // Don't fail the request if email storage fails
         }
 

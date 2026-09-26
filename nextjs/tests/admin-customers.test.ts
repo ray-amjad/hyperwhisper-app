@@ -21,6 +21,7 @@ import {
   licenseRow,
   resetHarness,
 } from "./admin-customers-harness";
+import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
 
 const LICENSE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -631,5 +632,65 @@ describe("list", () => {
   test("rejects a page below 1 before it reads the database", async () => {
     await rejects(list({ page: 0 }), "BAD_REQUEST");
     assert.equal(calls.customerPage.length, 0);
+  });
+});
+
+describe("a drizzle error (#1039)", () => {
+  let errorLines: string[] = [];
+  const realError = console.error;
+
+  beforeEach(() => {
+    errorLines = [];
+    console.error = (...args: unknown[]): void => {
+      errorLines.push(formatLogArgs(args));
+    };
+  });
+
+  afterEach(() => {
+    console.error = realError;
+  });
+
+  test("updateEmail turns drizzle's 23505 on .cause into CONFLICT", async () => {
+    behaviour.userById = { id: "user_1", email: "old@example.com" };
+    behaviour.updateEmailError = leakyDbError("23505", "user_email_unique");
+
+    await rejects(
+      callCustomers("updateEmail", "mutation", {
+        userId: "user_1",
+        newEmail: "raced@example.com",
+      }),
+      "CONFLICT",
+      "That email already belongs to another account",
+    );
+  });
+
+  test("updateEmail logs the SQLSTATE and returns a fixed message, never the bound values", async () => {
+    behaviour.userById = { id: "user_1", email: "old@example.com" };
+    behaviour.updateEmailError = leakyDbError("22P02");
+
+    await rejects(
+      callCustomers("updateEmail", "mutation", {
+        userId: "user_1",
+        newEmail: "moved@example.com",
+      }),
+      "INTERNAL_SERVER_ERROR",
+      "Failed to update email",
+    );
+    assert.equal(errorLines.length, 1);
+    assert.match(errorLines[0], /22P02/);
+    assert.deepEqual(leakyLines(errorLines), []);
+  });
+
+  test("list logs the SQLSTATE and returns a fixed message, never the bound values", async () => {
+    behaviour.customerPageError = leakyDbError("22P02");
+
+    await rejects(
+      callCustomers("list", "query", { page: 1 }),
+      "INTERNAL_SERVER_ERROR",
+      "Failed to fetch customers",
+    );
+    assert.equal(errorLines.length, 1);
+    assert.match(errorLines[0], /22P02/);
+    assert.deepEqual(leakyLines(errorLines), []);
   });
 });

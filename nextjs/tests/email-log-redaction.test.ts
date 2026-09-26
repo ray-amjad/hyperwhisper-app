@@ -15,6 +15,7 @@ import test, { afterEach, beforeEach, mock } from "node:test";
 import { callTRPCProcedure, type AnyRouter } from "@trpc/server";
 
 import { emailTag } from "../lib/shared/redact";
+import { formatLogArgs, leakyDbError, leakyLines } from "./db-error-fixture";
 
 /** As Stripe or a form hands it over: mixed case, trailing space. */
 const RAW = "Alice.Smith@Acme-Widgets.com ";
@@ -26,6 +27,8 @@ const LEAK = /alice\.smith|acme-widgets\.com|@/i;
 
 const behaviour = {
   result: { data: { id: "msg_1" }, error: null } as { data: unknown; error: unknown },
+  /** Thrown by `logSentEmail` and `upsertEmail` when set (#1039). */
+  dbError: null as unknown,
 };
 const sentEmailRows: Array<Record<string, unknown>> = [];
 
@@ -48,9 +51,12 @@ moduleMock.module(moduleUrl("../lib/clients/resend.ts"), {
 moduleMock.module(moduleUrl("../src/lib/db-layer.ts"), {
   namedExports: {
     logSentEmail: async (row: Record<string, unknown>) => {
+      if (behaviour.dbError) throw behaviour.dbError;
       sentEmailRows.push(row);
     },
-    upsertEmail: async () => {},
+    upsertEmail: async () => {
+      if (behaviour.dbError) throw behaviour.dbError;
+    },
   },
 });
 moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
@@ -77,13 +83,12 @@ beforeEach(() => {
   lines = [];
   sentEmailRows.length = 0;
   behaviour.result = { data: { id: "msg_1" }, error: null };
+  behaviour.dbError = null;
   const capture =
     (level: string) =>
     (...args: unknown[]): void => {
-      // `String(err)` drops an Error's stack, so inspect-like output is kept too.
-      lines.push(
-        `${level} ${args.map((a) => (a instanceof Error ? `${String(a)} ${a.stack}` : String(a))).join(" ")}`,
-      );
+      // Rendered as Node's console does: `util.inspect` keeps stack, params, cause.
+      lines.push(`${level} ${formatLogArgs(args)}`);
     };
   console.log = capture("log");
   console.warn = capture("warn");
@@ -217,4 +222,28 @@ test("download: a 60 KB address Resend echoes back reaches no log line and no Em
     "the reason survives, fail-closed",
   );
   assert.ok(!lines.some((line) => line.includes("Invalid regular expression")));
+});
+
+test("email service: a failed sent_emails insert logs its SQLSTATE, never the bound recipient (#1039)", async () => {
+  behaviour.dbError = leakyDbError("22P02");
+
+  const result = await sendLicense();
+
+  assert.equal(result.success, true, "a logging failure never fails the send");
+  const failed = lines.filter((line) => line.startsWith("error Failed to log sent license email:"));
+  assert.equal(failed.length, 1, lines.join("\n"));
+  assert.match(failed[0], /22P02/);
+  assert.deepEqual(leakyLines(lines), []);
+});
+
+test("download: a failed email upsert logs its SQLSTATE, never the bound address (#1039)", async () => {
+  behaviour.dbError = leakyDbError("22P02");
+
+  const result = (await recordDownload()) as { success: boolean };
+
+  assert.equal(result.success, true);
+  const failed = lines.filter((line) => line.startsWith("error Error storing email:"));
+  assert.equal(failed.length, 1, lines.join("\n"));
+  assert.match(failed[0], /22P02/);
+  assert.deepEqual(leakyLines(lines), []);
 });

@@ -29,6 +29,8 @@ import { mock } from "node:test";
 
 import { NextRequest } from "next/server";
 
+import { formatLogArgs } from "./db-error-fixture";
+
 export interface ConstructEventCall {
   body: string;
   signature: string;
@@ -138,7 +140,7 @@ export function silenceRouteLogging(): void {
   const capture =
     (level: string) =>
     (...args: unknown[]): void => {
-      logLines.push(`${level} ${args.map((a) => String(a)).join(" ")}`);
+      logLines.push(`${level} ${formatLogArgs(args)}`);
     };
   console.error = capture("error");
   console.log = capture("log");
