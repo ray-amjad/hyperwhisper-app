@@ -62,7 +62,7 @@ function causeReason(cause: unknown): string | undefined {
 }
 
 /**
- * A drizzle query error, or a bare pg error, becomes its name, SQLSTATE, SQL
+ * A drizzle query error, or a bare pg error, becomes its kind, SQLSTATE, SQL
  * text and the constraint/table/column it names — never `params`, `message`
  * or `stack`. A drizzle error whose cause is not a pg server error also keeps
  * that cause's (redacted) message as `reason`. Anything else is returned unchanged, so non-DB log lines keep
@@ -77,7 +77,9 @@ export function describeDbError(err: unknown): unknown {
   const reason = isQueryError ? causeReason(e.cause) : undefined;
 
   return {
-    name: e.name,
+    // DrizzleQueryError never sets `this.name`, so `e.name` reads "Error";
+    // a constructor name can be minified. The branch that matched says which.
+    kind: isQueryError ? "DrizzleQueryError" : "DatabaseError",
     code: dbErrorCode(err),
     query: e.query,
     constraint: pg.constraint,

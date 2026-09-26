@@ -24,12 +24,12 @@ test("positive control: the raw drizzle error, logged as-is, leaks both values",
   assert.ok(line.includes(LEAKY_KEY));
 });
 
-test("describeDbError keeps name, code, SQL and identifiers, and drops params, message, detail and stack", () => {
+test("describeDbError keeps kind, code, SQL and identifiers, and drops params, message, detail and stack", () => {
   const err = leakyDbError("22P02");
   const described = describeDbError(err);
 
   assert.deepEqual(described, {
-    name: "Error",
+    kind: "DrizzleQueryError",
     code: "22P02",
     query: LEAKY_SQL,
     constraint: SESSION_INDEX,
@@ -44,6 +44,7 @@ test("describeDbError redacts a bare pg DatabaseError too", () => {
   const described = describeDbError(pg);
 
   assert.equal((described as { code: string }).code, "22P02");
+  assert.equal((described as { kind: string }).kind, "DatabaseError");
   assert.deepEqual(leakyLines([formatLogArgs([described])]), []);
 });
 
