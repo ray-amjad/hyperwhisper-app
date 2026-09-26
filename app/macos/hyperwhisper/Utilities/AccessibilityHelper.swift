@@ -85,7 +85,10 @@ public class AccessibilityHelper {
     /// TEST SEAM, Debug builds only. Always nil in the app. When set,
     /// `canPasteIntoFocusedElement()` returns its result instead of reading the
     /// focused element, so a test can drive the no-focused-field, cancelled and
-    /// send-failed exits of `executePasteAsync` (#1034). Release has no such property.
+    /// send-failed exits of `executePasteAsync` (#1034). It also answers the focus
+    /// guard inside `sendPasteCommand()`, so a test that sets it to true on a Mac
+    /// that grants Accessibility would post a real Cmd+V; that is why the tests
+    /// that set it skip when `AXIsProcessTrusted()`. Release has no such property.
     var canPasteOverrideForTesting: (@MainActor () -> Bool)?
     #endif
 

@@ -282,8 +282,9 @@ extension AccessibilityHelper {
                 { self.canPasteIntoFocusedElement() }
             ) {
                 logger.info("ℹ️ No paste target focused. Text left on clipboard.")
-                // No restoration: nothing was pasted and the dialog stays open saying
-                // the text is on the clipboard, so the timer would only wipe it (#1034).
+                // No restoration: nothing was pasted, the dialog stays open, and the
+                // transcript is left on the clipboard for a manual Cmd+V, so a restore
+                // would only overwrite it (#1034).
                 self.reportPasteOutcome(.noFocusedField, attempt: attempt)
                 return .noFocusedField
             }
@@ -330,8 +331,9 @@ extension AccessibilityHelper {
                     failureOutcome = .commandFailed
                 }
                 // Restore only for the onboarding gate, which withholds the text on
-                // purpose like a secure field. Every other failure pasted nothing and
-                // leaves the dialog open saying the text is on the clipboard (#1034).
+                // purpose like a secure field. Every other failure pasted nothing: the
+                // dialog stays open and the transcript is left on the clipboard for a
+                // manual Cmd+V, so a restore would only overwrite it (#1034).
                 if failureOutcome == .suppressed {
                     scheduleClipboardRestoration(settings: settings)
                 }
