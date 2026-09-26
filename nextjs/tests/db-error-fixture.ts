@@ -19,10 +19,20 @@ export const LEAKY_KEY = "HW-LEAK-7Q2Z-9XK4";
 export const LEAKY_SQL =
   'insert into "account_keys" ("key", "email", "stripe_session_id") values ($1, $2, $3) returning "id"';
 
-export function leakyDbError(code = "23505"): DrizzleQueryError {
+/** The unique index a concurrent delivery of the same Checkout Session hits. */
+export const SESSION_INDEX = "idx_account_keys_stripe_session";
+
+/**
+ * `constraint` is what pg reports on `.constraint`; pass `null` for a driver
+ * that reports none.
+ */
+export function leakyDbError(
+  code = "23505",
+  constraint: string | null = SESSION_INDEX,
+): DrizzleQueryError {
   const pg = new DatabaseError(
     code === "23505"
-      ? 'duplicate key value violates unique constraint "account_keys_key_unique"'
+      ? `duplicate key value violates unique constraint "${constraint}"`
       : `invalid input syntax for type uuid: "${LEAKY_KEY}" (${LEAKY_EMAIL})`,
     0,
     "error",
@@ -34,7 +44,7 @@ export function leakyDbError(code = "23505"): DrizzleQueryError {
     where: `unnamed portal parameter $1 = '${LEAKY_KEY}'`,
     schema: "public",
     table: "account_keys",
-    constraint: "account_keys_key_unique",
+    ...(constraint === null ? {} : { constraint }),
   });
   return new DrizzleQueryError(LEAKY_SQL, [LEAKY_KEY, LEAKY_EMAIL, "cs_leak_1"], pg);
 }

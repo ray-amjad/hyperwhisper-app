@@ -652,7 +652,7 @@ describe("a drizzle error (#1039)", () => {
 
   test("updateEmail turns drizzle's 23505 on .cause into CONFLICT", async () => {
     behaviour.userById = { id: "user_1", email: "old@example.com" };
-    behaviour.updateEmailError = leakyDbError("23505");
+    behaviour.updateEmailError = leakyDbError("23505", "user_email_unique");
 
     await rejects(
       callCustomers("updateEmail", "mutation", {

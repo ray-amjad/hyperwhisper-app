@@ -22,6 +22,17 @@ export function dbErrorCode(err: unknown): string | undefined {
 }
 
 /**
+ * The unique index or constraint a pg error names: the error's own
+ * `.constraint`, else drizzle's `.cause.constraint`. An identifier, never a value.
+ */
+export function dbErrorConstraint(err: unknown): string | undefined {
+  const constraint =
+    fields(err).constraint ?? fields(fields(err).cause).constraint;
+
+  return typeof constraint === "string" ? constraint : undefined;
+}
+
+/**
  * A drizzle query error, or a bare pg error, becomes its name, SQLSTATE, SQL
  * text and the constraint/table/column it names — never `params`, `message`
  * or `stack`. Anything else is returned unchanged, so non-DB log lines keep

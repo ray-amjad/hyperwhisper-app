@@ -5,11 +5,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { dbErrorCode, describeDbError } from "../lib/shared/db-error";
+import { dbErrorCode, dbErrorConstraint, describeDbError } from "../lib/shared/db-error";
 import {
   LEAKY_EMAIL,
   LEAKY_KEY,
   LEAKY_SQL,
+  SESSION_INDEX,
   formatLogArgs,
   leakyDbError,
   leakyLines,
@@ -29,7 +30,7 @@ test("describeDbError keeps name, code, SQL and identifiers, and drops params, m
     name: "Error",
     code: "22P02",
     query: LEAKY_SQL,
-    constraint: "account_keys_key_unique",
+    constraint: SESSION_INDEX,
     table: "account_keys",
     column: undefined,
   });
@@ -58,4 +59,13 @@ test("dbErrorCode reads drizzle's .cause.code, and an own .code first", () => {
   assert.equal(dbErrorCode(Object.assign(new Error("x"), { code: "08006" })), "08006");
   assert.equal(dbErrorCode(new Error("x")), undefined);
   assert.equal(dbErrorCode(undefined), undefined);
+});
+
+test("dbErrorConstraint reads drizzle's .cause.constraint, and an own .constraint first", () => {
+  assert.equal(dbErrorConstraint(leakyDbError("23505")), SESSION_INDEX);
+  assert.equal(dbErrorConstraint(leakyDbError("23505", "idx_account_keys_key")), "idx_account_keys_key");
+  assert.equal(dbErrorConstraint(leakyDbError("23505", null)), undefined);
+  assert.equal(dbErrorConstraint(Object.assign(new Error("x"), { constraint: "own" })), "own");
+  assert.equal(dbErrorConstraint(new Error("x")), undefined);
+  assert.equal(dbErrorConstraint(null), undefined);
 });
