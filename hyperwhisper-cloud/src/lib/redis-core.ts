@@ -88,13 +88,18 @@ function looksLikeIPAddress(value: string): boolean {
  * the same tick is co-batched into one request — an `ip_blocked:` key for a
  * DIFFERENT caller's IP, a `license:` key, and on a `cacheLicense` write the
  * cached licence object itself. The licence key is the bearer credential for
- * every request (`middleware/auth.ts`). So EVERY catch in this file logs
- * through this helper: `isIPBlocked` (#898 — its catch was silent before), and
- * `getCachedLicense` / `cacheLicense` (#921 — they used to log the raw Error,
- * measured at 20 stderr lines on one 401 with the IP, the licence key and the
- * cached licence value in the clear). Each caller hands over the secrets it
- * HOLDS in `byValue`: `isIPBlocked` its `ip`, the licence functions their
- * `licenseKey`.
+ * every request (`middleware/auth.ts`). So EVERY Upstash catch logs through
+ * this helper: in this file `isIPBlocked` (#898 — its catch was silent
+ * before), and `getCachedLicense` / `cacheLicense` (#921 — they used to log
+ * the raw Error, measured at 20 stderr lines on one 401 with the IP, the
+ * licence key and the cached licence value in the clear); and the three
+ * Google-token cache catches in `lib/google-auth-core.ts` (#1029 — a failed
+ * `set google_oauth_token <ACCESS_TOKEN> ex …` quoted the live Google access
+ * token, plus any co-batched `license:` key, back in its message). Each
+ * caller hands over the secrets it HOLDS in `byValue`: `isIPBlocked` its
+ * `ip`, the licence functions their `licenseKey`. The Google-token catches
+ * pass nothing: the token only ever reaches the message inside the serialized
+ * command, which pass 2 cuts whole.
  *
  * So the design is a BOUND first and redaction second — a deny-list that names
  * the secrets it knows about is what let the licence key through. In order:
@@ -181,7 +186,7 @@ function looksLikeIPAddress(value: string): boolean {
  * NEVER throws — a logger that throws inside a catch would turn a fail-open
  * into a 500.
  */
-function toRedactedLogLine(
+export function toRedactedLogLine(
   error: unknown,
   byValue: { readonly ip?: string; readonly licenseKey?: string } = {}
 ): string {

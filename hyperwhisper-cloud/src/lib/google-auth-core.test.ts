@@ -11,7 +11,7 @@
 // the whole run, so importing either from here would hand this test another
 // suite's stub. Both I/O edges are injected instead.
 
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { computeCacheTtlSeconds, createGoogleAuth, type GoogleTokenCache } from './google-auth-core';
 
 /** A cache that always misses, so every call reaches the minter. */
@@ -341,5 +341,92 @@ describe('invalidateGoogleAccessToken', () => {
 
     expect(await auth.getGoogleAccessToken()).toBe('token-2');
     expect(calls).toBe(2);
+  });
+});
+
+describe('cache failure logs (#1029)', () => {
+  // The production cache is Upstash, and `@upstash/redis` builds a non-ok
+  // response's message as `${body.error}, command was: ${JSON.stringify(req.body)}`.
+  // Auto-pipelining is on for the shared client, so the body is EVERY command
+  // issued in the same tick: the Google token write, and here a co-batched
+  // licence lookup whose key is a customer's bearer credential. Neither may
+  // reach the log line.
+  const GOOGLE_TOKEN = 'ya29.TEST-TOKEN';
+  const LICENSE_KEY = 'HW-ABCD-EFGH-IJKL-MNOP';
+  const upstashFailure = (): Error =>
+    new Error(
+      'WRONGPASS invalid password, command was: ' +
+        JSON.stringify([
+          ['set', 'google_oauth_token', GOOGLE_TOKEN, 'ex', 3540],
+          ['get', `license:${LICENSE_KEY}`],
+        ]),
+    );
+
+  let warn: ReturnType<typeof spyOn<Console, 'warn'>> | undefined;
+  beforeEach(() => {
+    warn = spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    warn?.mockRestore();
+    warn = undefined;
+  });
+
+  /** The single console.warn call's event name and payload, both asserted on. */
+  function loggedWarn(): { event: unknown; payload: Record<string, unknown> } {
+    expect(warn).toHaveBeenCalledTimes(1);
+    const [event, payload] = warn!.mock.calls[0]!;
+    return { event, payload: payload as Record<string, unknown> };
+  }
+
+  function expectNoSecrets(payload: Record<string, unknown>): void {
+    // The payload is a plain object of strings and numbers, so its JSON is
+    // everything a shipper would see.
+    const shipped = JSON.stringify(payload);
+    expect(shipped).not.toContain(GOOGLE_TOKEN);
+    expect(shipped).not.toContain(LICENSE_KEY);
+    expect(payload.message).toBe('Error: WRONGPASS invalid password, command was: <redacted>');
+  }
+
+  test('cache_write_failed logs neither the Google token nor a co-batched licence key', async () => {
+    const auth = createGoogleAuth(countingMinter(GOOGLE_TOKEN).minter, {
+      read: async () => null,
+      write: async () => { throw upstashFailure(); },
+      clear: async () => {},
+    });
+
+    expect(await auth.getGoogleAccessToken()).toBe(GOOGLE_TOKEN);
+
+    const { event, payload } = loggedWarn();
+    expect(event).toBe('google-auth.cache_write_failed');
+    expectNoSecrets(payload);
+    expect(payload.ttlSeconds).toBe(3000);
+  });
+
+  test('cache_read_failed logs neither the Google token nor a co-batched licence key', async () => {
+    const auth = createGoogleAuth(countingMinter('minted-after-read-failure').minter, {
+      read: async () => { throw upstashFailure(); },
+      write: async () => {},
+      clear: async () => {},
+    });
+
+    expect(await auth.getGoogleAccessToken()).toBe('minted-after-read-failure');
+
+    const { event, payload } = loggedWarn();
+    expect(event).toBe('google-auth.cache_read_failed');
+    expectNoSecrets(payload);
+  });
+
+  test('cache_delete_failed logs neither the Google token nor a co-batched licence key', async () => {
+    const auth = createGoogleAuth(countingMinter().minter, {
+      read: async () => null,
+      write: async () => {},
+      clear: async () => { throw upstashFailure(); },
+    });
+
+    await auth.invalidateGoogleAccessToken();
+
+    const { event, payload } = loggedWarn();
+    expect(event).toBe('google-auth.cache_delete_failed');
+    expectNoSecrets(payload);
   });
 });
