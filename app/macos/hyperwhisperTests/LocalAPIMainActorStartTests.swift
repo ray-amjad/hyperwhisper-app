@@ -17,9 +17,9 @@
 //  the panel itself is a WindowServer affordance no unit test can drive. What
 //  IS checkable is the wiring that keeps the blocking call off the main actor,
 //  and the orderings the fix depends on — so most of these read the production
-//  source, the last resort documented in `ProductionSource`. The two rules that
-//  could be lifted into pure functions were — `serverIsLiveOrStarting` and
-//  `nextTokenOwner` — and both are tested by calling them.
+//  source, the last resort documented in `ProductionSource`. The rules that
+//  could be lifted into pure functions were — `serverIsLiveOrStarting`,
+//  `nextTokenOwner` and `regenerationOutcome` — and are tested by calling them.
 //
 //  Read them as one statement about the window the fix opened. The blocking
 //  read is never called directly (1). The token is still assigned before any
@@ -34,7 +34,10 @@
 //  "not starting" now asks the one predicate that knows better (9, 10),
 //  including `stop()`, which must reach `deletePortFile()` for a start that
 //  never got a socket (11) — and a bind that finally succeeds retires the error
-//  the bind before it failed with (12).
+//  the bind before it failed with (12). A regeneration on a live server
+//  rewrites local-api.json and never stops or rebinds the socket (13, 14):
+//  stop() returns before the old socket closes, so the rebind that followed it
+//  failed on the same port and left nothing listening (issue #641).
 //
 //  What no test at this seam can prove: that the app actually finishes
 //  bootstrap while the consent panel is up. That needs a real Mac with a
@@ -675,6 +678,67 @@ struct LocalAPIMainActorStartTests {
         #expect(
             cleared.lowerBound < retry.lowerBound,
             "lastError must be cleared on the listening path, which precedes the retry path in this function"
+        )
+    }
+
+    // MARK: - 13-14. A regeneration republishes the port file; it does not rebind
+
+    /// Called, not scraped: the three states the Keychain wait can return to.
+    @Test func aRegenerationRebindsOnlyWhenNothingIsBound() {
+        #expect(
+            LocalAPIServer.regenerationOutcome(isRunning: true, hasServer: true) == .republishPortFile,
+            """
+            a regeneration on a listening server must only rewrite local-api.json. Rebinding the \
+            port the closing socket still holds is issue #641: one click, and nothing is listening.
+            """
+        )
+        #expect(
+            LocalAPIServer.regenerationOutcome(isRunning: true, hasServer: false) == .republishPortFile,
+            "a running server is republished, never rebound"
+        )
+        #expect(
+            LocalAPIServer.regenerationOutcome(isRunning: false, hasServer: true) == .awaitBindInFlight,
+            "a bind in flight writes the port file itself; a second bind would leak an HTTPServer on the same port"
+        )
+        #expect(
+            LocalAPIServer.regenerationOutcome(isRunning: false, hasServer: false) == .bind,
+            """
+            a regeneration that superseded a pending start() must still bind — that start will not \
+            bind itself, so the server the user just switched on would never come up (issue #655).
+            """
+        )
+    }
+
+    /// The decision above is only worth something if the code acts on it:
+    /// no `stop()` may come back in front of it.
+    @Test func aRegenerationNeverStopsTheServer() throws {
+        let body = try ProductionSource.slice(
+            of: Self.serverPath,
+            from: "func regenerateBearerToken(",
+            to: "func handleSystemWillSleep("
+        )
+
+        #expect(
+            !body.contains("stop()"),
+            """
+            regenerateBearerToken() stops the server. stop() deletes local-api.json and returns \
+            before the old socket closes, so any bind after it races that socket for the same \
+            port (issue #641).
+            """
+        )
+        #expect(
+            body.contains("Self.regenerationOutcome("),
+            "regenerateBearerToken() must act on regenerationOutcome(), the decision the test above calls"
+        )
+        let republish = try ProductionSource.switchArm(
+            named: "case .republishPortFile:",
+            in: body,
+            of: "LocalAPIServer.swift"
+        )
+        #expect(
+            republish.contains("self.writePortFile(port: self.listeningPort)")
+                && !republish.contains("bindAndRun()"),
+            "a live server must get local-api.json rewritten on the port it already holds, and no rebind"
         )
     }
 }

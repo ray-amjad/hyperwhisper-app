@@ -23,6 +23,17 @@ let LocalAPIServerEnabledKey = "localAPIServerEnabled"
 /// back to ephemeral binding and overwrite the preference.
 let LocalAPIServerPersistedPortKey = "localAPIServerPersistedPort"
 
+/// What a finished token regeneration does to the server (issue #641).
+/// File scope so it stays nonisolated, like `regenerationOutcome`.
+enum LocalAPIRegenerationOutcome: Equatable {
+    /// Listening: rewrite local-api.json only. Same socket, same port.
+    case republishPortFile
+    /// Nothing bound: the regeneration superseded a pending start(). Bind.
+    case bind
+    /// A bind is in flight: its waiter writes the port file with the new token.
+    case awaitBindInFlight
+}
+
 @MainActor
 final class LocalAPIServer: ObservableObject {
 
@@ -142,6 +153,21 @@ final class LocalAPIServer: ObservableObject {
             hasServer: server != nil,
             hasPendingStart: pendingBindOwner != nil
         )
+    }
+
+    /// What a regeneration owes the server once its new token has landed.
+    ///
+    /// Never a stop-and-rebind: `authorized()` and `writePortFile(port:)` read
+    /// `bearerToken` live, and `stop()` returns before the old socket closes,
+    /// so rebinding the same port fails (issue #641). Only reached once the
+    /// `pendingBindOwner == owner` guard has passed, so a `stop()` during the
+    /// Keychain wait never gets here. Pure, like `serverIsLiveOrStarting`.
+    nonisolated static func regenerationOutcome(
+        isRunning: Bool,
+        hasServer: Bool
+    ) -> LocalAPIRegenerationOutcome {
+        if isRunning { return .republishPortFile }
+        return hasServer ? .awaitBindInFlight : .bind
     }
 
     // MARK: - Token ownership
@@ -419,8 +445,8 @@ final class LocalAPIServer: ObservableObject {
         start()
     }
 
-    /// Wipe and regenerate the bearer token, then rebind the server so the new
-    /// token gets written into local-api.json. Used by Settings →
+    /// Wipe and regenerate the bearer token, then rewrite local-api.json with
+    /// it — without stopping a live server (issue #641). Used by Settings →
     /// "Regenerate token".
     func regenerateBearerToken() {
         // Same Keychain hazard as start(): a delete followed by the same
@@ -442,8 +468,8 @@ final class LocalAPIServer: ObservableObject {
         // the one case where "regenerate" has to be believed.
         bearerToken = ""
         // If anything was up, or on its way up, when the click landed then this
-        // regeneration now owes it a bind. A running server has to be rebound so
-        // local-api.json carries the new token; a start still waiting on its own
+        // regeneration now owes it something: a running server a rewritten
+        // local-api.json (see `regenerationOutcome`); a start still waiting on its own
         // token read was superseded two lines ago and will not bind itself, so
         // without this the server the user switched on a moment ago would never
         // come up at all. Recorded under THIS owner id, never the superseded one.
@@ -461,14 +487,16 @@ final class LocalAPIServer: ObservableObject {
             self.bearerToken = token
             guard self.pendingBindOwner == owner else { return }
             self.pendingBindOwner = nil
-            // Re-enter the BIND step rather than restart(). The fresh token is
-            // already in hand, so restart() → start() would read the same
-            // Keychain item a second time: exactly the call issue #655 is about,
-            // and a second chance for the consent panel to appear. `stop()` is
-            // idempotent and returns at its own guard when nothing is bound,
-            // which is the adopted-pending-start case.
-            self.stop()
-            self.bindAndRun()
+            switch Self.regenerationOutcome(isRunning: self.isRunning, hasServer: self.server != nil) {
+            case .republishPortFile:
+                self.writePortFile(port: self.listeningPort)
+            case .bind:
+                // The BIND step, not restart(): the fresh token is in hand, and
+                // start() would read the Keychain item again (issue #655).
+                self.bindAndRun()
+            case .awaitBindInFlight:
+                break
+            }
         }
     }
 
