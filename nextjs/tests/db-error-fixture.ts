@@ -14,7 +14,7 @@ import { DrizzleQueryError } from "drizzle-orm";
 import { DatabaseError } from "pg";
 
 export const LEAKY_EMAIL = "leaky.buyer@example.com";
-export const LEAKY_KEY = "HW-LEAK-7Q2Z-9XK4";
+export const LEAKY_KEY = "HW-TEST-LEAK-TEST-LEAK";
 
 export const LEAKY_SQL =
   'insert into "account_keys" ("key", "email", "stripe_session_id") values ($1, $2, $3) returning "id"';
