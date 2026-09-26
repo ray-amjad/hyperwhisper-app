@@ -8,10 +8,14 @@
 //
 
 import AppKit
+import ApplicationServices
 import Foundation
 import Testing
 @testable import HyperWhisper
 
+// Serialized: the executePasteAsync tests below share AccessibilityHelper.shared,
+// its test seams, TextDeliveryGate and the general pasteboard.
+@Suite(.serialized)
 @MainActor
 struct PasteOutcomeReportingTests {
 
@@ -157,9 +161,9 @@ struct PasteOutcomeReportingTests {
     ///
     /// Settings are READ from the live `SettingsManager`, never written: they
     /// are `@AppStorage`, and a write from this app-hosted bundle can abort the
-    /// run (see StreamingSettingsBindingTests). No other test touches the
-    /// general pasteboard or `AccessibilityHelper` paste state, so the suite
-    /// needs no `.serialized`.
+    /// run (see StreamingSettingsBindingTests). The #1034 tests below touch the
+    /// same pasteboard and `AccessibilityHelper` paste state, so the suite is
+    /// `.serialized`.
     ///
     /// Two traits SKIP (never fail) the test on a Mac where it cannot run
     /// honestly. Both read the live state on the main actor, because
@@ -238,4 +242,245 @@ struct PasteOutcomeReportingTests {
         #expect(pasteboard.string(forType: .string) == transcript)
     }
     #endif
+
+    // MARK: - #1034: exits that paste nothing keep the transcript
+
+    /// #1034: when no paste target is focused, nothing is pasted and the dialog
+    /// stays open saying the text is on the clipboard. The exit must not arm a
+    /// clipboard restoration, which would wipe the transcript 10 s later.
+    ///
+    /// The target is this process under its own bundle ID, so it is accepted and
+    /// the #783 refusal (which also returns `.noFocusedField`) is not taken; the
+    /// probe count proves the run reached the focus check. The focus seam then
+    /// reports no field. The only app activated is this test host, and no
+    /// keystroke is sent. Traits as in the #783 test, plus a skip when this Mac
+    /// grants Accessibility (the run would read real focus, and the send-failed
+    /// test could post a real Cmd+V).
+    #if DEBUG
+    @Test(
+        .enabled("restoreClipboardAfterPaste is off on this Mac, so the run cannot tell the fix from #1034", {
+            await MainActor.run { SettingsManager.shared.restoreClipboardAfterPaste }
+        }),
+        .enabled("Sentry reporting is live on this Mac; the paste outcome would reach Sentry", {
+            await MainActor.run { SentryService.isReportingEnabled == false }
+        }),
+        .enabled("Accessibility is granted on this Mac; the run would read real focus", {
+            AXIsProcessTrusted() == false
+        })
+    )
+    func noFocusedFieldKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
+        let helper = AccessibilityHelper.shared
+        let probe = CanPasteProbe()
+        let transcript = "no focused field transcript #1034"
+
+        try await withSavedPasteState(deliverySuppressed: false) {
+            helper.canPasteOverrideForTesting = {
+                probe.calls += 1
+                return false
+            }
+
+            let result = await pasteIntoThisProcess(transcript)
+
+            let noFocusedField: Bool
+            if case .noFocusedField = result { noFocusedField = true } else { noFocusedField = false }
+            #expect(noFocusedField, "expected .noFocusedField, got \(result)")
+            // The #783 refusal returns before the focus check and never calls the seam.
+            #expect(probe.calls > 0, "the run never reached the focus check")
+            // The #1034 defect armed the restoration here, before it returned.
+            #expect(helper.activeRestorationWorkItem == nil)
+            #expect(NSPasteboard.general.string(forType: .string) == transcript)
+        }
+    }
+
+    /// #1034: a paste cancelled just before the keystroke (a newer paste
+    /// superseded it) pasted nothing, so it must not arm a restoration either.
+    /// The focus seam cancels the in-flight paste task and reports a field, so
+    /// the run reaches the `Task.isCancelled` check right before the paste.
+    @Test(
+        .enabled("restoreClipboardAfterPaste is off on this Mac, so the run cannot tell the fix from #1034", {
+            await MainActor.run { SettingsManager.shared.restoreClipboardAfterPaste }
+        }),
+        .enabled("Sentry reporting is live on this Mac; the paste outcome would reach Sentry", {
+            await MainActor.run { SentryService.isReportingEnabled == false }
+        }),
+        .enabled("Accessibility is granted on this Mac; the run would read real focus", {
+            AXIsProcessTrusted() == false
+        })
+    )
+    func cancelledBeforePasteKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
+        let helper = AccessibilityHelper.shared
+        let probe = CanPasteProbe()
+        let transcript = "cancelled transcript #1034"
+
+        try await withSavedPasteState(deliverySuppressed: false) {
+            helper.canPasteOverrideForTesting = {
+                probe.calls += 1
+                helper.currentPasteTask?.cancel()
+                return true
+            }
+
+            let result = await pasteIntoThisProcess(transcript)
+
+            var failure: Error?
+            if case .failed(let error) = result { failure = error }
+            #expect((failure as? CancellationError) != nil,
+                    "expected .failed(CancellationError), got \(result)")
+            #expect(probe.calls > 0, "the run never reached the focus check")
+            #expect(helper.activeRestorationWorkItem == nil)
+            #expect(NSPasteboard.general.string(forType: .string) == transcript)
+        }
+    }
+
+    /// #1034: when `sendPasteCommand()` fails, nothing was pasted, so the exit
+    /// must not arm a restoration. The focus seam reports a field and this Mac
+    /// does not grant Accessibility, so `sendPasteCommand()` returns false at
+    /// its permission check and the exit classifies `.noAccessibilityPermission`.
+    /// A real `.commandFailed` needs a CGEvent that cannot be built, which a test
+    /// cannot arrange; this drives the same exit and the same decision.
+    @Test(
+        .enabled("restoreClipboardAfterPaste is off on this Mac, so the run cannot tell the fix from #1034", {
+            await MainActor.run { SettingsManager.shared.restoreClipboardAfterPaste }
+        }),
+        .enabled("Sentry reporting is live on this Mac; the failure would send a real no_accessibility_permission event", {
+            await MainActor.run { SentryService.isReportingEnabled == false }
+        }),
+        .enabled("Accessibility is granted on this Mac; the run would post a real Cmd+V", {
+            AXIsProcessTrusted() == false
+        })
+    )
+    func sendPasteWithoutPermissionKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
+        let helper = AccessibilityHelper.shared
+        let probe = CanPasteProbe()
+        let transcript = "send failed transcript #1034"
+
+        try await withSavedPasteState(deliverySuppressed: false) {
+            helper.canPasteOverrideForTesting = {
+                probe.calls += 1
+                return true
+            }
+
+            let result = await pasteIntoThisProcess(transcript)
+
+            var failure: Error?
+            if case .failed(let error) = result { failure = error }
+            // The send-failed exit returns this NSError; a cancellation does not.
+            #expect(failure.map { ($0 as NSError).domain } == "AccessibilityHelper",
+                    "expected the send-failed exit, got \(result)")
+            #expect(probe.calls > 0, "the run never reached the focus check")
+            // Not the onboarding gate: that classification keeps its restore.
+            #expect(TextDeliveryGate.isSuppressed == false)
+            #expect(helper.activeRestorationWorkItem == nil)
+            #expect(NSPasteboard.general.string(forType: .string) == transcript)
+        }
+    }
+
+    /// #1034 keeps one restore on the send-failed exit: the onboarding gate
+    /// (`TextDeliveryGate`) withholds the text on purpose, like a secure field
+    /// (#783), so the exit classifies `.suppressed` and still arms it. Pins that
+    /// the fix narrowed the restore rather than removing it.
+    @Test(
+        .enabled("restoreClipboardAfterPaste is off on this Mac, so no restore could be armed", {
+            await MainActor.run { SettingsManager.shared.restoreClipboardAfterPaste }
+        }),
+        .enabled("Sentry reporting is live on this Mac; the paste outcome would reach Sentry", {
+            await MainActor.run { SentryService.isReportingEnabled == false }
+        }),
+        .enabled("Accessibility is granted on this Mac; the run would read real focus", {
+            AXIsProcessTrusted() == false
+        })
+    )
+    func suppressedSendPasteStillArmsRestore() async throws {
+        let helper = AccessibilityHelper.shared
+        let probe = CanPasteProbe()
+        let transcript = "suppressed transcript #1034"
+
+        try await withSavedPasteState(deliverySuppressed: true) {
+            helper.canPasteOverrideForTesting = {
+                probe.calls += 1
+                return true
+            }
+
+            let result = await pasteIntoThisProcess(transcript)
+
+            var failure: Error?
+            if case .failed(let error) = result { failure = error }
+            #expect(failure.map { ($0 as NSError).domain } == "AccessibilityHelper",
+                    "expected the send-failed exit, got \(result)")
+            #expect(probe.calls > 0, "the run never reached the focus check")
+            #expect(helper.activeRestorationWorkItem != nil)
+            #expect(NSPasteboard.general.string(forType: .string) == transcript)
+        }
+    }
+
+    /// Runs `executePasteAsync` against this process under its own bundle ID, so
+    /// `resolveCapturedTarget` accepts it and the #783 refusal is not taken.
+    private func pasteIntoThisProcess(_ text: String) async -> AccessibilityHelper.SmartPasteResult {
+        await AccessibilityHelper.shared.executePasteAsync(
+            text,
+            previousAppPID: ProcessInfo.processInfo.processIdentifier,
+            previousAppBundleID: NSRunningApplication.current.bundleIdentifier,
+            settings: SettingsManager.shared
+        )
+    }
+
+    /// Saves the tester's clipboard and the shared state the #1034 tests change,
+    /// seeds the record-start clipboard a restoration would write back, runs
+    /// `body`, and puts everything back, disarming any restoration it armed.
+    private func withSavedPasteState(deliverySuppressed: Bool,
+                                     _ body: () async throws -> Void) async throws {
+        let helper = AccessibilityHelper.shared
+        let pasteboard = NSPasteboard.general
+
+        // The traits checked these before the test began. Check again, so a
+        // state change in between fails the run instead of sending an event or
+        // passing vacuously.
+        try #require(SettingsManager.shared.restoreClipboardAfterPaste)
+        try #require(SentryService.isReportingEnabled == false)
+        try #require(AXIsProcessTrusted() == false)
+
+        let savedClipboard: [NSPasteboardItem] = (pasteboard.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            return copy
+        }
+        let savedOriginal = helper.originalClipboardData
+        let savedSuppressed = TextDeliveryGate.isSuppressed
+        let savedReportedMissingPermission = helper.hasReportedMissingPastePermission
+        defer {
+            helper.pastePermissionOverrideForTesting = nil
+            helper.canPasteOverrideForTesting = nil
+            helper.cancelPendingClipboardRestoration()
+            helper.currentPasteTask = nil
+            helper.originalClipboardData = savedOriginal
+            TextDeliveryGate.setSuppressed(savedSuppressed)
+            helper.hasReportedMissingPastePermission = savedReportedMissingPermission
+            pasteboard.clearContents()
+            if !savedClipboard.isEmpty { pasteboard.writeObjects(savedClipboard) }
+        }
+
+        // The clipboard record-start captured: what a restoration would write back.
+        helper.originalClipboardData = [
+            AccessibilityHelper.ClipboardItemData(
+                types: [.string],
+                data: [.string: Data("clipboard before recording".utf8)]
+            )
+        ]
+        helper.pastePermissionOverrideForTesting = true
+        TextDeliveryGate.setSuppressed(deliverySuppressed)
+
+        try await body()
+    }
+    #endif
 }
+
+#if DEBUG
+/// Counts calls to the `canPasteOverrideForTesting` seam. The #783 refusal also
+/// returns `.noFocusedField`, so a non-zero count is what proves a #1034 test
+/// got past the target guard to the exit it means to drive.
+@MainActor
+private final class CanPasteProbe {
+    var calls = 0
+}
+#endif

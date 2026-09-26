@@ -81,6 +81,12 @@ public class AccessibilityHelper {
     /// permission guard on a CI Mac that never grants Accessibility. A Release
     /// build has no such property and no way around the permission check.
     var pastePermissionOverrideForTesting: Bool?
+
+    /// TEST SEAM, Debug builds only. Always nil in the app. When set,
+    /// `canPasteIntoFocusedElement()` returns its result instead of reading the
+    /// focused element, so a test can drive the no-focused-field, cancelled and
+    /// send-failed exits of `executePasteAsync` (#1034). Release has no such property.
+    var canPasteOverrideForTesting: (@MainActor () -> Bool)?
     #endif
 
     // MARK: - Permission Polling Management
