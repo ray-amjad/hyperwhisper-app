@@ -55,8 +55,9 @@ extension AccessibilityHelper {
     /// - Non-blocking: Uses Task.sleep instead of Thread.sleep
     /// - Cancellable: Checks for cancellation between operations
     /// - Single-flight: Cancels any existing paste before starting
-    /// - Schedules clipboard restoration after a paste, a secure field, or the
-    ///   onboarding gate; an exit that pasted nothing leaves the text on the clipboard
+    /// - Schedules clipboard restoration (if enabled) only after a paste into a
+    ///   target that is not a remote-desktop client, or when a secure field or the
+    ///   onboarding gate withholds the text; every other exit schedules none
     ///
     /// **RESPONSIBILITIES:**
     /// - Check accessibility permissions
@@ -334,7 +335,7 @@ extension AccessibilityHelper {
                 // purpose like a secure field. Every other failure pasted nothing: the
                 // dialog stays open and the transcript is left on the clipboard for a
                 // manual Cmd+V, so a restore would only overwrite it (#1034).
-                if failureOutcome == .suppressed {
+                if failureOutcome.withholdsTextOnPurpose {
                     scheduleClipboardRestoration(settings: settings)
                 }
                 self.reportPasteOutcome(failureOutcome, attempt: attempt)

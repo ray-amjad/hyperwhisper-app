@@ -124,6 +124,22 @@ struct PasteOutcomeReportingTests {
         #expect(AccessibilityHelper.PasteOutcome.noAccessibilityPermission.isDefect == false)
     }
 
+    /// #1034: only a secure field and the onboarding gate withhold the text on
+    /// purpose, so only they schedule a restore on an exit that pasted nothing.
+    /// The property's switch is exhaustive, so a new outcome cannot compile
+    /// without a decision; this pins the decision for every current case.
+    @Test func onlySecureFieldAndSuppressedWithholdTextOnPurpose() {
+        #expect(AccessibilityHelper.PasteOutcome.secureField.withholdsTextOnPurpose)
+        #expect(AccessibilityHelper.PasteOutcome.suppressed.withholdsTextOnPurpose)
+        #expect(AccessibilityHelper.PasteOutcome.success.withholdsTextOnPurpose == false)
+        #expect(AccessibilityHelper.PasteOutcome.noAccessibilityPermission.withholdsTextOnPurpose == false)
+        #expect(AccessibilityHelper.PasteOutcome.targetLost.withholdsTextOnPurpose == false)
+        #expect(AccessibilityHelper.PasteOutcome.targetUnknown.withholdsTextOnPurpose == false)
+        #expect(AccessibilityHelper.PasteOutcome.noFocusedField.withholdsTextOnPurpose == false)
+        #expect(AccessibilityHelper.PasteOutcome.cancelled.withholdsTextOnPurpose == false)
+        #expect(AccessibilityHelper.PasteOutcome.commandFailed.withholdsTextOnPurpose == false)
+    }
+
     /// PRIVACY: the attempt metadata records how long the text was, never what
     /// it said.
     @Test func attemptRecordsLengthNotText() {
@@ -217,17 +233,22 @@ struct PasteOutcomeReportingTests {
     /// the #783 refusal (which also returns `.noFocusedField`) is not taken; the
     /// probe count proves the run reached the focus check. The focus seam then
     /// reports no field. The only app activated is this test host, and no
-    /// keystroke is sent. Traits as in the #783 test, plus
-    /// `.accessibilityIsNotTrusted`: on a Mac that grants Accessibility the run
-    /// would read real focus, and the send-failed test could post a real Cmd+V.
+    /// keystroke is sent on any Mac, so the traits are those of the #783 test.
+    ///
+    /// On a Mac that grants Accessibility, `isSecureFieldFocused()` reads the
+    /// real system-wide focused element before the seam is asked. Only a
+    /// password field focused in the frontmost app changes the exit; the test
+    /// then fails with `.secureField`, it never passes vacuously. The cancelled
+    /// and suppressed tests below share this.
     #if DEBUG
-    @Test(.restoreClipboardIsOn, .sentryIsOff, .accessibilityIsNotTrusted)
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
     func noFocusedFieldKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
         let helper = AccessibilityHelper.shared
         let probe = CanPasteProbe()
         let transcript = "no focused field transcript #1034"
 
-        try await withSavedPasteState(deliverySuppressed: false) {
+        try await withSavedPasteState(deliverySuppressed: false,
+                                      requireAccessibilityUntrusted: false) {
             helper.canPasteOverrideForTesting = {
                 probe.calls += 1
                 return false
@@ -249,14 +270,17 @@ struct PasteOutcomeReportingTests {
     /// #1034: a paste cancelled just before the keystroke (a newer paste
     /// superseded it) pasted nothing, so it must not arm a restoration either.
     /// The focus seam cancels the in-flight paste task and reports a field, so
-    /// the run reaches the `Task.isCancelled` check right before the paste.
-    @Test(.restoreClipboardIsOn, .sentryIsOff, .accessibilityIsNotTrusted)
+    /// the run reaches the `Task.isCancelled` check right before the paste. That
+    /// check returns before `sendPasteCommand()`, so no keystroke is sent on any
+    /// Mac and the test needs no Accessibility skip.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
     func cancelledBeforePasteKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
         let helper = AccessibilityHelper.shared
         let probe = CanPasteProbe()
         let transcript = "cancelled transcript #1034"
 
-        try await withSavedPasteState(deliverySuppressed: false) {
+        try await withSavedPasteState(deliverySuppressed: false,
+                                      requireAccessibilityUntrusted: false) {
             helper.canPasteOverrideForTesting = {
                 probe.calls += 1
                 helper.currentPasteTask?.cancel()
@@ -281,13 +305,18 @@ struct PasteOutcomeReportingTests {
     /// its permission check and the exit classifies `.noAccessibilityPermission`.
     /// A real `.commandFailed` needs a CGEvent that cannot be built, which a test
     /// cannot arrange; this drives the same exit and the same decision.
+    ///
+    /// The one test here that keeps `.accessibilityIsNotTrusted`: it reaches
+    /// `sendPasteCommand()` with the gate open and the focus seam true, so on a
+    /// Mac that grants Accessibility it would post a real Cmd+V.
     @Test(.restoreClipboardIsOn, .sentryIsOff, .accessibilityIsNotTrusted)
     func sendPasteWithoutPermissionKeepsTranscriptOnClipboardWithoutArmingRestore() async throws {
         let helper = AccessibilityHelper.shared
         let probe = CanPasteProbe()
         let transcript = "send failed transcript #1034"
 
-        try await withSavedPasteState(deliverySuppressed: false) {
+        try await withSavedPasteState(deliverySuppressed: false,
+                                      requireAccessibilityUntrusted: true) {
             helper.canPasteOverrideForTesting = {
                 probe.calls += 1
                 return true
@@ -311,14 +340,18 @@ struct PasteOutcomeReportingTests {
     /// #1034 keeps one restore on the send-failed exit: the onboarding gate
     /// (`TextDeliveryGate`) withholds the text on purpose, like a secure field
     /// (#783), so the exit classifies `.suppressed` and still arms it. Pins that
-    /// the fix narrowed the restore rather than removing it.
-    @Test(.restoreClipboardIsOn, .sentryIsOff, .accessibilityIsNotTrusted)
+    /// the fix narrowed the restore rather than removing it. The gate guard is
+    /// the first check in `sendPasteCommand()`, so it refuses before the
+    /// permission check and no keystroke is sent on any Mac; the test needs no
+    /// Accessibility skip.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
     func suppressedSendPasteStillArmsRestore() async throws {
         let helper = AccessibilityHelper.shared
         let probe = CanPasteProbe()
         let transcript = "suppressed transcript #1034"
 
-        try await withSavedPasteState(deliverySuppressed: true) {
+        try await withSavedPasteState(deliverySuppressed: true,
+                                      requireAccessibilityUntrusted: false) {
             helper.canPasteOverrideForTesting = {
                 probe.calls += 1
                 return true
@@ -351,10 +384,11 @@ struct PasteOutcomeReportingTests {
     /// seeds the record-start clipboard a restoration would write back, runs
     /// `body`, and puts everything back, disarming any restoration it armed.
     /// The one owner of the save/restore contract for every executePasteAsync
-    /// test here. `requireAccessibilityUntrusted` is false only for the #783
-    /// test, whose refusal returns before any focus read or keystroke.
+    /// test here. Pass `requireAccessibilityUntrusted: true` only for a test that
+    /// reaches `sendPasteCommand()` with the gate open and the focus seam true,
+    /// where a Mac that grants Accessibility would post a real Cmd+V.
     private func withSavedPasteState(deliverySuppressed: Bool,
-                                     requireAccessibilityUntrusted: Bool = true,
+                                     requireAccessibilityUntrusted: Bool,
                                      _ body: () async throws -> Void) async throws {
         let helper = AccessibilityHelper.shared
         let pasteboard = NSPasteboard.general
@@ -424,10 +458,10 @@ fileprivate extension Trait where Self == ConditionTrait {
         })
     }
 
-    /// With Accessibility granted the run would read real focus, and a test that
-    /// sets `canPasteOverrideForTesting` to true would post a real Cmd+V.
+    /// With Accessibility granted, a test that reaches `sendPasteCommand()` with
+    /// the gate open and `canPasteOverrideForTesting` true would post a real Cmd+V.
     static var accessibilityIsNotTrusted: Self {
-        .enabled("Accessibility is granted on this Mac; the run would read real focus and could post a real Cmd+V", {
+        .enabled("Accessibility is granted on this Mac; the run would post a real Cmd+V", {
             AXIsProcessTrusted() == false
         })
     }
