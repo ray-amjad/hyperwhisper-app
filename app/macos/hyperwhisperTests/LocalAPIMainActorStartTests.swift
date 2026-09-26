@@ -740,6 +740,18 @@ struct LocalAPIMainActorStartTests {
                 && !republish.contains("bindAndRun()"),
             "a live server must get local-api.json rewritten on the port it already holds, and no rebind"
         )
+        // The last arm: switchArm runs to the end of `body`, so cut it at the
+        // switch's closing brace.
+        let awaitArm = try ProductionSource.switchArm(
+            named: "case .awaitBindInFlight:",
+            in: body,
+            of: "LocalAPIServer.swift"
+        )
+        let awaitArmBody = awaitArm.prefix(while: { $0 != "}" })
+        #expect(
+            !awaitArmBody.contains("bindAndRun()") && !awaitArmBody.contains("writePortFile"),
+            "a bind in flight writes the port file itself; a second bind or write here races it"
+        )
     }
 }
 
