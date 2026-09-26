@@ -96,14 +96,17 @@ public static class PromptBuilder
         ApplicationContext? applicationContext,
         List<string>? vocabulary)
     {
-        // Use the passed context if available, otherwise gather fresh. The gather
-        // is defensive: callers forward the context captured at recording start.
-        // When Application Control blocks HyperWhisper.AppClassification, that
-        // capture was skipped, TryGatherContext is skipped too, and the context
-        // stays null. The branch unifies Windows with macOS
-        // PromptBuilder.makeContext, which also gathers when nil.
+        // Use the passed context if available, otherwise gather a fresh one from
+        // the current foreground window. The recording path forwards the context
+        // it captured at recording start. Some callers pass null (the Local API
+        // endpoints and the transcription retry handler), and for them this
+        // fallback gathers, as it did before #960. The branch unifies Windows with
+        // macOS PromptBuilder.makeContext, which also gathers when nil.
+        // When Application Control blocks HyperWhisper.AppClassification, the
+        // fallback gather is skipped and the context stays null.
         // Warning: name no AppClassification type in this method (#960). Both reads
-        // below go through OptionalAssemblyGuard, so post-processing still runs.
+        // below go through OptionalAssemblyGuard, so the recording path still
+        // builds its prompt when that assembly is blocked.
         var appContext = applicationContext ?? TryGatherContext();
 
         var preset = PresetFromNative(PresetTypeExtensions.FromString(mode.Preset));

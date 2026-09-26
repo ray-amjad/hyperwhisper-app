@@ -422,8 +422,9 @@ internal static class Program
                 }
             });
 
-            // #960. When HyperWhisper.AppClassification cannot load, post-processing
-            // must still build its prompt: no fresh context and AppType Other. The
+            // #960. When HyperWhisper.AppClassification cannot load, PromptBuilder
+            // must still build the recording path's prompt: no fresh context and
+            // AppType Other. The
             // guarded seams take the availability answer, so this drives the
             // degraded path without blocking the real assembly.
             Run("PromptBuilder degrades to AppType Other when HyperWhisper.AppClassification is unavailable", () =>
