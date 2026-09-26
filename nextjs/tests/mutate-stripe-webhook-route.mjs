@@ -94,8 +94,8 @@ const MUTANTS = [
   },
   {
     name: "answer 500 when the refund handler throws",
-    from: '      console.error("Stripe webhook: Error processing refund:", error);',
-    to: '      console.error("Stripe webhook: Error processing refund:", error);\n      return NextResponse.json({ error: "refund failed" }, { status: 500 });',
+    from: '        describeDbError(error),\n      );\n      // Don\'t return error status',
+    to: '        describeDbError(error),\n      );\n      return NextResponse.json({ error: "refund failed" }, { status: 500 });\n      // Don\'t return error status',
   },
   {
     name: "drop the async_payment_failed log line",

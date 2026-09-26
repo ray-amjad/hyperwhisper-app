@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/clients/stripe";
+import { describeDbError } from "@/lib/shared/db-error";
 import {
   handleLicensePurchase,
   handleCreditPurchase,
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         console.error(
           "Stripe webhook: Error processing license purchase:",
-          error
+          describeDbError(error)
         );
         return NextResponse.json(
           { error: "Failed to process license purchase" },
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         console.error(
           "Stripe webhook: Error processing credit purchase:",
-          error
+          describeDbError(error)
         );
         return NextResponse.json(
           { error: "Failed to process credit purchase" },
@@ -123,7 +124,10 @@ export async function POST(req: NextRequest) {
     try {
       await handleChargeRefunded(charge);
     } catch (error) {
-      console.error("Stripe webhook: Error processing refund:", error);
+      console.error(
+        "Stripe webhook: Error processing refund:",
+        describeDbError(error),
+      );
       // Don't return error status - log for manual review instead
       // This prevents infinite retries for non-transient failures
     }

@@ -22,6 +22,7 @@ import {
   restoreWebhookLogging,
   silenceWebhookLogging,
 } from "./stripe-webhook-harness";
+import { LEAKY_KEY, SESSION_INDEX, leakyDbError, leakyLines } from "./db-error-fixture";
 
 type Webhook = Awaited<ReturnType<typeof loadWebhook>>;
 
@@ -165,7 +166,10 @@ test("a license purchase fails loudly when the user cannot be created", async ()
 });
 
 test("a concurrent insert (23505) ends the license purchase without a second grant", async () => {
-  behaviour.insertError = Object.assign(new Error("duplicate key"), { code: "23505" });
+  behaviour.insertError = Object.assign(new Error("duplicate key"), {
+    code: "23505",
+    constraint: SESSION_INDEX,
+  });
 
   await handleLicensePurchase(checkoutSession());
 
@@ -437,7 +441,10 @@ test("a guest credit purchase with no customer email is rejected", async () => {
 });
 
 test("a mint whose insert loses the 23505 race falls back to the row the winner wrote", async () => {
-  behaviour.insertError = Object.assign(new Error("duplicate key"), { code: "23505" });
+  behaviour.insertError = Object.assign(new Error("duplicate key"), {
+    code: "23505",
+    constraint: SESSION_INDEX,
+  });
   let sessionLookups = 0;
   const winner = accountKeyRow({ key: "HW-WINNER-0001", userId: "user_winner" });
   behaviour.bySession = {
@@ -451,7 +458,10 @@ test("a mint whose insert loses the 23505 race falls back to the row the winner 
 });
 
 test("a mint that cannot resolve a license after the 23505 race fails loudly", async () => {
-  behaviour.insertError = Object.assign(new Error("duplicate key"), { code: "23505" });
+  behaviour.insertError = Object.assign(new Error("duplicate key"), {
+    code: "23505",
+    constraint: SESSION_INDEX,
+  });
 
   await assert.rejects(
     handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1"),
@@ -735,4 +745,96 @@ test("a redelivered credit refund does not deduct twice", async () => {
 
   assert.equal(calls.refundCreditGrant.length, 1);
   assert.deepEqual(calls.revokeAccountKey, []);
+});
+
+// ---------------------------------------------------------------------------
+// #1039: a REAL drizzle error — 23505 lives on .cause, params hold the secrets
+// ---------------------------------------------------------------------------
+
+test("a redelivered license purchase whose insert fails with drizzle's 23505 takes the duplicate path", async () => {
+  behaviour.insertError = leakyDbError("23505");
+
+  await handleLicensePurchase(checkoutSession());
+
+  assert.equal(calls.insertAccountKey.length, 1);
+  assert.deepEqual(calls.grantCreditLot, []);
+  assert.deepEqual(calls.emails, []);
+});
+
+test("a mint whose insert fails with drizzle's 23505 falls back to the winner's row", async () => {
+  behaviour.insertError = leakyDbError("23505");
+  let sessionLookups = 0;
+  const winner = accountKeyRow({ key: "HW-WINNER-0002", userId: "user_winner" });
+  behaviour.bySession = {
+    get: () => (sessionLookups++ === 0 ? undefined : winner),
+  } as unknown as Map<string, ReturnType<typeof accountKeyRow>>;
+
+  await handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1");
+
+  assert.equal(calls.grantCreditsForStripeEvent[0].userId, "user_winner");
+});
+
+// A 23505 is a duplicate delivery ONLY on the stripe_session_id index. On the
+// key index (or with no constraint reported) it must throw, so the route
+// answers 500 and Stripe retries, instead of a 200 with no licence and no email.
+for (const [label, constraint] of [
+  ["idx_account_keys_key", "idx_account_keys_key"],
+  ["no reported constraint", null],
+] as const) {
+  test(`a license purchase whose insert hits 23505 on ${label} throws, not the duplicate path`, async () => {
+    const from = logLines.length;
+    const err = leakyDbError("23505", constraint);
+    behaviour.insertError = err;
+
+    await assert.rejects(handleLicensePurchase(checkoutSession()), (thrown) => thrown === err);
+
+    assert.equal(calls.insertAccountKey.length, 1);
+    assert.deepEqual(calls.grantCreditLot, []);
+    assert.deepEqual(calls.emails, []);
+    assert.ok(
+      !logLines.slice(from).some((line) => line.includes("License already inserted by concurrent request")),
+    );
+  });
+
+  test(`a mint whose insert hits 23505 on ${label} throws, not the winner fallback`, async () => {
+    const err = leakyDbError("23505", constraint);
+    behaviour.insertError = err;
+    // The winner's row IS findable on a second lookup, so a wrong duplicate
+    // path would succeed here instead of throwing.
+    let sessionLookups = 0;
+    const winner = accountKeyRow({ key: "HW-WINNER-0003", userId: "user_winner" });
+    behaviour.bySession = {
+      get: () => (sessionLookups++ === 0 ? undefined : winner),
+    } as unknown as Map<string, ReturnType<typeof accountKeyRow>>;
+
+    await assert.rejects(
+      handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1"),
+      (thrown) => thrown === err,
+    );
+
+    assert.equal(sessionLookups, 1, "no fallback lookup after the insert");
+    assert.deepEqual(calls.grantCreditsForStripeEvent, []);
+    assert.deepEqual(calls.emails, []);
+  });
+}
+
+test("no webhook log line carries a drizzle error's bound email or licence key", async () => {
+  const from = logLines.length;
+
+  behaviour.insertError = leakyDbError("22P02");
+  await assert.rejects(handleLicensePurchase(checkoutSession()));
+  resetHarness();
+  behaviour.insertError = leakyDbError("22P02");
+  await assert.rejects(
+    handleCreditPurchase(checkoutSession({ metadata: { credit_amount: "600" } }), "evt_1"),
+  );
+  resetHarness();
+  behaviour.generatedKeys = [LEAKY_KEY];
+  behaviour.grantLotError = leakyDbError("22P02");
+  await handleLicensePurchase(checkoutSession());
+
+  const errors = logLines.slice(from).filter((line) => line.startsWith("error "));
+  assert.equal(errors.length, 3, errors.join("\n"));
+  assert.deepEqual(leakyLines(logLines.slice(from)), []);
+  assert.ok(errors.every((line) => line.includes("22P02")), "the SQLSTATE survives");
 });
