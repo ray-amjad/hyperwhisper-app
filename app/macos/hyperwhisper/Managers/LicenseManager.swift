@@ -295,6 +295,14 @@ class LicenseManager: ObservableObject {
         networkService.readStoredLicenseKey(retryAfterFailure: true)
     }
 
+    /// The stored key as this session's secure-store cache holds it, for seeding
+    /// UI defaults while `licenseStatus` may still be the unresolved `.trial`
+    /// (issue #873). Never retries a failed Keychain read, so a view body can
+    /// call it: after the launch read in `loadStoredLicense()` it is a cache hit.
+    func storedLicenseKeyReadForSeeding() -> RustLicenseStore.StoredLicenseKeyRead {
+        networkService.readStoredLicenseKey(retryAfterFailure: false)
+    }
+
     /// Saves an imported replacement without the previous key-bound cache.
     func replaceStoredLicenseKeyFromBackup(_ licenseKey: String) -> Bool {
         cancelLicenseStorageRetry()
