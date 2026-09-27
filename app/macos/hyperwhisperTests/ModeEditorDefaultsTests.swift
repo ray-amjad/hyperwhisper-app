@@ -40,6 +40,32 @@ struct ModeEditorDefaultsTests {
         ) == .local)
     }
 
+    // MARK: - Licence signal
+
+    @Test func activeStatusIsLicensed() {
+        #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .active, storedKey: .present("HW-KEY")))
+        #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .active, storedKey: .missing))
+    }
+
+    @Test func trialWithAStoredKeyIsLicensedWhileTheStatusResolves() {
+        // licenseStatus is .trial until loadStoredLicense() publishes a
+        // verdict; a key holder who opens the sheet then keeps Cloud.
+        #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .trial, storedKey: .present("HW-KEY")))
+    }
+
+    @Test func trialWithAnUnreadableKeychainKeepsTheCloudSeed() {
+        #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .trial, storedKey: .unavailable))
+    }
+
+    @Test func trialWithNoStoredKeyIsUnlicensed() {
+        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .trial, storedKey: .missing))
+    }
+
+    @Test func aKeyTheServerRefusedIsUnlicensed() {
+        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .expired, storedKey: .present("HW-KEY")))
+        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .invalid, storedKey: .present("HW-KEY")))
+    }
+
     // MARK: - Post-processing
 
     @Test func unlicensedOnDeviceSeedTurnsPostProcessingOff() {
@@ -133,5 +159,22 @@ struct ModeEditorDefaultsTests {
             to: "private func displayName(for id: String) -> String {"
         )
         #expect(sort.contains("ModeEditorDefaults.sortedLocalModelIds(availableModelIds)"))
+    }
+
+    // MARK: - ModesView passes the licence to the CREATE sheet
+
+    @Test func theCreateSheetGetsTheResolvedLicenceSignal() throws {
+        let sheet = try ProductionSource.slice(
+            of: "app/macos/hyperwhisper/Views/Modes/ModesView.swift",
+            from: ".sheet(isPresented: $showingCreateMode) {",
+            to: ") { (newModeData: ModeData) in"
+        )
+        #expect(sheet.contains("configuration: .create"))
+        #expect(sheet.contains("licenseActive: ModeEditorDefaults.treatsLicenseAsActive("))
+        #expect(sheet.contains("status: licenseManager.licenseStatus"))
+        #expect(sheet.contains("storedKey: licenseManager.storedLicenseKeyReadForSeeding()"))
+        // Without the argument the init default (false) seeds On-device for
+        // every user, licensed or not.
+        #expect(!sheet.contains("licenseActive: false"))
     }
 }

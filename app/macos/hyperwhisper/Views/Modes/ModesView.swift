@@ -100,7 +100,10 @@ struct ModesView: View {
             ModeEditorView(
                 configuration: .create,
                 availableModelIds: downloadedLocalModelIds,
-                licenseActive: licenseManager.licenseStatus == .active
+                licenseActive: ModeEditorDefaults.treatsLicenseAsActive(
+                    status: licenseManager.licenseStatus,
+                    storedKey: licenseManager.storedLicenseKeyReadForSeeding()
+                )
             ) { (newModeData: ModeData) in
                 // Create new Mode entity in Core Data
                 let persistenceController = PersistenceController.shared
