@@ -290,7 +290,7 @@ public partial class MainWindow : Window
             {
                 // Restore the sink and the mic first, outside the coordinator: a transcription in flight
                 // holds its lock and only restores when it ends, long after a SIGTERM has killed us (#1038).
-                await _recordingSession.RestoreAudioForShutdownAsync();
+                await _recordingSession.RestoreAudioEnvironmentForShutdownAsync();
                 // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt. A
                 // cancel queued behind that transcription gives up, so the rest of the quit still runs.
                 using var cancelWait = new CancellationTokenSource(CloseCancelWait);

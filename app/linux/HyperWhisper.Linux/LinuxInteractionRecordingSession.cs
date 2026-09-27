@@ -514,14 +514,21 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _audioEnvironment = environment.IsSuccess ? environment.Value : null;
     }
 
-    /// <summary>The quit restores before it cancels (#1038). Idempotent: the session is taken once and a
-    /// second mic restore has no prior volume left, so the recording's own restore later is a no-op.</summary>
-    public ValueTask RestoreAudioForShutdownAsync() => RestoreAudioAsync();
+    /// <summary>The quit puts the sink and the mic volume back before anything else (#1038). It never
+    /// resumes keep-warm: a recording may still be capturing, and Dispose stops keep-warm anyway. The
+    /// session is taken once and the mic has no prior volume left, so a later restore is a no-op.</summary>
+    public async ValueTask RestoreAudioEnvironmentForShutdownAsync()
+    {
+        var environment = Interlocked.Exchange(ref _audioEnvironment, null);
+        _ = _services.MicrophoneVolume.Restore();
+        if (environment is null) return;
+        try { await environment.RestoreAsync(CancellationToken.None); } catch { }
+        try { await environment.DisposeAsync(); } catch { }
+    }
 
     private async ValueTask RestoreAudioAsync()
     {
-        var environment = _audioEnvironment;
-        _audioEnvironment = null;
+        var environment = Interlocked.Exchange(ref _audioEnvironment, null);
         await LinuxRecordingAudioRestorer.RestoreAsync(
             _services.MicrophoneVolume, environment, _services.MicrophoneKeepWarm,
             _viewModel.Recording?.SelectedAudioDevice?.Id);

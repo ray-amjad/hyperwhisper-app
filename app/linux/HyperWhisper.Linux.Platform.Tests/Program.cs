@@ -152,6 +152,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone volume reports pactl unsupported", MicrophoneVolumeUnsupported),
     ("microphone keep-warm suspends and resumes child", MicrophoneKeepWarmLifecycle),
     ("microphone keep-warm never opens the server default source", MicrophoneKeepWarmNeedsASelectedDevice),
+    ("microphone keep-warm resumed twice keeps one capture child", MicrophoneKeepWarmResumedTwiceOpensOneSource),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
@@ -2573,6 +2574,23 @@ static Task MicrophoneKeepWarmNeedsASelectedDevice()
     Assert.Equal(0, factory.OpenCalls);
     service.Configure(true, "mic");
     Assert.Equal("mic", string.Join('|', factory.Devices));
+    return Task.CompletedTask;
+}
+
+// #1038: a quit during a recording resumed keep-warm twice, and the second Start overwrote the first
+// capture child, so Dispose stopped only one parec and the other held the microphone open after exit.
+static Task MicrophoneKeepWarmResumedTwiceOpensOneSource()
+{
+    var first = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var second = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var third = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var factory = new CyclingStreamingSourceFactory(first, second, third);
+    var service = new LinuxMicrophoneKeepWarmService(factory);
+    service.Configure(true, "mic"); service.SuspendForRecording();
+    service.ResumeAfterRecording("mic"); service.ResumeAfterRecording("mic");
+    Assert.Equal(2, factory.OpenCalls);
+    service.Dispose();
+    Assert.Equal(1, first.TerminateCalls); Assert.Equal(1, second.TerminateCalls);
     return Task.CompletedTask;
 }
 
