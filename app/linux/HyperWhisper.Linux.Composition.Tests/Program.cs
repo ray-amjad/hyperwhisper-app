@@ -1615,14 +1615,15 @@ static async Task StorageMaintenanceLoopStartsOnce()
     Assert(ReferenceEquals(first, second) && !first.IsCompleted && reported.Count == 0,
         "a second start began another loop on the shared timer");
     lifetime.Cancel();
-    await first;
+    // WhenAny never rethrows, so a faulted loop reaches the assert instead of escaping past it.
+    await Task.WhenAny(first, Task.Delay(TimeSpan.FromSeconds(3)));
     Assert(first.IsCompletedSuccessfully, "cancelling the lifetime did not end the loop cleanly");
 
     using var failingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(1));
     var failed = new LinuxStorageMaintenanceLoop(failingTimer, _ => throw new IOException("disk"), Report)
         .EnsureStarted(CancellationToken.None);
-    await failed.WaitAsync(TimeSpan.FromSeconds(3));
-    Assert(!failed.IsFaulted && reported is [IOException], "a maintenance failure was not reported");
+    await Task.WhenAny(failed, Task.Delay(TimeSpan.FromSeconds(3)));
+    Assert(failed.IsCompletedSuccessfully && reported is [IOException], "a maintenance failure was not reported");
 }
 
 static void Assert(bool condition, string message)
