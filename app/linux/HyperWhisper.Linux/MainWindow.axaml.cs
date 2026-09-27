@@ -73,6 +73,7 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _lifetime = new();
     private readonly PeriodicTimer _storageTimer = new(TimeSpan.FromHours(1));
     private readonly LinuxStorageMaintenanceLoop _storageLoop;
+    private readonly LinuxWindowStartupGate _startup = new();
     private TranscriptStorageCleanupResult? _lastStorageCleanup;
     private bool _allowClose;
     /// <summary>Set once OnClosing has passed the minimize-to-tray branch, so nothing started
@@ -234,7 +235,7 @@ public partial class MainWindow : Window
     {
         // Avalonia raises Opened again on every Show() after Hide() (tray, minimize to tray,
         // LaunchMinimized). Start-up work runs once, so the second loop never starts (#833).
-        Opened -= OnOpened;
+        if (!_startup.TryBegin()) return;
         try
         {
             await EnsureInitializedAsync();
@@ -251,14 +252,7 @@ public partial class MainWindow : Window
             ApplyDesktopSettings();
             await RunStorageMaintenanceAsync(_lifetime.Token);
             _ = _storageLoop.EnsureStarted(_lifetime.Token);
-            var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
-            if (tray.IsFailure)
-                ShowPlatformStatus(PlatformStatusText.Text + LF("linux.platform.tray_unavailable", tray.Error!.Message), true);
-            else
-            {
-                _trayAvailable = true;
-                if (_viewModel.Settings.LaunchMinimized) Hide();
-            }
+            await StartTrayAsync(launching: true);
             await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Succeeded);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -266,6 +260,20 @@ public partial class MainWindow : Window
         {
             await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Application, DiagnosticOutcome.Failed);
             _viewModel.Status.Failure("app.desktop_start_failed", L("linux.error.desktop_start_failed"));
+        }
+    }
+
+    /// <summary>Starts the tray helper, or restarts it once its process has exited. Only the launch
+    /// honours LaunchMinimized; a restart that hid the window again was the other half of #833.</summary>
+    private async Task StartTrayAsync(bool launching)
+    {
+        var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
+        if (tray.IsFailure)
+            ShowPlatformStatus(PlatformStatusText.Text + LF("linux.platform.tray_unavailable", tray.Error!.Message), true);
+        else
+        {
+            _trayAvailable = true;
+            if (launching && _viewModel.Settings.LaunchMinimized) Hide();
         }
     }
 
@@ -1328,15 +1336,19 @@ public partial class MainWindow : Window
         try { _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
         catch { _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed")); }
     }
-    private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(async () =>
     {
         _trayAvailable = false;
-        if (!IsVisible)
+        var wasVisible = IsVisible;
+        if (!wasVisible)
         {
             Show();
             WindowState = WindowState.Normal;
         }
         ShowPlatformStatus(PlatformStatusText.Text + L("linux.platform.tray_disconnected"), true);
+        if (!_startup.ShouldRestartTray(wasVisible, _closing || _lifetime.IsCancellationRequested)) return;
+        try { await StartTrayAsync(launching: false); }
+        catch { } // The status line already says the tray is disconnected.
     });
 
     private void OnWindowPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
@@ -5426,4 +5438,23 @@ internal sealed class LinuxStorageMaintenanceLoop(
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception exception) { await report(exception).ConfigureAwait(false); }
     }
+}
+
+/// <summary>What a window Opened, or a dead tray helper, may start (#833). Avalonia raises Opened on
+/// every Show() after Hide(), so start-up runs on the first Opened only. A helper that dies is
+/// restarted only when its death re-showed a hidden window: at most once per Show, as main did, so a
+/// helper that registers and dies again cannot spin a restart loop.</summary>
+internal sealed class LinuxWindowStartupGate
+{
+    private bool _started;
+
+    internal bool TryBegin()
+    {
+        if (_started) return false;
+        _started = true;
+        return true;
+    }
+
+    internal bool ShouldRestartTray(bool windowWasVisible, bool shuttingDown) =>
+        _started && !windowWasVisible && !shuttingDown;
 }
