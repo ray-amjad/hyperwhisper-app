@@ -4,6 +4,7 @@ import {
   provisionAccountKeyForEmail,
 } from "@/src/lib/db-layer";
 import { parseInternalEmailRequest } from "../email-request";
+import { describeDbError } from "@/lib/shared/db-error";
 
 export async function POST(request: NextRequest) {
   const parsed = await parseInternalEmailRequest(request);
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     const license = await provisionAccountKeyForEmail(email);
     return NextResponse.json({ licenseKey: license.key });
   } catch (error) {
-    console.error("Error in grant-license:", error);
+    console.error("Error in grant-license:", describeDbError(error));
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

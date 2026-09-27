@@ -8,6 +8,7 @@ import {
 } from "@/src/lib/license-validation";
 import { licenseValidateRateLimiter } from "@/lib/rate-limit";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
+import { describeDbError } from "@/lib/shared/db-error";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -68,7 +69,7 @@ async function trackDeviceValidation(
     await upsertDeviceValidation(licenseKeyId, deviceId, deviceName);
   } catch (error) {
     // Log but don't fail validation - tracking is non-critical
-    console.error("Device tracking error:", error);
+    console.error("Device tracking error:", describeDbError(error));
   }
 }
 
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
     // Basic response for macOS app compatibility
     return NextResponse.json({ valid: true });
   } catch (error) {
-    console.error("License validation error:", error);
+    console.error("License validation error:", describeDbError(error));
 
     // An unexpected fault: we could not establish the license's state, which is
     // exactly `lookup_failed`. Not a verdict — the client must keep reporting it.

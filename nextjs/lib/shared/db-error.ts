@@ -102,3 +102,6 @@ export function describeDbError(err: unknown): unknown {
     ...(reason === undefined ? {} : { reason }),
   };
 }
+
+/** What a tRPC client and the tRPC error log see in place of a DB error's text (#1049). */
+export const DB_ERROR_MESSAGE = "Database error";

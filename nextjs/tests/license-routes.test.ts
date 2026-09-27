@@ -24,12 +24,14 @@ import {
   loadActivateRoute,
   loadDeactivateRoute,
   loadValidateRoute,
+  logLines,
   postRequest,
   resetHarness,
   restoreRouteLogging,
   silenceRouteLogging,
   storeRow,
 } from "./license-routes-harness";
+import { leakyDbError, leakyLines, SESSION_INDEX } from "./db-error-fixture";
 
 const VALIDATE_PATH = "/api/license/validate";
 const ACTIVATE_PATH = "/api/license/activate";
@@ -643,5 +645,52 @@ describe("/api/account/* is the same handler as /api/license/*", () => {
     assert.equal(response.status, 400);
     assert.equal(body.valid, false);
     assert.equal(body.reason, "not_entitled");
+  });
+});
+
+describe("a DrizzleQueryError's bound params never reach the log (#1049)", () => {
+  /** Nothing logged carries the fixture's address or key, and the SQLSTATE is kept. */
+  function assertLogRedacted(): void {
+    assert.deepEqual(leakyLines(logLines), []);
+    assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));
+  }
+
+  beforeEach(() => {
+    logLines.length = 0;
+  });
+
+  test("validate: a failed lookup answers lookup_failed and logs it redacted", async () => {
+    behaviour.lookupError = leakyDbError();
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY }));
+
+    assert.equal(response.status, 500);
+    assert.equal((await readJson(response)).reason, "lookup_failed");
+    assertLogRedacted();
+  });
+
+  test("validate: a failed device-tracking write still validates and logs it redacted", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    behaviour.deviceTrackingError = leakyDbError();
+    const { POST } = await loadValidateRoute();
+
+    const response = await POST(
+      postRequest(VALIDATE_PATH, { license_key: GRANTED_KEY, device_id: "device-abc" }),
+    );
+
+    assert.equal(response.status, 200);
+    assertLogRedacted();
+  });
+
+  test("activate: a failed lookup answers lookup_failed and logs it redacted", async () => {
+    behaviour.lookupError = leakyDbError();
+    const { POST } = await loadActivateRoute();
+
+    const response = await POST(postRequest(ACTIVATE_PATH, { license_key: GRANTED_KEY }));
+
+    assert.equal(response.status, 500);
+    assert.equal((await readJson(response)).reason, "lookup_failed");
+    assertLogRedacted();
   });
 });

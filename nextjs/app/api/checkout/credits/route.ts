@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/clients/stripe";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
+import { describeDbError } from "@/lib/shared/db-error";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -216,7 +217,7 @@ export async function POST(req: NextRequest) {
       throw new Error("No checkout URL returned from Stripe");
     }
   } catch (error) {
-    console.error("Credit checkout error:", error);
+    console.error("Credit checkout error:", describeDbError(error));
 
     return NextResponse.json(
       {

@@ -56,13 +56,13 @@ const MUTANTS = [
   {
     file: ROUTE,
     name: "print the stack in production too",
-    from: "if (isDev && error.stack) {",
-    to: "if (error.stack) {",
+    from: "if (isDev && error.stack && !dbError) {",
+    to: "if (error.stack && !dbError) {",
   },
   {
     file: ROUTE,
     name: "never print the stack",
-    from: "if (isDev && error.stack) {",
+    from: "if (isDev && error.stack && !dbError) {",
     to: "if (false) {",
   },
   {
@@ -70,6 +70,37 @@ const MUTANTS = [
     name: "drop the path from the log line",
     from: "${path ?? \"<no-path>\"}",
     to: "<no-path>",
+  },
+  // #1049: a DB error's params stay out of the log line and the dev stack.
+  {
+    file: ROUTE,
+    name: "never recognise a DB error in onError",
+    from: "const dbError = isDbError(error.cause);",
+    to: "const dbError = false;",
+  },
+  {
+    file: ROUTE,
+    name: "log a DB error's raw message",
+    from: "${dbError ? DB_ERROR_MESSAGE : error.message}",
+    to: "${error.message}",
+  },
+  {
+    file: ROUTE,
+    name: "log the raw DB error beside the line",
+    from: "...(dbError ? [describeDbError(error.cause)] : [])",
+    to: "...(dbError ? [error.cause] : [])",
+  },
+  {
+    file: ROUTE,
+    name: "drop the redacted DB diagnosis from the line",
+    from: "...(dbError ? [describeDbError(error.cause)] : [])",
+    to: "",
+  },
+  {
+    file: ROUTE,
+    name: "print a DB error's stack in development",
+    from: "if (isDev && error.stack && !dbError) {",
+    to: "if (isDev && error.stack) {",
   },
   {
     file: ROOT,
@@ -136,8 +167,8 @@ const MUTANTS = [
   {
     file: DEVICES,
     name: "answer 400 instead of 500 on a db failure (list)",
-    from: '      } catch (error) {\n        console.error("Device counts fetch error:", error);\n        throw new TRPCError({\n          code: "INTERNAL_SERVER_ERROR",',
-    to: '      } catch (error) {\n        console.error("Device counts fetch error:", error);\n        throw new TRPCError({\n          code: "BAD_REQUEST",',
+    from: '      } catch (error) {\n        console.error("Device counts fetch error:", describeDbError(error));\n        throw new TRPCError({\n          code: "INTERNAL_SERVER_ERROR",',
+    to: '      } catch (error) {\n        console.error("Device counts fetch error:", describeDbError(error));\n        throw new TRPCError({\n          code: "BAD_REQUEST",',
   },
   {
     file: DEVICES,
@@ -150,6 +181,30 @@ const MUTANTS = [
     name: "hide the Error message (forLicense)",
     from: '              ? error.message\n              : "Failed to fetch devices for license",',
     to: '              ? "Failed to fetch devices for license"\n              : "Failed to fetch devices for license",',
+  },
+  {
+    file: DEVICES,
+    name: "send a DrizzleQueryError's message (list)",
+    from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch device counts"',
+    to: 'error instanceof Error\n              ? error.message\n              : "Failed to fetch device counts"',
+  },
+  {
+    file: DEVICES,
+    name: "send a DrizzleQueryError's message (forLicense)",
+    from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch devices for license"',
+    to: 'error instanceof Error\n              ? error.message\n              : "Failed to fetch devices for license"',
+  },
+  {
+    file: DEVICES,
+    name: "log the raw DB error (list)",
+    from: 'console.error("Device counts fetch error:", describeDbError(error));',
+    to: 'console.error("Device counts fetch error:", error);',
+  },
+  {
+    file: DEVICES,
+    name: "log the raw DB error (forLicense)",
+    from: 'console.error("Devices for license fetch error:", describeDbError(error));',
+    to: 'console.error("Devices for license fetch error:", error);',
   },
   {
     file: STATS,
@@ -178,6 +233,24 @@ const MUTANTS = [
     name: "let a Stripe failure escape",
     from: "      } catch {\n        // Stripe not configured\n      }",
     to: "      } finally {\n        // Stripe not configured\n      }",
+  },
+  {
+    file: TRPC,
+    name: "send a DB error's shape unchanged",
+    from: "if (!isDbError(error.cause)) return shape;",
+    to: "return shape;",
+  },
+  {
+    file: TRPC,
+    name: "send a DB error's raw message",
+    from: "message: DB_ERROR_MESSAGE, data:",
+    to: "data:",
+  },
+  {
+    file: TRPC,
+    name: "send a DB error's stack when isDev",
+    from: "data: { ...shape.data, stack: undefined }",
+    to: "data: shape.data",
   },
   {
     file: TRPC,

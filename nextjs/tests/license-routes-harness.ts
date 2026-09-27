@@ -24,6 +24,8 @@ import { mock } from "node:test";
 
 import { NextRequest } from "next/server";
 
+import { formatLogArgs } from "./db-error-fixture";
+
 import type { AccountKeyRow } from "@/src/lib/db-layer";
 
 export interface DeviceValidationCall {
@@ -100,7 +102,7 @@ const realConsole = { error: console.error };
 
 export function silenceRouteLogging(): void {
   console.error = (...args: unknown[]): void => {
-    logLines.push(args.map((a) => String(a)).join(" "));
+    logLines.push(formatLogArgs(args));
   };
 }
 

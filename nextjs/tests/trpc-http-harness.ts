@@ -59,6 +59,8 @@ export const behaviour = {
   deviceCounts: [] as DeviceCountRow[],
   devices: [] as DeviceRow[],
   dbError: null as unknown,
+  /** The one other db-layer function that throws `dbError` instead of refusing. */
+  dbErrorOn: null as string | null,
   stripeCustomers: [] as Array<{ id: string }>,
   stripeError: null as unknown,
 };
@@ -69,6 +71,7 @@ export function resetHarness(): void {
   behaviour.deviceCounts = [];
   behaviour.devices = [];
   behaviour.dbError = null;
+  behaviour.dbErrorOn = null;
   behaviour.stripeCustomers = [];
   behaviour.stripeError = null;
 }
@@ -113,6 +116,7 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
 function unexpectedDb(name: string) {
   return async () => {
     calls.otherDb.push(name);
+    if (name === behaviour.dbErrorOn) throw behaviour.dbError;
     throw new Error(`unexpected db-layer call: ${name}`);
   };
 }
@@ -224,31 +228,36 @@ export function plainUser(overrides: Record<string, unknown> = {}) {
 
 export interface TRPCHttpResult {
   status: number;
+  /** The response body exactly as it went over the wire. */
+  raw: string;
   /** Deserialized `result.data`, when the call succeeded. */
   data?: unknown;
   /** Deserialized `error` shape, when the call failed. */
   error?: {
     message: string;
     code: number;
-    data: { code: string; httpStatus: number; path?: string };
+    data: { code: string; httpStatus: number; path?: string; stack?: string };
   };
 }
 
 const ORIGIN = "https://hyperwhisper.test";
 
 async function readResult(res: Response): Promise<TRPCHttpResult> {
-  const body = (await res.json()) as {
+  const raw = await res.text();
+  const body = JSON.parse(raw) as {
     result?: { data: Parameters<typeof superjson.deserialize>[0] };
     error?: Parameters<typeof superjson.deserialize>[0];
   };
   if (body.error) {
     return {
       status: res.status,
+      raw,
       error: superjson.deserialize(body.error) as TRPCHttpResult["error"],
     };
   }
   return {
     status: res.status,
+    raw,
     data: superjson.deserialize(body.result!.data),
   };
 }

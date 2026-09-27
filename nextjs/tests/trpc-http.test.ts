@@ -19,6 +19,16 @@ import {
   plainUser,
   resetHarness,
 } from "./trpc-http-harness";
+import {
+  formatLogArgs,
+  LEAKY_EMAIL,
+  LEAKY_KEY,
+  leakyDbError,
+  leakyLines,
+  SESSION_INDEX,
+} from "./db-error-fixture";
+
+import { DB_ERROR_MESSAGE } from "@/lib/shared/db-error";
 
 const LICENSE_ID = "33333333-3333-4333-8333-333333333333";
 
@@ -42,12 +52,16 @@ const NO_CALLS = {
 /** Captures console output for one test, then restores it. */
 function captureConsole() {
   const original = { error: console.error, debug: console.debug };
-  const lines = { error: [] as string[], debug: [] as string[] };
+  // `rendered` is every call as Node would print it (util.inspect for objects),
+  // so a bound param hiding in an error's fields is visible to a leak check.
+  const lines = { error: [] as string[], debug: [] as string[], rendered: [] as string[] };
   console.error = (...args: unknown[]) => {
     lines.error.push(args.map(String).join(" "));
+    lines.rendered.push(formatLogArgs(args));
   };
   console.debug = (...args: unknown[]) => {
     lines.debug.push(args.map(String).join(" "));
+    lines.rendered.push(formatLogArgs(args));
   };
   return {
     lines,
@@ -388,3 +402,83 @@ describe("error logging in the route", () => {
   });
 });
 
+
+describe("a database error's bound params never leave the server (#1049)", () => {
+  /** The response body, raw, must not carry the fixture's address or key. */
+  function assertBodyClean(raw: string): void {
+    assert.ok(!raw.toLowerCase().includes(LEAKY_EMAIL.toLowerCase()), raw);
+    assert.ok(!raw.toLowerCase().includes(LEAKY_KEY.toLowerCase()), raw);
+    assert.ok(!raw.includes("Failed query"), raw);
+  }
+
+  /** admin.customers.grant has no catch: findAccountByKey's failure escapes to tRPC. */
+  async function grantWithLeakyDb() {
+    behaviour.dbError = leakyDbError();
+    behaviour.dbErrorOn = "findAccountByKey";
+    return httpMutation("admin.customers.grant", { email: LEAKY_EMAIL });
+  }
+
+  for (const env of ["production", "development"]) {
+    test(`in ${env}, an uncaught DrizzleQueryError reaches neither the log nor the client`, async () => {
+      restoreEnv();
+      restoreEnv = setNodeEnv(env);
+
+      const result = await grantWithLeakyDb();
+
+      assert.deepEqual(calls.otherDb, ["findAccountByKey"]);
+      assert.equal(result.status, 500);
+      assert.equal(result.error?.data.code, "INTERNAL_SERVER_ERROR");
+      assert.equal(result.error?.message, DB_ERROR_MESSAGE);
+      assertBodyClean(result.raw);
+      assert.deepEqual(leakyLines(consoleCapture.lines.rendered), []);
+      // The operator still gets a line naming the procedure, plus the SQLSTATE
+      // and constraint describeDbError keeps.
+      const logged = consoleCapture.lines.rendered.find((line) =>
+        line.startsWith(
+          `tRPC failed on mutation admin.customers.grant: INTERNAL_SERVER_ERROR - ${DB_ERROR_MESSAGE}`,
+        ),
+      );
+      assert.ok(logged, consoleCapture.lines.rendered.join("\n"));
+      assert.ok(logged.includes("23505") && logged.includes(SESSION_INDEX), logged);
+    });
+  }
+
+  test("with tRPC's isDev on, a DB error ships no stack but any other error still does", async () => {
+    const { appRouter } = await loadRoot();
+    const config = appRouter._def._config as { isDev: boolean };
+    const isDevBefore = config.isDev;
+    config.isDev = true;
+    try {
+      const leaky = await grantWithLeakyDb();
+      assert.equal(leaky.error?.data.stack, undefined);
+      assertBodyClean(leaky.raw);
+
+      // Positive control: the toggle above really turns data.stack on.
+      behaviour.dbError = new Error("connection reset");
+      const plain = await httpQuery("admin.devices.list");
+      assert.match(plain.error?.data.stack ?? "", /connection reset/);
+    } finally {
+      config.isDev = isDevBefore;
+    }
+  });
+
+  for (const [path, input, fallback] of [
+    ["admin.devices.list", undefined, "Failed to fetch device counts"],
+    ["admin.devices.forLicense", { licenseKeyId: LICENSE_ID }, "Failed to fetch devices for license"],
+  ] as const) {
+    test(`${path} wraps a DrizzleQueryError in its generic message and logs it redacted`, async () => {
+      behaviour.dbError = leakyDbError();
+
+      const result = await httpQuery(path, input);
+
+      assert.equal(result.status, 500);
+      assert.equal(result.error?.message, fallback);
+      assertBodyClean(result.raw);
+      assert.deepEqual(leakyLines(consoleCapture.lines.rendered), []);
+      assert.ok(
+        consoleCapture.lines.rendered.some((line) => line.includes(SESSION_INDEX)),
+        consoleCapture.lines.rendered.join("\n"),
+      );
+    });
+  }
+});
