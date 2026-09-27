@@ -320,5 +320,6 @@ struct ModesView: View {
         .environmentObject(ParakeetModelManager())
         .environmentObject(Qwen3AsrModelManager())
         .environmentObject(NemotronModelManager())
+        .environmentObject(LicenseManager())
         .frame(width: 900, height: 700)
 }
