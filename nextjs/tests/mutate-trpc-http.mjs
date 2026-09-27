@@ -22,6 +22,7 @@ const DEVICES = "server/api/routers/admin/devices.ts";
 const STATS = "server/api/routers/admin/stats.ts";
 const TRPC = "server/api/trpc.ts";
 const HARNESS = "tests/trpc-http-harness.ts";
+const DOWNLOAD = "server/api/routers/download.ts";
 
 const MUTANTS = [
   {
@@ -288,6 +289,12 @@ const MUTANTS = [
     name: "harness: dbErrorOn alone silences the unexpected-call alarm",
     from: "if (name === behaviour.dbErrorOn && behaviour.dbError !== null) {",
     to: "if (name === behaviour.dbErrorOn) {",
+  },
+  {
+    file: DOWNLOAD,
+    name: "log the raw download-request error",
+    from: 'console.error("Error processing download request:", describeDbError(error));',
+    to: 'console.error("Error processing download request:", error);',
   },
   {
     file: TRPC,

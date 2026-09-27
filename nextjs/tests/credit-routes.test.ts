@@ -767,3 +767,57 @@ describe("POST /api/license/credits", () => {
     assert.deepEqual(calls.deductCreditBalance, []);
   });
 });
+
+describe("/api/license/credits — a DrizzleQueryError stays out of the log and the body (#1049)", () => {
+  /** Nothing leaks, and the redacted diagnosis (the constraint) is still logged. */
+  function assertRedacted(text: string): void {
+    assert.deepEqual(leakyLines([text]), [], text);
+    assert.deepEqual(leakyLines(logLines), [], logLines.join("\n"));
+    assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));
+  }
+
+  test("GET: a failed balance lookup answers 500 and logs it redacted", async () => {
+    logLines.length = 0;
+    behaviour.lookupError = leakyDbError();
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const response = await GET(getRequest(`${CREDITS_PATH}?license_key=${GRANTED_KEY}`));
+    const text = await response.text();
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(JSON.parse(text), { error: "Failed to get credit balance" });
+    assertRedacted(text);
+  });
+
+  test("POST: a failed decrement answers 409 and logs it redacted", async () => {
+    logLines.length = 0;
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    behaviour.deductError = leakyDbError();
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+    );
+    const text = await response.text();
+
+    assert.equal(response.status, 409);
+    assert.deepEqual(JSON.parse(text), { error: "Failed to deduct credits. Please retry." });
+    assertRedacted(text);
+  });
+
+  test("POST: a failed lookup answers 500 and logs it redacted", async () => {
+    logLines.length = 0;
+    behaviour.lookupError = leakyDbError();
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+    );
+    const text = await response.text();
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(JSON.parse(text), { error: "Failed to deduct credits" });
+    assert.deepEqual(calls.deductCreditBalance, []);
+    assertRedacted(text);
+  });
+});

@@ -144,6 +144,25 @@ const MUTANTS = [
     from: '      { error: "Internal server error" },\n      { status: 500 }',
     to: '      { error: "Internal server error" },\n      { status: 200 }',
   },
+  // #1049: each fault log line carries describeDbError, never the raw error.
+  {
+    file: GRANT,
+    name: "log the raw grant-license error",
+    from: 'console.error("Error in grant-license:", describeDbError(error));',
+    to: 'console.error("Error in grant-license:", error);',
+  },
+  {
+    file: LIST,
+    name: "log the raw licenses-for-email error",
+    from: 'console.error("Error in licenses-for-email:", describeDbError(error));',
+    to: 'console.error("Error in licenses-for-email:", error);',
+  },
+  {
+    file: PROFILE,
+    name: "log the raw profile error",
+    from: 'console.error("Profile API error:", describeDbError(error));',
+    to: 'console.error("Profile API error:", error);',
+  },
 ];
 
 const results = [];

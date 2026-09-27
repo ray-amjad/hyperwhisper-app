@@ -63,6 +63,8 @@ export const behaviour = {
   dbErrorOn: null as string | null,
   stripeCustomers: [] as Array<{ id: string }>,
   stripeError: null as unknown,
+  /** Thrown by the download email rate limiter when set: reaches download.ts's outer catch. */
+  downloadLimitError: null as unknown,
 };
 
 export function resetHarness(): void {
@@ -74,6 +76,7 @@ export function resetHarness(): void {
   behaviour.dbErrorOn = null;
   behaviour.stripeCustomers = [];
   behaviour.stripeError = null;
+  behaviour.downloadLimitError = null;
 }
 
 function moduleUrl(relative: string): string {
@@ -192,7 +195,12 @@ moduleMock.module(moduleUrl("../lib/services/email.ts"), {
 
 moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {
-    downloadEmailRateLimiter: { limit: async () => ({ success: true }) },
+    downloadEmailRateLimiter: {
+      limit: async () => {
+        if (behaviour.downloadLimitError) throw behaviour.downloadLimitError;
+        return { success: true };
+      },
+    },
     licenseValidateRateLimiter: { limit: async () => ({ success: true }) },
     latencyIngestRateLimiter: { limit: async () => ({ success: true }) },
   },

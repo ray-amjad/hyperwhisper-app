@@ -20,6 +20,7 @@ const CREDIT_TEST = "tests/credit-routes.test.ts";
 const VALIDATE = "app/api/license/validate/route.ts";
 const ACTIVATE = "app/api/license/activate/route.ts";
 const CHECKOUT = "app/api/checkout/credits/route.ts";
+const CREDITS = "app/api/license/credits/route.ts";
 
 const MUTANTS = [
   {
@@ -53,6 +54,27 @@ const MUTANTS = [
     name: "send a DB error's message as details",
     from: 'details: safeErrorMessage(error, "Unknown error"),',
     to: 'details: error instanceof Error ? error.message : "Unknown error",',
+  },
+  {
+    file: CREDITS,
+    test: CREDIT_TEST,
+    name: "log the raw balance error",
+    from: 'console.error("Credits balance error:", describeDbError(error));',
+    to: 'console.error("Credits balance error:", error);',
+  },
+  {
+    file: CREDITS,
+    test: CREDIT_TEST,
+    name: "log the raw decrement error",
+    from: 'console.error("Credit deduction failed:", describeDbError(updateError));',
+    to: 'console.error("Credit deduction failed:", updateError);',
+  },
+  {
+    file: CREDITS,
+    test: CREDIT_TEST,
+    name: "log the raw deduction error",
+    from: 'console.error("Credits deduction error:", describeDbError(error));',
+    to: 'console.error("Credits deduction error:", error);',
   },
 ];
 

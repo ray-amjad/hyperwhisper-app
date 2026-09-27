@@ -607,3 +607,20 @@ test("harness: dbErrorOn with no dbError still trips the unexpected-call alarm",
   assert.equal(result.status, 500);
   assert.match(result.error?.message ?? "", /unexpected db-layer call: findAccountByKey/);
 });
+
+test("download.recordDownload logs an unexpected DB error in its outer catch redacted (#1049)", async () => {
+  behaviour.downloadLimitError = leakyDbError();
+
+  const result = await httpMutation("download.recordDownload", { email: LEAKY_EMAIL }, null);
+
+  assert.equal(result.status, 500);
+  assert.equal(result.error?.message, "Internal server error");
+  assert.deepEqual(leakyLines([result.raw]), [], result.raw);
+  assert.deepEqual(leakyLines(consoleCapture.lines.rendered), []);
+  assert.ok(
+    consoleCapture.lines.rendered.some(
+      (line) => line.startsWith("Error processing download request:") && line.includes(SESSION_INDEX),
+    ),
+    consoleCapture.lines.rendered.join("\n"),
+  );
+});
