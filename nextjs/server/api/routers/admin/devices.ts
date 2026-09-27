@@ -12,7 +12,7 @@ import {
   getDeviceCountsPerLicense,
   getDevicesForLicense,
 } from "@/src/lib/db-layer";
-import { describeDbError } from "@/lib/shared/db-error";
+import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
 
 export const devicesRouter = createTRPCRouter({
   /**
@@ -29,11 +29,8 @@ export const devicesRouter = createTRPCRouter({
         console.error("Device counts fetch error:", describeDbError(error));
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch device counts",
-          // The boundary (server/api/trpc.ts) redacts a DB error off `cause` (#1049).
+          message: safeErrorMessage(error, "Failed to fetch device counts"),
+          // A DB error never enters the message; `cause` keeps it for the server (#1049).
           cause: error,
         });
       }
@@ -60,10 +57,7 @@ export const devicesRouter = createTRPCRouter({
         console.error("Devices for license fetch error:", describeDbError(error));
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch devices for license",
+          message: safeErrorMessage(error, "Failed to fetch devices for license"),
           cause: error,
         });
       }

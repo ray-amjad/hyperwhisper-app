@@ -105,3 +105,14 @@ export function describeDbError(err: unknown): unknown {
 
 /** What a tRPC client and the tRPC error log see in place of a DB error's text (#1049). */
 export const DB_ERROR_MESSAGE = "Database error";
+
+/**
+ * A message that is safe to hand a client: a DB error's own text is its SQL
+ * plus the bound values, so it becomes `DB_ERROR_MESSAGE`; any other Error
+ * keeps its message; a non-Error thrown value becomes `fallback`.
+ */
+export function safeErrorMessage(err: unknown, fallback: string): string {
+  if (isDbError(err)) return DB_ERROR_MESSAGE;
+
+  return err instanceof Error ? err.message : fallback;
+}

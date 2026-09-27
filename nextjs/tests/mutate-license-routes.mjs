@@ -51,8 +51,8 @@ const MUTANTS = [
     file: CHECKOUT,
     test: CREDIT_TEST,
     name: "send a DB error's message as details",
-    from: "details: isDbError(error)",
-    to: "details: false",
+    from: 'details: safeErrorMessage(error, "Unknown error"),',
+    to: 'details: error instanceof Error ? error.message : "Unknown error",',
   },
 ];
 

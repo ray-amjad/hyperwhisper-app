@@ -64,12 +64,16 @@ export async function createTRPCContext(opts: {
  */
 const t = initTRPC.context<TRPCContext>().create({
   transformer: superjson,
-  // A DB error's message and stack carry its bound params (#1049). isDev is
-  // fixed at load, so strip the stack here whatever it was.
+  // A DB error's message and stack carry its bound params (#1049), so a 5xx
+  // caused by one ships DB_ERROR_MESSAGE and no stack key at all, whatever
+  // isDev says. A 4xx keeps its own message: that copy is written for the user.
   errorFormatter({ shape, error }) {
-    if (!isDbError(error.cause)) return shape;
+    if (shape.data.httpStatus < 500 || !isDbError(error.cause)) return shape;
 
-    return { ...shape, message: DB_ERROR_MESSAGE, data: { ...shape.data, stack: undefined } };
+    const data = { ...shape.data };
+    delete data.stack;
+
+    return { ...shape, message: DB_ERROR_MESSAGE, data };
   },
 });
 

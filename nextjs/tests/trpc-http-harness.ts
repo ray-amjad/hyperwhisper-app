@@ -116,7 +116,11 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
 function unexpectedDb(name: string) {
   return async () => {
     calls.otherDb.push(name);
-    if (name === behaviour.dbErrorOn) throw behaviour.dbError;
+    // Only a seeded error replaces the alarm: `dbErrorOn` alone must not
+    // silence it, nor `throw null`.
+    if (name === behaviour.dbErrorOn && behaviour.dbError !== null) {
+      throw behaviour.dbError;
+    }
     throw new Error(`unexpected db-layer call: ${name}`);
   };
 }

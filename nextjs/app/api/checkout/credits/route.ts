@@ -3,11 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/clients/stripe";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
-import {
-  DB_ERROR_MESSAGE,
-  describeDbError,
-  isDbError,
-} from "@/lib/shared/db-error";
+import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -227,11 +223,7 @@ export async function POST(req: NextRequest) {
       {
         error: "Failed to create checkout session",
         // A DB error's message is its SQL plus the bound key and email (#1049).
-        details: isDbError(error)
-          ? DB_ERROR_MESSAGE
-          : error instanceof Error
-            ? error.message
-            : "Unknown error",
+        details: safeErrorMessage(error, "Unknown error"),
       },
       { status: 500 }
     );
