@@ -234,10 +234,17 @@ public partial class MainWindow : Window
     private async void OnOpened(object? sender, EventArgs e)
     {
         // Avalonia raises Opened again on every Show() after Hide() (tray, minimize to tray,
-        // LaunchMinimized). Start-up work runs once, so the second loop never starts (#833).
-        if (!_startup.TryBegin()) return;
+        // LaunchMinimized), so a later Opened only retries what has not yet succeeded (#833).
+        var work = _startup.Next(_trayAvailable);
+        if (work == LinuxWindowOpenedWork.None) return;
+        var succeeded = false;
         try
         {
+            if (work == LinuxWindowOpenedWork.RestartTray)
+            {
+                await StartTrayAsync(launching: false);
+                return;
+            }
             await EnsureInitializedAsync();
             await new CrashAudioRecoveryService(
                 _platformServices.Paths,
@@ -252,8 +259,9 @@ public partial class MainWindow : Window
             ApplyDesktopSettings();
             await RunStorageMaintenanceAsync(_lifetime.Token);
             _ = _storageLoop.EnsureStarted(_lifetime.Token);
-            await StartTrayAsync(launching: true);
+            await StartTrayAsync(launching: work == LinuxWindowOpenedWork.Launch);
             await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Succeeded);
+            succeeded = true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch
@@ -261,13 +269,23 @@ public partial class MainWindow : Window
             await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Application, DiagnosticOutcome.Failed);
             _viewModel.Status.Failure("app.desktop_start_failed", L("linux.error.desktop_start_failed"));
         }
+        finally { _startup.Finish(succeeded); }
     }
 
     /// <summary>Starts the tray helper, or restarts it once its process has exited. Only the launch
-    /// honours LaunchMinimized; a restart that hid the window again was the other half of #833.</summary>
+    /// honours LaunchMinimized; a restart that hid the window again was the other half of #833. A
+    /// later start first puts back the status ApplyDesktopSettings left, as main's re-run did, so the
+    /// tray clauses are replaced rather than appended.</summary>
     private async Task StartTrayAsync(bool launching)
     {
         var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
+        if (!launching)
+        {
+            var conflict = _viewModel.Home.HasShortcutConflicts;
+            ShowPlatformStatus(conflict
+                ? LF("linux.platform.warning", _viewModel.Home.ShortcutConflictMessage)
+                : LF("linux.platform.connected", _platformServices.Paths.DataDirectory), conflict);
+        }
         if (tray.IsFailure)
             ShowPlatformStatus(PlatformStatusText.Text + LF("linux.platform.tray_unavailable", tray.Error!.Message), true);
         else
@@ -873,6 +891,7 @@ public partial class MainWindow : Window
 
     private async Task ReportStorageMaintenanceLoopFailureAsync(Exception exception)
     {
+        Dispatcher.UIThread.Post(() => SetStorageError(L("linux.storage.maintenance_failed")));
         _platformServices.Telemetry.Capture(exception);
         await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Storage, DiagnosticOutcome.Failed)
             .ConfigureAwait(false);
@@ -1336,19 +1355,15 @@ public partial class MainWindow : Window
         try { _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
         catch { _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed")); }
     }
-    private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(async () =>
+    private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
         _trayAvailable = false;
-        var wasVisible = IsVisible;
-        if (!wasVisible)
+        if (!IsVisible)
         {
             Show();
             WindowState = WindowState.Normal;
         }
         ShowPlatformStatus(PlatformStatusText.Text + L("linux.platform.tray_disconnected"), true);
-        if (!_startup.ShouldRestartTray(wasVisible, _closing || _lifetime.IsCancellationRequested)) return;
-        try { await StartTrayAsync(launching: false); }
-        catch { } // The status line already says the tray is disconnected.
     });
 
     private void OnWindowPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
@@ -5420,7 +5435,7 @@ internal static class LinuxTrayMicrophoneSelector
 
 /// <summary>The hourly storage-maintenance loop on its one PeriodicTimer. A PeriodicTimer allows one
 /// pending WaitForNextTickAsync, so a second start returns the running loop instead of faulting a new
-/// one (#833), and any other failure is reported before the loop ends, never left unobserved.</summary>
+/// one (#833). A failed tick is reported and the loop keeps ticking; only cancellation ends it.</summary>
 internal sealed class LinuxStorageMaintenanceLoop(
     PeriodicTimer timer, Func<CancellationToken, Task> tick, Func<Exception, Task> report)
 {
@@ -5433,28 +5448,39 @@ internal sealed class LinuxStorageMaintenanceLoop(
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-                await tick(cancellationToken).ConfigureAwait(false);
+            {
+                try { await tick(cancellationToken).ConfigureAwait(false); }
+                catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+                { await report(exception).ConfigureAwait(false); }
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch (Exception exception) { await report(exception).ConfigureAwait(false); }
     }
 }
 
-/// <summary>What a window Opened, or a dead tray helper, may start (#833). Avalonia raises Opened on
-/// every Show() after Hide(), so start-up runs on the first Opened only. A helper that dies is
-/// restarted only when its death re-showed a hidden window: at most once per Show, as main did, so a
-/// helper that registers and dies again cannot spin a restart loop.</summary>
+internal enum LinuxWindowOpenedWork { None, Launch, RetryStartUp, RestartTray }
+
+/// <summary>What a window Opened may start (#833). Avalonia raises Opened on every Show() after Hide(),
+/// so a later Opened only retries what has not yet succeeded, as main's re-run did: the start-up chain
+/// until it succeeds once, then the tray helper while it is down. Nothing starts while one is running.</summary>
 internal sealed class LinuxWindowStartupGate
 {
-    private bool _started;
+    private bool _attempted, _running, _succeeded;
 
-    internal bool TryBegin()
+    internal LinuxWindowOpenedWork Next(bool trayAvailable)
     {
-        if (_started) return false;
-        _started = true;
-        return true;
+        if (_running) return LinuxWindowOpenedWork.None;
+        if (_succeeded && trayAvailable) return LinuxWindowOpenedWork.None;
+        _running = true;
+        if (_succeeded) return LinuxWindowOpenedWork.RestartTray;
+        var first = !_attempted;
+        _attempted = true;
+        return first ? LinuxWindowOpenedWork.Launch : LinuxWindowOpenedWork.RetryStartUp;
     }
 
-    internal bool ShouldRestartTray(bool windowWasVisible, bool shuttingDown) =>
-        _started && !windowWasVisible && !shuttingDown;
+    internal void Finish(bool succeeded)
+    {
+        _running = false;
+        _succeeded |= succeeded;
+    }
 }
