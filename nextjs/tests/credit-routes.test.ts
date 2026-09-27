@@ -25,6 +25,7 @@ import {
   getRequest,
   loadCheckoutCreditsRoute,
   loadLicenseCreditsRoute,
+  logLines,
   onlySessionCreate,
   postRequest,
   resetHarness,
@@ -32,6 +33,7 @@ import {
   silenceRouteLogging,
   storeRow,
 } from "./credit-routes-harness";
+import { leakyDbError, leakyLines, SESSION_INDEX } from "./db-error-fixture";
 
 const CHECKOUT_PATH = "/api/checkout/credits";
 const CREDITS_PATH = "/api/license/credits";
@@ -467,6 +469,29 @@ describe("POST /api/checkout/credits — Stripe faults", () => {
 
     assert.equal(response.status, 500);
     assert.equal(body.details, "Unknown error");
+  });
+});
+
+describe("POST /api/checkout/credits — a DrizzleQueryError stays out of the log and the body (#1049)", () => {
+  test("a failed top-up lookup answers 500 with no SQL, address or key", async () => {
+    logLines.length = 0;
+    behaviour.lookupError = leakyDbError();
+    const { POST } = await loadCheckoutCreditsRoute();
+
+    const response = await POST(
+      postRequest(CHECKOUT_PATH, { amount: 5, licenseKey: GRANTED_KEY }),
+    );
+    const text = await response.text();
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(leakyLines([text]), [], text);
+    assert.deepEqual(JSON.parse(text), {
+      error: "Failed to create checkout session",
+      details: "Database error",
+    });
+    assert.deepEqual(leakyLines(logLines), []);
+    assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));
+    assert.deepEqual(calls.sessionCreate, []);
   });
 });
 

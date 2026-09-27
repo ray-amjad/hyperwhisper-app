@@ -1,8 +1,9 @@
 /**
  * Mutation proof for the #1049 redaction in tests/license-routes.test.ts.
  *
- * Each entry below does ONE exact string replace in one license route, runs
- * the one test file, then puts the source back. A mutant that still PASSES
+ * Each entry below does ONE exact string replace in one route, runs that
+ * route's test file (`test`, else license-routes.test.ts), then puts the
+ * source back. A mutant that still PASSES
  * means the tests are hollow there.
  *
  * This file is a tool, not a test. `npm test` globs `tests/*.test.ts`, so it
@@ -14,9 +15,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const TEST = "tests/license-routes.test.ts";
+const CREDIT_TEST = "tests/credit-routes.test.ts";
 
 const VALIDATE = "app/api/license/validate/route.ts";
 const ACTIVATE = "app/api/license/activate/route.ts";
+const CHECKOUT = "app/api/checkout/credits/route.ts";
 
 const MUTANTS = [
   {
@@ -37,6 +40,20 @@ const MUTANTS = [
     from: 'console.error("License activation error:", describeDbError(error));',
     to: 'console.error("License activation error:", error);',
   },
+  {
+    file: CHECKOUT,
+    test: CREDIT_TEST,
+    name: "log the raw checkout error",
+    from: 'console.error("Credit checkout error:", describeDbError(error));',
+    to: 'console.error("Credit checkout error:", error);',
+  },
+  {
+    file: CHECKOUT,
+    test: CREDIT_TEST,
+    name: "send a DB error's message as details",
+    from: "details: isDbError(error)",
+    to: "details: false",
+  },
 ];
 
 const results = [];
@@ -50,17 +67,13 @@ for (const mutant of MUTANTS) {
     continue;
   }
 
-  let mutated = original.replace(mutant.from, mutant.to);
-  if (mutant.prelude) {
-    mutated = mutated.replace(mutant.prelude.from, mutant.prelude.to);
-  }
-  writeFileSync(mutant.file, mutated);
+  writeFileSync(mutant.file, original.replace(mutant.from, mutant.to));
 
   let killed = false;
   try {
     execFileSync(
       "node",
-      ["--import", "tsx", "--experimental-test-module-mocks", "--test", TEST],
+      ["--import", "tsx", "--experimental-test-module-mocks", "--test", mutant.test ?? TEST],
       { stdio: "pipe" },
     );
   } catch {
@@ -69,27 +82,16 @@ for (const mutant of MUTANTS) {
     writeFileSync(mutant.file, original);
   }
 
-  const verdict = killed
-    ? "KILLED"
-    : mutant.equivalent
-      ? "SURVIVED (equivalent)"
-      : "SURVIVED";
+  const verdict = killed ? "KILLED" : "SURVIVED";
   results.push({ ...mutant, verdict });
-  console.log(`${verdict.padEnd(21)} ${mutant.name}`);
+  console.log(`${verdict.padEnd(9)} ${mutant.name}`);
 }
 
-const survivors = results.filter(
-  (r) => r.verdict !== "KILLED" && r.verdict !== "SURVIVED (equivalent)",
-);
+const survivors = results.filter((r) => r.verdict !== "KILLED");
 console.log("");
 console.log(`| File | Mutation | Verdict |`);
 console.log(`| --- | --- | --- |`);
 for (const r of results) console.log(`| \`${r.file}\` | ${r.name} | ${r.verdict} |`);
 console.log("");
-const killedCount = results.filter((r) => r.verdict === "KILLED").length;
-console.log(
-  `${killedCount}/${results.length} killed, ` +
-    `${results.length - killedCount - survivors.length} equivalent, ` +
-    `${survivors.length} hollow`,
-);
+console.log(`${results.length - survivors.length}/${results.length} killed, ${survivors.length} hollow or skipped`);
 process.exit(survivors.length === 0 ? 0 : 1);
