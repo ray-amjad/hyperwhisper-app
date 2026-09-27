@@ -22,12 +22,14 @@ internal sealed class LinuxShutdownSignals : IDisposable
     private readonly Action _requestQuit;
     private readonly Action<int> _forceExit;
     private readonly TimeSpan _grace;
+    private readonly TextWriter _error;
     private readonly List<PosixSignalRegistration> _registrations = new(3);
     private Timer? _watchdog;
     private int _state;
 
-    internal LinuxShutdownSignals(Action requestQuit, Action<int> forceExit, TimeSpan grace)
+    internal LinuxShutdownSignals(Action requestQuit, Action<int> forceExit, TimeSpan grace, TextWriter? error = null)
     {
+        _error = error ?? Console.Error;
         _requestQuit = requestQuit;
         _forceExit = forceExit;
         _grace = grace;
@@ -47,7 +49,7 @@ internal sealed class LinuxShutdownSignals : IDisposable
         Func<PosixSignal, Action<PosixSignalContext>, PosixSignalRegistration> create,
         TextWriter error)
     {
-        var signals = new LinuxShutdownSignals(requestQuit, forceExit, WatchdogGrace);
+        var signals = new LinuxShutdownSignals(requestQuit, forceExit, WatchdogGrace, error);
         foreach (var signal in new[] { PosixSignal.SIGTERM, PosixSignal.SIGINT, PosixSignal.SIGQUIT })
         {
             try { signals._registrations.Add(create(signal, signals.Handle)); }
@@ -63,7 +65,7 @@ internal sealed class LinuxShutdownSignals : IDisposable
         var exitCode = context.Signal switch { PosixSignal.SIGINT => 130, PosixSignal.SIGQUIT => 131, _ => 143 };
         _watchdog = new Timer(_ => OnWatchdogElapsed(exitCode), null, _grace, Timeout.InfiniteTimeSpan);
         try { _requestQuit(); }
-        catch (Exception) { }
+        catch (Exception exception) { _error.WriteLine($"HyperWhisper {context.Signal} quit request failed: {exception.Message}"); }
     }
 
     // A callback the timer already queued can still run after Dispose, so the state, not the timer's

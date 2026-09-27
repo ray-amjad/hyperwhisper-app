@@ -1550,6 +1550,16 @@ static async Task ShutdownSignalsRouteToQuit()
     Assert(partial.RegistrationCount == 2, $"a refused SIGINT left {partial.RegistrationCount} registrations, not 2");
     Assert(error.ToString().Contains("HyperWhisper SIGINT registration failed: refused", StringComparison.Ordinal),
         $"a refused SIGINT was not reported on stderr: '{error}'");
+
+    // A quit request that throws runs on the signal thread, so it is caught; it must still say so.
+    var quitError = new StringWriter();
+    using var throwing = new LinuxShutdownSignals(() => throw new InvalidOperationException("boom"), _ => { },
+        Timeout.InfiniteTimeSpan, quitError);
+    var failed = new PosixSignalContext(PosixSignal.SIGTERM);
+    throwing.Handle(failed);
+    Assert(failed.Cancel, "a throwing quit request uncancelled the signal, so the watchdog would not cover it");
+    Assert(quitError.ToString().Contains("HyperWhisper SIGTERM quit request failed: boom", StringComparison.Ordinal),
+        $"a throwing quit request was not reported on stderr: '{quitError}'");
 }
 
 // Ubuntu 22.04 xvfb-run runs the command with `2>&1`, so the head's stderr can arrive on stdout; read both.
