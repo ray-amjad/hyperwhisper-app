@@ -198,7 +198,7 @@ public partial class MainWindow : Window
             () => OpenTrayUri(TrayFeedbackUri),
             ShowFromTray,
             HideFromTray,
-            QuitFromTray,
+            Quit,
             L);
         InitializeComponent();
         ComboWheelGuard.Attach(this);
@@ -280,12 +280,22 @@ public partial class MainWindow : Window
         _closing = true;
         CommitPendingSettingsEdits();
         _lifetime.Cancel();
-        if (!_recordingSession.IsActive && _localApiHost is null
+        if (!_recordingSession.IsActive && !_recordingSession.HasAudioToRestore && _localApiHost is null
             && _storageMaintenance is not { IsCompleted: false }) return;
         e.Cancel = true;
         try
         {
-            if (_recordingSession.IsActive) await _interaction.CancelRecordingAsync();
+            // Restore the sink and the mic first, and whether or not IsActive: a streaming start that is
+            // still resolving credentials has already muted and boosted them. A transcription in flight
+            // holds the coordinator lock and only restores when it ends (#1038).
+            await _recordingSession.RestoreAudioEnvironmentForShutdownAsync();
+            if (_recordingSession.IsActive)
+            {
+                // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt.
+                // Unbounded, so the cancel still restores the clipboard and ends the session; the audio
+                // is already back, and the signal watchdog bounds a signal-driven quit.
+                await _interaction.ConfirmCancelRecordingAsync();
+            }
             await ShutdownLocalApiAsync();
             if (_storageMaintenance is not null) await _storageMaintenance;
         }
@@ -1275,8 +1285,11 @@ public partial class MainWindow : Window
         if (_trayAvailable) Hide();
     }
 
-    private void QuitFromTray()
+    /// <summary>The tray's Quit, and a SIGTERM/SIGINT/SIGQUIT (#1038). A second request while OnClosing
+    /// is already unwinding must not start a second close.</summary>
+    internal void Quit()
     {
+        if (_closing) return;
         _trayAvailable = false;
         Close();
     }

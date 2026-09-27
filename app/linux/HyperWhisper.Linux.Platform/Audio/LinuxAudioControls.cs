@@ -60,7 +60,9 @@ public sealed class LinuxMicrophoneKeepWarmService : IMicrophoneKeepWarmService
         _factory.IsAvailable ? "cancellable-child-capture" : "capture-helper-unavailable");
     public void Configure(bool enabled, string? deviceId) { if (_disposed) return; Stop(); _enabled = enabled; _device = deviceId; if (enabled && !_suspended) Start(); }
     public void SuspendForRecording() { if (_disposed) return; _suspended = true; Stop(); }
-    public void ResumeAfterRecording(string? deviceId) { if (_disposed) return; _device = deviceId ?? _device; _suspended = false; if (_enabled) Start(); }
+    // A second resume (the quit's cancel after the recording's own restore, #1038) must not open a
+    // second capture child over the first one, which nothing would then stop.
+    public void ResumeAfterRecording(string? deviceId) { if (_disposed) return; _device = deviceId ?? _device; _suspended = false; if (_enabled && _source is null) Start(); }
     private void Start()
     {
         // #627: keep the SELECTED microphone warm, never the server default. `_device` is null exactly
