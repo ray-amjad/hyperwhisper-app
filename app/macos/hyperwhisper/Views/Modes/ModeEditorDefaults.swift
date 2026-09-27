@@ -17,32 +17,33 @@ enum ModeEditorDefaults {
     // MARK: - Licence
 
     /// Whether the CREATE seeds treat this Mac as holding a HyperWhisper Cloud
-    /// licence.
+    /// licence: the runtime Cloud gate, plus one launch-window exception.
     ///
-    /// `LicenseManager.licenseStatus` starts at `.trial` and only moves once
-    /// `loadStoredLicense()` has read the secure store and, when its cache is
-    /// stale with no verdict inside the grace period, heard back from the
-    /// server. So `.trial` alone cannot tell "no key" from "not resolved yet".
-    /// A `.trial` status with a stored key — or with a Keychain that could not
-    /// be read — keeps today's Cloud seeds; only `.trial` with no stored key,
-    /// or a key the server called expired or invalid, counts as unlicensed.
+    /// The runtime gate is `LicenseManager.getTranscriptionIdentifier().isLicensed`
+    /// — `licenseStatus == .active` AND a non-empty stored key. Every Cloud
+    /// path refuses without it (`HyperWhisperCloudEntitlement.requireLicense`).
+    /// `storedKey` is the same non-retrying read that gate makes, and
+    /// `.present` is exactly its "non-empty key". So `.active` with the key
+    /// `.missing` (a failed Keychain write) or `.unavailable` (an unreadable
+    /// Keychain) is NOT licensed, and neither is any status with an
+    /// unreadable Keychain: Cloud would throw on the first dictation.
+    ///
+    /// The exception is `.trial` with a stored key. `licenseStatus` starts at
+    /// `.trial` and a stored key leaves it only when `loadStoredLicense()` (or
+    /// a backup import's validation) publishes a verdict. With a cached
+    /// verdict inside the 7-day grace that happens before the first await;
+    /// without one it takes one validation request, whose every failure maps
+    /// to `.invalid` and never back to `.trial`. The window is seconds long,
+    /// and a key holder who opens the sheet in it keeps the Cloud seeds
+    /// instead of saving an On-device mode they never chose.
     static func treatsLicenseAsActive(
         status: LicenseStatus,
         storedKey: RustLicenseStore.StoredLicenseKeyRead
     ) -> Bool {
-        switch status {
-        case .active:
-            return true
-        case .expired, .invalid:
-            return false
-        case .trial:
-            switch storedKey {
-            case .present, .unavailable:
-                return true
-            case .missing:
-                return false
-            }
-        }
+        guard case .present = storedKey else { return false }
+        let passesRuntimeGate = status == .active
+        let launchVerdictPending = status == .trial
+        return passesRuntimeGate || launchVerdictPending
     }
 
     // MARK: - Transcription

@@ -42,9 +42,23 @@ struct ModeEditorDefaultsTests {
 
     // MARK: - Licence signal
 
-    @Test func activeStatusIsLicensed() {
+    // Every (status, storedKey) pair. `.present` is the non-empty key the
+    // runtime gate (`getTranscriptionIdentifier().isLicensed`) reads, so the
+    // seed must equal that gate, except `.trial` + `.present`: the seconds
+    // before the launch validation publishes a verdict for a stored key.
+
+    @Test func activeWithAStoredKeyIsLicensed() {
         #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .active, storedKey: .present("HW-KEY")))
-        #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .active, storedKey: .missing))
+    }
+
+    @Test func activeWithNoStoredKeyIsUnlicensed() {
+        // A failed Keychain write on activation leaves .active with no key;
+        // the runtime gate refuses Cloud, so the seed must not pick it.
+        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .active, storedKey: .missing))
+    }
+
+    @Test func activeWithAnUnreadableKeychainIsUnlicensed() {
+        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .active, storedKey: .unavailable))
     }
 
     @Test func trialWithAStoredKeyIsLicensedWhileTheStatusResolves() {
@@ -53,8 +67,10 @@ struct ModeEditorDefaultsTests {
         #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .trial, storedKey: .present("HW-KEY")))
     }
 
-    @Test func trialWithAnUnreadableKeychainKeepsTheCloudSeed() {
-        #expect(ModeEditorDefaults.treatsLicenseAsActive(status: .trial, storedKey: .unavailable))
+    @Test func trialWithAnUnreadableKeychainIsUnlicensed() {
+        // loadStoredLicense() returns early and never publishes, and the
+        // runtime gate cannot read the key either, so Cloud would throw.
+        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .trial, storedKey: .unavailable))
     }
 
     @Test func trialWithNoStoredKeyIsUnlicensed() {
@@ -62,8 +78,27 @@ struct ModeEditorDefaultsTests {
     }
 
     @Test func aKeyTheServerRefusedIsUnlicensed() {
-        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .expired, storedKey: .present("HW-KEY")))
-        #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: .invalid, storedKey: .present("HW-KEY")))
+        for status in [LicenseStatus.expired, .invalid] {
+            #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: status, storedKey: .present("HW-KEY")))
+            #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: status, storedKey: .missing))
+            #expect(!ModeEditorDefaults.treatsLicenseAsActive(status: status, storedKey: .unavailable))
+        }
+    }
+
+    @Test func equalsTheRuntimeGatePlusTheLaunchWindowOnly() {
+        let reads: [RustLicenseStore.StoredLicenseKeyRead] = [.present("HW-KEY"), .missing, .unavailable]
+        for status in LicenseStatus.allCases {
+            for read in reads {
+                let hasKey = read == .present("HW-KEY")
+                let runtimeGate = status == .active && hasKey
+                let launchWindow = status == .trial && hasKey
+                #expect(
+                    ModeEditorDefaults.treatsLicenseAsActive(status: status, storedKey: read)
+                        == (runtimeGate || launchWindow),
+                    "status \(status.rawValue), storedKey \(read)"
+                )
+            }
+        }
     }
 
     // MARK: - Post-processing
