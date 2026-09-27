@@ -514,6 +514,10 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _audioEnvironment = environment.IsSuccess ? environment.Value : null;
     }
 
+    /// <summary>The quit restores before it cancels (#1038). Idempotent: the session is taken once and a
+    /// second mic restore has no prior volume left, so the recording's own restore later is a no-op.</summary>
+    public ValueTask RestoreAudioForShutdownAsync() => RestoreAudioAsync();
+
     private async ValueTask RestoreAudioAsync()
     {
         var environment = _audioEnvironment;
