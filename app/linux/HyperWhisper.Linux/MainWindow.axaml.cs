@@ -72,7 +72,7 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim _storageMaintenanceGate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
     private readonly PeriodicTimer _storageTimer = new(TimeSpan.FromHours(1));
-    private Task? _storageMaintenance;
+    private readonly LinuxStorageMaintenanceLoop _storageLoop;
     private TranscriptStorageCleanupResult? _lastStorageCleanup;
     private bool _allowClose;
     /// <summary>Set once OnClosing has passed the minimize-to-tray branch, so nothing started
@@ -93,6 +93,7 @@ public partial class MainWindow : Window
         _localization = (Avalonia.Application.Current as App)?.Localization
             ?? throw new InvalidOperationException("The application localization service is unavailable.");
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
+        _storageLoop = new(_storageTimer, RunStorageMaintenanceAsync, ReportStorageMaintenanceLoopFailureAsync);
         var priorSettings = _platformServices.PrivateFiles.ReadAllText(
             Path.Combine(_platformServices.Paths.ConfigDirectory, "settings.json"));
         _isFreshProfile = priorSettings.IsSuccess && priorSettings.Value is null;
@@ -231,6 +232,9 @@ public partial class MainWindow : Window
 
     private async void OnOpened(object? sender, EventArgs e)
     {
+        // Avalonia raises Opened again on every Show() after Hide() (tray, minimize to tray,
+        // LaunchMinimized). Start-up work runs once, so the second loop never starts (#833).
+        Opened -= OnOpened;
         try
         {
             await EnsureInitializedAsync();
@@ -246,7 +250,7 @@ public partial class MainWindow : Window
             ApplyTelemetrySettings();
             ApplyDesktopSettings();
             await RunStorageMaintenanceAsync(_lifetime.Token);
-            _storageMaintenance = RunStorageMaintenanceLoopAsync(_lifetime.Token);
+            _ = _storageLoop.EnsureStarted(_lifetime.Token);
             var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
             if (tray.IsFailure)
                 ShowPlatformStatus(PlatformStatusText.Text + LF("linux.platform.tray_unavailable", tray.Error!.Message), true);
@@ -281,7 +285,7 @@ public partial class MainWindow : Window
         CommitPendingSettingsEdits();
         _lifetime.Cancel();
         if (!_recordingSession.IsActive && !_recordingSession.HasAudioToRestore && _localApiHost is null
-            && _storageMaintenance is not { IsCompleted: false }) return;
+            && _storageLoop.Running is not { IsCompleted: false }) return;
         e.Cancel = true;
         try
         {
@@ -297,7 +301,7 @@ public partial class MainWindow : Window
                 await _interaction.ConfirmCancelRecordingAsync();
             }
             await ShutdownLocalApiAsync();
-            if (_storageMaintenance is not null) await _storageMaintenance;
+            if (_storageLoop.Running is not null) await _storageLoop.Running;
         }
         catch { _viewModel.Status.Failure("interaction.close_cancel_failed", L("linux.error.close_cancel_failed")); }
         finally
@@ -859,14 +863,11 @@ public partial class MainWindow : Window
         catch { SetStorageError(L("linux.storage.maintenance_failed")); }
     }
 
-    private async Task RunStorageMaintenanceLoopAsync(CancellationToken cancellationToken)
+    private async Task ReportStorageMaintenanceLoopFailureAsync(Exception exception)
     {
-        try
-        {
-            while (await _storageTimer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-                await RunStorageMaintenanceAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        _platformServices.Telemetry.Capture(exception);
+        await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Storage, DiagnosticOutcome.Failed)
+            .ConfigureAwait(false);
     }
 
     private async Task RunStorageMaintenanceAsync(CancellationToken cancellationToken)
@@ -5402,5 +5403,27 @@ internal static class LinuxTrayMicrophoneSelector
         if (selected < 0) selected = 0;
         var step = direction < 0 ? -1 : 1;
         return devices[(selected + step + devices.Length) % devices.Length];
+    }
+}
+
+/// <summary>The hourly storage-maintenance loop on its one PeriodicTimer. A PeriodicTimer allows one
+/// pending WaitForNextTickAsync, so a second start returns the running loop instead of faulting a new
+/// one (#833), and any other failure is reported before the loop ends, never left unobserved.</summary>
+internal sealed class LinuxStorageMaintenanceLoop(
+    PeriodicTimer timer, Func<CancellationToken, Task> tick, Func<Exception, Task> report)
+{
+    internal Task? Running { get; private set; }
+
+    internal Task EnsureStarted(CancellationToken cancellationToken) => Running ??= RunAsync(cancellationToken);
+
+    private async Task RunAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+                await tick(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception exception) { await report(exception).ConfigureAwait(false); }
     }
 }

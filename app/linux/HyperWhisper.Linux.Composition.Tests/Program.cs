@@ -56,6 +56,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
+    ("the storage maintenance loop starts once and reports a failure", StorageMaintenanceLoopStartsOnce),
     ("shortcut recorder rules judge the key, not the role", ShortcutRecorderRulesJudgeTheKey),
     ("shortcut recorder verdicts all carry a catalogued message", ShortcutRecorderVerdictsCarryMessages),
     ("diagnostic capabilities fail closed from platform evidence", DiagnosticCapabilitiesFailClosed),
@@ -1597,6 +1598,31 @@ static async Task UntilAsync(Func<bool> condition)
 {
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
     while (!condition()) await Task.Delay(10, deadline.Token);
+}
+
+// A second Opened must not start a second wait on the one PeriodicTimer, which throws (#833).
+static async Task StorageMaintenanceLoopStartsOnce()
+{
+    var reported = new List<Exception>();
+    Task Report(Exception exception) { lock (reported) reported.Add(exception); return Task.CompletedTask; }
+    using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(5));
+    using var lifetime = new CancellationTokenSource();
+    var ticks = 0;
+    var loop = new LinuxStorageMaintenanceLoop(timer, _ => Task.FromResult(Interlocked.Increment(ref ticks)), Report);
+    var first = loop.EnsureStarted(lifetime.Token);
+    var second = loop.EnsureStarted(lifetime.Token);
+    await UntilAsync(() => Volatile.Read(ref ticks) >= 3);
+    Assert(ReferenceEquals(first, second) && !first.IsCompleted && reported.Count == 0,
+        "a second start began another loop on the shared timer");
+    lifetime.Cancel();
+    await first;
+    Assert(first.IsCompletedSuccessfully, "cancelling the lifetime did not end the loop cleanly");
+
+    using var failingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(1));
+    var failed = new LinuxStorageMaintenanceLoop(failingTimer, _ => throw new IOException("disk"), Report)
+        .EnsureStarted(CancellationToken.None);
+    await failed.WaitAsync(TimeSpan.FromSeconds(3));
+    Assert(!failed.IsFaulted && reported is [IOException], "a maintenance failure was not reported");
 }
 
 static void Assert(bool condition, string message)
