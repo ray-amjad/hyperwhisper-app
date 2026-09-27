@@ -1,6 +1,7 @@
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.Platform.Abstractions.Audio;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Linux;
@@ -69,6 +70,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("onboarding checks secure credentials and installed local models", OnboardingModeReadiness),
     ("a second launch hands off and exits 0, a second smoke run fails", SecondLaunchHandsOff),
     ("a failed instance acquire exits 1 from the main loop", AcquireFailureExitsOne),
+    ("a shutdown signal runs the quit once, then the watchdog or the runtime default", ShutdownSignalsRouteToQuit),
 };
 
 foreach (var test in tests)
@@ -1475,6 +1477,54 @@ static async Task AcquireFailureExitsOne()
             $"acquire-failure launch exited {launch.Code}: {launch.Output}");
     }
     finally { DeleteLaunchRoot(root); }
+}
+
+/// <summary>
+/// #1038: a SIGTERM ended the process by the runtime default, so OnClosing never restored the sink or
+/// the mic. The first signal must be cancelled and ask for the quit once, a hung quit must still
+/// exit with the signal's own status, a clean quit (Dispose) must never be overwritten by the
+/// watchdog, and a second signal must fall through to the runtime default.
+/// </summary>
+static async Task ShutdownSignalsRouteToQuit()
+{
+    var quits = 0;
+    var exited = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+    using (var signals = new LinuxShutdownSignals(() => quits++, code => exited.TrySetResult(code), TimeSpan.FromMilliseconds(50)))
+    {
+        var first = new PosixSignalContext(PosixSignal.SIGTERM);
+        signals.Handle(first);
+        Assert(first.Cancel && quits == 1, $"the first SIGTERM was not cancelled into one quit (cancel {first.Cancel}, quits {quits})");
+        var second = new PosixSignalContext(PosixSignal.SIGTERM);
+        signals.Handle(second);
+        Assert(!second.Cancel && quits == 1, "a second SIGTERM did not fall through to the runtime default");
+        var code = await exited.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert(code == 143, $"a hung SIGTERM quit exited {code}, not 143");
+    }
+
+    foreach (var (signal, expected) in new[] { (PosixSignal.SIGINT, 130), (PosixSignal.SIGQUIT, 131) })
+    {
+        var forced = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var signals = new LinuxShutdownSignals(() => { }, code => forced.TrySetResult(code), TimeSpan.FromMilliseconds(50));
+        signals.Handle(new PosixSignalContext(signal));
+        var code = await forced.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert(code == expected, $"a hung {signal} quit exited {code}, not {expected}");
+    }
+
+    // A clean quit disposes before the grace period ends: neither the timer nor a callback it had
+    // already queued may force an exit after that.
+    var forcedAfterDispose = new List<int>();
+    var clean = new LinuxShutdownSignals(() => { }, forcedAfterDispose.Add, TimeSpan.FromMilliseconds(200));
+    clean.Handle(new PosixSignalContext(PosixSignal.SIGTERM));
+    clean.Dispose();
+    clean.OnWatchdogElapsed(143);
+    await Task.Delay(500);
+    Assert(forcedAfterDispose.Count == 0, "the watchdog forced an exit after a clean quit disposed it");
+    var disposedFirst = new LinuxShutdownSignals(() => quits++, forcedAfterDispose.Add, TimeSpan.FromMilliseconds(50));
+    disposedFirst.Dispose();
+    var late = new PosixSignalContext(PosixSignal.SIGTERM);
+    disposedFirst.Handle(late);
+    Assert(quits == 1, "a signal after Dispose still asked for a quit");
+    Assert(!late.Cancel, "a signal after Dispose was still cancelled, so nothing would end the process");
 }
 
 // Ubuntu 22.04 xvfb-run runs the command with `2>&1`, so the head's stderr can arrive on stdout; read both.

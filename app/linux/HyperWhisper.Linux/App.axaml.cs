@@ -83,11 +83,15 @@ public partial class App : Application
                 window.WindowState = Avalonia.Controls.WindowState.Normal;
                 window.Activate();
             });
+            // A SIGTERM from a logout or a package upgrade runs the tray's Quit, so OnClosing restores
+            // the sink and the mic (#1038). Disposed last, so its watchdog also covers this handler.
+            var shutdownSignals = Program.IsSmokeTest ? null : LinuxShutdownSignals.Register(() => Dispatcher.UIThread.Post(window.Quit));
             desktop.Exit += (_, _) =>
             {
                 UnsubscribeUnhandledExceptions();
                 _platformServices.Dispose();
                 _telemetry.Dispose();
+                shutdownSignals?.Dispose();
             };
 
             if (Program.IsSmokeTest)

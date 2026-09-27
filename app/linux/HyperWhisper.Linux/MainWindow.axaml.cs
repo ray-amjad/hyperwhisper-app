@@ -198,7 +198,7 @@ public partial class MainWindow : Window
             () => OpenTrayUri(TrayFeedbackUri),
             ShowFromTray,
             HideFromTray,
-            QuitFromTray,
+            Quit,
             L);
         InitializeComponent();
         ComboWheelGuard.Attach(this);
@@ -285,7 +285,9 @@ public partial class MainWindow : Window
         e.Cancel = true;
         try
         {
-            if (_recordingSession.IsActive) await _interaction.CancelRecordingAsync();
+            // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt and
+            // restore nothing, and the app is gone before anyone answers it (#1038).
+            if (_recordingSession.IsActive) await _interaction.ConfirmCancelRecordingAsync();
             await ShutdownLocalApiAsync();
             if (_storageMaintenance is not null) await _storageMaintenance;
         }
@@ -1275,8 +1277,11 @@ public partial class MainWindow : Window
         if (_trayAvailable) Hide();
     }
 
-    private void QuitFromTray()
+    /// <summary>The tray's Quit, and a SIGTERM/SIGINT/SIGQUIT (#1038). A second request while OnClosing
+    /// is already unwinding must not start a second close.</summary>
+    internal void Quit()
     {
+        if (_closing) return;
         _trayAvailable = false;
         Close();
     }
