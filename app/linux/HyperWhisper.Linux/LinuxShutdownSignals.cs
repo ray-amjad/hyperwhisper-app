@@ -11,6 +11,10 @@ namespace HyperWhisper.Linux;
 /// </summary>
 internal sealed class LinuxShutdownSignals : IDisposable
 {
+    // Covers the whole teardown after the quit: the Local API stop, storage maintenance, the platform
+    // service disposes (2-3 s joins each) and a 2 s Sentry flush. The audio is restored before any of it.
+    private static readonly TimeSpan WatchdogGrace = TimeSpan.FromSeconds(20);
+
     private readonly Action _requestQuit;
     private readonly Action<int> _forceExit;
     private readonly TimeSpan _grace;
@@ -28,7 +32,7 @@ internal sealed class LinuxShutdownSignals : IDisposable
 
     public static LinuxShutdownSignals Register(Action requestQuit)
     {
-        var signals = new LinuxShutdownSignals(requestQuit, Environment.Exit, TimeSpan.FromSeconds(5));
+        var signals = new LinuxShutdownSignals(requestQuit, Environment.Exit, WatchdogGrace);
         // A platform that refuses a registration keeps the runtime default rather than failing startup.
         try
         {
