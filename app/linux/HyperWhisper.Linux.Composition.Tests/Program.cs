@@ -57,6 +57,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
     ("the storage maintenance loop starts once and reports a failure", StorageMaintenanceLoopStartsOnce),
+    ("window start-up runs once and a dead tray restarts once per Show", WindowStartupGateRunsOnce),
     ("shortcut recorder rules judge the key, not the role", ShortcutRecorderRulesJudgeTheKey),
     ("shortcut recorder verdicts all carry a catalogued message", ShortcutRecorderVerdictsCarryMessages),
     ("diagnostic capabilities fail closed from platform evidence", DiagnosticCapabilitiesFailClosed),
@@ -1624,6 +1625,22 @@ static async Task StorageMaintenanceLoopStartsOnce()
         .EnsureStarted(CancellationToken.None);
     await Task.WhenAny(failed, Task.Delay(TimeSpan.FromSeconds(3)));
     Assert(failed.IsCompletedSuccessfully && reported is [IOException], "a maintenance failure was not reported");
+}
+
+// Opened is raised again on every Show() after Hide(), so start-up runs on the first only, and a dead
+// tray helper restarts only when its death re-showed a hidden window, never in a loop (#833).
+static Task WindowStartupGateRunsOnce()
+{
+    var gate = new LinuxWindowStartupGate();
+    Assert(!gate.ShouldRestartTray(windowWasVisible: false, shuttingDown: false), "the tray restarted before start-up ran");
+    Assert(gate.TryBegin(), "the first Opened did not run start-up");
+    Assert(!gate.TryBegin() && !gate.TryBegin(), "a later Opened ran start-up again");
+    Assert(gate.ShouldRestartTray(windowWasVisible: false, shuttingDown: false),
+        "a helper that died behind a hidden window was not restarted");
+    Assert(!gate.ShouldRestartTray(windowWasVisible: true, shuttingDown: false),
+        "a helper that died behind a visible window was restarted, so one that dies on registration spins");
+    Assert(!gate.ShouldRestartTray(windowWasVisible: false, shuttingDown: true), "the tray restarted during shutdown");
+    return Task.CompletedTask;
 }
 
 static void Assert(bool condition, string message)
