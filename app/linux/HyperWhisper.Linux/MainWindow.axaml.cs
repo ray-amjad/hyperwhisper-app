@@ -81,7 +81,6 @@ public partial class MainWindow : Window
     private bool _trayAvailable;
     private bool _localApiTokenRevealed;
     private static readonly TimeSpan HistorySearchDebounce = TimeSpan.FromMilliseconds(250);
-    private static readonly TimeSpan CloseCancelWait = TimeSpan.FromSeconds(2);
     private CancellationTokenSource? _historySearchDebounce;
 
     public MainWindow() : this(new LinuxDesktopServices())
@@ -291,11 +290,10 @@ public partial class MainWindow : Window
                 // Restore the sink and the mic first, outside the coordinator: a transcription in flight
                 // holds its lock and only restores when it ends, long after a SIGTERM has killed us (#1038).
                 await _recordingSession.RestoreAudioEnvironmentForShutdownAsync();
-                // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt. A
-                // cancel queued behind that transcription gives up, so the rest of the quit still runs.
-                using var cancelWait = new CancellationTokenSource(CloseCancelWait);
-                try { await _interaction.ConfirmCancelRecordingAsync(cancelWait.Token); }
-                catch (OperationCanceledException) when (cancelWait.IsCancellationRequested) { }
+                // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt.
+                // Unbounded, so the cancel still restores the clipboard and ends the session; the audio
+                // is already back, and the signal watchdog bounds a signal-driven quit.
+                await _interaction.ConfirmCancelRecordingAsync();
             }
             await ShutdownLocalApiAsync();
             if (_storageMaintenance is not null) await _storageMaintenance;

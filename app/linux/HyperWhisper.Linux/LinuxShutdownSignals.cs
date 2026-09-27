@@ -13,8 +13,9 @@ namespace HyperWhisper.Linux;
 /// </summary>
 internal sealed class LinuxShutdownSignals : IDisposable
 {
-    // Covers the whole teardown after the quit: the Local API stop, storage maintenance, the platform
-    // service disposes (2-3 s joins each) and a 2 s Sentry flush. The audio is restored before any of it.
+    // Covers the whole teardown after the quit: the cancel (which waits for a transcription in flight),
+    // the Local API stop, storage maintenance, the platform service disposes (2-3 s joins each) and a
+    // 2 s Sentry flush. The audio is restored before any of it, so a quit this cuts short leaves it back.
     private static readonly TimeSpan WatchdogGrace = TimeSpan.FromSeconds(20);
 
     private const int Idle = 0, Signalled = 1, Fired = 2, Disposed = 3;
