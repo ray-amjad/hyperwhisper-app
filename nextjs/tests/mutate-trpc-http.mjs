@@ -184,15 +184,15 @@ const MUTANTS = [
   },
   {
     file: DEVICES,
-    name: "send a DrizzleQueryError's message (list)",
-    from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch device counts"',
-    to: 'error instanceof Error\n              ? error.message\n              : "Failed to fetch device counts"',
+    name: "drop the DB error's cause (list)",
+    from: '"Failed to fetch device counts",\n          // The boundary (server/api/trpc.ts) redacts a DB error off `cause` (#1049).\n          cause: error,',
+    to: '"Failed to fetch device counts",',
   },
   {
     file: DEVICES,
-    name: "send a DrizzleQueryError's message (forLicense)",
-    from: 'error instanceof Error && !isDbError(error)\n              ? error.message\n              : "Failed to fetch devices for license"',
-    to: 'error instanceof Error\n              ? error.message\n              : "Failed to fetch devices for license"',
+    name: "drop the DB error's cause (forLicense)",
+    from: '"Failed to fetch devices for license",\n          cause: error,',
+    to: '"Failed to fetch devices for license",',
   },
   {
     file: DEVICES,

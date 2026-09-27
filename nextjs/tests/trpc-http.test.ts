@@ -462,17 +462,17 @@ describe("a database error's bound params never leave the server (#1049)", () =>
     }
   });
 
-  for (const [path, input, fallback] of [
-    ["admin.devices.list", undefined, "Failed to fetch device counts"],
-    ["admin.devices.forLicense", { licenseKeyId: LICENSE_ID }, "Failed to fetch devices for license"],
+  for (const [path, input] of [
+    ["admin.devices.list", undefined],
+    ["admin.devices.forLicense", { licenseKeyId: LICENSE_ID }],
   ] as const) {
-    test(`${path} wraps a DrizzleQueryError in its generic message and logs it redacted`, async () => {
+    test(`${path} answers a DrizzleQueryError with the boundary's message and logs it redacted`, async () => {
       behaviour.dbError = leakyDbError();
 
       const result = await httpQuery(path, input);
 
       assert.equal(result.status, 500);
-      assert.equal(result.error?.message, fallback);
+      assert.equal(result.error?.message, "Database error");
       assertBodyClean(result.raw);
       assert.deepEqual(leakyLines(consoleCapture.lines.rendered), []);
       assert.ok(
