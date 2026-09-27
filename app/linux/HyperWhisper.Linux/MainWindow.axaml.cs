@@ -280,16 +280,17 @@ public partial class MainWindow : Window
         _closing = true;
         CommitPendingSettingsEdits();
         _lifetime.Cancel();
-        if (!_recordingSession.IsActive && _localApiHost is null
+        if (!_recordingSession.IsActive && !_recordingSession.HasAudioToRestore && _localApiHost is null
             && _storageMaintenance is not { IsCompleted: false }) return;
         e.Cancel = true;
         try
         {
+            // Restore the sink and the mic first, and whether or not IsActive: a streaming start that is
+            // still resolving credentials has already muted and boosted them. A transcription in flight
+            // holds the coordinator lock and only restores when it ends (#1038).
+            await _recordingSession.RestoreAudioEnvironmentForShutdownAsync();
             if (_recordingSession.IsActive)
             {
-                // Restore the sink and the mic first, outside the coordinator: a transcription in flight
-                // holds its lock and only restores when it ends, long after a SIGTERM has killed us (#1038).
-                await _recordingSession.RestoreAudioEnvironmentForShutdownAsync();
                 // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt.
                 // Unbounded, so the cancel still restores the clipboard and ends the session; the audio
                 // is already back, and the signal watchdog bounds a signal-driven quit.

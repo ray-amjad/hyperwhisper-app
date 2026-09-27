@@ -27,6 +27,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private Mode? _mode;
     private Transcript? _liveTranscript;
     private IAudioEnvironmentSession? _audioEnvironment;
+    private int _audioPrepared;
     private bool _streaming;
     private bool _showingCancelConfirmation;
     private TextInjectionOutcome? _lastInjectionOutcome;
@@ -76,6 +77,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
             or TranscriptionWorkflowState.Retrying;
     public bool IsStreaming => _streaming;
+    /// <summary>PrepareAudio ran and no restore has taken it yet; true even before IsActive (#1038).</summary>
+    public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0;
 
     public async ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
@@ -503,6 +506,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private void PrepareAudio(string deviceId)
     {
         _services.MicrophoneKeepWarm.SuspendForRecording();
+        Volatile.Write(ref _audioPrepared, 1);
         if (_viewModel.Settings.AutoIncreaseMicVolume) _ = _services.MicrophoneVolume.BoostIfNeeded(deviceId);
         var policy = _viewModel.Settings.AudioEnvironmentPolicy switch
         {
@@ -519,6 +523,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     /// session is taken once and the mic has no prior volume left, so a later restore is a no-op.</summary>
     public async ValueTask RestoreAudioEnvironmentForShutdownAsync()
     {
+        Volatile.Write(ref _audioPrepared, 0);
         var environment = Interlocked.Exchange(ref _audioEnvironment, null);
         _ = _services.MicrophoneVolume.Restore();
         if (environment is null) return;
@@ -528,6 +533,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     private async ValueTask RestoreAudioAsync()
     {
+        Volatile.Write(ref _audioPrepared, 0);
         var environment = Interlocked.Exchange(ref _audioEnvironment, null);
         await LinuxRecordingAudioRestorer.RestoreAsync(
             _services.MicrophoneVolume, environment, _services.MicrophoneKeepWarm,
