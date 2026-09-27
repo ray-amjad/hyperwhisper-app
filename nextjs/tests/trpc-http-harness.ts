@@ -59,8 +59,12 @@ export const behaviour = {
   deviceCounts: [] as DeviceCountRow[],
   devices: [] as DeviceRow[],
   dbError: null as unknown,
+  /** The one other db-layer function that throws `dbError` instead of refusing. */
+  dbErrorOn: null as string | null,
   stripeCustomers: [] as Array<{ id: string }>,
   stripeError: null as unknown,
+  /** Thrown by the download email rate limiter when set: reaches download.ts's outer catch. */
+  downloadLimitError: null as unknown,
 };
 
 export function resetHarness(): void {
@@ -69,8 +73,10 @@ export function resetHarness(): void {
   behaviour.deviceCounts = [];
   behaviour.devices = [];
   behaviour.dbError = null;
+  behaviour.dbErrorOn = null;
   behaviour.stripeCustomers = [];
   behaviour.stripeError = null;
+  behaviour.downloadLimitError = null;
 }
 
 function moduleUrl(relative: string): string {
@@ -113,6 +119,11 @@ moduleMock.module(moduleUrl("../src/lib/auth.ts"), {
 function unexpectedDb(name: string) {
   return async () => {
     calls.otherDb.push(name);
+    // Only a seeded error replaces the alarm: `dbErrorOn` alone must not
+    // silence it, nor `throw null`.
+    if (name === behaviour.dbErrorOn && behaviour.dbError !== null) {
+      throw behaviour.dbError;
+    }
     throw new Error(`unexpected db-layer call: ${name}`);
   };
 }
@@ -184,7 +195,12 @@ moduleMock.module(moduleUrl("../lib/services/email.ts"), {
 
 moduleMock.module(moduleUrl("../lib/rate-limit.ts"), {
   namedExports: {
-    downloadEmailRateLimiter: { limit: async () => ({ success: true }) },
+    downloadEmailRateLimiter: {
+      limit: async () => {
+        if (behaviour.downloadLimitError) throw behaviour.downloadLimitError;
+        return { success: true };
+      },
+    },
     licenseValidateRateLimiter: { limit: async () => ({ success: true }) },
     latencyIngestRateLimiter: { limit: async () => ({ success: true }) },
   },
@@ -224,31 +240,36 @@ export function plainUser(overrides: Record<string, unknown> = {}) {
 
 export interface TRPCHttpResult {
   status: number;
+  /** The response body exactly as it went over the wire. */
+  raw: string;
   /** Deserialized `result.data`, when the call succeeded. */
   data?: unknown;
   /** Deserialized `error` shape, when the call failed. */
   error?: {
     message: string;
     code: number;
-    data: { code: string; httpStatus: number; path?: string };
+    data: { code: string; httpStatus: number; path?: string; stack?: string };
   };
 }
 
 const ORIGIN = "https://hyperwhisper.test";
 
 async function readResult(res: Response): Promise<TRPCHttpResult> {
-  const body = (await res.json()) as {
+  const raw = await res.text();
+  const body = JSON.parse(raw) as {
     result?: { data: Parameters<typeof superjson.deserialize>[0] };
     error?: Parameters<typeof superjson.deserialize>[0];
   };
   if (body.error) {
     return {
       status: res.status,
+      raw,
       error: superjson.deserialize(body.error) as TRPCHttpResult["error"],
     };
   }
   return {
     status: res.status,
+    raw,
     data: superjson.deserialize(body.result!.data),
   };
 }

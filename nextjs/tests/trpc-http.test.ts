@@ -10,15 +10,29 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, test } from "node:test";
 
+import { callTRPCProcedure, TRPCError, type AnyRouter } from "@trpc/server";
+import superjson from "superjson";
+
 import {
   behaviour,
   calls,
+  adminUser,
   httpMutation,
   httpQuery,
   loadRoot,
   plainUser,
   resetHarness,
 } from "./trpc-http-harness";
+import {
+  formatLogArgs,
+  LEAKY_EMAIL,
+  LEAKY_KEY,
+  leakyDbError,
+  leakyLines,
+  SESSION_INDEX,
+} from "./db-error-fixture";
+
+import { DB_ERROR_MESSAGE } from "@/lib/shared/db-error";
 
 const LICENSE_ID = "33333333-3333-4333-8333-333333333333";
 
@@ -42,12 +56,16 @@ const NO_CALLS = {
 /** Captures console output for one test, then restores it. */
 function captureConsole() {
   const original = { error: console.error, debug: console.debug };
-  const lines = { error: [] as string[], debug: [] as string[] };
+  // `rendered` is every call as Node would print it (util.inspect for objects),
+  // so a bound param hiding in an error's fields is visible to a leak check.
+  const lines = { error: [] as string[], debug: [] as string[], rendered: [] as string[] };
   console.error = (...args: unknown[]) => {
     lines.error.push(args.map(String).join(" "));
+    lines.rendered.push(formatLogArgs(args));
   };
   console.debug = (...args: unknown[]) => {
     lines.debug.push(args.map(String).join(" "));
+    lines.rendered.push(formatLogArgs(args));
   };
   return {
     lines,
@@ -388,3 +406,221 @@ describe("error logging in the route", () => {
   });
 });
 
+
+describe("a database error's bound params never leave the server (#1049)", () => {
+  /** The response body, raw, must not carry the fixture's address or key. */
+  function assertBodyClean(raw: string): void {
+    assert.ok(!raw.toLowerCase().includes(LEAKY_EMAIL.toLowerCase()), raw);
+    assert.ok(!raw.toLowerCase().includes(LEAKY_KEY.toLowerCase()), raw);
+    assert.ok(!raw.includes("Failed query"), raw);
+  }
+
+  /** admin.customers.grant has no catch: findAccountByKey's failure escapes to tRPC. */
+  async function grantWithLeakyDb() {
+    behaviour.dbError = leakyDbError();
+    behaviour.dbErrorOn = "findAccountByKey";
+    return httpMutation("admin.customers.grant", { email: LEAKY_EMAIL });
+  }
+
+  for (const env of ["production", "development"]) {
+    test(`in ${env}, an uncaught DrizzleQueryError reaches neither the log nor the client`, async () => {
+      restoreEnv();
+      restoreEnv = setNodeEnv(env);
+
+      const result = await grantWithLeakyDb();
+
+      assert.deepEqual(calls.otherDb, ["findAccountByKey"]);
+      assert.equal(result.status, 500);
+      assert.equal(result.error?.data.code, "INTERNAL_SERVER_ERROR");
+      assert.equal(result.error?.message, DB_ERROR_MESSAGE);
+      assertBodyClean(result.raw);
+      assert.deepEqual(leakyLines(consoleCapture.lines.rendered), []);
+      // The operator still gets a line naming the procedure, plus the SQLSTATE
+      // and constraint describeDbError keeps.
+      const logged = consoleCapture.lines.rendered.find((line) =>
+        line.startsWith(
+          `tRPC failed on mutation admin.customers.grant: INTERNAL_SERVER_ERROR - ${DB_ERROR_MESSAGE}`,
+        ),
+      );
+      assert.ok(logged, consoleCapture.lines.rendered.join("\n"));
+      assert.ok(logged.includes("23505") && logged.includes(SESSION_INDEX), logged);
+    });
+  }
+
+  test("with tRPC's isDev on, a DB error ships no stack but any other error still does", async () => {
+    const { appRouter } = await loadRoot();
+    const config = appRouter._def._config as { isDev: boolean };
+    const isDevBefore = config.isDev;
+    config.isDev = true;
+    try {
+      const leaky = await grantWithLeakyDb();
+      assert.equal(leaky.status, 500);
+      assert.equal(leaky.error?.message, DB_ERROR_MESSAGE);
+      assert.deepEqual(calls.otherDb, ["findAccountByKey"]);
+      // Deleted, not blanked: `stack: undefined` ships `"stack":null` plus
+      // superjson meta, which would mark this 500 as a DB fault.
+      assert.equal("stack" in (leaky.error?.data ?? { stack: "missing error" }), false);
+      assert.ok(!leaky.raw.includes("\"stack\""), leaky.raw);
+      assertBodyClean(leaky.raw);
+
+      // Positive control: the toggle above really turns data.stack on.
+      behaviour.dbError = new Error("connection reset");
+      const plain = await httpQuery("admin.devices.list");
+      assert.match(plain.error?.data.stack ?? "", /connection reset/);
+    } finally {
+      config.isDev = isDevBefore;
+    }
+  });
+
+  for (const [path, input] of [
+    ["admin.devices.list", undefined],
+    ["admin.devices.forLicense", { licenseKeyId: LICENSE_ID }],
+  ] as const) {
+    test(`${path} answers a DrizzleQueryError with the boundary's message and logs it redacted`, async () => {
+      behaviour.dbError = leakyDbError();
+
+      const result = await httpQuery(path, input);
+
+      assert.equal(result.status, 500);
+      assert.equal(result.error?.message, "Database error");
+      assertBodyClean(result.raw);
+      assert.deepEqual(leakyLines(consoleCapture.lines.rendered), []);
+      assert.ok(
+        consoleCapture.lines.rendered.some((line) => line.includes(SESSION_INDEX)),
+        consoleCapture.lines.rendered.join("\n"),
+      );
+    });
+  }
+});
+
+describe("the boundary rewrites only a 5xx caused by a DB error (#1049)", () => {
+  /**
+   * A one-procedure router built from the app's own `t` (so the real
+   * errorFormatter runs) and served by the real fetch adapter: no router in
+   * the app throws a 4xx with a DB cause today, and this pins what one gets.
+   */
+  async function throwOverHttp(error: unknown) {
+    const { createTRPCRouter, publicProcedure } = await import("@/server/api/trpc");
+    const { fetchRequestHandler } = await import("@trpc/server/adapters/fetch");
+    const router = createTRPCRouter({
+      boom: publicProcedure.query(() => {
+        throw error;
+      }),
+    });
+    const res = await fetchRequestHandler({
+      endpoint: "/api/trpc",
+      req: new Request("https://hyperwhisper.test/api/trpc/boom"),
+      router,
+      createContext: () => ({ user: null, isAdmin: false, headers: new Headers() }),
+    });
+    const raw = await res.text();
+    const body = JSON.parse(raw) as { error: Parameters<typeof superjson.deserialize>[0] };
+    return {
+      status: res.status,
+      raw,
+      error: superjson.deserialize(body.error) as { message: string; data: Record<string, unknown> },
+    };
+  }
+
+  test("a 4xx TRPCError whose cause is a DB error keeps its own message", async () => {
+    const result = await throwOverHttp(
+      new TRPCError({
+        code: "CONFLICT",
+        message: "That email already belongs to another account",
+        cause: leakyDbError(),
+      }),
+    );
+
+    assert.equal(result.status, 409);
+    assert.equal(result.error.message, "That email already belongs to another account");
+    assert.deepEqual(leakyLines([result.raw]), [], result.raw);
+  });
+
+  test("a 5xx TRPCError whose cause is a DB error ships DB_ERROR_MESSAGE and no stack key, even with isDev on", async () => {
+    const { appRouter } = await loadRoot();
+    const config = appRouter._def._config as { isDev: boolean };
+    const isDevBefore = config.isDev;
+    config.isDev = true;
+    try {
+      const result = await throwOverHttp(
+        new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "wrapped", cause: leakyDbError() }),
+      );
+
+      assert.equal(result.status, 500);
+      assert.equal(result.error.message, DB_ERROR_MESSAGE);
+      assert.equal("stack" in result.error.data, false);
+      assert.ok(!result.raw.includes("\"stack\""), result.raw);
+      assert.deepEqual(leakyLines([result.raw]), [], result.raw);
+
+      // Positive control: the same 5xx without a DB cause keeps message and stack.
+      const plain = await throwOverHttp(
+        new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "wrapped", cause: new Error("x") }),
+      );
+      assert.equal(plain.error.message, "wrapped");
+      assert.equal(typeof plain.error.data.stack, "string");
+    } finally {
+      config.isDev = isDevBefore;
+    }
+  });
+});
+
+describe("admin.devices never puts a DB error's text in its TRPCError (#1049)", () => {
+  /** Calls the procedure with no HTTP boundary, so the formatter cannot help. */
+  async function callDevices(path: "list" | "forLicense", input: unknown) {
+    const { devicesRouter } = await import("@/server/api/routers/admin/devices");
+    return callTRPCProcedure({
+      router: devicesRouter as unknown as AnyRouter,
+      path,
+      getRawInput: async () => input,
+      ctx: { user: adminUser(), isAdmin: true, headers: new Headers() },
+      type: "query",
+      signal: undefined,
+      batchIndex: 0,
+    });
+  }
+
+  for (const [path, input] of [
+    ["list", undefined],
+    ["forLicense", { licenseKeyId: LICENSE_ID }],
+  ] as const) {
+    test(`devices.${path} throws DB_ERROR_MESSAGE and keeps the DB error on cause`, async () => {
+      const dbError = leakyDbError();
+      behaviour.dbError = dbError;
+
+      await assert.rejects(callDevices(path, input), (error: unknown) => {
+        assert.ok(error instanceof TRPCError, String(error));
+        assert.equal(error.code, "INTERNAL_SERVER_ERROR");
+        assert.equal(error.message, DB_ERROR_MESSAGE);
+        assert.equal(error.cause, dbError);
+        assert.deepEqual(leakyLines([error.message, error.stack ?? ""]), []);
+        return true;
+      });
+    });
+  }
+});
+
+test("harness: dbErrorOn with no dbError still trips the unexpected-call alarm", async () => {
+  behaviour.dbErrorOn = "findAccountByKey";
+
+  const result = await httpMutation("admin.customers.grant", { email: LEAKY_EMAIL });
+
+  assert.equal(result.status, 500);
+  assert.match(result.error?.message ?? "", /unexpected db-layer call: findAccountByKey/);
+});
+
+test("download.recordDownload logs an unexpected DB error in its outer catch redacted (#1049)", async () => {
+  behaviour.downloadLimitError = leakyDbError();
+
+  const result = await httpMutation("download.recordDownload", { email: LEAKY_EMAIL }, null);
+
+  assert.equal(result.status, 500);
+  assert.equal(result.error?.message, "Internal server error");
+  assert.deepEqual(leakyLines([result.raw]), [], result.raw);
+  assert.deepEqual(leakyLines(consoleCapture.lines.rendered), []);
+  assert.ok(
+    consoleCapture.lines.rendered.some(
+      (line) => line.startsWith("Error processing download request:") && line.includes(SESSION_INDEX),
+    ),
+    consoleCapture.lines.rendered.join("\n"),
+  );
+});

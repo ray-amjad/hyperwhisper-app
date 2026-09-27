@@ -8,6 +8,7 @@ import {
   getCreditBalance,
 } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
+import { describeDbError } from "@/lib/shared/db-error";
 
 /**
  * License Credits API
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
       stripe_customer_id: license.stripeCustomerId,
     });
   } catch (error) {
-    console.error("Credits balance error:", error);
+    console.error("Credits balance error:", describeDbError(error));
 
     return NextResponse.json(
       { error: "Failed to get credit balance" },
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
       // double-spend via a read-then-write race.
       newCredits = await deductCreditBalance(license.userId, amount);
     } catch (updateError) {
-      console.error("Credit deduction failed:", updateError);
+      console.error("Credit deduction failed:", describeDbError(updateError));
       return NextResponse.json(
         { error: "Failed to deduct credits. Please retry." },
         { status: 409 }
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
       credits_deducted: amount,
     });
   } catch (error) {
-    console.error("Credits deduction error:", error);
+    console.error("Credits deduction error:", describeDbError(error));
 
     return NextResponse.json(
       { error: "Failed to deduct credits" },

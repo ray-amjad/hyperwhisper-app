@@ -25,6 +25,7 @@ import {
   getRequest,
   loadCheckoutCreditsRoute,
   loadLicenseCreditsRoute,
+  logLines,
   onlySessionCreate,
   postRequest,
   resetHarness,
@@ -32,6 +33,7 @@ import {
   silenceRouteLogging,
   storeRow,
 } from "./credit-routes-harness";
+import { leakyDbError, leakyLines, SESSION_INDEX } from "./db-error-fixture";
 
 const CHECKOUT_PATH = "/api/checkout/credits";
 const CREDITS_PATH = "/api/license/credits";
@@ -470,6 +472,29 @@ describe("POST /api/checkout/credits — Stripe faults", () => {
   });
 });
 
+describe("POST /api/checkout/credits — a DrizzleQueryError stays out of the log and the body (#1049)", () => {
+  test("a failed top-up lookup answers 500 with no SQL, address or key", async () => {
+    logLines.length = 0;
+    behaviour.lookupError = leakyDbError();
+    const { POST } = await loadCheckoutCreditsRoute();
+
+    const response = await POST(
+      postRequest(CHECKOUT_PATH, { amount: 5, licenseKey: GRANTED_KEY }),
+    );
+    const text = await response.text();
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(leakyLines([text]), [], text);
+    assert.deepEqual(JSON.parse(text), {
+      error: "Failed to create checkout session",
+      details: "Database error",
+    });
+    assert.deepEqual(leakyLines(logLines), []);
+    assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));
+    assert.deepEqual(calls.sessionCreate, []);
+  });
+});
+
 describe("GET /api/license/credits", () => {
   test("requires a license_key query parameter", async () => {
     const { GET } = await loadLicenseCreditsRoute();
@@ -740,5 +765,59 @@ describe("POST /api/license/credits", () => {
     assert.equal(response.status, 500);
     assert.equal(body.error, "Failed to deduct credits");
     assert.deepEqual(calls.deductCreditBalance, []);
+  });
+});
+
+describe("/api/license/credits — a DrizzleQueryError stays out of the log and the body (#1049)", () => {
+  /** Nothing leaks, and the redacted diagnosis (the constraint) is still logged. */
+  function assertRedacted(text: string): void {
+    assert.deepEqual(leakyLines([text]), [], text);
+    assert.deepEqual(leakyLines(logLines), [], logLines.join("\n"));
+    assert.ok(logLines.some((line) => line.includes(SESSION_INDEX)), logLines.join("\n"));
+  }
+
+  test("GET: a failed balance lookup answers 500 and logs it redacted", async () => {
+    logLines.length = 0;
+    behaviour.lookupError = leakyDbError();
+    const { GET } = await loadLicenseCreditsRoute();
+
+    const response = await GET(getRequest(`${CREDITS_PATH}?license_key=${GRANTED_KEY}`));
+    const text = await response.text();
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(JSON.parse(text), { error: "Failed to get credit balance" });
+    assertRedacted(text);
+  });
+
+  test("POST: a failed decrement answers 409 and logs it redacted", async () => {
+    logLines.length = 0;
+    storeRow(accountKeyRow({ key: GRANTED_KEY }));
+    behaviour.deductError = leakyDbError();
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+    );
+    const text = await response.text();
+
+    assert.equal(response.status, 409);
+    assert.deepEqual(JSON.parse(text), { error: "Failed to deduct credits. Please retry." });
+    assertRedacted(text);
+  });
+
+  test("POST: a failed lookup answers 500 and logs it redacted", async () => {
+    logLines.length = 0;
+    behaviour.lookupError = leakyDbError();
+    const { POST } = await loadLicenseCreditsRoute();
+
+    const response = await POST(
+      postRequest(CREDITS_PATH, { license_key: GRANTED_KEY, amount: 10 }),
+    );
+    const text = await response.text();
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(JSON.parse(text), { error: "Failed to deduct credits" });
+    assert.deepEqual(calls.deductCreditBalance, []);
+    assertRedacted(text);
   });
 });

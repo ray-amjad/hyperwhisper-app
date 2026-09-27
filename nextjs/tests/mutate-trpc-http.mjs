@@ -21,6 +21,8 @@ const ADMIN = "server/api/routers/admin/index.ts";
 const DEVICES = "server/api/routers/admin/devices.ts";
 const STATS = "server/api/routers/admin/stats.ts";
 const TRPC = "server/api/trpc.ts";
+const HARNESS = "tests/trpc-http-harness.ts";
+const DOWNLOAD = "server/api/routers/download.ts";
 
 const MUTANTS = [
   {
@@ -56,13 +58,13 @@ const MUTANTS = [
   {
     file: ROUTE,
     name: "print the stack in production too",
-    from: "if (isDev && error.stack) {",
-    to: "if (error.stack) {",
+    from: "if (isDev && error.stack && !dbError) {",
+    to: "if (error.stack && !dbError) {",
   },
   {
     file: ROUTE,
     name: "never print the stack",
-    from: "if (isDev && error.stack) {",
+    from: "if (isDev && error.stack && !dbError) {",
     to: "if (false) {",
   },
   {
@@ -70,6 +72,37 @@ const MUTANTS = [
     name: "drop the path from the log line",
     from: "${path ?? \"<no-path>\"}",
     to: "<no-path>",
+  },
+  // #1049: a DB error's params stay out of the log line and the dev stack.
+  {
+    file: ROUTE,
+    name: "never recognise a DB error in onError",
+    from: "const dbError = isDbError(error.cause);",
+    to: "const dbError = false;",
+  },
+  {
+    file: ROUTE,
+    name: "log a DB error's raw message",
+    from: "${dbError ? DB_ERROR_MESSAGE : error.message}",
+    to: "${error.message}",
+  },
+  {
+    file: ROUTE,
+    name: "log the raw DB error beside the line",
+    from: "...(dbError ? [describeDbError(error.cause)] : [])",
+    to: "...(dbError ? [error.cause] : [])",
+  },
+  {
+    file: ROUTE,
+    name: "drop the redacted DB diagnosis from the line",
+    from: "...(dbError ? [describeDbError(error.cause)] : [])",
+    to: "",
+  },
+  {
+    file: ROUTE,
+    name: "print a DB error's stack in development",
+    from: "if (isDev && error.stack && !dbError) {",
+    to: "if (isDev && error.stack) {",
   },
   {
     file: ROOT,
@@ -136,20 +169,56 @@ const MUTANTS = [
   {
     file: DEVICES,
     name: "answer 400 instead of 500 on a db failure (list)",
-    from: '      } catch (error) {\n        console.error("Device counts fetch error:", error);\n        throw new TRPCError({\n          code: "INTERNAL_SERVER_ERROR",',
-    to: '      } catch (error) {\n        console.error("Device counts fetch error:", error);\n        throw new TRPCError({\n          code: "BAD_REQUEST",',
+    from: '      } catch (error) {\n        console.error("Device counts fetch error:", describeDbError(error));\n        throw new TRPCError({\n          code: "INTERNAL_SERVER_ERROR",',
+    to: '      } catch (error) {\n        console.error("Device counts fetch error:", describeDbError(error));\n        throw new TRPCError({\n          code: "BAD_REQUEST",',
   },
   {
     file: DEVICES,
     name: "hide the Error message (list)",
-    from: '              ? error.message\n              : "Failed to fetch device counts",',
-    to: '              ? "Failed to fetch device counts"\n              : "Failed to fetch device counts",',
+    from: 'message: safeErrorMessage(error, "Failed to fetch device counts"),',
+    to: 'message: "Failed to fetch device counts",',
   },
   {
     file: DEVICES,
     name: "hide the Error message (forLicense)",
-    from: '              ? error.message\n              : "Failed to fetch devices for license",',
-    to: '              ? "Failed to fetch devices for license"\n              : "Failed to fetch devices for license",',
+    from: 'message: safeErrorMessage(error, "Failed to fetch devices for license"),',
+    to: 'message: "Failed to fetch devices for license",',
+  },
+  {
+    file: DEVICES,
+    name: "put a DB error's raw message in the throw (list)",
+    from: 'message: safeErrorMessage(error, "Failed to fetch device counts"),',
+    to: 'message: error instanceof Error ? error.message : "Failed to fetch device counts",',
+  },
+  {
+    file: DEVICES,
+    name: "put a DB error's raw message in the throw (forLicense)",
+    from: 'message: safeErrorMessage(error, "Failed to fetch devices for license"),',
+    to: 'message: error instanceof Error ? error.message : "Failed to fetch devices for license",',
+  },
+  {
+    file: DEVICES,
+    name: "drop the DB error's cause (list)",
+    from: '"Failed to fetch device counts"),\n          // A DB error never enters the message; `cause` keeps it for the server (#1049).\n          cause: error,',
+    to: '"Failed to fetch device counts"),',
+  },
+  {
+    file: DEVICES,
+    name: "drop the DB error's cause (forLicense)",
+    from: '"Failed to fetch devices for license"),\n          cause: error,',
+    to: '"Failed to fetch devices for license"),',
+  },
+  {
+    file: DEVICES,
+    name: "log the raw DB error (list)",
+    from: 'console.error("Device counts fetch error:", describeDbError(error));',
+    to: 'console.error("Device counts fetch error:", error);',
+  },
+  {
+    file: DEVICES,
+    name: "log the raw DB error (forLicense)",
+    from: 'console.error("Devices for license fetch error:", describeDbError(error));',
+    to: 'console.error("Devices for license fetch error:", error);',
   },
   {
     file: STATS,
@@ -178,6 +247,54 @@ const MUTANTS = [
     name: "let a Stripe failure escape",
     from: "      } catch {\n        // Stripe not configured\n      }",
     to: "      } finally {\n        // Stripe not configured\n      }",
+  },
+  {
+    file: TRPC,
+    name: "send a DB error's shape unchanged",
+    from: "if (shape.data.httpStatus < 500 || !isDbError(error.cause)) return shape;",
+    to: "return shape;",
+  },
+  {
+    file: TRPC,
+    name: "rewrite a 4xx's own message too",
+    from: "if (shape.data.httpStatus < 500 || !isDbError(error.cause)) return shape;",
+    to: "if (!isDbError(error.cause)) return shape;",
+  },
+  {
+    file: TRPC,
+    name: "rewrite every 5xx, DB cause or not",
+    from: "if (shape.data.httpStatus < 500 || !isDbError(error.cause)) return shape;",
+    to: "if (shape.data.httpStatus < 500) return shape;",
+  },
+  {
+    file: TRPC,
+    name: "send a DB error's raw message",
+    from: "return { ...shape, message: DB_ERROR_MESSAGE, data };",
+    to: "return { ...shape, data };",
+  },
+  {
+    file: TRPC,
+    name: "send a DB error's stack when isDev",
+    from: "delete data.stack;",
+    to: "",
+  },
+  {
+    file: TRPC,
+    name: "blank the stack instead of deleting it",
+    from: "delete data.stack;",
+    to: "data.stack = undefined;",
+  },
+  {
+    file: HARNESS,
+    name: "harness: dbErrorOn alone silences the unexpected-call alarm",
+    from: "if (name === behaviour.dbErrorOn && behaviour.dbError !== null) {",
+    to: "if (name === behaviour.dbErrorOn) {",
+  },
+  {
+    file: DOWNLOAD,
+    name: "log the raw download-request error",
+    from: 'console.error("Error processing download request:", describeDbError(error));',
+    to: 'console.error("Error processing download request:", error);',
   },
   {
     file: TRPC,

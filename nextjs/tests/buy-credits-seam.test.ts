@@ -141,7 +141,7 @@ test("a 400 about the licence itself is shown verbatim too", async () => {
 });
 
 /**
- * The body `app/api/checkout/credits/route.ts:218-227` really sends on a 500 —
+ * The body the outer `catch` of `app/api/checkout/credits/route.ts` really sends on a 500 —
  * every unhandled throw on that route, a Stripe outage and a DB fault alike,
  * answers with exactly this shape. The old fixture here was `{}`, a body the
  * route cannot produce, and it let the 5xx case pass while the code showed the

@@ -196,16 +196,19 @@ export async function buyCreditsAndRedirect({
   // screen verbatim. That is why they are shown, and unlike #870's sign-out
   // copy they are safe to show.
   //
-  // Its 5xx body is a different animal entirely. `route.ts:218-227` answers
-  // EVERY unhandled throw — a Stripe outage, a DB fault, a missing env var —
-  // with the same `{ error: "Failed to create checkout session", details: <the
-  // throw's own message> }`. Painting that verbatim into a 40-locale
-  // `role="alert"` region gives every non-English customer an untranslated
-  // English sentence that tells them nothing they can act on, and it is the
-  // one body on this route whose wording is an internal fault description
-  // rather than a message to a customer. So a 5xx takes the translated
-  // `checkoutErrorMessage` and the raw string stays in the report and the
-  // console line, where the developer reads it.
+  // Its 5xx body is a different animal entirely. The route's outer `catch`
+  // answers EVERY unhandled throw — a Stripe outage, a DB fault, a missing env
+  // var — with the same `{ error: "Failed to create checkout session",
+  // details: safeErrorMessage(error) }`: the throw's own message, except that
+  // a DB fault reads only "Database error" (its real message is the SQL plus
+  // the bound key and email, #1049; the redacted diagnosis is in the server
+  // log). Painting either verbatim into a 40-locale `role="alert"` region
+  // gives every non-English customer an untranslated English sentence that
+  // tells them nothing they can act on, and it is the one body on this route
+  // whose wording is an internal fault description rather than a message to a
+  // customer. So a 5xx takes the translated `checkoutErrorMessage`; the
+  // status goes to the report and the console line, and the body stays in the
+  // network response for the developer.
   //
   // An EMPTY string is the other trap, and it is unchanged: `""` is a
   // `string`, it passes `typeof`, and it would paint an empty alert region
