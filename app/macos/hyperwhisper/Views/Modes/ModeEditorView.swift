@@ -104,7 +104,14 @@ struct ModeEditorView: View {
 
     // MARK: - Initialization
 
-    init(configuration: ModeEditorConfiguration, availableModelIds: [String], onSave: @escaping (ModeData) -> Void) {
+    /// `licenseActive` is read only by the CREATE branch, to pick the provider a
+    /// new mode opens on (issue #873). The EDIT branch ignores it.
+    init(
+        configuration: ModeEditorConfiguration,
+        availableModelIds: [String],
+        licenseActive: Bool = false,
+        onSave: @escaping (ModeData) -> Void
+    ) {
         self.configuration = configuration
         self.availableModelIds = availableModelIds
         self.onSave = onSave
@@ -251,8 +258,13 @@ struct ModeEditorView: View {
             _geminiCustomPrompt = State(initialValue: "")
             _cloudTranscriptionDomain = State(initialValue: nil)
 
-            // Default to cloud provider with HyperWhisper Cloud
-            _provider = State(initialValue: .cloud)
+            // HyperWhisper Cloud for a licensed user or when no local model is
+            // installed; otherwise On-device, so an unlicensed on-device setup
+            // is not switched to Cloud by creating a mode (issue #873).
+            _provider = State(initialValue: ModeEditorDefaults.initialProvider(
+                licenseActive: licenseActive,
+                availableModelIds: availableModelIds
+            ))
 
             // Initialize model for local fallback
             if !availableModelIds.isEmpty {

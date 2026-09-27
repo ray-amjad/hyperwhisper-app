@@ -35,6 +35,7 @@ struct ModesView: View {
     @EnvironmentObject var parakeetModelManager: ParakeetModelManager
     @EnvironmentObject var qwen3AsrModelManager: Qwen3AsrModelManager
     @EnvironmentObject var nemotronModelManager: NemotronModelManager
+    @EnvironmentObject var licenseManager: LicenseManager
 
     // Fetch modes from Core Data
     @FetchRequest(
@@ -96,7 +97,11 @@ struct ModesView: View {
         }
         .navigationTitle("Modes")
         .sheet(isPresented: $showingCreateMode) {
-            ModeEditorView(configuration: .create, availableModelIds: downloadedLocalModelIds) { (newModeData: ModeData) in
+            ModeEditorView(
+                configuration: .create,
+                availableModelIds: downloadedLocalModelIds,
+                licenseActive: licenseManager.licenseStatus == .active
+            ) { (newModeData: ModeData) in
                 // Create new Mode entity in Core Data
                 let persistenceController = PersistenceController.shared
                 let newMode = persistenceController.createOrUpdateMode(
