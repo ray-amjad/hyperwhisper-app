@@ -1525,6 +1525,31 @@ static async Task ShutdownSignalsRouteToQuit()
     disposedFirst.Handle(late);
     Assert(quits == 1, "a signal after Dispose still asked for a quit");
     Assert(!late.Cancel, "a signal after Dispose was still cancelled, so nothing would end the process");
+
+    // The watchdog won: a Dispose racing in behind it must not flip the state back, and nothing may
+    // force a second exit or swallow a later signal.
+    var forcedOnce = new List<int>();
+    var hung = new LinuxShutdownSignals(() => { }, forcedOnce.Add, Timeout.InfiniteTimeSpan);
+    hung.Handle(new PosixSignalContext(PosixSignal.SIGTERM));
+    hung.OnWatchdogElapsed(143);
+    hung.Dispose();
+    hung.OnWatchdogElapsed(143);
+    var afterFired = new PosixSignalContext(PosixSignal.SIGTERM);
+    hung.Handle(afterFired);
+    Assert(hung.HasFired, "a Dispose after the watchdog fired undid the forced exit's state");
+    Assert(forcedOnce.Count == 1, $"the watchdog forced {forcedOnce.Count} exits, not 1");
+    Assert(!afterFired.Cancel, "a signal after the forced exit was still cancelled");
+
+    // A signal the platform refuses is reported and skipped; the ones that registered stay registered.
+    var error = new StringWriter();
+    using var partial = LinuxShutdownSignals.Register(() => { }, _ => { },
+        (signal, handler) => signal == PosixSignal.SIGINT
+            ? throw new PlatformNotSupportedException("refused")
+            : PosixSignalRegistration.Create(signal, handler),
+        error);
+    Assert(partial.RegistrationCount == 2, $"a refused SIGINT left {partial.RegistrationCount} registrations, not 2");
+    Assert(error.ToString().Contains("HyperWhisper SIGINT registration failed: refused", StringComparison.Ordinal),
+        $"a refused SIGINT was not reported on stderr: '{error}'");
 }
 
 // Ubuntu 22.04 xvfb-run runs the command with `2>&1`, so the head's stderr can arrive on stdout; read both.
