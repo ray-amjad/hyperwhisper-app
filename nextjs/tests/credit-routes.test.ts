@@ -23,6 +23,7 @@ import {
   behaviour,
   calls,
   getRequest,
+  loadAccountCreditsRoute,
   loadCheckoutCreditsRoute,
   loadLicenseCreditsRoute,
   logLines,
@@ -819,5 +820,32 @@ describe("/api/license/credits — a DrizzleQueryError stays out of the log and 
     assert.deepEqual(JSON.parse(text), { error: "Failed to deduct credits" });
     assert.deepEqual(calls.deductCreditBalance, []);
     assertRedacted(text);
+  });
+});
+
+describe("/api/account/credits is the same handler as /api/license/credits", () => {
+  test("re-exports both license handlers themselves", async () => {
+    // New app releases call /api/account/credits; installed builds and
+    // HyperWhisper Cloud call /api/license/credits. Identity is the only check
+    // that stays true when the license handler changes.
+    const account = await loadAccountCreditsRoute();
+    const license = await loadLicenseCreditsRoute();
+
+    assert.equal(account.GET, license.GET);
+    assert.equal(account.POST, license.POST);
+  });
+
+  test("the account path refuses a revoked key without deducting", async () => {
+    storeRow(accountKeyRow({ key: GRANTED_KEY, status: "revoked" }));
+    const { POST } = await loadAccountCreditsRoute();
+
+    const response = await POST(
+      postRequest("/api/account/credits", { license_key: GRANTED_KEY, amount: 10 }),
+    );
+    const body = await readJson(response);
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "License is revoked");
+    assert.deepEqual(calls.deductCreditBalance, []);
   });
 });
