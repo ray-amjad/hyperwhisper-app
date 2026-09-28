@@ -252,6 +252,22 @@
       ],
       "licensed": false,
       "note": "Linux, unlicensed (no HYPERWHISPER_ACCOUNT_KEY in the box). Filed #924: the Test dictation step renders one blocked string for all 4 conjuncts of IsTestReady. vocabulary and provider-settings were walked hard and were clean. TRAP: start the app with PULSE_SERVER=unix:/tmp/pulse-*/native. pulseaudio started without XDG_RUNTIME_DIR puts its socket in /tmp, the app looks in XDG_RUNTIME_DIR, the microphone list is then EMPTY and Codex files 2 fake defects about it. gui setup/exec/drive need --container <name>, but fuzz-drive calls gui with no flag, so rename the container to gui before you drive."
+    },
+    {
+      "at": "2026-09-28T01:02:40Z",
+      "platform": "win",
+      "commit": "50155652",
+      "routes": [
+        "history-and-backup",
+        "updates",
+        "home-and-tray"
+      ],
+      "status": "build-failed",
+      "issues": [
+        0
+      ],
+      "licensed": false,
+      "note": "No box: nsc create windows/amd64:8x16 and :4x8 both answer 'not allowed to create windows/amd64 instances' on 2026-09-28 (tenant entitlement, open ask namespace-windows-entitlement). Linux/mac shapes unaffected. These 3 routes were NOT walked on win; re-pick them when Windows is enabled."
     }
   ]
 }
