@@ -58,7 +58,7 @@ You can start recording in three ways:
   <Tab title="macOS">
     <Steps>
       <Step title="Open Shortcuts settings">
-        Go to **Settings → Shortcuts**.
+        Go to **Settings → Keyboard Shortcuts**.
       </Step>
       <Step title="Record a new key combination">
         Click the recorder control next to the action you want to change. Then press the new key combination.
@@ -140,7 +140,7 @@ With push-to-talk, you hold a key to record. When you release the key, recording
 
 <Tabs>
   <Tab title="macOS">
-    Go to **Settings → Shortcuts**. Then turn on the **Push to Talk** toggle.
+    Go to **Settings → Keyboard Shortcuts**. Then turn on the **Push to Talk** toggle.
 
     Then select your trigger key from the mode picker:
 
@@ -199,13 +199,13 @@ When double-press is on, two quick taps on the push-to-talk key lock recording o
 
 <Tabs>
   <Tab title="macOS">
-    The **Double Press to Lock** toggle is in **Settings → Shortcuts**, below the push-to-talk card. It appears only when your push-to-talk mode is one modifier key (FN, Control, Left Option, or Right Option). The combination modes (FN + Control, FN + Left Option) and Custom mode do not have double-press lock.
+    The **Double press to lock recording** toggle is in **Settings → Keyboard Shortcuts**, below the push-to-talk card. It is on by default. It appears only when your push-to-talk mode is one modifier key (FN, Control, Left Option, or Right Option). The combination modes (FN + Control, FN + Left Option) and Custom mode do not have double-press lock.
   </Tab>
   <Tab title="Windows">
-    The **Double-Press Lock** checkbox is in **Settings → Shortcuts**. It appears when push-to-talk is in Modifier mode.
+    The **Double press to lock recording** checkbox is in **Settings → Shortcuts**. It appears when push-to-talk is in Modifier mode.
   </Tab>
   <Tab title="Linux">
-    The **Double press to lock push-to-talk** checkbox is in **Settings → Shortcuts and push-to-talk**. It is off by default.
+    The **Double press to lock recording** checkbox is in **Settings → Shortcuts**. It is off by default.
   </Tab>
 </Tabs>
 
@@ -235,13 +235,13 @@ Quick Capture is a macOS feature. It sends a transcription to a new Apple Notes 
 
 <Steps>
   <Step title="Turn on Quick Capture">
-    Go to **Settings → Shortcuts**. Then turn on the **Quick Capture** toggle.
+    Go to **Settings → Keyboard Shortcuts**. Then turn on the **Quick Capture** toggle.
   </Step>
   <Step title="Assign a shortcut">
     A shortcut recorder appears below the toggle. Click the recorder. Then press the key combination that you want.
   </Step>
   <Step title="Select a mode">
-    The mode picker sets the transcription mode for Quick Capture. Select one mode, or select **Current Mode** to always use your active mode.
+    The mode picker sets the transcription mode for Quick Capture. Select one mode, or select **Selected mode** to always use your active mode.
   </Step>
   <Step title="Give Notes automation permission">
     The first time Quick Capture runs, macOS asks if HyperWhisper can control Apple Notes. Click **OK**. If you denied the permission, go to **System Settings → Privacy & Security → Automation**. Then turn on the access of HyperWhisper to Notes.
@@ -302,7 +302,7 @@ When you close the main window, HyperWhisper goes to the system tray and stays a
 ## Troubleshooting Shortcuts
 
 - **A shortcut does not respond** — other apps or macOS take some key combinations, most of all the bare function keys. Add one modifier or more (`⌥`, `⌃`, or `⇧`) to prevent conflicts.
-- **Push-to-talk does not start** — on macOS, the bare modifier modes (FN, Control, Option) need Accessibility permission. Open **System Settings → Privacy & Security → Accessibility**. Then make sure that HyperWhisper is in the list and is turned on. You do not need to start the app again: HyperWhisper watches for the new permission for 10 minutes and arms push-to-talk as soon as it finds it. If you take more than 10 minutes, select the push-to-talk mode again in **Settings → Shortcuts**, or start the app again.
+- **Push-to-talk does not start** — on macOS, the bare modifier modes (FN, Control, Option) need Accessibility permission. Open **System Settings → Privacy & Security → Accessibility**. Then make sure that HyperWhisper is in the list and is turned on. You do not need to start the app again: HyperWhisper watches for the new permission for 10 minutes and arms push-to-talk as soon as it finds it. If you take more than 10 minutes, select the push-to-talk mode again in **Settings → Keyboard Shortcuts**, or start the app again.
 - **No shortcut works after a hidden start (macOS)** — HyperWhisper registers the shortcuts at launch, and it does not need the main window. A login-item start with **Launch minimized** on gives you working shortcuts immediately. Older versions registered the shortcuts only when the main window appeared, so the record shortcut stayed dead until you opened the window. If you see that behavior, update to the current version.
 - **Windows shortcut conflict** — when two actions have the same key combination, a warning banner appears in Settings → Shortcuts. Correct the conflict before you save.
 - **No shortcut works on Linux** — HyperWhisper reads global shortcuts from `/dev/input`, which needs the `hyperwhisper-input` group. Run `id -nG | tr ' ' '\n' | grep -x hyperwhisper-input` in a terminal. If the command prints nothing, add the group, then log out completely and log back in. See [Install HyperWhisper on Linux](/linux-installation#enable-global-shortcuts-and-automatic-paste).
