@@ -129,6 +129,7 @@ public partial class VocabularyPage : Page
         WordPlaceholder.Visibility = string.IsNullOrEmpty(WordBox.Text)
             ? Visibility.Visible
             : Visibility.Collapsed;
+        ClearError();
         UpdateActionChipsEnabled();
     }
 
@@ -137,7 +138,15 @@ public partial class VocabularyPage : Page
         ReplacementPlaceholder.Visibility = string.IsNullOrEmpty(ReplacementBox.Text)
             ? Visibility.Visible
             : Visibility.Collapsed;
+        ClearError();
         UpdateActionChipsEnabled();
+    }
+
+    // A submit error describes the text that was submitted; once the user
+    // edits that text or starts editing another row, it no longer applies.
+    private void ClearError()
+    {
+        ErrorText.Visibility = Visibility.Collapsed;
     }
 
     private void UpdateActionChipsEnabled()
@@ -195,7 +204,7 @@ public partial class VocabularyPage : Page
             _editingSource = null;
         }
 
-        ErrorText.Visibility = Visibility.Collapsed;
+        ClearError();
         WordBox.Text = string.Empty;
         ReplacementBox.Text = string.Empty;
         _showingReplacementField = false;
@@ -213,6 +222,7 @@ public partial class VocabularyPage : Page
         var item = _vocabularyService.GetAll().FirstOrDefault(v => v.Id == id);
         if (item == null) return;
 
+        ClearError();
         _pendingDeleteId = id;
         _editingId = id;
         _editingSource = item.Source;
@@ -251,7 +261,7 @@ public partial class VocabularyPage : Page
         ReplacementBox.Text = string.Empty;
         _showingReplacementField = false;
         ReplacementBorder.Visibility = Visibility.Collapsed;
-        ErrorText.Visibility = Visibility.Collapsed;
+        ClearError();
         ResetEditMode();
         UpdateActionChipsEnabled();
         WordBox.Focus();
