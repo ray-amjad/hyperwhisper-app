@@ -242,7 +242,7 @@ export default function DownloadsPage() {
           <div className="text-center">
             <Card className="bg-red-900/20 backdrop-blur-xl border-red-800">
               <CardBody className="p-8">
-                <p className="text-red-400 text-lg">
+                <p className="text-red-400 text-lg" role="alert">
                   Error loading versions: {error}
                 </p>
               </CardBody>
