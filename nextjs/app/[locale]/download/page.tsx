@@ -48,14 +48,11 @@ export default function DownloadPage() {
   const searchParams = useSearchParams();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
   const [downloadState, setDownloadState] = useState<
-    Record<
-      Platform,
-      { url: string | null; countdown: number; started: boolean }
-    >
+    Record<Platform, { countdown: number; started: boolean }>
   >({
-    mac: { url: null, countdown: 5, started: false },
-    windows: { url: null, countdown: 5, started: false },
-    linux: { url: null, countdown: 5, started: false },
+    mac: { countdown: 5, started: false },
+    windows: { countdown: 5, started: false },
+    linux: { countdown: 5, started: false },
   });
   const [copied, setCopied] = useState(false);
   const [linuxLatest, setLinuxLatest] = useState<LinuxLatest | null>(null);
@@ -121,44 +118,6 @@ export default function DownloadPage() {
     };
   }, [selectedPlatform, linuxLatest]);
 
-  // Fetch the macOS download URL on mount (but don't trigger download yet).
-  useEffect(() => {
-    // Windows and Linux use explicit download buttons, no need to pre-fetch.
-    if (selectedPlatform !== "mac") return;
-
-    const fetchDownloadUrl = async () => {
-      try {
-        const response = await fetch(
-          `/api/download?platform=${selectedPlatform}`,
-          {
-            redirect: "follow",
-          },
-        );
-        const url =
-          response.url || `/api/download?platform=${selectedPlatform}`;
-
-        setDownloadState((prev) => ({
-          ...prev,
-          [selectedPlatform]: { ...prev[selectedPlatform], url },
-        }));
-      } catch (error) {
-        console.error("Failed to fetch download URL:", error);
-        setDownloadState((prev) => ({
-          ...prev,
-          [selectedPlatform]: {
-            ...prev[selectedPlatform],
-            url: `/api/download?platform=${selectedPlatform}`,
-          },
-        }));
-      }
-    };
-
-    // Only fetch if we don't have a URL yet
-    if (!currentState.url) {
-      void fetchDownloadUrl();
-    }
-  }, [selectedPlatform, currentState.url]);
-
   // Reset countdown when switching platforms
   useEffect(() => {
     setDownloadState((prev) => ({
@@ -212,9 +171,7 @@ export default function DownloadPage() {
       [platform]: { ...prev[platform], started: true, countdown: 0 },
     }));
 
-    const url = state.url || `/api/download?platform=${platform}`;
-
-    window.location.href = url;
+    window.location.href = `/api/download?platform=${platform}`;
   };
 
   const handleManualDownload = () => {
