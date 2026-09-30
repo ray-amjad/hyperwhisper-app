@@ -63,9 +63,11 @@
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
-  /* Keeps focused controls and #anchor targets clear of the sticky header
-     (open-source banner 48px + navbar 65px + 7px gap). */
-  scroll-padding-top: 120px;
+  /* Keeps focused controls and #anchor targets clear of the sticky header.
+     LayoutWrapper sets --site-header-offset from the measured header height;
+     the rem fallback (120px at 100%: banner 48px + navbar 65px + 7px gap)
+     covers the first paint and still scales with the text size. */
+  scroll-padding-top: var(--site-header-offset, 7.5rem);
 }
 
 /* Default dark theme */
