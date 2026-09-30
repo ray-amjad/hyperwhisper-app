@@ -305,6 +305,18 @@ export function logProviderEvent(
   });
 }
 
+/**
+ * Shape facts for a 200 body that failed to parse. A speech vendor's 200 body
+ * IS the transcript, so never log any part of it: only whether it looks like
+ * an HTML page (geo-block/proxy), a cut-off JSON stream, or something else.
+ */
+export function unparsedBodyKind(raw: string): 'html' | 'json_truncated' | 'other' {
+  const first = raw.trimStart()[0];
+  if (first === '<') return 'html';
+  if (first === '{' || first === '[') return 'json_truncated';
+  return 'other';
+}
+
 export async function fetchWithTimeout(
   provider: string,
   url: string,

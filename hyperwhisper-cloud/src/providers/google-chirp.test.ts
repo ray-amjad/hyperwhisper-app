@@ -413,18 +413,44 @@ describe('transcribeWithGoogleChirp — successful response decoding boundaries'
     expect((globalThis.fetch as any).mock.calls.length).toBe(1);
   });
 
-  test('rejects a non-JSON sync response with a bounded diagnostic preview', async () => {
+  test('rejects a non-JSON sync response with its shape and no part of the body', async () => {
     const upstreamBody = '<html>temporary proxy response</html>';
     fetchHandler = () => new Response(upstreamBody, {
       status: 200,
       headers: { 'Content-Type': 'text/html' },
     });
 
-    await expect(transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav'))
-      .rejects.toThrow(
-        `Google Speech returned non-JSON 200 body during sync_recognize (content-type=text/html, len=${upstreamBody.length}): ${upstreamBody}`,
-      );
+    const error = await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav').catch((e: Error) => e);
+    expect((error as Error).message).toBe(
+      `Google Speech returned non-JSON 200 body during sync_recognize (content-type=text/html, len=${upstreamBody.length})`,
+    );
     expect((globalThis.fetch as any).mock.calls.length).toBe(1);
+  });
+
+  test('a truncated 200 JSON body logs no part of the transcript, only its shape (issue #1069)', async () => {
+    const marker = 'zebracanary';
+    fetchHandler = () => new Response(`{"results":[{"alternatives":[{"transcript":"my password is ${marker}"}],"languageCode":"en-us"}],"me`, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    let thrown: unknown;
+    try {
+      await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav');
+    } catch (error) {
+      thrown = error;
+    } finally {
+      console.log = originalLog;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).not.toContain(marker);
+    const event = logged.find((args) => args[0] === 'provider.parse_error');
+    if (!event) throw new Error('no provider.parse_error event was logged');
+    const details = event[1] as Record<string, unknown>;
+    for (const value of Object.values(details)) expect(String(value)).not.toContain(marker);
+    expect(details.bodyKind).toBe('json_truncated');
   });
 });
 
@@ -641,7 +667,7 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
 
     await expect(transcribeWithGoogleChirp(bigAudio(), 'audio/wav'))
       .rejects.toThrow(
-        'Google Speech returned non-JSON 200 body during batch_poll (content-type=text/plain, len=8): not-json',
+        'Google Speech returned non-JSON 200 body during batch_poll (content-type=text/plain, len=8)',
       );
     expect((globalThis.fetch as any).mock.calls.some(
       ([input]: [RequestInfo | URL]) => String(input).endsWith('operations/malformed-poll:cancel'),

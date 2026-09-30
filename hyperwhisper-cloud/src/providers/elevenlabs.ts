@@ -11,6 +11,7 @@ import {
   logProviderEvent,
   providerHttpError,
   splitVocabularyTerms,
+  unparsedBodyKind,
 } from './utils';
 
 // ElevenLabs treats mp3 as the *fallback* container rather than one it matches
@@ -168,8 +169,9 @@ export async function transcribeWithElevenLabs(
     logProviderEvent(provider, 'parse_error', {
       elapsedMs: Math.round(performance.now() - startTime),
       contentType: ct,
+      contentEncoding: response.headers.get('content-encoding') ?? 'none',
       bodyLength: rawText.length,
-      bodyPreview: rawText.slice(0, 400),
+      bodyKind: unparsedBodyKind(rawText),
     }, context);
     // A non-JSON 200 body is recoverable by failing over, not by 500ing a
     // request the siblings could serve.
