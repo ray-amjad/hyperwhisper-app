@@ -10,8 +10,9 @@ note: |
   held the connection until the machine was recycled.
   Bound the call: fetchWithTimeout() or fetchLLMWithTimeout() in
   src/providers/, an AbortController with a timer, or AbortSignal.timeout(ms).
-  The rule only checks that a `signal` key is present in the call. A signal that
-  fires only on client disconnect passes it and still needs its own timer.
+  The rule only checks that a `signal` key (`signal: x` or the `{ signal }`
+  shorthand) is present in the call. A signal that fires only on client
+  disconnect passes it and still needs its own timer.
   Test files are exempt: a stubbed fetch never leaves the process.
 files:
   - "hyperwhisper-cloud/src/**/*.ts"
@@ -23,7 +24,12 @@ rule:
   not:
     has:
       stopBy: end
-      kind: pair
-      has:
-        field: key
-        regex: '^signal$'
+      any:
+        # `{ signal: controller.signal }`
+        - kind: pair
+          has:
+            field: key
+            regex: '^signal$'
+        # `{ signal }` shorthand
+        - kind: shorthand_property_identifier
+          regex: '^signal$'
