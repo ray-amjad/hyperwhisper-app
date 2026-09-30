@@ -16,6 +16,7 @@ import {
   computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
 import { isRecord } from "@/src/lib/type-guards";
+import { showEmailError } from "@/src/lib/credits-email";
 
 const PRESETS = [5, 10] as const;
 
@@ -33,6 +34,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function CreditsPurchase({ locale }: { locale: string }) {
   const t = useTranslations("buyCredits");
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [amount, setAmount] = useState<number>(PRESETS[0]);
   const [customAmount, setCustomAmount] = useState("");
   const [isCustom, setIsCustom] = useState(false);
@@ -143,6 +145,9 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setEmailTouched(true)}
+              isInvalid={showEmailError(email, emailTouched, emailValid)}
+              errorMessage={t("errorEmail")}
               placeholder={t("emailPlaceholder")}
               variant="bordered"
               size="lg"
