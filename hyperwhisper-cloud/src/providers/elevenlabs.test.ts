@@ -263,6 +263,32 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
     }
   });
 
+  test('a truncated 200 JSON body logs no part of the transcript, only its shape (issue #1069)', async () => {
+    const marker = 'zebracanary';
+    mockFetchOnce(() => new Response(`{"language_code":"eng","text":"my password is ${marker}","words":[{"start":0,"end"`, {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    let thrown: unknown;
+    try {
+      await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US');
+    } catch (error) {
+      thrown = error;
+    } finally {
+      console.log = originalLog;
+    }
+    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
+    expect((thrown as Error).message).not.toContain(marker);
+    const event = logged.find((args) => args[0] === 'provider.parse_error');
+    if (!event) throw new Error('no provider.parse_error event was logged');
+    const details = event[1] as Record<string, unknown>;
+    for (const value of Object.values(details)) expect(String(value)).not.toContain(marker);
+    expect(details.bodyKind).toBe('json_truncated');
+  });
+
   test('a transport-level failure (e.g. timeout via fetchWithTimeout) surfaces as ProviderUnavailableError with kind timeout', async () => {
     const originalTimeoutEnv = process.env.STT_PROVIDER_TIMEOUT_MS;
     process.env.STT_PROVIDER_TIMEOUT_MS = '20';
