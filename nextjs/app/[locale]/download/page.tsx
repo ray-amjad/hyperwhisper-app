@@ -162,10 +162,9 @@ export default function DownloadPage() {
     }
   }, [currentState.countdown, currentState.started, selectedPlatform]);
 
+  // No `started` guard here: the countdown effect already stops once `started`
+  // is set, so it fires this once, and a click on "Download again" must re-run it.
   const triggerDownload = (platform: Platform) => {
-    const state = downloadState[platform];
-
-    if (state.started) return;
     setDownloadState((prev) => ({
       ...prev,
       [platform]: { ...prev[platform], started: true, countdown: 0 },
