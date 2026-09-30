@@ -565,10 +565,10 @@ describe('streamAnthropicChat first-byte timeout', () => {
   });
 });
 
-// The non-streaming bound scales with the prompt (review round 1): the request
-// arms its timer with computeLLMRequestTimeoutMs(prompt chars) unless a test
-// injects its own. Spy on setTimeout to read the delay actually armed.
-describe('requestAnthropicChat timeout scales with the prompt', () => {
+// The non-streaming bound scales with the transcript (review rounds 1 and 2):
+// the request arms its timer with computeLLMRequestTimeoutMs(transcript chars)
+// unless a test injects its own. Spy on setTimeout to read the delay armed.
+describe('requestAnthropicChat timeout scales with the transcript', () => {
   async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
     const spy = spyOn(globalThis, 'setTimeout');
     try {
@@ -579,18 +579,26 @@ describe('requestAnthropicChat timeout scales with the prompt', () => {
     }
   }
 
-  test('a short prompt arms the 20 s floor', async () => {
+  test('a short transcript arms the 20 s floor', async () => {
     stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
     const delays = await armedDelays(() => requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID));
     expect(delays).toContain(20_000);
   });
 
-  test('a 5,000-character prompt arms 50 s, not the flat 20 s', async () => {
+  test('a 4,997-character transcript arms 50 s, not the flat 20 s', async () => {
     stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
     const delays = await armedDelays(() =>
       requestAnthropicChat(correctionPayload('sys', 'x'.repeat(4_997)), REQUEST_ID));
     expect(delays).toContain(50_000);
     expect(delays).not.toContain(20_000);
+  });
+
+  test('a long system prompt does not lengthen the bound for a short transcript', async () => {
+    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
+    const delays = await armedDelays(() =>
+      requestAnthropicChat(correctionPayload('s'.repeat(30_000), 'user'), REQUEST_ID));
+    expect(delays).toContain(20_000);
+    expect(delays.filter((ms) => ms > 20_000)).toEqual([]);
   });
 
   test('an injected timeout still wins over the computed one', async () => {

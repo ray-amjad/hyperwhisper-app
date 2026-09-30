@@ -631,10 +631,10 @@ describe('bounded wait on a silent upstream', () => {
   });
 });
 
-// The non-streaming bound scales with the prompt (review round 1): the shared
-// client arms its timer with computeLLMRequestTimeoutMs(prompt chars) unless
-// the config injects timeoutMs. Spy on setTimeout to read the delay armed.
-describe('timeout scales with the prompt', () => {
+// The non-streaming bound scales with the transcript (review rounds 1 and 2):
+// the shared client arms its timer with computeLLMRequestTimeoutMs(transcript
+// chars) unless the config injects timeoutMs. Spy on setTimeout to read it.
+describe('timeout scales with the transcript', () => {
   async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
     const spy = spyOn(globalThis, 'setTimeout');
     try {
@@ -647,12 +647,12 @@ describe('timeout scales with the prompt', () => {
 
   const LONG_PAYLOAD: CorrectionRequestPayload = buildCorrectionRequest('sys', 'x'.repeat(4_997));
 
-  test('a short prompt arms the 20 s floor', async () => {
+  test('a short transcript arms the 20 s floor', async () => {
     const delays = await armedDelays(() => requestGroqChat(PAYLOAD, 'req-short'));
     expect(delays).toContain(20_000);
   });
 
-  test('a 5,000-character prompt arms 50 s on every provider built on the shared client', async () => {
+  test('a 4,997-character transcript arms 50 s on every provider built on the shared client', async () => {
     const delays = await armedDelays(async () => {
       await requestCerebrasChat(LONG_PAYLOAD, 'req-long');
       await requestGroqChat(LONG_PAYLOAD, 'req-long');
@@ -663,6 +663,13 @@ describe('timeout scales with the prompt', () => {
     });
     expect(delays.filter((ms) => ms === 50_000)).toHaveLength(6);
     expect(delays).not.toContain(20_000);
+  });
+
+  test('a long system prompt does not lengthen the bound for a short transcript', async () => {
+    const delays = await armedDelays(() =>
+      requestGroqChat(buildCorrectionRequest('s'.repeat(30_000), 'user transcript'), 'req-long-system'));
+    expect(delays).toContain(20_000);
+    expect(delays.filter((ms) => ms > 20_000)).toEqual([]);
   });
 
   test('an injected timeoutMs still wins over the computed one', async () => {
