@@ -283,6 +283,7 @@ public partial class VocabularyPage : Page
         if (sender is not WpfButton button || button.Tag is not Guid id) return;
 
         _vocabularyService.Delete(id);
+        ClearError();
         RefreshList();
     }
 
