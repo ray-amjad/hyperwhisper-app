@@ -1,6 +1,6 @@
-# Auto-dev gate for ray-amjad/hyperwhisper-app
+# Merge gate for ray-amjad/hyperwhisper-app
 
-This file is the merge gate for the auto-dev consumer routine, and for any `task-lifecycle` run that
+This file, `.claude/merge-gate.md`, is the merge gate for the auto-dev consumer routine, and for any `task-lifecycle` run that
 names this repo. The routine prompt says which issue to pick and how to report. This file says what
 may merge with no human, and what proof it needs. One copy, in git, next to the code it governs.
 
