@@ -10,8 +10,9 @@ note: |
   held the connection until the machine was recycled.
   Bound the call: fetchWithTimeout() or fetchLLMWithTimeout() in
   src/providers/, an AbortController with a timer, or AbortSignal.timeout(ms).
-  The rule only checks that a `signal` key (`signal: x` or the `{ signal }`
-  shorthand) is present in the call. A signal that fires only on client
+  The rule only checks that the options object literal passed as fetch's
+  second argument has its own `signal` key (`signal: x` or the `{ signal }`
+  shorthand); options held in a variable are flagged. A signal that fires only on client
   disconnect passes it and still needs its own timer.
   Test files are exempt: a stubbed fetch never leaves the process.
 files:
@@ -22,14 +23,22 @@ ignores:
 rule:
   pattern: fetch($$$ARGS)
   not:
+    # The signal must be a DIRECT property of the options object literal that
+    # is fetch's second argument. No `stopBy: end`: a deep search also
+    # accepted a `signal` key nested anywhere in the arguments, e.g.
+    # `fetch(url, { body: JSON.stringify({ signal: 1 }) })` (review round 2).
     has:
-      stopBy: end
-      any:
-        # `{ signal: controller.signal }`
-        - kind: pair
-          has:
-            field: key
-            regex: '^signal$'
-        # `{ signal }` shorthand
-        - kind: shorthand_property_identifier
-          regex: '^signal$'
+      field: arguments
+      has:
+        kind: object
+        nthChild: 2
+        has:
+          any:
+            # `{ signal: controller.signal }`
+            - kind: pair
+              has:
+                field: key
+                regex: '^signal$'
+            # `{ signal }` shorthand
+            - kind: shorthand_property_identifier
+              regex: '^signal$'
