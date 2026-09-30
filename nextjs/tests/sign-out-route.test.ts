@@ -2,9 +2,15 @@
  * `POST /[locale]/user/auth/sign-out`, driven as HTTP.
  *
  * The route revokes the Better Auth session, then answers with a redirect to
- * the locale's sign-in page that carries the session-clearing cookie. Before
- * #871 it built that redirect and never returned it, so the caller got a
- * server error AFTER the session was already revoked.
+ * the locale's sign-in page. Before #871 it built that redirect and never
+ * returned it, so the caller got a server error AFTER the session was already
+ * revoked.
+ *
+ * When Better Auth sends its own session-clearing cookies, the route must NOT
+ * copy them: the real `nextCookies()` plugin (mocked away here) already wrote
+ * them to Next's cookie store, and a hand copy wins Next's merge and loses
+ * `Max-Age=0`. Only when Better Auth sends none does the route clear the
+ * session cookie itself.
  *
  * Better Auth is replaced at the module boundary, before the route is loaded,
  * so the route binds to the fake. Do not import the route path statically.
@@ -65,7 +71,7 @@ beforeEach(() => {
   betterAuthSetCookies = [];
 });
 
-test("redirects to the locale sign-in page with every Better Auth cookie", async () => {
+test("redirects to the locale sign-in page without copying Better Auth's cookies", async () => {
   betterAuthSetCookies = [
     "better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; Secure",
     "better-auth.session_data=; Max-Age=0; Path=/; HttpOnly; Secure",
@@ -81,9 +87,9 @@ test("redirects to the locale sign-in page with every Better Auth cookie", async
     response.headers.get("location"),
     "https://hyperwhisper.test/fr/user/sign-in",
   );
-  // Each cookie must reach the browser as its own Set-Cookie header; a
-  // comma-joined single header clears only the first one.
-  assert.deepEqual(response.headers.getSetCookie(), betterAuthSetCookies);
+  // nextCookies() delivers these in the running app; a copy here would
+  // replace them with versions that lost Max-Age=0.
+  assert.deepEqual(response.headers.getSetCookie(), []);
   assert.equal(signOutCalls.length, 1);
   assert.equal(signOutCalls[0].asResponse, true);
   assert.equal(
@@ -103,8 +109,7 @@ test("falls back to clearing the session cookie itself", async () => {
     response.headers.get("location"),
     "https://hyperwhisper.test/en/user/sign-in",
   );
-  assert.equal(
-    response.headers.get("set-cookie"),
+  assert.deepEqual(response.headers.getSetCookie(), [
     "better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
-  );
+  ]);
 });
