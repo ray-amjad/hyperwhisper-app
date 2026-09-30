@@ -68,6 +68,11 @@ Cosmetic paths:
 - Web: `nextjs/src/**` markup and class names, `nextjs/src/content/**`
 - Docs: `mintlify-help/**`
 
+Never cosmetic, whatever the path: copy on a privacy, terms, legal, pricing or billing page, and any
+sentence that states what the product does with a user's data. A policy sentence is a legal decision.
+On HyperWhisper every privacy-copy PR that was not a pure addition stalled on an open question
+(#721, #1011, #1024, #1025, #1047). Those are logic, and they usually end as a PR for Ray.
+
 **Logic.** Everything else that passed §2.
 
 ## 4. Proof each tier needs
@@ -82,6 +87,13 @@ PR's `## Verified` section, one line per page. Upload the same files to the thre
 `slack-upload`. A cosmetic PR with no screenshot pair is not proved.
 
 Logic proof follows the `verify` skill and the `task-lifecycle` verify round without change.
+
+**Cover the siblings, whatever the tier.** A fix of a pattern (a CSS guard, an accessible name, a
+colour token, a copied string) covers every site of that pattern, not the one the issue names. Grep
+for the siblings before the PR opens and list them in the PR body, checked or changed. On agentstack
+the same reduced-motion defect took three merges (#1973, #1979, #2351) because each fix covered one
+site, and a help-page fix (#2314) was followed by the identical widget fix (#2330). A sibling you
+saw and left out is a follow-up issue, filed and named in the reply.
 
 ## 5. Merge conditions
 
@@ -104,6 +116,10 @@ Check them in order. Stop at the first failure. Merge only when all six are true
    commit statuses or check runs, so `gh pr checks` and `statusCheckRollup` are not evidence. Wait in
    the foreground for a `queued` or `in_progress` run. Zero runs returned is a failure. A run that is
    still not finished after a reasonable wait is a failure.
+   A red run always blocks, and it always has a cause. Name the failing job and step in the reply.
+   When the failure is not in the diff (a test that is also red on `main`, a runner missing a
+   package), file it as its own issue so the next tick does not hit it again. On ACS, 5 PRs were held
+   in two weeks by a clock-bound test and by a runner without Postgres, and both are filed.
 5. The PR carries no open question whose answer would change whether the fix is right. A question
    about follow-up work does not block.
 6. The run did not guess at anything material. If you picked one of two readings, this condition
@@ -121,12 +137,33 @@ A refused merge (branch protection, a conflict) is a failed gate. Do not write t
 If any condition fails, leave the PR open, write the `auto-dev:pr` marker with the condition that
 failed, and tag Ray. That is a normal outcome.
 
-## 6. Queue rule
+When condition 5 or 6 fails, the reply gives Ray a choice he can answer with one letter: `A` and
+`B`, one line each, the reading you recommend first, and the consequence of each in plain words.
+Beside it, upload ONE HTML file to the thread that explains the situation: what the issue asked,
+what the code does, the two readings, and a screenshot where one exists. Ray asked for exactly this
+on 2026-09-29 and 2026-09-30 ("make me a HTML file if you need a choice made"), after answering
+"wait what do you need from me im confused" to an open-ended ask. Not a paragraph in Slack, and not
+a question with no options.
 
-Count the PRs THIS consumer opened and left for Ray: an open PR whose linked issue carries an
-`auto-dev:pr` comment naming it. A human's PR is never in the count. A PR the consumer merged is not
-open, so it is not in the count. At 3, reply with one line and stop. A PR nobody reviews is not
-progress.
+## 6. Queue rule: no cap, drain your own PRs first
+
+There is no cap on open PRs. Ray removed it on 2026-09-30: a cap of 3 stopped 19 ACS ticks and 24
+HyperWhisper ticks in two weeks, and most of the PRs behind it were held by infrastructure, not by
+him. Instead, every tick starts by re-trying its own open PRs, oldest first. A PR is this consumer's
+when `app/dream-team-bot` authored it, its head branch carries the prefix in §1, and its linked
+issue carries an `auto-dev:pr` comment naming it.
+
+For each one, read why it was left open (the `auto-dev:pr` comment names the condition):
+
+- **Held by infrastructure** (Codex could not run, a workflow did not finish, a merge was refused
+  by a conflict): merge `origin/main` into the branch without rewriting history, push, and run §5
+  again. Review only what is new. A PR whose earlier run completed both review rounds and its proof,
+  with only a clean merge of `main` since, needs no new review: wait for CI and merge it.
+- **Held by a decision** (condition 5 or 6 failed and Ray has not answered): leave it. Do not
+  re-ask. Count it.
+
+Then take a new issue. Every reply ends with one line: how many of this consumer's PRs wait on
+Ray's decision, with their numbers.
 
 ## 7. The production test account
 
