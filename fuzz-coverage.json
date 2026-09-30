@@ -268,6 +268,22 @@
       ],
       "licensed": false,
       "note": "No box: nsc create windows/amd64:8x16 and :4x8 both answer 'not allowed to create windows/amd64 instances' on 2026-09-28 (tenant entitlement, open ask namespace-windows-entitlement). Linux/mac shapes unaffected. These 3 routes were NOT walked on win; re-pick them when Windows is enabled."
+    },
+    {
+      "at": "2026-09-30T01:27:43Z",
+      "platform": "mac",
+      "commit": "b49049ee",
+      "routes": [
+        "local-api",
+        "streaming",
+        "modes"
+      ],
+      "status": "1-filed",
+      "issues": [
+        1100
+      ],
+      "licensed": false,
+      "note": "mac on rented Namespace macos/arm64:6x14, app 2.49.0 Debug, UNLICENSED (Debug points at Cloud staging; no HYPERWHISPER_ACCOUNT_KEY in the box). setup.sh + drive.txt still work at 2.49.0 (~6 min to BUILD SUCCEEDED); onboarding ended in a real on-device Whisper Base transcription. Codex found 0 defects on all 3 routes. local-api was ALSO walked by curl over nsc ssh (auth 401s, bad base64, garbage audio, file outside recordings dir all answer sensibly); filed #1100 (valid audio with no mode_id/engine answers a bare 'Invalid request.', Windows/Linux say Provide mode_id or engine). HTTP 200 for ok:false is BY DESIGN (hw-localapi test every_reason_is_an_http_200_business_failure). /health key_present:true for hyperwhisper on an unlicensed app is BY DESIGN (HealthEndpoint.swift:38). streaming: hotkey never fires over VNC, so no live session was started. First click swallowed again on the Local API toggle."
     }
   ]
 }
