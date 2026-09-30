@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://hyperwhisper.com";
 
   // Each path must be app/[locale]<path>/page.tsx and render on every locale;
-  // tests/sitemap-routes.test.ts fails the build when one does not.
+  // tests/sitemap-routes.test.ts fails nextjs-ci when one does not.
   const pages = [
     "", // home page
     "/download",
