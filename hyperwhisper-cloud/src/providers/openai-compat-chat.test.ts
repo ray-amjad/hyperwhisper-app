@@ -460,19 +460,14 @@ describe('upstream error propagation', () => {
     expect(shouldFallback(error)).toBe(true);
   });
 
-  // Changed by #782: a transport failure used to escape as a bare TypeError,
-  // which retryWithBackoff retried but shouldFallback() refused, so the
-  // alternate provider was never tried. It is now a 502 tagged with the provider.
-  test('tags a transport failure as a 502 so post-process can fall back', async () => {
+  test('lets a transport failure through untagged so it is retried, not failed over', async () => {
     handler = () => { throw new TypeError('connection reset by peer'); };
 
     const error = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
 
-    expect(error).toBeInstanceOf(LLMRequestError);
     expect((error as Error).message).toContain('connection reset by peer');
-    expect(errorStatus(error)).toBe(502);
-    expect(errorProvider(error)).toBe('cerebras');
-    expect(shouldFallback(error)).toBe(true);
+    expect(errorStatus(error)).toBeUndefined();
+    expect(shouldFallback(error)).toBe(false);
   });
 });
 
@@ -607,16 +602,18 @@ describe('bounded wait on a silent upstream', () => {
     expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
   });
 
-  test('rejects with a 502 when the connection is refused', async () => {
+  // Only our timer is mapped. A real network error stays the untagged error
+  // it was before #782 (retried, not failed over), as the #210 test pins.
+  test('passes a refused connection through untagged, not as a timeout', async () => {
     globalThis.fetch = originalFetch;
 
     const error = await captureError(() =>
       requestOpenAICompatibleChat(configFor(refusedUrl()), PAYLOAD, 'req-refused', 'm'));
 
-    expect(error).toBeInstanceOf(LLMRequestError);
-    expect(errorStatus(error)).toBe(502);
-    expect(errorProvider(error)).toBe('groq');
-    expect(shouldFallback(error)).toBe(true);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(LLMRequestError);
+    expect(errorStatus(error)).toBeUndefined();
+    expect(shouldFallback(error)).toBe(false);
   });
 
   test('every provider built on the shared client sends an abort signal', async () => {

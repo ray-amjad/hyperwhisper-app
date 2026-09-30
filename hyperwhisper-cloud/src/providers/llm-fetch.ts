@@ -12,9 +12,10 @@
 // Error mapping. retryWithBackoff already retries any rejection; what the
 // mapping adds is the FALLBACK, because shouldFallback() only accepts an
 // LLMRequestError with a 5xx status:
-//   - the timer fired          -> LLMRequestError(..., 504, provider)
-//   - fetch() itself rejected   -> LLMRequestError(..., 502, provider)
-//   - anything `read` throws    -> passed through unchanged, so the non-2xx
+//   - our timer fired           -> LLMRequestError(..., 504, provider)
+//   - any other failure          -> rethrown unchanged, exactly as before #782:
+//                                  a network error stays an untagged error
+//                                  (retried, not failed over), and the non-2xx
 //                                  handling in each caller keeps its own status.
 
 import { LLMRequestError } from './llm-errors';
@@ -26,10 +27,6 @@ import { LLMRequestError } from './llm-errors';
  * every client's /post-process budget (macOS waits 60 s).
  */
 export const LLM_REQUEST_TIMEOUT_MS = 20_000;
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export async function fetchLLMWithTimeout<T>(
   provider: string,
@@ -54,27 +51,13 @@ export async function fetchLLMWithTimeout<T>(
   };
 
   try {
-    let response: Response;
-    try {
-      response = await fetch(url, { ...init, signal: controller.signal });
-    } catch (error) {
-      if (timedOut) throw timeoutError();
-      console.error('llm.transport_error', {
-        provider,
-        requestId,
-        kind: 'network_error',
-        message: describeError(error),
-        elapsedMs: Math.round(performance.now() - startedAt),
-      });
-      throw new LLMRequestError(`${provider} LLM request network error: ${describeError(error)}`, 502, provider);
-    }
-
-    try {
-      return await read(response);
-    } catch (error) {
-      if (timedOut && !(error instanceof LLMRequestError)) throw timeoutError();
-      throw error;
-    }
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    return await read(response);
+  } catch (error) {
+    // Only our own timer becomes a 504. The non-2xx LLMRequestError thrown by
+    // `read` keeps its upstream status even if the timer fired meanwhile.
+    if (timedOut && !(error instanceof LLMRequestError)) throw timeoutError();
+    throw error;
   } finally {
     clearTimeout(timeoutHandle);
   }

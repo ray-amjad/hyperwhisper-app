@@ -11,7 +11,7 @@ import { getLLMCompletionStatus } from '../lib/llm-completion';
 import { shouldFallback } from '../lib/llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
+import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 
 // The Anthropic client talks to exactly one upstream over `fetch`, so the whole
 // module is exercised by swapping `globalThis.fetch`. Nothing here mocks a
@@ -481,6 +481,19 @@ describe('requestAnthropicChat bounded wait', () => {
 
     expect((error as LLMRequestError).status).toBe(504);
     expect(shouldFallback(error)).toBe(true);
+  });
+
+  // Only our timer is mapped. A real network error stays the untagged error it
+  // was before #782 (retried by callWithRetry, not failed over).
+  test('passes a refused connection through untagged, not as a timeout', async () => {
+    routeAnthropicTo(refusedUrl());
+
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(LLMRequestError);
+    expect((error as { status?: number }).status).toBeUndefined();
+    expect(shouldFallback(error)).toBe(false);
   });
 });
 
