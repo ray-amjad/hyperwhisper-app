@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
 import {
   ANTHROPIC_WRAPPER_INSTRUCTION,
@@ -562,5 +562,42 @@ describe('streamAnthropicChat first-byte timeout', () => {
     ]);
     // 1000 in + 500 out: the full usage, so the stream ran to its end.
     expect(await costPromise).toBeCloseTo(0.0035, 9);
+  });
+});
+
+// The non-streaming bound scales with the prompt (review round 1): the request
+// arms its timer with computeLLMRequestTimeoutMs(prompt chars) unless a test
+// injects its own. Spy on setTimeout to read the delay actually armed.
+describe('requestAnthropicChat timeout scales with the prompt', () => {
+  async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
+    const spy = spyOn(globalThis, 'setTimeout');
+    try {
+      await fn();
+      return spy.mock.calls.map((call) => call[1] as number);
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  test('a short prompt arms the 20 s floor', async () => {
+    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
+    const delays = await armedDelays(() => requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID));
+    expect(delays).toContain(20_000);
+  });
+
+  test('a 5,000-character prompt arms 50 s, not the flat 20 s', async () => {
+    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
+    const delays = await armedDelays(() =>
+      requestAnthropicChat(correctionPayload('sys', 'x'.repeat(4_997)), REQUEST_ID));
+    expect(delays).toContain(50_000);
+    expect(delays).not.toContain(20_000);
+  });
+
+  test('an injected timeout still wins over the computed one', async () => {
+    stubFetch(Response.json({ content: [{ type: 'text', text: 'ok' }] }));
+    const delays = await armedDelays(() =>
+      requestAnthropicChat(correctionPayload('sys', 'x'.repeat(4_997)), REQUEST_ID, 1_234));
+    expect(delays).toContain(1_234);
+    expect(delays).not.toContain(50_000);
   });
 });

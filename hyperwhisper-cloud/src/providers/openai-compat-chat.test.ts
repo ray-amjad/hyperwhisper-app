@@ -21,7 +21,7 @@
 // shared module leaks into every other test file in the same run. The real cost
 // calculator, the real usage type guard and the real error classes all run.
 
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import {
   computeCerebrasChatCost,
   computeGeminiChatCost,
@@ -628,5 +628,56 @@ describe('bounded wait on a silent upstream', () => {
     for (const call of calls) {
       expect(call.init.signal).toBeInstanceOf(AbortSignal);
     }
+  });
+});
+
+// The non-streaming bound scales with the prompt (review round 1): the shared
+// client arms its timer with computeLLMRequestTimeoutMs(prompt chars) unless
+// the config injects timeoutMs. Spy on setTimeout to read the delay armed.
+describe('timeout scales with the prompt', () => {
+  async function armedDelays(fn: () => Promise<unknown>): Promise<number[]> {
+    const spy = spyOn(globalThis, 'setTimeout');
+    try {
+      await fn();
+      return spy.mock.calls.map((call) => call[1] as number);
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  const LONG_PAYLOAD: CorrectionRequestPayload = buildCorrectionRequest('sys', 'x'.repeat(4_997));
+
+  test('a short prompt arms the 20 s floor', async () => {
+    const delays = await armedDelays(() => requestGroqChat(PAYLOAD, 'req-short'));
+    expect(delays).toContain(20_000);
+  });
+
+  test('a 5,000-character prompt arms 50 s on every provider built on the shared client', async () => {
+    const delays = await armedDelays(async () => {
+      await requestCerebrasChat(LONG_PAYLOAD, 'req-long');
+      await requestGroqChat(LONG_PAYLOAD, 'req-long');
+      await requestXaiGrokChat(LONG_PAYLOAD, 'req-long');
+      await requestOpenAIChat(LONG_PAYLOAD, 'req-long', 'gpt-5.6-luna');
+      await requestGeminiChat(LONG_PAYLOAD, 'req-long', 'gemini-2.5-flash');
+      await requestMistralChat(LONG_PAYLOAD, 'req-long', 'mistral-small-latest');
+    });
+    expect(delays.filter((ms) => ms === 50_000)).toHaveLength(6);
+    expect(delays).not.toContain(20_000);
+  });
+
+  test('an injected timeoutMs still wins over the computed one', async () => {
+    const config: OpenAICompatChatConfig = {
+      baseUrl: 'https://llm.test',
+      apiKey: 'test-key',
+      providerTag: 'groq',
+      errorLogLabel: 'test chat',
+      errorChatLabel: 'test chat',
+      buildBody: () => ({ model: 'm' }),
+      computeCost: () => 0,
+      timeoutMs: 1_234,
+    };
+    const delays = await armedDelays(() => requestOpenAICompatibleChat(config, LONG_PAYLOAD, 'req-override', 'm'));
+    expect(delays).toContain(1_234);
+    expect(delays).not.toContain(50_000);
   });
 });

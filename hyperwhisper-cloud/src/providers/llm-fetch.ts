@@ -21,12 +21,43 @@
 import { LLMRequestError } from './llm-errors';
 
 /**
- * Per-attempt bound for one LLM chat request, headers and body together.
- * Above the 15 s STT default in providers/utils.ts (a long correction prompt can
- * legitimately take longer), and small enough that one attempt fits inside
- * every client's /post-process budget (macOS waits 60 s).
+ * Floor of the per-attempt bound for one non-streaming LLM chat request
+ * (headers and body together), and the flat first-byte bound for the
+ * /assistant stream. Above the 15 s STT default in providers/utils.ts.
  */
 export const LLM_REQUEST_TIMEOUT_MS = 20_000;
+
+// Non-streaming bound, scaled with the prompt (same shape as
+// computeUploadTimeoutMs in providers/utils.ts: a floor plus a per-size
+// allowance). A non-streaming response only arrives after the upstream has
+// generated ALL of its output, and a correction's output is about as long as
+// its input, so a flat cap would abort a long, healthy correction.
+//
+// Rate: 10 s per 1,000 prompt characters. It assumes a deliberately slow
+// upstream, 50 output tokens/s (about half of what Claude Haiku 4.5 usually
+// streams; Groq and Cerebras are several times faster), and 2 characters per
+// token (English runs about 4; non-Latin scripts run fewer characters per
+// token). 1,000 chars ~ 500 tokens ~ 10 s. Counting the system prompt too
+// only adds headroom.
+//
+// Ceiling: 180 s, the Windows client's /post-process wait
+// (HyperWhisperCloudService DefaultTimeoutSeconds, the longest client budget in
+// the repo; macOS waits 60 s). An attempt that could only finish after the
+// client has hung up buys nothing, and the ceiling is what still ends a silent
+// upstream on a very long prompt.
+export const LLM_REQUEST_TIMEOUT_PER_1K_CHARS_MS = 10_000;
+export const LLM_REQUEST_TIMEOUT_CEILING_MS = 180_000;
+
+/** Per-attempt bound for a non-streaming chat request with `promptChars` characters of prompt. */
+export function computeLLMRequestTimeoutMs(promptChars: number): number {
+  const scaled = Math.ceil(promptChars / 1_000) * LLM_REQUEST_TIMEOUT_PER_1K_CHARS_MS;
+  return Math.min(LLM_REQUEST_TIMEOUT_CEILING_MS, Math.max(LLM_REQUEST_TIMEOUT_MS, scaled));
+}
+
+/** Total characters across every message of a chat payload (system prompt included). */
+export function promptCharCount(messages: ReadonlyArray<{ content: string }>): number {
+  return messages.reduce((sum, message) => sum + message.content.length, 0);
+}
 
 export async function fetchLLMWithTimeout<T>(
   provider: string,

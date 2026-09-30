@@ -5,7 +5,7 @@ import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { fetchLLMWithTimeout, LLM_REQUEST_TIMEOUT_MS } from './llm-fetch';
+import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, LLM_REQUEST_TIMEOUT_MS, promptCharCount } from './llm-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
@@ -41,7 +41,7 @@ export interface AnthropicStreamResult {
 export async function requestAnthropicChat(
   payload: CorrectionRequestPayload,
   requestId: string,
-  timeoutMs: number = LLM_REQUEST_TIMEOUT_MS,
+  timeoutMs?: number,
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -55,7 +55,9 @@ export async function requestAnthropicChat(
   const userContent = payload.messages[1]?.content || '';
 
   // One timer covers the request and the body read (see llm-fetch.ts), so a
-  // silent upstream rejects with a 504 and post-process.ts can fall back.
+  // silent upstream rejects with a 504 and post-process.ts can fall back. The
+  // bound scales with the prompt, because the body only arrives once the whole
+  // correction is generated.
   const data = await fetchLLMWithTimeout(
     'anthropic',
     ANTHROPIC_API_URL,
@@ -95,7 +97,7 @@ export async function requestAnthropicChat(
       };
     },
     requestId,
-    timeoutMs,
+    timeoutMs ?? computeLLMRequestTimeoutMs(promptCharCount(payload.messages)),
   );
 
   const inputTokens = data.usage?.input_tokens || 0;

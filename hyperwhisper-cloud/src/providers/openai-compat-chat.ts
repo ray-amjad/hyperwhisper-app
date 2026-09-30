@@ -12,7 +12,7 @@ import { isRecord, safeReadText } from '../lib/utils';
 import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
-import { fetchLLMWithTimeout } from './llm-fetch';
+import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, promptCharCount } from './llm-fetch';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
@@ -24,7 +24,7 @@ export type OpenAICompatChatConfig = {
   errorChatLabel: string;
   buildBody: (payload: CorrectionRequestPayload, model: string) => Record<string, unknown>;
   computeCost: (usage: GroqUsage) => number;
-  /** Per-attempt bound, headers and body. Defaults to LLM_REQUEST_TIMEOUT_MS; tests shorten it. */
+  /** Per-attempt bound, headers and body. Defaults to computeLLMRequestTimeoutMs(prompt chars); tests shorten it. */
   timeoutMs?: number;
 };
 
@@ -37,7 +37,7 @@ function reportMissingUsage(
   json: unknown,
   requestId: string
 ): GroqUsage {
-  const promptChars = payload.messages.reduce((sum, message) => sum + message.content.length, 0);
+  const promptChars = promptCharCount(payload.messages);
 
   let completionChars = 0;
   if (isRecord(json)) {
@@ -95,7 +95,7 @@ export async function requestOpenAICompatibleChat(
       return { json, usage };
     },
     requestId,
-    config.timeoutMs,
+    config.timeoutMs ?? computeLLMRequestTimeoutMs(promptCharCount(payload.messages)),
   );
 
   const costUsd = config.computeCost(usage ?? reportMissingUsage(config.providerTag, payload, json, requestId));
