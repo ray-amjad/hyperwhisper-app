@@ -160,7 +160,7 @@ describe("grantCreditsForStripeEvent", () => {
     const status = await L.grantCreditsForStripeEvent({ ...base, eventId: "evt_2", sourceId: "second" });
 
     assert.equal(status, "duplicate");
-    assert.deepEqual([...(await grantsBySource("u1")).keys()], ["first"]);
+    assert.deepEqual(Array.from((await grantsBySource("u1")).keys()), ["first"]);
     assert.equal(await cachedBalance("u1"), 500);
   });
 
