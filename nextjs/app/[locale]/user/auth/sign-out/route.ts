@@ -22,10 +22,15 @@ export async function POST(
     new URL(`/${locale}/user/sign-in`, request.url)
   );
 
-  // Forward the session-clearing cookie from Better Auth's response
-  const setCookie = signOutResponse.headers.get("set-cookie");
-  if (setCookie) {
-    redirect.headers.set("set-cookie", setCookie);
+  // Forward every session-clearing cookie from Better Auth's response, one
+  // Set-Cookie header each. `get("set-cookie")` would comma-join them into a
+  // single header, and a browser applies only the first cookie in it.
+  const setCookies = signOutResponse.headers.getSetCookie();
+
+  if (setCookies.length > 0) {
+    for (const cookie of setCookies) {
+      redirect.headers.append("set-cookie", cookie);
+    }
   } else {
     // Fallback: manually clear the session cookie
     redirect.headers.set(

@@ -23,7 +23,7 @@ interface ModuleMocker {
 }
 
 const signOutCalls: { headers: Headers; asResponse: boolean }[] = [];
-let betterAuthSetCookie: string | null = null;
+let betterAuthSetCookies: string[] = [];
 
 (mock as unknown as ModuleMocker).module(
   new URL("../src/lib/auth.ts", import.meta.url).href,
@@ -37,7 +37,11 @@ let betterAuthSetCookie: string | null = null;
           }) => {
             signOutCalls.push(options);
             const headers = new Headers();
-            if (betterAuthSetCookie) headers.set("set-cookie", betterAuthSetCookie);
+            // One Set-Cookie header per cookie, as Better Auth's
+            // deleteSessionCookie sends them.
+            for (const cookie of betterAuthSetCookies) {
+              headers.append("set-cookie", cookie);
+            }
             return new Response(null, { status: 200, headers });
           },
         },
@@ -58,12 +62,14 @@ function signOutRequest(locale: string) {
 
 beforeEach(() => {
   signOutCalls.length = 0;
-  betterAuthSetCookie = null;
+  betterAuthSetCookies = [];
 });
 
-test("redirects to the locale sign-in page with Better Auth's cookie", async () => {
-  betterAuthSetCookie =
-    "better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; Secure";
+test("redirects to the locale sign-in page with every Better Auth cookie", async () => {
+  betterAuthSetCookies = [
+    "better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; Secure",
+    "better-auth.session_data=; Max-Age=0; Path=/; HttpOnly; Secure",
+  ];
   const { POST } = await loadRoute();
   const { request, context } = signOutRequest("fr");
 
@@ -75,7 +81,9 @@ test("redirects to the locale sign-in page with Better Auth's cookie", async () 
     response.headers.get("location"),
     "https://hyperwhisper.test/fr/user/sign-in",
   );
-  assert.equal(response.headers.get("set-cookie"), betterAuthSetCookie);
+  // Each cookie must reach the browser as its own Set-Cookie header; a
+  // comma-joined single header clears only the first one.
+  assert.deepEqual(response.headers.getSetCookie(), betterAuthSetCookies);
   assert.equal(signOutCalls.length, 1);
   assert.equal(signOutCalls[0].asResponse, true);
   assert.equal(
