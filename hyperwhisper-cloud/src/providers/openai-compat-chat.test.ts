@@ -42,6 +42,8 @@ import { requestOpenAIChat } from './openai-llm';
 import { requestGeminiChat } from './gemini-llm';
 import { requestMistralChat } from './mistral-llm';
 import { requestXaiGrokChat } from './xai-llm';
+import { requestOpenAICompatibleChat, type OpenAICompatChatConfig } from './openai-compat-chat';
+import { refusedUrl, silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 
 // ---------------------------------------------------------------------------
 // Global fetch capture
@@ -458,14 +460,19 @@ describe('upstream error propagation', () => {
     expect(shouldFallback(error)).toBe(true);
   });
 
-  test('lets a transport failure through untagged so it is retried, not failed over', async () => {
+  // Changed by #782: a transport failure used to escape as a bare TypeError,
+  // which retryWithBackoff retried but shouldFallback() refused, so the
+  // alternate provider was never tried. It is now a 502 tagged with the provider.
+  test('tags a transport failure as a 502 so post-process can fall back', async () => {
     handler = () => { throw new TypeError('connection reset by peer'); };
 
     const error = await captureError(() => requestCerebrasChat(PAYLOAD, 'req-1'));
 
+    expect(error).toBeInstanceOf(LLMRequestError);
     expect((error as Error).message).toContain('connection reset by peer');
-    expect(errorStatus(error)).toBeUndefined();
-    expect(shouldFallback(error)).toBe(false);
+    expect(errorStatus(error)).toBe(502);
+    expect(errorProvider(error)).toBe('cerebras');
+    expect(shouldFallback(error)).toBe(true);
   });
 });
 
@@ -535,5 +542,94 @@ describe('missing API key', () => {
     // An empty key would otherwise be sent as `Bearer ` and come back 401.
     expect((error as Error).message).toBe('CEREBRAS_API_KEY not configured');
     expect(calls).toHaveLength(0);
+  });
+});
+
+// ===========================================================================
+// Bounded wait (#782)
+// ===========================================================================
+// A real socket on 127.0.0.1 and the real fetch: an upstream that accepts the
+// connection and never answers used to leave the promise pending forever, so
+// the retry-and-fallback ladder in post-process.ts never ran.
+describe('bounded wait on a silent upstream', () => {
+  const TIMEOUT_MS = 200;
+  let upstream: TestUpstream | undefined;
+
+  afterEach(() => {
+    upstream?.stop();
+    upstream = undefined;
+  });
+
+  function configFor(baseUrl: string): OpenAICompatChatConfig {
+    return {
+      baseUrl,
+      apiKey: 'test-key',
+      providerTag: 'groq',
+      errorLogLabel: 'test chat',
+      errorChatLabel: 'test chat',
+      buildBody: () => ({ model: 'm' }),
+      computeCost: () => 0,
+      timeoutMs: TIMEOUT_MS,
+    };
+  }
+
+  async function timedError(fn: () => Promise<unknown>): Promise<{ error: unknown; elapsedMs: number }> {
+    const startedAt = performance.now();
+    const error = await captureError(fn);
+    return { error, elapsedMs: performance.now() - startedAt };
+  }
+
+  test('rejects with a 504 within the timeout when the upstream never answers', async () => {
+    globalThis.fetch = originalFetch;
+    upstream = silentUpstream();
+
+    const { error, elapsedMs } = await timedError(() =>
+      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-silent', 'm'));
+
+    expect(error).toBeInstanceOf(LLMRequestError);
+    expect(errorStatus(error)).toBe(504);
+    expect(errorProvider(error)).toBe('groq');
+    expect((error as Error).message).toContain(`timeout after ${TIMEOUT_MS}ms`);
+    expect(shouldFallback(error)).toBe(true);
+    expect(elapsedMs).toBeGreaterThanOrEqual(TIMEOUT_MS - 20);
+    expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
+  });
+
+  test('rejects with a 504 when the headers arrive but the body stalls', async () => {
+    globalThis.fetch = originalFetch;
+    upstream = stalledBodyUpstream();
+
+    const { error, elapsedMs } = await timedError(() =>
+      requestOpenAICompatibleChat(configFor(upstream!.url), PAYLOAD, 'req-stalled-body', 'm'));
+
+    expect(errorStatus(error)).toBe(504);
+    expect(shouldFallback(error)).toBe(true);
+    expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
+  });
+
+  test('rejects with a 502 when the connection is refused', async () => {
+    globalThis.fetch = originalFetch;
+
+    const error = await captureError(() =>
+      requestOpenAICompatibleChat(configFor(refusedUrl()), PAYLOAD, 'req-refused', 'm'));
+
+    expect(error).toBeInstanceOf(LLMRequestError);
+    expect(errorStatus(error)).toBe(502);
+    expect(errorProvider(error)).toBe('groq');
+    expect(shouldFallback(error)).toBe(true);
+  });
+
+  test('every provider built on the shared client sends an abort signal', async () => {
+    await requestCerebrasChat(PAYLOAD, 'req-1');
+    await requestGroqChat(PAYLOAD, 'req-1');
+    await requestXaiGrokChat(PAYLOAD, 'req-1');
+    await requestOpenAIChat(PAYLOAD, 'req-1', 'gpt-5.6-luna');
+    await requestGeminiChat(PAYLOAD, 'req-1', 'gemini-2.5-flash');
+    await requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest');
+
+    expect(calls).toHaveLength(6);
+    for (const call of calls) {
+      expect(call.init.signal).toBeInstanceOf(AbortSignal);
+    }
   });
 });

@@ -11,6 +11,7 @@ import { getLLMCompletionStatus } from '../lib/llm-completion';
 import { shouldFallback } from '../lib/llm-provider';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
+import { silentUpstream, stalledBodyUpstream, type TestUpstream } from './test-upstreams';
 
 // The Anthropic client talks to exactly one upstream over `fetch`, so the whole
 // module is exercised by swapping `globalThis.fetch`. Nothing here mocks a
@@ -414,5 +415,139 @@ describe('streamAnthropicChat', () => {
     // Input tokens are known from message_start; no message_delta arrived, so
     // output is billed at 0 rather than the cost being dropped entirely.
     expect(await costPromise).toBeCloseTo(0.001, 9);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Bounded wait (#782) — real sockets on 127.0.0.1, real fetch, real abort.
+// ANTHROPIC_API_URL is a module constant, so a shim forwards the request to the
+// local upstream and records the URL the client asked for.
+// ────────────────────────────────────────────────────────────────────────────
+
+const TIMEOUT_MS = 200;
+
+function routeAnthropicTo(localUrl: string): string[] {
+  const requested: string[] = [];
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    requested.push(String(input));
+    return originalFetch(localUrl, init);
+  }) as unknown as typeof fetch;
+  return requested;
+}
+
+/** 200 + SSE headers, then nothing: the headers arrive, the first body chunk never does. */
+function headersOnlyUpstream(): TestUpstream {
+  const server = Bun.listen({
+    hostname: '127.0.0.1',
+    port: 0,
+    socket: {
+      open() {},
+      data(socket) {
+        socket.write('HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\n\r\n');
+      },
+    },
+  });
+  return { url: `http://127.0.0.1:${server.port}`, stop: () => server.stop(true) };
+}
+
+describe('requestAnthropicChat bounded wait', () => {
+  let upstream: TestUpstream | undefined;
+  afterEach(() => {
+    upstream?.stop();
+    upstream = undefined;
+  });
+
+  test('rejects with a 504 within the timeout when the upstream never answers', async () => {
+    upstream = silentUpstream();
+    const requested = routeAnthropicTo(upstream.url);
+
+    const startedAt = performance.now();
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(requested).toEqual(['https://api.anthropic.com/v1/messages']);
+    expect(error).toBeInstanceOf(LLMRequestError);
+    expect((error as LLMRequestError).status).toBe(504);
+    expect((error as LLMRequestError).provider).toBe('anthropic');
+    expect(shouldFallback(error)).toBe(true);
+    expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
+  });
+
+  test('rejects with a 504 when the headers arrive but the body stalls', async () => {
+    upstream = stalledBodyUpstream();
+    routeAnthropicTo(upstream.url);
+
+    const error = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID, TIMEOUT_MS).catch((e) => e);
+
+    expect((error as LLMRequestError).status).toBe(504);
+    expect(shouldFallback(error)).toBe(true);
+  });
+});
+
+describe('streamAnthropicChat first-byte timeout', () => {
+  let upstream: TestUpstream | undefined;
+  let server: ReturnType<typeof Bun.serve> | undefined;
+  afterEach(() => {
+    upstream?.stop();
+    upstream = undefined;
+    server?.stop(true);
+    server = undefined;
+  });
+
+  test.each([
+    ['never answers', silentUpstream],
+    ['sends headers and no body', headersOnlyUpstream],
+  ])('ends the stream with [DONE] and resolves the cost when the upstream %s', async (_label, make) => {
+    upstream = make();
+    routeAnthropicTo(upstream.url);
+
+    const startedAt = performance.now();
+    const { stream, costPromise } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID, TIMEOUT_MS);
+    const lines = sseDataLines(await drain(stream));
+    const elapsedMs = performance.now() - startedAt;
+
+    // Same client-visible shape as the existing transport-error path.
+    expect(lines).toEqual(['[DONE]']);
+    expect(await costPromise).toBe(0);
+    expect(elapsedMs).toBeGreaterThanOrEqual(TIMEOUT_MS - 20);
+    expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
+  });
+
+  test('does not cut a stream that started before the timer, however slow it gets after', async () => {
+    const encoder = new TextEncoder();
+    server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      fetch() {
+        const body = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            controller.enqueue(encoder.encode(sseText([
+              { type: 'message_start', message: { usage: { input_tokens: 1000 } } },
+              { type: 'content_block_delta', delta: { text: 'first' } },
+            ])));
+            // Three timer lengths of silence after the first chunk.
+            await Bun.sleep(TIMEOUT_MS * 3);
+            controller.enqueue(encoder.encode(sseText([
+              { type: 'content_block_delta', delta: { text: ' second' } },
+              { type: 'message_delta', usage: { output_tokens: 500 } },
+            ])));
+            controller.close();
+          },
+        });
+        return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+      },
+    });
+    routeAnthropicTo(`http://127.0.0.1:${server.port}`);
+
+    const { stream, costPromise } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID, TIMEOUT_MS);
+    const lines = sseDataLines(await drain(stream));
+
+    expect(lines).toEqual([
+      JSON.stringify({ choices: [{ delta: { content: 'first' } }] }),
+      JSON.stringify({ choices: [{ delta: { content: ' second' } }] }),
+      '[DONE]',
+    ]);
+    // 1000 in + 500 out: the full usage, so the stream ran to its end.
+    expect(await costPromise).toBeCloseTo(0.0035, 9);
   });
 });

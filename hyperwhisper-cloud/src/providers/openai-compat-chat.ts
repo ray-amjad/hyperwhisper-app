@@ -12,6 +12,7 @@ import { isRecord, safeReadText } from '../lib/utils';
 import { estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
+import { fetchLLMWithTimeout } from './llm-fetch';
 
 export type OpenAICompatChatResult = { raw: unknown; usage?: GroqUsage; costUsd: number };
 
@@ -23,6 +24,8 @@ export type OpenAICompatChatConfig = {
   errorChatLabel: string;
   buildBody: (payload: CorrectionRequestPayload, model: string) => Record<string, unknown>;
   computeCost: (usage: GroqUsage) => number;
+  /** Per-attempt bound, headers and body. Defaults to LLM_REQUEST_TIMEOUT_MS; tests shorten it. */
+  timeoutMs?: number;
 };
 
 // Fail-closed fallback for vendor usage-schema drift: estimate tokens from
@@ -60,32 +63,41 @@ export async function requestOpenAICompatibleChat(
   requestId: string,
   model: string
 ): Promise<OpenAICompatChatResult> {
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'content-type': 'application/json',
+  const { json, usage } = await fetchLLMWithTimeout(
+    config.providerTag,
+    `${config.baseUrl}/chat/completions`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(config.buildBody(payload, model)),
     },
-    body: JSON.stringify(config.buildBody(payload, model)),
-  });
+    async (response) => {
+      if (!response.ok) {
+        const errorText = await safeReadText(response);
+        console.error(`${config.errorLogLabel} returned error`, {
+          requestId,
+          status: response.status,
+          statusText: response.statusText,
+          errorText,
+        });
+        throw new LLMRequestError(
+          `${config.errorChatLabel} failed with status ${response.status}`,
+          response.status,
+          config.providerTag,
+        );
+      }
 
-  if (!response.ok) {
-    const errorText = await safeReadText(response);
-    console.error(`${config.errorLogLabel} returned error`, {
-      requestId,
-      status: response.status,
-      statusText: response.statusText,
-      errorText,
-    });
-    throw new LLMRequestError(
-      `${config.errorChatLabel} failed with status ${response.status}`,
-      response.status,
-      config.providerTag,
-    );
-  }
+      const json: unknown = await response.json();
+      const usage = isRecord(json) && isGroqUsage(json['usage']) ? (json['usage'] as GroqUsage) : undefined;
+      return { json, usage };
+    },
+    requestId,
+    config.timeoutMs,
+  );
 
-  const json = await response.json();
-  const usage = isRecord(json) && isGroqUsage(json['usage']) ? (json['usage'] as GroqUsage) : undefined;
   const costUsd = config.computeCost(usage ?? reportMissingUsage(config.providerTag, payload, json, requestId));
 
   return {
