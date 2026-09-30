@@ -63,6 +63,9 @@
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  /* Keeps focused controls and #anchor targets clear of the sticky header
+     (open-source banner 48px + navbar 65px + 7px gap). */
+  scroll-padding-top: 120px;
 }
 
 /* Default dark theme */
