@@ -9,7 +9,7 @@ import { auth } from "@/src/lib/auth";
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ locale: string }> }
-) {
+): Promise<NextResponse> {
   const { locale } = await params;
 
   // Revoke session via Better Auth and capture set-cookie header
@@ -33,4 +33,6 @@ export async function POST(
       "better-auth.session_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax"
     );
   }
+
+  return redirect;
 }
