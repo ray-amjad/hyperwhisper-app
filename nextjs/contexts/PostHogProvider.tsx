@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import posthog from "posthog-js";
 import { PostHogProvider as PostHogReactProvider } from "posthog-js/react";
 import { env } from "@env/client.mjs";
@@ -47,9 +47,5 @@ function PostHogClientProviderInner({ children }: PostHogClientProviderProps) {
 export function PostHogClientProvider({
   children,
 }: PostHogClientProviderProps) {
-  return (
-    <Suspense fallback={null}>
-      <PostHogClientProviderInner>{children}</PostHogClientProviderInner>
-    </Suspense>
-  );
+  return <PostHogClientProviderInner>{children}</PostHogClientProviderInner>;
 }
