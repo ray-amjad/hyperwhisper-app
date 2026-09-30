@@ -400,7 +400,11 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
             if (capability.Deployment == ModelDeployment.Local)
                 managed.TryGetValue(capability.ModelId, out model);
             if (capability.Deployment == ModelDeployment.Local && model is null) continue;
-            _allItems.Add(new(capability, model, model is not null && manager.IsInstalled(model)));
+            var row = new ManagedModelViewModel(capability, model, model is not null && manager.IsInstalled(model));
+            // The subtitle counts installed rows, and Installed has several writers (download,
+            // delete, readiness refresh), so the count follows the row rather than each writer.
+            row.PropertyChanged += OnRowPropertyChanged;
+            _allItems.Add(row);
         }
         ApplyView();
         DownloadCommand = new AsyncCommand(_ => DownloadAsync(), _ => Selected is { Model: not null, Installed: false });
@@ -826,6 +830,11 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
         if (_vocabularyFilter) yield return "Custom vocabulary";
         if (_cloudAvailableFilter) yield return "On HyperWhisper Cloud";
         if (_languageFilter is { } language) yield return language;
+    }
+
+    private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ManagedModelViewModel.Installed)) UpdateSummaries();
     }
 
     private void OnReadinessChanged(object? sender, ModelReadinessChangedEventArgs e)
