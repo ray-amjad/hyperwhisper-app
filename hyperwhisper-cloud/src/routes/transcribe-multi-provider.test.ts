@@ -1455,6 +1455,105 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     expect(failures?.[0]?.emptyTranscript).toBeUndefined();
   });
 
+  // The production incident behind this block: a microphone recorded silence,
+  // Deepgram correctly returned nothing, and the recovery sent the clip to Groq
+  // Whisper, which answers silence with "Thank you.". The user got "Thank you."
+  // pasted on every dictation and was charged 0.2 credits for each.
+  function silentDeepgramThenGroq(groqBody: Record<string, unknown>) {
+    const sttCalls: string[] = [];
+    const charges: Array<{ amount: number }> = [];
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: '' }] }] },
+          metadata: { duration: 2.3, request_id: 'dg-silent' },
+        });
+      }
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        return Response.json(groqBody);
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(JSON.parse(String(init?.body)) as { amount: number });
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+    return { sttCalls, charges };
+  }
+
+  test('a Whisper "Thank you." on the recovery attempt stays the free no_speech the chosen provider returned', async () => {
+    const { sttCalls, charges } = silentDeepgramThenGroq({
+      text: ' Thank you.',
+      language: 'en',
+      duration: 2.3,
+      // Measured on large-v3-turbo over 2.3 s of digital silence: one segment,
+      // no_speech_prob ~1e-10. Whisper's scores call this speech.
+      segments: [{ text: ' Thank you.', no_speech_prob: 7.194e-11, avg_logprob: -0.2215 }],
+    });
+
+    const { response, events } = await captureRouteEvents(
+      () => buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' })),
+    );
+    const body = await response.json() as { text: string; no_speech_detected?: boolean };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('');
+    expect(body.no_speech_detected).toBe(true);
+    expect(sttCalls).toEqual(['deepgram', 'groq']);
+    expect(charges).toHaveLength(0);
+    const done = events.find((e) => e.event === 'transcribe.request_done');
+    expect(done?.noSpeech).toBe(true);
+    expect(done?.creditsUsed).toBe(0);
+  });
+
+  test('real speech on the recovery attempt is still served and billed', async () => {
+    const { charges } = silentDeepgramThenGroq({
+      text: ' Thank you, send it by Friday.',
+      language: 'en',
+      duration: 2.3,
+    });
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
+    const body = await response.json() as { text: string; no_speech_detected?: boolean };
+    await drainPendingDeductions(2000);
+
+    expect(body.text).toBe(' Thank you, send it by Friday.');
+    expect(body.no_speech_detected).toBeUndefined();
+    expect(charges).toHaveLength(1);
+  });
+
+  test('a user who chose Groq and said "Thank you." gets it: the check runs only on a recovery', async () => {
+    const charges: unknown[] = [];
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('api.groq.com')) {
+        return Response.json({
+          text: ' Thank you.',
+          language: 'en',
+          duration: 1.2,
+        });
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(JSON.parse(String(init?.body)));
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'groq' }));
+    const body = await response.json() as { text: string };
+    await drainPendingDeductions(2000);
+
+    expect(body.text).toBe(' Thank you.');
+    expect(charges).toHaveLength(1);
+  });
+
   test('every sibling failing leaves the request as the 200 no_speech it was before the failover', async () => {
     // Spec goal 3: no user's no_speech outcome becomes a hard error. Grok refuses,
     // Deepgram is rate-limited — and before this fix the route ran out of chain,
