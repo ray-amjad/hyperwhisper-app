@@ -531,7 +531,13 @@ export default function ModelPicker({ measured, regions }: Props) {
                 </p>
               </div>
 
-              <div className="mt-4 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80">
+              <div
+                aria-label="Model comparison table"
+                className="mt-4 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                role="region"
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+                tabIndex={0}
+              >
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-gray-800">
