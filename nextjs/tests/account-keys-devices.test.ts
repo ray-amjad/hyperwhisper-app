@@ -79,6 +79,10 @@ async function seedDevice(
     licenseKeyId,
     deviceId,
     deviceName,
+    // Seed createdAt from the test clock too. The column default is the
+    // database's now(), which can land in the same millisecond as (or after)
+    // a later JS `new Date()`, so a strict ordering check flaked (#1174).
+    createdAt: lastValidatedAt,
     lastValidatedAt,
   });
 }
@@ -324,7 +328,8 @@ describe("upsertDeviceValidation", () => {
   test("a new device is stored once; a repeat updates its name and time", async () => {
     await seedUser("u1");
     const lic = await seedKey("HW-DEV1", "u1");
-    await seedDevice(lic, "dev-1", daysAgo(3), "Old name");
+    const seededAt = daysAgo(3);
+    await seedDevice(lic, "dev-1", seededAt, "Old name");
 
     const before = Date.now();
     await L.upsertDeviceValidation(lic, "dev-1", "New name");
@@ -338,6 +343,7 @@ describe("upsertDeviceValidation", () => {
     assert.equal(rows[0].deviceId, "dev-1");
     assert.equal(rows[0].deviceName, "New name");
     assert.ok(rows[0].lastValidatedAt.getTime() >= before - 1000);
+    assert.equal(rows[0].createdAt.getTime(), seededAt.getTime());
     assert.ok(rows[0].createdAt.getTime() < rows[0].lastValidatedAt.getTime());
     assert.equal(rows[1].deviceId, "dev-2");
     assert.equal(rows[1].deviceName, null);
