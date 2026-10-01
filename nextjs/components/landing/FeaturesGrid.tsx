@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardBody } from "@heroui/card";
-import { m } from "framer-motion";
+import { m, type Variants } from "framer-motion";
 import {
   Mic,
   Globe,
@@ -17,6 +17,20 @@ import {
   Github,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+// One trigger for the whole grid (#877): the cards are children of a single
+// whileInView container and take a capped per-index delay through `custom`.
+// Per-card triggers made the last visible row wait for its own viewport entry.
+// 0.25 s and a 40 ms cap keep the grid readable in < 600 ms after an anchor
+// jump, which globals.css makes a ~700 ms smooth scroll.
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.25, delay: Math.min(index, 2) * 0.02 },
+  }),
+};
 
 export default function FeaturesGrid() {
   const t = useTranslations("features");
@@ -101,31 +115,38 @@ export default function FeaturesGrid() {
 
   return (
     <section className="px-6 py-20" id="features">
-      <m.div
-        className="max-w-6xl mx-auto"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.5 }}
-        viewport={{ once: true }}
-        whileInView={{ opacity: 1, y: 0 }}
-      >
-        <div className="text-center mb-16">
+      {/* The wrapper does not animate: an opacity fade here would multiply
+          with each card's own fade below (#877). */}
+      <div className="max-w-6xl mx-auto">
+        <m.div
+          className="text-center mb-16"
+          initial={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.4 }}
+          viewport={{ once: true }}
+          whileInView={{ opacity: 1, y: 0 }}
+        >
           <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
             {t("subtitle")}
           </p>
-        </div>
+        </m.div>
 
-        <div className="flex flex-wrap justify-center gap-6">
+        {/* The 800px bottom margin starts the reveal before the grid reaches
+            the fold, so it finishes while the scroll is still bringing it in. */}
+        <m.div
+          className="flex flex-wrap justify-center gap-6"
+          initial="hidden"
+          viewport={{ once: true, margin: "0px 0px 800px 0px" }}
+          whileInView="show"
+        >
           {features.map((feature, index) => (
             <m.div
               key={feature.titleKey}
               className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
-              initial={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              viewport={{ once: true }}
-              whileInView={{ opacity: 1, y: 0 }}
+              custom={index}
+              variants={cardVariants}
             >
               <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 hover:border-gray-700 transition-colors h-full">
                 {/* text-start overrides the physical `text-left` baked into
@@ -147,13 +168,13 @@ export default function FeaturesGrid() {
               </Card>
             </m.div>
           ))}
-        </div>
+        </m.div>
 
         {/* Additional feature highlight */}
         <m.div
           className="mt-16"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          initial={{ opacity: 0, y: 12 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
           viewport={{ once: true }}
           whileInView={{ opacity: 1, y: 0 }}
         >
@@ -203,7 +224,7 @@ export default function FeaturesGrid() {
             </CardBody>
           </Card>
         </m.div>
-      </m.div>
+      </div>
     </section>
   );
 }
