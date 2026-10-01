@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -48,6 +48,13 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
   const amountValid = validateCreditPurchaseAmount(effectiveAmount) === null;
 
   const emailValid = EMAIL_RE.test(email.trim());
+  const emailInvalid = showEmailError(email, emailTouched, emailValid);
+
+  // #968: stable ids that tie the visible label, the help line and the error
+  // to the email field. Never point at HeroUI's generated React Aria id.
+  const emailInputId = useId();
+  const emailHelpId = useId();
+  const emailErrorId = useId();
 
   const { credits, feeUsd, totalUsd } = useMemo(() => {
     if (!amountValid) return { credits: 0, feeUsd: 0, totalUsd: 0 };
@@ -137,17 +144,30 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
         <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
           <CardBody className="p-6 md:p-8">
             {/* Email */}
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label
+              className="block text-sm font-medium text-gray-300 mb-2"
+              htmlFor={emailInputId}
+            >
               {t("emailLabel")}
             </label>
+            {/* HeroUI names a label-less Input by its placeholder, and an
+                aria-label beats <label for>, so the visible label text is
+                passed as the aria-label too. A caller's aria-describedby
+                REPLACES HeroUI's own (its error id is dropped), so the error
+                gets an id of ours and is listed here while it shows. */}
             <Input
+              aria-describedby={
+                emailInvalid ? `${emailHelpId} ${emailErrorId}` : emailHelpId
+              }
+              aria-label={t("emailLabel")}
               autoComplete="email"
+              id={emailInputId}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onBlur={() => setEmailTouched(true)}
-              isInvalid={showEmailError(email, emailTouched, emailValid)}
-              errorMessage={t("errorEmail")}
+              isInvalid={emailInvalid}
+              errorMessage={<span id={emailErrorId}>{t("errorEmail")}</span>}
               placeholder={t("emailPlaceholder")}
               variant="bordered"
               size="lg"
@@ -157,7 +177,9 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                 input: "text-white",
               }}
             />
-            <p className="text-xs text-gray-500 mt-2">{t("emailHelp")}</p>
+            <p className="text-xs text-gray-500 mt-2" id={emailHelpId}>
+              {t("emailHelp")}
+            </p>
 
             {/* Amount */}
             <div className="mt-7">
