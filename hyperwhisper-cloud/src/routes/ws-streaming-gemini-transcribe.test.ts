@@ -5,6 +5,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeGeminiTranscribeLiveCost, creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
+import { captureRejectionLogs } from './ws-streaming-test-logs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -220,30 +221,15 @@ describe('preflight', () => {
   // The preflight's console.log lines, captured per test. Each refused upgrade
   // must leave exactly one `ws_streaming.request_rejected` line, and no line may
   // carry the key.
-  let logged: string[] = [];
-  const originalConsoleLog = console.log;
-
-  function expectOneRejection(reason: string, status: number): Record<string, unknown> {
-    const rejections = logged
-      .map((line) => { try { return JSON.parse(line) as Record<string, unknown>; } catch { return null; } })
-      .filter((entry): entry is Record<string, unknown> => entry?.event === 'ws_streaming.request_rejected');
-    expect(rejections).toHaveLength(1);
-    expect(rejections[0]!.reason).toBe(reason);
-    expect(rejections[0]!.status).toBe(status);
-    for (const line of logged) expect(line).not.toContain('key-1234-abcd');
-    return rejections[0]!;
-  }
+  const { expectOneRejection } = captureRejectionLogs();
 
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
     globalThis.fetch = neverFetch();
-    logged = [];
-    console.log = (...args: unknown[]) => { logged.push(args.map(String).join(' ')); };
   });
 
   afterEach(() => {
-    console.log = originalConsoleLog;
     globalThis.fetch = originalFetch;
     cachedLicenseValue = null;
     blockedIPs.clear();

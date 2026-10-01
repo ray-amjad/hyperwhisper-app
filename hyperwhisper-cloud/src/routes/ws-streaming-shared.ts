@@ -45,7 +45,7 @@ import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { authDiagnosticsForLog, validateAuth, type AuthContext } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { isIPBlocked } from '../lib/redis';
-import { isRecord } from '../lib/utils';
+import { isRecord, roundToTenth } from '../lib/utils';
 
 // ---------------------------------------------------------------------------
 // Client-facing protocol
@@ -297,7 +297,8 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
     const creditCheck = await validateCredits(authResult.value, requiredCredits, clientIP);
     if (!creditCheck.ok) {
       logRejected('insufficient_credits', creditCheck.response.status, {
-        credits: authResult.value.credits,
+        // The rounded balance validateCredits compared, which the 402 body reports too.
+        credits: roundToTenth(authResult.value.credits),
         minimumCredits: requiredCredits,
       });
       return creditCheck.response;
