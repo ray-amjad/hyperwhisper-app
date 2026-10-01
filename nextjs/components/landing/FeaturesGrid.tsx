@@ -24,11 +24,10 @@ import { useTranslations } from "next-intl";
 // 0.25 s and a 40 ms cap keep the grid readable in < 600 ms after an anchor
 // jump, which globals.css makes a ~700 ms smooth scroll.
 const cardVariants: Variants = {
-  hidden: { opacity: 0, y: 12, filter: "blur(4px)" },
+  hidden: { opacity: 0, y: 12 },
   show: (index: number) => ({
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
     transition: { duration: 0.25, delay: Math.min(index, 2) * 0.02 },
   }),
 };
@@ -121,10 +120,10 @@ export default function FeaturesGrid() {
       <div className="max-w-6xl mx-auto">
         <m.div
           className="text-center mb-16"
-          initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+          initial={{ opacity: 0, y: 12 }}
           transition={{ duration: 0.4 }}
           viewport={{ once: true }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          whileInView={{ opacity: 1, y: 0 }}
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
@@ -174,10 +173,10 @@ export default function FeaturesGrid() {
         {/* Additional feature highlight */}
         <m.div
           className="mt-16"
-          initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+          initial={{ opacity: 0, y: 12 }}
           transition={{ duration: 0.4, delay: 0.3 }}
           viewport={{ once: true }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          whileInView={{ opacity: 1, y: 0 }}
         >
           <Card className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 backdrop-blur-xl border border-purple-800/50">
             <CardBody className="p-8 md:p-12 text-start">
