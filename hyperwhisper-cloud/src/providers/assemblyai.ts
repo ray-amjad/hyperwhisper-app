@@ -50,7 +50,7 @@ import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -578,6 +578,7 @@ export async function transcribeWithAssemblyAI(
     const deadline = performance.now() + POLL_DEADLINE_MS;
     const pollUrl = `${ASSEMBLYAI_BASE}/v2/transcript/${transcriptId}`;
     let polls = 0;
+    let malformedPolls = 0;
 
     while (performance.now() < deadline) {
       await sleep(POLL_INTERVAL_MS);
@@ -599,7 +600,9 @@ export async function transcribeWithAssemblyAI(
         continue;
       }
 
-      let job: {
+      // Unreadable or malformed poll body: the helper logs parse_error (never
+      // the body, #1069) and the poll retries, as `await resp.json()` did on main.
+      const job = await readPollJson<{
         status?: string;
         text?: string;
         language_code?: string;
@@ -607,11 +610,10 @@ export async function transcribeWithAssemblyAI(
         error?: string;
         speech_model_used?: string;
         speech_model?: string;
-      };
-      try {
-        job = await pollResp.json();
-      } catch {
-        continue; // malformed poll body — try again
+      }>(provider, pollResp, polls, context);
+      if (job === undefined) {
+        malformedPolls += 1;
+        continue;
       }
 
       if (job.status === 'completed') {
@@ -679,7 +681,7 @@ export async function transcribeWithAssemblyAI(
       // queued | processing → keep polling
     }
 
-    logProviderEvent(provider, 'poll_deadline', { model, polls, deadlineMs: POLL_DEADLINE_MS }, context);
+    logProviderEvent(provider, 'poll_deadline', { model, polls, malformedPolls, deadlineMs: POLL_DEADLINE_MS }, context);
     throw new ProviderUnavailableError('AssemblyAI', `poll deadline exceeded after ${POLL_DEADLINE_MS}ms`);
   } finally {
     // Best-effort cleanup — AssemblyAI keeps the transcript otherwise. Failures

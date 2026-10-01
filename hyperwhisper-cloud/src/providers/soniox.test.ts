@@ -41,7 +41,7 @@ type Call = { url: string; method: string; body?: unknown; authorization?: strin
  * `createStatus` to short-circuit before the loop is ever entered.
  */
 function mockSonioxFlow(opts: {
-  pollBodies?: Array<{ status: number; body?: unknown; raw?: string }>;
+  pollBodies?: Array<{ status: number; body?: unknown; raw?: string; contentType?: string; readError?: boolean }>;
   uploadStatus?: { status: number; body?: unknown; raw?: string };
   createStatus?: { status: number; body?: unknown; raw?: string };
   transcriptStatus?: { status: number; body?: unknown; raw?: string };
@@ -51,9 +51,11 @@ function mockSonioxFlow(opts: {
   const pollBodies = opts.pollBodies ?? [];
   let pollIndex = 0;
 
-  const respond = (spec: { status: number; body?: unknown; raw?: string }) => (
-    spec.raw !== undefined
-      ? new Response(spec.raw, { status: spec.status })
+  const respond = (spec: { status: number; body?: unknown; raw?: string; contentType?: string; readError?: boolean }) => (
+    spec.readError
+      ? readErrorResponse(spec.status)
+      : spec.raw !== undefined
+      ? new Response(spec.raw, { status: spec.status, headers: spec.contentType ? { 'content-type': spec.contentType } : undefined })
       : jsonResponse(spec.body ?? {}, spec.status)
   );
 
@@ -98,10 +100,10 @@ const completedPoll = (body: Record<string, unknown> = {}) => ({
 
 /**
  * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * the first `provider.<event>` event it logged. Same swap-the-global idiom as
  * `utils.test.ts` — no spy library is used anywhere in this suite.
  */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+async function captureEvent(event: string, run: () => Promise<unknown>): Promise<Record<string, unknown>> {
   const logged: unknown[][] = [];
   const originalLog = console.log;
   console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
@@ -110,9 +112,19 @@ async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record
   } finally {
     console.log = originalLog;
   }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
+  const found = logged.find((args) => args[0] === `provider.${event}`);
+  if (!found) throw new Error(`no provider.${event} event was logged`);
+  return found[1] as Record<string, unknown>;
+}
+
+/** A 200 whose body stream dies mid-read: `text()` rejects after a partial chunk. */
+function readErrorResponse(status: number): Response {
+  return new Response(new ReadableStream({
+    start(c) {
+      c.enqueue(new TextEncoder().encode('{"status":"completed","text":"SECRET-PARTIAL'));
+      c.error(new Error('connection reset SECRET-PARTIAL'));
+    },
+  }), { status, headers: { 'content-type': 'application/json' } });
 }
 
 describe('transcribeWithSoniox — configuration', () => {
@@ -330,6 +342,42 @@ describe('transcribeWithSoniox — poll loop', () => {
     expect(result.text).toBe('recovered');
   }, 15_000);
 
+  test('a malformed 200 poll body logs a parse_error with its shape and none of its text', async () => {
+    const html = '<html><body>502 Bad Gateway</body></html>';
+    mockSonioxFlow({
+      pollBodies: [
+        { status: 200, raw: html, contentType: 'text/html' },
+        completedPoll({ audio_duration_ms: 6_000 }),
+      ],
+      transcriptStatus: { status: 200, body: { text: 'recovered' } },
+    });
+
+    const details = await captureEvent('parse_error', async () => {
+      expect((await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav')).text).toBe('recovered');
+    });
+    expect(details).toMatchObject({ phase: 'poll', failure: 'parse', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
+    expect(details).not.toHaveProperty('bodyPreview');
+    expect(JSON.stringify(details)).not.toContain('Bad Gateway');
+  }, 15_000);
+
+  test('a 200 poll whose body fails to read is retried and logs a read parse_error with none of its text', async () => {
+    const calls = mockSonioxFlow({
+      pollBodies: [
+        { status: 200, readError: true },
+        completedPoll({ audio_duration_ms: 6_000 }),
+      ],
+      transcriptStatus: { status: 200, body: { text: 'recovered' } },
+    });
+
+    const details = await captureEvent('parse_error', async () => {
+      expect((await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav')).text).toBe('recovered');
+    });
+    expect(details).toMatchObject({ phase: 'poll', failure: 'read', polls: 1, contentType: 'application/json', errorName: 'Error' });
+    expect(details).not.toHaveProperty('bodyLength');
+    expect(JSON.stringify(details)).not.toContain('SECRET-PARTIAL');
+    expect(calls.filter((c) => c.url === JOB_URL && c.method === 'GET').length).toBe(2);
+  }, 15_000);
+
   test('a 401 during polling fails immediately instead of retrying to the deadline', async () => {
     const calls = mockSonioxFlow({ pollBodies: [{ status: 401, body: { error: 'bad key' } }] });
     await expect(transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'))
@@ -397,7 +445,7 @@ describe('transcribeWithSoniox — transcript fetch and billing', () => {
       pollBodies: [completedPoll()],
       transcriptStatus: { status: 200, body: { text: '   ', tokens: [{ language: 'en' }] } },
     });
-    const reported = await captureNoSpeechEvent(() => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
+    const reported = await captureEvent('no_speech', () => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
     expect(reported.upstreamDurationSeconds).toBe(120);
 
     // No `audio_duration_ms` on any poll: the local accumulator is still 0, which
@@ -406,7 +454,7 @@ describe('transcribeWithSoniox — transcript fetch and billing', () => {
       pollBodies: [{ status: 200, body: { status: 'completed' } }],
       transcriptStatus: { status: 200, body: { text: '' } },
     });
-    const missing = await captureNoSpeechEvent(() => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
+    const missing = await captureEvent('no_speech', () => transcribeWithSoniox(SMALL_AUDIO, 'audio/wav'));
     expect(missing.upstreamDurationSeconds).toBeNull();
   }, 10_000);
 
