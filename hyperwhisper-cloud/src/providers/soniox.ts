@@ -9,7 +9,7 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, unparsedBodyKind } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
@@ -219,29 +219,13 @@ export async function transcribeWithSoniox(
         continue;
       }
 
-      let job: { status?: string; audio_duration_ms?: number; error_message?: string; error_type?: string };
-      // `raw` stays undefined when the body fails to read (a connection reset
-      // or a truncated chunked transfer), so the catch can tell a read failure
-      // from a parse failure. Both retry, as `await resp.json()` did on main.
-      let raw: string | undefined;
-      try {
-        raw = await jobResp.text();
-        job = JSON.parse(raw);
-      } catch (err) {
-        // Retry, but leave a trace. No part of the body is logged: a 200 poll
-        // body can hold the user's transcript (#1069). Only the error's name,
-        // never its message.
+      // Unreadable or malformed poll body: the helper logs parse_error (never
+      // the body, #1069) and the poll retries, as `await resp.json()` did on main.
+      const job = await readPollJson<{ status?: string; audio_duration_ms?: number; error_message?: string; error_type?: string }>(
+        provider, jobResp, polls, context,
+      );
+      if (job === undefined) {
         malformedPolls += 1;
-        logProviderEvent(provider, 'parse_error', {
-          phase: 'poll',
-          failure: raw === undefined ? 'read' : 'parse',
-          polls,
-          contentType: jobResp.headers.get('content-type') ?? 'unknown',
-          contentEncoding: jobResp.headers.get('content-encoding') ?? 'none',
-          ...(raw === undefined
-            ? { errorName: err instanceof Error ? err.name : typeof err }
-            : { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) }),
-        }, context);
         continue;
       }
 

@@ -50,7 +50,7 @@ import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, unparsedBodyKind } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, readPollJson } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -600,7 +600,9 @@ export async function transcribeWithAssemblyAI(
         continue;
       }
 
-      let job: {
+      // Unreadable or malformed poll body: the helper logs parse_error (never
+      // the body, #1069) and the poll retries, as `await resp.json()` did on main.
+      const job = await readPollJson<{
         status?: string;
         text?: string;
         language_code?: string;
@@ -608,29 +610,9 @@ export async function transcribeWithAssemblyAI(
         error?: string;
         speech_model_used?: string;
         speech_model?: string;
-      };
-      // `raw` stays undefined when the body fails to read (a connection reset
-      // or a truncated chunked transfer), so the catch can tell a read failure
-      // from a parse failure. Both retry, as `await resp.json()` did on main.
-      let raw: string | undefined;
-      try {
-        raw = await pollResp.text();
-        job = JSON.parse(raw);
-      } catch (err) {
-        // Unreadable or malformed poll body — try again, but leave a trace. No
-        // part of the body is logged: a 200 poll body can hold the user's
-        // transcript (#1069). Only the error's name, never its message.
+      }>(provider, pollResp, polls, context);
+      if (job === undefined) {
         malformedPolls += 1;
-        logProviderEvent(provider, 'parse_error', {
-          phase: 'poll',
-          failure: raw === undefined ? 'read' : 'parse',
-          polls,
-          contentType: pollResp.headers.get('content-type') ?? 'unknown',
-          contentEncoding: pollResp.headers.get('content-encoding') ?? 'none',
-          ...(raw === undefined
-            ? { errorName: err instanceof Error ? err.name : typeof err }
-            : { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) }),
-        }, context);
         continue;
       }
 

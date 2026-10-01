@@ -63,8 +63,7 @@ function mockAsyncFlow(opts: {
       const entry = opts.pollBodies[Math.min(pollIndex, opts.pollBodies.length - 1)];
       pollIndex += 1;
       if (entry.readError) {
-        // A 200 whose body stream dies mid-read: text() rejects.
-        return new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('{"status":"completed","text":"SECRET-PARTIAL')); c.error(new Error('connection reset SECRET-PARTIAL')); } }), { status: entry.status, headers: { 'content-type': 'application/json' } });
+        return readErrorResponse(entry.status);
       }
       if (entry.raw !== undefined) {
         return new Response(entry.raw, { status: entry.status, headers: entry.contentType ? { 'content-type': entry.contentType } : undefined });
@@ -82,10 +81,10 @@ function mockAsyncFlow(opts: {
 
 /**
  * Swaps `console.log` for the duration of `run` and returns the details object of
- * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * the first `provider.<event>` event it logged. Same swap-the-global idiom as
  * `utils.test.ts` — no spy library is used anywhere in this suite.
  */
-async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+async function captureEvent(event: string, run: () => Promise<unknown>): Promise<Record<string, unknown>> {
   const logged: unknown[][] = [];
   const originalLog = console.log;
   console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
@@ -94,9 +93,19 @@ async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record
   } finally {
     console.log = originalLog;
   }
-  const event = logged.find((args) => args[0] === 'provider.no_speech');
-  if (!event) throw new Error('no provider.no_speech event was logged');
-  return event[1] as Record<string, unknown>;
+  const found = logged.find((args) => args[0] === `provider.${event}`);
+  if (!found) throw new Error(`no provider.${event} event was logged`);
+  return found[1] as Record<string, unknown>;
+}
+
+/** A 200 whose body stream dies mid-read: `text()` rejects after a partial chunk. */
+function readErrorResponse(status: number): Response {
+  return new Response(new ReadableStream({
+    start(c) {
+      c.enqueue(new TextEncoder().encode('{"status":"completed","text":"SECRET-PARTIAL'));
+      c.error(new Error('connection reset SECRET-PARTIAL'));
+    },
+  }), { status, headers: { 'content-type': 'application/json' } });
 }
 
 describe('couldRouteThroughSync', () => {
@@ -221,7 +230,7 @@ describe('transcribeWithAssemblyAI — sync fast path behavior', () => {
 
   test('the sync no_speech log event records the upstream duration, and null when there is none', async () => {
     globalThis.fetch = mock(async () => jsonResponse({ text: '   ', audio_duration_ms: 1000 })) as unknown as typeof fetch;
-    const reported = await captureNoSpeechEvent(
+    const reported = await captureEvent('no_speech',
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US'),
     );
     expect(reported.upstreamDurationSeconds).toBe(1);
@@ -229,7 +238,7 @@ describe('transcribeWithAssemblyAI — sync fast path behavior', () => {
     // No `audio_duration_ms`: the byte-estimate fallback lives below the empty
     // check, so nothing must stand in for the number AssemblyAI never sent.
     globalThis.fetch = mock(async () => jsonResponse({ text: '' })) as unknown as typeof fetch;
-    const missing = await captureNoSpeechEvent(
+    const missing = await captureEvent('no_speech',
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US'),
     );
     expect(missing.upstreamDurationSeconds).toBeNull();
@@ -468,13 +477,13 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
 
   test('the async no_speech log event records the upstream duration, and null when there is none', async () => {
     mockAsyncFlow({ pollBodies: [{ status: 200, body: { status: 'completed', text: '', audio_duration: 10 } }] });
-    const reported = await captureNoSpeechEvent(
+    const reported = await captureEvent('no_speech',
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US'),
     );
     expect(reported.upstreamDurationSeconds).toBe(10);
 
     mockAsyncFlow({ pollBodies: [{ status: 200, body: { status: 'completed', text: '' } }] });
-    const missing = await captureNoSpeechEvent(
+    const missing = await captureEvent('no_speech',
       () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US'),
     );
     expect(missing.upstreamDurationSeconds).toBeNull();
@@ -508,21 +517,12 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
       ],
     });
 
-    const logged: unknown[][] = [];
-    const originalLog = console.log;
-    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-    try {
+    const details = await captureEvent('parse_error', async () => {
       expect((await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US')).text).toBe('recovered');
-    } finally {
-      console.log = originalLog;
-    }
-
-    const event = logged.find((args) => args[0] === 'provider.parse_error');
-    if (!event) throw new Error('no provider.parse_error event was logged');
-    const details = event[1] as Record<string, unknown>;
+    });
     expect(details).toMatchObject({ phase: 'poll', failure: 'parse', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
     expect(details).not.toHaveProperty('bodyPreview');
-    expect(JSON.stringify(event)).not.toContain('Bad Gateway');
+    expect(JSON.stringify(details)).not.toContain('Bad Gateway');
   }, 10_000);
 
   test('a 200 poll whose body fails to read is retried and logs a read parse_error with none of its text', async () => {
@@ -533,21 +533,12 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
       ],
     });
 
-    const logged: unknown[][] = [];
-    const originalLog = console.log;
-    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-    try {
+    const details = await captureEvent('parse_error', async () => {
       expect((await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US')).text).toBe('recovered');
-    } finally {
-      console.log = originalLog;
-    }
-
-    const event = logged.find((args) => args[0] === 'provider.parse_error');
-    if (!event) throw new Error('no provider.parse_error event was logged');
-    const details = event[1] as Record<string, unknown>;
+    });
     expect(details).toMatchObject({ phase: 'poll', failure: 'read', polls: 1, contentType: 'application/json', errorName: 'Error' });
     expect(details).not.toHaveProperty('bodyLength');
-    expect(JSON.stringify(event)).not.toContain('SECRET-PARTIAL');
+    expect(JSON.stringify(details)).not.toContain('SECRET-PARTIAL');
     expect(calls.filter((c) => c.url.startsWith(`${CREATE_URL}/`) && c.method === 'GET').length).toBe(2);
   }, 10_000);
 
