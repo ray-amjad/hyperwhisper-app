@@ -112,14 +112,6 @@ export default defineConfig([globalIgnores([
 
         "jsx-a11y/click-events-have-key-events": "warn",
         "jsx-a11y/interactive-supports-focus": "warn",
-        // A horizontally scrolling box must take focus so a keyboard can scroll it
-        // (axe scrollable-region-focusable, #868). Allow tabIndex on role="region";
-        // the other options are the plugin's recommended defaults.
-        "jsx-a11y/no-noninteractive-tabindex": ["error", {
-            tags: [],
-            roles: ["tabpanel", "region"],
-            allowExpressionValues: true,
-        }],
         "prettier/prettier": "warn",
         "no-unused-vars": "off",
         "unused-imports/no-unused-vars": "off",

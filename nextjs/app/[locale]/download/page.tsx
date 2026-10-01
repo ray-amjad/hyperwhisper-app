@@ -401,6 +401,7 @@ export default function DownloadPage() {
                   aria-label="Debian install command"
                   className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
                   role="region"
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
                   tabIndex={0}
                 >
                   <code className="text-sm font-mono text-gray-200 whitespace-pre">
