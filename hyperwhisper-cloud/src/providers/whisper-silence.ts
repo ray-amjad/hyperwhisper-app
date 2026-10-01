@@ -38,6 +38,24 @@ const SILENCE_PHRASES = new Set([
   'bye',
   'bye bye',
   'you',
+  // The same answer in the languages a Mode most often pins. Whisper is called
+  // with the user's language, so it hallucinates in that language.
+  'ご視聴ありがとうございました',
+  'ありがとうございました',
+  'vielen dank',
+  'danke',
+  'merci',
+  'merci beaucoup',
+  'gracias',
+  'muchas gracias',
+  'obrigado',
+  'obrigada',
+  'grazie',
+  'спасибо',
+  'продолжение следует',
+  '谢谢',
+  '谢谢观看',
+  '감사합니다',
 ]);
 
 function normalisePhrase(sentence: string): string {
@@ -50,10 +68,12 @@ function normalisePhrase(sentence: string): string {
 
 /**
  * True when every sentence of the transcript is a stock Whisper silence phrase.
+ * Commas split too, so " Thank you, thank you." matches while "Thank you, see
+ * you Friday." does not: "see you friday" is not on the list.
  */
 export function isWhisperSilencePhrase(text: string): boolean {
   const sentences = text
-    .split(/[.!?…。]+/)
+    .split(/[.!?…。！？,，、]+/)
     .map(normalisePhrase)
     .filter((sentence) => sentence.length > 0);
   return sentences.length > 0 && sentences.every((sentence) => SILENCE_PHRASES.has(sentence));

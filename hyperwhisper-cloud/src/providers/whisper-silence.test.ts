@@ -3,7 +3,7 @@ import { isWhisperSilencePhrase } from './whisper-silence';
 
 describe('isWhisperSilencePhrase', () => {
   test('stock silence phrases, in any case and punctuation, match', () => {
-    for (const text of [' Thank you.', 'THANK YOU!', 'Thanks for watching!', ' you', 'Thank you. Thank you.', 'Bye-bye.']) {
+    for (const text of [' Thank you.', 'THANK YOU!', 'Thanks for watching!', ' you', 'Thank you. Thank you.', 'Bye-bye.', ' Thank you, thank you.', ' Thank you, bye.', 'ご視聴ありがとうございました', ' Vielen Dank.', ' Продолжение следует...']) {
       expect(isWhisperSilencePhrase(text)).toBe(true);
     }
   });

@@ -1505,6 +1505,9 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     expect(body.text).toBe('');
     expect(body.no_speech_detected).toBe(true);
     expect(sttCalls).toEqual(['deepgram', 'groq']);
+    // The no_speech is Deepgram's, so the response names Deepgram, not Groq.
+    expect(response.headers.get('X-STT-Provider')).toContain('deepgram');
+    expect(response.headers.get('X-STT-Provider')).not.toContain('groq');
     expect(charges).toHaveLength(0);
     const done = events.find((e) => e.event === 'transcribe.request_done');
     expect(done?.noSpeech).toBe(true);
