@@ -891,6 +891,7 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "audio.error.permissionDenied" = "Acceso al micrófono denegado. Habilítalo en Ajustes del Sistema.";
 "audio.error.microphonePermission" = "Permiso del micrófono no concedido";
 "audio.error.microphoneInUse" = "HyperWhisper no puede acceder al micrófono porque otra app lo está usando. Pausa la otra app o cambia de entrada y vuelve a intentarlo.";
+"audio.error.audioSystemNotResponding" = "El audio de macOS no responde, así que no se pudo iniciar el micrófono. Vuelve a intentarlo en un momento. Si sigue ocurriendo, reinicia tu Mac.";
 "audio.error.createEngine" = "No se pudo crear el motor de audio";
 "audio.error.noInput" = "No hay entrada de audio disponible";
 "audio.error.createFile" = "No se pudo crear el archivo de audio";

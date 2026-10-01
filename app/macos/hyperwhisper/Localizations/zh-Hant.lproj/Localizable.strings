@@ -890,6 +890,7 @@
 "audio.error.permissionDenied" = "麥克風存取被拒。請在系統設定中啟用。";
 "audio.error.microphonePermission" = "未授予麥克風許可";
 "audio.error.microphoneInUse" = "HyperWhisper 無法存取麥克風，因為另一個應用程式目前正在使用它。暫停另一個應用程式或切換輸入，然後再試一次。";
+"audio.error.audioSystemNotResponding" = "macOS 音訊沒有回應，因此無法啟動麥克風。請稍後再試。如果問題持續發生，請重新啟動 Mac。";
 "audio.error.createEngine" = "無法建立音頻引擎";
 "audio.error.noInput" = "沒有可用的音頻輸入";
 "audio.error.createFile" = "無法建立音頻檔案";

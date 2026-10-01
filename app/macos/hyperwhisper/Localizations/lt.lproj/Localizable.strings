@@ -890,6 +890,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "audio.error.permissionDenied" = "Mikrofo prieiga atmesta. Suteikite prieigą sistemos nustatymuose.";
 "audio.error.microphonePermission" = "Mikrofo leidimas negrąžintas";
 "audio.error.microphoneInUse" = "HyperWhisper negali pasiekti mikrofo, nes jį naudoja kita programa. Pristabdykite kitą programą arba perjunkitės įėjimai, tada bandykite iš naujo.";
+"audio.error.audioSystemNotResponding" = "macOS garsas nereaguoja, todėl mikrofono nepavyko įjungti. Po akimirkos bandykite dar kartą. Jei tai kartojasi, iš naujo paleiskite „Mac“.";
 "audio.error.createEngine" = "Nepavyko sukurti audio variklės";
 "audio.error.noInput" = "Nėra audio įvesties prieinamos";
 "audio.error.createFile" = "Nepavyko sukurti audio failo";

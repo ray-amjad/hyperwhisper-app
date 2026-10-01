@@ -890,6 +890,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "audio.error.permissionDenied" = "Microfoontoegand geweigerd. Schakel in in Systeeminstellingen.";
 "audio.error.microphonePermission" = "Microfoontoestemming niet verleend";
 "audio.error.microphoneInUse" = "HyperWhisper kan geen toegang krijgen tot de microfoon omdat een andere app deze momenteel gebruikt. Onderbreek de andere app of schakel invoer in en probeer het opnieuw.";
+"audio.error.audioSystemNotResponding" = "De audio van macOS reageert niet, dus de microfoon kon niet starten. Probeer het zo opnieuw. Blijft dit gebeuren, herstart dan je Mac.";
 "audio.error.createEngine" = "Kan audiomotor niet maken";
 "audio.error.noInput" = "Geen audio-ingang beschikbaar";
 "audio.error.createFile" = "Kan audiobestand niet maken";
