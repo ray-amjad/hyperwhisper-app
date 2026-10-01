@@ -397,7 +397,12 @@ export default function DownloadPage() {
                   {!linuxLatest &&
                     " Replace VERSION with the version you downloaded."}
                 </p>
-                <div className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto">
+                <div
+                  aria-label="Debian install command"
+                  className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  role="region"
+                  tabIndex={0}
+                >
                   <code className="text-sm font-mono text-gray-200 whitespace-pre">
                     {`sudo apt install ./hyperwhisper_${linuxLatest?.version ?? "VERSION"}_amd64.deb
 sudo usermod -aG hyperwhisper-input "$USER"`}

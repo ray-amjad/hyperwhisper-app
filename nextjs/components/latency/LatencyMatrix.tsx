@@ -426,7 +426,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           </div>
 
           {/* Matrix */}
-          <div className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80">
+          <div
+            aria-label="Latency matrix"
+            className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            role="region"
+            tabIndex={0}
+          >
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
