@@ -13,6 +13,7 @@ import {
   logProviderEvent,
   providerHttpError,
 } from './utils';
+import { isWhisperSilencePhrase } from './whisper-silence';
 
 /**
  * Transcribe audio with Groq Whisper large-v3
@@ -101,6 +102,16 @@ export async function transcribeWithGroq(
 
   const transcript = data.text || '';
 
+  const requestIdHeader = response.headers.get('x-request-id') ?? undefined;
+  const noSpeechResult: TranscriptionResult = {
+    text: '',
+    language: data.language,
+    durationSeconds: 0,
+    costUsd: 0,
+    source: 'no_speech',
+    requestId: requestIdHeader,
+  };
+
   if (!transcript || transcript.trim().length === 0) {
     // No text, but the upstream itself says it processed audio (`duration` is the
     // length of the SUBMITTED audio, not of detected speech). That is worth one
@@ -116,16 +127,31 @@ export async function transcribeWithGroq(
       upstreamDuration: duration,
       // Groq puts no id in the JSON body; it is on the response header. This
       // adapter was the one of the three that logged nothing here at all.
-      upstreamRequestId: response.headers.get('x-request-id') ?? undefined,
+      upstreamRequestId: requestIdHeader,
       logDetails: { language: data.language },
-      noSpeechResult: {
-        text: '',
+      noSpeechResult,
+    });
+  }
+
+  // The second opinion after the chosen provider found no speech. Whisper
+  // answers silence with a stock phrase ("Thank you.") instead of nothing, so
+  // on THIS attempt a silence answer is the chosen provider's no_speech
+  // confirmed, not a transcript: keep the free no_speech rather than bill the
+  // phrase. The text is not logged; the flag and its length are enough.
+  if (context.isEmptyTranscriptRecovery && isWhisperSilencePhrase(transcript)) {
+    return emptyTranscriptOutcome(provider, {
+      label: 'Groq',
+      startedAt: startTime,
+      // A recovery attempt never refuses in turn: this no_speech is the answer.
+      context: { ...context, mayRefuseEmptyTranscript: false },
+      upstreamDuration: duration,
+      upstreamRequestId: requestIdHeader,
+      logDetails: {
         language: data.language,
-        durationSeconds: 0,
-        costUsd: 0,
-        source: 'no_speech',
-        requestId: response.headers.get('x-request-id') ?? undefined,
+        whisperSilencePhrase: true,
+        discardedChars: transcript.length,
       },
+      noSpeechResult,
     });
   }
 
