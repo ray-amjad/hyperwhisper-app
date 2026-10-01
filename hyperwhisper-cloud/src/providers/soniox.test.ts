@@ -41,7 +41,7 @@ type Call = { url: string; method: string; body?: unknown; authorization?: strin
  * `createStatus` to short-circuit before the loop is ever entered.
  */
 function mockSonioxFlow(opts: {
-  pollBodies?: Array<{ status: number; body?: unknown; raw?: string; contentType?: string }>;
+  pollBodies?: Array<{ status: number; body?: unknown; raw?: string; contentType?: string; readError?: boolean }>;
   uploadStatus?: { status: number; body?: unknown; raw?: string };
   createStatus?: { status: number; body?: unknown; raw?: string };
   transcriptStatus?: { status: number; body?: unknown; raw?: string };
@@ -51,8 +51,11 @@ function mockSonioxFlow(opts: {
   const pollBodies = opts.pollBodies ?? [];
   let pollIndex = 0;
 
-  const respond = (spec: { status: number; body?: unknown; raw?: string; contentType?: string }) => (
-    spec.raw !== undefined
+  const respond = (spec: { status: number; body?: unknown; raw?: string; contentType?: string; readError?: boolean }) => (
+    spec.readError
+      // A 200 whose body stream dies mid-read: text() rejects.
+      ? new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('{"status":"completed","text":"SECRET-PARTIAL')); c.error(new Error('connection reset SECRET-PARTIAL')); } }), { status: spec.status, headers: { 'content-type': 'application/json' } })
+      : spec.raw !== undefined
       ? new Response(spec.raw, { status: spec.status, headers: spec.contentType ? { 'content-type': spec.contentType } : undefined })
       : jsonResponse(spec.body ?? {}, spec.status)
   );
@@ -352,9 +355,36 @@ describe('transcribeWithSoniox — poll loop', () => {
     const event = logged.find((args) => args[0] === 'provider.parse_error');
     if (!event) throw new Error('no provider.parse_error event was logged');
     const details = event[1] as Record<string, unknown>;
-    expect(details).toMatchObject({ phase: 'poll', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
+    expect(details).toMatchObject({ phase: 'poll', failure: 'parse', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
     expect(details).not.toHaveProperty('bodyPreview');
     expect(JSON.stringify(event)).not.toContain('Bad Gateway');
+  }, 15_000);
+
+  test('a 200 poll whose body fails to read is retried and logs a read parse_error with none of its text', async () => {
+    const calls = mockSonioxFlow({
+      pollBodies: [
+        { status: 200, readError: true },
+        completedPoll({ audio_duration_ms: 6_000 }),
+      ],
+      transcriptStatus: { status: 200, body: { text: 'recovered' } },
+    });
+
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    try {
+      expect((await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav')).text).toBe('recovered');
+    } finally {
+      console.log = originalLog;
+    }
+
+    const event = logged.find((args) => args[0] === 'provider.parse_error');
+    if (!event) throw new Error('no provider.parse_error event was logged');
+    const details = event[1] as Record<string, unknown>;
+    expect(details).toMatchObject({ phase: 'poll', failure: 'read', polls: 1, contentType: 'application/json', errorName: 'Error' });
+    expect(details).not.toHaveProperty('bodyLength');
+    expect(JSON.stringify(event)).not.toContain('SECRET-PARTIAL');
+    expect(calls.filter((c) => c.url === JOB_URL && c.method === 'GET').length).toBe(2);
   }, 15_000);
 
   test('a 401 during polling fails immediately instead of retrying to the deadline', async () => {

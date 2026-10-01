@@ -609,20 +609,27 @@ export async function transcribeWithAssemblyAI(
         speech_model_used?: string;
         speech_model?: string;
       };
-      const raw = await pollResp.text();
+      // `raw` stays undefined when the body fails to read (a connection reset
+      // or a truncated chunked transfer), so the catch can tell a read failure
+      // from a parse failure. Both retry, as `await resp.json()` did on main.
+      let raw: string | undefined;
       try {
+        raw = await pollResp.text();
         job = JSON.parse(raw);
-      } catch {
-        // Malformed poll body — try again, but leave a trace. No part of the
-        // body is logged: a 200 poll body can hold the user's transcript (#1069).
+      } catch (err) {
+        // Unreadable or malformed poll body — try again, but leave a trace. No
+        // part of the body is logged: a 200 poll body can hold the user's
+        // transcript (#1069). Only the error's name, never its message.
         malformedPolls += 1;
         logProviderEvent(provider, 'parse_error', {
           phase: 'poll',
+          failure: raw === undefined ? 'read' : 'parse',
           polls,
           contentType: pollResp.headers.get('content-type') ?? 'unknown',
           contentEncoding: pollResp.headers.get('content-encoding') ?? 'none',
-          bodyLength: raw.length,
-          bodyKind: unparsedBodyKind(raw),
+          ...(raw === undefined
+            ? { errorName: err instanceof Error ? err.name : typeof err }
+            : { bodyLength: raw.length, bodyKind: unparsedBodyKind(raw) }),
         }, context);
         continue;
       }

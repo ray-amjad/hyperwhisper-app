@@ -37,7 +37,7 @@ type Call = { url: string; method: string; body?: unknown };
  * the flow before the poll loop's real sleep — used by tests that only care
  * about request shape or fallback triggering, not full completion. */
 function mockAsyncFlow(opts: {
-  pollBodies: Array<{ status: number; body?: unknown; raw?: string; contentType?: string }>;
+  pollBodies: Array<{ status: number; body?: unknown; raw?: string; contentType?: string; readError?: boolean }>;
   uploadStatus?: { status: number; body?: unknown };
   createStatus?: { status: number; body?: unknown };
 }) {
@@ -62,6 +62,10 @@ function mockAsyncFlow(opts: {
       calls.push({ url, method });
       const entry = opts.pollBodies[Math.min(pollIndex, opts.pollBodies.length - 1)];
       pollIndex += 1;
+      if (entry.readError) {
+        // A 200 whose body stream dies mid-read: text() rejects.
+        return new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('{"status":"completed","text":"SECRET-PARTIAL')); c.error(new Error('connection reset SECRET-PARTIAL')); } }), { status: entry.status, headers: { 'content-type': 'application/json' } });
+      }
       if (entry.raw !== undefined) {
         return new Response(entry.raw, { status: entry.status, headers: entry.contentType ? { 'content-type': entry.contentType } : undefined });
       }
@@ -516,9 +520,35 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
     const event = logged.find((args) => args[0] === 'provider.parse_error');
     if (!event) throw new Error('no provider.parse_error event was logged');
     const details = event[1] as Record<string, unknown>;
-    expect(details).toMatchObject({ phase: 'poll', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
+    expect(details).toMatchObject({ phase: 'poll', failure: 'parse', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
     expect(details).not.toHaveProperty('bodyPreview');
     expect(JSON.stringify(event)).not.toContain('Bad Gateway');
+  }, 10_000);
+
+  test('a 200 poll whose body fails to read is retried and logs a read parse_error with none of its text', async () => {
+    const calls = mockAsyncFlow({
+      pollBodies: [
+        { status: 200, readError: true },
+        { status: 200, body: { status: 'completed', text: 'recovered', audio_duration: 3 } },
+      ],
+    });
+
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    try {
+      expect((await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US')).text).toBe('recovered');
+    } finally {
+      console.log = originalLog;
+    }
+
+    const event = logged.find((args) => args[0] === 'provider.parse_error');
+    if (!event) throw new Error('no provider.parse_error event was logged');
+    const details = event[1] as Record<string, unknown>;
+    expect(details).toMatchObject({ phase: 'poll', failure: 'read', polls: 1, contentType: 'application/json', errorName: 'Error' });
+    expect(details).not.toHaveProperty('bodyLength');
+    expect(JSON.stringify(event)).not.toContain('SECRET-PARTIAL');
+    expect(calls.filter((c) => c.url.startsWith(`${CREATE_URL}/`) && c.method === 'GET').length).toBe(2);
   }, 10_000);
 
   test('a 401/403 during polling throws immediately without retrying', async () => {
