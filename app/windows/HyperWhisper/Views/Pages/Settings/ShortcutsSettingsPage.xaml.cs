@@ -41,6 +41,7 @@ public partial class ShortcutsSettingsPage : Page
         MigrateModifierOnlyShortcuts(); // Auto-fix bad shortcuts
         UpdateConflictBanner();
         UpdatePushToTalkVisibility();
+        UpdateStreamingShortcutVisibility();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -218,6 +219,19 @@ public partial class ShortcutsSettingsPage : Page
         PushToTalkCustomBox.Visibility = customVisibility;
         PushToTalkDoublePressPanel.Visibility = mode == PushToTalkMode.Modifier
             ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// The streaming chord is registered only while streaming is on
+    /// (MainViewModel.RegisterShortcutsFromSettings), so hide its row while it is
+    /// off, as the Streaming page does. Loaded re-runs this after the user toggles
+    /// streaming on that page and navigates back.
+    /// </summary>
+    private void UpdateStreamingShortcutVisibility()
+    {
+        var visibility = _settingsService.StreamingEnabled ? Visibility.Visible : Visibility.Collapsed;
+        StreamingShortcutSeparator.Visibility = visibility;
+        StreamingShortcutRow.Visibility = visibility;
     }
 
     private PushToTalkMode GetSelectedPushToTalkMode()
