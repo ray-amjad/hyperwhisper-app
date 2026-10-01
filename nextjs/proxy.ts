@@ -18,27 +18,19 @@ const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
 // Every locale links to them with a raw /en/... href, so a visit there says
 // nothing about the visitor's language and must not rewrite NEXT_LOCALE.
 const ENGLISH_ONLY_REGEX = /^\/en\/(latency|choosing-a-model|blog)(\/|$)/;
-// next-intl's default cookie name; routing.ts does not override it.
-const LOCALE_COOKIE_NAME = "NEXT_LOCALE";
+// Same routing, but next-intl never writes NEXT_LOCALE. The regex only matches
+// /en/-prefixed paths, and next-intl resolves the locale from the prefix before
+// it looks at the cookie, so routing, rewrites and redirects are unchanged.
+const englishOnlyIntlMiddleware = createMiddleware({
+  ...routing,
+  localeCookie: false,
+});
 
-/**
- * Run next-intl's middleware, but on an English-only page drop the
- * NEXT_LOCALE Set-Cookie it adds. Only that header line is removed (no
- * expiring cookie is sent), so the visitor keeps the cookie they arrived with
- * and every other Set-Cookie survives.
- */
 function runIntlMiddleware(request: NextRequest, pathname: string) {
-  const response = intlMiddleware(request);
-
-  if (ENGLISH_ONLY_REGEX.test(pathname)) {
-    const kept = response.headers
-      .getSetCookie()
-      .filter((cookie) => !cookie.startsWith(`${LOCALE_COOKIE_NAME}=`));
-
-    response.headers.delete("set-cookie");
-
-    for (const cookie of kept) response.headers.append("set-cookie", cookie);
-  }
+  const middleware = ENGLISH_ONLY_REGEX.test(pathname)
+    ? englishOnlyIntlMiddleware
+    : intlMiddleware;
+  const response = middleware(request);
 
   response.headers.set("x-pathname", pathname);
 

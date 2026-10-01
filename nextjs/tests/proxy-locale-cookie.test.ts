@@ -6,6 +6,11 @@
  * raw `/en/...` href. next-intl's middleware synced NEXT_LOCALE to the path
  * locale on that visit, so a German visitor's next bare `/` went to `/en`.
  *
+ * The proxy runs those paths through a next-intl middleware built with
+ * `localeCookie: false`, so the cookie is never written: not in `Set-Cookie`,
+ * not in NextResponse's cookie map, and not in `x-middleware-set-cookie` (which
+ * the page render's `cookies()` reads).
+ *
  * This file runs the REAL proxy default export with real NextRequest objects.
  * Controls: `/en/download` still syncs the cookie to `en`, and `/` with
  * NEXT_LOCALE=de still redirects to `/de`.
@@ -13,11 +18,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NextRequest } from "next/server";
+import createMiddleware from "next-intl/middleware";
+import { NextRequest, type NextResponse } from "next/server";
 
 import proxy from "../proxy";
+import { routing } from "../src/i18n/routing";
 
 const ORIGIN = "https://www.hyperwhisper.com";
+const ENGLISH_ONLY_PATHS = [
+  "/en/latency",
+  "/en/latency/",
+  "/en/choosing-a-model",
+  "/en/blog",
+  "/en/blog/some-post",
+];
 
 function request(path: string, cookie = "NEXT_LOCALE=de") {
   return new NextRequest(new URL(path, ORIGIN), {
@@ -31,51 +45,67 @@ function localeCookies(response: Response) {
     .filter((cookie) => cookie.startsWith("NEXT_LOCALE="));
 }
 
-for (const path of [
-  "/en/latency",
-  "/en/latency/",
-  "/en/choosing-a-model",
-  "/en/blog",
-  "/en/blog/some-post",
-]) {
-  test(`${path} keeps the visitor's NEXT_LOCALE`, async () => {
-    const response = await proxy(request(path));
-
-    assert.deepEqual(localeCookies(response), []);
-    assert.equal(response.headers.get("x-pathname"), path);
-  });
+function assertNoLocaleCookieAnywhere(response: NextResponse) {
+  assert.deepEqual(localeCookies(response), [], "Set-Cookie header");
+  assert.deepEqual(
+    response.cookies.getAll().filter((c) => c.name === "NEXT_LOCALE"),
+    [],
+    "ResponseCookies map",
+  );
+  assert.doesNotMatch(
+    response.headers.get("x-middleware-set-cookie") ?? "",
+    /NEXT_LOCALE=/,
+    "x-middleware-set-cookie",
+  );
 }
 
-test("an English-only page keeps a Set-Cookie that is not NEXT_LOCALE", async () => {
-  // next-intl writes only NEXT_LOCALE today; prove the strip is that narrow
-  // by running the helper's filter over a response that already holds both.
-  const { NextResponse } = await import("next/server");
-  const original = NextResponse.next;
+// Every header except the cookie ones and the proxy's own x-pathname.
+function comparableHeaders(response: Response) {
+  const skip = new Set(["set-cookie", "x-middleware-set-cookie", "x-pathname"]);
 
-  NextResponse.next = ((init?: Parameters<typeof original>[0]) => {
-    const response = original(init);
+  const kept: [string, string][] = [];
 
-    response.cookies.set("other", "kept");
+  response.headers.forEach((value, name) => {
+    if (!skip.has(name)) kept.push([name, value]);
+  });
 
-    return response;
-  }) as typeof original;
-  try {
-    const response = await proxy(request("/en/latency"));
+  return kept;
+}
 
-    assert.deepEqual(localeCookies(response), []);
+for (const path of ENGLISH_ONLY_PATHS) {
+  test(`${path} never writes NEXT_LOCALE`, async () => {
+    const response = await proxy(request(path));
+
+    assertNoLocaleCookieAnywhere(response);
+    assert.equal(response.headers.get("x-pathname"), path);
+  });
+
+  test(`${path}: a later cookies.set does not bring NEXT_LOCALE back`, async () => {
+    const response = await proxy(request(path));
+
+    response.cookies.set("other", "1");
+
+    assertNoLocaleCookieAnywhere(response);
     assert.ok(
-      response.headers.getSetCookie().some((c) => c.startsWith("other=kept")),
+      response.headers.getSetCookie().some((c) => c.startsWith("other=1")),
     );
-  } finally {
-    NextResponse.next = original;
-  }
-});
+  });
+
+  test(`${path}: routing matches the stock next-intl middleware`, async () => {
+    const stock = createMiddleware(routing)(request(path));
+    const response = await proxy(request(path));
+
+    assert.equal(response.status, stock.status);
+    assert.deepEqual(comparableHeaders(response), comparableHeaders(stock));
+  });
+}
 
 test("control: /en/download still syncs NEXT_LOCALE to en", async () => {
   const response = await proxy(request("/en/download"));
 
   assert.equal(localeCookies(response).length, 1);
   assert.match(localeCookies(response)[0], /^NEXT_LOCALE=en;/);
+  assert.equal(response.cookies.get("NEXT_LOCALE")?.value, "en");
 });
 
 test("control: a path that only starts like one is not treated as English-only", async () => {
