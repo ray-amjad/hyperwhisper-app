@@ -240,7 +240,13 @@ export async function POST(req: NextRequest) {
   let rawBody: string;
   try {
     rawBody = await req.text();
-  } catch {
+  } catch (err) {
+    // Log only the content type, never a header that carries the token or a
+    // signature: this line is the one trace a rejected delivery leaves.
+    console.error("[add-blog-post] could not read request body", {
+      contentType: req.headers.get("content-type"),
+      err,
+    });
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
@@ -266,7 +272,13 @@ export async function POST(req: NextRequest) {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawBody);
-  } catch {
+  } catch (err) {
+    // The byte count and the content type, never the body itself.
+    console.error("[add-blog-post] request body is not valid JSON", {
+      contentType: req.headers.get("content-type"),
+      bodyBytes: Buffer.byteLength(rawBody, "utf8"),
+      err,
+    });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
