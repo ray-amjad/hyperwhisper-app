@@ -98,7 +98,7 @@ test("the !important universal rule sits in @layer base, inside a reduce query (
 
   // Every copy of the universal rule must be layered in base; an unlayered
   // copy loses to HeroUI's !important !duration-* utilities.
-  const copies = [...css.matchAll(new RegExp(UNIVERSAL.source, "g"))];
+  const copies = Array.from(css.matchAll(new RegExp(UNIVERSAL.source, "g")));
   assert.equal(copies.length, 1, "exactly one universal reduced-motion rule");
 
   const layerAt = css.search(/@layer\s+base\s*\{/);
