@@ -5,6 +5,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeGeminiTranscribeLiveCost, creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
+import { captureRejectionLogs } from './ws-streaming-test-logs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -216,6 +217,12 @@ describe('preflight', () => {
 
   const UPGRADE_HEADERS = { Upgrade: 'websocket', 'Fly-Client-IP': '203.0.113.7' } as const;
 
+
+  // The preflight's console.log lines, captured per test. Each refused upgrade
+  // must leave exactly one `ws_streaming.request_rejected` line, and no line may
+  // carry the key.
+  const { expectOneRejection } = captureRejectionLogs();
+
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
@@ -232,6 +239,7 @@ describe('preflight', () => {
     const res = await buildApp().request('/ws/streaming-gemini-transcribe?account_key=key-1234-abcd');
 
     expect(res.status).toBe(426);
+    expect(expectOneRejection('not_websocket', 426).endpoint).toBe('/ws/streaming-gemini-transcribe');
   });
 
   test('rejects a blocked IP before any license work happens', async () => {
@@ -243,6 +251,14 @@ describe('preflight', () => {
     });
 
     expect(res.status).toBe(403);
+    expectOneRejection('ip_blocked', 403);
+  });
+
+  test('rejects an upgrade that carries no key at all', async () => {
+    const res = await buildApp().request('/ws/streaming-gemini-transcribe', { headers: UPGRADE_HEADERS });
+
+    expect(res.status).toBe(401);
+    expectOneRejection('missing_account_key', 401);
   });
 
   test('accepts the legacy license_key alias installed apps still send', async () => {
@@ -266,6 +282,7 @@ describe('preflight', () => {
     });
 
     expect(res.status).toBe(402);
+    expect(expectOneRejection('insufficient_credits', 402).minimumCredits).toBe(minimumGeminiTranscribeStreamingCredits());
   });
 
   test('admits a balance that clears the Gemini floor but not one that only clears Deepgram\'s', async () => {
