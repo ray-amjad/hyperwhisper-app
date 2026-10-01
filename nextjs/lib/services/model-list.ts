@@ -310,7 +310,14 @@ export function createModelList(deps: Partial<ModelListDeps> = {}): ModelList {
           const models = await fetcher(key, apiGet);
           return [name, { ok: true, models }];
         } catch (e) {
-          return [name, { ok: false, error: e instanceof Error ? e.message : String(e) }];
+          const reason = e instanceof Error ? e.message : String(e);
+          // Node puts the real reason for a network failure in `cause`.
+          const cause = e instanceof Error && e.cause ? ` (cause: ${String(e.cause)})` : "";
+          // The Gemini URL carries the key in its query string, and an error
+          // message can quote the URL or the upstream body, so strip the key.
+          const line = `[model-list] ${name} fetch failed: ${reason}${cause}`;
+          console.error(line.split(key).join("[redacted]"));
+          return [name, { ok: false, error: reason }];
         }
       })
     );
