@@ -24,7 +24,7 @@ const READ_LOG = `    console.error("[add-blog-post] could not read request body
 const PARSE_LOG = `    console.error("[add-blog-post] request body is not valid JSON", {
       contentType: req.headers.get("content-type"),
       bodyBytes: Buffer.byteLength(rawBody, "utf8"),
-      err,
+      errorName: err instanceof Error ? err.name : typeof err,
     });
 `;
 
@@ -55,6 +55,21 @@ const MUTANTS = [
     name: "log the body itself on the parse path",
     from: `bodyBytes: Buffer.byteLength(rawBody, "utf8"),`,
     to: `bodyBytes: Buffer.byteLength(rawBody, "utf8"),\n      rawBody,`,
+  },
+  {
+    name: "log the parse error whole on the parse path",
+    from: `errorName: err instanceof Error ? err.name : typeof err,`,
+    to: `err,`,
+  },
+  {
+    name: "log the parse error message on the parse path",
+    from: `errorName: err instanceof Error ? err.name : typeof err,`,
+    to: `errorName: err instanceof Error ? err.message : typeof err,`,
+  },
+  {
+    name: "log the parse error beside its name",
+    from: `errorName: err instanceof Error ? err.name : typeof err,`,
+    to: `errorName: err instanceof Error ? err.name : typeof err,\n      err,`,
   },
   {
     name: "answer 422 on invalid JSON",

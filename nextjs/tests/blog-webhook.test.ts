@@ -5,9 +5,10 @@
  * website has no error reporter, so the `console.error` on each path is the
  * only trace a rejected delivery leaves. These tests pin three things per
  * path: the reply is unchanged, exactly one `[add-blog-post]` line is logged
- * with the content type (and, for the parse path, the byte count) and the
- * error object kept whole, and neither the body nor the bearer value reaches
- * the log.
+ * with the content type, and neither the body nor the bearer value reaches the
+ * log. The read path keeps the stream error whole. The parse path logs the
+ * byte count and the error's name only: V8's SyntaxError message quotes the
+ * start of the input, so the parse error itself must never be logged.
  */
 import assert from "node:assert/strict";
 import { inspect } from "node:util";
@@ -93,7 +94,15 @@ describe("POST /api/webhooks/add-blog-post body rejections", () => {
   });
 
   test("a body that is not JSON still answers 400 Invalid JSON and logs it", async () => {
-    const body = `<html><p>${BODY_MARKER} — café</p></html>`;
+    // Short enough that V8 quotes all of it in the SyntaxError message
+    // (`Unexpected token 'Z', "Zébu—q9" is not valid JSON`), and multi-byte so
+    // the UTF-8 byte count differs from the UTF-16 length.
+    const body = "Zébu—q9";
+    assert.throws(
+      () => JSON.parse(body),
+      (e: unknown) => e instanceof SyntaxError && e.message.includes(body),
+      "precondition: the parser message quotes this body in full",
+    );
     const response = await route.POST(postRaw(body, "text/html"));
 
     assert.equal(response.status, 400);
@@ -106,13 +115,20 @@ describe("POST /api/webhooks/add-blog-post body rejections", () => {
     // UTF-8 bytes, not UTF-16 code units: the dash and the accent are multi-byte.
     assert.equal(fields.bodyBytes, Buffer.byteLength(body, "utf8"));
     assert.notEqual(fields.bodyBytes, body.length);
-    assert.ok(
-      fields.err instanceof SyntaxError,
-      "err is kept as the SyntaxError",
-    );
+    assert.equal(fields.errorName, "SyntaxError");
+    assert.ok(!("err" in fields), "the parse error object must not be logged");
 
+    // inspect() renders an Error's message, so a quoted body would show here.
     const line = rendered(errorCalls[0]);
-    assert.ok(!line.includes(BODY_MARKER), "body text must not be logged");
+    for (let len = 4; len <= body.length; len++) {
+      for (let at = 0; at + len <= body.length; at++) {
+        const piece = body.slice(at, at + len);
+        assert.ok(
+          !line.includes(piece),
+          `body text must not be logged (found "${piece}")`,
+        );
+      }
+    }
     assert.ok(
       !line.includes(OUTRANK_BEARER),
       "bearer value must not be logged",

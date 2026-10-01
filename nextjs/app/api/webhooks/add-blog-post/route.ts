@@ -273,11 +273,13 @@ export async function POST(req: NextRequest) {
   try {
     parsed = JSON.parse(rawBody);
   } catch (err) {
-    // The byte count and the content type, never the body itself.
+    // The byte count, the content type and the error's name, never the body.
+    // The SyntaxError's message quotes the start of the input (a short body
+    // in full), so neither the message nor the error object is logged here.
     console.error("[add-blog-post] request body is not valid JSON", {
       contentType: req.headers.get("content-type"),
       bodyBytes: Buffer.byteLength(rawBody, "utf8"),
-      err,
+      errorName: err instanceof Error ? err.name : typeof err,
     });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
