@@ -59,9 +59,9 @@ private struct PasteboardItemSnapshot {
 ///    - Used for CJK languages where character typing is slow
 ///
 /// 3. **Hybrid/Smart** (`typeSegment`):
-///    - Automatically chooses paste for CJK languages (ja, zh, ko)
-///    - Falls back to character typing for Latin languages
-///    - Auto-detects CJK content when language is unknown
+///    - Pastes for no-space languages (the shared core's rule: ja, zh*, ko, th, yue)
+///    - Falls back to character typing for space-delimited languages
+///    - Auto-detects continuous-script text (CJK, Thai) when language is "auto"
 ///
 /// USAGE:
 /// ```swift
@@ -384,8 +384,10 @@ final class TextInputService {
     /// Type or paste text based on language.
     ///
     /// HYBRID STREAMING TEXT INPUT:
-    /// - CJK languages (ja, zh, ko): Uses clipboard paste for instant insertion
-    /// - Auto-detect mode: Analyzes text content for CJK characters
+    /// - No-space languages (`SmartSpacing.isNoSpaceLanguage`, the shared core's
+    ///   table: ja, zh*, ko, th, yue): Uses clipboard paste for instant insertion
+    /// - Auto-detect (nil, "" or "auto"): Pastes if the text is continuous script
+    ///   (`SmartSpacing.isContinuousScript`: CJK or Thai)
     /// - Other languages: Uses character-by-character typing to preserve clipboard
     ///
     /// Why separate approaches:
@@ -395,7 +397,7 @@ final class TextInputService {
     ///
     /// - Parameters:
     ///   - text: The text to type or paste
-    ///   - language: Language code (e.g., "ja", "en") or nil for auto-detect
+    ///   - language: Language code (e.g., "ja", "en"), or nil / "auto" for auto-detect
     /// - Returns: true if operation succeeded, false otherwise
     func typeSegment(_ text: String, language: String?) async -> Bool {
         guard !text.isEmpty else { return true }
@@ -405,27 +407,30 @@ final class TextInputService {
         }
     }
 
+    /// Paste-vs-type decision for a streaming segment. Pure, so tests pin it.
+    /// An explicit language decides by the core's no-space table (the core trims,
+    /// folds case and falls back to the 2-char prefix itself); nil, "" and "auto"
+    /// decide by the text's script.
+    static func streamingSegmentShouldPaste(_ text: String, language: String?) -> Bool {
+        let lang = language?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if lang.isEmpty || lang.caseInsensitiveCompare(LanguageData.automaticCode) == .orderedSame {
+            return SmartSpacing.isContinuousScript(text)
+        }
+        return SmartSpacing.isNoSpaceLanguage(lang)
+    }
+
     private func typeSegmentUnlocked(_ text: String, language: String?) async -> Bool {
-        let lang = language?.prefix(2).lowercased() ?? ""
+        let lang = language ?? ""
         logger.debug(
             "⌨️ Queueing streaming segment: chars=\(text.count, privacy: .public) spaces=\(self.whitespaceCount(text), privacy: .public) language=\(lang, privacy: .public)"
         )
 
-        // Use paste for CJK languages
-        if ["ja", "zh", "ko"].contains(lang) {
-            logger.debug("🇯🇵 CJK language '\(lang, privacy: .public)' - using paste")
+        if Self.streamingSegmentShouldPaste(text, language: language) {
+            logger.debug("🈳 No-space language or continuous-script text (language='\(lang, privacy: .public)') - using paste")
             return await pasteTextForStreamingUnlocked(text)
         }
 
-        // Auto-detect: check if text contains CJK characters
-        if lang.isEmpty {
-            if SmartSpacing.containsCJKCharacters(text) {
-                logger.debug("🔍 Auto-detect found CJK characters - using paste")
-                return await pasteTextForStreamingUnlocked(text)
-            }
-        }
-
-        // Non-CJK: use character-by-character typing
+        // Space-delimited: use character-by-character typing
         return await typeTextAsyncUnlocked(text)
     }
 
