@@ -334,6 +334,15 @@ public partial class ShortcutRecorderBox : WpfUserControl
         // Reading SettingsService here rather than taking the four as properties is
         // deliberate: it is what the settings page already did, and a recorder that
         // could be told a stale set of siblings would let two roles claim one chord.
+        //
+        // The Streaming chord claims its key only while streaming is on - the same
+        // rule MainViewModel.RegisterShortcutsFromSettings registers it by - so while
+        // it is off it is passed as unassigned and cannot refuse a chord for a row the
+        // Shortcuts page hides (issue #704). The Streaming box itself skips its own
+        // slot, so it is still checked against the other three either way. A clash
+        // made while streaming was off is reported when it is turned on, by the
+        // Streaming page's StandingError (and, for a RegisterHotKey chord, by the
+        // main window's conflict banner when the second registration fails).
         var settings = SettingsService.Instance;
         var validationError = ShortcutValidationService.ValidateDuplicate(
             shortcut,
@@ -341,7 +350,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
             settings.ToggleShortcut,
             settings.CancelShortcut,
             settings.ChangeModeShortcut,
-            settings.StreamingShortcut);
+            settings.StreamingEnabled ? settings.StreamingShortcut : new KeyboardShortcut());
 
         if (validationError != null)
         {

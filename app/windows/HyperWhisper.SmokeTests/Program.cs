@@ -15174,12 +15174,15 @@ internal static class Program
                 var savedCancel = settings.CancelShortcut;
                 var savedChangeMode = settings.ChangeModeShortcut;
                 var savedStreaming = settings.StreamingShortcut;
+                var savedStreamingEnabled = settings.StreamingEnabled;
                 try
                 {
                     settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
                     settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
                     settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
                     settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                    // The Streaming chord claims its key only while streaming is on (#704).
+                    settings.StreamingEnabled = true;
 
                     var recorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
                     var captured = new List<string>();
@@ -15274,6 +15277,22 @@ internal static class Program
                             "settings.shortcuts.error.singleModifier"),
                         "and it still says why - in the catalogue's words, not a literal of its own");
                     Assert(bare.Field.Text == "Esc", "and it leaves the field showing what is configured");
+
+                    // #704. With streaming OFF its chord is not registered and its row is
+                    // hidden on Settings > Shortcuts, so it must not refuse another role.
+                    settings.StreamingEnabled = false;
+                    captured.Clear();
+                    var offRecorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    offRecorder.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    offRecorder.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    offRecorder.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    offRecorder.HandleKeyDown(Key.Space, control: true, alt: false, shift: true, win: false);
+                    offRecorder.HandleKeyUp(Key.Space);
+                    offRecorder.HandleKeyUp(Key.LeftShift);
+                    offRecorder.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Shift+Space" && offRecorder.ErrorMessage is null,
+                        "while streaming is off its chord is free for another role - got ["
+                        + string.Join(", ", captured) + "], error '" + (offRecorder.ErrorMessage ?? "null") + "'");
                 }
                 finally
                 {
@@ -15281,6 +15300,7 @@ internal static class Program
                     settings.CancelShortcut = savedCancel;
                     settings.ChangeModeShortcut = savedChangeMode;
                     settings.StreamingShortcut = savedStreaming;
+                    settings.StreamingEnabled = savedStreamingEnabled;
                 }
             });
 

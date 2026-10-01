@@ -37,6 +37,9 @@ public partial class ShortcutsSettingsPage : Page
             _mainViewModel.PropertyChanged += OnMainViewModelPropertyChanged;
         }
 
+        _settingsService.SettingsChanged -= OnSettingsChanged;
+        _settingsService.SettingsChanged += OnSettingsChanged;
+
         LoadShortcutSettings();
         MigrateModifierOnlyShortcuts(); // Auto-fix bad shortcuts
         UpdateConflictBanner();
@@ -46,6 +49,8 @@ public partial class ShortcutsSettingsPage : Page
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        _settingsService.SettingsChanged -= OnSettingsChanged;
+
         if (_mainViewModel != null)
         {
             _mainViewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
@@ -60,6 +65,16 @@ public partial class ShortcutsSettingsPage : Page
         {
             Dispatcher.Invoke(UpdateConflictBanner);
         }
+    }
+
+    /// <summary>
+    /// StreamingEnabled can change while this page is open - the Local API's mode
+    /// endpoints and a backup restore both set it - so the Streaming row follows
+    /// SettingsChanged rather than waiting for the next Loaded.
+    /// </summary>
+    private void OnSettingsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(UpdateStreamingShortcutVisibility);
     }
 
     private void UpdateConflictBanner()
@@ -225,7 +240,8 @@ public partial class ShortcutsSettingsPage : Page
     /// The streaming chord is registered only while streaming is on
     /// (MainViewModel.RegisterShortcutsFromSettings), so hide its row while it is
     /// off, as the Streaming page does. Loaded re-runs this after the user toggles
-    /// streaming on that page and navigates back.
+    /// streaming on that page and navigates back; SettingsChanged covers a change
+    /// made while this page is open.
     /// </summary>
     private void UpdateStreamingShortcutVisibility()
     {
