@@ -6,13 +6,16 @@ export default function Error({
   error,
   reset,
 }: {
-  error: Error;
+  error: Error & { digest?: string };
   reset: () => void;
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
     /* eslint-disable no-console */
-    console.error(error);
+    console.error(error, {
+      digest: error.digest,
+      path: window.location.pathname,
+    });
   }, [error]);
 
   return (
