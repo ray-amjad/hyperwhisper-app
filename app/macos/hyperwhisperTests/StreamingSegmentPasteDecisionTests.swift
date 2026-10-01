@@ -20,7 +20,8 @@ struct StreamingSegmentPasteDecisionTests {
         TextInputService.streamingSegmentShouldPaste(text, language: language)
     }
 
-    // The 4 cases the private ["ja", "zh", "ko"] literal got wrong.
+    // Cases main got WRONG. The old private ["ja", "zh", "ko"] literal was
+    // matched against `language?.prefix(2).lowercased()`, so it missed these.
 
     @Test func thaiLanguagePastes() {
         #expect(shouldPaste(thaiText, "th"))
@@ -30,11 +31,9 @@ struct StreamingSegmentPasteDecisionTests {
         #expect(shouldPaste("今日天氣好好", "yue"))
     }
 
-    @Test func traditionalChineseSpellingPastes() {
-        #expect(shouldPaste("今天天氣很好", "zh-Hant"))
-        #expect(shouldPaste("今天天气很好", "zh-CN"))
-    }
-
+    // The biggest one: the only caller passes the literal "auto", and
+    // "auto".prefix(2) is "au", which is neither in the list nor empty, so
+    // auto mode typed CJK and Thai text instead of pasting it.
     @Test func autoDetectOverThaiTextPastes() {
         #expect(shouldPaste(thaiText, LanguageData.automaticCode))
         #expect(shouldPaste(thaiText, "AUTO"))
@@ -42,7 +41,12 @@ struct StreamingSegmentPasteDecisionTests {
         #expect(shouldPaste(thaiText, ""))
     }
 
-    // Behaviour the old literal already had, kept.
+    @Test func autoDetectOverJapaneseTextPastes() {
+        #expect(shouldPaste(japaneseText, LanguageData.automaticCode))
+    }
+
+    // Behaviour UNCHANGED from main, pinned so it stays that way. The old
+    // prefix(2) match already pasted ja, zh, ko, and zh-Hant / zh-CN.
 
     @Test func japaneseChineseKoreanStillPaste() {
         #expect(shouldPaste(japaneseText, "ja"))
@@ -50,9 +54,12 @@ struct StreamingSegmentPasteDecisionTests {
         #expect(shouldPaste("안녕하세요", "ko"))
     }
 
-    @Test func autoDetectOverJapaneseTextPastes() {
-        #expect(shouldPaste(japaneseText, LanguageData.automaticCode))
+    @Test func traditionalChineseSpellingPastes() {
+        #expect(shouldPaste("今天天氣很好", "zh-Hant"))
+        #expect(shouldPaste("今天天气很好", "zh-CN"))
     }
+
+    // Space-delimited text still types (unchanged from main).
 
     @Test func spaceDelimitedLanguagesType() {
         #expect(!shouldPaste(englishText, "en"))
