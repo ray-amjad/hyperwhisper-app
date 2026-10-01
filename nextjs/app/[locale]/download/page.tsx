@@ -194,13 +194,11 @@ export default function DownloadPage() {
         <div className="text-center mb-6">
           {/* App Icon */}
           <div className="w-24 h-24 mx-auto mb-8">
-            <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 rounded-2xl flex items-center justify-center shadow-2xl">
-              <img
-                alt="HyperWhisper Logo"
-                className="w-24 h-24 rounded-xl"
-                src="/icon/256.png"
-              />
-            </div>
+            <img
+              alt="HyperWhisper Logo"
+              className="w-24 h-24"
+              src="/icon/256.png"
+            />
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
