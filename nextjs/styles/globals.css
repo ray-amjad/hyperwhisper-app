@@ -107,12 +107,22 @@ body {
   .animate-scroll-x {
     animation: none;
   }
+}
 
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+/* The !important half lives in @layer base, not unlayered (#1173). For
+   !important declarations the cascade order flips: an earlier layer beats a
+   later one, and any layer beats unlayered CSS. Tailwind declares
+   "theme, base, components, utilities", so HeroUI's !duration-* utilities
+   (@layer utilities, !important) beat an unlayered guard but lose to this one.
+   The two normal rules above stay unlayered, where a normal rule wins. */
+@layer base {
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
