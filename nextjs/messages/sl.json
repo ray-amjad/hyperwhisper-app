@@ -251,6 +251,7 @@
     "description": "Po e-pošti vam bomo poslali povezavo za prenos in kratek video vodič za hiter začetek. Brez spama.",
     "downloadButton": "Prenesi HyperWhisper",
     "errorGeneric": "Nekaj je šlo narobe. Prosimo, poskusite znova.",
+    "errorEmail": "Vnesite veljaven e-naslov.",
     "errorNetwork": "Napaka omrežja. Preverite povezavo in poskusite znova.",
     "thankYouTitle": "Hvala!",
     "downloadStarted": "Prenos bi se moral začeti samodejno.",

@@ -241,7 +241,7 @@ test("a failed zod email check shows one translated sentence, not the issue arra
   const target = elementById(html, describedBy);
 
   assert.match(target, /role="alert"/);
-  assert.match(target, />buyCredits\.errorEmail</);
+  assert.match(target, />downloadModal\.errorEmail</);
   assert.doesNotMatch(html, /invalid_format/);
   assert.doesNotMatch(html, /pattern/);
   assert.doesNotMatch(html, /Invalid email format/);
@@ -254,7 +254,7 @@ test("the disposable-domain refusal (also BAD_REQUEST) still shows its own sente
   const target = elementById(html, input["aria-describedby"] ?? "");
 
   assert.match(target, /Disposable email domains are not allowed/);
-  assert.doesNotMatch(html, /buyCredits\.errorEmail/);
+  assert.doesNotMatch(html, /downloadModal\.errorEmail/);
 });
 
 test("an error with an empty message falls back to the generic sentence", async () => {
@@ -266,5 +266,5 @@ test("an error with an empty message falls back to the generic sentence", async 
   const target = elementById(html, input["aria-describedby"] ?? "");
 
   assert.match(target, />downloadModal\.errorGeneric</);
-  assert.doesNotMatch(html, /buyCredits\.errorEmail/);
+  assert.doesNotMatch(html, /downloadModal\.errorEmail/);
 });

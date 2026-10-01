@@ -251,6 +251,7 @@
     "description": "We sturen je een downloadlink en een korte tutorialvideo per e-mail om je op weg te helpen. Geen spam.",
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Er is iets misgegaan. Probeer het opnieuw.",
+    "errorEmail": "Voer een geldig e-mailadres in.",
     "errorNetwork": "Netwerkfout. Controleer je verbinding en probeer opnieuw.",
     "thankYouTitle": "Bedankt!",
     "downloadStarted": "Je download zou automatisch moeten starten.",

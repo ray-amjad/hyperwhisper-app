@@ -39,7 +39,6 @@ function isInputValidationError(err: {
 export default function DownloadModal() {
   const { isOpen, closeModal } = useDownloadModal();
   const t = useTranslations("downloadModal");
-  const tCredits = useTranslations("buyCredits");
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +53,7 @@ export default function DownloadModal() {
     },
     onError: (err) => {
       if (isInputValidationError(err)) {
-        setError(tCredits("errorEmail"));
+        setError(t("errorEmail"));
 
         return;
       }

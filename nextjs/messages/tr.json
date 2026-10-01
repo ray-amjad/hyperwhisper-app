@@ -251,6 +251,7 @@
     "description": "Başlamanız için size bir indirme bağlantısı ve kısa bir eğitim videosu göndereceğiz. Spam yok.",
     "downloadButton": "HyperWhisper'ı İndir",
     "errorGeneric": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+    "errorEmail": "Lütfen geçerli bir e-posta adresi girin.",
     "errorNetwork": "Ağ hatası. Lütfen bağlantınızı kontrol edip tekrar deneyin.",
     "thankYouTitle": "Teşekkürler!",
     "downloadStarted": "İndirmeniz otomatik olarak başlamalı.",

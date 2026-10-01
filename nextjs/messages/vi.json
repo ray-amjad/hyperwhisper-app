@@ -251,6 +251,7 @@
     "description": "Chúng tôi sẽ gửi cho bạn liên kết tải xuống và video hướng dẫn ngắn để bạn bắt đầu nhanh. Không spam.",
     "downloadButton": "Tải xuống HyperWhisper",
     "errorGeneric": "Đã xảy ra lỗi. Vui lòng thử lại.",
+    "errorEmail": "Vui lòng nhập địa chỉ email hợp lệ.",
     "errorNetwork": "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.",
     "thankYouTitle": "Cảm ơn!",
     "downloadStarted": "Bản tải xuống của bạn sẽ tự động bắt đầu.",
