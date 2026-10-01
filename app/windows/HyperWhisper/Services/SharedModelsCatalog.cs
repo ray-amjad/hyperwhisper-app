@@ -107,9 +107,10 @@ public static class SharedModelsCatalog
         {
             return HyperwhisperCoreMethods.ModelsEntry(provider, ToHwKind(kind), id ?? "")?.@displayName;
         }
-        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException
-                                       or BadImageFormatException or TypeInitializationException)
+        catch (Exception ex)
         {
+            // Any fault: a missing library, or a uniffi InternalException from a panic in
+            // the core. A name is display only, so the id is a safe answer for all of them.
             if (!_displayNameFailureLogged)
             {
                 _displayNameFailureLogged = true;

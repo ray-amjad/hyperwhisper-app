@@ -158,11 +158,16 @@ public sealed class ModeProviderLineConverter : IValueConverter
     /// <see cref="OptionLabelConverter"/>), so one mode reads one name in both places. The card
     /// used to keep its own switch, and said "xAI" for a Grok mode the editor called "Grok".
     /// Windows shortens HyperWhisper Cloud to "HyperWhisper" on a mode card; so does this.
+    ///
+    /// The id is folded the way the editor's list writes it: lower case, and the macOS
+    /// spelling <c>xai</c> read as <c>grok</c>. The old switch did the same fold.
     /// </summary>
-    private string ProviderDisplayName(string? id, CultureInfo culture) =>
-        IsHyperWhisperCloud(id)
-            ? "HyperWhisper"
-            : _labels.Convert(id, typeof(string), "provider.", culture) as string ?? id ?? string.Empty;
+    private string ProviderDisplayName(string? id, CultureInfo culture)
+    {
+        if (IsHyperWhisperCloud(id)) return "HyperWhisper";
+        var key = id!.ToLowerInvariant() is "xai" ? "grok" : id.ToLowerInvariant();
+        return _labels.Convert(key, typeof(string), "provider.", culture) as string ?? key;
+    }
 }
 
 /// <summary>

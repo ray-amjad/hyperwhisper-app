@@ -178,11 +178,9 @@ public partial class ModeEditorWindow : Window
         // Detach BEFORE Discard: the restore it runs raises the change this handler reacts to.
         _closing = true;
         if (_modes is not null) _modes.PropertyChanged -= OnModesPropertyChanged;
+        // Nothing cancels this dialog's close. Discard has run by then, so a cancel would
+        // leave a window whose edits are already gone; add one only with a new Discard order.
         Discard();
         base.OnClosing(e);
-        if (!e.Cancel || _modes is null) return;
-        // A cancelled close keeps the window open, so the Model re-apply must keep working.
-        _closing = false;
-        _modes.PropertyChanged += OnModesPropertyChanged;
     }
 }
