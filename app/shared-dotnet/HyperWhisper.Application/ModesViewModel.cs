@@ -572,13 +572,14 @@ public sealed class ModesViewModel : ViewModelBase
                 Notify(nameof(CloudTierModel));
                 return;
             }
-            if (string.IsNullOrWhiteSpace(_transcriptionModel)
+            if (!TierOffers(_cloudAccuracyTier, _transcriptionModel)
                 && string.Equals(value, DefaultModelForTier(_cloudAccuracyTier), StringComparison.Ordinal))
             {
                 // The getter's display fallback, echoed back. The dialog re-applies the
                 // selection after a list change, and the two-way binding writes that value
-                // here. Storing it would save a model the user never picked, so a mode that
-                // chose none keeps choosing none. The send path resolves the same default.
+                // here. The stored model is one this tier does not run — blank, the on-device
+                // placeholder "base", or another tier's id — so the tier default runs either
+                // way. Storing it would save a model the user never picked.
                 return;
             }
             var owner = (GroupForTier(_cloudAccuracyTier)?.Models ?? [])
@@ -688,8 +689,8 @@ public sealed class ModesViewModel : ViewModelBase
     /// This runs from a static initializer. An exception here becomes a cached
     /// <c>TypeInitializationException</c>, and every later touch of this type throws it, so
     /// the whole Modes page dies, not only the cloud pickers. Windows guards the same call
-    /// the same way (CloudSttCatalog.Load). With no rows the Provider picker is empty and
-    /// the rest of the editor still works.
+    /// the same way (CloudSttCatalog.Load). With no rows the page still loads and the Provider
+    /// picker is empty. Actions that need the core still fail, one at a time, and report it.
     /// </summary>
     private static IReadOnlyList<SharedCoreBridge.CloudSttVendorGroup> LoadVendorGroups()
     {
@@ -1214,10 +1215,7 @@ public sealed class ModesViewModel : ViewModelBase
             // rewritten to elevenLabsScribeV2 — a different vendor at different
             // credits, with no error shown.
             var canonicalTier = SharedCoreBridge.CanonicalCloudSttTier(CloudAccuracyTier);
-            // An empty allow-list means the catalog did not load (LoadVendorGroups). Keep the
-            // stored tier then: rewriting every saved mode to ElevenLabs is worse than no check.
-            mode.CloudAccuracyTier = CloudAccuracyTiers.Count == 0 || CloudAccuracyTiers.Contains(canonicalTier, StringComparer.Ordinal)
-                ? canonicalTier : "elevenLabsScribeV2";
+            mode.CloudAccuracyTier = CloudAccuracyTiers.Contains(canonicalTier, StringComparer.Ordinal) ? canonicalTier : "elevenLabsScribeV2";
             mode.CloudTranscriptionDomain = CloudDomain == "medical" ? "medical" : null;
             mode.GeminiCustomPrompt = string.IsNullOrWhiteSpace(GeminiPrompt) ? null : GeminiPrompt.Trim();
         }

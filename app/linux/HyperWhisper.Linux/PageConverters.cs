@@ -120,6 +120,10 @@ public sealed class LanguageDisplayNameConverter : IValueConverter
 /// </summary>
 public sealed class ModeProviderLineConverter : IValueConverter
 {
+    private readonly OptionLabelConverter _labels;
+
+    public ModeProviderLineConverter(OptionLabelConverter labels) => _labels = labels;
+
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not Mode mode) return null;
@@ -133,7 +137,7 @@ public sealed class ModeProviderLineConverter : IValueConverter
         // HyperWhisper Cloud and only appends the model for a BYOK provider. Appending it in both
         // cases gave the card a third segment, which pushed the post-processing name past the
         // card edge and clipped it: "HyperWhisper Cloud · scribe_v2 · anthropic:claude-h...".
-        var provider = ProviderDisplayName(mode.CloudProvider);
+        var provider = ProviderDisplayName(mode.CloudProvider, culture);
         if (IsHyperWhisperCloud(mode.CloudProvider)) return provider;
         var model = mode.CloudTranscriptionModel ?? mode.Model;
         return string.IsNullOrWhiteSpace(model) ? provider : $"{provider} · {model}";
@@ -149,50 +153,16 @@ public sealed class ModeProviderLineConverter : IValueConverter
         => throw new NotSupportedException();
 
     /// <summary>
-    /// The company name for a mode card. A BYOK provider the cloud STT catalog knows takes
-    /// that catalog's <c>vendorDisplayName</c>, the same string the Mode editor's Provider row
-    /// draws. The card used to say "xAI" for a Grok mode while the editor said "SpaceXAI".
-    /// The switch below answers only for ids the catalog does not hold.
+    /// The provider name for a mode card. A BYOK provider takes the SAME label the Mode
+    /// editor's "Your provider" row draws for it (<c>provider.&lt;id&gt;</c> through
+    /// <see cref="OptionLabelConverter"/>), so one mode reads one name in both places. The card
+    /// used to keep its own switch, and said "xAI" for a Grok mode the editor called "Grok".
+    /// Windows shortens HyperWhisper Cloud to "HyperWhisper" on a mode card; so does this.
     /// </summary>
-    private static string ProviderDisplayName(string? id) =>
-        IsHyperWhisperCloud(id) ? "HyperWhisper" : CatalogVendorName(id) ?? FallbackProviderName(id);
-
-    private static Dictionary<string, string>? _catalogVendorNames;
-
-    private static string? CatalogVendorName(string? id)
-    {
-        if (string.IsNullOrEmpty(id)) return null;
-        try
-        {
-            _catalogVendorNames ??= SharedCoreBridge.CloudSttVendorNamesByProvider();
-        }
-        catch (Exception)
-        {
-            // No native core: keep the built-in names rather than break every mode card.
-            _catalogVendorNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
-        return _catalogVendorNames.TryGetValue(id, out var name) ? name : null;
-    }
-
-    private static string FallbackProviderName(string? id) => id?.ToLowerInvariant() switch
-    {
-        // Windows shortens this to "HyperWhisper" on a mode card; the long form is the page copy.
-        null or "" or "hyperwhisper" or "hyperwhispercloud" or "hyperwhisper_cloud" => "HyperWhisper",
-        "openai" => "OpenAI",
-        "groq" => "Groq",
-        "elevenlabs" => "ElevenLabs",
-        "mistral" => "Mistral",
-        "grok" or "xai" => "SpaceXAI",
-        "deepgram" => "Deepgram",
-        "assemblyai" => "AssemblyAI",
-        "soniox" => "Soniox",
-        "gemini" => "Gemini",
-        "geminitranscribe" => "Gemini 3.5 Transcribe",
-        "microsoftazurespeech" => "Azure Speech",
-        "googlespeech" => "Google Speech",
-        "meta" => "Meta",
-        _ => id,
-    };
+    private string ProviderDisplayName(string? id, CultureInfo culture) =>
+        IsHyperWhisperCloud(id)
+            ? "HyperWhisper"
+            : _labels.Convert(id, typeof(string), "provider.", culture) as string ?? id ?? string.Empty;
 }
 
 /// <summary>

@@ -1522,6 +1522,14 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
     Assert(unchosenSaved.CloudTranscriptionModel is null,
         $"a mode that chose no model saved '{unchosenSaved.CloudTranscriptionModel}'");
 
+    // The same echo for a cloud mode that still holds the on-device placeholder "base".
+    var placeholder = new Mode { Name = "Placeholder model", ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "deepgramNova3", CloudTranscriptionModel = "base", Language = "en" };
+    await repository.UpsertAsync(placeholder);
+    editor.Selected = placeholder;
+    var before = editor.TranscriptionModel;
+    editor.CloudTierModel = editor.CloudTierModel;
+    Assert(editor.TranscriptionModel == before, $"the display fallback replaced '{before}' with '{editor.TranscriptionModel}'");
+
     // A stored model from the company's OTHER tier is not what runs, so the row must not
     // show it. The router runs the tier's default for it.
     var crossTier = new Mode { Name = "Cross tier", ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "geminiTranscribe", CloudTranscriptionModel = "gemini-2.5-flash", Language = "en" };

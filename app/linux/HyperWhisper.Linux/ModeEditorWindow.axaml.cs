@@ -50,6 +50,7 @@ public partial class ModeEditorWindow : Window
             save.Content = L(isCreate ? "modes.button.create" : "modes.button.save");
 
         modes.PropertyChanged += OnModesPropertyChanged;
+        Closed += (_, _) => modes.PropertyChanged -= OnModesPropertyChanged;
     }
 
     /// <summary>
@@ -179,5 +180,9 @@ public partial class ModeEditorWindow : Window
         if (_modes is not null) _modes.PropertyChanged -= OnModesPropertyChanged;
         Discard();
         base.OnClosing(e);
+        if (!e.Cancel || _modes is null) return;
+        // A cancelled close keeps the window open, so the Model re-apply must keep working.
+        _closing = false;
+        _modes.PropertyChanged += OnModesPropertyChanged;
     }
 }
