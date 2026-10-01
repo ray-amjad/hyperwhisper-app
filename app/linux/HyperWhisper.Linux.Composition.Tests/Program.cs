@@ -165,8 +165,11 @@ static Task OnboardingStateMachine()
     };
     gated.Show(); gated.Next(); gated.Next(); gated.Next(); gated.Next();
     Assert(gated.IsTest, "onboarding did not reach the test step with a mode and a microphone chosen");
-    Assert(!gated.IsTestReady && gated.TestStatus == "Select an available mode and microphone first.",
-        "the only control on the test step was disabled while the line still read 'Ready for a test dictation.'");
+    // Issue #924. A mode and a microphone are both chosen here, so the line must name the one
+    // conjunct that is false — the missing cloud credential — and not the two the user satisfied.
+    var cloudBlocked = strings.GetRequired("linux.onboarding.provider.unavailable.cloud");
+    Assert(!gated.IsTestReady && gated.TestStatus == cloudBlocked && painted == cloudBlocked,
+        "the disabled test step did not name the missing cloud credential as its blocker");
 
     gated.SetSelectedModeAvailable(true);
     Assert(gated.IsTestReady && painted == "Ready for a test dictation.",
@@ -229,11 +232,52 @@ static Task OnboardingStateMachine()
     // the line, but the result must not be discarded, or the user is never told the test passed.
     gated.SetSelectedModeAvailable(false);
     gated.SetTestStatus(succeededMessage, succeeded: true);
-    Assert(painted == "Select an available mode and microphone first.",
+    Assert(painted == cloudBlocked,
         "a stored message outranked a shut gate");
     gated.SetSelectedModeAvailable(true);
     Assert(gated.IsTestReady && painted == succeededMessage,
         "a test that finished while the gate was shut had its result swallowed for good");
+
+    // Issue #924, the other three conjuncts. A shut gate names the FIRST false conjunct in
+    // IsTestReady's own order — capture, mode, device, availability — and a move from one false
+    // conjunct to another changes the line while IsTestReady stays false, so read it through a
+    // stand-in that re-reads on PropertyChanged, the way the bound TextBlock does.
+    var captureBlocked = strings.GetRequired("linux.onboarding.test.blocked.capture");
+    var modeBlocked = strings.GetRequired("linux.onboarding.test.blocked.mode");
+    var deviceBlocked = strings.GetRequired("linux.onboarding.test.blocked.device");
+    Assert(new[] { captureBlocked, modeBlocked, deviceBlocked, cloudBlocked }.Distinct().Count() == 4,
+        "two Test-step blockers share one string, so the line cannot say which one is false");
+    var noCapture = new LinuxOnboardingViewModel(
+        new(false, true, false, false, false, true, false),
+        [], null, [], null, selectedModeAvailable: false,
+        _ => true, _ => { }, _ => { }, key => strings.GetRequired(key));
+    Assert(!noCapture.IsTestReady && noCapture.TestStatus == captureBlocked,
+        "with no microphone capture the test step did not name capture first");
+
+    var hyper = new Mode { Id = Guid.NewGuid(), Name = "Hyper", ProviderType = "cloud", CloudProvider = "hyperwhisper" };
+    var blocked = new LinuxOnboardingViewModel(
+        new(true, true, false, false, false, true, false),
+        [hyper], hyper, [], null, selectedModeAvailable: false,
+        _ => true, _ => { }, _ => { }, key => strings.GetRequired(key));
+    var blockedLine = blocked.TestStatus;
+    blocked.PropertyChanged += (_, args) =>
+    {
+        if (args.PropertyName == nameof(LinuxOnboardingViewModel.TestStatus)) blockedLine = blocked.TestStatus;
+    };
+    Assert(blockedLine == deviceBlocked, "with no microphone the test step did not name the microphone");
+    blocked.SetDevices([microphone], microphone);
+    Assert(blockedLine == cloudBlocked, "a microphone arriving left the line naming the microphone");
+    blocked.SelectedDevice = null;
+    Assert(blockedLine == deviceBlocked, "clearing the microphone did not repaint the line");
+    blocked.SelectedMode = null;
+    Assert(blockedLine == modeBlocked, "with no mode the test step did not name the mode first");
+    blocked.SelectedMode = hyper;
+    Assert(blockedLine == deviceBlocked, "choosing a mode left the line naming the mode");
+    blocked.SelectedDevice = microphone;
+    Assert(blockedLine == cloudBlocked, "choosing a microphone left the line naming the microphone");
+    blocked.SetSelectedModeAvailable(true);
+    Assert(blocked.IsTestReady && blockedLine == "Ready for a test dictation.",
+        "an open gate still rendered a blocker");
 
     // Issue #626. The constructor COPIES the device list, and the shell enumerates microphones on a
     // background thread and posts the result to the UI context — so the copy is normally taken while

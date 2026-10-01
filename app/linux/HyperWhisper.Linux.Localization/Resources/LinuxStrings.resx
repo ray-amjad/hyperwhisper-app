@@ -49,7 +49,9 @@
   <data name="linux.onboarding.test.body" xml:space="preserve"><value>Start a short recording, speak, then press the same button to stop and transcribe. Completing a test is optional.</value></data>
   <data name="linux.onboarding.test.button" xml:space="preserve"><value>Start or stop test dictation</value></data>
   <data name="linux.onboarding.test.not_started" xml:space="preserve"><value>Ready for a test dictation.</value></data>
-  <data name="linux.onboarding.test.not_ready" xml:space="preserve"><value>Select an available mode and microphone first.</value></data>
+  <data name="linux.onboarding.test.blocked.capture" xml:space="preserve"><value>The test cannot run because microphone capture is unavailable. Check desktop microphone privacy and audio-service permissions.</value></data>
+  <data name="linux.onboarding.test.blocked.mode" xml:space="preserve"><value>The test cannot run until you choose a transcription mode. Go back to choose one.</value></data>
+  <data name="linux.onboarding.test.blocked.device" xml:space="preserve"><value>The test cannot run until you choose a microphone. Connect one, or go back to choose one.</value></data>
   <data name="linux.onboarding.test.recording" xml:space="preserve"><value>Recording… Speak now, then press the test button again.</value></data>
   <data name="linux.onboarding.test.transcribing" xml:space="preserve"><value>Transcribing the test recording…</value></data>
   <data name="linux.onboarding.test.succeeded" xml:space="preserve"><value>Test dictation succeeded and was saved to History.</value></data>
