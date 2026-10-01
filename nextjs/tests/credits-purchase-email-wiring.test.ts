@@ -34,6 +34,12 @@
  * `aria-describedby` replace its own, so the error carries an id of the
  * component's own. Whether the browser computes "Your email" from these props is
  * the verify round's job, not this file's.
+ *
+ * #1147 ADDS the custom-amount pins. The Custom tile's `onClick` is fired the
+ * same render-phase way, so the number `<Input>` renders, and its
+ * `aria-labelledby` must name the ids on the visible "Choose an amount" heading
+ * and the Custom tile title. `tests/heroui-input-labelledby.test.ts` pins that
+ * the real HeroUI Input passes that attribute to the <input> unchanged.
  */
 import assert from "node:assert/strict";
 import test, { beforeEach, mock } from "node:test";
@@ -67,21 +73,27 @@ interface InputProps {
   placeholder?: string;
   "aria-label"?: string;
   "aria-describedby"?: string;
+  "aria-labelledby"?: string;
 }
 
 /** The static markup of the last render (the stub Input paints nothing). */
 let markup = "";
 
 /** What the buyer "does" to the email field during the next render. */
-let scenario: { typed?: string; blur?: boolean } = {};
+let scenario: { typed?: string; blur?: boolean; custom?: boolean } = {};
 /** Whether this render has already dispatched the scenario. */
 let fired = false;
+/** Whether this render has already clicked the Custom tile. */
+let customFired = false;
 
 /** Every email `<Input>` the stub rendered, in order. */
 const emailInputs: InputProps[] = [];
+/** Every custom-amount (number) `<Input>` the stub rendered, in order. */
+const numberInputs: InputProps[] = [];
 
 function StubInput(props: InputProps): null {
   if (props.type === "email") emailInputs.push(props);
+  if (props.type === "number") numberInputs.push(props);
 
   return null;
 }
@@ -103,6 +115,7 @@ moduleMock.module(pathToFileURL(require.resolve("@heroui/input")).href, {
  * re-render from dispatching again.
  */
 function fireScenario(type: unknown, props: unknown): void {
+  clickCustomTile(type, props);
   if (fired || type !== StubInput) return;
 
   const input = props as InputProps;
@@ -113,6 +126,26 @@ function fireScenario(type: unknown, props: unknown): void {
     input.onChange?.({ target: { value: scenario.typed } });
   }
   if (scenario.blur) input.onBlur?.();
+}
+
+/** True when a JSX child is the element rendering `buyCredits.custom`. */
+function rendersCustomTitle(child: unknown): boolean {
+  const props = (child as { props?: { children?: unknown } } | null)?.props;
+
+  return props?.children === "buyCredits.custom";
+}
+
+/** Clicks the Custom tile while it is built, so `isCustom` turns true. */
+function clickCustomTile(type: unknown, props: unknown): void {
+  if (!scenario.custom || customFired || type !== "button") return;
+  const button = props as { children?: unknown; onClick?: () => void };
+  const children = Array.isArray(button.children)
+    ? button.children
+    : [button.children];
+
+  if (!children.some(rendersCustomTitle)) return;
+  customFired = true;
+  button.onClick?.();
 }
 
 type JsxFn = (type: unknown, props: unknown, key?: unknown) => unknown;
@@ -194,6 +227,8 @@ beforeEach(() => {
   scenario = {};
   fired = false;
   emailInputs.length = 0;
+  customFired = false;
+  numberInputs.length = 0;
 });
 
 test("the email field carries the errorEmail copy and a blur handler", async () => {
@@ -276,4 +311,45 @@ test("#968: an accepted field drops the error from its description", async () =>
   const input = await renderEmailInput({ typed: "me@gmail.com", blur: true });
 
   assert.deepEqual(describedBy(input), [helpId()]);
+});
+
+/** Renders the form with the Custom tile chosen; answers the number Input. */
+async function renderCustomInput(): Promise<InputProps> {
+  await renderEmailInput({ custom: true });
+  assert.equal(numberInputs.length, 1, "expected one custom-amount Input");
+
+  return numberInputs[0] as InputProps;
+}
+
+/** The id on the element whose whole text is `key`, in the markup. */
+function idOfText(tag: string, key: string): string | undefined {
+  const re = new RegExp(
+    `<${tag}[^>]*\\sid="([^"]+)"[^>]*>${key.replace(".", "\\.")}</${tag}>`,
+  );
+
+  return re.exec(markup)?.[1];
+}
+
+test("#1147: the custom-amount field is hidden until Custom is chosen", async () => {
+  await renderEmailInput();
+
+  assert.equal(numberInputs.length, 0);
+});
+
+test("#1147: the custom-amount field is named by the visible amount heading and Custom title", async () => {
+  const input = await renderCustomInput();
+  const amountId = idOfText("span", "buyCredits.amountLabel");
+  const customId = idOfText("div", "buyCredits.custom");
+
+  assert.ok(amountId, "the Choose an amount heading has no id");
+  assert.ok(customId, "the Custom tile title has no id");
+  assert.notEqual(amountId, customId);
+  assert.deepEqual(
+    (input["aria-labelledby"] ?? "").split(/\s+/).filter(Boolean),
+    [amountId, customId],
+  );
+  // The name must not come from the placeholder: the component sets no
+  // aria-label of its own (HeroUI's placeholder fallback loses to labelledby).
+  assert.equal(input["aria-label"], undefined);
+  assert.equal(input.placeholder, "buyCredits.customPlaceholder");
 });

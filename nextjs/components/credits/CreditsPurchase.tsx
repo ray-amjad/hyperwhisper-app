@@ -55,6 +55,10 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
   const emailInputId = useId();
   const emailHelpId = useId();
   const emailErrorId = useId();
+  // #1147: the custom-amount field is named by the visible "Choose an amount"
+  // heading and the Custom tile title, not by its placeholder.
+  const amountLabelId = useId();
+  const customTitleId = useId();
 
   const { credits, feeUsd, totalUsd } = useMemo(() => {
     if (!amountValid) return { credits: 0, feeUsd: 0, totalUsd: 0 };
@@ -183,7 +187,10 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
 
             {/* Amount */}
             <div className="mt-7">
-              <span className="block text-sm font-medium text-gray-300 mb-3">
+              <span
+                className="block text-sm font-medium text-gray-300 mb-3"
+                id={amountLabelId}
+              >
                 {t("amountLabel")}
               </span>
               <div className="grid grid-cols-3 gap-3">
@@ -220,7 +227,10 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                       : "bg-gray-900/50 border-gray-800 hover:border-gray-700"
                   }`}
                 >
-                  <div className="text-2xl font-bold text-white">
+                  <div
+                    className="text-2xl font-bold text-white"
+                    id={customTitleId}
+                  >
                     {t("custom")}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
@@ -231,7 +241,11 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
 
               {isCustom && (
                 <div className="mt-3">
+                  {/* HeroUI still sets aria-label to the placeholder, but a
+                      caller's aria-labelledby reaches the <input> as given and
+                      wins over aria-label in the accessible name. */}
                   <Input
+                    aria-labelledby={`${amountLabelId} ${customTitleId}`}
                     type="number"
                     value={customAmount}
                     onChange={(e) => {
