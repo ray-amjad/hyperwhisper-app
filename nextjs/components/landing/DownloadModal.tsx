@@ -96,15 +96,13 @@ export default function DownloadModal() {
         <ModalHeader className="flex flex-col gap-1 items-center pt-8 pb-4">
           {/* App icon */}
           <div className="w-24 h-24 mb-6 relative">
-            <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 rounded-2xl flex items-center justify-center shadow-2xl">
-              <Image
-                alt={t("logoAlt")}
-                className="w-24 h-24 rounded-xl"
-                height={96}
-                src="/icon/256.png"
-                width={96}
-              />
-            </div>
+            <Image
+              alt={t("logoAlt")}
+              className="w-24 h-24"
+              height={96}
+              src="/icon/256.png"
+              width={96}
+            />
           </div>
 
           <h3 className="text-2xl font-bold text-white mb-2">{t("title")}</h3>
