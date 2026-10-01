@@ -1951,12 +1951,6 @@
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>Модель</value>
   </data>
-  <data name="settings.streaming.deepgram.model.general" xml:space="preserve">
-    <value>Nova 3 General</value>
-  </data>
-  <data name="settings.streaming.deepgram.model.medical" xml:space="preserve">
-    <value>Nova 3 Medical</value>
-  </data>
   <data name="settings.streaming.fastFormatting.title" xml:space="preserve">
     <value>Быстрое форматирование</value>
   </data>

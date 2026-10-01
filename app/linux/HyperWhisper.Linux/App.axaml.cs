@@ -32,7 +32,8 @@ public partial class App : Application
         Resources["CloudVendorLabelConverter"] = new CloudVendorLabelConverter();
         Resources["CloudTierModelLabelConverter"] = new CloudTierModelLabelConverter();
         Resources["CloudSttTierLabelConverter"] = new CloudSttTierLabelConverter();
-        Resources["ModeProviderLineConverter"] = new ModeProviderLineConverter();
+        Resources["ModeProviderLineConverter"] = new ModeProviderLineConverter(
+            (OptionLabelConverter)Resources["OptionLabelConverter"]!);
         Resources["ModePostProcessingConverter"] = new ModePostProcessingConverter();
         Resources["StatusBarModelConverter"] = new StatusBarModelConverter();
         Resources["HistoryGroupHeaderConverter"] = new HistoryGroupHeaderConverter(Localization);
