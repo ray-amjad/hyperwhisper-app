@@ -21,7 +21,9 @@ struct StreamingSegmentPasteDecisionTests {
     }
 
     // Cases main got WRONG. The old private ["ja", "zh", "ko"] literal was
-    // matched against `language?.prefix(2).lowercased()`, so it missed these.
+    // matched against `language?.prefix(2).lowercased()`, so it missed
+    // explicit "th", explicit "yue", and auto-detect (nil) over Thai text
+    // (`containsCJKCharacters` excludes Thai).
 
     @Test func thaiLanguagePastes() {
         #expect(shouldPaste(thaiText, "th"))
@@ -31,22 +33,26 @@ struct StreamingSegmentPasteDecisionTests {
         #expect(shouldPaste("今日天氣好好", "yue"))
     }
 
-    // The biggest one: the only caller passes the literal "auto", and
-    // "auto".prefix(2) is "au", which is neither in the list nor empty, so
-    // auto mode typed CJK and Thai text instead of pasting it.
+    // Production passes nil for auto-detect (RecordingTranscriptionFlow+Streaming
+    // maps "auto"/"" to nil before calling typeSegment). nil is the primary
+    // assertion. "auto", "AUTO" and "" are accepted defensively by
+    // `streamingSegmentShouldPaste` but are not what the caller sends.
     @Test func autoDetectOverThaiTextPastes() {
+        #expect(shouldPaste(thaiText, nil))
         #expect(shouldPaste(thaiText, LanguageData.automaticCode))
         #expect(shouldPaste(thaiText, "AUTO"))
-        #expect(shouldPaste(thaiText, nil))
         #expect(shouldPaste(thaiText, ""))
     }
 
-    @Test func autoDetectOverJapaneseTextPastes() {
-        #expect(shouldPaste(japaneseText, LanguageData.automaticCode))
-    }
-
     // Behaviour UNCHANGED from main, pinned so it stays that way. The old
-    // prefix(2) match already pasted ja, zh, ko, and zh-Hant / zh-CN.
+    // prefix(2) match already pasted ja, zh, ko, and zh-Hant / zh-CN, and
+    // auto-detect (nil) over Japanese already pasted via containsCJKCharacters.
+
+    @Test func autoDetectOverJapaneseTextStillPastes() {
+        #expect(shouldPaste(japaneseText, nil))
+        #expect(shouldPaste(japaneseText, LanguageData.automaticCode))
+        #expect(shouldPaste(japaneseText, ""))
+    }
 
     @Test func japaneseChineseKoreanStillPaste() {
         #expect(shouldPaste(japaneseText, "ja"))
@@ -64,8 +70,8 @@ struct StreamingSegmentPasteDecisionTests {
     @Test func spaceDelimitedLanguagesType() {
         #expect(!shouldPaste(englishText, "en"))
         #expect(!shouldPaste("Bonjour tout le monde", "fr"))
-        #expect(!shouldPaste(englishText, LanguageData.automaticCode))
         #expect(!shouldPaste(englishText, nil))
+        #expect(!shouldPaste(englishText, LanguageData.automaticCode))
     }
 
     @Test func explicitLanguageWinsOverTextScript() {

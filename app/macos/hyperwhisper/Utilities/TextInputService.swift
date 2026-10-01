@@ -61,7 +61,7 @@ private struct PasteboardItemSnapshot {
 /// 3. **Hybrid/Smart** (`typeSegment`):
 ///    - Pastes for no-space languages (the shared core's rule: ja, zh*, ko, th, yue)
 ///    - Falls back to character typing for space-delimited languages
-///    - Auto-detects continuous-script text (CJK, Thai) when language is "auto"
+///    - Auto-detects continuous-script text (CJK, Thai) when language is nil (auto-detect)
 ///
 /// USAGE:
 /// ```swift
@@ -386,7 +386,7 @@ final class TextInputService {
     /// HYBRID STREAMING TEXT INPUT:
     /// - No-space languages (`SmartSpacing.isNoSpaceLanguage`, the shared core's
     ///   table: ja, zh*, ko, th, yue): Uses clipboard paste for instant insertion
-    /// - Auto-detect (nil, "" or "auto"): Pastes if the text is continuous script
+    /// - Auto-detect (arrives as nil; "" and "auto" also accepted): Pastes if the text is continuous script
     ///   (`SmartSpacing.isContinuousScript`: CJK or Thai)
     /// - Other languages: Uses character-by-character typing to preserve clipboard
     ///
@@ -397,7 +397,8 @@ final class TextInputService {
     ///
     /// - Parameters:
     ///   - text: The text to type or paste
-    ///   - language: Language code (e.g., "ja", "en"), or nil / "auto" for auto-detect
+    ///   - language: Language code (e.g., "ja", "en"), or nil for auto-detect (the caller maps "auto" to nil;
+    ///     "" and "auto" are also accepted)
     /// - Returns: true if operation succeeded, false otherwise
     func typeSegment(_ text: String, language: String?) async -> Bool {
         guard !text.isEmpty else { return true }
@@ -409,8 +410,8 @@ final class TextInputService {
 
     /// Paste-vs-type decision for a streaming segment. Pure, so tests pin it.
     /// An explicit language decides by the core's no-space table (the core trims,
-    /// folds case and falls back to the 2-char prefix itself); nil, "" and "auto"
-    /// decide by the text's script.
+    /// folds case and falls back to the 2-char prefix itself); nil (what production
+    /// sends for auto-detect), "" and "auto" decide by the text's script.
     static func streamingSegmentShouldPaste(_ text: String, language: String?) -> Bool {
         let lang = language?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if lang.isEmpty || lang.caseInsensitiveCompare(LanguageData.automaticCode) == .orderedSame {
