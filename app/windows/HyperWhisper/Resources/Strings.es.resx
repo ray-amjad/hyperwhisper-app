@@ -1743,12 +1743,6 @@ Puede volver a descargarlo más tarde.</value>
   <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
     <value>Comprimir las grabaciones a M4A</value>
   </data>
-  <data name="settings.streaming.deepgram.model.general" xml:space="preserve">
-    <value>Nova 3 General</value>
-  </data>
-  <data name="settings.streaming.deepgram.model.medical" xml:space="preserve">
-    <value>Nova 3 Medical</value>
-  </data>
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>Modelo</value>
   </data>

@@ -967,8 +967,9 @@
                              Text="{ReflectionBinding [settings.streaming.deepgram.model.title], Source={StaticResource Localization}}"/>
                   <ComboBox Grid.Column="2" x:Name="StreamingModelInput" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                             SelectionChanged="OnStreamingDeepgramModelChanged">
-                    <ComboBoxItem Tag="nova-3-general" Content="{ReflectionBinding [settings.streaming.deepgram.model.general], Source={StaticResource Localization}}"/>
-                    <ComboBoxItem Tag="nova-3-medical" Content="{ReflectionBinding [settings.streaming.deepgram.model.medical], Source={StaticResource Localization}}"/>
+                    <!-- A model name is read from the catalog, never from a translation file (#837). -->
+                    <ComboBoxItem Tag="nova-3-general" Content="{ReflectionBinding $self.Tag, Converter={StaticResource CloudSttModelLabelConverter}}"/>
+                    <ComboBoxItem Tag="nova-3-medical" Content="{ReflectionBinding $self.Tag, Converter={StaticResource CloudSttModelLabelConverter}}"/>
                   </ComboBox>
                 </Grid>
               </StackPanel>

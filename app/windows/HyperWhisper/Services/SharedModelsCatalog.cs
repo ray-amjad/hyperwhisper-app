@@ -96,9 +96,30 @@ public static class SharedModelsCatalog
     /// This is the ONLY place Windows reads a model name from. The registry in
     /// <c>Models/CloudTranscriptionModel.cs</c> used to hold its own 36 literals
     /// and they had drifted from macOS (#837).
+    ///
+    /// Null when the native core cannot answer. A picker reads this once per row,
+    /// and an exception there would take the whole picker down; the caller's
+    /// <c>?? Id</c> fallback is the row it draws instead.
     /// </summary>
     public static string? DisplayName(string provider, CatalogKind kind, string id)
-        => HyperwhisperCoreMethods.ModelsEntry(provider, ToHwKind(kind), id ?? "")?.@displayName;
+    {
+        try
+        {
+            return HyperwhisperCoreMethods.ModelsEntry(provider, ToHwKind(kind), id ?? "")?.@displayName;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException
+                                       or BadImageFormatException or TypeInitializationException)
+        {
+            if (!_displayNameFailureLogged)
+            {
+                _displayNameFailureLogged = true;
+                LoggingService.Error("Model names failed to load from the shared core; showing ids", ex);
+            }
+            return null;
+        }
+    }
+
+    private static bool _displayNameFailureLogged;
 
     public static ModelVoiceCapabilities? VoiceCapabilities(string provider, string id)
     {

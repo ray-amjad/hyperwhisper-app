@@ -105,6 +105,24 @@ public static partial class SharedCoreBridge
             .Where(group => group.Models.Count > 0)
             .ToArray();
 
+    /// <summary>
+    /// The company name for each BYOK provider id the catalog knows, keyed by that id with
+    /// its dashes removed: <c>grok</c> → SpaceXAI, <c>geminitranscribe</c> → Google. A mode
+    /// stores the dashless form (<c>ModesViewModel.CloudProviders</c>), the
+    /// catalog writes <c>sttProvider</c> with dashes.
+    /// </summary>
+    public static Dictionary<string, string> CloudSttVendorNamesByProvider()
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in HyperwhisperCoreMethods.CloudSttEntries())
+        {
+            if (string.IsNullOrWhiteSpace(entry.@sttProvider) || string.IsNullOrWhiteSpace(entry.@vendorDisplayName))
+                continue;
+            names.TryAdd(entry.@sttProvider.Replace("-", string.Empty), entry.@vendorDisplayName);
+        }
+        return names;
+    }
+
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 

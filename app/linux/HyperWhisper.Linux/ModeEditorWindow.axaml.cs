@@ -25,6 +25,7 @@ public partial class ModeEditorWindow : Window
     private readonly bool _isCreate;
     private ModesViewModel.ModeEditorSnapshot? _snapshot;
     private bool _committed;
+    private bool _closing;
 
     public ModeEditorWindow()
     {
@@ -49,7 +50,6 @@ public partial class ModeEditorWindow : Window
             save.Content = L(isCreate ? "modes.button.create" : "modes.button.save");
 
         modes.PropertyChanged += OnModesPropertyChanged;
-        Closed += (_, _) => modes.PropertyChanged -= OnModesPropertyChanged;
     }
 
     /// <summary>
@@ -62,6 +62,9 @@ public partial class ModeEditorWindow : Window
     /// picking Google over ElevenLabs left the Model row blank with
     /// <c>gemini-3.5-transcribe</c> selected in the view model. Post it instead, so the
     /// re-apply lands after the list change has settled.
+    ///
+    /// The re-apply writes back through the two-way binding. The view model drops that
+    /// echo when the mode chose no model, so the display fallback is never saved.
     /// </summary>
     private void OnModesPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -69,7 +72,10 @@ public partial class ModeEditorWindow : Window
         Dispatcher.UIThread.Post(
             () =>
             {
-                if (_modes is null) return;
+                // Cancel restores the snapshot, which raises CloudTierModels while this
+                // handler is still attached. A post queued then runs after the window is
+                // gone and must not touch the shared view model.
+                if (_modes is null || _closing) return;
                 if (this.FindControl<ComboBox>("ModeCloudTierModel") is { } combo)
                     combo.SelectedValue = _modes.CloudTierModel;
             },
@@ -147,6 +153,8 @@ public partial class ModeEditorWindow : Window
 
     private void CancelAndClose()
     {
+        _closing = true;
+        if (_modes is not null) _modes.PropertyChanged -= OnModesPropertyChanged;
         Discard();
         Close();
     }
@@ -166,6 +174,9 @@ public partial class ModeEditorWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
+        // Detach BEFORE Discard: the restore it runs raises the change this handler reacts to.
+        _closing = true;
+        if (_modes is not null) _modes.PropertyChanged -= OnModesPropertyChanged;
         Discard();
         base.OnClosing(e);
     }

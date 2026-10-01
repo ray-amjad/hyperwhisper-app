@@ -474,10 +474,12 @@ struct StreamingView: View {
     /// at dictation time, and the STT catalog has no `enabled` gate to hide it.
     ///
     /// A row label is the tier's own catalog name — "ElevenLabs Scribe v2". It
-    /// used to read `modes.cloudAccuracy.<id>.label`, and the 40 translated
-    /// copies of that key were the same English proper noun 40 times over. A
-    /// name is never translated, so #837 deleted them and this reads the
-    /// catalog, which is where a name is written.
+    /// used to read `modes.cloudAccuracy.<id>.label`. On macOS that key held a
+    /// translated accuracy word beside the name ("Hoch (…)", "最高 (…)"), and
+    /// the name part had drifted: French read `Maximale (Grok SST)`. #837
+    /// dropped the accuracy word on purpose, so the row matches Windows and
+    /// Linux, which never drew one. A name is never translated, so it is read
+    /// from the catalog, which is where a name is written.
     private var cloudTierSection: some View {
         HStack(spacing: 12) {
             Image(systemName: "cpu")

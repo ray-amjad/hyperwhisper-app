@@ -1458,8 +1458,13 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
     Assert(editor.CloudVendors.Count > 0, "the Provider picker has no companies");
     Assert(editor.CloudVendors.Distinct(StringComparer.OrdinalIgnoreCase).Count() == editor.CloudVendors.Count,
         "a company is listed twice");
-    Assert(editor.CloudAccuracyTiers.Count == 12,
-        $"the catalog offers {editor.CloudAccuracyTiers.Count} cloud tiers, not 12");
+    // No pinned count: adding a tier is a data-only catalog edit, and it must not turn
+    // this suite red on 3 heads. Pin the shape instead — no tier twice, and a company
+    // can own more than 1 tier, so there are at least as many tiers as companies.
+    Assert(editor.CloudAccuracyTiers.Distinct(StringComparer.Ordinal).Count() == editor.CloudAccuracyTiers.Count,
+        "a cloud tier is listed twice");
+    Assert(editor.CloudAccuracyTiers.Count >= editor.CloudVendors.Count,
+        $"{editor.CloudAccuracyTiers.Count} tiers for {editor.CloudVendors.Count} companies");
 
     var mode = new Mode
     {
@@ -1500,8 +1505,38 @@ static async Task RunCloudVendorPickerTestsAsync(string root)
     editor.CloudVendor = "deepgram";
     Assert(editor.CloudAccuracyTier == "deepgramNova3", $"Deepgram seeded tier '{editor.CloudAccuracyTier}'");
     Assert(editor.CloudTierModel == "nova-3-general", $"Deepgram seeded model '{editor.CloudTierModel}'");
-    Assert(editor.CloudTierModels.All(id => editor.CloudTierModel != "gemini-2.5-flash"),
+    Assert(editor.CloudTierModel != "gemini-2.5-flash" && !editor.CloudTierModels.Contains("gemini-2.5-flash"),
         "the previous company's model survived the change");
+
+    // The dialog re-applies the Model selection after a list change, and the two-way
+    // binding writes the DISPLAY fallback back. A mode that chose no model must still
+    // save none: the fallback is what the row shows, not what the user picked.
+    var unchosen = new Mode { Name = "Unchosen model", ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "deepgramNova3", Language = "en" };
+    await repository.UpsertAsync(unchosen);
+    editor.Selected = unchosen;
+    Assert(editor.TranscriptionModel.Length == 0, "this mode was seeded with a model - the echo check proves nothing");
+    editor.CloudTierModel = editor.CloudTierModel;
+    Assert(editor.TranscriptionModel.Length == 0, $"the display fallback was stored as '{editor.TranscriptionModel}'");
+    await editor.SaveAsync();
+    var unchosenSaved = (await repository.ListAsync()).Single(row => row.Id == unchosen.Id);
+    Assert(unchosenSaved.CloudTranscriptionModel is null,
+        $"a mode that chose no model saved '{unchosenSaved.CloudTranscriptionModel}'");
+
+    // A stored model from the company's OTHER tier is not what runs, so the row must not
+    // show it. The router runs the tier's default for it.
+    var crossTier = new Mode { Name = "Cross tier", ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudAccuracyTier = "geminiTranscribe", CloudTranscriptionModel = "gemini-2.5-flash", Language = "en" };
+    await repository.UpsertAsync(crossTier);
+    editor.Selected = crossTier;
+    Assert(editor.CloudTierModel == "gemini-3.5-transcribe",
+        $"the row shows '{editor.CloudTierModel}' while the tier geminiTranscribe runs its default");
+
+    // Picking that same id moves the tier with it, even though the stored id does not change,
+    // and the change is announced so the credits and vocabulary rows follow.
+    var tierNotified = false;
+    editor.PropertyChanged += (_, e) => tierNotified |= e.PropertyName == nameof(ModesViewModel.ShowCloudModelPanel);
+    editor.CloudTierModel = "gemini-2.5-flash";
+    Assert(editor.CloudAccuracyTier == "gemini", $"the tier stayed '{editor.CloudAccuracyTier}'");
+    Assert(tierNotified, "the tier moved with no reveal notification");
 
     // Every company can seat a model, on every tier it owns. A group whose default
     // resolves to nothing would draw an empty Model row for that whole company.

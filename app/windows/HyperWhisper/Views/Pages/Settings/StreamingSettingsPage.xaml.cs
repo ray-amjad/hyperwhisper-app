@@ -44,6 +44,13 @@ public partial class StreamingSettingsPage : Page
         LanguageBox.SelectedValue = _settings.StreamingLanguage;
 
         SelectComboBoxItemByTag(ProviderBox, _settings.StreamingProvider);
+        // A model name is a proper noun and lives in the catalog only. These 2 rows used to
+        // read it from a key copied into 40 translation files (#837).
+        foreach (var item in DeepgramModelBox.Items.OfType<ComboBoxItem>())
+        {
+            if (item.Tag is string id)
+                item.Content = CloudTranscriptionModels.GetById(id, CloudTranscriptionProvider.Deepgram)?.DisplayName ?? id;
+        }
         SelectComboBoxItemByTag(DeepgramModelBox, _settings.StreamingDeepgramModel);
         FastFormattingCheckbox.IsChecked = _settings.StreamingFastFormatting;
 

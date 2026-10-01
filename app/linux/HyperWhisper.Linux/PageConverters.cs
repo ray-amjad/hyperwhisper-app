@@ -148,7 +148,33 @@ public sealed class ModeProviderLineConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 
-    private static string ProviderDisplayName(string? id) => id?.ToLowerInvariant() switch
+    /// <summary>
+    /// The company name for a mode card. A BYOK provider the cloud STT catalog knows takes
+    /// that catalog's <c>vendorDisplayName</c>, the same string the Mode editor's Provider row
+    /// draws. The card used to say "xAI" for a Grok mode while the editor said "SpaceXAI".
+    /// The switch below answers only for ids the catalog does not hold.
+    /// </summary>
+    private static string ProviderDisplayName(string? id) =>
+        IsHyperWhisperCloud(id) ? "HyperWhisper" : CatalogVendorName(id) ?? FallbackProviderName(id);
+
+    private static Dictionary<string, string>? _catalogVendorNames;
+
+    private static string? CatalogVendorName(string? id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        try
+        {
+            _catalogVendorNames ??= SharedCoreBridge.CloudSttVendorNamesByProvider();
+        }
+        catch (Exception)
+        {
+            // No native core: keep the built-in names rather than break every mode card.
+            _catalogVendorNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+        return _catalogVendorNames.TryGetValue(id, out var name) ? name : null;
+    }
+
+    private static string FallbackProviderName(string? id) => id?.ToLowerInvariant() switch
     {
         // Windows shortens this to "HyperWhisper" on a mode card; the long form is the page copy.
         null or "" or "hyperwhisper" or "hyperwhispercloud" or "hyperwhisper_cloud" => "HyperWhisper",
@@ -156,7 +182,7 @@ public sealed class ModeProviderLineConverter : IValueConverter
         "groq" => "Groq",
         "elevenlabs" => "ElevenLabs",
         "mistral" => "Mistral",
-        "grok" or "xai" => "xAI",
+        "grok" or "xai" => "SpaceXAI",
         "deepgram" => "Deepgram",
         "assemblyai" => "AssemblyAI",
         "soniox" => "Soniox",
