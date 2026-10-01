@@ -94,3 +94,25 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(128, 128, 128, 0.7);
 }
+
+/* Honour the OS "Reduce motion" setting (#701): no smooth scroll, no looping
+   decorative keyframes, and every other CSS animation/transition ends at once. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-blob,
+  .animate-scroll,
+  .animate-scroll-x {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
