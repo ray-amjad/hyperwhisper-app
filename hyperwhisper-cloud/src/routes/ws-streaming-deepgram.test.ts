@@ -85,13 +85,34 @@ describe('wsStreamingPreflight', () => {
 
   const UPGRADE_HEADERS = { Upgrade: 'websocket', 'Fly-Client-IP': '203.0.113.7' } as const;
 
+
+  // The preflight's console.log lines, captured per test. Each refused upgrade
+  // must leave exactly one `ws_streaming.request_rejected` line, and no line may
+  // carry the key.
+  let logged: string[] = [];
+  const originalConsoleLog = console.log;
+
+  function expectOneRejection(reason: string, status: number): Record<string, unknown> {
+    const rejections = logged
+      .map((line) => { try { return JSON.parse(line) as Record<string, unknown>; } catch { return null; } })
+      .filter((entry): entry is Record<string, unknown> => entry?.event === 'ws_streaming.request_rejected');
+    expect(rejections).toHaveLength(1);
+    expect(rejections[0]!.reason).toBe(reason);
+    expect(rejections[0]!.status).toBe(status);
+    for (const line of logged) expect(line).not.toContain('key-1234-abcd');
+    return rejections[0]!;
+  }
+
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
     globalThis.fetch = neverFetch();
+    logged = [];
+    console.log = (...args: unknown[]) => { logged.push(args.map(String).join(' ')); };
   });
 
   afterEach(() => {
+    console.log = originalConsoleLog;
     globalThis.fetch = originalFetch;
     cachedLicenseValue = null;
     blockedIPs.clear();
@@ -104,6 +125,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(426);
     expect(await res.text()).toBe('Expected WebSocket upgrade');
+    expect(expectOneRejection('not_websocket', 426).endpoint).toBe('/ws/streaming-deepgram');
   });
 
   test('rejects a blocked IP before any license work happens', async () => {
@@ -118,6 +140,8 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('Access denied');
+    const entry = expectOneRejection('ip_blocked', 403);
+    expect(JSON.stringify(entry)).not.toContain('203.0.113.7');
   });
 
   test('rejects an upgrade that carries no key at all', async () => {
@@ -125,6 +149,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(401);
     expect(await res.text()).toBe('Missing account_key');
+    expectOneRejection('missing_account_key', 401);
   });
 
   test('accepts the legacy license_key alias that installed apps still send', async () => {
@@ -173,6 +198,9 @@ describe('wsStreamingPreflight', () => {
     expect(body.error).toBe('Insufficient credits');
     expect(body.credits_remaining).toBe(2.7);
     expect(body.minutes_required).toBe(1);
+    const entry = expectOneRejection('insufficient_credits', 402);
+    expect(entry.credits).toBe(minimumStreamingCredits() - 0.1);
+    expect(entry.minimumCredits).toBe(minimumStreamingCredits());
   });
 
   test('admits a balance exactly at the floor', async () => {
@@ -184,6 +212,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(200);
     expect((await res.json() as { credits: number }).credits).toBe(2.8);
+    expect(logged.some((line) => line.includes('ws_streaming.request_rejected'))).toBe(false);
   });
 });
 

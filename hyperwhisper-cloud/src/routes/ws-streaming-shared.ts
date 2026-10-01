@@ -248,13 +248,25 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
   return async function wsStreamingPreflight(c: Context, next: Next) {
     const requestId = generateRequestId();
     const startTime = performance.now();
+    // One line per refused upgrade, so a "live dictation will not start" report
+    // has a trail in Axiom. Never log the key, the query string or the client IP.
+    const logRejected = (reason: string, status: number, details: Record<string, unknown> = {}) =>
+      logEvent(requestId, startTime, 'ws_streaming.request_rejected', {
+        endpoint: c.req.path,
+        reason,
+        status,
+        ...details,
+      });
+
     const upgradeHeader = c.req.header('Upgrade');
     if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+      logRejected('not_websocket', 426);
       return c.text('Expected WebSocket upgrade', 426);
     }
 
     const clientIP = getClientIP(c);
     if (await isIPBlocked(clientIP)) {
+      logRejected('ip_blocked', 403);
       return c.text('Access denied', 403);
     }
 
@@ -267,6 +279,7 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
       undefined;
 
     if (!licenseKey) {
+      logRejected('missing_account_key', 401);
       return c.text('Missing account_key', 401);
     }
 
@@ -280,8 +293,13 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
       return c.text('Unauthorized', 401);
     }
 
-    const creditCheck = await validateCredits(authResult.value, minimumCredits(), clientIP);
+    const requiredCredits = minimumCredits();
+    const creditCheck = await validateCredits(authResult.value, requiredCredits, clientIP);
     if (!creditCheck.ok) {
+      logRejected('insufficient_credits', creditCheck.response.status, {
+        credits: authResult.value.credits,
+        minimumCredits: requiredCredits,
+      });
       return creditCheck.response;
     }
 
