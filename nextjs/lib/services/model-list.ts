@@ -279,6 +279,23 @@ export type ModelListDeps = {
   now: () => number;
 };
 
+/** Strip an API key from text, raw and URL-encoded (fetchGemini encodes it). */
+function redactKey(text: string, key: string): string {
+  for (const form of [key, encodeURIComponent(key)]) {
+    if (form) text = text.split(form).join("[redacted]");
+  }
+  return text;
+}
+
+/** undici's dual-stack connect failure is an AggregateError; show its parts. */
+function describeCause(cause: unknown): string {
+  if (cause instanceof AggregateError && cause.errors.length > 0) {
+    const parts = cause.errors.map((err) => (err instanceof Error ? err.message : String(err)));
+    return `${String(cause)}: ${parts.join("; ")}`;
+  }
+  return String(cause);
+}
+
 export type ModelList = {
   fetchAvailableModels: () => Promise<AvailableModels>;
   fetchAvailableModelsUncached: () => Promise<AvailableModels>;
@@ -310,13 +327,14 @@ export function createModelList(deps: Partial<ModelListDeps> = {}): ModelList {
           const models = await fetcher(key, apiGet);
           return [name, { ok: true, models }];
         } catch (e) {
-          const reason = e instanceof Error ? e.message : String(e);
-          // Node puts the real reason for a network failure in `cause`.
-          const cause = e instanceof Error && e.cause ? ` (cause: ${String(e.cause)})` : "";
           // The Gemini URL carries the key in its query string, and an error
-          // message can quote the URL or the upstream body, so strip the key.
-          const line = `[model-list] ${name} fetch failed: ${reason}${cause}`;
-          console.error(line.split(key).join("[redacted]"));
+          // message can quote the URL or the upstream body. The error is also
+          // returned to the public /models route, so redact both.
+          const reason = redactKey(e instanceof Error ? e.message : String(e), key);
+          // Node puts the real reason for a network failure in `cause`.
+          const cause =
+            e instanceof Error && e.cause ? ` (cause: ${describeCause(e.cause)})` : "";
+          console.error(redactKey(`[model-list] ${name} fetch failed: ${reason}${cause}`, key));
           return [name, { ok: false, error: reason }];
         }
       })
