@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardBody } from "@heroui/card";
-import { m } from "framer-motion";
+import { m, type Variants } from "framer-motion";
 import {
   Mic,
   Globe,
@@ -17,6 +17,21 @@ import {
   Github,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+
+// One trigger for the whole grid (#877): the cards are children of a single
+// whileInView container and take a capped per-index delay through `custom`.
+// Per-card triggers made the last visible row wait for its own viewport entry.
+// 0.25 s and a 40 ms cap keep the grid readable in < 600 ms after an anchor
+// jump, which globals.css makes a ~700 ms smooth scroll.
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 12, filter: "blur(4px)" },
+  show: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.25, delay: Math.min(index, 2) * 0.02 },
+  }),
+};
 
 export default function FeaturesGrid() {
   const t = useTranslations("features");
@@ -119,15 +134,20 @@ export default function FeaturesGrid() {
           </p>
         </m.div>
 
-        <div className="flex flex-wrap justify-center gap-6">
+        {/* The 800px bottom margin starts the reveal before the grid reaches
+            the fold, so it finishes while the scroll is still bringing it in. */}
+        <m.div
+          className="flex flex-wrap justify-center gap-6"
+          initial="hidden"
+          viewport={{ once: true, margin: "0px 0px 800px 0px" }}
+          whileInView="show"
+        >
           {features.map((feature, index) => (
             <m.div
               key={feature.titleKey}
               className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
-              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
-              transition={{ duration: 0.4, delay: Math.min(index, 3) * 0.06 }}
-              viewport={{ once: true }}
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              custom={index}
+              variants={cardVariants}
             >
               <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 hover:border-gray-700 transition-colors h-full">
                 {/* text-start overrides the physical `text-left` baked into
@@ -149,7 +169,7 @@ export default function FeaturesGrid() {
               </Card>
             </m.div>
           ))}
-        </div>
+        </m.div>
 
         {/* Additional feature highlight */}
         <m.div
