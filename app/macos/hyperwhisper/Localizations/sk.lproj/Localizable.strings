@@ -890,6 +890,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "audio.error.permissionDenied" = "Prístup k mikrofónu je odmietnutý. Povolte ho v Nastaveniach systému.";
 "audio.error.microphonePermission" = "Povolenie mikrofónu neudelené";
 "audio.error.microphoneInUse" = "HyperWhisper nemôže pristupovať k mikrofónu, pretože ho v tejto chvíli používa ďalšia aplikácia. Pozastavte ďalšiu aplikáciu alebo prepnite vstupy a skúste znova.";
+"audio.error.audioSystemNotResponding" = "Zvuk v macOS nereaguje, takže mikrofón sa nepodarilo spustiť. Skúste to o chvíľu znova. Ak sa to opakuje, reštartujte Mac.";
 "audio.error.createEngine" = "Nepodarilo sa vytvoriť zvukový stroj";
 "audio.error.noInput" = "Žiadny dostupný zvukový vstup";
 "audio.error.createFile" = "Nepodarilo sa vytvoriť zvukový súbor";

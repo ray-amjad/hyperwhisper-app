@@ -890,6 +890,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "audio.error.permissionDenied" = "Akses mikrofon ditolak. Silakan aktifkan di Pengaturan Sistem.";
 "audio.error.microphonePermission" = "Izin mikrofon tidak diberikan";
 "audio.error.microphoneInUse" = "HyperWhisper tidak dapat mengakses mikrofon karena aplikasi lain sedang menggunakannya. Jeda aplikasi lain atau ganti input, lalu coba lagi.";
+"audio.error.audioSystemNotResponding" = "Audio macOS tidak merespons, jadi mikrofon tidak dapat dimulai. Coba lagi sebentar lagi. Jika terus terjadi, mulai ulang Mac Anda.";
 "audio.error.createEngine" = "Gagal membuat mesin audio";
 "audio.error.noInput" = "Tidak ada input audio yang tersedia";
 "audio.error.createFile" = "Gagal membuat file audio";

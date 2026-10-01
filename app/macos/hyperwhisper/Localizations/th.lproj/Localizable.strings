@@ -890,6 +890,7 @@
 "audio.error.permissionDenied" = "การเข้าถึงไมโครโฟนถูกปฏิเสธ โปรดเปิดใช้งานในการตั้งค่าระบบ";
 "audio.error.microphonePermission" = "ไม่ได้รับสิทธิ์ไมโครโฟน";
 "audio.error.microphoneInUse" = "HyperWhisper ไม่สามารถเข้าถึงไมโครโฟนเพราะแอปอื่นใช้งานอยู่ หยุดแอปอื่นหรือสลับอินพุต แล้วลองใหม่";
+"audio.error.audioSystemNotResponding" = "ระบบเสียงของ macOS ไม่ตอบสนอง จึงไม่สามารถเริ่มไมโครโฟนได้ ลองอีกครั้งในอีกสักครู่ หากยังเกิดขึ้นอยู่ ให้รีสตาร์ท Mac ของคุณ";
 "audio.error.createEngine" = "ไม่สามารถสร้างเอนจิ้นเสียง";
 "audio.error.noInput" = "ไม่มีอินพุตเสียง";
 "audio.error.createFile" = "ไม่สามารถสร้างไฟล์เสียง";

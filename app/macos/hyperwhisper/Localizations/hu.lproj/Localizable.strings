@@ -890,6 +890,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "audio.error.permissionDenied" = "Mikrofon hozzáférés megtagadva. Kérlek engedélyezd a Rendszerbeállításokban.";
 "audio.error.microphonePermission" = "Mikrofon engedély nincs megadva";
 "audio.error.microphoneInUse" = "A HyperWhisper nem fér hozzá a mikrofonhoz, mert egy másik alkalmazás használja. Szüneteltess a másik alkalmazást vagy válts bemenetet, majd próbáld újra.";
+"audio.error.audioSystemNotResponding" = "A macOS hangrendszere nem válaszol, ezért a mikrofont nem sikerült elindítani. Próbálja újra egy pillanat múlva. Ha ez továbbra is előfordul, indítsa újra a Macet.";
 "audio.error.createEngine" = "Nem sikerült az audio motor létrehozása";
 "audio.error.noInput" = "Nincs elérhető audio bemenet";
 "audio.error.createFile" = "Nem sikerült az audio fájl létrehozása";

@@ -890,6 +890,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "audio.error.permissionDenied" = "Pristup mikrofonu odbijen. Molimo omogućite u Sistemskim postavkama.";
 "audio.error.microphonePermission" = "Dozvola za mikrofon nije odobrena";
 "audio.error.microphoneInUse" = "HyperWhisper ne može pristupiti mikrofonu jer ga trenutno koristi druga aplikacija. Pauzirajte drugu aplikaciju ili promijenite ulaze, zatim pokušajte ponovno.";
+"audio.error.audioSystemNotResponding" = "Zvuk u macOS-u ne reagira pa se mikrofon nije mogao pokrenuti. Pokušajte ponovno za trenutak. Ako se to nastavi događati, ponovno pokrenite Mac.";
 "audio.error.createEngine" = "Nije uspjelo stvaranje audio motora";
 "audio.error.noInput" = "Nema dostupnog audio ulaza";
 "audio.error.createFile" = "Nije uspjelo stvaranje audio datoteke";

@@ -223,6 +223,8 @@ extension RecordingTranscriptionFlow {
             switch audioError {
             case .noMicrophoneAvailable:
                 return "no_microphone"
+            case .audioSystemNotResponding:
+                return "audio_system_not_responding"
             case .recordingFailed(let reason):
                 if reason == "Failed to start recording" {
                     return "record_start_failed"

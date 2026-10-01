@@ -890,6 +890,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "audio.error.permissionDenied" = "Truy cập micrô bị từ chối. Vui lòng bật trong Cài đặt Hệ thống.";
 "audio.error.microphonePermission" = "Quyền micrô không được cấp";
 "audio.error.microphoneInUse" = "HyperWhisper không thể truy cập micrô vì một ứng dụng khác hiện đang sử dụng nó. Tạm dừng ứng dụng khác hoặc chuyển đầu vào, sau đó thử lại.";
+"audio.error.audioSystemNotResponding" = "Âm thanh của macOS không phản hồi nên không thể bật micrô. Hãy thử lại sau giây lát. Nếu tình trạng này tiếp diễn, hãy khởi động lại máy Mac.";
 "audio.error.createEngine" = "Không thể tạo động cơ âm thanh";
 "audio.error.noInput" = "Không có đầu vào âm thanh nào có sẵn";
 "audio.error.createFile" = "Không thể tạo tệp âm thanh";
