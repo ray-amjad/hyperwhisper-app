@@ -13,6 +13,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -731,8 +732,53 @@ public partial class MainViewModel : ViewModelBase
         var mode = ModeService.Instance.GetSelectedMode();
         if (mode == null || mode.ProviderType == "cloud") return;
 
+        // A failed preload must not abort startup, so the error is reported and
+        // dropped here. StartRecordingAsync retries the load and shows the toast.
         try { await LoadModelAsync(); }
-        catch { }
+        catch (Exception ex) { ReportBackgroundModelLoadFailure("startup", mode, ex); }
+    }
+
+    // async void: the mode-switch preload runs fire-and-forget, so it must observe
+    // its own exception. A discarded Task faulted into the finalizer instead, and
+    // reached Sentry with no engine and no model (HYPERWHISPER-XG).
+    private async void LoadModelInBackground(Mode mode)
+    {
+        try { await LoadModelAsync(); }
+        catch (Exception ex) { ReportBackgroundModelLoadFailure("mode_switch", mode, ex); }
+    }
+
+    // Metadata only: no model path and no ex.Message, because Windows scrubs
+    // Sentry extras by key name and a path or message can carry the user name.
+    private static void ReportBackgroundModelLoadFailure(string trigger, Mode mode, Exception ex)
+    {
+        var engine = mode.LocalEngine == "parakeet" ? "parakeet" : "whisper";
+        var model = engine == "parakeet" ? mode.LocalParakeetModel : mode.ModelType;
+        LoggingService.Error($"MainViewModel: Background model load failed (trigger={trigger}, engine={engine}, model={model ?? "none"})", ex);
+
+        if (!SettingsService.Instance.EnableErrorLogging) return;
+
+        // Whisper.net caches a failed native load, so both startup triggers can throw
+        // the same exception. The dedupe key keeps that to one report per session.
+        var exceptionType = ex.GetType().FullName ?? "unknown";
+        SentryService.CaptureDiagnosticEvent(
+            message: "Background model load failed",
+            extras: new(StringComparer.Ordinal)
+            {
+                ["model_load_trigger"] = trigger,
+                ["model_load_engine"] = engine,
+                ["model_load_model"] = model ?? "none",
+                ["model_load_exception_type"] = exceptionType,
+                ["runtime_identifier"] = RuntimeInformation.RuntimeIdentifier,
+                ["is_arm64"] = RuntimeInformation.ProcessArchitecture == Architecture.Arm64,
+            },
+            tags: new(StringComparer.Ordinal)
+            {
+                ["component"] = "model_load",
+                ["diagnostic_name"] = "background_model_load_failed",
+                ["model_load_engine"] = engine,
+            },
+            fingerprint: ["model-load", "background", engine, exceptionType],
+            dedupeKey: $"model-load:background:{engine}:{exceptionType}");
     }
 
     [RelayCommand] private void NavigateToHome() => CurrentPage = NavigationPage.Home;
@@ -802,7 +848,7 @@ public partial class MainViewModel : ViewModelBase
                 var model = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == value.ModelType);
                 if (model != null && _modelService.IsModelDownloaded(model))
                 {
-                    _ = LoadModelAsync();
+                    LoadModelInBackground(value);
                 }
             }
         }
