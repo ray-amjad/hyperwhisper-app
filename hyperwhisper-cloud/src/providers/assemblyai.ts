@@ -50,7 +50,7 @@ import { transcribeWithAssemblyAIDictation } from './assemblyai-dictation';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, unparsedBodyKind } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -578,6 +578,7 @@ export async function transcribeWithAssemblyAI(
     const deadline = performance.now() + POLL_DEADLINE_MS;
     const pollUrl = `${ASSEMBLYAI_BASE}/v2/transcript/${transcriptId}`;
     let polls = 0;
+    let malformedPolls = 0;
 
     while (performance.now() < deadline) {
       await sleep(POLL_INTERVAL_MS);
@@ -608,10 +609,22 @@ export async function transcribeWithAssemblyAI(
         speech_model_used?: string;
         speech_model?: string;
       };
+      const raw = await pollResp.text();
       try {
-        job = await pollResp.json();
+        job = JSON.parse(raw);
       } catch {
-        continue; // malformed poll body — try again
+        // Malformed poll body — try again, but leave a trace. No part of the
+        // body is logged: a 200 poll body can hold the user's transcript (#1069).
+        malformedPolls += 1;
+        logProviderEvent(provider, 'parse_error', {
+          phase: 'poll',
+          polls,
+          contentType: pollResp.headers.get('content-type') ?? 'unknown',
+          contentEncoding: pollResp.headers.get('content-encoding') ?? 'none',
+          bodyLength: raw.length,
+          bodyKind: unparsedBodyKind(raw),
+        }, context);
+        continue;
       }
 
       if (job.status === 'completed') {
@@ -679,7 +692,7 @@ export async function transcribeWithAssemblyAI(
       // queued | processing → keep polling
     }
 
-    logProviderEvent(provider, 'poll_deadline', { model, polls, deadlineMs: POLL_DEADLINE_MS }, context);
+    logProviderEvent(provider, 'poll_deadline', { model, polls, malformedPolls, deadlineMs: POLL_DEADLINE_MS }, context);
     throw new ProviderUnavailableError('AssemblyAI', `poll deadline exceeded after ${POLL_DEADLINE_MS}ms`);
   } finally {
     // Best-effort cleanup — AssemblyAI keeps the transcript otherwise. Failures

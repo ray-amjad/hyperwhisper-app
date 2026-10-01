@@ -41,7 +41,7 @@ type Call = { url: string; method: string; body?: unknown; authorization?: strin
  * `createStatus` to short-circuit before the loop is ever entered.
  */
 function mockSonioxFlow(opts: {
-  pollBodies?: Array<{ status: number; body?: unknown; raw?: string }>;
+  pollBodies?: Array<{ status: number; body?: unknown; raw?: string; contentType?: string }>;
   uploadStatus?: { status: number; body?: unknown; raw?: string };
   createStatus?: { status: number; body?: unknown; raw?: string };
   transcriptStatus?: { status: number; body?: unknown; raw?: string };
@@ -51,9 +51,9 @@ function mockSonioxFlow(opts: {
   const pollBodies = opts.pollBodies ?? [];
   let pollIndex = 0;
 
-  const respond = (spec: { status: number; body?: unknown; raw?: string }) => (
+  const respond = (spec: { status: number; body?: unknown; raw?: string; contentType?: string }) => (
     spec.raw !== undefined
-      ? new Response(spec.raw, { status: spec.status })
+      ? new Response(spec.raw, { status: spec.status, headers: spec.contentType ? { 'content-type': spec.contentType } : undefined })
       : jsonResponse(spec.body ?? {}, spec.status)
   );
 
@@ -328,6 +328,33 @@ describe('transcribeWithSoniox — poll loop', () => {
 
     const result = await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav');
     expect(result.text).toBe('recovered');
+  }, 15_000);
+
+  test('a malformed 200 poll body logs a parse_error with its shape and none of its text', async () => {
+    const html = '<html><body>502 Bad Gateway</body></html>';
+    mockSonioxFlow({
+      pollBodies: [
+        { status: 200, raw: html, contentType: 'text/html' },
+        completedPoll({ audio_duration_ms: 6_000 }),
+      ],
+      transcriptStatus: { status: 200, body: { text: 'recovered' } },
+    });
+
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    try {
+      expect((await transcribeWithSoniox(SMALL_AUDIO, 'audio/wav')).text).toBe('recovered');
+    } finally {
+      console.log = originalLog;
+    }
+
+    const event = logged.find((args) => args[0] === 'provider.parse_error');
+    if (!event) throw new Error('no provider.parse_error event was logged');
+    const details = event[1] as Record<string, unknown>;
+    expect(details).toMatchObject({ phase: 'poll', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
+    expect(details).not.toHaveProperty('bodyPreview');
+    expect(JSON.stringify(event)).not.toContain('Bad Gateway');
   }, 15_000);
 
   test('a 401 during polling fails immediately instead of retrying to the deadline', async () => {

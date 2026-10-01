@@ -37,7 +37,7 @@ type Call = { url: string; method: string; body?: unknown };
  * the flow before the poll loop's real sleep — used by tests that only care
  * about request shape or fallback triggering, not full completion. */
 function mockAsyncFlow(opts: {
-  pollBodies: Array<{ status: number; body?: unknown }>;
+  pollBodies: Array<{ status: number; body?: unknown; raw?: string; contentType?: string }>;
   uploadStatus?: { status: number; body?: unknown };
   createStatus?: { status: number; body?: unknown };
 }) {
@@ -62,6 +62,9 @@ function mockAsyncFlow(opts: {
       calls.push({ url, method });
       const entry = opts.pollBodies[Math.min(pollIndex, opts.pollBodies.length - 1)];
       pollIndex += 1;
+      if (entry.raw !== undefined) {
+        return new Response(entry.raw, { status: entry.status, headers: entry.contentType ? { 'content-type': entry.contentType } : undefined });
+      }
       return entry.status === 200 ? jsonResponse(entry.body) : new Response(JSON.stringify(entry.body ?? {}), { status: entry.status });
     }
     if (url.startsWith(`${CREATE_URL}/`) && method === 'DELETE') {
@@ -490,6 +493,32 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
     const result = await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US');
     expect(result.text).toBe('recovered');
     expect(calls.filter((c) => c.url.startsWith(`${CREATE_URL}/`) && c.method === 'GET').length).toBe(2);
+  }, 10_000);
+
+  test('a malformed 200 poll body is retried and logs a parse_error with its shape and none of its text', async () => {
+    const html = '<html><body>502 Bad Gateway</body></html>';
+    mockAsyncFlow({
+      pollBodies: [
+        { status: 200, raw: html, contentType: 'text/html' },
+        { status: 200, body: { status: 'completed', text: 'recovered', audio_duration: 3 } },
+      ],
+    });
+
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    try {
+      expect((await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US')).text).toBe('recovered');
+    } finally {
+      console.log = originalLog;
+    }
+
+    const event = logged.find((args) => args[0] === 'provider.parse_error');
+    if (!event) throw new Error('no provider.parse_error event was logged');
+    const details = event[1] as Record<string, unknown>;
+    expect(details).toMatchObject({ phase: 'poll', polls: 1, contentType: 'text/html', bodyLength: html.length, bodyKind: 'html' });
+    expect(details).not.toHaveProperty('bodyPreview');
+    expect(JSON.stringify(event)).not.toContain('Bad Gateway');
   }, 10_000);
 
   test('a 401/403 during polling throws immediately without retrying', async () => {

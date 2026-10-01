@@ -9,7 +9,7 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, readRequiredJsonString, sleep, splitVocabularyTerms, unparsedBodyKind } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
@@ -197,6 +197,7 @@ export async function transcribeWithSoniox(
     const deadline = performance.now() + POLL_DEADLINE_MS;
     const jobUrl = `${SONIOX_BASE}/v1/transcriptions/${transcriptionId}`;
     let polls = 0;
+    let malformedPolls = 0;
     let durationSeconds = 0;
     let completed = false;
 
@@ -219,9 +220,21 @@ export async function transcribeWithSoniox(
       }
 
       let job: { status?: string; audio_duration_ms?: number; error_message?: string; error_type?: string };
+      const raw = await jobResp.text();
       try {
-        job = await jobResp.json();
+        job = JSON.parse(raw);
       } catch {
+        // Retry, but leave a trace. No part of the body is logged: a 200 poll
+        // body can hold the user's transcript (#1069).
+        malformedPolls += 1;
+        logProviderEvent(provider, 'parse_error', {
+          phase: 'poll',
+          polls,
+          contentType: jobResp.headers.get('content-type') ?? 'unknown',
+          contentEncoding: jobResp.headers.get('content-encoding') ?? 'none',
+          bodyLength: raw.length,
+          bodyKind: unparsedBodyKind(raw),
+        }, context);
         continue;
       }
 
@@ -249,7 +262,7 @@ export async function transcribeWithSoniox(
     }
 
     if (!completed) {
-      logProviderEvent(provider, 'poll_deadline', { model, polls, deadlineMs: POLL_DEADLINE_MS }, context);
+      logProviderEvent(provider, 'poll_deadline', { model, polls, malformedPolls, deadlineMs: POLL_DEADLINE_MS }, context);
       throw new ProviderUnavailableError('Soniox', `poll deadline exceeded after ${POLL_DEADLINE_MS}ms`);
     }
 
