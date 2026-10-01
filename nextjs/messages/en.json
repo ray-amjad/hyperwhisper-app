@@ -256,6 +256,7 @@
     "description": "Enter your email for the download link and quick-start video, or skip and download now. No spam.",
     "downloadButton": "Download HyperWhisper",
     "errorGeneric": "Something went wrong. Please try again.",
+    "errorEmail": "Enter a valid email address.",
     "errorNetwork": "Network error. Please check your connection and try again.",
     "thankYouTitle": "Thanks!",
     "downloadStarted": "Your download should start automatically.",

@@ -251,6 +251,7 @@
     "description": "Te enviaremos un enlace de descarga y un breve video tutorial para empezar. Nada de spam.",
     "downloadButton": "Descargar HyperWhisper",
     "errorGeneric": "Algo salió mal. Inténtalo de nuevo.",
+    "errorEmail": "Introduce una dirección de correo válida.",
     "errorNetwork": "Error de red. Revisa tu conexión e inténtalo de nuevo.",
     "thankYouTitle": "¡Gracias!",
     "downloadStarted": "La descarga debería comenzar automáticamente.",

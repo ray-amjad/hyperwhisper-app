@@ -251,6 +251,7 @@
     "description": "Mēs nosūtīsim jums lejupielādes saiti un īsu pamācības video, lai varētu ātri sākt. Bez spama.",
     "downloadButton": "Lejupielādēt HyperWhisper",
     "errorGeneric": "Kaut kas nogāja greizi. Lūdzu, mēģiniet vēlreiz.",
+    "errorEmail": "Ievadiet derīgu e-pasta adresi.",
     "errorNetwork": "Tīkla kļūda. Lūdzu, pārbaudiet savienojumu un mēģiniet vēlreiz.",
     "thankYouTitle": "Paldies!",
     "downloadStarted": "Lejupielādei vajadzētu sākties automātiski.",

@@ -251,6 +251,7 @@
     "description": "Pošleme vám odkaz na stiahnutie a krátke video-návody, aby ste mohli rýchlo začať. Bez spamu.",
     "downloadButton": "Stiahnuť HyperWhisper",
     "errorGeneric": "Niečo sa pokazilo. Skúste to prosím znova.",
+    "errorEmail": "Zadajte platnú e-mailovú adresu.",
     "errorNetwork": "Chyba siete. Skontrolujte pripojenie a skúste to znova.",
     "thankYouTitle": "Ďakujeme!",
     "downloadStarted": "Sťahovanie by sa malo spustiť automaticky.",

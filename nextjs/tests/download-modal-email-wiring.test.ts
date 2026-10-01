@@ -57,8 +57,18 @@ interface InputProps {
 
 const inputs: InputProps[] = [];
 let mutationHooks = 0;
+/**
+ * The fields of a tRPC v11 `TRPCClientError` the modal reads. `data` is the
+ * server's error shape: `code` and `httpStatus` as the default formatter
+ * (and this app's errorFormatter, which passes a 4xx through) sends them.
+ */
+interface ClientError {
+  message: string;
+  data: { code: string; httpStatus: number; path: string } | null;
+}
+
 /** The error the next render's mutation reports, once. */
-let scenario: { error?: string } = {};
+let scenario: { error?: string; code?: string; httpStatus?: number } = {};
 let fired = false;
 
 function StubInput(props: InputProps): null {
@@ -109,12 +119,19 @@ moduleMock.module(moduleUrl("../lib/trpc/client.ts"), {
       download: {
         recordDownload: {
           useMutation: (options: {
-            onError: (err: { message: string }) => void;
+            onError: (err: ClientError) => void;
           }) => {
             mutationHooks += 1;
             if (scenario.error !== undefined && !fired) {
               fired = true;
-              options.onError({ message: scenario.error });
+              options.onError({
+                message: scenario.error,
+                data: {
+                  code: scenario.code ?? "BAD_REQUEST",
+                  httpStatus: scenario.httpStatus ?? 400,
+                  path: "download.recordDownload",
+                },
+              });
             }
 
             return { mutate: () => undefined, isPending: false };
@@ -180,7 +197,11 @@ test("with no error the field is described by the description line", async () =>
 });
 
 test("with an error the field is described by the error alert", async () => {
-  const { input, html } = await render({ error: "Rate limited" });
+  const { input, html } = await render({
+    error: "Rate limited",
+    code: "TOO_MANY_REQUESTS",
+    httpStatus: 429,
+  });
   const describedBy = input["aria-describedby"];
 
   assert.ok(describedBy, "no aria-describedby");
@@ -189,4 +210,61 @@ test("with an error the field is described by the error alert", async () => {
   assert.match(target, /role="alert"/);
   assert.match(target, /Rate limited/);
   assert.doesNotMatch(html, /downloadModal\.description/);
+});
+
+/**
+ * #1146: the message tRPC v11 sends when zod v4 rejects `me@gmail` against
+ * `z.string().email("Invalid email format")`, captured from a real
+ * fetchRequestHandler + TRPCClientError round trip.
+ */
+const ZOD_EMAIL_ISSUES = JSON.stringify(
+  [
+    {
+      origin: "string",
+      code: "invalid_format",
+      format: "email",
+      pattern:
+        "/^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$/",
+      path: ["email"],
+      message: "Invalid email format",
+    },
+  ],
+  null,
+  2,
+);
+
+test("a failed zod email check shows one translated sentence, not the issue array", async () => {
+  const { input, html } = await render({ error: ZOD_EMAIL_ISSUES });
+  const describedBy = input["aria-describedby"];
+
+  assert.ok(describedBy, "no aria-describedby");
+  const target = elementById(html, describedBy);
+
+  assert.match(target, /role="alert"/);
+  assert.match(target, />downloadModal\.errorEmail</);
+  assert.doesNotMatch(html, /invalid_format/);
+  assert.doesNotMatch(html, /pattern/);
+  assert.doesNotMatch(html, /Invalid email format/);
+});
+
+test("the disposable-domain refusal (also BAD_REQUEST) still shows its own sentence", async () => {
+  const sentence =
+    "Disposable email domains are not allowed. Please use a valid email so we can send your download link.";
+  const { input, html } = await render({ error: sentence });
+  const target = elementById(html, input["aria-describedby"] ?? "");
+
+  assert.match(target, /Disposable email domains are not allowed/);
+  assert.doesNotMatch(html, /downloadModal\.errorEmail/);
+});
+
+test("an error with an empty message falls back to the generic sentence", async () => {
+  const { input, html } = await render({
+    error: "",
+    code: "INTERNAL_SERVER_ERROR",
+    httpStatus: 500,
+  });
+  const target = elementById(html, input["aria-describedby"] ?? "");
+
+  assert.match(target, />downloadModal\.errorGeneric</);
+  assert.doesNotMatch(html, /downloadModal\.errorEmail/);
 });

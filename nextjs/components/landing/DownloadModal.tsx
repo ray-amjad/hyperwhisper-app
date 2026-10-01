@@ -17,6 +17,25 @@ import { useRouter } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 import { api } from "@/lib/trpc/client";
 
+/**
+ * #1146: when the server's zod input check rejects the email, tRPC v11 answers
+ * BAD_REQUEST and its message is the zod v4 issue array serialized as JSON,
+ * regex included. The router's own BAD_REQUEST refusals (disposable domain,
+ * missing domain) carry a sentence, so only a message that parses as a JSON
+ * array is an input-validation failure.
+ */
+function isInputValidationError(err: {
+  message: string;
+  data?: { code?: string } | null;
+}): boolean {
+  if (err.data?.code !== "BAD_REQUEST") return false;
+  try {
+    return Array.isArray(JSON.parse(err.message));
+  } catch {
+    return false;
+  }
+}
+
 export default function DownloadModal() {
   const { isOpen, closeModal } = useDownloadModal();
   const t = useTranslations("downloadModal");
@@ -33,6 +52,11 @@ export default function DownloadModal() {
       closeModal();
     },
     onError: (err) => {
+      if (isInputValidationError(err)) {
+        setError(t("errorEmail"));
+
+        return;
+      }
       setError(err.message || t("errorGeneric"));
     },
   });
