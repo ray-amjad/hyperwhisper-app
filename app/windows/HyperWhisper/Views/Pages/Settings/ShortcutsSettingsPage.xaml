@@ -91,9 +91,9 @@
                                                       ToolTip="{loc:Loc settings.shortcuts.tooltip}"/>
                     </Grid>
 
-                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
+                    <Border x:Name="StreamingShortcutSeparator" Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
 
-                    <Grid>
+                    <Grid x:Name="StreamingShortcutRow">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="240"/>

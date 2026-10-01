@@ -70,6 +70,10 @@ public partial class StreamingSettingsPage : Page
     {
         if (_isInitializing) return;
         _settings.StreamingEnabled = StreamingEnabledCheckbox.IsChecked == true;
+        // Re-checked here, not only on Loaded: the Shortcuts page lets another row take
+        // the streaming chord while streaming is off (#704), so the standing error has
+        // to be current when the row reappears.
+        UpdateStreamingShortcutConflict();
         UpdateStreamingOptionsVisibility();
         LoggingService.Info($"StreamingSettingsPage: Streaming enabled set to {_settings.StreamingEnabled}");
     }
