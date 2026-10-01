@@ -15,11 +15,15 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     /* eslint-disable no-console */
-    console.error("[global-error]", {
-      digest: error.digest,
-      message: error.message,
-      path: window.location.pathname,
-    });
+    console.error(
+      "[global-error]",
+      {
+        digest: error.digest,
+        message: error.message,
+        path: window.location.pathname,
+      },
+      error,
+    );
   }, [error]);
 
   return (
