@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import {
   Modal,
   ModalContent,
@@ -23,6 +23,9 @@ export default function DownloadModal() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // #968: the field points at whichever line below is on screen.
+  const descriptionId = useId();
+  const errorId = useId();
 
   const recordDownload = api.download.recordDownload.useMutation({
     onSuccess: () => {
@@ -85,6 +88,8 @@ export default function DownloadModal() {
 
         <ModalBody className="py-4 space-y-2 text-center">
           <Input
+            aria-describedby={error ? errorId : descriptionId}
+            aria-label={t("emailPlaceholder")}
             autoComplete="email"
             classNames={{
               base: "w-full",
@@ -104,11 +109,18 @@ export default function DownloadModal() {
             }}
           />
           {error ? (
-            <p aria-live="polite" className="text-sm text-red-500" role="alert">
+            <p
+              aria-live="polite"
+              className="text-sm text-red-500"
+              id={errorId}
+              role="alert"
+            >
               {error}
             </p>
           ) : (
-            <p className="text-sm text-gray-400">{t("description")}</p>
+            <p className="text-sm text-gray-400" id={descriptionId}>
+              {t("description")}
+            </p>
           )}
         </ModalBody>
 

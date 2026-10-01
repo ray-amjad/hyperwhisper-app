@@ -26,6 +26,14 @@
  * the component's own `onBlur` flips the `touched` state, and that state, the
  * typed value and the component's `EMAIL_RE` result all reach the `isInvalid`
  * prop through `showEmailError`, with `buyCredits.errorEmail` as the message.
+ *
+ * #968 ADDS the naming pins: the field's own `aria-label` is the visible label
+ * text (HeroUI otherwise names a label-less Input by its placeholder), the
+ * visible `<label>` points at the field's stable `id`, and `aria-describedby`
+ * lists the help line, plus the error while it shows. HeroUI lets a caller's
+ * `aria-describedby` replace its own, so the error carries an id of the
+ * component's own. Whether the browser computes "Your email" from these props is
+ * the verify round's job, not this file's.
  */
 import assert from "node:assert/strict";
 import test, { beforeEach, mock } from "node:test";
@@ -55,7 +63,14 @@ interface InputProps {
   onBlur?: () => void;
   isInvalid?: boolean;
   errorMessage?: unknown;
+  id?: string;
+  placeholder?: string;
+  "aria-label"?: string;
+  "aria-describedby"?: string;
 }
+
+/** The static markup of the last render (the stub Input paints nothing). */
+let markup = "";
 
 /** What the buyer "does" to the email field during the next render. */
 let scenario: { typed?: string; blur?: boolean } = {};
@@ -145,7 +160,7 @@ async function renderEmailInput(
     default: CreditsPurchase;
   };
 
-  renderToStaticMarkup(createElement(Component, { locale: "en" }));
+  markup = renderToStaticMarkup(createElement(Component, { locale: "en" }));
 
   // The settle re-render happens before any child renders, so the stub sees
   // the email field exactly once per render, with the final state.
@@ -154,7 +169,28 @@ async function renderEmailInput(
   return emailInputs[0] as InputProps;
 }
 
+/** The error node's id and text. It is a node, so it can carry an id. */
+function errorOf(input: InputProps): { id: string | undefined; text: string } {
+  const html = renderToStaticMarkup(input.errorMessage as ReactElement);
+  const id = /\sid="([^"]+)"/.exec(html)?.[1];
+
+  return { id, text: html.replace(/<[^>]+>/g, "") };
+}
+
+/** The ids `aria-describedby` lists. */
+function describedBy(input: InputProps): string[] {
+  return (input["aria-describedby"] ?? "").split(/\s+/).filter(Boolean);
+}
+
+/** The id of the help line in the rendered markup. */
+function helpId(): string | undefined {
+  return /<p[^>]*\sid="([^"]+)"[^>]*>buyCredits\.emailHelp<\/p>/.exec(
+    markup,
+  )?.[1];
+}
+
 beforeEach(() => {
+  markup = "";
   scenario = {};
   fired = false;
   emailInputs.length = 0;
@@ -163,7 +199,7 @@ beforeEach(() => {
 test("the email field carries the errorEmail copy and a blur handler", async () => {
   const input = await renderEmailInput();
 
-  assert.equal(input.errorMessage, "buyCredits.errorEmail");
+  assert.equal(errorOf(input).text, "buyCredits.errorEmail");
   assert.equal(typeof input.onBlur, "function");
   // A fresh form is unfinished, not wrong.
   assert.equal(input.isInvalid, false);
@@ -182,7 +218,7 @@ test("a rejected address shows the error once the field is left", async () => {
 
   assert.equal(input.value, "me@gmail", "the typed value never landed");
   assert.equal(input.isInvalid, true);
-  assert.equal(input.errorMessage, "buyCredits.errorEmail");
+  assert.equal(errorOf(input).text, "buyCredits.errorEmail");
 });
 
 test("an accepted address shows nothing after the field is left", async () => {
@@ -198,4 +234,46 @@ test("an empty field shows nothing after the field is left", async () => {
   const input = await renderEmailInput({ blur: true });
 
   assert.equal(input.isInvalid, false);
+});
+
+test("#968: the field is named by its visible label, not the placeholder", async () => {
+  const input = await renderEmailInput();
+
+  assert.equal(input["aria-label"], "buyCredits.emailLabel");
+  assert.equal(input.placeholder, "buyCredits.emailPlaceholder");
+  assert.ok(input.id, "the email Input has no stable id");
+  const label =
+    /<label[^>]*\sfor="([^"]+)"[^>]*>buyCredits\.emailLabel<\/label>/.exec(
+      markup,
+    );
+
+  assert.equal(
+    label?.[1],
+    input.id,
+    "the visible label does not point at the field",
+  );
+});
+
+test("#968: a fresh field is described by the help line only", async () => {
+  const input = await renderEmailInput();
+  const help = helpId();
+
+  assert.ok(help, "the help line has no id");
+  assert.deepEqual(describedBy(input), [help]);
+});
+
+test("#968: a rejected field is described by the help line and the error", async () => {
+  const input = await renderEmailInput({ typed: "me@gmail", blur: true });
+  const error = errorOf(input);
+
+  assert.equal(input.isInvalid, true);
+  assert.ok(error.id, "the error message has no id");
+  assert.notEqual(error.id, input.id);
+  assert.deepEqual(describedBy(input), [helpId(), error.id]);
+});
+
+test("#968: an accepted field drops the error from its description", async () => {
+  const input = await renderEmailInput({ typed: "me@gmail.com", blur: true });
+
+  assert.deepEqual(describedBy(input), [helpId()]);
 });
