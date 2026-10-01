@@ -101,31 +101,33 @@ export default function FeaturesGrid() {
 
   return (
     <section className="px-6 py-20" id="features">
-      <m.div
-        className="max-w-6xl mx-auto"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.5 }}
-        viewport={{ once: true }}
-        whileInView={{ opacity: 1, y: 0 }}
-      >
-        <div className="text-center mb-16">
+      {/* The wrapper does not animate: an opacity fade here would multiply
+          with each card's own fade below (#877). */}
+      <div className="max-w-6xl mx-auto">
+        <m.div
+          className="text-center mb-16"
+          initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+          transition={{ duration: 0.4 }}
+          viewport={{ once: true }}
+          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        >
           <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t("title")}
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
             {t("subtitle")}
           </p>
-        </div>
+        </m.div>
 
         <div className="flex flex-wrap justify-center gap-6">
           {features.map((feature, index) => (
             <m.div
               key={feature.titleKey}
               className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
-              initial={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+              transition={{ duration: 0.4, delay: Math.min(index, 3) * 0.06 }}
               viewport={{ once: true }}
-              whileInView={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             >
               <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800 hover:border-gray-700 transition-colors h-full">
                 {/* text-start overrides the physical `text-left` baked into
@@ -152,10 +154,10 @@ export default function FeaturesGrid() {
         {/* Additional feature highlight */}
         <m.div
           className="mt-16"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+          transition={{ duration: 0.4, delay: 0.3 }}
           viewport={{ once: true }}
-          whileInView={{ opacity: 1, y: 0 }}
+          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         >
           <Card className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 backdrop-blur-xl border border-purple-800/50">
             <CardBody className="p-8 md:p-12 text-start">
@@ -203,7 +205,7 @@ export default function FeaturesGrid() {
             </CardBody>
           </Card>
         </m.div>
-      </m.div>
+      </div>
     </section>
   );
 }
