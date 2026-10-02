@@ -218,6 +218,8 @@ extension AccessibilityHelper {
                 // No restoration: nothing was pasted, so the timer would only wipe
                 // the transcript the user now needs for a manual Cmd+V (#783).
                 copyToClipboard(text)
+                keepClipboardSnapshotForNextRecording(transcriptChangeCount: NSPasteboard.general.changeCount,
+                                                      settings: settings)
                 // Both branches return `.noFocusedField` to the caller, which
                 // cannot tell them apart. Report them separately: a lost target
                 // means the app quit or its PID was reused mid-recording, an
@@ -233,6 +235,8 @@ extension AccessibilityHelper {
 
             // Skip ConcealedType for remote desktop apps — their clipboard forwarding may ignore concealed items
             copyToClipboard(text, skipConcealedType: isRemoteDesktop)
+            // Read now, so a later write (the user's own copy) breaks the match (#1061).
+            let transcriptChangeCount = NSPasteboard.general.changeCount
 
             // Check for secure field
             if MainActorHangTrace.shared.withActive(
@@ -286,6 +290,8 @@ extension AccessibilityHelper {
                 // No restoration: nothing was pasted, the dialog stays open, and the
                 // transcript is left on the clipboard for a manual Cmd+V, so a restore
                 // would only overwrite it (#1034).
+                keepClipboardSnapshotForNextRecording(transcriptChangeCount: transcriptChangeCount,
+                                                      settings: settings)
                 self.reportPasteOutcome(.noFocusedField, attempt: attempt)
                 return .noFocusedField
             }
@@ -337,6 +343,9 @@ extension AccessibilityHelper {
                 // manual Cmd+V, so a restore would only overwrite it (#1034).
                 if failureOutcome.withholdsTextOnPurpose {
                     scheduleClipboardRestoration(settings: settings)
+                } else {
+                    keepClipboardSnapshotForNextRecording(transcriptChangeCount: transcriptChangeCount,
+                                                          settings: settings)
                 }
                 self.reportPasteOutcome(failureOutcome, attempt: attempt)
                 return .failed(NSError(domain: "AccessibilityHelper",

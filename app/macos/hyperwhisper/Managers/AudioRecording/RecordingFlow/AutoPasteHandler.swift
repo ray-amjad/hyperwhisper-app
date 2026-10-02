@@ -124,6 +124,11 @@ class AutoPasteHandler {
         case .noPermission:
             AppLogger.audio.info("📋 Copying to clipboard as fallback (no accessibility permission)")
             AccessibilityHelper.shared.copyToClipboard(textToPaste)
+            // Nothing was pasted: keep the older clipboard for the next restore (#1061).
+            AccessibilityHelper.shared.keepClipboardSnapshotForNextRecording(
+                transcriptChangeCount: NSPasteboard.general.changeCount,
+                settings: settingsManager
+            )
             showMissingAccessAlertAsync()
             return false  // Keep dialog open
 

@@ -35,9 +35,25 @@ extension AccessibilityHelper {
     func startRecordingSession() {
         logger.info("🎙️ Starting recording session")
 
+        // Single use: whichever branch runs, the mark from the last exit is spent.
+        let keptChangeCount = keptClipboardSnapshotChangeCount
+        keptClipboardSnapshotChangeCount = nil
+
         if activeRestorationWorkItem?.isCancelled == false,
            originalClipboardData != nil {
             logger.info("📋 Preserving saved clipboard snapshot and pending restore across stacked recording session")
+            isInRecordingSession = true
+            return
+        }
+
+        // The last exit pasted nothing and left its transcript on the clipboard,
+        // and nobody has written to the clipboard since: keep the user's older
+        // snapshot, so the next restore writes it back, not the transcript (#1061).
+        if let keptChangeCount,
+           keptChangeCount == NSPasteboard.general.changeCount,
+           originalClipboardData != nil {
+            logger.info("📋 Clipboard still holds an unpasted transcript; keeping the older clipboard snapshot")
+            cancelPendingClipboardRestoration()
             isInRecordingSession = true
             return
         }
@@ -95,6 +111,28 @@ extension AccessibilityHelper {
             workItem.cancel()
             activeRestorationWorkItem = nil
             logger.debug("❌ Cancelled pending clipboard restoration")
+        }
+    }
+
+    /// Call at an exit that pasted nothing, left the transcript on the clipboard
+    /// and armed no restore (#783, #1034). `transcriptChangeCount` is
+    /// `NSPasteboard.general.changeCount` read right after the transcript was
+    /// written, so a write in between reads as the user's own copy (#1061).
+    func keepClipboardSnapshotForNextRecording(transcriptChangeCount: Int, settings: SettingsManager?) {
+        guard settings?.restoreClipboardAfterPaste == true, originalClipboardData != nil else {
+            keptClipboardSnapshotChangeCount = nil
+            return
+        }
+        keptClipboardSnapshotChangeCount = transcriptChangeCount
+    }
+
+    /// Restore was turned off: nothing will write the older clipboard back, so
+    /// stop keeping it for the next recording (#1061).
+    func dropKeptClipboardSnapshot() {
+        guard keptClipboardSnapshotChangeCount != nil else { return }
+        keptClipboardSnapshotChangeCount = nil
+        if !isInRecordingSession && activeRestorationWorkItem == nil {
+            originalClipboardData = nil
         }
     }
 

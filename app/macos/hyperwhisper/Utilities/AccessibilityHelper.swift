@@ -69,6 +69,13 @@ public class AccessibilityHelper {
     /// Used to determine if we should save the clipboard as "original"
     var isInRecordingSession = false
 
+    /// `NSPasteboard.general.changeCount` right after an exit that pasted nothing
+    /// left the transcript on the clipboard with no restore armed (#1061). While
+    /// the count is unchanged, the next `startRecordingSession()` keeps
+    /// `originalClipboardData` (the user's older clipboard) instead of
+    /// snapshotting the transcript. Consumed by that call; nil otherwise.
+    var keptClipboardSnapshotChangeCount: Int?
+
     // MARK: - Async Paste Management
     /// The currently active paste task (if any)
     /// This allows us to cancel in-flight paste operations when starting a new one
