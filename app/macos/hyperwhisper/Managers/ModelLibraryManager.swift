@@ -50,8 +50,8 @@ final class ModelLibraryManager: ObservableObject {
         // streams are pre-throttled so a single download tick triggers at
         // most one rebuild per 200ms instead of three.
         var immediate: [AnyPublisher<Void, Never>] = [
-            cloudHealth.$statuses.map { _ in () }.eraseToAnyPublisher(),
-            cloudHealth.$postProcessingStatuses.map { _ in () }.eraseToAnyPublisher(),
+            cloudHealth.$statuses.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
+            cloudHealth.$postProcessingStatuses.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
             whisperManager.$downloadedModels.map { _ in () }.eraseToAnyPublisher(),
             whisperManager.$downloadingModels.map { _ in () }.eraseToAnyPublisher(),
             parakeetManager.$availableModels.map { _ in () }.eraseToAnyPublisher(),
@@ -82,7 +82,13 @@ final class ModelLibraryManager: ObservableObject {
                 .eraseToAnyPublisher()
         }
 
+        // Issue #1042: coalesce a burst (Model Library onAppear refreshes two
+        // health dictionaries at once) into ONE rebuild. The debounce also runs
+        // rebuild() after the write lands: @Published emits in willSet, so a
+        // synchronous rebuild() would read the OLD statuses. DispatchQueue.main
+        // (not RunLoop.main) keeps it firing during scroll and menu tracking.
         Publishers.MergeMany(immediate + throttled)
+            .debounce(for: .milliseconds(16), scheduler: DispatchQueue.main)
             .sink { [weak self] in self?.rebuild() }
             .store(in: &cancellables)
 
