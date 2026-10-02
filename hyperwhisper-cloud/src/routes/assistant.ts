@@ -250,7 +250,12 @@ export async function assistantRoute(c: Context) {
   const startTime = performance.now();
   const clientIP = getClientIP(c);
 
+  // Every rejection below writes one `assistant.request_rejected` line with a
+  // distinct `reason`, so a blocked or malformed client leaves a record. These
+  // lines carry sizes, counts and labels only: never the client IP, the account
+  // key, the messages, the prompt or the image bytes.
   if (await isIPBlocked(clientIP)) {
+    logEvent(requestId, startTime, 'assistant.request_rejected', { reason: 'ip_blocked' });
     return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
   }
 
@@ -258,8 +263,18 @@ export async function assistantRoute(c: Context) {
   // so an unauthenticated oversized upload would OOM the machine before auth
   // runs (same pattern as /transcribe). Content-Length is required so the cap
   // can't be bypassed with chunked transfer encoding.
-  const sizeCheck = validateAssistantContentLength(c.req.header('Content-Length'));
+  const contentLengthHeader = c.req.header('Content-Length');
+  const sizeCheck = validateAssistantContentLength(contentLengthHeader);
   if (!sizeCheck.ok) {
+    // The gate also answers 400 for an absent or unparseable header; only the
+    // 413 is a payload that is too large.
+    const contentLength = Number.parseInt(contentLengthHeader ?? '', 10);
+    logEvent(requestId, startTime, 'assistant.request_rejected', {
+      reason: sizeCheck.response.status === 413 ? 'payload_too_large' : 'invalid_content_length',
+      status: sizeCheck.response.status,
+      contentLength: Number.isFinite(contentLength) ? contentLength : null,
+      maxBytes: MAX_ASSISTANT_BODY_BYTES,
+    });
     return sizeCheck.response;
   }
 
@@ -268,6 +283,10 @@ export async function assistantRoute(c: Context) {
   try {
     formData = await c.req.formData();
   } catch {
+    logEvent(requestId, startTime, 'assistant.request_rejected', {
+      reason: 'not_multipart',
+      contentType: (c.req.header('Content-Type') ?? '').slice(0, 100),
+    });
     return errorResponse(400, 'Invalid request', 'Request must be multipart/form-data');
   }
 
@@ -292,6 +311,10 @@ export async function assistantRoute(c: Context) {
   // file part, in which case formData.get returns a File; reject any non-string
   // before measuring/parsing so it surfaces as a 400 rather than a 500.
   if (typeof messagesRaw !== 'string' || !messagesRaw) {
+    logEvent(requestId, startTime, 'assistant.request_rejected', {
+      reason: 'missing_messages',
+      messagesField: messagesRaw === null ? 'absent' : typeof messagesRaw === 'string' ? 'empty' : 'file',
+    });
     return errorResponse(400, 'Missing field', 'Request must include "messages" field');
   }
 
@@ -300,7 +323,13 @@ export async function assistantRoute(c: Context) {
   // the flat credit pre-check, driving unbounded Anthropic vision spend. Sized
   // to admit ASSISTANT_MAX_IMAGES inline images at ASSISTANT_MAX_INLINE_IMAGE_BYTES
   // (base64 ~4/3 expansion) plus text headroom.
-  if (Buffer.byteLength(messagesRaw, 'utf8') > ASSISTANT_MAX_MESSAGES_BYTES) {
+  const messagesBytes = Buffer.byteLength(messagesRaw, 'utf8');
+  if (messagesBytes > ASSISTANT_MAX_MESSAGES_BYTES) {
+    logEvent(requestId, startTime, 'assistant.request_rejected', {
+      reason: 'messages_too_large',
+      messagesBytes,
+      maxBytes: ASSISTANT_MAX_MESSAGES_BYTES,
+    });
     return errorResponse(413, 'Messages too large',
       `The "messages" payload must be ${Math.round(ASSISTANT_MAX_MESSAGES_BYTES / (1024 * 1024))} MB or smaller.`);
   }
@@ -310,6 +339,7 @@ export async function assistantRoute(c: Context) {
     clientMessages = JSON.parse(messagesRaw);
     if (!Array.isArray(clientMessages)) throw new Error('not an array');
   } catch {
+    logEvent(requestId, startTime, 'assistant.request_rejected', { reason: 'messages_not_array', messagesBytes });
     return errorResponse(400, 'Invalid messages', 'Messages must be a valid JSON array');
   }
 
@@ -331,6 +361,12 @@ export async function assistantRoute(c: Context) {
   const estimatedCredits = ESTIMATED_ASSISTANT_CREDITS * estimatedImageCount;
   const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
   if (!creditCheck.ok) {
+    logEvent(requestId, startTime, 'assistant.request_rejected', {
+      reason: 'insufficient_credits',
+      status: creditCheck.response.status,
+      estimatedCredits,
+      imageCount: estimatedImageCount,
+    });
     return creditCheck.response;
   }
 
@@ -342,6 +378,11 @@ export async function assistantRoute(c: Context) {
     // base64-encoding it (~1.33x expansion) on an unbounded upload can exhaust
     // the Bun process and OOM the machine, so reject oversized images upfront.
     if (imageFile.size > MAX_ASSISTANT_IMAGE_BYTES) {
+      logEvent(requestId, startTime, 'assistant.request_rejected', {
+        reason: 'image_too_large',
+        imageBytes: imageFile.size,
+        maxBytes: MAX_ASSISTANT_IMAGE_BYTES,
+      });
       return imageTooLargeResponse(imageFile.size, MAX_ASSISTANT_IMAGE_BYTES);
     }
     const imageBuffer = await imageFile.arrayBuffer();
@@ -350,6 +391,11 @@ export async function assistantRoute(c: Context) {
     const detectedMediaType = detectImageMediaType(imageBytes);
     imageMediaType = detectedMediaType || declaredMediaType || '';
     if (!imageMediaType) {
+      logEvent(requestId, startTime, 'assistant.request_rejected', {
+        reason: 'unsupported_image_type',
+        declaredType: imageFile.type.slice(0, 100),
+        imageBytes: imageBytes.byteLength,
+      });
       return errorResponse(400, 'Unsupported image type', 'Image must be JPEG, PNG, GIF, or WebP');
     }
     imageBase64 = Buffer.from(imageBytes).toString('base64');
@@ -368,8 +414,9 @@ export async function assistantRoute(c: Context) {
 
   // Deduct credits after stream completes (fire-and-forget)
   void (async () => {
+    let costUsd: number | undefined;
     try {
-      const costUsd = await costPromise;
+      costUsd = await costPromise;
       if (costUsd > 0) {
         await deductCredits(
           authResult.value,
@@ -385,7 +432,15 @@ export async function assistantRoute(c: Context) {
         );
       }
     } catch (error) {
-      console.error(error);
+      // The user already has the streamed answer, so a failed deduction is a
+      // free vision response. Log it against the request, without the IP or key.
+      logEvent(requestId, startTime, 'assistant.credit_deduction_failed', {
+        endpoint: '/assistant',
+        costUsd,
+        messageCount: messages.length,
+        error: error instanceof Error ? error.message : String(error),
+        cause: error instanceof Error ? String(error.cause ?? '') : '',
+      });
     }
   })();
 
