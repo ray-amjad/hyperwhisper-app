@@ -595,8 +595,7 @@ class TranscriptionModelManager: ObservableObject {
     /// Load a specific Whisper model with language preferences
     private func loadWhisperModel(_ target: WhisperModel, mode: Mode?) async {
         do {
-            let name = mode?.name ?? "Default"
-            AppLogger.models.info("Switching to offline model: \(target.rawValue, privacy: .public) (mode: \(name, privacy: .public))")
+            AppLogger.models.info("Switching to offline model: \(target.rawValue, privacy: .public) (modeId=\(mode?.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public))")
             modelReadyState = .loading(name: target.name)
             onStateChange?(.idle)
 

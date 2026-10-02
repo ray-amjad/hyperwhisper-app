@@ -172,7 +172,7 @@ class TranscriptActionHandler: ObservableObject {
                     postProcessingProvider: result.postProcessingProvider
                 )
                 
-                AppLogger.ui.info("Successfully retried transcription with new mode: \(mode.name ?? "Unknown")")
+                AppLogger.ui.info("Successfully retried transcription with new mode · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public)")
                 
             } catch {
                 AppLogger.ui.error("Retry with new mode failed: \(error.localizedDescription)")

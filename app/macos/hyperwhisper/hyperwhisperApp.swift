@@ -695,7 +695,7 @@ struct MenuBarIconView: View {
                 // Disable post-processing on any modes that were using Gemma
                 for mode in modes where (mode.languageModel ?? "").contains("gemma-3") {
                     mode.postProcessingMode = 0  // PostProcessingMode.off
-                    AppLogger.ui.info("🔄 Disabled post-processing on mode '\(mode.name ?? "unknown", privacy: .public)' (was using Gemma)")
+                    AppLogger.ui.info("🔄 Disabled post-processing on mode · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public) (was using Gemma)")
                 }
                 try? persistenceController.container.viewContext.save()
 
@@ -722,7 +722,7 @@ struct MenuBarIconView: View {
                 mode.postProcessingMode = 0  // PostProcessingMode.off — user must download Gemma 4 and re-enable
                 mode.postProcessingProvider = nil
                 mode.languageModel = nil
-                AppLogger.ui.info("Migrated mode '\(mode.name ?? "unknown", privacy: .public)' from local_qwen to off (cleared local model selection)")
+                AppLogger.ui.info("Migrated mode from local_qwen to off (cleared local model selection) · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public)")
                 didChange = true
             }
 
@@ -764,7 +764,7 @@ struct MenuBarIconView: View {
 
             for mode in modes where mode.languageModel == oldId {
                 mode.languageModel = newId
-                AppLogger.ui.info("Migrated mode '\(mode.name ?? "unknown", privacy: .public)' Gemma 12B languageModel id to lowercase canonical")
+                AppLogger.ui.info("Migrated mode Gemma 12B languageModel id to lowercase canonical · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public)")
                 didChange = true
             }
 
@@ -967,19 +967,19 @@ struct MenuBarIconView: View {
         if !settingsManager.currentModeId.isEmpty,
            let byId = modes.first(where: { $0.id?.uuidString == settingsManager.currentModeId }) {
             resolvedMode = byId
-            AppLogger.ui.debug("📝 Loaded saved mode by ID: \(byId.name ?? "Default")")
+            AppLogger.ui.debug("📝 Loaded saved mode by ID · modeId=\(byId.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: byId), privacy: .public)")
         } else if !settingsManager.currentMode.isEmpty,
                   let byName = modes.first(where: { $0.name == settingsManager.currentMode }) {
             // By name fallback
             resolvedMode = byName
             settingsManager.currentModeId = byName.id?.uuidString ?? ""
-            AppLogger.ui.debug("📝 Loaded saved mode by name: \(byName.name ?? "Default")")
+            AppLogger.ui.debug("📝 Loaded saved mode by name · modeId=\(byName.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: byName), privacy: .public)")
         } else if let fallback = PersistenceController.shared.findDefaultMode() ?? modes.first {
             // Default fallback
             resolvedMode = fallback
             settingsManager.currentModeId = fallback.id?.uuidString ?? ""
             settingsManager.currentMode = fallback.name ?? "Default"
-            AppLogger.ui.debug("📝 Using fallback mode: \(fallback.name ?? "Default")")
+            AppLogger.ui.debug("📝 Using fallback mode · modeId=\(fallback.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: fallback), privacy: .public)")
         } else {
             resolvedMode = nil
         }
@@ -1106,7 +1106,7 @@ struct MenuBarIconView: View {
             Task { @MainActor in
                 self.appState.cycleToNextMode()
                 ModeChangeToastManager.shared.show(modeName: self.appState.selectedModeName)
-                AppLogger.ui.debug("🔄 Cycled to mode: \(self.appState.selectedModeName) via keyboard shortcut")
+                AppLogger.ui.debug("🔄 Cycled to mode via keyboard shortcut · modeId=\(self.appState.selectedModeId, privacy: .public)")
             }
         }
 
@@ -1172,7 +1172,7 @@ struct MenuBarIconView: View {
                 }
 
                 audioManager.toggleQuickCapture(modeOverride: modeOverride)
-                AppLogger.ui.info("📝 Quick Capture toggled via shortcut (mode=\(modeOverride?.name ?? "current", privacy: .public))")
+                AppLogger.ui.info("📝 Quick Capture toggled via shortcut (modeId=\(modeOverride?.id?.uuidString ?? "current", privacy: .public))")
             }
         }
 
