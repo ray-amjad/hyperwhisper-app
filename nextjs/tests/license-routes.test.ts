@@ -694,3 +694,93 @@ describe("a DrizzleQueryError's bound params never reach the log (#1049)", () =>
     assertLogRedacted();
   });
 });
+
+describe("an unparseable request is logged without its contents (#719)", () => {
+  /**
+   * A made-up key, sent unquoted so the JSON does not parse. V8's SyntaxError
+   * message quotes the input around the fault, so part of this key is IN the
+   * parser's message: logging the error object or its message would leak it.
+   */
+  const SECRET = "HW-7Q2Z-K9X4";
+  const MALFORMED = `{"license_key":${SECRET}}`;
+
+  /** Every 4-character piece of the secret, so a partial quote is caught too. */
+  const fragments = Array.from(
+    { length: SECRET.length - 3 },
+    (_, i) => SECRET.slice(i, i + 4),
+  );
+
+  function rawRequest(path: string): ReturnType<typeof postRequest> {
+    return postRequest(path, MALFORMED, {
+      "content-length": String(Buffer.byteLength(MALFORMED, "utf8")),
+    });
+  }
+
+  /** Exactly one line, naming the failure, and no piece of the secret in it. */
+  function assertOneRedactedLine(label: string): void {
+    assert.equal(logLines.length, 1, logLines.join("\n"));
+    const [line] = logLines;
+    assert.ok(line.includes(`${label}: request JSON did not parse`), line);
+    assert.ok(line.includes("SyntaxError"), line);
+    assert.ok(line.includes("application/json"), line);
+    assert.ok(line.includes(`contentLength: '${MALFORMED.length}'`), line);
+    for (const piece of fragments) {
+      assert.ok(!line.includes(piece), `logged "${piece}": ${line}`);
+    }
+  }
+
+  beforeEach(() => {
+    logLines.length = 0;
+  });
+
+  test("the fixture is a real leak risk: the parser's message quotes the key", () => {
+    // Guards against a vacuous test: if V8 stopped quoting the input, the
+    // fragment checks below would pass whatever the route logged.
+    assert.throws(
+      () => JSON.parse(MALFORMED),
+      (err: unknown) =>
+        err instanceof SyntaxError &&
+        fragments.some((piece) => err.message.includes(piece)),
+    );
+  });
+
+  for (const [label, path, load] of [
+    ["License validate", VALIDATE_PATH, loadValidateRoute],
+    ["License validate", "/api/account/validate", loadAccountValidateRoute],
+    ["License activate", ACTIVATE_PATH, loadActivateRoute],
+    ["License activate", "/api/account/activate", loadAccountActivateRoute],
+  ] as const) {
+    test(`${path}: same bad_request 400, one redacted log line`, async () => {
+      const { POST } = await load();
+
+      const response = await POST(rawRequest(path));
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(await readJson(response), {
+        valid: false,
+        error: "Invalid request body",
+        reason: "bad_request",
+      });
+      assert.deepEqual(calls.findAccountByKey, []);
+      assertOneRedactedLine(label);
+    });
+  }
+
+  for (const [path, load] of [
+    [DEACTIVATE_PATH, loadDeactivateRoute],
+    ["/api/account/deactivate", loadAccountDeactivateRoute],
+  ] as const) {
+    test(`${path}: same 400 body, one redacted log line`, async () => {
+      const { POST } = await load();
+
+      const response = await POST(rawRequest(path));
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(await readJson(response), {
+        success: false,
+        error: "Invalid request body",
+      });
+      assertOneRedactedLine("License deactivate");
+    });
+  }
+});
