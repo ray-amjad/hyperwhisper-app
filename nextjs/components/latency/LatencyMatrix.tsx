@@ -284,7 +284,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             {METRICS.map((entry) => (
               <button
                 key={entry.key}
-                className={`rounded-md px-3 py-1.5 text-sm transition ${
+                className={`rounded-sm px-3 py-1.5 text-sm transition ${
                   metric === entry.key
                     ? "bg-purple-600 text-white"
                     : "text-gray-400 hover:text-white"
@@ -306,7 +306,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             {DURATION_BUCKETS.map((entry) => (
               <button
                 key={entry}
-                className={`rounded-md px-3 py-1.5 text-sm transition ${
+                className={`rounded-sm px-3 py-1.5 text-sm transition ${
                   bucket === entry
                     ? "bg-purple-600 text-white"
                     : "text-gray-400 hover:text-white"

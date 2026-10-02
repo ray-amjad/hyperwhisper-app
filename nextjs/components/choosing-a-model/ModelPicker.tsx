@@ -328,7 +328,7 @@ export default function ModelPicker({ measured, regions }: Props) {
               {(["macos", "windows"] as const).map((option) => (
                 <button
                   key={option}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-sm transition ${
+                  className={`flex-1 rounded-sm px-3 py-1.5 text-sm transition ${
                     platform === option
                       ? "bg-purple-600 text-white"
                       : "text-gray-400 hover:text-white"

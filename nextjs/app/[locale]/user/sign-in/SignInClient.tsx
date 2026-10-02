@@ -190,7 +190,7 @@ export default function SignInClient() {
             <button
               type="button"
               onClick={() => setActiveTab("license-key")}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
                 activeTab === "license-key"
                   ? "bg-white/15 text-white shadow-sm"
                   : "text-gray-400 hover:text-gray-300"
@@ -201,7 +201,7 @@ export default function SignInClient() {
             <button
               type="button"
               onClick={() => setActiveTab("email")}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
                 activeTab === "email"
                   ? "bg-white/15 text-white shadow-sm"
                   : "text-gray-400 hover:text-gray-300"
