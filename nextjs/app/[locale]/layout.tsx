@@ -33,10 +33,10 @@ import { Providers } from "./providers";
 
 import { fontSans } from "@/config/fonts";
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
-import { locales } from "@/i18n";
 import {
   buildAlternateLanguageMap,
   defaultLocale,
+  locales,
   stripLocalePrefix,
   toOpenGraphLocale,
 } from "@/src/i18n/locales";
