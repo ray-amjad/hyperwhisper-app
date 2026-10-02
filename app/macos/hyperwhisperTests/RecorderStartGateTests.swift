@@ -17,21 +17,37 @@ struct RecorderStartGateTests {
 
     private struct WorkFailed: Error {}
 
-    private static func makeGate(timeoutMs: Int = 100) -> RecorderStartGate {
-        RecorderStartGate(
-            queue: DispatchQueue(label: "RecorderStartGateTests.\(UUID().uuidString)"),
-            timeout: .milliseconds(timeoutMs)
-        )
+    /// How long blocked work waits for the test to release it. Only the test's
+    /// `release.signal()` should end the block, so this is far past any deadline a
+    /// loaded CI runner can miss (#1216).
+    private static let blockCap: DispatchTimeInterval = .seconds(60)
+
+    private static func makeQueue() -> DispatchQueue {
+        DispatchQueue(label: "RecorderStartGateTests.\(UUID().uuidString)")
+    }
+
+    private static func makeGate(on queue: DispatchQueue = makeQueue(), timeoutMs: Int = 100) -> RecorderStartGate {
+        RecorderStartGate(queue: queue, timeout: .milliseconds(timeoutMs))
     }
 
     /// Wait on a thread of its own, so a blocked semaphore never starves the
     /// cooperative pool that every other suite shares.
-    private static func wait(_ semaphore: DispatchSemaphore, seconds: Double = 5) async -> Bool {
+    private static func wait(_ semaphore: DispatchSemaphore, seconds: Double = 30) async -> Bool {
         await waitOffThePool(for: semaphore, seconds: seconds)
     }
 
+    /// True once every block already on `queue` has finished. The queue is serial,
+    /// so the marker runs only after an abandoned call and its count decrement.
+    /// Not a `gate.run`: that has its own 100 ms deadline, which a loaded runner
+    /// can miss.
+    private static func drain(_ queue: DispatchQueue) async -> Bool {
+        let drained = DispatchSemaphore(value: 0)
+        queue.async { drained.signal() }
+        return await wait(drained)
+    }
+
     @Test func workThatFinishesInTimeReturnsItsValue() async throws {
-        let gate = Self.makeGate(timeoutMs: 2_000)
+        let gate = Self.makeGate(timeoutMs: 30_000)
         let discarded = OSAllocatedUnfairLock(initialState: false)
 
         let value = try await gate.run({ 42 }, discardLate: { _ in discarded.withLock { $0 = true } })
@@ -42,7 +58,7 @@ struct RecorderStartGateTests {
     }
 
     @Test func workThatThrowsInTimeRethrowsItsError() async {
-        let gate = Self.makeGate(timeoutMs: 2_000)
+        let gate = Self.makeGate(timeoutMs: 30_000)
 
         await #expect(throws: WorkFailed.self) {
             _ = try await gate.run({ () throws -> Int in throw WorkFailed() }, discardLate: { _ in })
@@ -51,15 +67,15 @@ struct RecorderStartGateTests {
     }
 
     @Test func blockedWorkTimesOutThenItsLateValueIsDiscarded() async throws {
-        let gate = Self.makeGate()
+        let queue = Self.makeQueue()
+        let gate = Self.makeGate(on: queue)
         let release = DispatchSemaphore(value: 0)
         let discardedValue = OSAllocatedUnfairLock<Int?>(initialState: nil)
         let discardRan = DispatchSemaphore(value: 0)
 
-        let started = ContinuousClock.now
         do {
             _ = try await gate.run({ () -> Int in
-                _ = release.wait(timeout: .now() + 5)
+                _ = release.wait(timeout: .now() + Self.blockCap)
                 return 7
             }, discardLate: { value in
                 discardedValue.withLock { $0 = value }
@@ -70,39 +86,37 @@ struct RecorderStartGateTests {
             // Expected.
         }
 
-        // Returned at the deadline, not when the work finished.
-        #expect(ContinuousClock.now - started < .seconds(3))
+        // Returned at the deadline, not when the work finished: the work cannot
+        // finish before `release` is signalled below. A wall-clock bound here
+        // measured the CI runner's load, not the gate (#1216).
         #expect(gate.hasAbandonedWork)
 
         release.signal()
         #expect(await Self.wait(discardRan))
         #expect(discardedValue.withLock { $0 } == 7)
         // `discardLate` signals before the gate decrements its count on the queue,
-        // so give the decrement a bounded wall-clock window instead of reading at once.
-        let clearDeadline = ContinuousClock.now + .seconds(2)
-        while gate.hasAbandonedWork && ContinuousClock.now < clearDeadline {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        // so let the queue finish that block before reading the count.
+        #expect(await Self.drain(queue))
         #expect(gate.hasAbandonedWork == false)
     }
 
     @Test func blockedWorkThatLaterThrowsIsNotDiscardedButStillClears() async throws {
-        let gate = Self.makeGate()
+        let queue = Self.makeQueue()
+        let gate = Self.makeGate(on: queue)
         let release = DispatchSemaphore(value: 0)
         let discarded = OSAllocatedUnfairLock(initialState: false)
 
         await #expect(throws: AudioError.self) {
             _ = try await gate.run({ () throws -> Int in
-                _ = release.wait(timeout: .now() + 5)
+                _ = release.wait(timeout: .now() + Self.blockCap)
                 throw WorkFailed()
             }, discardLate: { _ in discarded.withLock { $0 = true } })
         }
         #expect(gate.hasAbandonedWork)
 
         release.signal()
-        // The late block runs on the gate's queue; a no-op run behind it on the same
-        // serial queue returns only after the abandoned block has finished.
-        _ = try await gate.run({ 0 }, discardLate: { _ in })
+        // The late block runs on the gate's queue; wait for it to finish.
+        #expect(await Self.drain(queue))
 
         #expect(discarded.withLock { $0 } == false)
         #expect(gate.hasAbandonedWork == false)
