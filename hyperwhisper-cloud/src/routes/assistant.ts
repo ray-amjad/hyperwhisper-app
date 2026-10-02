@@ -85,19 +85,28 @@ export function detectImageMediaType(bytes: Uint8Array): string | null {
 
 export function validateAssistantContentLength(contentLengthHeader: string | undefined):
   | { ok: true }
-  | { ok: false; response: Response } {
+  | { ok: false; response: Response; contentLength: number | null } {
   if (!contentLengthHeader) {
-    return { ok: false, response: errorResponse(400, 'Missing Content-Length', 'Content-Length header is required') };
+    return {
+      ok: false,
+      contentLength: null,
+      response: errorResponse(400, 'Missing Content-Length', 'Content-Length header is required'),
+    };
   }
 
   const contentLength = Number.parseInt(contentLengthHeader, 10);
   if (!Number.isFinite(contentLength) || contentLength <= 0) {
-    return { ok: false, response: errorResponse(400, 'Invalid Content-Length', 'Content-Length must be a positive integer') };
+    return {
+      ok: false,
+      contentLength: Number.isFinite(contentLength) ? contentLength : null,
+      response: errorResponse(400, 'Invalid Content-Length', 'Content-Length must be a positive integer'),
+    };
   }
 
   if (contentLength > MAX_ASSISTANT_BODY_BYTES) {
     return {
       ok: false,
+      contentLength,
       response: errorResponse(413, 'Request too large',
         `Request body must be ${Math.round(MAX_ASSISTANT_BODY_BYTES / (1024 * 1024))} MB or smaller`,
         { max_size_bytes: MAX_ASSISTANT_BODY_BYTES, content_length: contentLength }),
@@ -245,6 +254,23 @@ export function countInlineImages(clientMessages: unknown[]): number {
   return count;
 }
 
+/**
+ * A short, log-safe label for an Error's `cause`: its message or code when it is
+ * an object, the value itself when it is a string or number, and undefined
+ * (dropped from the JSON) otherwise, so an object never logs as [object Object].
+ */
+function describeErrorCause(cause: unknown): string | undefined {
+  if (typeof cause === 'string') return cause.slice(0, 200);
+  if (typeof cause === 'number') return String(cause);
+  if (cause instanceof Error) return cause.message.slice(0, 200);
+  if (cause && typeof cause === 'object') {
+    const { code, message } = cause as { code?: unknown; message?: unknown };
+    if (typeof code === 'string' || typeof code === 'number') return String(code);
+    if (typeof message === 'string') return message.slice(0, 200);
+  }
+  return undefined;
+}
+
 export async function assistantRoute(c: Context) {
   const requestId = generateRequestId();
   const startTime = performance.now();
@@ -263,16 +289,14 @@ export async function assistantRoute(c: Context) {
   // so an unauthenticated oversized upload would OOM the machine before auth
   // runs (same pattern as /transcribe). Content-Length is required so the cap
   // can't be bypassed with chunked transfer encoding.
-  const contentLengthHeader = c.req.header('Content-Length');
-  const sizeCheck = validateAssistantContentLength(contentLengthHeader);
+  const sizeCheck = validateAssistantContentLength(c.req.header('Content-Length'));
   if (!sizeCheck.ok) {
     // The gate also answers 400 for an absent or unparseable header; only the
     // 413 is a payload that is too large.
-    const contentLength = Number.parseInt(contentLengthHeader ?? '', 10);
     logEvent(requestId, startTime, 'assistant.request_rejected', {
       reason: sizeCheck.response.status === 413 ? 'payload_too_large' : 'invalid_content_length',
       status: sizeCheck.response.status,
-      contentLength: Number.isFinite(contentLength) ? contentLength : null,
+      contentLength: sizeCheck.contentLength,
       maxBytes: MAX_ASSISTANT_BODY_BYTES,
     });
     return sizeCheck.response;
@@ -415,6 +439,18 @@ export async function assistantRoute(c: Context) {
   // Deduct credits after stream completes (fire-and-forget)
   void (async () => {
     let costUsd: number | undefined;
+    // The user already has the streamed answer, so a failed deduction is a free
+    // vision response. Both ways it can fail (the license API refused the write
+    // or never answered, reported through onFailure; or something threw) write
+    // this one line against the request, without the IP, the key or the messages.
+    const logDeductionFailed = (failure: Record<string, unknown>) => {
+      logEvent(requestId, startTime, 'assistant.credit_deduction_failed', {
+        endpoint: '/assistant',
+        costUsd,
+        messageCount: messages.length,
+        ...failure,
+      });
+    };
     try {
       costUsd = await costPromise;
       if (costUsd > 0) {
@@ -428,18 +464,22 @@ export async function assistantRoute(c: Context) {
             endpoint: '/assistant',
             llm_provider: 'anthropic',
           },
-          clientIP
+          clientIP,
+          {
+            onFailure: (failure) =>
+              logDeductionFailed(
+                failure.kind === 'http'
+                  ? { failure: 'http', status: failure.status }
+                  : { failure: 'network', error: failure.error }
+              ),
+          }
         );
       }
     } catch (error) {
-      // The user already has the streamed answer, so a failed deduction is a
-      // free vision response. Log it against the request, without the IP or key.
-      logEvent(requestId, startTime, 'assistant.credit_deduction_failed', {
-        endpoint: '/assistant',
-        costUsd,
-        messageCount: messages.length,
+      logDeductionFailed({
+        failure: 'exception',
         error: error instanceof Error ? error.message : String(error),
-        cause: error instanceof Error ? String(error.cause ?? '') : '',
+        cause: error instanceof Error ? describeErrorCause(error.cause) : undefined,
       });
     }
   })();
