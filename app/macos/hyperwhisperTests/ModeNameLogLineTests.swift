@@ -22,6 +22,9 @@
 //  - Any `<receiver>.name` / `<receiver>?.name`, whatever the receiver is
 //    called (`byId.name`, `fallback.name`), unless the receiver is on the
 //    allow-list below of receivers that are known not to be a Mode.
+//  - Closure shorthand `$0.name` / `$1?.name` (`modes.map { $0.name }`),
+//    unless the collection the closure runs over is on the per-file
+//    allow-list of collections known not to hold Modes.
 //  - `modeName`, `selectedModeName`, `currentMode` (the persisted name string),
 //    and a bare `\(name` interpolation (a local such as `let name = mode.name`).
 //
@@ -50,6 +53,14 @@ struct ModeNameLogLineTests {
         "currentModel",  // WhisperCppModel: LibWhisperProvider
     ]
 
+    /// `<collection>.<method> { … $0.name … }` pairs, by file, whose elements are
+    /// NOT Modes, as of issue #804. Keyed by file so a Mode collection with the
+    /// same name elsewhere still fails. Each one was checked by type.
+    private static let nonModeShorthandCollections: Set<String> = [
+        "WhisperModelManager.swift:downloaded",        // [WhisperCppModel]: the model-list-changed line
+        "LibWhisperProvider.swift:downloadedModels",   // WhisperModelManager.downloadedModels: [WhisperCppModel], model-not-found line
+    ]
+
     /// Files where a bare `\(name` interpolation is known not to be a Mode name.
     private static let bareNameFiles: Set<String> = [
         "CustomPostProcessingManager.swift",  // `name` is the deleted endpoint's name
@@ -68,9 +79,16 @@ struct ModeNameLogLineTests {
         let logCall = try NSRegularExpression(
             pattern: #"\b[A-Za-z_][A-Za-z0-9_]*\.(?:info|debug|notice|warning|error|fault|trace|critical|log)\(|\b(?:os_log|NSLog)\("#
         )
-        // `mode.name`, `modeOverride?.name`, `byId.name`, `fallback.name`; group 1 is the receiver.
+        // `mode.name`, `modeOverride?.name`, `byId.name`, `fallback.name`, and closure
+        // shorthand `$0.name` / `$1?.name`; group 1 is the receiver.
         let dotName = try NSRegularExpression(
-            pattern: #"\b([A-Za-z_][A-Za-z0-9_]*)\??\.name\b"#
+            pattern: #"(\$[0-9]+|\b[A-Za-z_][A-Za-z0-9_]*)\??\.name\b"#
+        )
+        // The collection a shorthand closure runs over: `downloaded.map { $0.name }`,
+        // `items.sorted(by: { $0.name < $1.name })`. Group 1 is the collection,
+        // group 2 the first `$N` in that closure whose `.name` is read.
+        let shorthandOwner = try NSRegularExpression(
+            pattern: #"\b([A-Za-z_][A-Za-z0-9_]*)\??\.[A-Za-z_][A-Za-z0-9_]*\s*(?:\([^{}()]*)?\{[^{}]*?(\$[0-9]+)\??\.name\b"#
         )
         // `modeName`, `selectedModeName`, and `currentMode` when it is not a
         // receiver itself (`currentMode?.id` is fine).
@@ -103,9 +121,18 @@ struct ModeNameLogLineTests {
                 }
 
                 let range = NSRange(statement.startIndex..., in: statement)
+                // Shorthand `$N` positions whose closure runs over an allow-listed collection.
+                let exemptShorthand = Set(shorthandOwner.matches(in: statement, range: range).compactMap { match -> Int? in
+                    guard let owner = Range(match.range(at: 1), in: statement) else { return nil }
+                    let key = "\(file.lastPathComponent):\(statement[owner])"
+                    return Self.nonModeShorthandCollections.contains(key) ? match.range(at: 2).location : nil
+                })
                 let modeReceivers = dotName.matches(in: statement, range: range).compactMap { match -> String? in
                     guard let receiver = Range(match.range(at: 1), in: statement) else { return nil }
                     let name = String(statement[receiver])
+                    if name.hasPrefix("$") {
+                        return exemptShorthand.contains(match.range(at: 1).location) ? nil : name
+                    }
                     return Self.nonModeNameReceivers.contains(name) ? nil : name
                 }
                 let hasNameIdentifier = nameIdentifier.firstMatch(in: statement, range: range) != nil
@@ -120,7 +147,8 @@ struct ModeNameLogLineTests {
         #expect(offenders.isEmpty, """
             A log line writes a Mode name at \(offenders.joined(separator: ", ")). \
             Log the Mode's id and PresetType.reportingValue(for:) instead (issue #804). \
-            If the `.name` there is not a Mode, add its receiver to nonModeNameReceivers with a comment.
+            If the `.name` there is not a Mode, add its receiver to nonModeNameReceivers \
+            (or a `$0.name` closure's collection to nonModeShorthandCollections) with a comment.
             """)
     }
 
