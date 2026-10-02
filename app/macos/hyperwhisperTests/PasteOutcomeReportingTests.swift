@@ -218,6 +218,8 @@ struct PasteOutcomeReportingTests {
             // The #783 defect armed the restoration here, before it returned.
             #expect(helper.activeRestorationWorkItem == nil)
             #expect(NSPasteboard.general.string(forType: .string) == transcript)
+            // #1061: the next recording keeps the older clipboard.
+            #expect(helper.keptClipboardSnapshotChangeCount == NSPasteboard.general.changeCount)
         }
     }
     #endif
@@ -264,6 +266,7 @@ struct PasteOutcomeReportingTests {
             // The #1034 defect armed the restoration here, before it returned.
             #expect(helper.activeRestorationWorkItem == nil)
             #expect(NSPasteboard.general.string(forType: .string) == transcript)
+            #expect(helper.keptClipboardSnapshotChangeCount == NSPasteboard.general.changeCount)
         }
     }
 
@@ -296,6 +299,8 @@ struct PasteOutcomeReportingTests {
             #expect(probe.calls > 0, "the run never reached the focus check")
             #expect(helper.activeRestorationWorkItem == nil)
             #expect(NSPasteboard.general.string(forType: .string) == transcript)
+            // The newer paste that cancelled this one owns the clipboard (#1061).
+            #expect(helper.keptClipboardSnapshotChangeCount == nil)
         }
     }
 
@@ -334,6 +339,7 @@ struct PasteOutcomeReportingTests {
             #expect(TextDeliveryGate.isSuppressed == false)
             #expect(helper.activeRestorationWorkItem == nil)
             #expect(NSPasteboard.general.string(forType: .string) == transcript)
+            #expect(helper.keptClipboardSnapshotChangeCount == NSPasteboard.general.changeCount)
         }
     }
 
@@ -366,7 +372,90 @@ struct PasteOutcomeReportingTests {
             #expect(probe.calls > 0, "the run never reached the focus check")
             #expect(helper.activeRestorationWorkItem != nil)
             #expect(NSPasteboard.general.string(forType: .string) == transcript)
+            #expect(helper.keptClipboardSnapshotChangeCount == nil)
         }
+    }
+
+    // MARK: - #1061: the next recording keeps the user's older clipboard
+
+    /// #1061 (Ray's option B): after a no-paste exit leaves the transcript on the
+    /// clipboard, the next `startRecordingSession()` must keep the snapshot of
+    /// the clipboard from before the first recording, so the restore after the
+    /// next paste writes the user's clipboard back, not the transcript. Before
+    /// #1061 no restore was pending here, so the call re-snapshotted the
+    /// transcript. Drives the no-focused-field exit, as the #1034 test above does.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
+    func nextRecordingAfterNoPasteExitKeepsOlderClipboardSnapshot() async throws {
+        let helper = AccessibilityHelper.shared
+        let transcript = "unpasted transcript #1061"
+
+        try await withSavedPasteState(deliverySuppressed: false,
+                                      requireAccessibilityUntrusted: false) {
+            helper.canPasteOverrideForTesting = { false }
+            let result = await pasteIntoThisProcess(transcript)
+            let noFocusedField: Bool
+            if case .noFocusedField = result { noFocusedField = true } else { noFocusedField = false }
+            try #require(noFocusedField, "expected .noFocusedField, got \(result)")
+            try #require(NSPasteboard.general.string(forType: .string) == transcript)
+
+            helper.startRecordingSession()
+
+            #expect(savedSnapshotText() == "clipboard before recording")
+            #expect(helper.keptClipboardSnapshotChangeCount == nil, "the mark is single use")
+        }
+    }
+
+    /// #1061: when the user copies something between the no-paste exit and the
+    /// next recording, that copy is theirs. The next `startRecordingSession()`
+    /// takes a fresh snapshot of it, so the later restore never overwrites it.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
+    func nextRecordingAfterUserCopyTakesFreshClipboardSnapshot() async throws {
+        let helper = AccessibilityHelper.shared
+        let userCopy = "copied by the user between dictations #1061"
+
+        try await withSavedPasteState(deliverySuppressed: false,
+                                      requireAccessibilityUntrusted: false) {
+            helper.canPasteOverrideForTesting = { false }
+            _ = await pasteIntoThisProcess("unpasted transcript #1061")
+            try #require(helper.keptClipboardSnapshotChangeCount == NSPasteboard.general.changeCount,
+                         "the no-paste exit did not record the transcript's change count")
+
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(userCopy, forType: .string)
+            helper.startRecordingSession()
+
+            #expect(savedSnapshotText() == userCopy)
+            #expect(helper.keptClipboardSnapshotChangeCount == nil)
+        }
+    }
+
+    /// #1061: turning restore off drops the kept snapshot (SettingsManager's
+    /// `didSet` calls `dropKeptClipboardSnapshot()`; the setting is
+    /// `@AppStorage` and is never written from a test). The next recording
+    /// then snapshots the clipboard as it is.
+    @Test(.restoreClipboardIsOn, .sentryIsOff)
+    func droppedKeptSnapshotLetsNextRecordingSnapshotAfresh() async throws {
+        let helper = AccessibilityHelper.shared
+        let transcript = "unpasted transcript, restore turned off #1061"
+
+        try await withSavedPasteState(deliverySuppressed: false,
+                                      requireAccessibilityUntrusted: false) {
+            helper.canPasteOverrideForTesting = { false }
+            _ = await pasteIntoThisProcess(transcript)
+            try #require(helper.keptClipboardSnapshotChangeCount != nil)
+
+            helper.dropKeptClipboardSnapshot()
+            #expect(helper.keptClipboardSnapshotChangeCount == nil)
+            helper.startRecordingSession()
+
+            #expect(savedSnapshotText() == transcript)
+        }
+    }
+
+    /// The plain text of the first item in the saved record-start snapshot.
+    private func savedSnapshotText() -> String? {
+        guard let data = AccessibilityHelper.shared.originalClipboardData?.first?.data[.string] else { return nil }
+        return String(decoding: data, as: UTF8.self)
     }
 
     /// Runs `executePasteAsync` against this process under its own bundle ID, so
@@ -410,6 +499,8 @@ struct PasteOutcomeReportingTests {
             return copy
         }
         let savedOriginal = helper.originalClipboardData
+        let savedInSession = helper.isInRecordingSession
+        let savedKeptChangeCount = helper.keptClipboardSnapshotChangeCount
         let savedSuppressed = TextDeliveryGate.isSuppressed
         let savedReportedMissingPermission = helper.hasReportedMissingPastePermission
         defer {
@@ -418,6 +509,8 @@ struct PasteOutcomeReportingTests {
             helper.cancelPendingClipboardRestoration()
             helper.currentPasteTask = nil
             helper.originalClipboardData = savedOriginal
+            helper.isInRecordingSession = savedInSession
+            helper.keptClipboardSnapshotChangeCount = savedKeptChangeCount
             TextDeliveryGate.setSuppressed(savedSuppressed)
             helper.hasReportedMissingPastePermission = savedReportedMissingPermission
             pasteboard.clearContents()
@@ -431,6 +524,7 @@ struct PasteOutcomeReportingTests {
                 data: [.string: Data("clipboard before recording".utf8)]
             )
         ]
+        helper.keptClipboardSnapshotChangeCount = nil
         helper.pastePermissionOverrideForTesting = true
         TextDeliveryGate.setSuppressed(deliverySuppressed)
 
