@@ -95,8 +95,8 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch (err) {
     // The error's name, the content type and the declared length, never the
-    // payload: a SyntaxError's message quotes the start of the input (a short
-    // one in full), and on this unauthenticated path that is the licence key.
+    // payload: a SyntaxError's message quotes the input around the fault (a
+    // short one in full), and on this unauthenticated path that is the key.
     console.error("License validate: request JSON did not parse", {
       errorName: err instanceof Error ? err.name : typeof err,
       contentType: req.headers.get("content-type"),
