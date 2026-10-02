@@ -301,7 +301,7 @@ struct ModesView: View {
             if let firstMode = remainingModes.first {
                 // Select the first remaining mode (index 0 by sort order)
                 appState.selectMode(firstMode, persist: true)
-                AppLogger.ui.info("Deleted selected mode, switched to first remaining mode: \(firstMode.name ?? "Unknown")")
+                AppLogger.ui.info("Deleted selected mode, switched to first remaining mode · modeId=\(firstMode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: firstMode), privacy: .public)")
             } else {
                 // No modes left - clear the selection to prevent errors
                 appState.clearModeSelection()
