@@ -24,11 +24,10 @@ struct RecorderStartGateTests {
         )
     }
 
-    /// Wait off the cooperative pool, so a blocked semaphore never starves the test.
+    /// Wait on a thread of its own, so a blocked semaphore never starves the
+    /// cooperative pool that every other suite shares.
     private static func wait(_ semaphore: DispatchSemaphore, seconds: Double = 5) async -> Bool {
-        await Task.detached {
-            semaphore.wait(timeout: .now() + seconds) == .success
-        }.value
+        await waitOffThePool(for: semaphore, seconds: seconds)
     }
 
     @Test func workThatFinishesInTimeReturnsItsValue() async throws {
@@ -78,6 +77,12 @@ struct RecorderStartGateTests {
         release.signal()
         #expect(await Self.wait(discardRan))
         #expect(discardedValue.withLock { $0 } == 7)
+        // `discardLate` signals before the gate decrements its count on the queue,
+        // so give the decrement a bounded wall-clock window instead of reading at once.
+        let clearDeadline = ContinuousClock.now + .seconds(2)
+        while gate.hasAbandonedWork && ContinuousClock.now < clearDeadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
         #expect(gate.hasAbandonedWork == false)
     }
 
