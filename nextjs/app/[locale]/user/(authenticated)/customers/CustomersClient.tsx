@@ -405,6 +405,8 @@ export default function CustomersClient() {
                         {isEditing ? (
                           // w-0 + min-w-full: the editor adds no intrinsic width to the
                           // column, it fills the fixed one (#914). t-cell-reveal tweens it in.
+                          // The input is w-0 flex-1: its default size=20 width (~228px) would
+                          // otherwise set the form's min-content and overflow the cell.
                           <div className="t-cell-reveal w-0 min-w-full">
                             <form
                               onSubmit={(e) => {
@@ -426,7 +428,7 @@ export default function CustomersClient() {
                                   onChange={(e) => setEditEmail(e.target.value)}
                                   autoFocus
                                   required
-                                  className="px-2 py-1 bg-white/10 border border-emerald-500/60 rounded text-white text-sm focus:outline-none focus:border-emerald-400 min-w-0 flex-1"
+                                  className="px-2 py-1 bg-white/10 border border-emerald-500/60 rounded text-white text-sm focus:outline-none focus:border-emerald-400 w-0 min-w-0 flex-1"
                                 />
                                 <button
                                   type="submit"
