@@ -54,7 +54,13 @@ assert_file "$ROOTFS/usr/share/man/man1/hyperwhisper-companionctl.1.gz"
 assert_file "$ROOTFS/usr/share/doc/hyperwhisper/changelog.gz"
 test -x "$ROOTFS/usr/lib/hyperwhisper/HyperWhisper"
 test -x "$ROOTFS/usr/lib/hyperwhisper/parakeet-engine/parakeet-engine"
-test "$(readlink "$ROOTFS/usr/bin/hyperwhisper")" = "../lib/hyperwhisper/HyperWhisper"
+test ! -L "$ROOTFS/usr/bin/hyperwhisper"
+test -x "$ROOTFS/usr/bin/hyperwhisper"
+# The launcher's own text, so the expansions must stay unexpanded here.
+# shellcheck disable=SC2016
+grep -qxF 'export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"' "$ROOTFS/usr/bin/hyperwhisper"
+# shellcheck disable=SC2016
+grep -qxF 'exec /usr/lib/hyperwhisper/HyperWhisper "$@"' "$ROOTFS/usr/bin/hyperwhisper"
 test "$(readlink "$ROOTFS/usr/bin/hyperwhisper-companionctl")" = "../share/hyperwhisper/companions/hyperwhisper-companionctl"
 test -x "$ROOTFS/usr/share/hyperwhisper/companions/status-notifier.py"
 test -x "$ROOTFS/usr/share/hyperwhisper/companions/hyperwhisper-companionctl"
