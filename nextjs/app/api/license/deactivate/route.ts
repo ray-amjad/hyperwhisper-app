@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { logUnparseableRequest } from "@/src/lib/log-unparseable-request";
+
 /**
  * License Deactivation API (STUB)
  *
@@ -19,14 +21,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch (err) {
-    // The error's name, the content type and the declared length, never the
-    // payload: a SyntaxError's message quotes the input around the fault (a
-    // short one in full), and on this unauthenticated path that is the key.
-    console.error("License deactivate: request JSON did not parse", {
-      errorName: err instanceof Error ? err.name : typeof err,
-      contentType: req.headers.get("content-type"),
-      contentLength: req.headers.get("content-length"),
-    });
+    logUnparseableRequest("License deactivate", req, err);
     return NextResponse.json(
       { success: false, error: "Invalid request body" },
       { status: 400 }
