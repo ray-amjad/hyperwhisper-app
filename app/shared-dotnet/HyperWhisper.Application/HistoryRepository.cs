@@ -52,6 +52,72 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// One Local API <c>/recordings</c> page, filtered, counted and limited in
+    /// SQL rather than over the whole table (issue #1087). The match rule is
+    /// the one the endpoint always had: <c>Contains(term, OrdinalIgnoreCase)</c>
+    /// over <c>Text</c> and <c>TranscribedText</c>, term not trimmed.
+    /// </summary>
+    /// <remarks>
+    /// SQLite LIKE folds ASCII case only, and under OrdinalIgnoreCase no
+    /// non-ASCII character folds onto an ASCII one, so for an ASCII term LIKE
+    /// is exact. A non-ASCII rune becomes <c>_</c> (any one character): a
+    /// superset that the in-memory check then narrows to the same rows.
+    /// </remarks>
+    public async Task<(IReadOnlyList<Transcript> Page, int Total)> QueryPageAsync(
+        string? search,
+        DateTime? since,
+        DateTime? until,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        await using var context = _database.CreateContext();
+        var rows = context.Transcripts.AsNoTracking();
+        if (since is { } from) rows = rows.Where(item => item.Date >= from);
+        if (until is { } to) rows = rows.Where(item => item.Date <= to);
+        var exactInSql = true;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = new System.Text.StringBuilder("%");
+            foreach (var rune in search.EnumerateRunes())
+            {
+                if (!rune.IsAscii) { exactInSql = false; pattern.Append('_'); continue; }
+                if (rune.Value is '%' or '_' or '\\') pattern.Append('\\');
+                pattern.Append((char)rune.Value);
+            }
+            var like = pattern.Append('%').ToString();
+            rows = rows.Where(item => EF.Functions.Like(item.Text, like, "\\")
+                || (item.TranscribedText != null && EF.Functions.Like(item.TranscribedText, like, "\\")));
+        }
+        // With a term, order by an expression IX_Transcripts_Date cannot serve.
+        // SQLite otherwise walks that index and looks up every row, about 3x
+        // slower for a rare term than a scan with a top-N sort. RTRIM orders a
+        // stored date (never a trailing space) exactly as BINARY does.
+        rows = string.IsNullOrWhiteSpace(search)
+            ? rows.OrderByDescending(item => item.Date)
+            : rows.OrderByDescending(item => EF.Functions.Collate(item.Date, "RTRIM"));
+        if (exactInSql)
+        {
+            // A page short of the limit already holds every match, so the
+            // second scan (COUNT) only runs when there may be more.
+            var page = await rows.Take(limit).ToListAsync(cancellationToken);
+            return (page, page.Count < limit ? page.Count : await rows.CountAsync(cancellationToken));
+        }
+
+        var matches = (await rows.ToListAsync(cancellationToken))
+            .Where(item => item.Text.Contains(search!, StringComparison.OrdinalIgnoreCase)
+                || (item.TranscribedText?.Contains(search!, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+        return (matches.Take(limit).ToList(), matches.Count);
+    }
+
+    /// <summary>True when any history row points at <paramref name="path"/> (ordinal, as SQLite's BINARY collation).</summary>
+    public async Task<bool> AnyWithAudioFileAsync(string path, CancellationToken cancellationToken = default)
+    {
+        await using var context = _database.CreateContext();
+        return await context.Transcripts.AnyAsync(item => item.AudioFilePath == path, cancellationToken);
+    }
+
     public async Task<Transcript?> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await using var context = _database.CreateContext();
