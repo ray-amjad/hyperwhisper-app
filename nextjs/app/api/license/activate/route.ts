@@ -58,7 +58,15 @@ export async function POST(req: NextRequest) {
   let body: unknown;
   try {
     body = await req.json();
-  } catch {
+  } catch (err) {
+    // The error's name, the content type and the declared length, never the
+    // payload: a SyntaxError's message quotes the start of the input (a short
+    // one in full), and on this unauthenticated path that is the licence key.
+    console.error("License activate: request JSON did not parse", {
+      errorName: err instanceof Error ? err.name : typeof err,
+      contentType: req.headers.get("content-type"),
+      contentLength: req.headers.get("content-length"),
+    });
     return invalidLicenseResponse({
       valid: false,
       error: "Invalid request body",
