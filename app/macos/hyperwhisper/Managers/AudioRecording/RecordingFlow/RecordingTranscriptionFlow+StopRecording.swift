@@ -663,18 +663,18 @@ extension RecordingTranscriptionFlow {
             if transcribingUIElapsedMs >= effectiveUIThreshold {
                 // Slow path: attach per-stage timings as scope extras (they survive
                 // beforeSend, unlike breadcrumbs) so any subsequent event carries them.
-                SentryService.setExtras([
-                    "stage_wav_ready_ms": wavReadyMs,
-                    "stage_file_check_ms": fileCheckMs,
-                    "stage_vad_trim_ms": vadTrimMs,
-                    "stage_create_row_ms": createRowMs,
-                    "stage_transcribe_ms": transcribeMs,
-                    "stage_core_data_update_ms": coreDataUpdateMs,
-                    "stage_flow_ms": flowElapsedMs,
-                    "stage_audio_duration_seconds": effectiveAudioDurationSeconds,
-                    "stage_duration_allowance_ms": uiDurationAllowanceMs,
-                    "stage_effective_ui_threshold_ms": effectiveUIThreshold
-                ])
+                SentryService.setExtras(Self.stageExtras(
+                    wavReadyMs: wavReadyMs,
+                    fileCheckMs: fileCheckMs,
+                    vadTrimMs: vadTrimMs,
+                    createRowMs: createRowMs,
+                    transcribeMs: transcribeMs,
+                    coreDataUpdateMs: coreDataUpdateMs,
+                    flowMs: flowElapsedMs,
+                    audioDurationSeconds: effectiveAudioDurationSeconds,
+                    durationAllowanceMs: uiDurationAllowanceMs,
+                    effectiveUIThresholdMs: effectiveUIThreshold
+                ))
                 AppLogger.audio.warning("\(uiLogMessage, privacy: .public)")
             } else {
                 AppLogger.audio.info("\(uiLogMessage, privacy: .public)")
@@ -731,14 +731,20 @@ extension RecordingTranscriptionFlow {
                 "Recording transcription flow failed · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public) · \(stageTimings, privacy: .public) · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public)"
             )
             // Attach per-stage timings as scope extras so the pipeline's error event carries them.
-            SentryService.setExtras([
-                "stage_wav_ready_ms": wavReadyMs,
-                "stage_file_check_ms": fileCheckMs,
-                "stage_vad_trim_ms": vadTrimMs,
-                "stage_create_row_ms": createRowMs,
-                "stage_transcribe_ms": transcribeMs,
-                "stage_flow_ms": flowElapsedMs
-            ])
+            // The audio duration and the UI threshold are computed only inside the
+            // `do` block, so they are -1 here (issue #784).
+            SentryService.setExtras(Self.stageExtras(
+                wavReadyMs: wavReadyMs,
+                fileCheckMs: fileCheckMs,
+                vadTrimMs: vadTrimMs,
+                createRowMs: createRowMs,
+                transcribeMs: transcribeMs,
+                coreDataUpdateMs: coreDataUpdateMs,
+                flowMs: flowElapsedMs,
+                audioDurationSeconds: -1,
+                durationAllowanceMs: -1,
+                effectiveUIThresholdMs: -1
+            ))
             handleTranscriptionError(
                 error,
                 processingTranscriptID: processingTranscriptID,
@@ -751,6 +757,39 @@ extension RecordingTranscriptionFlow {
                 audioURL: audioURL
             )
         }
+    }
+
+    /// The `stage_*` Sentry scope extras, built in one place for the slow-success
+    /// and the failure publish (issue #784). `SentryService.setExtras` never
+    /// removes a key, so every publish writes EVERY key — a key left out would
+    /// carry an earlier recording's value. -1 = not reached / not known.
+    /// `stage_reported_at` lets a triager see the block's age, like `paste_reported_at`.
+    nonisolated static func stageExtras(
+        wavReadyMs: Int,
+        fileCheckMs: Int,
+        vadTrimMs: Int,
+        createRowMs: Int,
+        transcribeMs: Int,
+        coreDataUpdateMs: Int,
+        flowMs: Int,
+        audioDurationSeconds: Double,
+        durationAllowanceMs: Int,
+        effectiveUIThresholdMs: Int,
+        reportedAt: Date = Date()
+    ) -> [String: Any] {
+        [
+            "stage_wav_ready_ms": wavReadyMs,
+            "stage_file_check_ms": fileCheckMs,
+            "stage_vad_trim_ms": vadTrimMs,
+            "stage_create_row_ms": createRowMs,
+            "stage_transcribe_ms": transcribeMs,
+            "stage_core_data_update_ms": coreDataUpdateMs,
+            "stage_flow_ms": flowMs,
+            "stage_audio_duration_seconds": audioDurationSeconds,
+            "stage_duration_allowance_ms": durationAllowanceMs,
+            "stage_effective_ui_threshold_ms": effectiveUIThresholdMs,
+            "stage_reported_at": ISO8601DateFormatter().string(from: reportedAt)
+        ]
     }
 
     /// Definitive readability test for the finalized recording file (WS3).
