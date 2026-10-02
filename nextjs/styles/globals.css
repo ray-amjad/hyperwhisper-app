@@ -126,3 +126,38 @@ body {
     }
   }
 }
+
+/* Inline editor that replaces a table cell's content (#914). A <td> with
+   height auto never tweens its height, so the wrapper animates its one grid
+   row 0fr -> 1fr instead: the row grows through real intermediate heights.
+   The child clips (overflow: clip, not hidden, so autoFocus cannot scroll it). */
+@keyframes cell-reveal {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.t-cell-reveal {
+  --resize-dur: 300ms;
+  --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: cell-reveal var(--resize-dur) var(--resize-ease) both;
+}
+
+.t-cell-reveal > * {
+  min-height: 0;
+  overflow: clip;
+}
+
+/* Reduce motion: the editor appears at full size in one frame. */
+@media (prefers-reduced-motion: reduce) {
+  .t-cell-reveal {
+    animation: none;
+  }
+}
