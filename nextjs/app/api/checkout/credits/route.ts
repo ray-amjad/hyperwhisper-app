@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/clients/stripe";
 import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
+import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { describeDbError, safeErrorMessage } from "@/lib/shared/db-error";
 import {
   validateCreditPurchaseAmount,
@@ -36,8 +37,23 @@ import {
  */
 
 export async function POST(req: NextRequest) {
+  let body: unknown;
+
   try {
-    const body: unknown = await req.json();
+    body = await req.json();
+  } catch (err) {
+    console.error(
+      "Credit checkout: request JSON did not parse",
+      unparseableRequestFields(req, err),
+    );
+
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+
+  try {
     const { licenseKey, amount, email } = isRecord(body) ? body : {};
 
     // Validate amount: whole dollars within [MIN, MAX].

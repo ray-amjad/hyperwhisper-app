@@ -8,6 +8,7 @@ import {
   getCreditBalance,
 } from "@/src/lib/db-layer";
 import { isRecord } from "@/src/lib/type-guards";
+import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { describeDbError } from "@/lib/shared/db-error";
 
 /**
@@ -80,8 +81,23 @@ export async function GET(req: NextRequest) {
  * Deduct credits from a license (record usage).
  */
 export async function POST(req: NextRequest) {
+  let body: unknown;
+
   try {
-    const body: unknown = await req.json();
+    body = await req.json();
+  } catch (err) {
+    console.error(
+      "Credits deduction: request JSON did not parse",
+      unparseableRequestFields(req, err),
+    );
+
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
+  }
+
+  try {
     const { license_key, amount, metadata } = isRecord(body) ? body : {};
 
     if (!license_key || typeof license_key !== "string") {
