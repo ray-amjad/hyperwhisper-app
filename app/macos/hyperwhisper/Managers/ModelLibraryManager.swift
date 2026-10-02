@@ -52,6 +52,11 @@ final class ModelLibraryManager: ObservableObject {
         var immediate: [AnyPublisher<Void, Never>] = [
             cloudHealth.$statuses.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
             cloudHealth.$postProcessingStatuses.removeDuplicates().map { _ in () }.eraseToAnyPublisher(),
+            // rebuild() reads key presence (hasAPIKey / hasPostProcessingAPIKey).
+            // Every key write goes through an @Published property here, and
+            // apiKeys publishes only on a save, never on a page visit. The
+            // debounce below runs rebuild() after the willSet write lands.
+            apiKeys.objectWillChange.map { _ in () }.eraseToAnyPublisher(),
             whisperManager.$downloadedModels.map { _ in () }.eraseToAnyPublisher(),
             whisperManager.$downloadingModels.map { _ in () }.eraseToAnyPublisher(),
             parakeetManager.$availableModels.map { _ in () }.eraseToAnyPublisher(),

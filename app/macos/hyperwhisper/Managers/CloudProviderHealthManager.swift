@@ -6,8 +6,9 @@ import Combine
 //    an API key. This invalidates cached results and schedules a debounced refresh.
 // 2. Once the 500 ms debounce elapses without further edits, refresh(provider, force: true)
 //    executes on the main actor.
-// 3. refresh(...) marks the provider as .checking (without discarding the last cached value) and
-//    hands the actual HTTP probe off to scheduleHealthCheck(...).
+// 3. nextStatus(for:force:) applies the cache gates, hands the actual HTTP probe off to
+//    scheduleHealthCheck(...), and returns .checking (keeping the last cached value). refresh(...)
+//    and refreshAll(...) write that status only when it differs, so a no-op is never published.
 // 4. scheduleHealthCheck coalesces duplicate requests, runs the asynchronous network call on a
 //    background executor, applies retry logic for transient failures, and then republishes the
 //    resulting status back on the main actor.
@@ -139,7 +140,7 @@ final class CloudProviderHealthManager: ObservableObject {
 
     /// Clock, injectable so tests can drive the `cacheTTL` window without
     /// sleeping for a real minute. Every read of "now" in this type goes
-    /// through it: the two cache-hit gates in `refresh(_:force:)`, the two
+    /// through it: the two cache-hit gates in `nextStatus(for:force:)`, the two
     /// `StatusRecord` stamps in `scheduleHealthCheck(for:force:)`, and the
     /// `healthSnapshot()` timestamp. Those five reads are one clock, so a test
     /// that moves it moves the whole TTL together.
