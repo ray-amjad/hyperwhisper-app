@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { logUnparseableRequest } from "@/src/lib/log-unparseable-request";
+import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { upsertDeviceValidation, getCreditBalance } from "@/src/lib/db-layer";
 import {
   checkLicenseKey,
@@ -95,7 +95,10 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch (err) {
-    logUnparseableRequest("License validate", req, err);
+    console.error(
+      "License validate: request JSON did not parse",
+      unparseableRequestFields(req, err),
+    );
     return invalidLicenseResponse({
       valid: false,
       error: "Invalid request body",
