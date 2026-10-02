@@ -269,7 +269,7 @@ export default function DownloadPage() {
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 as="a"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+                className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,opacity,box-shadow] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
                 href="/api/download?platform=windows&arch=x64"
                 size="lg"
                 startContent={<Download className="w-5 h-5" />}
@@ -278,7 +278,7 @@ export default function DownloadPage() {
               </Button>
               <Button
                 as="a"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+                className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,opacity,box-shadow] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
                 href="/api/download?platform=windows&arch=arm64"
                 size="lg"
                 startContent={<Download className="w-5 h-5" />}
@@ -290,7 +290,7 @@ export default function DownloadPage() {
             <div className="flex flex-col items-center gap-3">
               <Button
                 as="a"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+                className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,opacity,box-shadow] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
                 href={linuxLatest?.deb ?? LINUX_RELEASES_URL}
                 rel="noreferrer"
                 size="lg"
@@ -312,7 +312,7 @@ export default function DownloadPage() {
             </div>
           ) : (
             <Button
-              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+              className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,opacity,box-shadow] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
               size="lg"
               startContent={<Download className="w-5 h-5" />}
               onClick={handleManualDownload}
