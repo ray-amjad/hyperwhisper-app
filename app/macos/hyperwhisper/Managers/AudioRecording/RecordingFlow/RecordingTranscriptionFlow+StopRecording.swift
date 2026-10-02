@@ -462,8 +462,8 @@ extension RecordingTranscriptionFlow {
             // `transcribeWithDetails` captures its own failure event synchronously
             // before it rethrows, so a publish in the `catch` below only reaches
             // later events. Transcribe, Core Data update and the threshold are not
-            // known yet, so they are -1; the `catch` and the slow-success path
-            // overwrite the whole block with their final values.
+            // known yet, so they are -1; the success path, the cancel `catch` and
+            // the failure `catch` overwrite the whole block with their final values.
             SentryService.setExtras(Self.stageExtras(
                 wavReadyMs: wavReadyMs,
                 fileCheckMs: fileCheckMs,
@@ -682,21 +682,24 @@ extension RecordingTranscriptionFlow {
                 baseUIThreshold = slowTranscribingUIThresholdMs
             }
             let effectiveUIThreshold = baseUIThreshold + uiDurationAllowanceMs
+            // Attach per-stage timings as scope extras (they survive beforeSend,
+            // unlike breadcrumbs) so any subsequent event carries them. Published on
+            // a fast success too (issue #784): otherwise the pre-transcribe block
+            // above, with `stage_transcribe_ms` = -1, would sit on later events and
+            // read like a stalled transcription.
+            SentryService.setExtras(Self.stageExtras(
+                wavReadyMs: wavReadyMs,
+                fileCheckMs: fileCheckMs,
+                vadTrimMs: vadTrimMs,
+                createRowMs: createRowMs,
+                transcribeMs: transcribeMs,
+                coreDataUpdateMs: coreDataUpdateMs,
+                flowMs: flowElapsedMs,
+                audioDurationSeconds: effectiveAudioDurationSeconds,
+                durationAllowanceMs: uiDurationAllowanceMs,
+                effectiveUIThresholdMs: effectiveUIThreshold
+            ))
             if transcribingUIElapsedMs >= effectiveUIThreshold {
-                // Slow path: attach per-stage timings as scope extras (they survive
-                // beforeSend, unlike breadcrumbs) so any subsequent event carries them.
-                SentryService.setExtras(Self.stageExtras(
-                    wavReadyMs: wavReadyMs,
-                    fileCheckMs: fileCheckMs,
-                    vadTrimMs: vadTrimMs,
-                    createRowMs: createRowMs,
-                    transcribeMs: transcribeMs,
-                    coreDataUpdateMs: coreDataUpdateMs,
-                    flowMs: flowElapsedMs,
-                    audioDurationSeconds: effectiveAudioDurationSeconds,
-                    durationAllowanceMs: uiDurationAllowanceMs,
-                    effectiveUIThresholdMs: effectiveUIThreshold
-                ))
                 AppLogger.audio.warning("\(uiLogMessage, privacy: .public)")
             } else {
                 AppLogger.audio.info("\(uiLogMessage, privacy: .public)")
@@ -704,10 +707,27 @@ extension RecordingTranscriptionFlow {
 
         } catch is CancellationError {
             let flowElapsedMs = Int(Date().timeIntervalSince(flowStart) * 1000)
+            transcribeMs = transcribeStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? transcribeMs
             let transcribingUIElapsedMs = transcribingUIStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
             AppLogger.audio.info(
                 "Recording transcription flow cancelled · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · modePreset=\(modePreset, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public)"
             )
+            // Replace the pre-transcribe block (issue #784) so later events carry
+            // the time spent before the cancel, not -1 and a partial flow time.
+            // Core Data update is never reached here and the UI threshold needs
+            // the transcription result, so both stay -1.
+            SentryService.setExtras(Self.stageExtras(
+                wavReadyMs: wavReadyMs,
+                fileCheckMs: fileCheckMs,
+                vadTrimMs: vadTrimMs,
+                createRowMs: createRowMs,
+                transcribeMs: transcribeMs,
+                coreDataUpdateMs: coreDataUpdateMs,
+                flowMs: flowElapsedMs,
+                audioDurationSeconds: effectiveAudioDurationSeconds,
+                durationAllowanceMs: uiDurationAllowanceMs,
+                effectiveUIThresholdMs: -1
+            ))
             // User cancelled - treat as benign (no error toast shown)
             await MainActor.run {
                 // CRITICAL: Clear lastTranscription to prevent error toast from stale values
@@ -784,7 +804,7 @@ extension RecordingTranscriptionFlow {
     }
 
     /// The `stage_*` Sentry scope extras, built in one place for the pre-transcribe,
-    /// the slow-success and the failure publish (issue #784). `SentryService.setExtras` never
+    /// the success (slow and fast), the cancel and the failure publish (issue #784). `SentryService.setExtras` never
     /// removes a key, so every publish writes EVERY key — a key left out would
     /// carry an earlier recording's value. -1 = not reached / not known.
     /// `stage_reported_at` lets a triager see the block's age, like `paste_reported_at`.

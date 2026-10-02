@@ -5,11 +5,17 @@
 //  Issue #784: the failure publish of the `stage_*` Sentry scope extras wrote 6
 //  keys and the slow-success publish wrote 10. `SentryService.setExtras` never
 //  removes a key, so the 4 missing keys carried an earlier recording's values
-//  onto the failure event. Every publish (pre-transcribe, slow success,
-//  failure) now goes through one builder; these tests pin that every shape
+//  onto the failure event. Every publish (pre-transcribe, success, cancel,
+//  failure) now goes through one builder; the first tests pin that every shape
 //  writes the same full key set. The pre-transcribe publish is the one the
 //  pipeline's own failure event carries, because the pipeline captures that
 //  event before it rethrows into the flow's `catch`.
+//
+//  The builder tests only prove `stageExtras` echoes its arguments, so the
+//  last tests read the flow's own source (the `ProductionSource` trick the
+//  Local API tests use) to pin the call sites: `handleStopRecordingWithTranscription`
+//  is `@MainActor` and needs a live recording, pipeline and Core Data row to
+//  run, so it cannot be called here.
 //
 
 import Foundation
@@ -83,5 +89,103 @@ struct StageExtrasKeySetTests {
             #expect(value is Int || value is Double || key == "stage_reported_at", "\(key)")
             #expect(!SentryService.isRedactedExtraKey(key), "\(key)")
         }
+    }
+
+    // MARK: - Call sites, read from the production source
+
+    private static let flowPath =
+        "app/macos/hyperwhisper/Managers/AudioRecording/RecordingFlow/RecordingTranscriptionFlow+StopRecording.swift"
+
+    private static let publish = "SentryService.setExtras(Self.stageExtras("
+
+    /// The comment-free body of `handleStopRecordingWithTranscription`, up to the builder.
+    private static func flowBody() throws -> String {
+        try ProductionSource.slice(
+            of: flowPath,
+            from: "func handleStopRecordingWithTranscription(",
+            to: "static func stageExtras("
+        )
+    }
+
+    /// The pipeline captures its failure event inside `transcribeWithDetails`,
+    /// before it rethrows, so this recording's block must be on the scope
+    /// BEFORE that call, with the not-yet-known stages at -1.
+    @Test func theFlowPublishesThePreTranscribeBlockBeforeTheCall() throws {
+        let flow = try Self.flowBody()
+        let call = try #require(flow.range(of: "transcribeWithDetails("),
+                                "transcribeWithDetails( not found in the flow")
+        let beforeCall = flow[..<call.lowerBound]
+        let pre = try #require(beforeCall.range(of: Self.publish, options: .backwards),
+                               "no stage_* publish before transcribeWithDetails(")
+        let afterPre = beforeCall[pre.upperBound...]
+        let close = try #require(afterPre.range(of: "))"), "the pre-transcribe publish does not close")
+        let preCall = String(afterPre[..<close.lowerBound])
+        #expect(preCall.contains("transcribeMs: -1"), "\(preCall)")
+        #expect(preCall.contains("coreDataUpdateMs: -1"), "\(preCall)")
+        #expect(preCall.contains("effectiveUIThresholdMs: -1"), "\(preCall)")
+    }
+
+    /// Success (slow AND fast), cancel and failure each overwrite the
+    /// pre-transcribe block, so no later event carries `stage_transcribe_ms` = -1
+    /// after a transcription that finished or stopped.
+    @Test func everyExitOfTheTranscribeCallRepublishesTheBlock() throws {
+        let flow = try Self.flowBody()
+        #expect(flow.components(separatedBy: Self.publish).count - 1 == 4,
+                "expected 4 stage_* publishes: pre-transcribe, success, cancel, failure")
+
+        // Success: after the threshold is known, and before the slow/fast `if`,
+        // so a fast success publishes too.
+        let success = try ProductionSource.slice(
+            of: Self.flowPath,
+            from: "let effectiveUIThreshold",
+            to: "if transcribingUIElapsedMs >= effectiveUIThreshold"
+        )
+        #expect(success.contains(Self.publish), "the success publish must sit outside the slow-path if")
+        #expect(success.contains("transcribeMs: transcribeMs"))
+        #expect(success.contains("effectiveUIThresholdMs: effectiveUIThreshold"))
+
+        let cancel = try ProductionSource.slice(
+            of: Self.flowPath,
+            from: "} catch is CancellationError {",
+            to: "} catch {"
+        )
+        #expect(cancel.contains(Self.publish), "the cancel catch must republish the stage_* block")
+        #expect(cancel.contains("transcribeMs = transcribeStart.map"))
+        #expect(cancel.contains("transcribeMs: transcribeMs"))
+
+        let failure = try ProductionSource.slice(
+            of: Self.flowPath,
+            from: "} catch {",
+            to: "static func stageExtras("
+        )
+        #expect(failure.contains(Self.publish), "the failure catch must republish the stage_* block")
+        #expect(failure.contains("transcribeMs: transcribeMs"))
+    }
+
+    /// No hand-written `stage_*` dictionary anywhere in the app: a literal key
+    /// outside `stageExtras` is a publish that can drop a key again (#784).
+    @Test func noStageKeyIsWrittenOutsideTheBuilder() throws {
+        let files = try ProductionSource.swiftFiles(under: ProductionSource.url("app/macos/hyperwhisper"))
+        #expect(files.count >= 100, "the app source tree was not found where this test expects it")
+
+        var offenders: [String] = []
+        for file in files {
+            var inBuilder = false
+            let lines = try ProductionSource.text(of: file).components(separatedBy: .newlines)
+            for (offset, line) in lines.enumerated() {
+                // The builder's own dictionary is the one allowed writer. It ends
+                // at its closing brace, the first line that is exactly "    }".
+                if line.contains("static func stageExtras(") { inBuilder = true }
+                if inBuilder {
+                    if line == "    }" { inBuilder = false }
+                    continue
+                }
+                guard !line.trimmingCharacters(in: .whitespaces).hasPrefix("//") else { continue }
+                if line.contains("\"stage_") {
+                    offenders.append("\(file.lastPathComponent):\(offset + 1)")
+                }
+            }
+        }
+        #expect(offenders.isEmpty, "stage_* key written outside stageExtras at \(offenders.joined(separator: ", "))")
     }
 }
