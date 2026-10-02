@@ -315,8 +315,12 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
 // Socket lifecycle
 // ---------------------------------------------------------------------------
 
+// The failure lines log only structural fields, never an error's or an event's
+// free text: a parse error quotes the frame (the user's transcript, #1069), and
+// Bun's socket ErrorEvent message quotes the upstream URL, which carries
+// Gemini's `?key=`. `name` is caller-settable, so it is bounded too.
 function errorName(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error;
+  return error instanceof Error ? error.name.slice(0, 64) : typeof error;
 }
 
 function decodeUpstreamFrame(raw: unknown): string {
@@ -655,16 +659,17 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
           }
         } catch (error) {
           // Our own fault on a valid frame, not the vendor's.
-          log('upstream_event_failed', {
-            errorName: errorName(error),
-            message: error instanceof Error ? error.message.slice(0, 200) : null,
-          });
+          log('upstream_event_failed', { errorName: errorName(error) });
         }
       });
 
       upstreamWs.addEventListener('error', (event) => {
-        const message = (event as { message?: unknown } | undefined)?.message;
-        log('upstream_socket_error', { message: typeof message === 'string' ? message.slice(0, 200) : null });
+        // No `message`: under Bun it quotes the upstream URL, key and all.
+        const cause = (event as { error?: unknown } | undefined)?.error;
+        log('upstream_socket_error', {
+          eventType: typeof event?.type === 'string' ? event.type.slice(0, 32) : null,
+          errorName: cause === undefined ? null : errorName(cause),
+        });
         sendToClient(ws, { type: 'error', message: 'Transcription service error' });
       });
 

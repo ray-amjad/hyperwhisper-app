@@ -557,7 +557,8 @@ describe('streaming socket lifecycle', () => {
 
       const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_socket_error');
       expect(line).toBeDefined();
-      expect(line!.details).toMatchObject({ provider: 'deepgram', message: null });
+      expect(line!.details).toMatchObject({ provider: 'deepgram', eventType: null, errorName: null });
+      expect(line!.details).not.toHaveProperty('message');
       expect(typeof line!.details.requestId).toBe('string');
       expect(harness.client.messagesOfType('error')).toEqual([
         { type: 'error', message: 'Transcription service error' },
@@ -591,7 +592,7 @@ describe('streaming socket lifecycle', () => {
       const send = harness.client.send.bind(harness.client);
       harness.client.send = () => { throw new Error('socket write failed'); };
 
-      const { entries } = captureStreamingLogs(() => harness.upstream.deliver({
+      const { entries, serialised } = captureStreamingLogs(() => harness.upstream.deliver({
         type: 'Results',
         is_final: true,
         channel: { alternatives: [{ transcript: 'hello there' }] },
@@ -599,7 +600,10 @@ describe('streaming socket lifecycle', () => {
 
       const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_event_failed');
       expect(line).toBeDefined();
-      expect(line!.details).toMatchObject({ provider: 'deepgram', errorName: 'Error', message: 'socket write failed' });
+      expect(line!.details).toMatchObject({ provider: 'deepgram', errorName: 'Error' });
+      expect(line!.details).not.toHaveProperty('message');
+      // An error's free text is never logged: it is not guaranteed transcript-free.
+      for (const text of serialised) expect(text).not.toContain('socket write failed');
       expect(typeof line!.details.requestId).toBe('string');
       expect(entries.some((entry) => entry.event === 'ws_streaming.upstream_parse_failed')).toBe(false);
       harness.client.send = send;

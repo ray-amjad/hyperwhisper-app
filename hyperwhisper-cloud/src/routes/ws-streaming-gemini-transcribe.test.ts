@@ -5,7 +5,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeGeminiTranscribeLiveCost, creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
-import { captureRejectionLogs } from './ws-streaming-test-logs';
+import { captureRejectionLogs, captureStreamingLogs } from './ws-streaming-test-logs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -892,6 +892,32 @@ describe('gemini live socket lifecycle', () => {
       expect(harness.client.messagesOfType('error')).toEqual([
         { type: 'error', message: 'Transcription service error' },
       ]);
+      await harness.endSession();
+    });
+
+    test('logs upstream_socket_error without the error text, which quotes the keyed upstream URL', async () => {
+      // Bun's ErrorEvent message on a failed handshake quotes the full URL, and
+      // the Gemini URL carries `?key=`, so logging the message leaks the key.
+      const key = 'FAKEKEY123';
+      process.env.GEMINI_API_KEY = key;
+      const harness = openSession();
+      expect(harness.upstream.url).toContain(`key=${key}`);
+      const message = `WebSocket connection to '${harness.upstream.url}' failed: Expected 101 status code`;
+
+      const { entries, serialised } = captureStreamingLogs(() => harness.upstream.emit('error', {
+        type: 'error',
+        message,
+        error: new Error(message),
+      }));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_socket_error');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'gemini-transcribe', eventType: 'error', errorName: 'Error' });
+      expect(serialised.length).toBeGreaterThan(0);
+      for (const text of serialised) {
+        expect(text).not.toContain(key);
+        expect(text).not.toContain('Expected 101');
+      }
       await harness.endSession();
     });
   });
