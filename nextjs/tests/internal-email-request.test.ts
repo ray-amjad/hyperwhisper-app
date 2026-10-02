@@ -52,6 +52,31 @@ test("rejects malformed JSON", async () => {
   });
 });
 
+test("logs a malformed body with the pathname and a reason, never the email", async () => {
+  const warnings: unknown[][] = [];
+  const realWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+  try {
+    // Closing brace missing: the SyntaxError message would quote this email.
+    assert.equal((await errorFrom('{"email":"leak@example.com"')).status, 400);
+  } finally {
+    console.warn = realWarn;
+  }
+
+  assert.equal(warnings.length, 1);
+  assert.deepEqual(warnings[0][1], {
+    path: "/api/internal/test",
+    errorName: "SyntaxError",
+    contentType: "application/json",
+    contentLength: null,
+  });
+  const logged = JSON.stringify(warnings);
+  assert.ok(!logged.includes("leak@example.com"), logged);
+  assert.ok(!logged.includes(INTERNAL_SECRET), logged);
+});
+
 for (const [name, body] of [
   ["missing", {}],
   ["non-string", { email: 123 }],

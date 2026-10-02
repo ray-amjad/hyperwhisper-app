@@ -5,6 +5,7 @@ import { latencyIngestRateLimiter } from "@/lib/rate-limit";
 import { bucketForSeconds } from "@/lib/latency/types";
 import { KNOWN_PROVIDERS } from "@/lib/latency/providers";
 import { db } from "@/src/db";
+import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import { sttLatencySamples } from "@/src/db/schema/stt-latency-samples";
 import { MAX_SAMPLES_PER_REQUEST, coarseCreatedAt, validateBatch } from "./validation";
 
@@ -41,7 +42,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payload too large" }, { status: 413 });
     }
     body = JSON.parse(text);
-  } catch {
+  } catch (err) {
+    // Our own edge service sent it, so a 400 is a wire-format bug worth a line (#851).
+    console.warn("latency ingest: body did not parse", {
+      path: request.nextUrl.pathname,
+      ...unparseableRequestFields(request, err),
+    });
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -49,6 +55,8 @@ export async function POST(request: NextRequest) {
   // can render is a provider this route stores. See lib/latency/providers.ts.
   const result = validateBatch(body, KNOWN_PROVIDERS);
   if (!result.ok) {
+    // validateBatch's envelope reasons are fixed strings; none echoes the payload.
+    console.warn("latency ingest rejected batch:", { reason: result.error });
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 

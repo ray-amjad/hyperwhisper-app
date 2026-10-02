@@ -182,6 +182,11 @@ describe("POST /api/internal/latency — body guards", () => {
     assert.equal(res.status, 400);
     assert.deepEqual(await readJson(res), { error: "Invalid JSON" });
     assert.equal(calls.rateLimit.length, 0);
+    const warning = logLines.find((line) => line.level === "warn");
+    assert.ok(warning, "a malformed body must be logged");
+    assert.equal((warning.args[1] as { path: string }).path, INGEST_PATH);
+    assert.equal((warning.args[1] as { errorName: string }).errorName, "SyntaxError");
+    assert.ok(!JSON.stringify(logLines).includes("not json"));
   });
 
   test("answers 400 with the validator's reason to a bad envelope", async () => {
@@ -192,6 +197,9 @@ describe("POST /api/internal/latency — body guards", () => {
     assert.deepEqual(await readJson(res), { error: "samples must not be empty" });
     assert.equal(calls.rateLimit.length, 0);
     assert.equal(calls.inserts.length, 0);
+    const warning = logLines.find((line) => line.level === "warn");
+    assert.ok(warning, "a rejected batch must be logged");
+    assert.deepEqual(warning.args[1], { reason: "samples must not be empty" });
   });
 });
 
