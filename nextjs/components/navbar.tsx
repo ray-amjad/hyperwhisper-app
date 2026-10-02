@@ -104,7 +104,7 @@ export const Navbar = () => {
             <img
               alt="HyperWhisper Logo"
               className="w-8 h-8 rounded-lg"
-              src="/icon/32.png"
+              src="/icon/256.png"
             />
             <p className="font-bold text-white">HyperWhisper</p>
           </LocaleLink>
