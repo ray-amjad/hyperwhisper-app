@@ -43,6 +43,11 @@ function isLinuxLatest(value: unknown): value is LinuxLatest {
 const LINUX_RELEASES_URL =
   "https://github.com/ray-amjad/hyperwhisper-app/releases?q=linux";
 
+// Shared by every download button. The hover gradient is a ::before overlay that
+// fades in by opacity, because a gradient background-image cannot transition.
+const GRADIENT_CTA_CLASS_NAME =
+  "isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none";
+
 export default function DownloadPage() {
   const t = useTranslations("downloadPage");
   const searchParams = useSearchParams();
@@ -269,7 +274,7 @@ export default function DownloadPage() {
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 as="a"
-                className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
+                className={GRADIENT_CTA_CLASS_NAME}
                 href="/api/download?platform=windows&arch=x64"
                 size="lg"
                 startContent={<Download className="w-5 h-5" />}
@@ -278,7 +283,7 @@ export default function DownloadPage() {
               </Button>
               <Button
                 as="a"
-                className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
+                className={GRADIENT_CTA_CLASS_NAME}
                 href="/api/download?platform=windows&arch=arm64"
                 size="lg"
                 startContent={<Download className="w-5 h-5" />}
@@ -290,7 +295,7 @@ export default function DownloadPage() {
             <div className="flex flex-col items-center gap-3">
               <Button
                 as="a"
-                className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
+                className={GRADIENT_CTA_CLASS_NAME}
                 href={linuxLatest?.deb ?? LINUX_RELEASES_URL}
                 rel="noreferrer"
                 size="lg"
@@ -312,7 +317,7 @@ export default function DownloadPage() {
             </div>
           ) : (
             <Button
-              className="isolate bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold transition-[transform,scale,opacity,box-shadow,outline-color,outline-width,outline-offset] hover:shadow-lg px-8 before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-blue-500 before:opacity-0 before:transition-opacity hover:before:opacity-100 motion-reduce:before:transition-none"
+              className={GRADIENT_CTA_CLASS_NAME}
               size="lg"
               startContent={<Download className="w-5 h-5" />}
               onClick={handleManualDownload}
