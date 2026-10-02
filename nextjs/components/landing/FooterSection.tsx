@@ -59,7 +59,7 @@ export default function FooterSection() {
               <img
                 alt="HyperWhisper Logo"
                 className="w-10 h-10 rounded-xl"
-                src="/icon/256.png"
+                src="/icon/128.png"
               />
               <span className="text-xl font-bold text-white">HyperWhisper</span>
             </div>
