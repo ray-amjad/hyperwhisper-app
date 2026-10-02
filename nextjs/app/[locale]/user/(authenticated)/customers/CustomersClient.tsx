@@ -5,15 +5,7 @@ import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
-
-// #727: cross-fade a state icon swap (copy -> check, show -> hide) instead of
-// replacing the glyph in one frame. Used with <AnimatePresence mode="popLayout">.
-const ICON_SWAP = {
-  initial: { opacity: 0, scale: 0.25, filter: "blur(4px)" },
-  animate: { opacity: 1, scale: 1, filter: "blur(0px)" },
-  exit: { opacity: 0, scale: 0.25, filter: "blur(4px)" },
-  transition: { type: "spring", duration: 0.3, bounce: 0 },
-} as const;
+import { ICON_SWAP } from "@/lib/icon-swap";
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
