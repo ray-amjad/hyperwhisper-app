@@ -1,5 +1,5 @@
-// Test-only helper for the live-streaming preflight tests (#1094). Captures
-// console.log per test, so a suite can assert what a refused upgrade logged.
+// Test-only helpers for the live-streaming tests: the preflight rejection log
+// (#1094) and the socket failure-exit logs (#953).
 // Not imported by any production module, and not named *.test.ts, so
 // `bun test src` does not run it as a suite.
 
@@ -46,4 +46,32 @@ export function captureRejectionLogs(): RejectionLogCapture {
       return rejections[0]!;
     },
   };
+}
+
+export type StreamingLogEntry = { event: string; details: Record<string, unknown> };
+
+/**
+ * Runs `fn` with console.log, console.warn and console.error captured (#953).
+ * Returns the `ws_streaming.*` entries, and every captured call serialised in
+ * full — details object included — so a test can assert that no line carries
+ * a frame's transcript text.
+ */
+export function captureStreamingLogs(fn: () => void): { entries: StreamingLogEntry[]; serialised: string[] } {
+  const calls: unknown[][] = [];
+  const original = { log: console.log, warn: console.warn, error: console.error };
+  console.log = (...args: unknown[]) => { calls.push(args); };
+  console.warn = (...args: unknown[]) => { calls.push(args); };
+  console.error = (...args: unknown[]) => { calls.push(args); };
+  try {
+    fn();
+  } finally {
+    Object.assign(console, original);
+  }
+  const entries = calls
+    .filter(([event]) => typeof event === 'string' && event.startsWith('ws_streaming.'))
+    .map(([event, details]) => ({ event: event as string, details: (details ?? {}) as Record<string, unknown> }));
+  const serialised = calls.map((args) => args
+    .map((arg) => (arg instanceof Error ? `${arg.name}: ${arg.message}\n${arg.stack}` : typeof arg === 'string' ? arg : JSON.stringify(arg)))
+    .join(' '));
+  return { entries, serialised };
 }
