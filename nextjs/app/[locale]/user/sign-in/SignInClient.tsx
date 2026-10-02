@@ -9,6 +9,11 @@ import { isRecord } from "@/src/lib/type-guards";
 
 type Tab = "license-key" | "email";
 
+// Shared by every submit button. The hover gradient is a ::before overlay that
+// fades in by opacity, because a gradient background-image cannot transition.
+const GRADIENT_CTA_CLASS_NAME =
+  "relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-[opacity,box-shadow] duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed";
+
 /**
  * User Sign-In form (client half of `page.tsx`).
  *
@@ -259,7 +264,7 @@ export default function SignInClient() {
                 <button
                   type="submit"
                   disabled={licenseSubmitting}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={GRADIENT_CTA_CLASS_NAME}
                 >
                   {licenseSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
@@ -314,7 +319,7 @@ export default function SignInClient() {
                     <button
                       type="submit"
                       disabled={emailSubmitting}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={GRADIENT_CTA_CLASS_NAME}
                     >
                       {emailSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
@@ -361,7 +366,7 @@ export default function SignInClient() {
                       type="button"
                       onClick={() => handleSendMagicLink()}
                       disabled={emailSubmitting}
-                      className="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={GRADIENT_CTA_CLASS_NAME}
                     >
                       {emailSubmitting ? "Sending..." : "Resend Magic Link"}
                     </button>
