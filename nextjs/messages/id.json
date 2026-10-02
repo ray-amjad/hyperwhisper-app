@@ -251,6 +251,7 @@
     "description": "Kami akan mengirimkan tautan unduhan dan video tutorial singkat agar Anda bisa cepat mulai. Tanpa spam.",
     "downloadButton": "Unduh HyperWhisper",
     "errorGeneric": "Terjadi kesalahan. Silakan coba lagi.",
+    "errorEmail": "Masukkan alamat email yang valid.",
     "errorNetwork": "Kesalahan jaringan. Periksa koneksi Anda dan coba lagi.",
     "thankYouTitle": "Terima kasih!",
     "downloadStarted": "Unduhan Anda seharusnya mulai secara otomatis.",

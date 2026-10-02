@@ -251,6 +251,7 @@
     "description": "Emailben küldünk letöltési linket és egy rövid oktatóvideót az induláshoz. Nincs spam.",
     "downloadButton": "HyperWhisper letöltése",
     "errorGeneric": "Valami hiba történt. Kérlek próbáld újra.",
+    "errorEmail": "Adj meg egy érvényes email-címet.",
     "errorNetwork": "Hálózati hiba. Ellenőrizd a kapcsolatot, majd próbáld újra.",
     "thankYouTitle": "Köszönjük!",
     "downloadStarted": "A letöltésnek automatikusan el kell indulnia.",

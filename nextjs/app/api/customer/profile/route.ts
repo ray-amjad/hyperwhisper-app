@@ -5,6 +5,7 @@ import {
   getAccountKeysByEmail,
   getCreditBalancesForUsers,
 } from "@/src/lib/db-layer";
+import { describeDbError } from "@/lib/shared/db-error";
 
 /**
  * Customer Profile API
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
       totalCredits,
     });
   } catch (error) {
-    console.error("Profile API error:", error);
+    console.error("Profile API error:", describeDbError(error));
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

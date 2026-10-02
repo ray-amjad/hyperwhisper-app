@@ -890,6 +890,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "audio.error.permissionDenied" = "Acces microfon refuzat. Vă rugăm activați în Setări de sistem.";
 "audio.error.microphonePermission" = "Permisiune microfon nu a fost acordată";
 "audio.error.microphoneInUse" = "HyperWhisper nu poate accesa microfonul pentru că o altă aplicație o folosește în prezent. Pauzați cealaltă aplicație sau comutați intrări, apoi încercați din nou.";
+"audio.error.audioSystemNotResponding" = "Sistemul audio macOS nu răspunde, așa că microfonul nu a putut porni. Încearcă din nou peste câteva momente. Dacă problema persistă, repornește Mac-ul.";
 "audio.error.createEngine" = "Nu s-a putut crea motor audio";
 "audio.error.noInput" = "Nicio intrare audio disponibilă";
 "audio.error.createFile" = "Nu s-a putut crea fișier audio";

@@ -63,6 +63,11 @@
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  /* Keeps focused controls and #anchor targets clear of the sticky header.
+     LayoutWrapper sets --site-header-offset from the measured header height;
+     the rem fallback (120px at 100%: banner 48px + navbar 65px + 7px gap)
+     covers the first paint and still scales with the text size. */
+  scroll-padding-top: var(--site-header-offset, 7.5rem);
 }
 
 /* Default dark theme */
@@ -88,4 +93,36 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(128, 128, 128, 0.7);
+}
+
+/* Honour the OS "Reduce motion" setting (#701): no smooth scroll, no looping
+   decorative keyframes, and every other CSS animation/transition ends at once. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-blob,
+  .animate-scroll,
+  .animate-scroll-x {
+    animation: none;
+  }
+}
+
+/* The !important half lives in @layer base, not unlayered (#1173). For
+   !important declarations the cascade order flips: an earlier layer beats a
+   later one, and any layer beats unlayered CSS. Tailwind declares
+   "theme, base, components, utilities", so HeroUI's !duration-* utilities
+   (@layer utilities, !important) beat an unlayered guard but lose to this one.
+   The two normal rules above stay unlayered, where a normal rule wins. */
+@layer base {
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }

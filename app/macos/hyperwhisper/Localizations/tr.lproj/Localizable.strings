@@ -890,6 +890,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "audio.error.permissionDenied" = "Mikrofon erişimi reddedildi. Lütfen Sistem Ayarları'nda etkinleştirin.";
 "audio.error.microphonePermission" = "Mikrofon izni verilmedi";
 "audio.error.microphoneInUse" = "HyperWhisper, başka bir uygulama şu anda kullanıyor olduğu için mikrofonuna erişemez. Diğer uygulamayı duraklatın veya giriş değiştirin, ardından tekrar deneyin.";
+"audio.error.audioSystemNotResponding" = "macOS ses sistemi yanıt vermiyor, bu yüzden mikrofon başlatılamadı. Birazdan tekrar deneyin. Bu durum sürerse Mac'inizi yeniden başlatın.";
 "audio.error.createEngine" = "Ses motoru oluşturulamadı";
 "audio.error.noInput" = "Ses girdisi yok";
 "audio.error.createFile" = "Ses dosyası oluşturulamadı";

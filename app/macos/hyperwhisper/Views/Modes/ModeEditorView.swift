@@ -104,7 +104,14 @@ struct ModeEditorView: View {
 
     // MARK: - Initialization
 
-    init(configuration: ModeEditorConfiguration, availableModelIds: [String], onSave: @escaping (ModeData) -> Void) {
+    /// `licenseActive` is read only by the CREATE branch, to pick the provider a
+    /// new mode opens on (issue #873). The EDIT branch ignores it.
+    init(
+        configuration: ModeEditorConfiguration,
+        availableModelIds: [String],
+        licenseActive: Bool = false,
+        onSave: @escaping (ModeData) -> Void
+    ) {
         self.configuration = configuration
         self.availableModelIds = availableModelIds
         self.onSave = onSave
@@ -223,15 +230,28 @@ struct ModeEditorView: View {
             _cloudTranscriptionDomain = State(initialValue: (storedDomain?.isEmpty == false) ? storedDomain : nil)
         } else {
             // CREATE MODE: Initialize with defaults
+            // The seeds that depend on the licence and the installed models come
+            // from the pure ModeEditorDefaults resolver (issue #873).
+            let seededProvider = ModeEditorDefaults.initialProvider(
+                licenseActive: licenseActive,
+                availableModelIds: availableModelIds
+            )
+            let seededModel = ModeEditorDefaults.initialLocalModel(availableModelIds: availableModelIds)
             _name = State(initialValue: "")
             _preset = State(initialValue: "hyper")
-            _language = State(initialValue: LanguageData.automaticCode)
+            _language = State(initialValue: ModeEditorDefaults.initialLanguage(
+                provider: seededProvider,
+                model: seededModel
+            ))
             _punctuation = State(initialValue: true)
             _capitalization = State(initialValue: true)
             _profanityFilter = State(initialValue: false)
             _customInstructions = State(initialValue: "")
             _languageModel = State(initialValue: PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-5.6-luna")
-            _postProcessingMode = State(initialValue: .cloud)
+            _postProcessingMode = State(initialValue: ModeEditorDefaults.initialPostProcessingMode(
+                licenseActive: licenseActive,
+                availableModelIds: availableModelIds
+            ))
             _postProcessingProvider = State(initialValue: PostProcessingProvider.hyperwhisper.storageValue)
             _cloudProvider = State(initialValue: "hyperwhisper")
             // Recommended HyperWhisper Cloud defaults: ElevenLabs Scribe v2
@@ -251,45 +271,22 @@ struct ModeEditorView: View {
             _geminiCustomPrompt = State(initialValue: "")
             _cloudTranscriptionDomain = State(initialValue: nil)
 
-            // Default to cloud provider with HyperWhisper Cloud
-            _provider = State(initialValue: .cloud)
+            // HyperWhisper Cloud for a licensed user or when no local model is
+            // installed; otherwise On-device, so an unlicensed on-device setup
+            // is not switched to Cloud by creating a mode (issue #873).
+            _provider = State(initialValue: seededProvider)
 
-            // Initialize model for local fallback
-            if !availableModelIds.isEmpty {
-                let canonicalOrder = WhisperModel.allCases.map { $0.rawValue }
-                let sorted = availableModelIds.sorted { first, second in
-                    let firstIndex = canonicalOrder.firstIndex(of: first) ?? Int.max
-                    let secondIndex = canonicalOrder.firstIndex(of: second) ?? Int.max
-                    return firstIndex < secondIndex
-                }
-                _model = State(initialValue: sorted.first ?? "base")
-            } else {
-                _model = State(initialValue: "base")
-            }
+            // Local model, in the On-device picker's own order.
+            _model = State(initialValue: seededModel)
         }
     }
 
     // MARK: - Computed Properties
 
-    // Non-Whisper models get explicit positions before Whisper models
-    private static let nonWhisperOrder: [String: Int] = [
-        "apple-speech-analyzer": 0,
-        "parakeet-tdt-0.6b-v3": 1,
-        "qwen3-asr-0.6b": 2,
-        NemotronModelManager.Constants.latinModelId: 3,
-        NemotronModelManager.Constants.multilingualModelId: 4
-    ]
-    private static let canonicalOrder: [String] = WhisperModel.allCases.map { $0.rawValue }
-
-    /// Sort model IDs according to WhisperModel enum order
+    /// Installed model ids in On-device picker order: non-Whisper models first,
+    /// then Whisper in `WhisperModel` order. The CREATE seed uses the same table.
     private func sortedModelIds() -> [String] {
-        let whisperOffset = Self.nonWhisperOrder.count
-        return availableModelIds.sorted { first, second in
-            let firstIndex = Self.nonWhisperOrder[first] ?? ((Self.canonicalOrder.firstIndex(of: first).map { $0 + whisperOffset }) ?? Int.max)
-            let secondIndex = Self.nonWhisperOrder[second] ?? ((Self.canonicalOrder.firstIndex(of: second).map { $0 + whisperOffset }) ?? Int.max)
-            if firstIndex != secondIndex { return firstIndex < secondIndex }
-            return first < second
-        }
+        ModeEditorDefaults.sortedLocalModelIds(availableModelIds)
     }
 
     /// Get display name for a model ID

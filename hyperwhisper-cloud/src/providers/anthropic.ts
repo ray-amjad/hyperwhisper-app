@@ -5,6 +5,7 @@ import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
 import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './llm-contract';
 import { LLMRequestError } from './llm-errors';
+import { computeLLMRequestTimeoutMs, fetchLLMWithTimeout, LLM_REQUEST_TIMEOUT_MS, transcriptCharCount } from './llm-fetch';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
@@ -39,7 +40,8 @@ export interface AnthropicStreamResult {
  */
 export async function requestAnthropicChat(
   payload: CorrectionRequestPayload,
-  requestId: string
+  requestId: string,
+  timeoutMs?: number,
 ): Promise<{ raw: unknown; usage?: GroqUsage; costUsd: number }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -52,40 +54,52 @@ export async function requestAnthropicChat(
     + `\n\n${ANTHROPIC_WRAPPER_INSTRUCTION}`;
   const userContent = payload.messages[1]?.content || '';
 
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-      'content-type': 'application/json',
+  // One timer covers the request and the body read (see llm-fetch.ts), so a
+  // silent upstream rejects with a 504 (LLMTimeoutError, not retried) and
+  // post-process.ts falls back. The bound scales with the transcript, not the
+  // system prompt, because the body only arrives once the whole correction is
+  // generated.
+  const data = await fetchLLMWithTimeout(
+    'anthropic',
+    ANTHROPIC_API_URL,
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': ANTHROPIC_VERSION,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: ANTHROPIC_MAX_TOKENS,
+        system: systemContent,
+        messages: [{ role: 'user', content: userContent }],
+        stream: false,
+      }),
     },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: ANTHROPIC_MAX_TOKENS,
-      system: systemContent,
-      messages: [{ role: 'user', content: userContent }],
-      stream: false,
-    }),
-  });
+    async (response) => {
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new LLMRequestError(
+          `Anthropic API error: ${response.status} ${errorText.slice(0, 500)}`,
+          response.status,
+        );
+      }
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new LLMRequestError(
-      `Anthropic API error: ${response.status} ${errorText.slice(0, 500)}`,
-      response.status,
-    );
-  }
-
-  const data = await response.json() as {
-    content: Array<{ type: string; text?: string }>;
-    stop_reason?: string | null;
-    usage: {
-      input_tokens: number;
-      output_tokens: number;
-      cache_creation_input_tokens?: number;
-      cache_read_input_tokens?: number;
-    };
-  };
+      return await response.json() as {
+        content: Array<{ type: string; text?: string }>;
+        stop_reason?: string | null;
+        usage: {
+          input_tokens: number;
+          output_tokens: number;
+          cache_creation_input_tokens?: number;
+          cache_read_input_tokens?: number;
+        };
+      };
+    },
+    requestId,
+    timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
+  );
 
   const inputTokens = data.usage?.input_tokens || 0;
   const outputTokens = data.usage?.output_tokens || 0;
@@ -110,7 +124,8 @@ export async function requestAnthropicChat(
 export function streamAnthropicChat(
   systemPrompt: string,
   messages: AnthropicMessage[],
-  requestId: string
+  requestId: string,
+  firstByteTimeoutMs: number = LLM_REQUEST_TIMEOUT_MS,
 ): AnthropicStreamResult {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -127,6 +142,22 @@ export function streamAnthropicChat(
   // Abort the upstream Anthropic request when the client disconnects,
   // so we stop paying for tokens nobody will receive.
   const abortController = new AbortController();
+
+  // Time-to-first-byte bound: aborts the same controller when no body chunk
+  // has arrived within firstByteTimeoutMs, so a silent upstream cannot hold
+  // the /assistant stream open forever. Cleared on the first chunk and on
+  // every exit — a stream that has started is never cut off mid-way.
+  let firstByteTimedOut = false;
+  let firstByteTimer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
+    firstByteTimedOut = true;
+    abortController.abort();
+  }, firstByteTimeoutMs);
+  const clearFirstByteTimer = () => {
+    if (firstByteTimer !== undefined) {
+      clearTimeout(firstByteTimer);
+      firstByteTimer = undefined;
+    }
+  };
 
   // Hoisted so cancel() can bill the tokens consumed up to the abort point.
   let inputTokens = 0;
@@ -184,6 +215,7 @@ export function streamAnthropicChat(
 
         while (true) {
           const { done, value } = await reader.read();
+          clearFirstByteTimer();
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
@@ -230,9 +262,14 @@ export function streamAnthropicChat(
         console.log(`[${requestId}] Anthropic usage: input=${inputTokens}, output=${outputTokens}, cacheWrite=${cacheCreationTokens}, cacheRead=${cacheReadTokens}, cost=$${costUsd.toFixed(6)}`);
         resolveCost(costUsd);
       } catch (error) {
-        if (abortController.signal.aborted) {
+        if (abortController.signal.aborted && !firstByteTimedOut) {
           // Client disconnected; cancel() already resolved the partial cost.
           return;
+        }
+        if (firstByteTimedOut) {
+          // Not a client disconnect: the upstream sent no body within the bound.
+          // Ends the stream the same way as the transport-error path below.
+          console.error(`[${requestId}] Anthropic stream first-byte timeout after ${firstByteTimeoutMs}ms (upstream silent, not a client disconnect)`);
         }
         // Bill the tokens observed up to the failure point. Anthropic still
         // charges us for whatever it generated before the stream broke, so
@@ -247,9 +284,12 @@ export function streamAnthropicChat(
           // Controller may already be closed
         }
         resolveCost(costUsd);
+      } finally {
+        clearFirstByteTimer();
       }
     },
     cancel(reason) {
+      clearFirstByteTimer();
       // Client disconnected: abort the upstream Anthropic request and bill
       // only the tokens observed up to this point (best effort — Anthropic
       // reports output_tokens in the final message_delta, so a mid-stream

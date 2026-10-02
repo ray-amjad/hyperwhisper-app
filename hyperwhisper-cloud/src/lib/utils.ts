@@ -55,6 +55,11 @@ export interface RetryOptions {
   backoffMultiplier?: number;
   /** Optional callback invoked before each retry attempt */
   onRetry?: (attempt: number, error: Error, delayMs: number) => void;
+  /**
+   * Optional filter: return false to throw `error` at once instead of
+   * retrying it. Default: every error is retried.
+   */
+  shouldRetry?: (error: Error) => boolean;
 }
 
 /**
@@ -69,6 +74,7 @@ export async function retryWithBackoff<T>(
     initialDelayMs = 1000,
     backoffMultiplier = 2,
     onRetry,
+    shouldRetry,
   } = options;
 
   let lastError: Error | undefined;
@@ -79,7 +85,7 @@ export async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      if (attempt === maxRetries) {
+      if (attempt === maxRetries || (shouldRetry && !shouldRetry(lastError))) {
         throw lastError;
       }
 

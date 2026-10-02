@@ -152,6 +152,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("microphone volume reports pactl unsupported", MicrophoneVolumeUnsupported),
     ("microphone keep-warm suspends and resumes child", MicrophoneKeepWarmLifecycle),
     ("microphone keep-warm never opens the server default source", MicrophoneKeepWarmNeedsASelectedDevice),
+    ("microphone keep-warm resumed twice keeps one capture child", MicrophoneKeepWarmResumedTwiceOpensOneSource),
+    ("microphone keep-warm reconfigure returns on a blocked UI context", MicrophoneKeepWarmReconfigureOnBlockedContext),
+    ("microphone keep-warm suspend returns on a blocked UI context", MicrophoneKeepWarmSuspendOnBlockedContext),
+    ("microphone keep-warm stuck teardown never touches the replacement source", MicrophoneKeepWarmStuckTeardownSparesReplacement),
+    ("Linux child process terminate and dispose return on a blocked UI context", ChildProcessTeardownOnBlockedContext),
     ("sound effects expose unsupported and safe success", SoundEffectsPaths),
     ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
     ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
@@ -2004,6 +2009,9 @@ static Task XdgAutostart() => WithTemporaryDirectory(directory =>
     Assert.True(service.IsEnabled().Value);
     Assert.Success(service.Disable());
     Assert.True(!File.Exists(path));
+    Assert.Equal("/usr/bin/hyperwhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => true));
+    Assert.Equal("/usr/lib/hyperwhisper/HyperWhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => false));
+    Assert.Equal("/opt/hw/HyperWhisper", LinuxAutostartService.LaunchPath("/opt/hw/HyperWhisper", _ => true));
 });
 
 static Task PushToTalkPrivacy()
@@ -2573,6 +2581,76 @@ static Task MicrophoneKeepWarmNeedsASelectedDevice()
     Assert.Equal(0, factory.OpenCalls);
     service.Configure(true, "mic");
     Assert.Equal("mic", string.Join('|', factory.Devices));
+    return Task.CompletedTask;
+}
+
+// #1038: a quit during a recording resumed keep-warm twice, and the second Start overwrote the first
+// capture child, so Dispose stopped only one parec and the other held the microphone open after exit.
+static Task MicrophoneKeepWarmResumedTwiceOpensOneSource()
+{
+    var first = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var second = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var third = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var factory = new CyclingStreamingSourceFactory(first, second, third);
+    var service = new LinuxMicrophoneKeepWarmService(factory);
+    service.Configure(true, "mic"); service.SuspendForRecording();
+    service.ResumeAfterRecording("mic"); service.ResumeAfterRecording("mic");
+    Assert.Equal(2, factory.OpenCalls);
+    service.Dispose();
+    Assert.Equal(1, first.TerminateCalls); Assert.Equal(1, second.TerminateCalls);
+    return Task.CompletedTask;
+}
+
+// #1186: Configure and SuspendForRecording run on the Avalonia UI thread, and Stop blocked that thread on
+// a teardown whose continuation was posted back to it, so the app froze for good. Each call below runs on a
+// thread that owns a single-threaded context and is blocked by the call, so a posted continuation never runs.
+static Task MicrophoneKeepWarmReconfigureOnBlockedContext()
+{
+    var first = new YieldingStreamingAudioSource(); var second = new YieldingStreamingAudioSource();
+    var service = new LinuxMicrophoneKeepWarmService(new CyclingStreamingSourceFactory(first, second));
+    BlockedContext.Run("Configure(true) twice", TimeSpan.FromSeconds(5), () => { service.Configure(true, "mic"); service.Configure(true, "mic"); });
+    Assert.Equal(1, first.TerminateCalls); Assert.True(first.Disposed); Assert.True(!second.Disposed);
+    service.Dispose(); return Task.CompletedTask;
+}
+
+static Task MicrophoneKeepWarmSuspendOnBlockedContext()
+{
+    var source = new YieldingStreamingAudioSource();
+    var service = new LinuxMicrophoneKeepWarmService(new CyclingStreamingSourceFactory(source));
+    BlockedContext.Run("SuspendForRecording", TimeSpan.FromSeconds(5), () => { service.Configure(true, "mic"); service.SuspendForRecording(); });
+    Assert.Equal(1, source.TerminateCalls); Assert.True(source.Disposed);
+    service.Dispose(); return Task.CompletedTask;
+}
+
+// A source whose terminate never honours its deadline must not hold Configure past the bound, and the
+// late teardown must dispose only the source it detached, never the replacement opened after the timeout.
+static Task MicrophoneKeepWarmStuckTeardownSparesReplacement()
+{
+    var stuck = new YieldingStreamingAudioSource { TerminateGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+    var replacement = new YieldingStreamingAudioSource(); var factory = new CyclingStreamingSourceFactory(stuck, replacement);
+    var service = new LinuxMicrophoneKeepWarmService(factory);
+    BlockedContext.Run("Configure(true) over a stuck source", TimeSpan.FromSeconds(8), () => { service.Configure(true, "mic"); service.Configure(true, "mic"); });
+    Assert.Equal(2, factory.OpenCalls); Assert.True(!stuck.Disposed);
+    stuck.TerminateGate.SetResult();
+    var deadline = DateTime.UtcNow.AddSeconds(5); while (!stuck.Disposed && DateTime.UtcNow < deadline) Thread.Yield();
+    Assert.True(stuck.Disposed); Assert.True(!replacement.Disposed); Assert.Equal(0, replacement.TerminateCalls);
+    service.Dispose(); Assert.True(replacement.Disposed); return Task.CompletedTask;
+}
+
+// The real child process is what keep-warm and PulseStreamingAudioCapture.Stop block on: its awaits must
+// not resume on the caller's context either.
+static Task ChildProcessTeardownOnBlockedContext()
+{
+    var launcher = new LinuxChildProcessLauncher();
+    IChildProcess Start() { var started = launcher.Start(new ChildProcessStartRequest { ExecutablePath = "/bin/sleep", Arguments = ["30"] }); Assert.True(started.IsSuccess); return started.Value!; }
+    var terminated = Start(); var disposed = Start(); int[] pids = [terminated.Id, disposed.Id];
+    try
+    {
+        BlockedContext.Run("TerminateAsync", TimeSpan.FromSeconds(5), () => terminated.TerminateAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult());
+        Assert.True(terminated.HasExited);
+        BlockedContext.Run("DisposeAsync", TimeSpan.FromSeconds(5), () => disposed.DisposeAsync().AsTask().GetAwaiter().GetResult());
+    }
+    finally { foreach (var pid in pids) try { Process.GetProcessById(pid).Kill(); } catch { } }
     return Task.CompletedTask;
 }
 
@@ -3305,9 +3383,9 @@ sealed class FakeMachineIdentitySource(byte[]? raw) : IMachineIdentitySource
     public byte[]? ReadRaw() => raw?.ToArray();
 }
 
-sealed class CyclingStreamingSourceFactory(params FakeStreamingAudioSource[] sources) : IStreamingAudioSourceFactory
+sealed class CyclingStreamingSourceFactory(params IStreamingAudioSource[] sources) : IStreamingAudioSourceFactory
 {
-    private readonly Queue<FakeStreamingAudioSource> _sources = new(sources);
+    private readonly Queue<IStreamingAudioSource> _sources = new(sources);
     public int OpenCalls { get; private set; }
     public List<string> Devices { get; } = [];
     public bool IsAvailable => true;
@@ -3315,6 +3393,42 @@ sealed class CyclingStreamingSourceFactory(params FakeStreamingAudioSource[] sou
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options)
     { OpenCalls++; Devices.Add(options.DeviceId); return _sources.TryDequeue(out var source) ? PlatformResult<IStreamingAudioSource>.Success(source)
         : PlatformResult<IStreamingAudioSource>.Failure("fake_empty", "test"); }
+}
+
+// A UI thread blocked inside a call: Post queues to the thread's own queue, which nothing drains until
+// the call returns. Run guards with a timeout so a deadlock fails the test instead of hanging the runner.
+sealed class BlockedContext : SynchronizationContext
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _queue = new();
+    public override void Post(SendOrPostCallback d, object? state) => _queue.Enqueue((d, state));
+    public override void Send(SendOrPostCallback d, object? state) => throw new InvalidOperationException("Send on a blocked context.");
+    public override SynchronizationContext CreateCopy() => this;
+    public static void Run(string what, TimeSpan bound, Action work)
+    {
+        Exception? error = null; var context = new BlockedContext();
+        var thread = new Thread(() =>
+        {
+            SetSynchronizationContext(context);
+            try { work(); } catch (Exception exception) { error = exception; }
+            while (context._queue.TryDequeue(out var item)) item.Callback(item.State);
+        }) { IsBackground = true };
+        thread.Start();
+        if (!thread.Join(bound)) throw new InvalidOperationException($"{what} did not return within {bound.TotalSeconds:0} s on a blocked UI context ({context._queue.Count} posted continuations never ran).");
+        if (error is not null) throw error;
+    }
+}
+
+// Completes terminate and dispose through Task.Yield, which posts the continuation to the caller's context
+// exactly as Process.WaitForExitAsync did on the Avalonia UI thread.
+sealed class YieldingStreamingAudioSource : IStreamingAudioSource
+{
+    private readonly BlockingAudioStream _output = new();
+    public Stream Output => _output;
+    public TaskCompletionSource? TerminateGate { get; init; }
+    public int TerminateCalls; public volatile bool Disposed;
+    public async ValueTask TerminateAsync(CancellationToken cancellationToken)
+    { Interlocked.Increment(ref TerminateCalls); await Task.Yield(); if (TerminateGate is not null) await TerminateGate.Task; _output.Release(); }
+    public async ValueTask DisposeAsync() { await Task.Yield(); _output.Dispose(); Disposed = true; }
 }
 
 sealed class PumpSynchronizationContext : SynchronizationContext

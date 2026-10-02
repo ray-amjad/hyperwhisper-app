@@ -176,7 +176,35 @@ try
             "selection change redirected an in-flight download result to another unified row");
     }
 
-    Console.WriteLine("Model library application tests passed (13/13).");
+    // Issue #762: the page subtitle's installed count must follow every writer of a row's
+    // Installed, not only the filter/sort rebuild. No filter, search or sort is touched below.
+    var countRoot = Path.Combine(root, "installed-count");
+    var countManager = new PortableModelManager(new TestPaths(countRoot), new HttpClient(new TinyArtifactHandler()));
+    var countLocal = new SettableLocalSource();
+    var countReadiness = new ModelReadinessService(credentials, probe, countLocal);
+    using (var countViewModel = new ModelLibraryViewModel(countManager, countReadiness))
+    {
+        Assert(InstalledCount(countViewModel) == 0, "a fresh profile did not start at 0 Installed: " + countViewModel.LibrarySummary);
+        countViewModel.Selected = countViewModel.Items.Single(item => item.ModelId == "parakeet-v2");
+        await countViewModel.DownloadAsync();
+        Assert(countViewModel.Selected!.Installed && InstalledCount(countViewModel) == 1,
+            "a successful download left the installed count stale: " + countViewModel.LibrarySummary);
+        await countViewModel.DeleteAsync();
+        Assert(!countViewModel.Selected!.Installed && InstalledCount(countViewModel) == 0,
+            "a delete left the installed count stale: " + countViewModel.LibrarySummary);
+
+        // A readiness refresh that finds the model on disk flips Installed through ApplyReadiness.
+        countLocal.Installed = true;
+        await countViewModel.RefreshSelectedReadinessAsync();
+        Assert(countViewModel.Selected!.Installed && InstalledCount(countViewModel) == 1,
+            "a readiness refresh to Installed left the installed count stale: " + countViewModel.LibrarySummary);
+        countLocal.Installed = false;
+        await countViewModel.RefreshVisibleReadinessAsync();
+        Assert(!countViewModel.Selected!.Installed && InstalledCount(countViewModel) == 0,
+            "a readiness refresh to Downloadable left the installed count stale: " + countViewModel.LibrarySummary);
+    }
+
+    Console.WriteLine("Model library application tests passed (15/15).");
 }
 finally
 {
@@ -186,6 +214,33 @@ finally
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+static int InstalledCount(ModelLibraryViewModel viewModel)
+{
+    var match = System.Text.RegularExpressions.Regex.Match(viewModel.LibrarySummary, @", (\d+) Installed$");
+    if (!match.Success) throw new InvalidOperationException("unexpected library summary: " + viewModel.LibrarySummary);
+    return int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+}
+
+sealed class SettableLocalSource : ILocalModelReadinessSource
+{
+    public bool Installed { get; set; }
+    public ValueTask<bool> IsInstalledAsync(ModelCapability model, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(Installed);
+}
+
+/// <summary>
+/// Answers every artifact request with a few bytes. Parakeet's fixed-file artifacts carry no
+/// exact size or checksum, so the real manager accepts them and the download succeeds.
+/// </summary>
+sealed class TinyArtifactHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent("stub"u8.ToArray()),
+        });
 }
 
 sealed class TestCredentials : IProviderCredentialSource

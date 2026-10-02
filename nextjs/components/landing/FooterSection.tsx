@@ -27,7 +27,13 @@ export default function FooterSection() {
         href: "/user",
       },
       { label: t("links.olderVersions"), href: "/older-versions" },
-      { label: t("links.blog"), href: "/blog" },
+      /*
+        The blog is English-only — /<locale>/blog 404s on every other locale — so
+        its href is the absolute /en/blog, rendered with a native <a>, never the
+        locale-prefixing Link (which would make it /de/en/blog). The label stays
+        translated.
+      */
+      { label: t("links.blog"), href: "/en/blog", raw: true },
       { label: "Open Source", href: "/open-source" },
     ],
     [t("company")]: [
@@ -53,7 +59,7 @@ export default function FooterSection() {
               <img
                 alt="HyperWhisper Logo"
                 className="w-10 h-10 rounded-xl"
-                src="/icon/64.png"
+                src="/icon/128.png"
               />
               <span className="text-xl font-bold text-white">HyperWhisper</span>
             </div>
@@ -78,7 +84,7 @@ export default function FooterSection() {
                       >
                         {link.label}
                       </button>
-                    ) : link.href.includes("#") ? (
+                    ) : link.href.includes("#") || "raw" in link ? (
                       <a
                         className="text-sm text-gray-400 hover:text-white transition-colors"
                         href={link.href.startsWith("/#")

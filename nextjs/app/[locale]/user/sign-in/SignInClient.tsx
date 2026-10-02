@@ -140,13 +140,17 @@ export default function SignInClient() {
   // thing that changes when a resend fails: the surrounding copy still reads
   // "Check your email and click the link to sign in", so without it a screen
   // reader announces nothing and the page says the opposite of what happened.
-  // One attribute, deliberately — #760 owns sign-in announcements as a whole.
+  // #760: `id="email-error"` is what the `#email` input's `aria-describedby`
+  // points at. The banner renders in two branches, but only one of them is
+  // mounted at a time, so the id is still unique on the page.
   const emailErrorBanner = emailError ? (
     <div
       className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
       role="alert"
     >
-      <p className="text-red-300 text-sm text-center">{emailError}</p>
+      <p className="text-red-300 text-sm text-center" id="email-error">
+        {emailError}
+      </p>
     </div>
   ) : null;
 
@@ -210,9 +214,16 @@ export default function SignInClient() {
           {/* License Key Tab */}
           {activeTab === "license-key" && (
             <form onSubmit={handleLicenseKeySignIn} className="space-y-6">
+              {/* #760: announced like `emailErrorBanner`, and described-by
+                  target of the `#license-key` input below. No focus move. */}
               {licenseError && (
-                <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
-                  <p className="text-red-300 text-sm text-center">{licenseError}</p>
+                <div
+                  className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg"
+                  role="alert"
+                >
+                  <p className="text-red-300 text-sm text-center" id="license-key-error">
+                    {licenseError}
+                  </p>
                 </div>
               )}
 
@@ -221,6 +232,8 @@ export default function SignInClient() {
                   Account Key
                 </label>
                 <input
+                  aria-describedby={licenseError ? "license-key-error" : undefined}
+                  aria-invalid={licenseError ? true : undefined}
                   id="license-key"
                   type="text"
                   required
@@ -281,6 +294,8 @@ export default function SignInClient() {
                       Email address
                     </label>
                     <input
+                      aria-describedby={emailError ? "email-error" : undefined}
+                      aria-invalid={emailError ? true : undefined}
                       autoComplete="email"
                       id="email"
                       type="email"

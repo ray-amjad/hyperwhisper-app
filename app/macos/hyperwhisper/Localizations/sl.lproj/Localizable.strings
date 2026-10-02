@@ -890,6 +890,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "audio.error.permissionDenied" = "Dostop do mikrofonskega vhoda je zavrnjen. Prosimo, omogoči v Sistemskih nastavitvah.";
 "audio.error.microphonePermission" = "Dozvoljenje za mikrofon ni odobreno";
 "audio.error.microphoneInUse" = "HyperWhisper ne more dostopati do mikrofonskega vhoda, ker ga trenutno uporabljam druga aplikacija. Prekini drugo aplikacijo ali zamenjaj vhode in poskusi znova.";
+"audio.error.audioSystemNotResponding" = "Zvok v macOS se ne odziva, zato mikrofona ni bilo mogoče zagnati. Poskusite znova čez trenutek. Če se to ponavlja, znova zaženite Mac.";
 "audio.error.createEngine" = "Napaka pri ustvarjanju audio motorja";
 "audio.error.noInput" = "Ni dostopnega zvočnega vhoda";
 "audio.error.createFile" = "Napaka pri ustvarjanju zvočne datoteke";

@@ -58,7 +58,7 @@ You can start recording in three ways:
   <Tab title="macOS">
     <Steps>
       <Step title="Open Shortcuts settings">
-        Go to **Settings → Shortcuts**.
+        Go to **Settings → Keyboard Shortcuts**.
       </Step>
       <Step title="Record a new key combination">
         Click the recorder control next to the action you want to change. Then press the new key combination.
@@ -99,35 +99,32 @@ You can start recording in three ways:
     <Note>
       A modifier-only shortcut needs two modifiers, for example `Ctrl+Win`. One bare modifier would trigger on a normal keystroke such as `Ctrl+C`. Linux applies the same rule.
     </Note>
+
+    The **Streaming** row appears only while streaming is on. To turn on streaming, see [Streaming Transcription](/streaming-settings#turn-on-streaming).
   </Tab>
   <Tab title="Linux">
-    Linux has no shortcut recorder. You type each shortcut as text, in **Settings → Shortcuts and push-to-talk**.
-
     <Steps>
-      <Step title="Type the modifiers">
-        Each action has a **modifiers** field and a **key** field. In the modifiers field, type `Control`, `Alt`, `Shift`, or `Meta`, separated by commas — for example `Control, Shift`. Type `None` for no modifier.
+      <Step title="Open Shortcuts settings">
+        Open the main window, then click **Settings**. Then click **Shortcuts** in the sidebar.
       </Step>
-      <Step title="Type the key">
-        In the key field, type one key name, for example `Space`, `Escape`, or `Period`. Leave **both** fields empty to unassign the action.
-      </Step>
-      <Step title="Save the settings">
-        Click **Save settings**. HyperWhisper validates every shortcut before it saves any of them. If a shortcut is not valid, nothing is saved and the reason appears below the card.
+      <Step title="Record a new key combination">
+        Click the shortcut field for the action you want to change. Then press the new key combination. Linux records the combination at each key press, and it saves each change automatically. There is no Save button.
       </Step>
       <Step title="Reset the shortcuts">
-        Click **Reset shortcut defaults**. This fills the fields with the default values. Click **Save settings** to apply them.
+        To return all shortcuts to their default values, click **Reset to Defaults**.
       </Step>
     </Steps>
 
-    Linux rejects three cases:
+    Linux refuses a new combination in three cases. The field keeps the previous value, and the reason appears below it.
 
     | Case | Message |
     | --- | --- |
-    | A modifier that is not `Control`, `Alt`, `Shift`, or `Meta` | Use only Control, Alt, Shift, or Meta modifiers |
-    | A modifier-only shortcut with one modifier | A modifier-only shortcut needs at least two modifiers |
-    | Two actions with the same combination | The two action names, and a request to use different shortcuts |
+    | A modifier-only shortcut with one modifier | Single modifier shortcuts such as Ctrl, Alt, Shift, or Win are not supported. Use a key with modifiers or a multi-modifier shortcut such as Ctrl+Win. |
+    | A key with no modifier that is not a function key or Esc | A shortcut with no modifier must be a function key or Esc. Any other key would fire while you type. |
+    | The combination is already assigned to a different HyperWhisper action | This shortcut is already used for *action* (*shortcut*), with the name and the shortcut of the other action |
 
     <Note>
-      A modifier-only shortcut needs two modifiers because one bare modifier would trigger on a normal keystroke such as `Ctrl+C`. This is why the default toggle shortcut is `Control, Alt` with an empty key field.
+      A modifier-only shortcut needs two modifiers because one bare modifier would trigger on a normal keystroke such as `Ctrl+C`. This is why the default toggle shortcut is `Ctrl+Alt` with no other key.
     </Note>
   </Tab>
 </Tabs>
@@ -140,7 +137,7 @@ With push-to-talk, you hold a key to record. When you release the key, recording
 
 <Tabs>
   <Tab title="macOS">
-    Go to **Settings → Shortcuts**. Then turn on the **Push to Talk** toggle.
+    Go to **Settings → Keyboard Shortcuts**. Then turn on the **Push to Talk** toggle.
 
     Then select your trigger key from the mode picker:
 
@@ -176,20 +173,15 @@ With push-to-talk, you hold a key to record. When you release the key, recording
     When the mode is **Disabled**, push-to-talk is off. HyperWhisper uses the toggle shortcut.
   </Tab>
   <Tab title="Linux">
-    Go to **Settings → Shortcuts and push-to-talk**. Then set the push-to-talk mode to **Modifier** or **CustomShortcut**. The default is **Disabled**.
+    Go to **Settings → Shortcuts**. Then set Push to Talk to **Modifier** or **Custom**. The default is **Disabled**.
 
-    **Modifier mode** — hold one modifier key to record. Select the key from the modifier picker. The picker gives an either-side option and a left or right option for each modifier:
+    **Modifier mode** — hold one modifier key to record. You can use these modifiers:
 
-    | Either side | Left | Right |
-    | --- | --- | --- |
-    | `Control` | `LeftControl` | `RightControl` |
-    | `Alt` | `LeftAlt` | `RightAlt` |
-    | `Shift` | `LeftShift` | `RightShift` |
-    | `Meta` | `LeftMeta` | `RightMeta` |
+    - Left Alt (the default)
+    - Right Alt
+    - Shift
 
-    The default is `LeftAlt`.
-
-    **CustomShortcut mode** — type the modifiers and the key in the **Custom push-to-talk modifiers and key** fields. In this mode the shortcut must be assigned. HyperWhisper refuses to save an empty custom shortcut.
+    **Custom mode** — click the **Custom Shortcut** field, then press the key combination that you hold.
   </Tab>
 </Tabs>
 
@@ -199,13 +191,13 @@ When double-press is on, two quick taps on the push-to-talk key lock recording o
 
 <Tabs>
   <Tab title="macOS">
-    The **Double Press to Lock** toggle is in **Settings → Shortcuts**, below the push-to-talk card. It appears only when your push-to-talk mode is one modifier key (FN, Control, Left Option, or Right Option). The combination modes (FN + Control, FN + Left Option) and Custom mode do not have double-press lock.
+    The **Double press to lock recording** toggle is in **Settings → Keyboard Shortcuts**, below the push-to-talk card. It is on by default. It appears only when your push-to-talk mode is one modifier key (FN, Control, Left Option, or Right Option). The combination modes (FN + Control, FN + Left Option) and Custom mode do not have double-press lock.
   </Tab>
   <Tab title="Windows">
-    The **Double-Press Lock** checkbox is in **Settings → Shortcuts**. It appears when push-to-talk is in Modifier mode.
+    The **Double press to lock recording** checkbox is in **Settings → Shortcuts**. It appears when push-to-talk is in Modifier mode.
   </Tab>
   <Tab title="Linux">
-    The **Double press to lock push-to-talk** checkbox is in **Settings → Shortcuts and push-to-talk**. It is off by default.
+    The **Double press to lock recording** checkbox is in **Settings → Shortcuts**. It appears when push-to-talk is in Modifier mode. It is off by default.
   </Tab>
 </Tabs>
 
@@ -235,13 +227,13 @@ Quick Capture is a macOS feature. It sends a transcription to a new Apple Notes 
 
 <Steps>
   <Step title="Turn on Quick Capture">
-    Go to **Settings → Shortcuts**. Then turn on the **Quick Capture** toggle.
+    Go to **Settings → Keyboard Shortcuts**. Then turn on the **Quick Capture** toggle.
   </Step>
   <Step title="Assign a shortcut">
     A shortcut recorder appears below the toggle. Click the recorder. Then press the key combination that you want.
   </Step>
   <Step title="Select a mode">
-    The mode picker sets the transcription mode for Quick Capture. Select one mode, or select **Current Mode** to always use your active mode.
+    The mode picker sets the transcription mode for Quick Capture. Select one mode, or select **Selected mode** to always use your active mode.
   </Step>
   <Step title="Give Notes automation permission">
     The first time Quick Capture runs, macOS asks if HyperWhisper can control Apple Notes. Click **OK**. If you denied the permission, go to **System Settings → Privacy & Security → Automation**. Then turn on the access of HyperWhisper to Notes.
@@ -302,8 +294,8 @@ When you close the main window, HyperWhisper goes to the system tray and stays a
 ## Troubleshooting Shortcuts
 
 - **A shortcut does not respond** — other apps or macOS take some key combinations, most of all the bare function keys. Add one modifier or more (`⌥`, `⌃`, or `⇧`) to prevent conflicts.
-- **Push-to-talk does not start** — on macOS, the bare modifier modes (FN, Control, Option) need Accessibility permission. Open **System Settings → Privacy & Security → Accessibility**. Then make sure that HyperWhisper is in the list and is turned on. You do not need to start the app again: HyperWhisper watches for the new permission for 10 minutes and arms push-to-talk as soon as it finds it. If you take more than 10 minutes, select the push-to-talk mode again in **Settings → Shortcuts**, or start the app again.
+- **Push-to-talk does not start** — on macOS, the bare modifier modes (FN, Control, Option) need Accessibility permission. Open **System Settings → Privacy & Security → Accessibility**. Then make sure that HyperWhisper is in the list and is turned on. You do not need to start the app again: HyperWhisper watches for the new permission for 10 minutes and arms push-to-talk as soon as it finds it. If you take more than 10 minutes, select the push-to-talk mode again in **Settings → Keyboard Shortcuts**, or start the app again.
 - **No shortcut works after a hidden start (macOS)** — HyperWhisper registers the shortcuts at launch, and it does not need the main window. A login-item start with **Launch minimized** on gives you working shortcuts immediately. Older versions registered the shortcuts only when the main window appeared, so the record shortcut stayed dead until you opened the window. If you see that behavior, update to the current version.
 - **Windows shortcut conflict** — when two actions have the same key combination, a warning banner appears in Settings → Shortcuts. Correct the conflict before you save.
 - **No shortcut works on Linux** — HyperWhisper reads global shortcuts from `/dev/input`, which needs the `hyperwhisper-input` group. Run `id -nG | tr ' ' '\n' | grep -x hyperwhisper-input` in a terminal. If the command prints nothing, add the group, then log out completely and log back in. See [Install HyperWhisper on Linux](/linux-installation#enable-global-shortcuts-and-automatic-paste).
-- **A Linux shortcut is not saved** — Linux validates every shortcut together. One invalid field stops the whole save, so check each modifiers field for a word other than `Control`, `Alt`, `Shift`, `Meta`, or `None`.
+- **A Linux shortcut is not saved** — the field keeps its previous value when Linux refuses a combination. Read the reason below the field. A key with no modifier must be a function key or Esc.

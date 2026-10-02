@@ -251,6 +251,7 @@
     "description": "다운로드 링크와 짧은 튜토리얼 영상을 이메일로 보내드립니다. 스팸은 보내지 않습니다.",
     "downloadButton": "HyperWhisper 다운로드",
     "errorGeneric": "문제가 발생했습니다. 다시 시도해 주세요.",
+    "errorEmail": "유효한 이메일 주소를 입력해 주세요.",
     "errorNetwork": "네트워크 오류입니다. 연결을 확인한 뒤 다시 시도해 주세요.",
     "thankYouTitle": "감사합니다!",
     "downloadStarted": "다운로드가 자동으로 시작됩니다.",

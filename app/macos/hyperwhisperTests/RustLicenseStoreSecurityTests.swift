@@ -884,8 +884,8 @@ private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
     /// cannot leave an unstructured validation Task hanging in the test host.
     ///
     /// The bound is wall-clock, not a yield count: 100 `Task.yield()` calls ran
-    /// out whenever another main-actor suite was busy in parallel, and the test
-    /// failed with "validation did not start" (#1034 CI).
+    /// out whenever another suite held the cooperative pool, and the test failed
+    /// with "validation did not start" (#1034 and #1201 CI).
     func waitForValidationCount(_ count: Int) async -> Bool {
         let deadline = ContinuousClock.now + .seconds(2)
         while ContinuousClock.now < deadline {

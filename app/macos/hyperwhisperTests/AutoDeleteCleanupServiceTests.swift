@@ -92,9 +92,7 @@ private final class AutoDeleteWriterGate: @unchecked Sendable {
     }
 
     func waitUntilBlocked() async -> Bool {
-        await Task.detached {
-            self.entered.wait(timeout: .now() + 5) == .success
-        }.value
+        await waitOffThePool(for: entered, seconds: 5)
     }
 
     func release() {

@@ -108,6 +108,22 @@ class SimpleRecorder: NSObject, ObservableObject {
         qos: .userInitiated
     )
 
+    /// How long a start waits for CoreAudio before it fails with
+    /// `AudioError.audioSystemNotResponding`.
+    ///
+    /// A healthy start takes ~100 ms. The HYPERWHISPER-F7 route-change stalls ran to
+    /// ~10 s, and a wedged `coreaudiod` has blocked one for minutes. Past a few
+    /// seconds the user is better served by an error and a retry than by a shortcut
+    /// that looks dead.
+    nonisolated static let recorderStartTimeout: DispatchTimeInterval = .seconds(5)
+
+    /// Bounds the wait on `recorderStartQueue`. Static because the queue is: an
+    /// abandoned start blocks every `SimpleRecorder` behind it.
+    nonisolated private static let recorderStartGate = RecorderStartGate(
+        queue: recorderStartQueue,
+        timeout: recorderStartTimeout
+    )
+
     /// Current audio level (0.0 to 1.0) for UI visualization
     @Published var audioLevel: Float = 0
 
@@ -170,12 +186,8 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// two overlapping starts cannot be inside `record()` on the HAL at once.
     /// Continuation-over-a-queue precedent: `SilenceTrimmer.writeAudioFile(samples:to:)`.
     ///
-    /// **Continuation safety:** exactly one path resumes — one `queue.async`
-    /// block with a single `resume` per branch and a `return` after each. The
-    /// `ManagedAtomic<Bool>` guard the macOS guidelines mandate is for callbacks
-    /// that can fire more than once (`AVAssetWriter`, `URLSession` delegates);
-    /// it would be dead weight here, so its absence is deliberate, not an
-    /// oversight.
+    /// **Continuation safety:** two paths can now resume — the queue block and the
+    /// deadline. `RecorderStartGate` guards them so exactly one does.
     ///
     /// **Delegate note:** `SimpleRecorder` never assigns an
     /// `AVAudioRecorderDelegate` (it only clears it on stop), so the usual
@@ -203,39 +215,43 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// attempt the caller deliberately runs no cleanup at all, and that exit is how a
     /// header-only WAV reached `synthesizeStubSessionsForUnclaimedWAVs`, which has no
     /// minimum-size filter, and became a phantom History entry on the next launch.
+    ///
+    /// **The wait is bounded.** `recorderStartGate` gives up after
+    /// `recorderStartTimeout` and throws `AudioError.audioSystemNotResponding`. A
+    /// recorder that comes up after that is stopped and deleted on the queue by
+    /// `discardSupersededRecorder`, exactly like a superseded one.
     nonisolated private static func makeLiveRecorder(
         url: URL,
         settings: [String: Any]
     ) async throws -> AVAudioRecorder {
-        try await withCheckedThrowingContinuation { continuation in
-            SimpleRecorder.recorderStartQueue.async {
-                let newRecorder: AVAudioRecorder
-                do {
-                    newRecorder = try AVAudioRecorder(url: url, settings: settings)
-                } catch {
-                    AppLogger.audio.error("Failed to create AVAudioRecorder: \(error.localizedDescription)")
-                    continuation.resume(throwing: AudioError.recordingFailed(reason: error.localizedDescription))
-                    return
-                }
-
-                newRecorder.isMeteringEnabled = true
-
-                guard newRecorder.record() else {
-                    AppLogger.audio.error("AVAudioRecorder.record() returned false")
-                    // The init above already created the file. This is the last point at
-                    // which anything holds a reference to the instance, so it is the last
-                    // point at which the header-only WAV can be removed — see the
-                    // `record()`-returned-false note in this function's doc comment.
-                    if !newRecorder.deleteRecording() {
-                        AppLogger.audio.warning("Could not delete the header-only WAV of a failed AVAudioRecorder start: \(url.lastPathComponent, privacy: .public)")
-                    }
-                    continuation.resume(throwing: AudioError.recordingFailed(reason: "Failed to start recording"))
-                    return
-                }
-
-                continuation.resume(returning: newRecorder)
+        try await recorderStartGate.run({
+            let newRecorder: AVAudioRecorder
+            do {
+                newRecorder = try AVAudioRecorder(url: url, settings: settings)
+            } catch {
+                AppLogger.audio.error("Failed to create AVAudioRecorder: \(error.localizedDescription)")
+                throw AudioError.recordingFailed(reason: error.localizedDescription)
             }
-        }
+
+            newRecorder.isMeteringEnabled = true
+
+            guard newRecorder.record() else {
+                AppLogger.audio.error("AVAudioRecorder.record() returned false")
+                // The init above already created the file. This is the last point at
+                // which anything holds a reference to the instance, so it is the last
+                // point at which the header-only WAV can be removed — see the
+                // `record()`-returned-false note in this function's doc comment.
+                if !newRecorder.deleteRecording() {
+                    AppLogger.audio.warning("Could not delete the header-only WAV of a failed AVAudioRecorder start: \(url.lastPathComponent, privacy: .public)")
+                }
+                throw AudioError.recordingFailed(reason: "Failed to start recording")
+            }
+
+            return newRecorder
+        }, discardLate: { lateRecorder in
+            AppLogger.audio.warning("AVAudioRecorder started after its start had timed out - discarding it")
+            SimpleRecorder.discardSupersededRecorder(lateRecorder)
+        })
     }
 
     /// Stop and release a recorder that came back from `makeLiveRecorder` after
@@ -323,7 +339,16 @@ class SimpleRecorder: NSObject, ObservableObject {
     ///
     /// **Throws:**
     /// - AudioError.recordingFailed if recorder cannot start
+    /// - AudioError.audioSystemNotResponding if CoreAudio did not start it within
+    ///   `recorderStartTimeout`, or an earlier start is still stuck there
     func startRecording(to url: URL) async throws -> RecorderStartOutcome {
+        // A start that already timed out is still blocked on the serial queue, so
+        // this one would only wait behind it. Fail now, with the same message.
+        if SimpleRecorder.recorderStartGate.hasAbandonedWork {
+            AppLogger.audio.error("Recorder start refused: an earlier start is still blocked in CoreAudio")
+            throw AudioError.audioSystemNotResponding
+        }
+
         // Cancel any pending deferred release from a previous stop.
         recorderReleaseTask?.cancel()
         recorderReleaseTask = nil

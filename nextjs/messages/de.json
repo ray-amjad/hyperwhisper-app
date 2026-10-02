@@ -251,6 +251,7 @@
     "description": "Wir senden Ihnen per E-Mail einen Download-Link und ein kurzes Tutorial-Video, um Ihnen den Einstieg zu erleichtern. Kein Spam.",
     "downloadButton": "HyperWhisper herunterladen",
     "errorGeneric": "Etwas ist schief gelaufen. Bitte versuchen Sie es erneut.",
+    "errorEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
     "errorNetwork": "Netzwerkfehler. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "thankYouTitle": "Danke!",
     "downloadStarted": "Ihr Download sollte automatisch starten.",

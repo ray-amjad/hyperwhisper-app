@@ -122,7 +122,11 @@ static void AllCatalogsLoad()
     // one of them as "identical by design". The picker reads the name from the
     // catalog now, where it is written once. The `.description` keys stay: those
     // are real sentences and they ARE translated.
-    Equal(853, PortableLocalizer.BaseKeyCount, "base key count");
+    // 853 -> 851: `settings.streaming.deepgram.model.general` and `.medical` are gone. They
+    // held "Nova 3 General" and "Nova 3 Medical", 2 model names in 40 files that the name
+    // gate missed because it read only the quoted form (#837). Both Streaming pages read
+    // the catalog now.
+    Equal(851, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");
@@ -216,7 +220,6 @@ static void ProductNamesStayEnglish()
         "settings.nav.cloud",                         // HyperWhisper Cloud
         "provider.openai",                            // OpenAI
         "provider.deepgram",                          // Deepgram
-        "settings.streaming.deepgram.model.general",  // Nova 3 General
     ];
 
     var english = new PortableLocalizer(CultureInfo.GetCultureInfo("en"));

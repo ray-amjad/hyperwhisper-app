@@ -21,9 +21,9 @@ Streaming is off by default. The streaming shortcut and the other streaming sett
     The Engine and Language sections appear only after you turn on streaming.
   </Tab>
   <Tab title="Linux">
-    Open **Settings**, then find the **Live transcription** section. Select **Enable the dedicated live-transcription shortcut**.
+    Click **Streaming** in the main sidebar. Then select **Enable streaming transcription**.
 
-    The provider, language, model, and formatting controls are always visible in this section. The checkbox controls the shortcut only. Click **Save settings** to apply your changes.
+    The shortcut field and the Engine and Language sections appear only after you turn on streaming. Linux saves each change automatically. There is no Save button.
   </Tab>
 </Tabs>
 
@@ -41,7 +41,7 @@ After you turn on streaming, set the shortcut that starts it.
     The default shortcut is **Ctrl+Shift+Space**. Click the shortcut field in **Streaming** (main sidebar). Then press the new key combination. HyperWhisper compares the shortcut with your other shortcuts (Toggle, Cancel, Change Mode). If there is a conflict, a warning appears.
   </Tab>
   <Tab title="Linux">
-    The default shortcut is **Control, Shift** + **Space**. Linux has no shortcut recorder. Type the shortcut in the **Start/stop live streaming** modifiers and key fields, in **Settings → Shortcuts and push-to-talk**. For the field rules, see [Keyboard Shortcuts](/keyboard-shortcuts#customizing-shortcuts).
+    The default shortcut is **Ctrl+Shift+Space**. Click the **Streaming shortcut** field in **Streaming** (main sidebar). Then press the new key combination. HyperWhisper compares the shortcut with your other shortcuts (Toggle, Cancel, Change Mode). If there is a conflict, the reason appears below the field. For the other rules, see [Keyboard Shortcuts](/keyboard-shortcuts#customizing-shortcuts).
   </Tab>
 </Tabs>
 
@@ -72,14 +72,10 @@ The provider list is not the same on each platform:
 | --- | --- |
 | macOS | All eight |
 | Windows | HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, SpaceXAI, Gemini 3.5 Transcribe |
-| Linux | All eight |
-
-On Linux, the two on-device providers run through the same Parakeet engine process that Linux uses for batch transcription.
+| Linux | HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, SpaceXAI, Gemini 3.5 Transcribe |
 
 <Note>
-  On Linux, the provider picker shows the internal identifiers, not the display names: `deepgram`, `elevenlabs`, `openai`, `grok` (SpaceXAI), `geminiTranscribe` (Gemini 3.5 Transcribe), `hyperwhisper` (HyperWhisper Cloud), `parakeetLocal`, and `nemotronLocal`. The default is `deepgram`, and not HyperWhisper Cloud. Linux reads the provider key from the **Credentials** page and never keeps it in the settings file.
-
-  You can also select a local model in the **Unified model library**. Select an installed streaming model, then click **Use for live transcription**. HyperWhisper turns on streaming and sets the provider and the model for you.
+  On Linux, the default provider is Deepgram, and not HyperWhisper Cloud.
 </Note>
 
 <Note>
@@ -105,7 +101,7 @@ The picker changes the engine only. It does not change your account key, and it 
     Click **Streaming** in the main sidebar. The engine picker is in the **Engine** section, below the provider picker.
   </Tab>
   <Tab title="Linux">
-    The engine picker is the second list in the **Live transcription** section. It shows the internal identifiers: `deepgramNova3` and `geminiTranscribe`. The setting key in the settings file is `streaming.cloudTier`.
+    Click **Streaming** in the main sidebar. The **Live engine** picker is in the **Engine** section, below the provider picker.
   </Tab>
 </Tabs>
 
@@ -128,7 +124,7 @@ Select **Nova 3 General** (the default) or **Nova 3 Medical**. The medical model
 This setting is on by default on macOS and Windows. When it is on, Deepgram sends smart-formatted results immediately and does not wait for more context. Thus the delay before the words appear on screen is smaller. When it is off, Deepgram waits for more context before it sets the punctuation and the number format. This gives slightly more accurate formatting, but it adds latency.
 
 <Note>
-  On Linux, the setting is the **Enable provider fast formatting** checkbox, and it is **off** by default.
+  On Linux, the **Fast formatting** checkbox is **off** by default.
 </Note>
 
 ## On-Device Providers
@@ -153,18 +149,7 @@ The same installation steps apply. You must download the variant that you select
 
 ### On Linux
 
-Linux has no Engine card and no **Install** button in the live-transcription section. Select `parakeetLocal` or `nemotronLocal` in the provider picker, then set the model in the **Provider model (optional)** box.
-
-| Provider | What the box accepts |
-| --- | --- |
-| `parakeetLocal` | `parakeet-v2` or `parakeet-v3`. Any other value, and an empty box, use `parakeet-v3` |
-| `nemotronLocal` | The box is ignored. Linux always uses the multilingual model `nemotron-3.5-ml-560ms` |
-
-Download the model first, in the **Unified model library**.
-
-<Note>
-  The Nemotron Latin variant is not available for live transcription on Linux.
-</Note>
+The provider picker on the Linux **Streaming** page does not list Parakeet or Nemotron 3.5. It lists only the six cloud providers.
 
 ## Language
 
@@ -180,7 +165,7 @@ The **Language** setting tells the provider which language to expect. An explici
     The language picker appears in the **Language** section after you turn on streaming. Select a supported language from the list.
   </Tab>
   <Tab title="Linux">
-    Linux has no language picker. Type the language code in the language box of the **Live transcription** section, for example `en` or `de`. Leave the box empty, or type `auto`, for automatic detection.
+    The language picker appears in the **Language** section after you turn on streaming. The first option is **Automatic**, which is the default. Select a supported language from the list.
   </Tab>
 </Tabs>
 

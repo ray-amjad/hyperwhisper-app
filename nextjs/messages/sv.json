@@ -251,6 +251,7 @@
     "description": "Vi mejlar dig en nedladdningslänk och en kort introduktionsvideo för att komma igång. Ingen spam.",
     "downloadButton": "Ladda ner HyperWhisper",
     "errorGeneric": "Något gick fel. Försök igen.",
+    "errorEmail": "Ange en giltig e-postadress.",
     "errorNetwork": "Nätverksfel. Kontrollera anslutningen och försök igen.",
     "thankYouTitle": "Tack!",
     "downloadStarted": "Nedladdningen bör starta automatiskt.",

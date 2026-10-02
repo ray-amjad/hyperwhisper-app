@@ -1951,12 +1951,6 @@ Je kunt het later opnieuw downloaden.</value>
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>Model</value>
   </data>
-  <data name="settings.streaming.deepgram.model.general" xml:space="preserve">
-    <value>Nova 3 General</value>
-  </data>
-  <data name="settings.streaming.deepgram.model.medical" xml:space="preserve">
-    <value>Nova 3 Medical</value>
-  </data>
   <data name="settings.streaming.fastFormatting.title" xml:space="preserve">
     <value>Snelle opmaak</value>
   </data>

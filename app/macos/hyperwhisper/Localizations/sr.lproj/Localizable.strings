@@ -890,6 +890,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "audio.error.permissionDenied" = "Приступ микрофону одбијен. Молимо омогући у Системским Поставкама.";
 "audio.error.microphonePermission" = "Дозвола за микрофон није дата";
 "audio.error.microphoneInUse" = "HyperWhisper не може приступити микрофону јер га тренутно користи друга апликација. Паузирај другу апликацију или пребаци улазе, затим покушај поново.";
+"audio.error.audioSystemNotResponding" = "Звук у macOS-у не реагује, па микрофон није могао да се покрене. Покушајте поново за тренутак. Ако се ово понавља, поново покрените Mac.";
 "audio.error.createEngine" = "Неуспешно прављење аудио мотора";
 "audio.error.noInput" = "Нема доступног уноса звука";
 "audio.error.createFile" = "Неуспешно прављење звучне датотеке";

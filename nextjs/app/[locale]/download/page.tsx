@@ -48,14 +48,11 @@ export default function DownloadPage() {
   const searchParams = useSearchParams();
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
   const [downloadState, setDownloadState] = useState<
-    Record<
-      Platform,
-      { url: string | null; countdown: number; started: boolean }
-    >
+    Record<Platform, { countdown: number; started: boolean }>
   >({
-    mac: { url: null, countdown: 5, started: false },
-    windows: { url: null, countdown: 5, started: false },
-    linux: { url: null, countdown: 5, started: false },
+    mac: { countdown: 5, started: false },
+    windows: { countdown: 5, started: false },
+    linux: { countdown: 5, started: false },
   });
   const [copied, setCopied] = useState(false);
   const [linuxLatest, setLinuxLatest] = useState<LinuxLatest | null>(null);
@@ -121,44 +118,6 @@ export default function DownloadPage() {
     };
   }, [selectedPlatform, linuxLatest]);
 
-  // Fetch the macOS download URL on mount (but don't trigger download yet).
-  useEffect(() => {
-    // Windows and Linux use explicit download buttons, no need to pre-fetch.
-    if (selectedPlatform !== "mac") return;
-
-    const fetchDownloadUrl = async () => {
-      try {
-        const response = await fetch(
-          `/api/download?platform=${selectedPlatform}`,
-          {
-            redirect: "follow",
-          },
-        );
-        const url =
-          response.url || `/api/download?platform=${selectedPlatform}`;
-
-        setDownloadState((prev) => ({
-          ...prev,
-          [selectedPlatform]: { ...prev[selectedPlatform], url },
-        }));
-      } catch (error) {
-        console.error("Failed to fetch download URL:", error);
-        setDownloadState((prev) => ({
-          ...prev,
-          [selectedPlatform]: {
-            ...prev[selectedPlatform],
-            url: `/api/download?platform=${selectedPlatform}`,
-          },
-        }));
-      }
-    };
-
-    // Only fetch if we don't have a URL yet
-    if (!currentState.url) {
-      void fetchDownloadUrl();
-    }
-  }, [selectedPlatform, currentState.url]);
-
   // Reset countdown when switching platforms
   useEffect(() => {
     setDownloadState((prev) => ({
@@ -203,18 +162,15 @@ export default function DownloadPage() {
     }
   }, [currentState.countdown, currentState.started, selectedPlatform]);
 
+  // No `started` guard here: the countdown effect already stops once `started`
+  // is set, so it fires this once, and a click on "Download again" must re-run it.
   const triggerDownload = (platform: Platform) => {
-    const state = downloadState[platform];
-
-    if (state.started) return;
     setDownloadState((prev) => ({
       ...prev,
       [platform]: { ...prev[platform], started: true, countdown: 0 },
     }));
 
-    const url = state.url || `/api/download?platform=${platform}`;
-
-    window.location.href = url;
+    window.location.href = `/api/download?platform=${platform}`;
   };
 
   const handleManualDownload = () => {
@@ -238,13 +194,11 @@ export default function DownloadPage() {
         <div className="text-center mb-6">
           {/* App Icon */}
           <div className="w-24 h-24 mx-auto mb-8">
-            <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 rounded-2xl flex items-center justify-center shadow-2xl">
-              <img
-                alt="HyperWhisper Logo"
-                className="w-24 h-24 rounded-xl"
-                src="/icon/256.png"
-              />
-            </div>
+            <img
+              alt="HyperWhisper Logo"
+              className="w-24 h-24"
+              src="/icon/256.png"
+            />
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
@@ -441,7 +395,13 @@ export default function DownloadPage() {
                   {!linuxLatest &&
                     " Replace VERSION with the version you downloaded."}
                 </p>
-                <div className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto">
+                <div
+                  aria-label="Debian install command"
+                  className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+                  role="region"
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- scrollable region needs a tab stop (WCAG 2.1.1, axe scrollable-region-focusable)
+                  tabIndex={0}
+                >
                   <code className="text-sm font-mono text-gray-200 whitespace-pre">
                     {`sudo apt install ./hyperwhisper_${linuxLatest?.version ?? "VERSION"}_amd64.deb
 sudo usermod -aG hyperwhisper-input "$USER"`}

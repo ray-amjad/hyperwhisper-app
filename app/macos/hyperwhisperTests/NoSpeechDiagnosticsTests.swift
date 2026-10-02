@@ -235,10 +235,16 @@ struct NoSpeechDiagnosticsTests {
         #expect(payload.extras["backend_http_status"] as? Int == 200)
         #expect(payload.extras["backend_response_latency_ms"] as? Int == 420)
         #expect(payload.extras["provider_attempt_ms"] as? Int == 510)
-        for key in ["backend_empty_transcript_without_flag", "mode_name"] {
-            #expect(payload.extras[key] == nil)
-        }
-        #expect(payload.extras.keys.allSatisfy { !SentryService.isRedactedExtraKey($0) })
+        // Issue #684: the field the key rule once destroyed is back as a Bool.
+        // `mode_name` stays out: a Mode's name is user-typed content.
+        #expect(payload.extras["backend_empty_transcript_without_flag"] as? Bool == false)
+        #expect(payload.extras["mode_name"] == nil)
+        // Every extra must reach Sentry as sent: none may be a String under a
+        // key the redaction rule matches.
+        #expect(payload.extras.allSatisfy {
+            String(describing: SentryService.redactedValue(forKey: $0.key, value: $0.value))
+                == String(describing: $0.value)
+        })
     }
 
     @Test func missingResponseMetadataUsesUnknown() {

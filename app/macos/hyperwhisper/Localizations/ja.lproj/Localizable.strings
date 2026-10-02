@@ -891,6 +891,7 @@
 "audio.error.permissionDenied" = "マイクへのアクセスが拒否されています。システム設定で許可してください。";
 "audio.error.microphonePermission" = "マイクの許可が付与されていません";
 "audio.error.microphoneInUse" = "他のアプリがマイクを使用しているため HyperWhisper はマイクにアクセスできません。他の録音や通話を一時停止するか、別の入力を選択してから再度お試しください。";
+"audio.error.audioSystemNotResponding" = "macOS のオーディオが応答しないため、マイクを開始できませんでした。しばらくしてからもう一度お試しください。繰り返し発生する場合は、Mac を再起動してください。";
 "audio.error.createEngine" = "オーディオエンジンの作成に失敗しました";
 "audio.error.noInput" = "利用できるオーディオ入力がありません";
 "audio.error.createFile" = "オーディオファイルの作成に失敗しました";

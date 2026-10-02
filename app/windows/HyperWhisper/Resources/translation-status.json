@@ -86,8 +86,6 @@
     "settings.about.appTitle": "Product name: HyperWhisper",
     "settings.localApi.tab.curl": "Tool name: cURL",
     "settings.nav.cloud": "Product name: HyperWhisper Cloud",
-    "settings.streaming.deepgram.model.general": "Model id: Nova 3 General",
-    "settings.streaming.deepgram.model.medical": "Model id: Nova 3 Medical",
     "settings.streaming.provider.deepgram": "Vendor name",
     "settings.streaming.provider.elevenLabs": "Vendor name",
     "settings.streaming.provider.geminiTranscribe": "Model id: Gemini 3.5 Transcribe",

@@ -890,6 +890,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "audio.error.permissionDenied" = "Mikrofona piekļuve liegta. Lūdzu iespējojiet sadaļā Sistēmas iestatījumi.";
 "audio.error.microphonePermission" = "Mikrofona atļauja nav piešķirta";
 "audio.error.microphoneInUse" = "HyperWhisper nespēj piekļūt mikrofonam, jo cita lietotne to pašlaik lieto. Apturiet citu lietotnei vai pārslēdziet ievadi un mēģiniet vēlreiz.";
+"audio.error.audioSystemNotResponding" = "macOS audio nereaģē, tāpēc mikrofonu neizdevās palaist. Pēc brīža mēģiniet vēlreiz. Ja tas atkārtojas, restartējiet savu Mac datoru.";
 "audio.error.createEngine" = "Neizdevās izveidot audio dzinēju";
 "audio.error.noInput" = "Nav pieejamas audio ievades";
 "audio.error.createFile" = "Neizdevās izveidot audio failu";

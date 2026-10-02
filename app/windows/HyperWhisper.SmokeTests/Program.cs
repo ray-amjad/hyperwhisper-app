@@ -14454,6 +14454,62 @@ internal static class Program
                 }
             });
 
+            Run("Local API /recordings: q, since, until, total and limit run in SQL with the old match rule — issue #1123", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+                var history = HistoryService.Instance;
+                // A 1990 window keeps every query to this case's own rows.
+                static DateTime Day(int d) => new(1990, 1, d, 0, 0, 0, DateTimeKind.Utc);
+                var since = Day(1);
+                var until = Day(31);
+                var ids = new List<Guid>();
+                Guid Seed(int day, string text, string? post = null, string? raw = null)
+                {
+                    var t = history.CreateProcessingTranscript(1.0, "percy1123", audioFilePath: null);
+                    ids.Add(t.Id);
+                    (t.Date, t.Status, t.Text, t.PostProcessedText, t.TranscribedText) =
+                        (Day(day), TranscriptStatus.Completed, text, post, raw);
+                    history.UpdateTranscript(t);
+                    return t.Id;
+                }
+                HashSet<Guid> Ids(string q, DateTime? from = null, DateTime? to = null) =>
+                    history.QueryPage(q, from ?? since, to ?? until, 500).Page.Select(t => t.Id).ToHashSet();
+
+                try
+                {
+                    var a = Seed(2, "abc q1123x");
+                    var b = Seed(3, "", post: "zz ABC q1123x");
+                    var c = Seed(4, "", raw: "q1123x abc");
+                    var pct = Seed(5, "100% q1123x_done");
+                    var decoy = Seed(6, "1000 q1123xZdone");
+                    var umlaut = Seed(7, "Straße ÄBC q1123x");
+
+                    Assert(Ids("ABC").SetEquals(new[] { a, b, c }),
+                        "q=ABC no longer matches abc case-insensitively in Text, PostProcessedText and TranscribedText");
+
+                    var (page, total) = history.QueryPage("q1123x", since, until, 2);
+                    Assert(page.Count == 2 && total == 6,
+                        $"limit=2 gave {page.Count} rows and total={total}; total must count every match past the limit");
+                    Assert(page[0].Id == umlaut && page[1].Id == decoy, "the page is not newest first");
+
+                    Assert(Ids("q1123x", Day(3), Day(4)).SetEquals(new[] { b, c }), "since/until no longer filter");
+
+                    Assert(Ids("0% q1123x_").SetEquals(new[] { pct }), "a % or _ in q is a wildcard, not a literal");
+                    Assert(Ids("%").SetEquals(new[] { pct }) && Ids("_").SetEquals(new[] { pct }),
+                        "q=% or q=_ matched rows that hold neither character");
+
+                    Assert(Ids("\0").Count == 0 && Ids("q1123x\0").Count == 0,
+                        "a q holding NUL matched rows (SQLite cuts a LIKE pattern at NUL, #1198)");
+
+                    Assert(Ids("äbc").SetEquals(new[] { umlaut }),
+                        "q=äbc no longer folds non-ASCII case as OrdinalIgnoreCase did");
+                }
+                finally
+                {
+                    history.DeleteTranscripts(ids);
+                }
+            });
+
             Run("storage: the last-cleanup line is the user's local time, not UTC — issue #504", () =>
             {
                 EnsureSmokeApplication();
@@ -15174,12 +15230,15 @@ internal static class Program
                 var savedCancel = settings.CancelShortcut;
                 var savedChangeMode = settings.ChangeModeShortcut;
                 var savedStreaming = settings.StreamingShortcut;
+                var savedStreamingEnabled = settings.StreamingEnabled;
                 try
                 {
                     settings.ToggleShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Alt");
                     settings.CancelShortcut = KeyboardShortcut.FromPersistedString("Esc");
                     settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+.");
                     settings.StreamingShortcut = KeyboardShortcut.FromPersistedString("Ctrl+Shift+Space");
+                    // The Streaming chord claims its key only while streaming is on (#704).
+                    settings.StreamingEnabled = true;
 
                     var recorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
                     var captured = new List<string>();
@@ -15274,6 +15333,22 @@ internal static class Program
                             "settings.shortcuts.error.singleModifier"),
                         "and it still says why - in the catalogue's words, not a literal of its own");
                     Assert(bare.Field.Text == "Esc", "and it leaves the field showing what is configured");
+
+                    // #704. With streaming OFF its chord is not registered and its row is
+                    // hidden on Settings > Shortcuts, so it must not refuse another role.
+                    settings.StreamingEnabled = false;
+                    captured.Clear();
+                    var offRecorder = new ShortcutRecorderBox { Role = "Cancel", DisplayText = "Esc" };
+                    offRecorder.ShortcutCaptured += (_, args) => captured.Add(args.Persisted);
+                    offRecorder.HandleKeyDown(Key.LeftCtrl, control: true, alt: false, shift: false, win: false);
+                    offRecorder.HandleKeyDown(Key.LeftShift, control: true, alt: false, shift: true, win: false);
+                    offRecorder.HandleKeyDown(Key.Space, control: true, alt: false, shift: true, win: false);
+                    offRecorder.HandleKeyUp(Key.Space);
+                    offRecorder.HandleKeyUp(Key.LeftShift);
+                    offRecorder.HandleKeyUp(Key.LeftCtrl);
+                    Assert(captured.Count == 1 && captured[0] == "Ctrl+Shift+Space" && offRecorder.ErrorMessage is null,
+                        "while streaming is off its chord is free for another role - got ["
+                        + string.Join(", ", captured) + "], error '" + (offRecorder.ErrorMessage ?? "null") + "'");
                 }
                 finally
                 {
@@ -15281,6 +15356,7 @@ internal static class Program
                     settings.CancelShortcut = savedCancel;
                     settings.ChangeModeShortcut = savedChangeMode;
                     settings.StreamingShortcut = savedStreaming;
+                    settings.StreamingEnabled = savedStreamingEnabled;
                 }
             });
 

@@ -890,6 +890,7 @@
 "audio.error.permissionDenied" = "마이크 액세스가 거부되었습니다. 시스템 설정에서 활성화하세요.";
 "audio.error.microphonePermission" = "마이크 권한이 부여되지 않음";
 "audio.error.microphoneInUse" = "다른 앱이 현재 사용 중이므로 HyperWhisper가 마이크에 액세스할 수 없습니다. 다른 앱을 일시 중지하거나 입력을 전환한 다음 다시 시도하세요.";
+"audio.error.audioSystemNotResponding" = "macOS 오디오가 응답하지 않아 마이크를 시작할 수 없습니다. 잠시 후 다시 시도하세요. 계속 발생하면 Mac을 재시동하세요.";
 "audio.error.createEngine" = "오디오 엔진 생성 실패";
 "audio.error.noInput" = "오디오 입력을 사용할 수 없음";
 "audio.error.createFile" = "오디오 파일 생성 실패";

@@ -6,8 +6,9 @@ import Combine
 //    an API key. This invalidates cached results and schedules a debounced refresh.
 // 2. Once the 500 ms debounce elapses without further edits, refresh(provider, force: true)
 //    executes on the main actor.
-// 3. refresh(...) marks the provider as .checking (without discarding the last cached value) and
-//    hands the actual HTTP probe off to scheduleHealthCheck(...).
+// 3. nextStatus(for:force:) applies the cache gates, hands the actual HTTP probe off to
+//    scheduleHealthCheck(...), and returns .checking (keeping the last cached value). refresh(...)
+//    and refreshAll(...) write that status only when it differs, so a no-op is never published.
 // 4. scheduleHealthCheck coalesces duplicate requests, runs the asynchronous network call on a
 //    background executor, applies retry logic for transient failures, and then republishes the
 //    resulting status back on the main actor.
@@ -139,7 +140,7 @@ final class CloudProviderHealthManager: ObservableObject {
 
     /// Clock, injectable so tests can drive the `cacheTTL` window without
     /// sleeping for a real minute. Every read of "now" in this type goes
-    /// through it: the two cache-hit gates in `refresh(_:force:)`, the two
+    /// through it: the two cache-hit gates in `nextStatus(for:force:)`, the two
     /// `StatusRecord` stamps in `scheduleHealthCheck(for:force:)`, and the
     /// `healthSnapshot()` timestamp. Those five reads are one clock, so a test
     /// that moves it moves the whole TTL together.
@@ -286,65 +287,68 @@ final class CloudProviderHealthManager: ObservableObject {
     }
 
     /// Trigger async health checks for all cloud providers.
+    ///
+    /// Every write to `statuses` is one publish, and each publish rebuilds the
+    /// Model Library (issue #1042). So the loop collects into a local copy and
+    /// assigns ONCE, and not at all when nothing changed.
     func refreshAll(force: Bool = false) {
-        CloudProvider.allCases.forEach { refresh($0, force: force) }
+        var next = statuses
+        CloudProvider.allCases.forEach { next[$0] = nextStatus(for: $0, force: force) }
+        if next != statuses { statuses = next }
     }
 
     /// Trigger async health checks for all post-processing providers.
+    /// Publishes at most once, like `refreshAll(force:)`.
     func refreshAllPostProcessing(force: Bool = false) {
-        PostProcessingProvider.allCases.forEach { provider in
-            if provider == .localLLM {
-                postProcessingStatuses[provider] = Self.localLLMStatus()
-            } else if provider.requiresHealthCheck {
-                refresh(provider, force: force)
-            } else {
-                postProcessingStatuses[provider] = .healthy
-            }
-        }
+        var next = postProcessingStatuses
+        PostProcessingProvider.allCases.forEach { next[$0] = nextStatus(for: $0, force: force) }
+        if next != postProcessingStatuses { postProcessingStatuses = next }
     }
 
     /// Trigger a health check for a single provider. Cache prevents redundant work.
     func refresh(_ provider: CloudProvider, force: Bool = false) {
-        if !force,
-           let record = cache[provider],
-           now().timeIntervalSince(record.timestamp) < cacheTTL,
-           record.status != .unknown {
-            statuses[provider] = record.status
-            return
-        }
-
-        statuses[provider] = .checking
-
-        if pendingChecks[provider] != nil { return }
-
-        scheduleHealthCheck(for: provider, force: force)
+        let next = nextStatus(for: provider, force: force)
+        if statuses[provider] != next { statuses[provider] = next }
     }
 
     /// Trigger a health check for a single post-processing provider.
     func refresh(_ provider: PostProcessingProvider, force: Bool = false) {
-        if provider == .localLLM {
-            postProcessingStatuses[provider] = Self.localLLMStatus()
-            return
-        }
+        let next = nextStatus(for: provider, force: force)
+        if postProcessingStatuses[provider] != next { postProcessingStatuses[provider] = next }
+    }
 
-        guard provider.requiresHealthCheck else {
-            postProcessingStatuses[provider] = .healthy
-            return
+    /// The status `refresh` should publish: the cached verdict inside the TTL,
+    /// otherwise `.checking` with a probe scheduled (unless one is in flight).
+    /// It does NOT write the published dictionary; callers do, once. The probe
+    /// Task inherits the main actor, so its result cannot land before the
+    /// caller's `.checking` write.
+    private func nextStatus(for provider: CloudProvider, force: Bool) -> ProviderHealth {
+        if !force,
+           let record = cache[provider],
+           now().timeIntervalSince(record.timestamp) < cacheTTL,
+           record.status != .unknown {
+            return record.status
         }
+        if pendingChecks[provider] == nil {
+            scheduleHealthCheck(for: provider, force: force)
+        }
+        return .checking
+    }
+
+    private func nextStatus(for provider: PostProcessingProvider, force: Bool) -> ProviderHealth {
+        if provider == .localLLM { return Self.localLLMStatus() }
+        guard provider.requiresHealthCheck else { return .healthy }
 
         if !force,
            let record = postProcessingCache[provider],
            now().timeIntervalSince(record.timestamp) < cacheTTL,
            record.status != .unknown {
-            postProcessingStatuses[provider] = record.status
-            return
+            return record.status
         }
-
-        postProcessingStatuses[provider] = .checking
-
-        if pendingPostProcessingChecks[provider] != nil { return }
-
-        scheduleHealthCheck(for: provider, force: force)
+        if pendingPostProcessingChecks[provider] == nil {
+            scheduleHealthCheck(for: provider, force: force)
+        }
+        return .checking
     }
 
     /// Ensure a provider is healthy before kicking off a transcription.

@@ -5,6 +5,7 @@ import type { WSMessageReceive } from 'hono/ws';
 import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
+import { captureRejectionLogs, captureStreamingLogs } from './ws-streaming-test-logs';
 
 type CachedLicense = { isValid: boolean; credits: number; cachedAt: string };
 
@@ -85,6 +86,12 @@ describe('wsStreamingPreflight', () => {
 
   const UPGRADE_HEADERS = { Upgrade: 'websocket', 'Fly-Client-IP': '203.0.113.7' } as const;
 
+
+  // The preflight's console.log lines, captured per test. Each refused upgrade
+  // must leave exactly one `ws_streaming.request_rejected` line, and no line may
+  // carry the key.
+  const { lines: loggedLines, expectOneRejection } = captureRejectionLogs();
+
   beforeEach(() => {
     cachedLicenseValue = { isValid: true, credits: 100, cachedAt: 'cached' };
     blockedIPs.clear();
@@ -104,6 +111,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(426);
     expect(await res.text()).toBe('Expected WebSocket upgrade');
+    expect(expectOneRejection('not_websocket', 426).endpoint).toBe('/ws/streaming-deepgram');
   });
 
   test('rejects a blocked IP before any license work happens', async () => {
@@ -118,6 +126,8 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('Access denied');
+    const entry = expectOneRejection('ip_blocked', 403);
+    expect(JSON.stringify(entry)).not.toContain('203.0.113.7');
   });
 
   test('rejects an upgrade that carries no key at all', async () => {
@@ -125,6 +135,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(401);
     expect(await res.text()).toBe('Missing account_key');
+    expectOneRejection('missing_account_key', 401);
   });
 
   test('accepts the legacy license_key alias that installed apps still send', async () => {
@@ -173,6 +184,10 @@ describe('wsStreamingPreflight', () => {
     expect(body.error).toBe('Insufficient credits');
     expect(body.credits_remaining).toBe(2.7);
     expect(body.minutes_required).toBe(1);
+    const entry = expectOneRejection('insufficient_credits', 402);
+    // The rounded balance the credit check compared, which the 402 body reports too.
+    expect(entry.credits).toBe(2.7);
+    expect(entry.minimumCredits).toBe(minimumStreamingCredits());
   });
 
   test('admits a balance exactly at the floor', async () => {
@@ -184,6 +199,7 @@ describe('wsStreamingPreflight', () => {
 
     expect(res.status).toBe(200);
     expect((await res.json() as { credits: number }).credits).toBe(2.8);
+    expect(loggedLines().some((line) => line.includes('ws_streaming.request_rejected'))).toBe(false);
   });
 });
 
@@ -371,6 +387,23 @@ describe('streaming socket lifecycle', () => {
     expect(client.closes).toEqual([{ code: 1011, reason: 'Configuration error' }]);
   });
 
+  test('logs config_missing_api_key with a requestId when the Deepgram key is not configured', () => {
+    delete process.env.DEEPGRAM_API_KEY;
+    const auth: AuthContext = { identifier: 'k', licenseKey: 'k', credits: 100 };
+    const events = createStreamingEvents(fakeContext(auth, 'https://x/ws?account_key=k'));
+    const client = new FakeClientSocket();
+
+    const { entries } = captureStreamingLogs(() => events.onOpen(new Event('open'), client));
+
+    const line = entries.find((entry) => entry.event === 'ws_streaming.config_missing_api_key');
+    expect(line).toBeDefined();
+    expect(line!.details).toMatchObject({ provider: 'deepgram', endpoint: '/ws/streaming-deepgram' });
+    expect(typeof line!.details.requestId).toBe('string');
+    expect(line!.details.requestId).not.toBe('');
+    // The client still sees exactly what it saw before (#953 is log-only).
+    expect(client.closes).toEqual([{ code: 1011, reason: 'Configuration error' }]);
+  });
+
   test('dials Nova-3 with the retention opt-out and the linear16 shape the client sends', () => {
     const { upstream } = openSession();
     const dialled = new URL(upstream.url);
@@ -514,6 +547,66 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('error')).toEqual([
         { type: 'error', message: 'Transcription service error' },
       ]);
+      await harness.endSession();
+    });
+
+    test('logs upstream_socket_error when the upstream socket fires an error event', async () => {
+      const harness = openSession();
+
+      const { entries } = captureStreamingLogs(() => harness.upstream.emit('error', {}));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_socket_error');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'deepgram', eventType: null, errorName: null });
+      expect(line!.details).not.toHaveProperty('message');
+      expect(typeof line!.details.requestId).toBe('string');
+      expect(harness.client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Transcription service error' },
+      ]);
+      await harness.endSession();
+    });
+
+    test('logs upstream_parse_failed for a non-JSON frame, and no line carries the frame text', async () => {
+      const harness = openSession();
+      // A frame that fails to parse can still hold the user's words. It opens
+      // with a bare word because Bun's SyntaxError message quotes that token
+      // ("Unexpected identifier \"tangerine\""), so logging error.message fails.
+      const frame = 'tangerine otter is my secret phrase';
+
+      const { entries, serialised } = captureStreamingLogs(() => harness.upstream.deliver(frame));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_parse_failed');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'deepgram', errorName: 'SyntaxError', frameLength: frame.length });
+      expect(typeof line!.details.requestId).toBe('string');
+      expect(entries.some((entry) => entry.event === 'ws_streaming.upstream_event_failed')).toBe(false);
+      expect(serialised.length).toBeGreaterThan(0);
+      for (const text of serialised) {
+        expect(text).not.toContain('tangerine');
+      }
+      await harness.endSession();
+    });
+
+    test('logs upstream_event_failed, not a parse failure, when our client send throws on a valid Results frame', async () => {
+      const harness = openSession();
+      const send = harness.client.send.bind(harness.client);
+      harness.client.send = () => { throw new Error('socket write failed'); };
+
+      const { entries, serialised } = captureStreamingLogs(() => harness.upstream.deliver({
+        type: 'Results',
+        is_final: true,
+        channel: { alternatives: [{ transcript: 'hello there' }] },
+      }));
+
+      const line = entries.find((entry) => entry.event === 'ws_streaming.upstream_event_failed');
+      expect(line).toBeDefined();
+      expect(line!.details).toMatchObject({ provider: 'deepgram', errorName: 'Error' });
+      expect(line!.details).not.toHaveProperty('message');
+      // An error's free text is never logged: it is not guaranteed transcript-free.
+      for (const text of serialised) expect(text).not.toContain('socket write failed');
+      expect(typeof line!.details.requestId).toBe('string');
+      expect(entries.some((entry) => entry.event === 'ws_streaming.upstream_parse_failed')).toBe(false);
+      harness.client.send = send;
       await harness.endSession();
     });
   });

@@ -890,6 +890,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "audio.error.permissionDenied" = "Akses mikrofon ditolak. Sila dayakan dalam Tetapan Sistem.";
 "audio.error.microphonePermission" = "Kebenaran mikrofon tidak diberikan";
 "audio.error.microphoneInUse" = "HyperWhisper tidak dapat mengakses mikrofon kerana aplikasi lain sedang menggunakannya. Jedakan aplikasi lain atau tukar input, kemudian cuba lagi.";
+"audio.error.audioSystemNotResponding" = "Audio macOS tidak bertindak balas, jadi mikrofon tidak dapat dimulakan. Cuba lagi sebentar nanti. Jika ia berterusan, mulakan semula Mac anda.";
 "audio.error.createEngine" = "Gagal mencipta enjin audio";
 "audio.error.noInput" = "Tiada input audio tersedia";
 "audio.error.createFile" = "Gagal mencipta fail audio";

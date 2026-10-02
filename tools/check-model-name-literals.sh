@@ -63,7 +63,10 @@ for (const n of out) if (n.trim().includes(" ") && !skip.has(n)) console.log(n);
 found=0
 while IFS= read -r name; do
   [ -z "$name" ] && continue
-  hits="$(grep -rnF "\"$name\"" \
+  # 2 spellings: a quoted literal in code, and an element value in markup. A
+  # `.resx` writes `<value>Nova 3 General</value>`, so the quoted form alone
+  # passed 40 files that each named a Deepgram model.
+  hits="$(grep -rnF -e "\"$name\"" -e ">$name<" \
       --include='*.swift' --include='*.cs' --include='*.axaml' \
       --include='*.xaml' --include='*.resx' --include='*.strings' \
       app/ 2>/dev/null \

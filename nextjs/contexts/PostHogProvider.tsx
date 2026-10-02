@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import posthog from "posthog-js";
 import { PostHogProvider as PostHogReactProvider } from "posthog-js/react";
 import { env } from "@env/client.mjs";
@@ -44,12 +44,16 @@ function PostHogClientProviderInner({ children }: PostHogClientProviderProps) {
   );
 }
 
+// No Suspense here. This provider wraps every page, and a boundary at this
+// level streams each page into a hidden chunk that only a script reveals, so
+// with JavaScript off every route painted blank (#1089). The 2 useSearchParams
+// callers with no boundary of their own (download, sign-in) render
+// dynamically, because the layouts read headers() and neither page sets
+// `dynamic = "force-static"`. A static route (blog, latency and
+// choosing-a-model are) or shared chrome that calls useSearchParams must add
+// its own Suspense boundary, or `next build` fails.
 export function PostHogClientProvider({
   children,
 }: PostHogClientProviderProps) {
-  return (
-    <Suspense fallback={null}>
-      <PostHogClientProviderInner>{children}</PostHogClientProviderInner>
-    </Suspense>
-  );
+  return <PostHogClientProviderInner>{children}</PostHogClientProviderInner>;
 }

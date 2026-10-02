@@ -251,6 +251,7 @@
     "description": "Saadame sulle e-postiga allalaadimislingi ja lühikese õpetusvideo, et saaksid kiiresti alustada. Rämpsposti ei saada.",
     "downloadButton": "Laadi HyperWhisper alla",
     "errorGeneric": "Midagi läks valesti. Palun proovi uuesti.",
+    "errorEmail": "Sisesta kehtiv e-posti aadress.",
     "errorNetwork": "Võrguviga. Kontrolli ühendust ja proovi uuesti.",
     "thankYouTitle": "Aitäh!",
     "downloadStarted": "Allalaadimine peaks algama automaatselt.",

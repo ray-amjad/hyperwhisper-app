@@ -53,7 +53,6 @@ export const LanguageSwitcher = () => {
         classNames={{
           list: "max-h-[70vh] overflow-y-auto overscroll-contain",
         }}
-        disabledKeys={[locale]}
         selectedKeys={[locale]}
         selectionMode="single"
         onSelectionChange={(keys) => {

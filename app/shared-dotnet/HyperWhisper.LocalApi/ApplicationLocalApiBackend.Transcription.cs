@@ -113,8 +113,7 @@ public sealed partial class ApplicationLocalApiBackend
             // cancelled token before deciding whether staged audio is orphaned.
             try
             {
-                retainedByHistory = (await _history.ListAsync(CancellationToken.None).ConfigureAwait(false))
-                    .Any(item => string.Equals(item.AudioFilePath, path, StringComparison.Ordinal));
+                retainedByHistory = await _history.AnyWithAudioFileAsync(path, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -133,16 +132,14 @@ public sealed partial class ApplicationLocalApiBackend
 
     public async ValueTask<RecordingPage> GetRecordingsAsync(RecordingQuery query, CancellationToken cancellationToken)
     {
-        IEnumerable<Transcript> rows = await _history.ListAsync(cancellationToken).ConfigureAwait(false);
-        if (!string.IsNullOrWhiteSpace(query.Search)) rows = rows.Where(item => item.Text.Contains(query.Search, StringComparison.OrdinalIgnoreCase) || (item.TranscribedText?.Contains(query.Search, StringComparison.OrdinalIgnoreCase) ?? false));
-        if (query.Since is { } since) rows = rows.Where(item => item.Date >= since);
-        if (query.Until is { } until) rows = rows.Where(item => item.Date <= until);
-        // Materialize the filtered set so `Total` is the true match count, not the
-        // page size. Windows does exactly this (`matches.Count` before `Take(limit)`)
-        // and macOS runs a separate count fetch; a client paginating on
-        // `total > returned` has to see the same number on all three heads.
-        var matches = rows.ToList();
-        return new RecordingPage(matches.Take(query.Limit).Select(ToRecording).ToList(), matches.Count);
+        // Filter, count and limit run in SQL, not over the whole table (#1087).
+        // `Total` is still the true match count, not the page size. Windows
+        // uses `matches.Count` before `Take(limit)` and macOS runs a separate
+        // count fetch; a client paginating on `total > returned` has to see the
+        // same number on all three heads.
+        var (page, total) = await _history.QueryPageAsync(
+            query.Search, query.Since, query.Until, query.Limit, cancellationToken).ConfigureAwait(false);
+        return new RecordingPage(page.Select(ToRecording).ToList(), total);
     }
 
     public async ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken cancellationToken)

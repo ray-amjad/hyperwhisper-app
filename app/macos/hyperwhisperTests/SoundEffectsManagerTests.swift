@@ -70,9 +70,7 @@ private final class BlockingSoundPlayer: SoundEffectPlayer, @unchecked Sendable 
 
     /// True once `play()` has been entered, or false after `timeout` seconds.
     func waitUntilBlocked(timeout: Double = 5) async -> Bool {
-        await Task.detached {
-            self.entered.wait(timeout: .now() + timeout) == .success
-        }.value
+        await waitOffThePool(for: entered, seconds: timeout)
     }
 
     func release() {

@@ -251,6 +251,7 @@
     "description": "Atsiųsime jums atsisiuntimo nuorodą ir trumpą mokomąjį vaizdo įrašą, kad galėtumėte greitai pradėti. Jokio šlamšto.",
     "downloadButton": "Atsisiųsti HyperWhisper",
     "errorGeneric": "Kažkas nepavyko. Bandykite dar kartą.",
+    "errorEmail": "Įveskite galiojantį el. pašto adresą.",
     "errorNetwork": "Tinklo klaida. Patikrinkite ryšį ir bandykite dar kartą.",
     "thankYouTitle": "Ačiū!",
     "downloadStarted": "Atsisiuntimas turėtų prasidėti automatiškai.",

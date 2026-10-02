@@ -301,8 +301,9 @@
                                         <ComboBox x:Name="DeepgramModelBox"
                                                   Grid.Column="2"
                                                   SelectionChanged="DeepgramModelBox_SelectionChanged">
-                                            <ComboBoxItem Content="{loc:Loc settings.streaming.deepgram.model.general}" Tag="nova-3-general"/>
-                                            <ComboBoxItem Content="{loc:Loc settings.streaming.deepgram.model.medical}" Tag="nova-3-medical"/>
+                                            <!-- Content is the catalog name, set in OnLoaded (#837). -->
+                                            <ComboBoxItem Tag="nova-3-general"/>
+                                            <ComboBoxItem Tag="nova-3-medical"/>
                                         </ComboBox>
                                     </Grid>
 

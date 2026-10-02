@@ -341,10 +341,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// delivered this session.
     ///
     /// COUNTS ONLY, AND NAMED SO THEY SURVIVE. `SentryService.beforeSend`
-    /// redacts any extra whose KEY contains `transcript`, `text` or `prompt`
-    /// without warning the call site, which is how three Windows fields shipped
-    /// `[redacted]` for months (HYPERWHISPER-PA). `finals_delivered` arrives;
-    /// `final_transcripts` would not.
+    /// redacts any non-Bool, non-number extra whose KEY contains `transcript`,
+    /// `text` or `prompt` without warning the call site (#684 lets a number
+    /// through); a type-blind rule is how three Windows fields shipped
+    /// `[redacted]` for months (HYPERWHISPER-PA), so keep the names clean.
     private var finalsDelivered = 0
     private var partialsDelivered = 0
 

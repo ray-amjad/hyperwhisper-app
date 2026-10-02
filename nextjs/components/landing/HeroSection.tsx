@@ -2,15 +2,37 @@
 
 import { Button } from "@heroui/button";
 import { Link } from "@heroui/link";
-import { m } from "framer-motion";
+import { m, type Variants } from "framer-motion";
 import { Download, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
+
+const container: Variants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1 } },
+};
+
+const chunk: Variants = {
+  hidden: { opacity: 0, y: 12, filter: "blur(4px)" },
+  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+};
+
+// Set once the hero has mounted on the client. The first mount is the
+// server-rendered one, so it skips the entrance: an `initial` hidden state
+// would be written into the server HTML and blank the hero until hydration
+// (#758). Later client-side mounts (navigating back to the home page) play it.
+let hasHydrated = false;
 
 export default function HeroSection() {
   const { openModal } = useDownloadModal();
   const t = useTranslations("hero");
+  const [playEntrance] = useState(() => hasHydrated);
+
+  useEffect(() => {
+    hasHydrated = true;
+  }, []);
 
   return (
     <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 pt-12 pb-20 overflow-hidden">
@@ -22,34 +44,43 @@ export default function HeroSection() {
       </div>
 
       <m.div
-        animate={{ opacity: 1, y: 0 }}
+        animate="visible"
         className="text-center max-w-5xl mx-auto"
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.5 }}
+        initial={playEntrance ? "hidden" : false}
+        variants={container}
       >
         {/* Logo */}
-        <div className="mb-8 flex justify-center">
+        <m.div className="mb-8 flex justify-center" variants={chunk}>
           <img
             alt={t("logoAlt")}
             className="w-40 h-40 rounded-2xl shadow-2xl"
-            src="/icon/256.png"
+            src="/icon/512.png"
           />
-        </div>
+        </m.div>
 
         {/* Main headline */}
-        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+        <m.h1
+          className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent"
+          variants={chunk}
+        >
           {t("headline")}
           <br />
           {t("headlineAccent")}
-        </h1>
+        </m.h1>
 
         {/* Subheadline */}
-        <p className="text-xl md:text-2xl text-gray-400 mb-10 max-w-3xl mx-auto">
+        <m.p
+          className="text-xl md:text-2xl text-gray-400 mb-10 max-w-3xl mx-auto"
+          variants={chunk}
+        >
           {t("subheadline")}
-        </p>
+        </m.p>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+        <m.div
+          className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8"
+          variants={chunk}
+        >
           <Button
             className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold px-8 py-6 text-lg"
             size="lg"
@@ -68,10 +99,13 @@ export default function HeroSection() {
           >
             {t("demoCta")}
           </Button>
-        </div>
+        </m.div>
 
         {/* Platform badges */}
-        <div className="flex gap-4 justify-center items-center">
+        <m.div
+          className="flex gap-4 justify-center items-center"
+          variants={chunk}
+        >
           <span className="text-sm text-gray-500">{t("availableOn")}</span>
           <div className="flex gap-3 flex-wrap justify-center">
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700">
@@ -84,7 +118,7 @@ export default function HeroSection() {
               <span className="text-sm text-gray-300">{t("linux")}</span>
             </div>
           </div>
-        </div>
+        </m.div>
       </m.div>
     </section>
   );
