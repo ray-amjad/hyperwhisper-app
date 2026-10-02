@@ -77,9 +77,12 @@ struct RecorderStartGateTests {
         release.signal()
         #expect(await Self.wait(discardRan))
         #expect(discardedValue.withLock { $0 } == 7)
-        // `discardLate` signals before the gate decrements its count on the queue.
-        // A no-op run behind it on the same serial queue returns only after that.
-        _ = try await gate.run({ 0 }, discardLate: { _ in })
+        // `discardLate` signals before the gate decrements its count on the queue,
+        // so give the decrement a bounded wall-clock window instead of reading at once.
+        let clearDeadline = ContinuousClock.now + .seconds(2)
+        while gate.hasAbandonedWork && ContinuousClock.now < clearDeadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
         #expect(gate.hasAbandonedWork == false)
     }
 
