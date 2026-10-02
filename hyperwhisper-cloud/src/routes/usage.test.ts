@@ -563,7 +563,9 @@ describe('usageRoute telemetry', () => {
     logSpy.mockRestore();
   });
 
-  // Only the route's own events: validateAuth may log lines of its own.
+  // Only the route's own usage.* events. validateAuth writes no line, but the
+  // spy sees every console.log in the process, so the filter keeps these
+  // counts about this route and nothing else.
   function usageLines(): Array<{ raw: string; parsed: Record<string, unknown> }> {
     return logSpy.mock.calls
       .map((call) => String(call[0]))
@@ -662,5 +664,61 @@ describe('usageRoute telemetry', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]?.parsed).toMatchObject({ event: 'usage.request_rejected', reason });
     expectClean(lines[0]!.raw);
+  });
+
+  // A licensing-API outage also fails closed with a 401. The rejection line has
+  // to say so, or an outage is indistinguishable from a bad key in the logs.
+  test.each([
+    ['an upstream 503', () => Response.json({ error: `down for ${SECRET_KEY} ${EMAIL}` }, { status: 503 }),
+      { authSource: 'api', authOutcome: 'api_transient_status', authCacheHit: false, authUpstreamStatus: 503 }],
+    ['an upstream timeout', () => { throw new DOMException(`timed out ${SECRET_KEY}`, 'TimeoutError'); },
+      { authSource: 'api', authOutcome: 'api_timeout', authCacheHit: false, authApiErrorType: 'dom_exception' }],
+  ] as const)('an invalid_license line after %s carries the auth diagnostics and no key, email or IP', async (_label, validate, expected) => {
+    cachedLicense = null;
+    withLicenseApi({ validate });
+
+    const response = await request(`account_key=${SECRET_KEY}`);
+
+    expect(response.status).toBe(401);
+    const lines = usageLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.parsed).toMatchObject({ event: 'usage.request_rejected', reason: 'invalid_license', ...expected });
+    expect(typeof lines[0]?.parsed.authElapsedMs).toBe('number');
+    expectClean(lines[0]!.raw);
+  });
+
+  test('the fallback revalidation after a failed balance read carries its diagnostics on the rejection', async () => {
+    cachedLicense = { isValid: true, credits: 12, cachedAt: 'cached' };
+    withLicenseApi({
+      credits: () => Response.json({ error: 'balance unavailable' }, { status: 500 }),
+      validate: () => Response.json({ error: `down for ${SECRET_KEY}` }, { status: 502 }),
+    });
+
+    const response = await request(`account_key=${SECRET_KEY}&force_refresh=true`);
+
+    expect(response.status).toBe(401);
+    const rejected = usageLines().filter((line) => line.parsed.event === 'usage.request_rejected');
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.parsed).toMatchObject({
+      reason: 'invalid_license',
+      authSource: 'api',
+      authOutcome: 'api_transient_status',
+      authUpstreamStatus: 502,
+    });
+    for (const line of usageLines()) expectClean(line.raw);
+  });
+
+  test('a genuinely bad key is told apart from an outage by its auth outcome', async () => {
+    cachedLicense = { isValid: false, credits: 0, cachedAt: 'x' };
+    forbidFetch();
+
+    await request(`account_key=${SECRET_KEY}`);
+
+    expect(usageLines()[0]?.parsed).toMatchObject({
+      reason: 'invalid_license',
+      authSource: 'cache',
+      authOutcome: 'cached_invalid',
+      authCacheHit: true,
+    });
   });
 });

@@ -3,7 +3,7 @@
 
 import type { Context } from 'hono';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
-import { validateAuth } from '../middleware/auth';
+import { authDiagnosticsForLog, validateAuth, type AuthDiagnostics } from '../middleware/auth';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense } from '../lib/redis';
@@ -85,6 +85,10 @@ export async function usageRoute(c: Context) {
   if (licenseKey) {
     let isValid = false;
     let credits = 0;
+    // Set by every validateAuth call below. A rejection always comes from one,
+    // so the invalid_license line can say WHY: a licensing-API timeout or 5xx
+    // also fails closed, and without these fields it reads as a bad key.
+    let authDiagnostics: AuthDiagnostics | undefined;
 
     if (forceRefresh) {
       const cached = await getCachedLicense(licenseKey);
@@ -99,6 +103,7 @@ export async function usageRoute(c: Context) {
           });
           const validation = await validateAuth({ licenseKey }, true);
           isValid = validation.ok;
+          authDiagnostics = validation.diagnostics;
           credits = validation.ok ? validation.value.credits : 0;
         } else {
           isValid = true;
@@ -107,16 +112,21 @@ export async function usageRoute(c: Context) {
       } else {
         const validation = await validateAuth({ licenseKey }, true);
         isValid = validation.ok;
+        authDiagnostics = validation.diagnostics;
         credits = validation.ok ? validation.value.credits : 0;
       }
     } else {
       const validation = await validateAuth({ licenseKey });
       isValid = validation.ok;
+      authDiagnostics = validation.diagnostics;
       credits = validation.ok ? validation.value.credits : 0;
     }
 
     if (!isValid) {
-      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'invalid_license' });
+      logEvent(requestId, startTime, 'usage.request_rejected', {
+        reason: 'invalid_license',
+        ...(authDiagnostics ? authDiagnosticsForLog(authDiagnostics) : {}),
+      });
       return errorResponse(401, 'Invalid license key', 'The provided license key is invalid or expired');
     }
 
