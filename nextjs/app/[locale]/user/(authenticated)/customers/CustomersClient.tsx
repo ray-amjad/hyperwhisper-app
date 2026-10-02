@@ -356,7 +356,9 @@ export default function CustomersClient() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                {/* Fixed width (#914): the inline email editor fits inside it, so
+                    opening it never widens the column or re-wraps other rows. */}
+                <th className="w-[24rem] px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Email
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -401,62 +403,68 @@ export default function CustomersClient() {
                       {/* Email + inline edit */}
                       <td className="px-6 py-4">
                         {isEditing ? (
-                          <form
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              const value = editEmail.trim();
-                              if (value) {
-                                updateEmailMutation.mutate({
-                                  userId: customer.userId,
-                                  newEmail: value,
-                                });
-                              }
-                            }}
-                            className="flex flex-col gap-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="email"
-                                value={editEmail}
-                                onChange={(e) => setEditEmail(e.target.value)}
-                                autoFocus
-                                required
-                                className="px-2 py-1 bg-white/10 border border-emerald-500/60 rounded text-white text-sm focus:outline-none focus:border-emerald-400 min-w-[14rem]"
-                              />
-                              <button
-                                type="submit"
-                                disabled={updateEmailMutation.isPending}
-                                className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-medium transition-colors disabled:opacity-50"
-                              >
-                                {updateEmailMutation.isPending ? "Saving..." : "Save"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEdit}
-                                disabled={updateEmailMutation.isPending}
-                                className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-gray-300 rounded text-xs font-medium transition-colors border border-white/10 disabled:opacity-50"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                            <p className="text-amber-300/80 text-xs">
-                              Updates this customer&apos;s account email and moves
-                              {" "}
-                              {customer.licenseCount === 1
-                                ? "their Account Key"
-                                : `all ${customer.licenseCount} Account Keys`}
-                              {" "}
-                              to the new address.
-                            </p>
-                            {updateEmailMutation.error && (
-                              <p className="text-red-300 text-xs">
-                                {updateEmailMutation.error.message}
+                          // w-0 + min-w-full: the editor adds no intrinsic width to the
+                          // column, it fills the fixed one (#914). t-cell-reveal tweens it in.
+                          // The input is w-0 flex-1: its default size=20 width (~228px) would
+                          // otherwise set the form's min-content and overflow the cell.
+                          <div className="t-cell-reveal w-0 min-w-full">
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const value = editEmail.trim();
+                                if (value) {
+                                  updateEmailMutation.mutate({
+                                    userId: customer.userId,
+                                    newEmail: value,
+                                  });
+                                }
+                              }}
+                              className="flex flex-col gap-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="email"
+                                  value={editEmail}
+                                  onChange={(e) => setEditEmail(e.target.value)}
+                                  autoFocus
+                                  required
+                                  className="px-2 py-1 bg-white/10 border border-emerald-500/60 rounded text-white text-sm focus:outline-none focus:border-emerald-400 w-0 min-w-0 flex-1"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={updateEmailMutation.isPending}
+                                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-medium transition-colors disabled:opacity-50"
+                                >
+                                  {updateEmailMutation.isPending ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  disabled={updateEmailMutation.isPending}
+                                  className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-gray-300 rounded text-xs font-medium transition-colors border border-white/10 disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                              <p className="text-amber-300/80 text-xs">
+                                Updates this customer&apos;s account email and moves
+                                {" "}
+                                {customer.licenseCount === 1
+                                  ? "their Account Key"
+                                  : `all ${customer.licenseCount} Account Keys`}
+                                {" "}
+                                to the new address.
                               </p>
-                            )}
-                          </form>
+                              {updateEmailMutation.error && (
+                                <p className="text-red-300 text-xs">
+                                  {updateEmailMutation.error.message}
+                                </p>
+                              )}
+                            </form>
+                          </div>
                         ) : (
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-gray-300">{customer.email}</span>
+                            <span className="text-gray-300 wrap-anywhere">{customer.email}</span>
                             {customer.licenseCount > 1 && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300">
                                 {customer.licenseCount} licenses
