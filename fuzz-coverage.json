@@ -284,6 +284,24 @@
       ],
       "licensed": false,
       "note": "mac on rented Namespace macos/arm64:6x14, app 2.49.0 Debug, UNLICENSED (Debug points at Cloud staging; no HYPERWHISPER_ACCOUNT_KEY in the box). setup.sh + drive.txt still work at 2.49.0 (~6 min to BUILD SUCCEEDED); onboarding ended in a real on-device Whisper Base transcription. Codex found 0 defects on all 3 routes. local-api was ALSO walked by curl over nsc ssh (auth 401s, bad base64, garbage audio, file outside recordings dir all answer sensibly); filed #1100 (valid audio with no mode_id/engine answers a bare 'Invalid request.', Windows/Linux say Provide mode_id or engine). HTTP 200 for ok:false is BY DESIGN (hw-localapi test every_reason_is_an_http_200_business_failure). /health key_present:true for hyperwhisper on an unlicensed app is BY DESIGN (HealthEndpoint.swift:38). streaming: hotkey never fires over VNC, so no live session was started. First click swallowed again on the Local API toggle."
+    },
+    {
+      "at": "2026-10-02T01:51:53Z",
+      "platform": "linux",
+      "commit": "4c9ec57",
+      "routes": [
+        "core-settings",
+        "licence",
+        "onboarding"
+      ],
+      "status": "3-filed",
+      "issues": [
+        1186,
+        1187,
+        1188
+      ],
+      "licensed": false,
+      "note": "Unlicensed (no HYPERWHISPER_ACCOUNT_KEY). #1186 keep-mic-warm deadlock: if a later round enables Keep microphone warm, the app freezes on the next save - set keepMicrophoneWarm false before walking other routes. Dropped: Home+Settings double sidebar highlight (unclear, cosmetic), rejected licence key cleared (deliberate in CloudAccountViewModel). Not walked: Shortcuts/Storage/Appearance pages (the freeze ate the pass), global hotkey (headless)."
     }
   ]
 }
