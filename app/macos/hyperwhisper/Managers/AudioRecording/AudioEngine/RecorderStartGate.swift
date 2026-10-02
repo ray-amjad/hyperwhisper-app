@@ -87,7 +87,7 @@ final class RecorderStartGate: @unchecked Sendable {
                 if case .success(let value) = result {
                     discardLate(value)
                 }
-                self.abandonedCount.withLock { $0 -= 1 }
+                // MUTATION: decrement removed
             }
 
             DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeout) {
