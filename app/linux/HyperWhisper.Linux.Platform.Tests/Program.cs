@@ -2005,6 +2005,9 @@ static Task XdgAutostart() => WithTemporaryDirectory(directory =>
     Assert.True(service.IsEnabled().Value);
     Assert.Success(service.Disable());
     Assert.True(!File.Exists(path));
+    Assert.Equal("/usr/bin/hyperwhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => true));
+    Assert.Equal("/usr/lib/hyperwhisper/HyperWhisper", LinuxAutostartService.LaunchPath("/usr/lib/hyperwhisper/HyperWhisper", _ => false));
+    Assert.Equal("/opt/hw/HyperWhisper", LinuxAutostartService.LaunchPath("/opt/hw/HyperWhisper", _ => true));
 });
 
 static Task PushToTalkPrivacy()
