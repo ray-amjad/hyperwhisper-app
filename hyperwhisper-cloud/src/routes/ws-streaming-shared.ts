@@ -315,6 +315,10 @@ export function makeStreamingPreflight(minimumCredits: () => number) {
 // Socket lifecycle
 // ---------------------------------------------------------------------------
 
+function errorName(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
+}
+
 function decodeUpstreamFrame(raw: unknown): string {
   // `event.data` is typed `any` by the WebSocket lib and a vendor can deliver a
   // frame as a string or as binary. Coerce explicitly rather than asserting.
@@ -603,6 +607,8 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       clientSocket = ws;
 
       if (!apiKey) {
+        // Never log the key or its length; the event name is the whole signal.
+        log('config_missing_api_key');
         sendToClient(ws, { type: 'error', message: `${vendor.label} API key not configured` });
         ws.close(1011, 'Configuration error');
         return;
@@ -630,19 +636,35 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       });
 
       upstreamWs.addEventListener('message', (event) => {
+        // A frame carries the user's transcript, so neither failure below logs
+        // it — nor a parse error's message, which quotes the input (#1069).
+        let text = '';
+        let decodedEvents: UpstreamEvent[];
         try {
-          const text = decodeUpstreamFrame((event as MessageEvent).data);
+          text = decodeUpstreamFrame((event as MessageEvent).data);
           // Validate the parsed shape instead of asserting it — an unexpected
           // frame is ignored, not trusted.
-          for (const decoded of vendor.parseUpstream(text)) {
+          decodedEvents = vendor.parseUpstream(text);
+        } catch (error) {
+          log('upstream_parse_failed', { errorName: errorName(error), frameLength: text.length });
+          return;
+        }
+        try {
+          for (const decoded of decodedEvents) {
             handleUpstreamEvent(decoded, ws);
           }
         } catch (error) {
-          console.warn(`Failed to parse ${vendor.label} message`, error);
+          // Our own fault on a valid frame, not the vendor's.
+          log('upstream_event_failed', {
+            errorName: errorName(error),
+            message: error instanceof Error ? error.message.slice(0, 200) : null,
+          });
         }
       });
 
-      upstreamWs.addEventListener('error', () => {
+      upstreamWs.addEventListener('error', (event) => {
+        const message = (event as { message?: unknown } | undefined)?.message;
+        log('upstream_socket_error', { message: typeof message === 'string' ? message.slice(0, 200) : null });
         sendToClient(ws, { type: 'error', message: 'Transcription service error' });
       });
 
