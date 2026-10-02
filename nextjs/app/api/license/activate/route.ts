@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { unparseableRequestFields } from "@/src/lib/unparseable-request-fields";
 import {
   checkLicenseKey,
   invalidLicenseResponse,
@@ -58,7 +59,11 @@ export async function POST(req: NextRequest) {
   let body: unknown;
   try {
     body = await req.json();
-  } catch {
+  } catch (err) {
+    console.error(
+      "License activate: request JSON did not parse",
+      unparseableRequestFields(req, err),
+    );
     return invalidLicenseResponse({
       valid: false,
       error: "Invalid request body",
