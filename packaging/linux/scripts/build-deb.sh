@@ -143,7 +143,15 @@ if [[ -f "$PACKAGE_ROOT/usr/lib/hyperwhisper/createdump" ]]; then
     chmod 0755 "$PACKAGE_ROOT/usr/lib/hyperwhisper/createdump"
 fi
 
-ln -s ../lib/hyperwhisper/HyperWhisper "$PACKAGE_ROOT/usr/bin/hyperwhisper"
+# A launcher, not a symlink: glibc must see MALLOC_ARENA_MAX before the .NET
+# runtime starts its threads, or each thread keeps a ~60 MB arena of freed
+# Whisper buffers (#1088). A value the user already set wins.
+cat > "$PACKAGE_ROOT/usr/bin/hyperwhisper" <<'LAUNCHER'
+#!/bin/sh
+export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
+exec /usr/lib/hyperwhisper/HyperWhisper "$@"
+LAUNCHER
+chmod 0755 "$PACKAGE_ROOT/usr/bin/hyperwhisper"
 install -m 0644 "$DEBIAN_SOURCE/hyperwhisper.desktop" \
     "$PACKAGE_ROOT/usr/share/applications/hyperwhisper.desktop"
 install -m 0644 "$ICON_PATH" "$PACKAGE_ROOT/usr/share/pixmaps/hyperwhisper.png"
