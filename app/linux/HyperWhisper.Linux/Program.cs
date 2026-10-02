@@ -19,6 +19,9 @@ internal static class Program
     private static void CapMallocArenas()
     {
         if (!OperatingSystem.IsLinux()) return;
+        // mallopt beats the environment, so leave a cap the user or the launcher already set.
+        if (Environment.GetEnvironmentVariable("MALLOC_ARENA_MAX") is not null
+            || Environment.GetEnvironmentVariable("GLIBC_TUNABLES")?.Contains("glibc.malloc.arena_max", StringComparison.Ordinal) == true) return;
         try { _ = Mallopt(MArenaMax, 2); }
         catch (EntryPointNotFoundException) { } // non-glibc libc
         catch (DllNotFoundException) { }
