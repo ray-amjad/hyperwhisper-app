@@ -223,6 +223,23 @@ describe('requestAnthropicChat', () => {
     expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
   });
 
+  test('a non-number token count bills 0 for that bucket instead of a NaN cost (#922)', async () => {
+    stubFetch(
+      Response.json({
+        content: [{ type: 'text', text: 'ok' }],
+        stop_reason: 'end_turn',
+        usage: { input_tokens: '1.2k', output_tokens: 500 },
+      }),
+    );
+
+    const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+
+    expect(Number.isFinite(result.costUsd)).toBe(true);
+    // Only the 500 well-formed output tokens are billed.
+    expect(result.costUsd).toBeCloseTo(0.0025, 9);
+    expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 500, total_tokens: 500 });
+  });
+
   test('returns the raw body so the completion policy can read Anthropic stop_reason', async () => {
     stubFetch(
       Response.json({
@@ -330,6 +347,48 @@ describe('streamAnthropicChat', () => {
     expect(sseDataLines(await drain(stream))).toEqual([
       JSON.stringify({ choices: [{ delta: { content: 'before' } }] }),
       JSON.stringify({ choices: [{ delta: { content: 'after' } }] }),
+      '[DONE]',
+    ]);
+  });
+
+  test('a non-number token count bills 0 for that bucket instead of a NaN cost (#922)', async () => {
+    stubFetch(
+      new Response(
+        bodyStream(
+          sseText([
+            { type: 'message_start', message: { usage: { input_tokens: '1.2k', cache_read_input_tokens: { value: 1 } } } },
+            { type: 'message_delta', usage: { output_tokens: 500 } },
+          ]),
+        ),
+      ),
+    );
+
+    const { stream, costPromise } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID);
+    await drain(stream);
+    const cost = await costPromise;
+
+    expect(Number.isFinite(cost)).toBe(true);
+    // Only the 500 well-formed output tokens are billed.
+    expect(cost).toBeCloseTo(0.0025, 9);
+  });
+
+  test('a non-string text delta is dropped, not stringified into the client stream (#922)', async () => {
+    stubFetch(
+      new Response(
+        bodyStream(
+          sseText([
+            { type: 'content_block_delta', delta: { text: 42 } },
+            { type: 'content_block_delta', delta: { text: { nested: 'x' } } },
+            { type: 'content_block_delta', delta: { text: 'kept' } },
+          ]),
+        ),
+      ),
+    );
+
+    const { stream } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID);
+
+    expect(sseDataLines(await drain(stream))).toEqual([
+      JSON.stringify({ choices: [{ delta: { content: 'kept' } }] }),
       '[DONE]',
     ]);
   });

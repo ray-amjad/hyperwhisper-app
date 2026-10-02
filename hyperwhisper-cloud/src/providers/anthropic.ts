@@ -33,6 +33,21 @@ export interface AnthropicStreamResult {
   costPromise: Promise<number>;
 }
 
+// One parsed SSE `data:` line. Every field is optional and the token counts are
+// `unknown`: they decide the credit deduction, so they are checked at runtime.
+interface AnthropicStreamEvent {
+  type?: string;
+  message?: { usage?: { input_tokens?: unknown; cache_creation_input_tokens?: unknown; cache_read_input_tokens?: unknown } };
+  delta?: { text?: unknown };
+  usage?: { output_tokens?: unknown };
+}
+
+// A token count is billable only as a finite, non-negative number; anything
+// else bills 0 instead of turning the cost into NaN.
+function toTokenCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
 /**
  * Calls the Anthropic Messages API without streaming.
  * Used for post-processing text correction via the /post-process endpoint.
@@ -90,10 +105,10 @@ export async function requestAnthropicChat(
         content: Array<{ type: string; text?: string }>;
         stop_reason?: string | null;
         usage: {
-          input_tokens: number;
-          output_tokens: number;
-          cache_creation_input_tokens?: number;
-          cache_read_input_tokens?: number;
+          input_tokens: unknown;
+          output_tokens: unknown;
+          cache_creation_input_tokens?: unknown;
+          cache_read_input_tokens?: unknown;
         };
       };
     },
@@ -101,10 +116,10 @@ export async function requestAnthropicChat(
     timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
-  const inputTokens = data.usage?.input_tokens || 0;
-  const outputTokens = data.usage?.output_tokens || 0;
-  const cacheCreationTokens = data.usage?.cache_creation_input_tokens || 0;
-  const cacheReadTokens = data.usage?.cache_read_input_tokens || 0;
+  const inputTokens = toTokenCount(data.usage?.input_tokens);
+  const outputTokens = toTokenCount(data.usage?.output_tokens);
+  const cacheCreationTokens = toTokenCount(data.usage?.cache_creation_input_tokens);
+  const cacheReadTokens = toTokenCount(data.usage?.cache_read_input_tokens);
   const costUsd = computeAnthropicCost(inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens);
 
   console.log(`[${requestId}] Anthropic usage: input=${inputTokens}, output=${outputTokens}, cacheWrite=${cacheCreationTokens}, cacheRead=${cacheReadTokens}, cost=$${costUsd.toFixed(6)}`);
@@ -227,30 +242,35 @@ export function streamAnthropicChat(
             const data = line.slice(6).trim();
             if (!data || data === '[DONE]') continue;
 
+            let event: AnthropicStreamEvent | null;
             try {
-              const event = JSON.parse(data);
-
-              // Track usage from message_start (cache_* buckets arrive here too)
-              if (event.type === 'message_start' && event.message?.usage) {
-                inputTokens = event.message.usage.input_tokens || 0;
-                cacheCreationTokens = event.message.usage.cache_creation_input_tokens || 0;
-                cacheReadTokens = event.message.usage.cache_read_input_tokens || 0;
-              }
-
-              // Emit text deltas as OpenAI-compatible chunks
-              if (event.type === 'content_block_delta' && event.delta?.text) {
-                const chunk = JSON.stringify({
-                  choices: [{ delta: { content: event.delta.text } }],
-                });
-                controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
-              }
-
-              // Track output tokens from message_delta
-              if (event.type === 'message_delta' && event.usage) {
-                outputTokens = event.usage.output_tokens || 0;
-              }
+              const parsed: unknown = JSON.parse(data);
+              event = typeof parsed === 'object' ? parsed : null;
             } catch {
               // Skip malformed JSON lines
+              continue;
+            }
+            if (!event) continue;
+
+            // Track usage from message_start (cache_* buckets arrive here too)
+            if (event.type === 'message_start' && event.message?.usage) {
+              inputTokens = toTokenCount(event.message.usage.input_tokens);
+              cacheCreationTokens = toTokenCount(event.message.usage.cache_creation_input_tokens);
+              cacheReadTokens = toTokenCount(event.message.usage.cache_read_input_tokens);
+            }
+
+            // Emit text deltas as OpenAI-compatible chunks
+            const text = event.delta?.text;
+            if (event.type === 'content_block_delta' && typeof text === 'string' && text) {
+              const chunk = JSON.stringify({
+                choices: [{ delta: { content: text } }],
+              });
+              controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+            }
+
+            // Track output tokens from message_delta
+            if (event.type === 'message_delta' && event.usage) {
+              outputTokens = toTokenCount(event.usage.output_tokens);
             }
           }
         }
@@ -288,7 +308,7 @@ export function streamAnthropicChat(
         clearFirstByteTimer();
       }
     },
-    cancel(reason) {
+    cancel(reason: unknown) {
       clearFirstByteTimer();
       // Client disconnected: abort the upstream Anthropic request and bill
       // only the tokens observed up to this point (best effort — Anthropic
