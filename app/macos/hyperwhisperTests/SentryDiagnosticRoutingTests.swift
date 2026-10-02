@@ -78,7 +78,9 @@ struct SentryDiagnosticRoutingTests {
     /// wrapper's flattening, precedence and privacy behavior without a network.
     @Test func logsKeepScopeContextAndRedactContentKeys() {
         let attributes = SentryService.mergeLogAttributes(
-            scopeExtras: ["recording_stage": "captured", "prompt_body": "private"],
+            scopeExtras: [
+                "recording_stage": "captured", "prompt_body": "private", "transcript_empty": true
+            ],
             scopeTags: ["build_number": "100", "component": "scope"],
             extras: ["duration_ms": 42, "component": "extra"],
             tags: ["component": "transcription"]
@@ -89,5 +91,31 @@ struct SentryDiagnosticRoutingTests {
         #expect(attributes["duration_ms"] as? Int == 42)
         #expect(attributes["component"] as? String == "transcription")
         #expect(attributes["prompt_body"] as? String == "[redacted]")
+        #expect(attributes["transcript_empty"] as? Bool == true)
+    }
+
+    /// Issue #684: the key rule only flags a field; the value's type decides.
+    /// A Bool or a number cannot hold speech, so it survives a matching key.
+    @Test func redactionKeepsMeasurementsAndRedactsContent() {
+        let flag = SentryService.redactedValue(
+            forKey: "backend_empty_transcript_without_flag", value: false)
+        #expect(flag as? Bool == false)
+        #expect(SentryService.redactedValue(
+            forKey: "transcript_preview", value: "hello world") as? String == "[redacted]")
+        #expect(SentryService.redactedValue(
+            forKey: "paste_character_count", value: 286) as? Int == 286)
+        #expect(SentryService.redactedValue(
+            forKey: "prompt_token_count", value: 42) as? Int == 42)
+        #expect(SentryService.redactedValue(
+            forKey: "transcript_confidence", value: 0.5) as? Double == 0.5)
+        // Containers and null can hold content, or flatten to it, so they redact.
+        let containers: [Any] = [["hello"], ["text": "hello"], NSNull()]
+        for value in containers {
+            #expect(SentryService.redactedValue(
+                forKey: "prompt_parts", value: value) as? String == "[redacted]")
+        }
+        // An unmatched key is never touched, whatever it holds.
+        #expect(SentryService.redactedValue(
+            forKey: "recording_stage", value: "captured") as? String == "captured")
     }
 }
