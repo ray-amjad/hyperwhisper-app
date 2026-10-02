@@ -409,6 +409,14 @@ extension RecordingTranscriptionFlow {
         // interpolation takes a plain expression.
         let modePreset = PresetType.reportingValue(for: transcriptionMode)
 
+        // Audio actually sent to the provider: VAD-trimmed length when VAD ran,
+        // else the raw recording. Reused below for the UI-side slow threshold so
+        // both P3 (pipeline) and P4 (this flow) scale off the same duration.
+        // Computed before the `do` so every `stage_*` publish, the failure one
+        // included, carries this recording's value (issue #784).
+        let effectiveAudioDurationSeconds = (vadResult.wasProcessed ? trimResult?.trimmedDuration : nil) ?? recordingDuration
+        let uiDurationAllowanceMs = Int(effectiveAudioDurationSeconds * slowTranscribingUIPerAudioSecondMs)
+
         // Step 4: Perform transcription
         do {
             guard let transcriptionMgr = transcriptionPipeline else {
@@ -449,10 +457,25 @@ extension RecordingTranscriptionFlow {
             // Use finalAudioURL which may be VAD-trimmed if VAD was enabled.
             // `transcribe` folds provider selection + transcription + post-processing;
             // its wall time is surfaced as the transcribe stage.
-            // Audio actually sent to the provider: VAD-trimmed length when VAD ran,
-            // else the raw recording. Reused below for the UI-side slow threshold so
-            // both P3 (pipeline) and P4 (this flow) scale off the same duration.
-            let effectiveAudioDurationSeconds = (vadResult.wasProcessed ? trimResult?.trimmedDuration : nil) ?? recordingDuration
+            //
+            // Publish this recording's `stage_*` block BEFORE the call (issue #784):
+            // `transcribeWithDetails` captures its own failure event synchronously
+            // before it rethrows, so a publish in the `catch` below only reaches
+            // later events. Transcribe, Core Data update and the threshold are not
+            // known yet, so they are -1; the `catch` and the slow-success path
+            // overwrite the whole block with their final values.
+            SentryService.setExtras(Self.stageExtras(
+                wavReadyMs: wavReadyMs,
+                fileCheckMs: fileCheckMs,
+                vadTrimMs: vadTrimMs,
+                createRowMs: createRowMs,
+                transcribeMs: -1,
+                coreDataUpdateMs: -1,
+                flowMs: Int(Date().timeIntervalSince(flowStart) * 1000),
+                audioDurationSeconds: effectiveAudioDurationSeconds,
+                durationAllowanceMs: uiDurationAllowanceMs,
+                effectiveUIThresholdMs: -1
+            ))
             transcribeStart = Date()
             let transcriptionResult = try await transcriptionMgr.transcribeWithDetails(
                 audioURL: finalAudioURL,
@@ -650,7 +673,6 @@ extension RecordingTranscriptionFlow {
                 "Recording transcription flow succeeded · attemptId=\(attemptId) · trigger=\(trigger) · modePreset=\(modePreset) · provider=\(transcriptionResult.provider) · flowMs=\(flowElapsedMs) · transcribingUiMs=\(transcribingUIElapsedMs) · vadProcessed=\(vadResult.wasProcessed) · silenceRemovedSeconds=\(trimmedSeconds) · \(stageTimings)"
 
             let isLocalLLM = transcriptionResult.postProcessingProvider == PostProcessingProvider.localLLM.rawValue
-            let uiDurationAllowanceMs = Int(effectiveAudioDurationSeconds * slowTranscribingUIPerAudioSecondMs)
             let baseUIThreshold: Int
             if isLocalLLM {
                 baseUIThreshold = slowTranscribingUIWithLocalLLMThresholdMs
@@ -730,9 +752,11 @@ extension RecordingTranscriptionFlow {
             AppLogger.audio.error(
                 "Recording transcription flow failed · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public) · \(stageTimings, privacy: .public) · errorDomain=\(nsError.domain, privacy: .public) · errorCode=\(nsError.code, privacy: .public)"
             )
-            // Attach per-stage timings as scope extras so the pipeline's error event carries them.
-            // The audio duration and the UI threshold are computed only inside the
-            // `do` block, so they are -1 here (issue #784).
+            // The pipeline's own error event already went out with the pre-transcribe
+            // block published above (issue #784). This refresh puts the real
+            // transcribe ms and the final flow ms on every later event, such as the
+            // no-speech diagnostic. The UI threshold needs the transcription result,
+            // so it stays -1 here.
             SentryService.setExtras(Self.stageExtras(
                 wavReadyMs: wavReadyMs,
                 fileCheckMs: fileCheckMs,
@@ -741,8 +765,8 @@ extension RecordingTranscriptionFlow {
                 transcribeMs: transcribeMs,
                 coreDataUpdateMs: coreDataUpdateMs,
                 flowMs: flowElapsedMs,
-                audioDurationSeconds: -1,
-                durationAllowanceMs: -1,
+                audioDurationSeconds: effectiveAudioDurationSeconds,
+                durationAllowanceMs: uiDurationAllowanceMs,
                 effectiveUIThresholdMs: -1
             ))
             handleTranscriptionError(
@@ -759,8 +783,8 @@ extension RecordingTranscriptionFlow {
         }
     }
 
-    /// The `stage_*` Sentry scope extras, built in one place for the slow-success
-    /// and the failure publish (issue #784). `SentryService.setExtras` never
+    /// The `stage_*` Sentry scope extras, built in one place for the pre-transcribe,
+    /// the slow-success and the failure publish (issue #784). `SentryService.setExtras` never
     /// removes a key, so every publish writes EVERY key — a key left out would
     /// carry an earlier recording's value. -1 = not reached / not known.
     /// `stage_reported_at` lets a triager see the block's age, like `paste_reported_at`.
