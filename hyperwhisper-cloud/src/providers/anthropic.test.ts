@@ -334,6 +334,48 @@ describe('streamAnthropicChat', () => {
     ]);
   });
 
+  test('a non-number token count bills 0 for that bucket instead of a NaN cost (#922)', async () => {
+    stubFetch(
+      new Response(
+        bodyStream(
+          sseText([
+            { type: 'message_start', message: { usage: { input_tokens: '1.2k', cache_read_input_tokens: { value: 1 } } } },
+            { type: 'message_delta', usage: { output_tokens: 500 } },
+          ]),
+        ),
+      ),
+    );
+
+    const { stream, costPromise } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID);
+    await drain(stream);
+    const cost = await costPromise;
+
+    expect(Number.isFinite(cost)).toBe(true);
+    // Only the 500 well-formed output tokens are billed.
+    expect(cost).toBeCloseTo(0.0025, 9);
+  });
+
+  test('a non-string text delta is dropped, not stringified into the client stream (#922)', async () => {
+    stubFetch(
+      new Response(
+        bodyStream(
+          sseText([
+            { type: 'content_block_delta', delta: { text: 42 } },
+            { type: 'content_block_delta', delta: { text: { nested: 'x' } } },
+            { type: 'content_block_delta', delta: { text: 'kept' } },
+          ]),
+        ),
+      ),
+    );
+
+    const { stream } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID);
+
+    expect(sseDataLines(await drain(stream))).toEqual([
+      JSON.stringify({ choices: [{ delta: { content: 'kept' } }] }),
+      '[DONE]',
+    ]);
+  });
+
   test('an upstream non-2xx closes the stream with an error chunk and bills nothing', async () => {
     stubFetch(new Response('overloaded', { status: 529 }));
 
