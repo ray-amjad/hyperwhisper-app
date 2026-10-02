@@ -95,6 +95,56 @@ public class HistoryService
     }
 
     /// <summary>
+    /// One Local API <c>/recordings</c> page, filtered, counted and limited in SQL
+    /// rather than over the whole table (issue #1123). The match rule is the one the
+    /// endpoint always had: <c>Contains(q, OrdinalIgnoreCase)</c> over Text,
+    /// PostProcessedText and TranscribedText. SQLite LIKE folds ASCII case only, so a
+    /// non-ASCII rune becomes <c>_</c> (a superset) and the old check narrows it in
+    /// memory. A term holding NUL skips LIKE (SQLite cuts the pattern there, #1198).
+    /// </summary>
+    public (List<Transcript> Page, int Total) QueryPage(string? q, DateTime? since, DateTime? until, int limit)
+    {
+        lock (_lock)
+        {
+            using var context = new HyperWhisperDbContext();
+            var rows = context.Transcripts.AsNoTracking();
+            if (since is { } from) rows = rows.Where(t => t.Date >= from);
+            if (until is { } to) rows = rows.Where(t => t.Date <= to);
+            var hasTerm = !string.IsNullOrEmpty(q);
+            var exactInSql = !hasTerm || !q!.Contains('\0');
+            if (hasTerm && exactInSql)
+            {
+                var pattern = new System.Text.StringBuilder("%");
+                foreach (var rune in q!.EnumerateRunes())
+                {
+                    if (!rune.IsAscii) { exactInSql = false; pattern.Append('_'); continue; }
+                    if (rune.Value is '%' or '_' or '\\') pattern.Append('\\');
+                    pattern.Append((char)rune.Value);
+                }
+                var like = pattern.Append('%').ToString();
+                rows = rows.Where(t => EF.Functions.Like(t.Text, like, "\\")
+                    || EF.Functions.Like(t.PostProcessedText, like, "\\")
+                    || EF.Functions.Like(t.TranscribedText, like, "\\"));
+            }
+            // With a term, order by an expression IX_Transcripts_Date cannot serve, so
+            // SQLite scans with a top-N sort instead of a slower index walk (as #1195).
+            rows = hasTerm
+                ? rows.OrderByDescending(t => EF.Functions.Collate(t.Date, "RTRIM"))
+                : rows.OrderByDescending(t => t.Date);
+            if (exactInSql)
+            {
+                var page = rows.Take(limit).ToList();
+                return (page, page.Count < limit ? page.Count : rows.Count());
+            }
+            var matches = rows.AsEnumerable().Where(t =>
+                (t.Text?.Contains(q!, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.PostProcessedText?.Contains(q!, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.TranscribedText?.Contains(q!, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+            return (matches.Take(limit).ToList(), matches.Count);
+        }
+    }
+
+    /// <summary>
     /// Gets a transcript by ID.
     /// </summary>
     public Transcript? GetTranscript(Guid id)
