@@ -64,6 +64,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
+    ,("/recordings filters, counts and pages in SQL with the old match rule", RecordingsQueryRunsInSql)
 };
 foreach (var test in tests)
 {
@@ -541,6 +542,95 @@ static async Task EndpointContractSnapshots()
             && whole.RootElement.GetProperty("returned").GetInt32() == 3,
             "an untruncated page should report total == returned");
     }
+}
+
+// Issue #1087. `/recordings` loaded the whole Transcripts table and filtered it
+// in LINQ; filter, count and limit now run in SQL. The match rule must not
+// move: `Contains(q, OrdinalIgnoreCase)` over Text and TranscribedText only,
+// and `total` is every match, not the page. The reference below is the
+// pre-#1087 code, verbatim, so every case is also checked against it.
+static async Task RecordingsQueryRunsInSql()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(new ModeRepository(database), history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    var day = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    string[] texts =
+    [
+        "abc one", "xABCx two", "aBc three", "plain", "100% sure", "1000 sure", "snake_case", "snakeXcase",
+        @"back\slash", "backslash", "école", "ÉCOLE", "ecole", "straße", "日本語のテスト", "kis", "kıs",
+    ];
+    for (var i = 0; i < texts.Length; i++)
+        await history.AddAsync(new() { Text = texts[i], Date = day.AddHours(i), Status = HyperWhisper.Data.Entities.TranscriptStatus.Completed });
+    await history.AddAsync(new() { Text = "raw only", TranscribedText = "raw ABC", Date = day.AddHours(30) });
+    await history.AddAsync(new() { Text = "post only", PostProcessedText = "abc is not searched here", Date = day.AddHours(31) });
+
+    async Task<(int Total, string[] Texts)> Get(string url)
+    {
+        using var document = JsonDocument.Parse(await fixture.Client.GetStringAsync(url));
+        var root = document.RootElement;
+        var page = root.GetProperty("recordings").EnumerateArray().Select(item => item.GetProperty("text").GetString()!).ToArray();
+        Assert(root.GetProperty("returned").GetInt32() == page.Length, $"{url}: returned is not the page length");
+        return (root.GetProperty("total").GetInt32(), page);
+    }
+
+    async Task<(int Total, string[] Texts)> Reference(string? q, string? sinceText, string? untilText, int limit)
+    {
+        _ = DateTime.TryParse(sinceText, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var since);
+        _ = DateTime.TryParse(untilText, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var until);
+        IEnumerable<HyperWhisper.Data.Entities.Transcript> rows = await history.ListAsync();
+        if (!string.IsNullOrWhiteSpace(q)) rows = rows.Where(item => item.Text.Contains(q, StringComparison.OrdinalIgnoreCase) || (item.TranscribedText?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
+        if (since != default) rows = rows.Where(item => item.Date >= since);
+        if (until != default) rows = rows.Where(item => item.Date <= until);
+        var matches = rows.ToList();
+        return (matches.Count, matches.Take(limit).Select(item => item.Text).ToArray());
+    }
+
+    (string? Q, string? Since, string? Until, int Limit, int ExpectedTotal)[] cases =
+    [
+        ("ABC", null, null, 1, 4),            // case-insensitive, TranscribedText too, never PostProcessedText; total past limit
+        ("abc", null, null, 50, 4),
+        ("%", null, null, 50, 1),             // LIKE metacharacters are literal
+        ("_", null, null, 50, 1),
+        ("e_c", null, null, 50, 1),           // not snakeXcase
+        ("\\", null, null, 50, 1),
+        ("ÉCOLE", null, null, 50, 2),         // non-ASCII folds like OrdinalIgnoreCase, not like ASCII-only LIKE
+        ("é", null, null, 50, 2),
+        ("STRASSE", null, null, 50, 0),       // ordinal, so no ß expansion
+        ("日本", null, null, 50, 1),
+        ("kis", null, null, 50, 1),           // dotless ı is not i under OrdinalIgnoreCase
+        (" abc", null, null, 50, 1),          // the term is not trimmed: only "raw ABC"
+        ("   ", null, null, 3, texts.Length + 2),
+        (null, "2026-01-01T02:00:00Z", "2026-01-01T04:00:00Z", 50, 3), // since/until are inclusive
+        ("abc", "2026-01-01T01:00:00Z", "2026-01-01T02:00:00Z", 50, 2),
+        ("ABC", "2026-01-01T01:00:00Z", null, 1, 3),
+        (null, null, "2026-01-01T00:00:00Z", 50, 1),
+    ];
+    foreach (var (q, since, until, limit, expectedTotal) in cases)
+    {
+        var url = $"/recordings/search?limit={limit}"
+            + (q is null ? "" : $"&q={Uri.EscapeDataString(q)}")
+            + (since is null ? "" : $"&since={Uri.EscapeDataString(since)}")
+            + (until is null ? "" : $"&until={Uri.EscapeDataString(until)}");
+        var actual = await Get(url);
+        var expected = await Reference(q, since, until, limit);
+        Assert(actual.Total == expected.Total && actual.Texts.SequenceEqual(expected.Texts),
+            $"{url}: [{string.Join('|', actual.Texts)}] total {actual.Total} differs from the pre-#1087 rule [{string.Join('|', expected.Texts)}] total {expected.Total}");
+        // The route parses since/until into LOCAL time (AssumeUniversal without
+        // AdjustToUniversal), so the date totals hold only where local is UTC.
+        // The comparison with the old rule above holds in every time zone.
+        if ((since is null && until is null) || TimeZoneInfo.Local.GetUtcOffset(day) == TimeSpan.Zero)
+            Assert(actual.Total == expectedTotal, $"{url}: total {actual.Total}, expected {expectedTotal}");
+    }
+
+    var newest = await Get("/recordings?q=ABC&limit=1");
+    Assert(newest.Texts is ["raw only"], "the page is not the newest match first");
 }
 
 static void AssertProperties(JsonElement element, params string[] expected)
