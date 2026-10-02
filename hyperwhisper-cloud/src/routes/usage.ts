@@ -4,7 +4,8 @@
 import type { Context } from 'hono';
 import { CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
 import { validateAuth } from '../middleware/auth';
-import { getClientIP } from '../lib/request-id';
+import { generateRequestId, getClientIP } from '../lib/request-id';
+import { logEvent } from '../lib/logging';
 import { getCachedLicense, cacheLicense } from '../lib/redis';
 import { errorResponse, jsonResponse } from '../lib/responses';
 import { isIPBlocked } from '../lib/redis';
@@ -24,7 +25,14 @@ export function readFiniteCredits(data: unknown): number | null {
   return null;
 }
 
-async function getCreditsBalance(licenseKey: string): Promise<{ credits: number; error?: string }> {
+// A failed balance read carries a fixed category, never upstream text: the
+// licensing API's error body and a fetch error message can both repeat the
+// request URL, and the licence key is in that URL's query string.
+type CreditsLookupError = 'http_error' | 'invalid_response' | 'network_error';
+
+async function getCreditsBalance(
+  licenseKey: string,
+): Promise<{ credits: number; error?: CreditsLookupError; status?: number; errorName?: string }> {
   const apiBase = (process.env.NEXTJS_LICENSE_API_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
 
   try {
@@ -34,15 +42,14 @@ async function getCreditsBalance(licenseKey: string): Promise<{ credits: number;
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({})) as { error?: string };
-      return { credits: 0, error: errorData.error || `HTTP ${response.status}` };
+      return { credits: 0, error: 'http_error', status: response.status };
     }
 
     const data = await response.json().catch(() => ({}));
     const credits = readFiniteCredits(data);
 
     if (credits === null) {
-      return { credits: 0, error: 'Invalid credits response' };
+      return { credits: 0, error: 'invalid_response', status: response.status };
     }
 
     await cacheLicense(licenseKey, {
@@ -53,14 +60,19 @@ async function getCreditsBalance(licenseKey: string): Promise<{ credits: number;
 
     return { credits };
   } catch (error) {
-    return { credits: 0, error: error instanceof Error ? error.message : String(error) };
+    // The class name only (TimeoutError, TypeError), never the message.
+    const name = error instanceof Error ? error.name : '';
+    return { credits: 0, error: 'network_error', errorName: /^\w{1,40}$/.test(name) ? name : 'unknown' };
   }
 }
 
 export async function usageRoute(c: Context) {
+  const requestId = generateRequestId();
+  const startTime = performance.now();
   const clientIP = getClientIP(c);
 
   if (await isIPBlocked(clientIP)) {
+    logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'ip_blocked' });
     return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
   }
 
@@ -79,6 +91,12 @@ export async function usageRoute(c: Context) {
       if (cached?.isValid) {
         const balanceResult = await getCreditsBalance(licenseKey);
         if (balanceResult.error) {
+          logEvent(requestId, startTime, 'usage.credits_lookup_failed', {
+            error: balanceResult.error,
+            status: balanceResult.status,
+            errorName: balanceResult.errorName,
+            forceRefresh,
+          });
           const validation = await validateAuth({ licenseKey }, true);
           isValid = validation.ok;
           credits = validation.ok ? validation.value.credits : 0;
@@ -98,6 +116,7 @@ export async function usageRoute(c: Context) {
     }
 
     if (!isValid) {
+      logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'invalid_license' });
       return errorResponse(401, 'Invalid license key', 'The provided license key is invalid or expired');
     }
 
@@ -113,8 +132,10 @@ export async function usageRoute(c: Context) {
       is_anonymous: false,
     };
 
+    logEvent(requestId, startTime, 'usage.request_ok', { credits_remaining: normalizedCredits });
     return jsonResponse(response);
   }
 
+  logEvent(requestId, startTime, 'usage.request_rejected', { reason: 'missing_license' });
   return errorResponse(401, 'License required', 'You must provide a valid license_key. HyperWhisper Cloud requires a license key.');
 }
