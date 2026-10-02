@@ -109,6 +109,43 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     private int _inFlight;
 
     /// <summary>
+    /// Unload the model after this long with no transcription, no load and no
+    /// <see cref="KeepWarmAsync"/>, so the GPU can leave P0 (#1122). Long
+    /// enough that a quick second dictation stays warm.
+    /// </summary>
+    internal static readonly TimeSpan IdleUnloadAfter = TimeSpan.FromMinutes(5);
+
+    /// <summary>Clock seam for the smoke tests, as in CloudProviderHealthService.</summary>
+    private readonly Func<DateTime> _utcNow;
+
+    /// <summary>UTC ticks of the last activity. Volatile, because a DateTime write is not atomic.</summary>
+    private long _lastActivityTicks;
+
+    /// <summary>
+    /// One-shot idle timer, re-armed by <see cref="NoteActivity"/>. A
+    /// System.Threading.Timer and not the usual System.Timers.Timer debounce:
+    /// the GUI, the Local API and the timer callback all re-arm it, and
+    /// Threading.Timer.Change is thread-safe where Stop/Interval/Start is not.
+    /// </summary>
+    private readonly System.Threading.Timer _idleTimer;
+
+    private volatile bool _disposed;
+
+    /// <summary>
+    /// Raised on a thread-pool thread after an idle unload, with the model
+    /// lock released. Handlers must not block on the UI thread.
+    /// </summary>
+    public event EventHandler? ModelIdleUnloaded;
+
+    /// <summary>
+    /// Asked on the timer thread UNDER the model lock; true postpones the
+    /// unload by a full window. It must only read fields: a UI-thread
+    /// <see cref="UnloadModel"/> blocks on the same lock, so a dispatch here
+    /// would deadlock.
+    /// </summary>
+    public Func<bool>? IdleUnloadDeferred { get; set; }
+
+    /// <summary>
     /// Set by <see cref="TranscriptionRuntime"/> for the process-wide singleton
     /// instance. When true, <see cref="Dispose"/> is a no-op — the API server
     /// and GUI share this instance and the OS reclaims native handles at
@@ -119,9 +156,12 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
     public TranscriptionService() : this(isShared: false) { }
 
-    internal TranscriptionService(bool isShared)
+    internal TranscriptionService(bool isShared, Func<DateTime>? utcNow = null)
     {
         _isShared = isShared;
+        _utcNow = utcNow ?? (() => DateTime.UtcNow);
+        _lastActivityTicks = _utcNow().Ticks;
+        _idleTimer = new System.Threading.Timer(_ => _ = OnIdleTimerAsync(), null, Timeout.Infinite, Timeout.Infinite);
     }
 
     // =========================================================================
@@ -289,6 +329,9 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
             LoadedModelPath = modelPath;
 
+            // Start the idle window, so a launch preload with no dictation is released too (#1122).
+            NoteActivity();
+
             // Log the actual runtime info to verify which backend (CUDA/Vulkan/CPU) loaded
             try
             {
@@ -371,6 +414,146 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     public void UnloadModel()
     {
         UnloadModelAsync().GetAwaiter().GetResult();
+    }
+
+    // =========================================================================
+    // IDLE UNLOAD (#1122)
+    // =========================================================================
+    //
+    // A loaded model holds the NVIDIA GPU at P0 full clocks for as long as it
+    // stays loaded. Release it after IdleUnloadAfter with no activity; every
+    // entry point already reloads lazily when IsInitialized is false.
+
+    internal enum IdleUnloadDecision { NotLoaded, InFlight, Deferred, NotYet, Unload }
+
+    /// <summary>
+    /// What an idle tick should do. Pure, so the smoke tests pin it. RetryIn
+    /// is when to re-arm the timer; Zero means do not re-arm (NotLoaded waits
+    /// for the next load, InFlight for the call's exit).
+    /// </summary>
+    internal static (IdleUnloadDecision Decision, TimeSpan RetryIn) DecideIdleUnload(
+        bool isLoaded, int inFlight, bool deferred, TimeSpan idleFor, TimeSpan idleAfter)
+    {
+        if (!isLoaded) return (IdleUnloadDecision.NotLoaded, TimeSpan.Zero);
+        if (inFlight > 0) return (IdleUnloadDecision.InFlight, TimeSpan.Zero);
+        if (deferred) return (IdleUnloadDecision.Deferred, idleAfter);
+        if (idleFor < idleAfter) return (IdleUnloadDecision.NotYet, idleAfter - idleFor);
+        return (IdleUnloadDecision.Unload, TimeSpan.Zero);
+    }
+
+    /// <summary>Time since the last load, transcription exit or KeepWarm.</summary>
+    internal TimeSpan IdleFor => _utcNow() - new DateTime(Volatile.Read(ref _lastActivityTicks), DateTimeKind.Utc);
+
+    /// <summary>Lock-free: stamp the activity and restart the idle window.</summary>
+    private void NoteActivity()
+    {
+        Volatile.Write(ref _lastActivityTicks, _utcNow().Ticks);
+        try
+        {
+            _idleTimer.Change(IdleUnloadAfter, Timeout.InfiniteTimeSpan);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Restart the idle window. Call it BEFORE a readiness check: it waits out
+    /// an idle unload already in progress, so the caller's next IsInitialized
+    /// read is settled and the model cannot go between the check and the call.
+    /// </summary>
+    public async Task KeepWarmAsync(CancellationToken cancellationToken = default)
+    {
+        await _modelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            NoteActivity();
+        }
+        finally
+        {
+            _modelLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// One idle tick: decide under the model lock, unload if the window has
+    /// passed, and raise <see cref="ModelIdleUnloaded"/> after the lock is
+    /// released. Never drains in-flight calls, so the lock is held briefly.
+    /// </summary>
+    internal async Task<bool> TryIdleUnloadAsync()
+    {
+        bool unloaded = false;
+        await _modelLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var idleFor = IdleFor;
+            var (decision, retryIn) = DecideIdleUnload(
+                _whisperFactory != null,
+                Volatile.Read(ref _inFlight),
+                IsIdleUnloadDeferred(),
+                idleFor,
+                IdleUnloadAfter);
+
+            if (decision is IdleUnloadDecision.Deferred or IdleUnloadDecision.NotYet)
+            {
+                _idleTimer.Change(retryIn, Timeout.InfiniteTimeSpan);
+            }
+            else if (decision == IdleUnloadDecision.Unload)
+            {
+                // Log first: DisposeModel nulls the model path and the GPU name.
+                LoggingService.Info($"TranscriptionService: idle-unload after {idleFor.TotalMinutes:F1} min with no transcription; released {Path.GetFileName(LoadedModelPath)} ({(IsUsingGpu ? $"GPU {ActiveGpuName}" : "CPU")})");
+                DisposeModel();
+                unloaded = true;
+            }
+        }
+        finally
+        {
+            _modelLock.Release();
+        }
+
+        if (unloaded)
+        {
+            try
+            {
+                ModelIdleUnloaded?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn($"TranscriptionService: ModelIdleUnloaded handler threw: {ex.Message}");
+            }
+        }
+
+        return unloaded;
+    }
+
+    /// <summary>A throwing predicate counts as "defer": keeping the model is the safe side.</summary>
+    internal bool IsIdleUnloadDeferred()
+    {
+        try
+        {
+            return IdleUnloadDeferred?.Invoke() ?? false;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"TranscriptionService: IdleUnloadDeferred threw, deferring: {ex.Message}");
+            return true;
+        }
+    }
+
+    /// <summary>Timer callback. Must never throw.</summary>
+    private async Task OnIdleTimerAsync()
+    {
+        try
+        {
+            if (!_disposed) await TryIdleUnloadAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"TranscriptionService: idle-unload tick failed: {ex.Message}");
+        }
     }
 
     // =========================================================================
@@ -750,7 +933,11 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         }
         finally
         {
-            Interlocked.Decrement(ref _inFlight);
+            // The last call out restarts the idle window, on success, failure or cancel.
+            if (Interlocked.Decrement(ref _inFlight) == 0)
+            {
+                NoteActivity();
+            }
         }
     }
 
@@ -1145,6 +1332,8 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
             return;
         }
         LoggingService.Info("TranscriptionService: Disposing...");
+        _disposed = true;
+        _idleTimer.Dispose();
         DisposeModel();
         _modelLock.Dispose();
         GC.SuppressFinalize(this);

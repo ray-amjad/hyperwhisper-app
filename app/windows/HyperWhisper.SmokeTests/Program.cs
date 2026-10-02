@@ -789,6 +789,75 @@ internal static class Program
                 Assert(Class("en") == Class("fr"), "en → fr must NOT change class");
             });
 
+            // #1122: a loaded Whisper model holds the GPU at P0 until it is
+            // unloaded, so the service releases it after IdleUnloadAfter idle.
+            // A real load needs a ggml file CI does not have, so these pin the
+            // decision and the activity stamp with a fake clock.
+            Run("Whisper idle-unload decision: 5 minutes, never mid-call, deferred while the GUI is busy", () =>
+            {
+                var after = TranscriptionService.IdleUnloadAfter;
+                Assert(after == TimeSpan.FromMinutes(5), $"window should be 5 min, got {after}");
+
+                var notYet = TranscriptionService.DecideIdleUnload(true, 0, false, after - TimeSpan.FromSeconds(1), after);
+                Assert(notYet.Decision == TranscriptionService.IdleUnloadDecision.NotYet, $"4:59 idle -> NotYet, got {notYet.Decision}");
+                Assert(notYet.RetryIn == TimeSpan.FromSeconds(1), $"4:59 idle re-arms in 1 s, got {notYet.RetryIn}");
+
+                var due = TranscriptionService.DecideIdleUnload(true, 0, false, after, after);
+                Assert(due.Decision == TranscriptionService.IdleUnloadDecision.Unload, $"5:00 idle -> Unload, got {due.Decision}");
+
+                var busy = TranscriptionService.DecideIdleUnload(true, 1, false, TimeSpan.FromMinutes(10), after);
+                Assert(busy.Decision == TranscriptionService.IdleUnloadDecision.InFlight, $"a call in flight must never unload, got {busy.Decision}");
+
+                var deferred = TranscriptionService.DecideIdleUnload(true, 0, true, TimeSpan.FromMinutes(10), after);
+                Assert(deferred.Decision == TranscriptionService.IdleUnloadDecision.Deferred, $"deferred -> Deferred, got {deferred.Decision}");
+                Assert(deferred.RetryIn == after, $"deferred re-arms a full window, got {deferred.RetryIn}");
+
+                var none = TranscriptionService.DecideIdleUnload(false, 0, false, TimeSpan.FromHours(1), after);
+                Assert(none.Decision == TranscriptionService.IdleUnloadDecision.NotLoaded, $"no model -> NotLoaded, got {none.Decision}");
+            });
+
+            RunAsync("Whisper idle-unload: KeepWarm restarts the window on the fake clock", async () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var svc = new TranscriptionService(isShared: false, utcNow: () => now);
+                var after = TranscriptionService.IdleUnloadAfter;
+
+                await svc.KeepWarmAsync();
+                now += TimeSpan.FromMinutes(4);
+                await svc.KeepWarmAsync();
+                now += TimeSpan.FromMinutes(4);
+                Assert(svc.IdleFor == TimeSpan.FromMinutes(4), $"KeepWarm should restart the window, idle {svc.IdleFor}");
+                Assert(TranscriptionService.DecideIdleUnload(true, 0, false, svc.IdleFor, after).Decision
+                    == TranscriptionService.IdleUnloadDecision.NotYet, "8 min after the first KeepWarm is still warm");
+
+                now += TimeSpan.FromMinutes(1);
+                Assert(TranscriptionService.DecideIdleUnload(true, 0, false, svc.IdleFor, after).Decision
+                    == TranscriptionService.IdleUnloadDecision.Unload, "5 min after the last KeepWarm unloads");
+            });
+
+            RunAsync("Whisper idle-unload: a tick with no model loaded is a quiet no-op", async () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var svc = new TranscriptionService(isShared: false, utcNow: () => now);
+                var raised = 0;
+                svc.ModelIdleUnloaded += (_, _) => raised++;
+
+                now += TimeSpan.FromHours(1);
+                Assert(!await svc.TryIdleUnloadAsync(), "nothing loaded, nothing to unload");
+                Assert(raised == 0, $"ModelIdleUnloaded must not fire with no model, fired {raised}x");
+                Assert(!svc.IsInitialized, "still not initialized");
+            });
+
+            Run("Whisper idle-unload: a throwing busy predicate counts as busy", () =>
+            {
+                using var svc = new TranscriptionService(isShared: false);
+                Assert(!svc.IsIdleUnloadDeferred(), "no predicate -> not deferred");
+                svc.IdleUnloadDeferred = () => true;
+                Assert(svc.IsIdleUnloadDeferred(), "true predicate -> deferred");
+                svc.IdleUnloadDeferred = () => throw new InvalidOperationException("boom");
+                Assert(svc.IsIdleUnloadDeferred(), "a throwing predicate must keep the model");
+            });
+
             Run("Grok GetRequestTimeout scales with file size", () =>
             {
                 Assert(GrokSttService.GetRequestTimeout(0) == TimeSpan.FromMinutes(5), "0 bytes → 5min base");

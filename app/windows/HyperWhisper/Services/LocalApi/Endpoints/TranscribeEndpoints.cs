@@ -298,6 +298,9 @@ internal static class TranscribeEndpoints
                 "Open HyperWhisper and download the model you want to use before calling /transcribe.");
         }
 
+        // #1122: settle any idle unload and restart the window before the check.
+        await transcriptionService.KeepWarmAsync(cancellationToken);
+
         var modelPath = modelService.GetModelPath(modelInfo);
         if (transcriptionService.IsInitialized &&
             string.Equals(transcriptionService.LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))

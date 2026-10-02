@@ -117,6 +117,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly EventHandler<Mode> _modeChangedHandler;
     private readonly EventHandler<Mode> _modeSelectedHandler;
     private readonly EventHandler<ErrorToastEventArgs> _orchestratorWarningHandler;
+    private readonly EventHandler _modelIdleUnloadedHandler;
 
     public enum NavigationPage { Home, Modes, Vocabulary, Streaming, ModelLibrary, History, Settings }
 
@@ -298,6 +299,13 @@ public partial class MainViewModel : ViewModelBase
         _recorderService.AudioLevelChanged += _audioLevelHandler;
         _transcriptionOrchestrator.PostProcessingWarning += _orchestratorWarningHandler;
 
+        // #1122: the service releases an idle Whisper model; the status bar follows.
+        // The predicate runs under the model lock on the timer thread, so it only
+        // reads fields - never dispatch from it.
+        _modelIdleUnloadedHandler = (s, e) => OnWhisperModelIdleUnloaded();
+        _transcriptionService.ModelIdleUnloaded += _modelIdleUnloadedHandler;
+        _transcriptionService.IdleUnloadDeferred = () => IsRecording || IsTranscribing || IsModelLoading;
+
         _pushToTalkMonitor.Pressed += OnPushToTalkPressed;
         _pushToTalkMonitor.Released += OnPushToTalkReleased;
         _pushToTalkMonitor.Interfered += OnPushToTalkInterfered;
@@ -446,6 +454,35 @@ public partial class MainViewModel : ViewModelBase
             catch (Exception ex)
             {
                 LoggingService.Error($"MainViewModel: Failed to refresh audio devices: {ex.Message}", ex);
+            }
+        });
+    }
+
+    /// <summary>
+    /// The Whisper model was released after the idle window (#1122). Raised on a
+    /// thread-pool thread, so BeginInvoke - never Invoke - onto the UI thread.
+    /// </summary>
+    private void OnWhisperModelIdleUnloaded()
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.HasShutdownStarted)
+        {
+            return;
+        }
+
+        dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                if (!_parakeetTranscriptionService.IsInitialized)
+                {
+                    IsModelLoaded = false;
+                }
+                UpdateModelStatus();
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error($"MainViewModel: Failed to update status after idle unload: {ex.Message}", ex);
             }
         });
     }
@@ -1426,6 +1463,14 @@ public partial class MainViewModel : ViewModelBase
         // Capture application context BEFORE showing overlay (overlay steals focus).
         // Guarded: see CaptureApplicationContextAsync (HYPERWHISPER-Y5).
         await TryCaptureApplicationContextAsync(recordingMode);
+
+        // #1122: settle any idle unload in progress and restart the idle window
+        // BEFORE the readiness check, so the model cannot be released between
+        // this check and the transcribe call.
+        if (recordingMode.ProviderType != "cloud" && recordingMode.LocalEngine != "parakeet")
+        {
+            await _transcriptionService.KeepWarmAsync();
+        }
 
         // CLOUD VS LOCAL MODEL LOADING
         // Cloud modes don't need a local model loaded - they use the API
@@ -2459,6 +2504,8 @@ public partial class MainViewModel : ViewModelBase
         _shortcutService.ShortcutReleased -= OnShortcutReleased;
         _settingsService.SettingsChanged -= OnSettingsChanged;
         _transcriptionOrchestrator.PostProcessingWarning -= _orchestratorWarningHandler;
+        _transcriptionService.ModelIdleUnloaded -= _modelIdleUnloadedHandler;
+        _transcriptionService.IdleUnloadDeferred = null;
 
         // Use try-finally to ensure device service cleanup happens
         // even if other Dispose calls throw exceptions

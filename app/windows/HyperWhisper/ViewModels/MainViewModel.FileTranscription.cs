@@ -532,6 +532,9 @@ public partial class MainViewModel
             return false;
         }
 
+        // #1122: settle any idle unload and restart the window before the check.
+        await _transcriptionService.KeepWarmAsync();
+
         var modelPath = _modelService.GetModelPath(whisperModel);
         if (_transcriptionService.IsInitialized && _transcriptionService.LoadedModelPath == modelPath)
         {

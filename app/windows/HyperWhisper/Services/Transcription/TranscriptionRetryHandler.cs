@@ -177,6 +177,9 @@ public class TranscriptionRetryHandler : IDisposable
 
         var modelPath = _modelService.GetModelPath(modelInfo);
 
+        // #1122: settle any idle unload and restart the window before the check.
+        await _localTranscriptionService.KeepWarmAsync(cancellationToken);
+
         // Skip if already loaded with same model
         if (_localTranscriptionService.IsInitialized &&
             _localTranscriptionService.LoadedModelPath == modelPath)

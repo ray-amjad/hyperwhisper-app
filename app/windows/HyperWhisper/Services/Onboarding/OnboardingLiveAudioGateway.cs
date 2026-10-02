@@ -792,6 +792,9 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
                     return false;
                 }
 
+                // #1122: settle any idle unload and restart the window before the check.
+                await whisper.KeepWarmAsync(cancellationToken);
+
                 var modelPath = _whisperModels.GetModelPath(info);
                 if (whisper.IsInitialized
                     && string.Equals(whisper.LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
