@@ -259,7 +259,7 @@ export default function SignInClient() {
                 <button
                   type="submit"
                   disabled={licenseSubmitting}
-                  className="relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-shadow duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-[opacity,box-shadow] duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {licenseSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
@@ -314,7 +314,7 @@ export default function SignInClient() {
                     <button
                       type="submit"
                       disabled={emailSubmitting}
-                      className="relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-shadow duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-[opacity,box-shadow] duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {emailSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
@@ -361,7 +361,7 @@ export default function SignInClient() {
                       type="button"
                       onClick={() => handleSendMagicLink()}
                       disabled={emailSubmitting}
-                      className="relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-shadow duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="relative isolate w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg transition-[opacity,box-shadow] duration-200 shadow-lg hover:shadow-xl before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-emerald-600 before:to-teal-600 before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {emailSubmitting ? "Sending..." : "Resend Magic Link"}
                     </button>
