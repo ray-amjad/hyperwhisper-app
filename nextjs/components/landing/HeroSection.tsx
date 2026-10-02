@@ -54,7 +54,7 @@ export default function HeroSection() {
           <img
             alt={t("logoAlt")}
             className="w-40 h-40 rounded-2xl shadow-2xl"
-            src="/icon/256.png"
+            src="/icon/512.png"
           />
         </m.div>
 
