@@ -78,10 +78,19 @@ public sealed class LinuxMicrophoneKeepWarmService : IMicrophoneKeepWarmService
     }
     private void Stop()
     {
-        var source = _source; _cancellation?.Cancel();
-        if (source is not null) { using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3)); try { source.TerminateAsync(deadline.Token).AsTask().GetAwaiter().GetResult(); } catch { } }
-        try { _drain?.Wait(TimeSpan.FromSeconds(3)); } catch { } try { source?.DisposeAsync().AsTask().GetAwaiter().GetResult(); } catch { }
-        _source = null; _drain = null; _cancellation?.Dispose(); _cancellation = null;
+        // #1186: Configure and SuspendForRecording run on the Avalonia UI thread. Blocking it on a source
+        // whose continuation posts back to that thread deadlocked the app, so detach the state here and
+        // tear down off the caller's context; the worker sees only locals, so a late one never touches
+        // a replacement source.
+        var source = _source; var drain = _drain; var cancellation = _cancellation; _source = null; _drain = null; _cancellation = null;
+        cancellation?.Cancel(); if (source is null && drain is null) { cancellation?.Dispose(); return; }
+        var teardown = Task.Run(() =>
+        {
+            if (source is not null) { using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3)); try { source.TerminateAsync(deadline.Token).AsTask().GetAwaiter().GetResult(); } catch { } }
+            try { drain?.Wait(TimeSpan.FromSeconds(3)); } catch { } try { source?.DisposeAsync().AsTask().GetAwaiter().GetResult(); } catch { }
+            cancellation?.Dispose();
+        });
+        try { teardown.Wait(TimeSpan.FromSeconds(4)); } catch { }
     }
     public void Dispose() { if (_disposed) return; _disposed = true; Stop(); }
 }
