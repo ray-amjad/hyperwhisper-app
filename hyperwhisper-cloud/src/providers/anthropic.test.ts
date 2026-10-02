@@ -223,6 +223,23 @@ describe('requestAnthropicChat', () => {
     expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 });
   });
 
+  test('a non-number token count bills 0 for that bucket instead of a NaN cost (#922)', async () => {
+    stubFetch(
+      Response.json({
+        content: [{ type: 'text', text: 'ok' }],
+        stop_reason: 'end_turn',
+        usage: { input_tokens: '1.2k', output_tokens: 500 },
+      }),
+    );
+
+    const result = await requestAnthropicChat(correctionPayload('sys', 'user'), REQUEST_ID);
+
+    expect(Number.isFinite(result.costUsd)).toBe(true);
+    // Only the 500 well-formed output tokens are billed.
+    expect(result.costUsd).toBeCloseTo(0.0025, 9);
+    expect(result.usage).toEqual({ prompt_tokens: 0, completion_tokens: 500, total_tokens: 500 });
+  });
+
   test('returns the raw body so the completion policy can read Anthropic stop_reason', async () => {
     stubFetch(
       Response.json({

@@ -105,10 +105,10 @@ export async function requestAnthropicChat(
         content: Array<{ type: string; text?: string }>;
         stop_reason?: string | null;
         usage: {
-          input_tokens: number;
-          output_tokens: number;
-          cache_creation_input_tokens?: number;
-          cache_read_input_tokens?: number;
+          input_tokens: unknown;
+          output_tokens: unknown;
+          cache_creation_input_tokens?: unknown;
+          cache_read_input_tokens?: unknown;
         };
       };
     },
@@ -116,10 +116,10 @@ export async function requestAnthropicChat(
     timeoutMs ?? computeLLMRequestTimeoutMs(transcriptCharCount(payload.messages)),
   );
 
-  const inputTokens = data.usage?.input_tokens || 0;
-  const outputTokens = data.usage?.output_tokens || 0;
-  const cacheCreationTokens = data.usage?.cache_creation_input_tokens || 0;
-  const cacheReadTokens = data.usage?.cache_read_input_tokens || 0;
+  const inputTokens = toTokenCount(data.usage?.input_tokens);
+  const outputTokens = toTokenCount(data.usage?.output_tokens);
+  const cacheCreationTokens = toTokenCount(data.usage?.cache_creation_input_tokens);
+  const cacheReadTokens = toTokenCount(data.usage?.cache_read_input_tokens);
   const costUsd = computeAnthropicCost(inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens);
 
   console.log(`[${requestId}] Anthropic usage: input=${inputTokens}, output=${outputTokens}, cacheWrite=${cacheCreationTokens}, cacheRead=${cacheReadTokens}, cost=$${costUsd.toFixed(6)}`);
