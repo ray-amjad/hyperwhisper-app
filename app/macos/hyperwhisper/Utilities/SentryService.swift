@@ -276,10 +276,8 @@ enum SentryService {
                 event.breadcrumbs = nil
                 // Drop any suspicious extras
                 var sanitized = event.extra ?? [:]
-                for key in sanitized.keys {
-                    if Self.isRedactedExtraKey(key) {
-                        sanitized[key] = "[redacted]"
-                    }
+                for (key, value) in sanitized {
+                    sanitized[key] = Self.redactedValue(forKey: key, value: value)
                 }
                 event.extra = sanitized
 
@@ -397,6 +395,18 @@ enum SentryService {
     static func isRedactedExtraKey(_ key: String) -> Bool {
         let lower = key.lowercased()
         return lower.contains("transcript") || lower.contains("text") || lower.contains("prompt")
+    }
+
+    /// Redact a suspicious key ONLY when its value could carry content. A Bool
+    /// or a number is a measurement and cannot hold speech, so it survives; a
+    /// String, an array, a dictionary or anything else still becomes
+    /// `[redacted]`. Issue #684: a Bool once shipped as `[redacted]`.
+    static func redactedValue(forKey key: String, value: Any) -> Any {
+        guard isRedactedExtraKey(key) else { return value }
+        switch value {
+        case is Bool, is NSNumber: return value
+        default: return "[redacted]"
+        }
     }
 
     // MARK: - App hang grouping
@@ -668,8 +678,8 @@ enum SentryService {
         for (key, value) in scopeTags { attributes[key] = value }
         for (key, value) in extras { attributes[key] = logAttributeValue(value) }
         for (key, value) in tags { attributes[key] = value }
-        for key in attributes.keys where isRedactedExtraKey(key) {
-            attributes[key] = "[redacted]"
+        for (key, value) in attributes {
+            attributes[key] = redactedValue(forKey: key, value: value)
         }
         return attributes
     }
