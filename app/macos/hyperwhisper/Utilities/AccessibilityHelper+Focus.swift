@@ -231,6 +231,11 @@ extension AccessibilityHelper {
     // MARK: - Paste into focused element
 
     func canPasteIntoFocusedElement() -> Bool {
+        #if DEBUG
+        // Debug-only test seam; a Release build always reads the real focus.
+        if let override = canPasteOverrideForTesting { return override() }
+        #endif
+
         // Browsers: both URL bar and web page inputs are valid paste targets
         if let bid = frontmostBundleId(), isBrowserBundleId(bid) {
             return true

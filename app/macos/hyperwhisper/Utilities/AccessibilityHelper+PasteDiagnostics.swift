@@ -76,6 +76,21 @@ extension AccessibilityHelper {
         var isDefect: Bool {
             self == .commandFailed
         }
+
+        /// True when the app withheld the transcript on purpose while the text
+        /// sits on the clipboard: a secure field, or the onboarding gate. Only
+        /// these exits schedule a clipboard restoration. Every other outcome
+        /// that pasted nothing leaves the transcript on the clipboard for a
+        /// manual Cmd+V, where a restore would only overwrite it (#1034).
+        var withholdsTextOnPurpose: Bool {
+            switch self {
+            case .secureField, .suppressed:
+                return true
+            case .success, .noAccessibilityPermission, .targetLost, .targetUnknown,
+                 .noFocusedField, .cancelled, .commandFailed:
+                return false
+            }
+        }
     }
 
     /// What the single captured-target lookup observed before paste delivery.
