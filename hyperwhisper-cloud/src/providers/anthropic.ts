@@ -132,6 +132,17 @@ export async function requestAnthropicChat(
 }
 
 /**
+ * Inter-chunk idle bound for the /assistant stream (#1112). Deliberately NOT
+ * LLM_REQUEST_TIMEOUT_MS (20 s): Bun.serve's default idleTimeout is 10 s and
+ * src/index.ts does not override it, so Bun drops the client connection after
+ * 10 s of silence and any bound above that never fires. 8 s ends a stalled
+ * upstream cleanly (abort, [DONE], idle-timeout log, bill the tokens seen)
+ * before Bun cuts the client. A live stream with gaps over 10 s is already cut
+ * by Bun, so 8 s takes nothing a user would otherwise get.
+ */
+export const ANTHROPIC_STREAM_IDLE_TIMEOUT_MS = 8_000;
+
+/**
  * Calls the Anthropic Messages API with streaming enabled.
  * Returns a ReadableStream that emits OpenAI-compatible SSE chunks,
  * and a promise that resolves to the total cost in USD after the stream completes.
@@ -141,6 +152,7 @@ export function streamAnthropicChat(
   messages: AnthropicMessage[],
   requestId: string,
   firstByteTimeoutMs: number = LLM_REQUEST_TIMEOUT_MS,
+  idleTimeoutMs: number = ANTHROPIC_STREAM_IDLE_TIMEOUT_MS,
 ): AnthropicStreamResult {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -158,21 +170,30 @@ export function streamAnthropicChat(
   // so we stop paying for tokens nobody will receive.
   const abortController = new AbortController();
 
-  // Time-to-first-byte bound: aborts the same controller when no body chunk
-  // has arrived within firstByteTimeoutMs, so a silent upstream cannot hold
-  // the /assistant stream open forever. Cleared on the first chunk and on
-  // every exit — a stream that has started is never cut off mid-way.
-  let firstByteTimedOut = false;
-  let firstByteTimer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
-    firstByteTimedOut = true;
-    abortController.abort();
-  }, firstByteTimeoutMs);
-  const clearFirstByteTimer = () => {
-    if (firstByteTimer !== undefined) {
-      clearTimeout(firstByteTimer);
-      firstByteTimer = undefined;
+  // One upstream timer, two bounds, both aborting the same controller so a
+  // silent upstream cannot hold the /assistant stream open forever:
+  // - first-byte (#782): no body chunk within firstByteTimeoutMs;
+  // - idle (#1112): no chunk within idleTimeoutMs of the previous one. Re-armed
+  //   on every chunk, so it caps a gap, never the total length: a slow but live
+  //   stream is not cut. Anthropic sends `ping` events while it works.
+  // Cleared on every exit. `timedOut` records which bound fired, so the catch
+  // can tell it apart from a client disconnect.
+  let timedOut: 'first-byte' | 'idle' | null = null;
+  let upstreamTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearUpstreamTimer = () => {
+    if (upstreamTimer !== undefined) {
+      clearTimeout(upstreamTimer);
+      upstreamTimer = undefined;
     }
   };
+  const armUpstreamTimer = (kind: 'first-byte' | 'idle', ms: number) => {
+    clearUpstreamTimer();
+    upstreamTimer = setTimeout(() => {
+      timedOut = kind;
+      abortController.abort();
+    }, ms);
+  };
+  armUpstreamTimer('first-byte', firstByteTimeoutMs);
 
   // Hoisted so cancel() can bill the tokens consumed up to the abort point.
   let inputTokens = 0;
@@ -230,8 +251,8 @@ export function streamAnthropicChat(
 
         while (true) {
           const { done, value } = await reader.read();
-          clearFirstByteTimer();
           if (done) break;
+          armUpstreamTimer('idle', idleTimeoutMs);
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
@@ -282,14 +303,16 @@ export function streamAnthropicChat(
         console.log(`[${requestId}] Anthropic usage: input=${inputTokens}, output=${outputTokens}, cacheWrite=${cacheCreationTokens}, cacheRead=${cacheReadTokens}, cost=$${costUsd.toFixed(6)}`);
         resolveCost(costUsd);
       } catch (error) {
-        if (abortController.signal.aborted && !firstByteTimedOut) {
+        if (abortController.signal.aborted && timedOut === null) {
           // Client disconnected; cancel() already resolved the partial cost.
           return;
         }
-        if (firstByteTimedOut) {
-          // Not a client disconnect: the upstream sent no body within the bound.
-          // Ends the stream the same way as the transport-error path below.
+        // Not a client disconnect: the upstream went silent past a bound.
+        // Ends the stream the same way as the transport-error path below.
+        if (timedOut === 'first-byte') {
           console.error(`[${requestId}] Anthropic stream first-byte timeout after ${firstByteTimeoutMs}ms (upstream silent, not a client disconnect)`);
+        } else if (timedOut === 'idle') {
+          console.error(`[${requestId}] Anthropic stream idle timeout: no chunk for ${idleTimeoutMs}ms after the stream started (upstream stalled, not a client disconnect)`);
         }
         // Bill the tokens observed up to the failure point. Anthropic still
         // charges us for whatever it generated before the stream broke, so
@@ -305,11 +328,11 @@ export function streamAnthropicChat(
         }
         resolveCost(costUsd);
       } finally {
-        clearFirstByteTimer();
+        clearUpstreamTimer();
       }
     },
     cancel(reason: unknown) {
-      clearFirstByteTimer();
+      clearUpstreamTimer();
       // Client disconnected: abort the upstream Anthropic request and bill
       // only the tokens observed up to this point (best effort — Anthropic
       // reports output_tokens in the final message_delta, so a mid-stream
