@@ -262,6 +262,12 @@ export default function DownloadsPage() {
           </div>
         )}
 
+        {/* The skeleton is aria-hidden, so this always-mounted live region
+            announces the first load and every platform-switch refetch. */}
+        <p className="sr-only" role="status">
+          {loading ? "Loading versions..." : ""}
+        </p>
+
         {/* Versions List: skeleton and content share one slot and cross-fade.
             A platform switch keeps the previous list mounted, dimmed. */}
         {!error && (
