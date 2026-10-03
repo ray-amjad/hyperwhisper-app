@@ -262,6 +262,7 @@
     "title": "Lejupielādēt HyperWhisper",
     "countdownText": "Sākas pēc {seconds}...",
     "downloadStarted": "Pārbaudiet Downloads mapi",
+    "mobileNote": "HyperWhisper ir darbvirsmas lietotne. Lejupielādējiet to savā Mac, Windows vai Linux datorā.",
     "downloadNow": "Lejupielādēt tagad",
     "downloadAgain": "Lejupielādēt vēlreiz",
     "selectArchitecture": "Izvēlieties arhitektūru",

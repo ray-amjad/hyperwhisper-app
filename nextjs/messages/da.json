@@ -262,6 +262,7 @@
     "title": "Download HyperWhisper",
     "countdownText": "Starter om {seconds}...",
     "downloadStarted": "Tjek din mappe Downloads",
+    "mobileNote": "HyperWhisper er et skrivebordsprogram. Download det på din Mac-, Windows- eller Linux-computer.",
     "downloadNow": "Download nu",
     "downloadAgain": "Download igen",
     "selectArchitecture": "Vælg din arkitektur",

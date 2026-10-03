@@ -262,6 +262,7 @@
     "title": "Tải xuống HyperWhisper",
     "countdownText": "Bắt đầu sau {seconds}...",
     "downloadStarted": "Kiểm tra thư mục Downloads của bạn",
+    "mobileNote": "HyperWhisper là ứng dụng máy tính. Hãy tải xuống trên máy tính Mac, Windows hoặc Linux của bạn.",
     "downloadNow": "Tải ngay",
     "downloadAgain": "Tải lại",
     "selectArchitecture": "Chọn kiến trúc của bạn",

@@ -262,6 +262,7 @@
     "title": "Descarcă HyperWhisper",
     "countdownText": "Începe în {seconds}...",
     "downloadStarted": "Verifică folderul Downloads",
+    "mobileNote": "HyperWhisper este o aplicație desktop. Descarc-o pe computerul tău Mac, Windows sau Linux.",
     "downloadNow": "Descarcă acum",
     "downloadAgain": "Descarcă din nou",
     "selectArchitecture": "Selectează arhitectura",

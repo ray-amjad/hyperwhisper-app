@@ -262,6 +262,7 @@
     "title": "Sækja HyperWhisper",
     "countdownText": "Byrjar eftir {seconds}...",
     "downloadStarted": "Athugaðu Downloads möppuna",
+    "mobileNote": "HyperWhisper er tölvuforrit. Sæktu það á Mac-, Windows- eða Linux-tölvuna þína.",
     "downloadNow": "Sækja núna",
     "downloadAgain": "Sækja aftur",
     "selectArchitecture": "Veldu arkitektúr",

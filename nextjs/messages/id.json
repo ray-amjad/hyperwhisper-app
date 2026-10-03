@@ -262,6 +262,7 @@
     "title": "Unduh HyperWhisper",
     "countdownText": "Mulai dalam {seconds}...",
     "downloadStarted": "Periksa folder Downloads Anda",
+    "mobileNote": "HyperWhisper adalah aplikasi desktop. Unduh di komputer Mac, Windows, atau Linux Anda.",
     "downloadNow": "Unduh Sekarang",
     "downloadAgain": "Unduh Lagi",
     "selectArchitecture": "Pilih arsitektur Anda",

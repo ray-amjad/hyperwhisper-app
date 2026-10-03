@@ -262,6 +262,7 @@
     "title": "ดาวน์โหลด HyperWhisper",
     "countdownText": "เริ่มใน {seconds}...",
     "downloadStarted": "ตรวจสอบโฟลเดอร์ Downloads ของคุณ",
+    "mobileNote": "HyperWhisper เป็นแอปสำหรับคอมพิวเตอร์ ดาวน์โหลดบนคอมพิวเตอร์ Mac, Windows หรือ Linux ของคุณ",
     "downloadNow": "ดาวน์โหลดตอนนี้",
     "downloadAgain": "ดาวน์โหลดอีกครั้ง",
     "selectArchitecture": "เลือกสถาปัตยกรรมของคุณ",
