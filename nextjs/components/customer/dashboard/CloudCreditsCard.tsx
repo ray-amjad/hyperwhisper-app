@@ -33,21 +33,6 @@ const CREDIT_TIERS = [
   { amount: 10, credits: 10 * CREDITS_PER_DOLLAR },
 ] as const;
 
-/**
- * Cloud Credits Card
- *
- * Displays total cloud credits across all licenses and buy credits buttons.
- *
- * This is the STATEFUL half only. Every byte it renders lives in
- * `CloudCreditsCardView`, which holds no hooks — see the note there for why the
- * split exists (#737): a hook-free view can be called as a function in a test,
- * so the tier buttons' `onClick`, the busy state and the failed state are all
- * reachable, and none of them are reachable through `renderToStaticMarkup`.
- *
- * Because the View can call no hook, this half also PRE-FORMATS every
- * translated string, including the parameterised per-tier ones, and hands them
- * down as plain strings.
- */
 // `loadPostHog` answers null when `NEXT_PUBLIC_POSTHOG_KEY` is absent. The
 // report is async (#918), so the seam's try/catch no longer sees a stubbed
 // `captureException` throw; the try/catch here stands in for it, and the
@@ -66,6 +51,21 @@ async function reportToPostHog(
   }
 }
 
+/**
+ * Cloud Credits Card
+ *
+ * Displays total cloud credits across all licenses and buy credits buttons.
+ *
+ * This is the STATEFUL half only. Every byte it renders lives in
+ * `CloudCreditsCardView`, which holds no hooks — see the note there for why the
+ * split exists (#737): a hook-free view can be called as a function in a test,
+ * so the tier buttons' `onClick`, the busy state and the failed state are all
+ * reachable, and none of them are reachable through `renderToStaticMarkup`.
+ *
+ * Because the View can call no hook, this half also PRE-FORMATS every
+ * translated string, including the parameterised per-tier ones, and hands them
+ * down as plain strings.
+ */
 export default function CloudCreditsCard({
   totalCredits,
   totalMinutesRemaining,
