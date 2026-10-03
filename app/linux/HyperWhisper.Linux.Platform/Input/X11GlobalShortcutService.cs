@@ -3,11 +3,10 @@ using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Input;
 
-internal sealed record X11ShortcutTrigger(uint Keysym, uint Modifiers, uint PrimaryModifier = 0);
+internal sealed record X11ShortcutTrigger(uint Keysym, uint Modifiers);
 internal sealed record X11ShortcutBinding(
     NamedShortcut Shortcut,
-    IReadOnlyList<X11ShortcutTrigger> Triggers,
-    bool ModifierOnly);
+    IReadOnlyList<X11ShortcutTrigger> Triggers);
 internal readonly record struct X11HotkeyEvent(byte Keycode, uint State, bool Pressed);
 
 internal interface IX11HotkeyConnection : IDisposable
@@ -159,11 +158,9 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
             foreach (var candidate in candidates)
             {
                 var binding = candidate.Binding;
-                var state = input.State & RelevantMask;
-                if (binding.ModifierOnly && !input.Pressed)
-                    state &= ~binding.Triggers.First(trigger =>
-                        _connection!.Keycode(trigger.Keysym) == input.Keycode).PrimaryModifier;
-                if (state != candidate.Modifiers) continue;
+                // A press must carry the exact modifiers. A release matches by keycode alone,
+                // because the user can let go of a modifier before the main key.
+                if (input.Pressed && (input.State & RelevantMask) != candidate.Modifiers) continue;
                 var changed = input.Pressed ? _active.Add(binding.Shortcut.Name) : _active.Remove(binding.Shortcut.Name);
                 if (changed) signals.Add((input.Pressed, binding.Shortcut));
             }
@@ -214,21 +211,21 @@ internal static class X11ShortcutMapper
         else triggers = MapKey(named.Shortcut.Key).Select(keysym => new X11ShortcutTrigger(keysym, mask)).ToArray();
         return triggers.Count == 0
             ? PlatformResult<X11ShortcutBinding>.Failure("shortcut_unsupported", "The shortcut key is not supported by X11.")
-            : PlatformResult<X11ShortcutBinding>.Success(new(named, triggers, named.Shortcut.Key.IsNone));
+            : PlatformResult<X11ShortcutBinding>.Success(new(named, triggers));
     }
 
     private static IReadOnlyList<X11ShortcutTrigger> ModifierTriggers(ShortcutModifiers modifiers)
     {
-        var groups = new (ShortcutModifiers Modifier, uint Mask, uint[] Keysyms)[]
+        var groups = new (ShortcutModifiers Modifier, uint[] Keysyms)[]
         {
-            (ShortcutModifiers.Control, Control, [0xffe3, 0xffe4]),
-            (ShortcutModifiers.Alt, Alt, [0xffe9, 0xffea]),
-            (ShortcutModifiers.Shift, Shift, [0xffe1, 0xffe2]),
-            (ShortcutModifiers.Meta, Meta, [0xffeb, 0xffec]),
+            (ShortcutModifiers.Control, [0xffe3, 0xffe4]),
+            (ShortcutModifiers.Alt, [0xffe9, 0xffea]),
+            (ShortcutModifiers.Shift, [0xffe1, 0xffe2]),
+            (ShortcutModifiers.Meta, [0xffeb, 0xffec]),
         };
         return groups.Where(group => modifiers.HasFlag(group.Modifier))
             .SelectMany(group => group.Keysyms.Select(keysym => new X11ShortcutTrigger(keysym,
-                MaskFor(modifiers & ~group.Modifier), group.Mask)))
+                MaskFor(modifiers & ~group.Modifier))))
             .ToArray();
     }
 
