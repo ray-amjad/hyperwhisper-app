@@ -77,6 +77,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
             or TranscriptionWorkflowState.Retrying;
     public bool IsStreaming => _streaming;
+    /// <summary>Raised when <see cref="IsStreaming"/> flips; Home's record row follows it (#1187).</summary>
+    public event EventHandler? StreamingChanged;
+
+    private void SetStreaming(bool value)
+    {
+        if (_streaming == value) return;
+        _streaming = value;
+        StreamingChanged?.Invoke(this, EventArgs.Empty);
+    }
     /// <summary>PrepareAudio ran and no restore has taken it yet; true even before IsActive (#1038).</summary>
     public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0;
 
@@ -140,7 +149,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         else if (_mode.EnableScreenOCR)
             await ReportAsync(DiagnosticComponent.Portal, DiagnosticOutcome.Succeeded);
 
-        _streaming = kind == InteractionRecordingKind.Streaming;
+        SetStreaming(kind == InteractionRecordingKind.Streaming);
         if (_streaming)
         {
             BeginLiveDelivery();
@@ -555,7 +564,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
         try { liveDelivery?.Cancel(); } catch (ObjectDisposedException) { }
         liveDelivery?.Dispose();
-        _streaming = false;
+        SetStreaming(false);
         _liveTranscript = null;
         _context = null;
         _mode = null;
