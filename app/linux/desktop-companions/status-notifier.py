@@ -181,6 +181,12 @@ def menu_layout():
     return node(0, children=children)
 
 
+# The menu depends only on the module constant CULTURE, so build it once.
+MENU = menu_layout()
+MENU_ITEMS = item_properties(MENU)
+MENU_LAYOUT_VALUE = GLib.Variant("(u(ia{sv}av))", (1, layout_value(MENU)))
+
+
 def menu_event(item_id, event_id):
     if event_id == "clicked" and item_id in ACTIONS:
         emit(ACTIONS[item_id])
@@ -189,7 +195,6 @@ def menu_event(item_id, event_id):
 def menu_call(_conn, _sender, _path, _iface, method, params, invocation):
     # libdbusmenu-glib sends EventGroup and AboutToShowGroup, never Event or
     # AboutToShow, to a server whose Version is 3 or more, with no fallback.
-    items = item_properties(menu_layout())
     if method == "Event":
         item_id, event_id, _data, _timestamp = params.unpack()
         menu_event(item_id, event_id)
@@ -198,19 +203,19 @@ def menu_call(_conn, _sender, _path, _iface, method, params, invocation):
         events = params.unpack()[0]
         for item_id, event_id, _data, _timestamp in events:
             menu_event(item_id, event_id)
-        invocation.return_value(GLib.Variant("(ai)", ([e[0] for e in events if e[0] not in items],)))
+        invocation.return_value(GLib.Variant("(ai)", ([e[0] for e in events if e[0] not in MENU_ITEMS],)))
     elif method == "GetLayout":
-        invocation.return_value(GLib.Variant("(u(ia{sv}av))", (1, layout_value(menu_layout()))))
+        invocation.return_value(MENU_LAYOUT_VALUE)
     elif method == "GetGroupProperties":
         ids, names = params.unpack()
-        result = [(i, {k: v for k, v in items[i].items() if not names or k in names})
-                  for i in (ids or sorted(items)) if i in items]
+        result = [(i, {k: v for k, v in MENU_ITEMS[i].items() if not names or k in names})
+                  for i in (ids or sorted(MENU_ITEMS)) if i in MENU_ITEMS]
         invocation.return_value(GLib.Variant("(a(ia{sv}))", (result,)))
     elif method == "AboutToShow":
         invocation.return_value(GLib.Variant("(b)", (False,)))
     elif method == "AboutToShowGroup":
         ids = params.unpack()[0]
-        invocation.return_value(GLib.Variant("(aiai)", ([], [i for i in ids if i not in items])))
+        invocation.return_value(GLib.Variant("(aiai)", ([], [i for i in ids if i not in MENU_ITEMS])))
     else:
         invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "Unknown method")
 
