@@ -22,6 +22,10 @@ ITEM_XML = """<node><interface name='org.kde.StatusNotifierItem'>
 MENU_XML = """<node><interface name='com.canonical.dbusmenu'>
 <method name='GetLayout'><arg type='i' direction='in'/><arg type='i' direction='in'/><arg type='as' direction='in'/><arg type='u' direction='out'/><arg type='(ia{sv}av)' direction='out'/></method>
 <method name='Event'><arg type='i' direction='in'/><arg type='s' direction='in'/><arg type='v' direction='in'/><arg type='u' direction='in'/></method>
+<method name='GetGroupProperties'><arg type='ai' direction='in'/><arg type='as' direction='in'/><arg type='a(ia{sv})' direction='out'/></method>
+<method name='EventGroup'><arg type='a(isvu)' direction='in'/><arg type='ai' direction='out'/></method>
+<method name='AboutToShow'><arg type='i' direction='in'/><arg type='b' direction='out'/></method>
+<method name='AboutToShowGroup'><arg type='ai' direction='in'/><arg type='ai' direction='out'/><arg type='ai' direction='out'/></method>
 <property name='Version' type='u' access='read'/><property name='TextDirection' type='s' access='read'/><property name='Status' type='s' access='read'/></interface></node>"""
 
 # IDs and output tokens are compile-time constants. D-Bus event data, menu labels,
@@ -132,8 +136,20 @@ def properties(label=None, separator=False, children=False):
 
 
 def node(item_id, label=None, children=None, separator=False):
-    descendants = [GLib.Variant("(ia{sv}av)", child) for child in (children or [])]
-    return (item_id, properties(label, separator, bool(children)), descendants)
+    return (item_id, properties(label, separator, bool(children)), children or [])
+
+
+def layout_value(item):
+    item_id, props, children = item
+    return (item_id, props, [GLib.Variant("(ia{sv}av)", layout_value(child)) for child in children])
+
+
+def item_properties(item):
+    item_id, props, children = item
+    table = {item_id: props}
+    for child in children:
+        table.update(item_properties(child))
+    return table
 
 
 def menu_layout():
@@ -165,14 +181,38 @@ def menu_layout():
     return node(0, children=children)
 
 
+def menu_event(item_id, event_id):
+    if event_id == "clicked" and item_id in ACTIONS:
+        emit(ACTIONS[item_id])
+
+
 def menu_call(_conn, _sender, _path, _iface, method, params, invocation):
+    # libdbusmenu-glib sends EventGroup and AboutToShowGroup, never Event or
+    # AboutToShow, to a server whose Version is 3 or more, with no fallback.
+    items = item_properties(menu_layout())
     if method == "Event":
         item_id, event_id, _data, _timestamp = params.unpack()
-        if event_id == "clicked" and item_id in ACTIONS:
-            emit(ACTIONS[item_id])
+        menu_event(item_id, event_id)
         invocation.return_value(None)
+    elif method == "EventGroup":
+        events = params.unpack()[0]
+        for item_id, event_id, _data, _timestamp in events:
+            menu_event(item_id, event_id)
+        invocation.return_value(GLib.Variant("(ai)", ([e[0] for e in events if e[0] not in items],)))
     elif method == "GetLayout":
-        invocation.return_value(GLib.Variant("(u(ia{sv}av))", (1, menu_layout())))
+        invocation.return_value(GLib.Variant("(u(ia{sv}av))", (1, layout_value(menu_layout()))))
+    elif method == "GetGroupProperties":
+        ids, names = params.unpack()
+        result = [(i, {k: v for k, v in items[i].items() if not names or k in names})
+                  for i in (ids or sorted(items)) if i in items]
+        invocation.return_value(GLib.Variant("(a(ia{sv}))", (result,)))
+    elif method == "AboutToShow":
+        invocation.return_value(GLib.Variant("(b)", (False,)))
+    elif method == "AboutToShowGroup":
+        ids = params.unpack()[0]
+        invocation.return_value(GLib.Variant("(aiai)", ([], [i for i in ids if i not in items])))
+    else:
+        invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", "Unknown method")
 
 
 def menu_property(_conn, _sender, _path, _iface, prop):
