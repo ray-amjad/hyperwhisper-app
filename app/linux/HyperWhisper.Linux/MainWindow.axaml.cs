@@ -168,7 +168,9 @@ public partial class MainWindow : Window
                 _platformServices.CredentialStore,
             new LinuxMetadataOnlyHealthProbe()),
             CreateAboutViewModel(diagnosticDirectory),
-            L);
+            L,
+            // Read at each navigation; the session is built below, after the shell it writes to.
+            () => _recordingSession?.IsRecordingOrFinishing == true);
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
