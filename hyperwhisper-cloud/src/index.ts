@@ -142,9 +142,20 @@ async function gracefulShutdown(signal: string): Promise<void> {
 process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
 process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
 
+// Bun.serve's own idle limit, in SECONDS (#1252). Bun's default is 10 s, which
+// cut every request silent for longer than that with an empty reply, before
+// any vendor bound (15/20/45 s) could fire. 255 s is Bun's maximum: some single
+// requests stay silent for over 60 s (google-chirp batch polling up to
+// BATCH_POLL_DEADLINE_MS, callWithRetry chains on /post-process), so Bun must
+// never be a second, tighter cutter. On Fly the proxy's fixed 60 s no-bytes
+// limit (see the 30 s ping in routes/ws-streaming-shared.ts) is still the
+// binding cut for silent requests.
+export const SERVER_IDLE_TIMEOUT_SECONDS = 255;
+
 // Export for Bun
 export default {
   port: Number(process.env.PORT) || 8080,
+  idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
   fetch: app.fetch,
   websocket,
 };
