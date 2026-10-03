@@ -2363,7 +2363,6 @@ public partial class MainWindow : Window
         if (copied.IsFailure)
         {
             _viewModel.Account.Status.Failure(copied.Error!.Code, copied.Error.Message);
-            ShowAccountClickFailure(copied.Error);
             return;
         }
         ShowCopiedGlyph("AccountKeyCopyGlyph");
@@ -5148,12 +5147,9 @@ public partial class MainWindow : Window
     private PlatformResult OpenCloudAccountUri(Uri uri)
     {
         var result = OpenAccountUri(uri);
-        if (result.IsFailure) ShowAccountClickFailure(result.Error!);
+        if (result.IsFailure) QueueErrorToast(() => (result.Error!.Code, result.Error.Message));
         return result;
     }
-
-    private void ShowAccountClickFailure(PlatformError error)
-        => QueueErrorToast(() => (error.Code, error.Message));
 
     private PlatformResult OpenAccountUri(Uri uri)
     {
