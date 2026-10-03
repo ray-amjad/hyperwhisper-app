@@ -823,6 +823,10 @@ public partial class MainWindow : Window
     private void OnOnboardingTranscriptionSaved(object? sender, EventArgs e) =>
         _onboarding?.SetTestStatus(L("linux.onboarding.test.succeeded"), succeeded: true);
 
+    /// <summary>
+    /// Settings -> About -> Open logs. About.Status is bound nowhere, so a failure is a toast,
+    /// raised per click as in OpenSafeUri (#1262).
+    /// </summary>
     private void OpenFixedLocation(string path)
     {
         try
@@ -832,7 +836,11 @@ public partial class MainWindow : Window
             start.ArgumentList.Add(path);
             _ = Process.Start(start);
         }
-        catch { _viewModel.About?.Status.Failure("about.open_logs_failed", L("linux.error.open_logs_failed")); }
+        catch
+        {
+            var message = L("linux.error.open_logs_failed");
+            QueueErrorToast(() => ("about.open_logs_failed", message));
+        }
     }
 
     private static readonly Uri SpeedComparisonUri = new("https://www.hyperwhisper.com/en/latency");
