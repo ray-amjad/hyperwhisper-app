@@ -48,6 +48,24 @@ const CREDIT_TIERS = [
  * translated string, including the parameterised per-tier ones, and hands them
  * down as plain strings.
  */
+// `loadPostHog` answers null when `NEXT_PUBLIC_POSTHOG_KEY` is absent. The
+// report is async (#918), so the seam's try/catch no longer sees a stubbed
+// `captureException` throw; the try/catch here stands in for it, and the
+// promise never rejects, so the `void` at the call site leaves no unhandled
+// rejection.
+async function reportToPostHog(
+  thrown: unknown,
+  properties: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const posthog = await loadPostHog();
+
+    posthog?.captureException(thrown, properties);
+  } catch {
+    // A failed report must never surface as a second error.
+  }
+}
+
 export default function CloudCreditsCard({
   totalCredits,
   totalMinutesRemaining,
@@ -104,15 +122,10 @@ export default function CloudCreditsCard({
     navigate: (destination) => {
       window.location.href = destination;
     },
-    // `loadPostHog` answers null when `NEXT_PUBLIC_POSTHOG_KEY` is absent. The
-    // report is async now (#918), so the seam's try/catch no longer sees a
-    // stubbed `captureException` throw; the `.catch` here stands in for it.
     // The properties come from the seam, which keeps the licence key out of
     // them: this app's PostHog init has no redaction (#739).
     reportError: (thrown, properties) => {
-      void loadPostHog()
-        .then((posthog) => posthog?.captureException(thrown, properties))
-        .catch(() => {});
+      void reportToPostHog(thrown, properties);
     },
     setBusy: setLoadingTier,
     setError,

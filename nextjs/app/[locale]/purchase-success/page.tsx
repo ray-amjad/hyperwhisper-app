@@ -38,11 +38,15 @@ function PurchaseSuccessContent() {
     if (!checkoutId || eventCaptured) return;
     let cancelled = false;
 
-    void loadPostHog().then((posthog) => {
+    const capture = async () => {
+      const posthog = await loadPostHog();
+
       if (cancelled || !posthog) return;
       posthog.capture("purchase_completed", { session_id: checkoutId });
       setEventCaptured(true);
-    });
+    };
+
+    void capture();
 
     return () => {
       cancelled = true;
