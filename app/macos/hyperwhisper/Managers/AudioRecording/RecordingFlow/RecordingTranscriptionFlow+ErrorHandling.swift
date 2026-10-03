@@ -70,11 +70,24 @@ extension RecordingTranscriptionFlow {
                 appState.pendingRetryAudioPath = nil
             }
             clearActiveSessionMode()
+        } catch is CancellationError {
+            // User pressed Cancel in the dialog (issue #1062). Mirror the stop
+            // flow's cancel branch: clear the text so the dialog's idle observer
+            // shows no error, and do NOT reopen the dialog. `pendingRetryAudioPath`
+            // and the session mode are kept so a second Retry runs as the first did.
+            // No `endPowerActivity()`: this path never begins one.
+            await MainActor.run {
+                appState.lastTranscription = ""
+                appState.recordingState = .idle
+                KeyboardShortcuts.disable(.cancelRecording)
+            }
+            AppLogger.audio.info("❌ Pending-file retry cancelled (no error shown)")
         } catch {
             await MainActor.run {
                 appState.recordingState = .idle
                 appState.lastTranscription = "Error: \(error.localizedDescription)"
                 appState.showRecordingDialog = true
+                KeyboardShortcuts.disable(.cancelRecording)
             }
         }
     }
