@@ -35,7 +35,7 @@ const {
   parseGeminiLiveFrame,
   wsStreamingGeminiTranscribePreflight,
 } = await import('./ws-streaming-gemini-transcribe');
-const { endActiveStreamingSessions, routePathFor } = await import('./ws-streaming-shared');
+const { endActiveStreamingSessions, resetStreamingShutdownForTests, routePathFor } = await import('./ws-streaming-shared');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
@@ -1070,8 +1070,13 @@ describe('gemini live socket lifecycle', () => {
   describe('machine shutdown (#1235)', () => {
     // A session opened by an earlier test and never closed is still registered.
     // Settle those first, so each test counts only the sessions it opens.
+    // The latch is module state and bun runs every test file in one process.
+    afterEach(() => resetStreamingShutdownForTests());
+
     async function settleLeftoverSessions(): Promise<void> {
       await endActiveStreamingSessions();
+      // Ending latches the machine as shutting down; reopen it for this test.
+      resetStreamingShutdownForTests();
       await drainPendingDeductions(2000);
       licenseCharges.length = 0;
     }

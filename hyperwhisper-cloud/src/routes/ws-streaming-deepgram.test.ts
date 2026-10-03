@@ -31,7 +31,7 @@ const {
   minimumStreamingCredits,
   wsStreamingPreflight,
 } = await import('./ws-streaming-deepgram');
-const { endActiveStreamingSessions } = await import('./ws-streaming-shared');
+const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./ws-streaming-shared');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
@@ -854,9 +854,14 @@ describe('streaming socket lifecycle', () => {
     // Settle those first, so each test counts only the sessions it opens.
     async function settleLeftoverSessions(): Promise<void> {
       await endActiveStreamingSessions();
+      // Ending latches the machine as shutting down; reopen it for this test.
+      resetStreamingShutdownForTests();
       await drainPendingDeductions(2000);
       licenseCharges.length = 0;
     }
+
+    // The latch is module state and bun runs every test file in one process.
+    afterEach(() => resetStreamingShutdownForTests());
 
     test('bills an open session, logs session_end, and closes the client with 1012 without finishing it', async () => {
       await settleLeftoverSessions();
@@ -896,6 +901,65 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toEqual([]);
 
       // ...and the session left the set.
+      expect(await endActiveStreamingSessions()).toBe(0);
+    });
+
+    test('a session that opens after shutdown began gets 1012, no upstream, and no charge', async () => {
+      await settleLeftoverSessions();
+      upstreamSockets.length = 0;
+      expect(await endActiveStreamingSessions()).toBe(0);
+
+      // A preflight that was awaiting auth when the snapshot was taken.
+      const auth: AuthContext = { identifier: 'key-1234-abcd', licenseKey: 'key-1234-abcd', credits: 1000 };
+      const events = createStreamingEvents(
+        fakeContext(auth, 'https://transcribe.example/ws/streaming-deepgram?account_key=key-1234-abcd'),
+      );
+      const client = new FakeClientSocket();
+      const { entries } = captureStreamingLogs(() => {
+        events.onOpen(new Event('open'), client);
+      });
+
+      expect(client.closes).toEqual([{ code: 1012, reason: 'Service restart' }]);
+      expect(upstreamSockets).toHaveLength(0);
+      expect(entries.map((entry) => entry.event)).not.toContain('ws_streaming.session_start');
+
+      // Audio sent before the close lands, and the close itself, meter nothing.
+      for (let second = 0; second < 30; second += 1) {
+        events.onMessage(binaryMessage(audioFrame(1)));
+      }
+      await events.onClose();
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toEqual([]);
+      expect(client.messagesOfType('session_complete')).toEqual([]);
+      expect(await endActiveStreamingSessions()).toBe(0);
+    });
+
+    test('a session whose shutdown throws does not stop the others being ended', async () => {
+      await settleLeftoverSessions();
+      const broken = openSession();
+      broken.client.close = () => { throw new Error('socket already torn down'); };
+      broken.events.onMessage(binaryMessage(audioFrame(10)));
+      const healthy = openSession();
+      healthy.events.onMessage(binaryMessage(audioFrame(20)));
+
+      let ending: Promise<number> = Promise.resolve(-1);
+      const errors: unknown[][] = [];
+      const realError = console.error;
+      console.error = (...args: unknown[]) => { errors.push(args); };
+      try {
+        captureStreamingLogs(() => {
+          ending = endActiveStreamingSessions();
+        });
+        expect(await ending).toBe(1);
+      } finally {
+        console.error = realError;
+      }
+      await drainPendingDeductions(2000);
+
+      expect(healthy.client.closes).toEqual([{ code: 1012, reason: 'Service restart' }]);
+      // Both were billed: the throw came after the broken session's endSession.
+      expect(licenseCharges.map((charge) => charge.metadata.audio_duration_seconds).sort()).toEqual([10, 20]);
+      expect(errors).toEqual([['ws_streaming.shutdown_session_failed', { errorName: 'Error' }]]);
       expect(await endActiveStreamingSessions()).toBe(0);
     });
 

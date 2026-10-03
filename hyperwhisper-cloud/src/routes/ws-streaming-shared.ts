@@ -328,6 +328,8 @@ function errorName(error: unknown): string {
 // socket `close` handler on `process.exit` and `endSession` is the only place a
 // live session is billed (#1235). An entry removes itself in `endSession`.
 const activeSessions = new Set<() => Promise<void>>();
+/** Set once by `endActiveStreamingSessions`; no live session opens after it. */
+let machineShuttingDown = false;
 
 /**
  * End every open live session for a machine shutdown: bill it and log
@@ -339,9 +341,28 @@ const activeSessions = new Set<() => Promise<void>>();
  * Resolves to the number of sessions ended.
  */
 export async function endActiveStreamingSessions(): Promise<number> {
+  // Latch first: the machine keeps accepting upgrades during the drain, and a
+  // preflight already awaiting auth can open after this snapshot. Every session
+  // whose `onOpen` runs from now on is refused with 1012 before it can meter.
+  machineShuttingDown = true;
   const sessions = [...activeSessions];
-  await Promise.all(sessions.map((shutdown) => shutdown()));
-  return sessions.length;
+  // Settled, not `Promise.all`: one session's fault must not reject this and
+  // make `gracefulShutdown` skip the drains and the exit.
+  const results = await Promise.allSettled(sessions.map((shutdown) => shutdown()));
+  let ended = 0;
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      ended += 1;
+    } else {
+      console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(result.reason) });
+    }
+  }
+  return ended;
+}
+
+/** Test-only: bun runs every test file in one process, and the latch is module state. */
+export function resetStreamingShutdownForTests(): void {
+  machineShuttingDown = false;
 }
 
 function decodeUpstreamFrame(raw: unknown): string {
@@ -655,6 +676,17 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
         log('config_missing_api_key');
         sendToClient(ws, { type: 'error', message: `${vendor.label} API key not configured` });
         ws.close(1011, 'Configuration error');
+        return;
+      }
+
+      if (machineShuttingDown) {
+        // Opened after shutdown began, so it would miss the snapshot and be
+        // dropped unbilled by the exit. Refuse it before any upstream socket or
+        // metering exists; 1012 sends the client to another machine. Nothing
+        // was metered, so there is nothing to bill and no later `endSession`.
+        sessionEnded = true;
+        log('refused_shutting_down');
+        ws.close(1012, 'Service restart');
         return;
       }
 

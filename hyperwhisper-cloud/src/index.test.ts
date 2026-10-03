@@ -53,7 +53,7 @@ const server = (await import('./index')).default;
 const { deductCredits, drainPendingDeductions } = await import('./middleware/credits');
 const { reportLatencySamples } = await import('./lib/latency-report');
 const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
-const { endActiveStreamingSessions } = await import('./routes/ws-streaming-shared');
+const { endActiveStreamingSessions, resetStreamingShutdownForTests } = await import('./routes/ws-streaming-shared');
 
 /** Just enough upstream socket for a Deepgram session that is already open. */
 class OpenUpstreamSocket {
@@ -136,6 +136,8 @@ afterEach(() => {
 
 afterAll(() => {
   process.exit = originalExit;
+  // The SIGTERM test latches the streaming shutdown; bun runs every file in one process.
+  resetStreamingShutdownForTests();
   if (originalPort === undefined) delete process.env.PORT;
   else process.env.PORT = originalPort;
 });
@@ -406,6 +408,7 @@ describe('graceful shutdown', () => {
     // A live session another suite left open would be ended too; settle those
     // first so the counts below are this test's alone.
     await endActiveStreamingSessions();
+    resetStreamingShutdownForTests();
     await drainPendingDeductions(2000);
     deductionReachedApi = false;
     liveChargeSeconds.length = 0;
