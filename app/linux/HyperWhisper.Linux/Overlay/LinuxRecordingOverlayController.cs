@@ -23,6 +23,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     private LinuxOverlayModeLabel _recordingMode = LinuxOverlayModeLabel.Create(null);
     private LinuxStreamingOverlayConnectionState? _streamingConnection;
     private double _audioLevel;
+    private bool _cancelConfirmationPending;
     private bool _disposed;
 
     internal LinuxRecordingOverlayController(
@@ -62,6 +63,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             CancelTransientLocked();
             _recordingMode = mode;
             _recordingStarted = _clock();
+            _cancelConfirmationPending = false;
             _streamingConnection = null;
             _audioLevel = 0;
         }
@@ -76,6 +78,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             CancelTransientLocked();
             _recordingMode = mode;
             _recordingStarted = _clock();
+            _cancelConfirmationPending = false;
             _streamingConnection = LinuxStreamingOverlayConnectionState.Connecting;
             _audioLevel = 0;
         }
@@ -101,6 +104,8 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         {
             if (_disposed || _recordingStarted is null) return;
             _audioLevel = Math.Clamp(double.IsFinite(level) ? level * 3.25 : 0, 0, 1);
+            // A level tick must not paint the Recording pill over a pending cancel confirmation (#1245).
+            if (_cancelConfirmationPending) return;
             snapshot = RecordingSnapshotLocked();
         }
         Apply(snapshot);
@@ -113,6 +118,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _cancelConfirmationPending = false;
         }
         Apply(new(LinuxRecordingOverlayState.Transcribing, true, _text("recording.state.transcribing"), string.Empty,
             ViewModel.DurationText));
@@ -135,6 +141,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _cancelConfirmationPending = false;
         }
         Apply(new(LinuxRecordingOverlayState.Error, true, message, string.Empty, ViewModel.DurationText));
         StartTransient(ErrorDuration, Hide);
@@ -148,9 +155,9 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingMode = mode;
-            resume = _recordingStarted is not null
-                ? RecordingSnapshotLocked()
-                : LinuxRecordingOverlayViewModel.HiddenSnapshot;
+            resume = _recordingStarted is null ? LinuxRecordingOverlayViewModel.HiddenSnapshot
+                : _cancelConfirmationPending ? CancelConfirmationSnapshotLocked()
+                : RecordingSnapshotLocked();
         }
         Apply(new(LinuxRecordingOverlayState.ModeChanged, true, _text("linux.overlay.mode_changed"), mode.Value,
             resume.DurationText));
@@ -164,6 +171,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _cancelConfirmationPending = false;
         }
         Apply(new(LinuxRecordingOverlayState.Cancelled, true, _text("status.recordingCancelled"), string.Empty,
             ViewModel.DurationText));
@@ -172,13 +180,15 @@ public sealed class LinuxRecordingOverlayController : IDisposable
 
     public void ShowCancelConfirmation()
     {
+        LinuxRecordingOverlaySnapshot snapshot;
         lock (_gate)
         {
             if (_disposed || _recordingStarted is null || _streamingConnection is not null) return;
             CancelTransientLocked();
+            _cancelConfirmationPending = true;
+            snapshot = CancelConfirmationSnapshotLocked();
         }
-        Apply(new(LinuxRecordingOverlayState.CancelConfirmation, true,
-            _text("recording.cancel.prompt"), string.Empty, ViewModel.DurationText));
+        Apply(snapshot);
     }
 
     public void DismissCancelConfirmation()
@@ -186,7 +196,9 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         LinuxRecordingOverlaySnapshot? snapshot = null;
         lock (_gate)
         {
-            if (_disposed || _recordingStarted is null || ViewModel.State != LinuxRecordingOverlayState.CancelConfirmation) return;
+            if (_disposed || _recordingStarted is null || !_cancelConfirmationPending) return;
+            CancelTransientLocked();
+            _cancelConfirmationPending = false;
             snapshot = RecordingSnapshotLocked();
         }
         Apply(snapshot);
@@ -211,6 +223,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _cancelConfirmationPending = false;
             _audioLevel = 0;
         }
         Apply(new(state, true, text, string.Empty, ViewModel.DurationText));
@@ -224,6 +237,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             if (_disposed) return;
             CancelTransientLocked();
             _recordingStarted = null;
+            _cancelConfirmationPending = false;
         }
         Apply(LinuxRecordingOverlayViewModel.HiddenSnapshot);
     }
@@ -260,6 +274,10 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         return new(streaming ? LinuxRecordingOverlayState.Streaming : LinuxRecordingOverlayState.Recording,
             true, status, _recordingMode.Value, duration, _audioLevel, _streamingConnection);
     }
+
+    private LinuxRecordingOverlaySnapshot CancelConfirmationSnapshotLocked() =>
+        new(LinuxRecordingOverlayState.CancelConfirmation, true, _text("recording.cancel.prompt"), string.Empty,
+            RecordingSnapshotLocked().DurationText);
 
     private void StartTransient(TimeSpan duration, Action completion)
     {
@@ -325,6 +343,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             _disposed = true;
             CancelTransientLocked();
             _recordingStarted = null;
+            _cancelConfirmationPending = false;
         }
         _durationTimer?.Dispose();
         try { _dispatcher.Post(() => { try { _surface.HideBestEffort(); _surface.Dispose(); } catch { } }); }
