@@ -65,6 +65,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
     ,("/recordings filters, counts and pages in SQL with the old match rule", RecordingsQueryRunsInSql)
+    ,("/recordings reads since and until as UTC in every time zone", RecordingsSinceUntilAreUtc)
 };
 foreach (var test in tests)
 {
@@ -548,7 +549,8 @@ static async Task EndpointContractSnapshots()
 // in LINQ; filter, count and limit now run in SQL. The match rule must not
 // move: `Contains(q, OrdinalIgnoreCase)` over Text and TranscribedText only,
 // and `total` is every match, not the page. The reference below is the
-// pre-#1087 code, verbatim, so every case is also checked against it.
+// pre-#1087 code, verbatim except the UTC parse of #1196, so every case is
+// also checked against it.
 static async Task RecordingsQueryRunsInSql()
 {
     using var paths = new TempPaths();
@@ -582,8 +584,8 @@ static async Task RecordingsQueryRunsInSql()
 
     async Task<(int Total, string[] Texts)> Reference(string? q, string? sinceText, string? untilText, int limit)
     {
-        _ = DateTime.TryParse(sinceText, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var since);
-        _ = DateTime.TryParse(untilText, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var until);
+        _ = DateTime.TryParse(sinceText, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out var since);
+        _ = DateTime.TryParse(untilText, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out var until);
         IEnumerable<HyperWhisper.Data.Entities.Transcript> rows = await history.ListAsync();
         if (!string.IsNullOrWhiteSpace(q)) rows = rows.Where(item => item.Text.Contains(q, StringComparison.OrdinalIgnoreCase) || (item.TranscribedText?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
         if (since != default) rows = rows.Where(item => item.Date >= since);
@@ -622,15 +624,54 @@ static async Task RecordingsQueryRunsInSql()
         var expected = await Reference(q, since, until, limit);
         Assert(actual.Total == expected.Total && actual.Texts.SequenceEqual(expected.Texts),
             $"{url}: [{string.Join('|', actual.Texts)}] total {actual.Total} differs from the pre-#1087 rule [{string.Join('|', expected.Texts)}] total {expected.Total}");
-        // The route parses since/until into LOCAL time (AssumeUniversal without
-        // AdjustToUniversal), so the date totals hold only where local is UTC.
-        // The comparison with the old rule above holds in every time zone.
-        if ((since is null && until is null) || TimeZoneInfo.Local.GetUtcOffset(day) == TimeSpan.Zero)
-            Assert(actual.Total == expectedTotal, $"{url}: total {actual.Total}, expected {expectedTotal}");
+        // since/until are read as UTC (#1196), so the totals hold in every time zone.
+        Assert(actual.Total == expectedTotal, $"{url}: total {actual.Total}, expected {expectedTotal}");
     }
 
     var newest = await Get("/recordings?q=ABC&limit=1");
     Assert(newest.Texts is ["raw only"], "the page is not the newest match first");
+}
+
+// Issue #1196. History dates are stored in UTC, so `since`/`until` must be read
+// as UTC too. Parsing with AssumeUniversal alone gave local clock digits, and
+// on a UTC+9 machine `since=00:00Z` filtered from 09:00 UTC. Run this under
+// `TZ=Asia/Tokyo` to see the shift; under `TZ=UTC` it passes either way.
+static async Task RecordingsSinceUntilAreUtc()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(new ModeRepository(database), history, workflow, new EmptyCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    await using var fixture = await Fixture.Create(backend: backend);
+    fixture.Authenticate();
+
+    await history.AddAsync(new() { Text = "aug31 20z", Date = new DateTime(2026, 8, 31, 20, 0, 0, DateTimeKind.Utc) });
+    await history.AddAsync(new() { Text = "sep01 03z", Date = new DateTime(2026, 9, 1, 3, 0, 0, DateTimeKind.Utc) });
+    await history.AddAsync(new() { Text = "sep01 12z", Date = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc) });
+
+    async Task<string[]> Texts(string query)
+    {
+        using var document = JsonDocument.Parse(await fixture.Client.GetStringAsync($"/recordings?{query}"));
+        return document.RootElement.GetProperty("recordings").EnumerateArray()
+            .Select(item => item.GetProperty("text").GetString()!).Order(StringComparer.Ordinal).ToArray();
+    }
+
+    (string Query, string[] Expected)[] cases =
+    [
+        ("since=2026-09-01T00:00:00Z", ["sep01 03z", "sep01 12z"]),
+        ("until=2026-09-01T06:00:00Z", ["aug31 20z", "sep01 03z"]),
+        ("since=2026-09-01T00:00:00Z&until=2026-09-01T06:00:00Z", ["sep01 03z"]),
+        ($"since={Uri.EscapeDataString("2026-09-01T09:00:00+09:00")}", ["sep01 03z", "sep01 12z"]),
+        ("since=2026-09-01T00:00:00", ["sep01 03z", "sep01 12z"]), // no designator is UTC, not local
+    ];
+    foreach (var (query, expected) in cases)
+    {
+        var actual = await Texts(query);
+        Assert(actual.SequenceEqual(expected),
+            $"/recordings?{query} under {TimeZoneInfo.Local.Id}: [{string.Join('|', actual)}], expected [{string.Join('|', expected)}]");
+    }
 }
 
 static void AssertProperties(JsonElement element, params string[] expected)
