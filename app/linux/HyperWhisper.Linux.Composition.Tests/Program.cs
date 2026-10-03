@@ -56,6 +56,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the Local API preferred port clamps, refuses and reads like the control", LocalApiPortEntryRules),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
+    ("the storage maintenance loop starts once and survives a failed tick", StorageMaintenanceLoopStartsOnce),
+    ("a later window Opened retries only what has not yet succeeded", WindowStartupGateRetriesOnlyWhatFailed),
     ("shortcut recorder rules judge the key, not the role", ShortcutRecorderRulesJudgeTheKey),
     ("shortcut recorder verdicts all carry a catalogued message", ShortcutRecorderVerdictsCarryMessages),
     ("diagnostic capabilities fail closed from platform evidence", DiagnosticCapabilitiesFailClosed),
@@ -1641,6 +1643,58 @@ static async Task UntilAsync(Func<bool> condition)
 {
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
     while (!condition()) await Task.Delay(10, deadline.Token);
+}
+
+// A second Opened must not start a second wait on the one PeriodicTimer, which throws (#833).
+static async Task StorageMaintenanceLoopStartsOnce()
+{
+    var reported = new List<Exception>();
+    Task Report(Exception exception) { lock (reported) reported.Add(exception); return Task.CompletedTask; }
+    using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(5));
+    using var lifetime = new CancellationTokenSource();
+    var ticks = 0;
+    var loop = new LinuxStorageMaintenanceLoop(timer, _ => Task.FromResult(Interlocked.Increment(ref ticks)), Report);
+    var first = loop.EnsureStarted(lifetime.Token);
+    var second = loop.EnsureStarted(lifetime.Token);
+    await UntilAsync(() => Volatile.Read(ref ticks) >= 3);
+    Assert(ReferenceEquals(first, second) && !first.IsCompleted && reported.Count == 0,
+        "a second start began another loop on the shared timer");
+    lifetime.Cancel();
+    // WhenAny never rethrows, so a faulted loop reaches the assert instead of escaping past it.
+    await Task.WhenAny(first, Task.Delay(TimeSpan.FromSeconds(3)));
+    Assert(first.IsCompletedSuccessfully, "cancelling the lifetime did not end the loop cleanly");
+
+    // One failed tick is reported and the loop keeps ticking; only the lifetime ends it.
+    using var failingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(1));
+    using var failingLifetime = new CancellationTokenSource();
+    var calls = 0;
+    Task FailFirst(CancellationToken _) =>
+        Interlocked.Increment(ref calls) == 1 ? throw new IOException("disk") : Task.CompletedTask;
+    var failing = new LinuxStorageMaintenanceLoop(failingTimer, FailFirst, Report).EnsureStarted(failingLifetime.Token);
+    await Task.WhenAny(UntilAsync(() => Volatile.Read(ref calls) >= 3), Task.Delay(TimeSpan.FromSeconds(3)));
+    Assert(reported is [IOException], "a maintenance failure was not reported");
+    Assert(Volatile.Read(ref calls) >= 3 && !failing.IsCompleted, "one failed tick ended the hourly loop");
+    failingLifetime.Cancel();
+    await Task.WhenAny(failing, Task.Delay(TimeSpan.FromSeconds(3)));
+    Assert(failing.IsCompletedSuccessfully && reported.Count == 1, "cancelling a loop that had failed did not end it cleanly");
+}
+
+// Opened is raised again on every Show() after Hide(), so a later Opened retries only what has not
+// yet succeeded: the start-up chain until it succeeds once, then a tray helper that is down (#833).
+static Task WindowStartupGateRetriesOnlyWhatFailed()
+{
+    var gate = new LinuxWindowStartupGate();
+    Assert(gate.Next(trayAvailable: false) == LinuxWindowOpenedWork.Launch, "the first Opened did not launch");
+    Assert(gate.Next(trayAvailable: false) == LinuxWindowOpenedWork.None, "a Show during start-up began a second chain");
+    gate.Finish(succeeded: false);
+    Assert(gate.Next(trayAvailable: true) == LinuxWindowOpenedWork.RetryStartUp, "a failed start-up was not retried");
+    gate.Finish(succeeded: true);
+    Assert(gate.Next(trayAvailable: true) == LinuxWindowOpenedWork.None, "start-up ran again after it had succeeded");
+    Assert(gate.Next(trayAvailable: false) == LinuxWindowOpenedWork.RestartTray, "a dead tray was not restarted");
+    Assert(gate.Next(trayAvailable: false) == LinuxWindowOpenedWork.None, "a Show during a tray restart began another");
+    gate.Finish(succeeded: false);
+    Assert(gate.Next(trayAvailable: false) == LinuxWindowOpenedWork.RestartTray, "a failed tray restart re-ran start-up");
+    return Task.CompletedTask;
 }
 
 static void Assert(bool condition, string message)
