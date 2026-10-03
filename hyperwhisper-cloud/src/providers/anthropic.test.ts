@@ -585,7 +585,7 @@ describe('streamAnthropicChat first-byte timeout', () => {
     expect(elapsedMs).toBeLessThan(TIMEOUT_MS + 1500);
   });
 
-  test('does not cut a stream that started before the timer, however slow it gets after', async () => {
+  test('does not cut a stream that started before the first-byte timer, however slow it gets after', async () => {
     const encoder = new TextEncoder();
     server = Bun.serve({
       hostname: '127.0.0.1',
@@ -621,6 +621,116 @@ describe('streamAnthropicChat first-byte timeout', () => {
     ]);
     // 1000 in + 500 out: the full usage, so the stream ran to its end.
     expect(await costPromise).toBeCloseTo(0.0035, 9);
+  });
+});
+
+// Idle bound (#1112): after the first chunk, the timer is re-armed on every
+// chunk, so a stall ends the stream but a slow, live stream is never cut.
+describe('streamAnthropicChat idle timeout', () => {
+  const IDLE_MS = 300;
+  // Far above IDLE_MS, so only the idle bound can end these streams in time.
+  const FIRST_BYTE_MS = 10_000;
+  let upstream: TestUpstream | undefined;
+  let server: ReturnType<typeof Bun.serve> | undefined;
+  afterEach(() => {
+    upstream?.stop();
+    upstream = undefined;
+    server?.stop(true);
+    server = undefined;
+  });
+
+  /** 200 + SSE headers and ONE chunked SSE chunk, then silence with the socket open. */
+  function oneChunkThenSilentUpstream(text: string): TestUpstream {
+    const answered = new WeakSet<object>();
+    const listener = Bun.listen({
+      hostname: '127.0.0.1',
+      port: 0,
+      socket: {
+        open() {},
+        data(socket) {
+          if (answered.has(socket)) return;
+          answered.add(socket);
+          const size = Buffer.byteLength(text).toString(16);
+          socket.write(
+            `HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\n\r\n${size}\r\n${text}\r\n`,
+          );
+        },
+      },
+    });
+    return { url: `http://127.0.0.1:${listener.port}`, stop: () => listener.stop(true) };
+  }
+
+  test('ends a stream that stalls after its first chunk within the idle timeout, billing what it saw', async () => {
+    upstream = oneChunkThenSilentUpstream(sseText([
+      { type: 'message_start', message: { usage: { input_tokens: 1000 } } },
+      { type: 'content_block_delta', delta: { text: 'first' } },
+    ]));
+    routeAnthropicTo(upstream.url);
+    const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      const startedAt = performance.now();
+      const { stream, costPromise } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID, FIRST_BYTE_MS, IDLE_MS);
+      const lines = sseDataLines(await drain(stream));
+      const elapsedMs = performance.now() - startedAt;
+
+      // The delta already sent reaches the client, then the transport-error end.
+      expect(lines).toEqual([
+        JSON.stringify({ choices: [{ delta: { content: 'first' } }] }),
+        '[DONE]',
+      ]);
+      // 1000 input tokens from message_start are billed, not zeroed.
+      expect(await costPromise).toBeCloseTo(0.001, 9);
+      expect(elapsedMs).toBeGreaterThanOrEqual(IDLE_MS - 20);
+      expect(elapsedMs).toBeLessThan(IDLE_MS + 1500);
+      // Logged as an idle timeout, not as a client disconnect or a first-byte timeout.
+      const logged = errorSpy.mock.calls.map((call) => String(call[0]));
+      expect(logged.some((line) => line.includes('idle timeout'))).toBe(true);
+      expect(logged.some((line) => line.includes('first-byte timeout'))).toBe(false);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('does not cut a live stream whose chunks arrive every (idle - margin) ms, however long it runs', async () => {
+    const GAP_MS = IDLE_MS - 100;
+    const encoder = new TextEncoder();
+    const words = ['a', ' b', ' c', ' d', ' e'];
+    server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      fetch() {
+        const body = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            controller.enqueue(encoder.encode(sseText([
+              { type: 'message_start', message: { usage: { input_tokens: 1000 } } },
+            ])));
+            for (const word of words) {
+              await Bun.sleep(GAP_MS);
+              controller.enqueue(encoder.encode(sseText([{ type: 'content_block_delta', delta: { text: word } }])));
+            }
+            controller.enqueue(encoder.encode(sseText([{ type: 'message_delta', usage: { output_tokens: 500 } }])));
+            controller.close();
+          },
+        });
+        return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+      },
+    });
+    routeAnthropicTo(`http://127.0.0.1:${server.port}`);
+
+    const startedAt = performance.now();
+    const { stream, costPromise } = streamAnthropicChat('sys', ASSISTANT_MESSAGES, REQUEST_ID, FIRST_BYTE_MS, IDLE_MS);
+    const lines = sseDataLines(await drain(stream));
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(lines).toEqual([
+      ...words.map((word) => JSON.stringify({ choices: [{ delta: { content: word } }] })),
+      '[DONE]',
+    ]);
+    // 1000 in + 500 out: the full usage, so the stream ran to its end.
+    expect(await costPromise).toBeCloseTo(0.0035, 9);
+    // The whole stream outlasts the idle bound several times: a gap cap, not a total cap.
+    expect(elapsedMs).toBeGreaterThan(IDLE_MS * 3);
   });
 });
 
