@@ -170,7 +170,7 @@ public partial class MainWindow : Window
             CreateAboutViewModel(diagnosticDirectory),
             L,
             // Read at each navigation; the session is built below, after the shell it writes to.
-            () => _recordingSession?.IsActive == true);
+            () => _recordingSession?.IsRecordingOrFinishing == true);
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
