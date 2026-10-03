@@ -144,11 +144,13 @@ process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
 
 // Bun.serve's own idle limit, in SECONDS (#1252). Bun's default is 10 s, which
 // cut every request silent for longer than that with an empty reply, before
-// any vendor bound (15/20/45 s) could fire. 60 s matches Fly's proxy idle
-// limit (see the 30 s ping in routes/ws-streaming-shared.ts): above the largest
-// vendor bound, INTERACTIONS_TIMEOUT_MS (45 s), and no higher than the proxy
-// in front of us already enforces.
-export const SERVER_IDLE_TIMEOUT_SECONDS = 60;
+// any vendor bound (15/20/45 s) could fire. 255 s is Bun's maximum: some single
+// requests stay silent for over 60 s (google-chirp batch polling up to
+// BATCH_POLL_DEADLINE_MS, callWithRetry chains on /post-process), so Bun must
+// never be a second, tighter cutter. On Fly the proxy's fixed 60 s no-bytes
+// limit (see the 30 s ping in routes/ws-streaming-shared.ts) is still the
+// binding cut for silent requests.
+export const SERVER_IDLE_TIMEOUT_SECONDS = 255;
 
 // Export for Bun
 export default {
