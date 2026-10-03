@@ -132,6 +132,17 @@ export async function requestAnthropicChat(
 }
 
 /**
+ * Inter-chunk idle bound for the /assistant stream (#1112). Deliberately NOT
+ * LLM_REQUEST_TIMEOUT_MS (20 s): Bun.serve's default idleTimeout is 10 s and
+ * src/index.ts does not override it, so Bun drops the client connection after
+ * 10 s of silence and any bound above that never fires. 8 s ends a stalled
+ * upstream cleanly (abort, [DONE], idle-timeout log, bill the tokens seen)
+ * before Bun cuts the client. A live stream with gaps over 10 s is already cut
+ * by Bun, so 8 s takes nothing a user would otherwise get.
+ */
+export const ANTHROPIC_STREAM_IDLE_TIMEOUT_MS = 8_000;
+
+/**
  * Calls the Anthropic Messages API with streaming enabled.
  * Returns a ReadableStream that emits OpenAI-compatible SSE chunks,
  * and a promise that resolves to the total cost in USD after the stream completes.
@@ -141,7 +152,7 @@ export function streamAnthropicChat(
   messages: AnthropicMessage[],
   requestId: string,
   firstByteTimeoutMs: number = LLM_REQUEST_TIMEOUT_MS,
-  idleTimeoutMs: number = LLM_REQUEST_TIMEOUT_MS,
+  idleTimeoutMs: number = ANTHROPIC_STREAM_IDLE_TIMEOUT_MS,
 ): AnthropicStreamResult {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {

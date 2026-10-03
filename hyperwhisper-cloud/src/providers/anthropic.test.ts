@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
 import {
   ANTHROPIC_WRAPPER_INSTRUCTION,
+  ANTHROPIC_STREAM_IDLE_TIMEOUT_MS,
   requestAnthropicChat,
   streamAnthropicChat,
   type AnthropicMessage,
@@ -627,7 +628,7 @@ describe('streamAnthropicChat first-byte timeout', () => {
 // Idle bound (#1112): after the first chunk, the timer is re-armed on every
 // chunk, so a stall ends the stream but a slow, live stream is never cut.
 describe('streamAnthropicChat idle timeout', () => {
-  const IDLE_MS = 300;
+  const IDLE_MS = 1000;
   // Far above IDLE_MS, so only the idle bound can end these streams in time.
   const FIRST_BYTE_MS = 10_000;
   let upstream: TestUpstream | undefined;
@@ -692,10 +693,12 @@ describe('streamAnthropicChat idle timeout', () => {
     }
   });
 
-  test('does not cut a live stream whose chunks arrive every (idle - margin) ms, however long it runs', async () => {
-    const GAP_MS = IDLE_MS - 100;
+  test('does not cut a live stream whose chunks arrive well inside the idle bound, however long it runs', async () => {
+    // 700 ms of margin per gap, so a loaded CI runner cannot turn a gap into a stall.
+    const GAP_MS = 300;
     const encoder = new TextEncoder();
-    const words = ['a', ' b', ' c', ' d', ' e'];
+    // 12 gaps of 300 ms = 3.6 s total, over 3x the idle bound.
+    const words = ['a', ' b', ' c', ' d', ' e', ' f', ' g', ' h', ' i', ' j', ' k', ' l'];
     server = Bun.serve({
       hostname: '127.0.0.1',
       port: 0,
@@ -731,6 +734,10 @@ describe('streamAnthropicChat idle timeout', () => {
     expect(await costPromise).toBeCloseTo(0.0035, 9);
     // The whole stream outlasts the idle bound several times: a gap cap, not a total cap.
     expect(elapsedMs).toBeGreaterThan(IDLE_MS * 3);
+  }, 10_000);
+
+  test('the default idle bound fires before Bun.serve drops the client (10 s default idleTimeout)', () => {
+    expect(ANTHROPIC_STREAM_IDLE_TIMEOUT_MS).toBeLessThan(10_000);
   });
 });
 
