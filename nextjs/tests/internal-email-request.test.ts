@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { inspect } from "node:util";
 import { NextRequest } from "next/server";
 
 import { parseInternalEmailRequest } from "../app/api/internal/email-request";
@@ -50,6 +51,41 @@ test("rejects malformed JSON", async () => {
     status: 400,
     body: { error: "Invalid JSON body" },
   });
+});
+
+test("logs a malformed body with the pathname and a reason, never the email", async () => {
+  // A bare email is not JSON, and V8 quotes the whole input in its SyntaxError
+  // message. Prove that here, so the no-leak check below can never go vacuous.
+  const body = "leak@example.com";
+  assert.throws(() => JSON.parse(body), (err: Error) => err.message.includes(body));
+
+  const warnings: unknown[][] = [];
+  const realWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+  try {
+    assert.deepEqual(await errorFrom(body), {
+      status: 400,
+      body: { error: "Invalid JSON body" },
+    });
+  } finally {
+    console.warn = realWarn;
+  }
+
+  assert.equal(warnings.length, 1);
+  assert.deepEqual(warnings[0][1], {
+    path: "/api/internal/test",
+    errorName: "SyntaxError",
+    contentType: "application/json",
+    contentLength: null,
+  });
+  // inspect, not JSON.stringify: a logged Error object stringifies to "{}".
+  const logged = warnings
+    .map((args) => args.map((arg) => inspect(arg, { depth: null })).join(" "))
+    .join("\n");
+  assert.ok(!logged.includes(body), logged);
+  assert.ok(!logged.includes(INTERNAL_SECRET), logged);
 });
 
 for (const [name, body] of [

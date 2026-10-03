@@ -262,6 +262,7 @@
     "title": "Scarica HyperWhisper",
     "countdownText": "Avvio tra {seconds}...",
     "downloadStarted": "Controlla la cartella Download",
+    "mobileNote": "HyperWhisper è un'app desktop. Scaricala sul tuo computer Mac, Windows o Linux.",
     "downloadNow": "Scarica ora",
     "downloadAgain": "Scarica di nuovo",
     "selectArchitecture": "Seleziona la tua architettura",

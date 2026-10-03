@@ -262,6 +262,7 @@
     "title": "HyperWhisper'ı İndir",
     "countdownText": "{seconds} içinde başlıyor...",
     "downloadStarted": "İndirilenler klasörünü kontrol edin",
+    "mobileNote": "HyperWhisper bir masaüstü uygulamasıdır. Mac, Windows veya Linux bilgisayarınıza indirin.",
     "downloadNow": "Şimdi İndir",
     "downloadAgain": "Tekrar İndir",
     "selectArchitecture": "Mimarinizi seçin",

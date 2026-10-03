@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { usePostHog } from "posthog-js/react";
 
 import CloudCreditsCardView, {
   type CloudCreditsTierView,
@@ -15,6 +14,7 @@ import {
   validateCreditPurchaseAmount,
 } from "@/app/api/checkout/credits/validation";
 import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
+import { loadPostHog } from "@/src/lib/posthog-client";
 import {
   createBuyCreditsHandler,
   type BuyCreditsTier,
@@ -32,6 +32,24 @@ const CREDIT_TIERS = [
   { amount: 5, credits: 5 * CREDITS_PER_DOLLAR },
   { amount: 10, credits: 10 * CREDITS_PER_DOLLAR },
 ] as const;
+
+// `loadPostHog` answers null when `NEXT_PUBLIC_POSTHOG_KEY` is absent. The
+// report is async (#918), so the seam's try/catch no longer sees a stubbed
+// `captureException` throw; the try/catch here stands in for it, and the
+// promise never rejects, so the `void` at the call site leaves no unhandled
+// rejection.
+async function reportToPostHog(
+  thrown: unknown,
+  properties: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const posthog = await loadPostHog();
+
+    posthog?.captureException(thrown, properties);
+  } catch {
+    // A failed report must never surface as a second error.
+  }
+}
 
 /**
  * Cloud Credits Card
@@ -59,7 +77,6 @@ export default function CloudCreditsCard({
   // they already exist, already translated, in all 40 files under `messages/`.
   // #737 asked for a new key; this declines that and adds none.
   const tBuyCredits = useTranslations("buyCredits");
-  const posthog = usePostHog();
   // loadingTier holds the dollar amount of the in-flight checkout, or the
   // sentinel "custom" while the custom-amount checkout is being created.
   const [loadingTier, setLoadingTier] = useState<BuyCreditsTier | null>(null);
@@ -105,13 +122,10 @@ export default function CloudCreditsCard({
     navigate: (destination) => {
       window.location.href = destination;
     },
-    // `usePostHog` is typed non-nullable but the provider is not mounted when
-    // `NEXT_PUBLIC_POSTHOG_KEY` is absent, so the value really can be missing
-    // at runtime — the same guard as `app/[locale]/purchase-success/page.tsx`.
     // The properties come from the seam, which keeps the licence key out of
     // them: this app's PostHog init has no redaction (#739).
     reportError: (thrown, properties) => {
-      if (posthog) posthog.captureException(thrown, properties);
+      void reportToPostHog(thrown, properties);
     },
     setBusy: setLoadingTier,
     setError,

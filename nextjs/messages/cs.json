@@ -262,6 +262,7 @@
     "title": "Stáhnout HyperWhisper",
     "countdownText": "Spouští se za {seconds}...",
     "downloadStarted": "Zkontrolujte složku Stažené",
+    "mobileNote": "HyperWhisper je desktopová aplikace. Stáhněte si ji do svého počítače s Mac, Windows nebo Linux.",
     "downloadNow": "Stáhnout nyní",
     "downloadAgain": "Stáhnout znovu",
     "selectArchitecture": "Vyberte architekturu",

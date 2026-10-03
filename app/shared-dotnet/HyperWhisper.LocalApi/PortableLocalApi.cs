@@ -295,8 +295,8 @@ public static class PortableLocalApi
         async Task<IResult> ListRecordings(HttpContext context, ILocalApiBackend backend, CancellationToken ct)
         {
             var limit = int.TryParse(context.Request.Query["limit"], CultureInfo.InvariantCulture, out var parsed) ? Math.Clamp(parsed, 1, 500) : 50;
-            _ = DateTime.TryParse(context.Request.Query["since"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var since);
-            _ = DateTime.TryParse(context.Request.Query["until"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var until);
+            _ = DateTime.TryParse(context.Request.Query["since"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var since);
+            _ = DateTime.TryParse(context.Request.Query["until"], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var until);
             var page = await backend.GetRecordingsAsync(new(context.Request.Query["q"], since == default ? null : since, until == default ? null : until, limit), ct);
             // `total` is the full filtered match count, `returned` is this page.
             // They are only equal when the limit did not truncate.

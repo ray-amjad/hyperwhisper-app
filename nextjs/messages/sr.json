@@ -262,6 +262,7 @@
     "title": "Preuzmi HyperWhisper",
     "countdownText": "Počinje za {seconds}...",
     "downloadStarted": "Proverite Downloads folder",
+    "mobileNote": "HyperWhisper je desktop aplikacija. Preuzmite je na svoj Mac, Windows ili Linux računar.",
     "downloadNow": "Preuzmi sada",
     "downloadAgain": "Preuzmi ponovo",
     "selectArchitecture": "Izaberite arhitekturu",

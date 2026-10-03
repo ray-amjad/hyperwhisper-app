@@ -107,9 +107,9 @@ const captured: Array<{ error: unknown; properties: unknown }> = [];
  * configured and it never throws, so it is unobservable — which is why the
  * seam takes an injected `reportError` and why this asserts on the stub.
  */
-moduleMock.module("posthog-js/react", {
+moduleMock.module("../src/lib/posthog-client", {
   namedExports: {
-    usePostHog: () => ({
+    loadPostHog: async () => ({
       captureException: (error: unknown, properties: unknown) => {
         captured.push({ error, properties });
       },
@@ -300,12 +300,14 @@ test("a reported failure reaches posthog with no licence key on it", async () =>
 
   // The properties are built in the seam, which is where
   // `buy-credits-seam.test.ts` proves the key is absent. What this asserts is
-  // the card's half: the guarded hop into `captureException`, which the only
-  // other `usePostHog` caller in this app (`purchase-success/page.tsx:37`)
-  // also makes. Delete it and a lost sale is recorded nowhere again.
+  // the card's half: the hop into `captureException` through the shared
+  // `loadPostHog` (#918), which `purchase-success/page.tsx` also uses.
+  // Delete it and a lost sale is recorded nowhere again.
   const thrown = new Error("buy_credits failed: 400");
 
   request.reportError(thrown, { operation: "buy_credits", status: 400 });
+  // The report is async: it waits on the PostHog load.
+  await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(captured.length, 1);
   assert.equal(captured[0]?.error, thrown);

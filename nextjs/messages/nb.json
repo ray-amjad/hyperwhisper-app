@@ -262,6 +262,7 @@
     "title": "Last ned HyperWhisper",
     "countdownText": "Starter om {seconds}...",
     "downloadStarted": "Sjekk Nedlastinger-mappen",
+    "mobileNote": "HyperWhisper er en skrivebordsapp. Last den ned på din Mac-, Windows- eller Linux-datamaskin.",
     "downloadNow": "Last ned nå",
     "downloadAgain": "Last ned på nytt",
     "selectArchitecture": "Velg arkitektur",

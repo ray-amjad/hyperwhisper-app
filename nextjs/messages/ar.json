@@ -262,6 +262,7 @@
     "title": "تنزيل HyperWhisper",
     "countdownText": "يبدأ خلال {seconds}...",
     "downloadStarted": "تحقق من مجلد التنزيلات",
+    "mobileNote": "HyperWhisper تطبيق لسطح المكتب. نزّله على جهاز Mac أو Windows أو Linux.",
     "downloadNow": "تنزيل الآن",
     "downloadAgain": "تنزيل مرة أخرى",
     "selectArchitecture": "اختر المعمارية",

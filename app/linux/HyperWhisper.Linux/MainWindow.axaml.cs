@@ -63,6 +63,10 @@ public partial class MainWindow : Window
     private LinuxOnboardingViewModel? _onboarding;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
+    /// <summary>Home's record row shows Stop + Cancel: batch CanStop, or live capture the workflow never sees (#1187).</summary>
+    public static readonly StyledProperty<bool> IsHomeRecordingActiveProperty =
+        AvaloniaProperty.Register<MainWindow, bool>(nameof(IsHomeRecordingActive));
+    public bool IsHomeRecordingActive { get => GetValue(IsHomeRecordingActiveProperty); private set => SetValue(IsHomeRecordingActiveProperty, value); }
     private readonly LinuxInteractionCoordinator _interaction;
     private readonly LinuxTrayActionHandler _trayActions;
     private readonly LazyLinuxRecordingOverlayFeedback _overlay;
@@ -219,6 +223,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
         _viewModel.Status.PropertyChanged += OnShellStatusChanged;
         _interaction.OperationFailed += OnInteractionFailed;
+        _recordingSession.LiveCaptureChanged += OnLiveCaptureChanged;
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
@@ -321,6 +326,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
+        _recordingSession.LiveCaptureChanged -= OnLiveCaptureChanged;
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
@@ -2486,6 +2492,7 @@ public partial class MainWindow : Window
             QueueErrorToast(() => (recording.ErrorCode, recording.Message));
         if (e.PropertyName is nameof(recording.IsImporting) or nameof(recording.ImportProgress))
             UpdateFileTranscriptionProgressWindow();
+        if (e.PropertyName is nameof(recording.CanStop)) Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
     }
 
     private LinuxFileTranscriptionProgressWindow? _fileProgress;
@@ -2739,6 +2746,12 @@ public partial class MainWindow : Window
         if (_viewModel.Recording is { HasError: false, State: "Recording" })
             _viewModel.Home.ToggleGettingStartedStep("recording");
     }
+
+    private void OnLiveCaptureChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
+
+    private void UpdateHomeRecordingActive() =>
+        IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
+
     private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
     private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();
 
@@ -3305,8 +3318,13 @@ public partial class MainWindow : Window
             // both apps have. They bind past Home's own context to the shell.
             // The audio-input combo is deliberately NOT checked: it hides itself when the machine
             // reports no capture device, which is the normal state on a headless test box.
-            if (!HasVisibleControl("HomeStopRecordingButton")
-                || !HasVisibleControl("HomeCancelRecordingButton")
+            // Issue #1187: while not recording the row offers Start, enabled, and no Stop or Cancel.
+            // Stop and Cancel must still be in the tree, hidden, so the Recording state can show them.
+            if (IsHomeRecordingActive || _viewModel.Recording is not { CanStop: false, CanCancel: false }
+                || !HasVisibleControl("HomeRecordStartButton")
+                || !this.GetLogicalDescendants().OfType<Control>().Any(c => c.Name == "HomeRecordStartButton" && c.IsEnabled)
+                || !HasControl("HomeStopRecordingButton") || HasVisibleControl("HomeStopRecordingButton")
+                || !HasControl("HomeCancelRecordingButton") || HasVisibleControl("HomeCancelRecordingButton")
                 || !HasVisibleControl("HomeAudioFileInput")
                 || !HasVisibleControl("HomeTranscribeFileButton")) return 9;
 

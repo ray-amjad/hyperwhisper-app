@@ -4,6 +4,8 @@ import { Card, CardBody } from "@heroui/card";
 import { Mail, Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { GmailIcon, OutlookIcon } from "@/components/landing/MailClientIcons";
+
 export default function SupportPage() {
   const t = useTranslations("support");
   const emailAddress = "hi@support.hyperwhisper.com";
@@ -53,7 +55,7 @@ export default function SupportPage() {
 
               {/* Default email client */}
               <a
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-base font-semibold text-white transition-all hover:from-purple-500 hover:to-pink-500 hover:shadow-lg"
+                className="relative isolate flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-base font-semibold text-white transition-shadow hover:shadow-lg before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:bg-gradient-to-r before:from-purple-500 before:to-pink-500 before:opacity-0 before:transition-opacity hover:before:opacity-100"
                 href={mailtoLink}
               >
                 <Mail className="h-4 w-4" />
@@ -68,14 +70,7 @@ export default function SupportPage() {
                   rel="noopener noreferrer"
                   target="_blank"
                 >
-                  <svg
-                    className="h-4 w-4"
-                    fill="#EA4335"
-                    role="img"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L12 9.545l8.073-6.052C21.69 2.28 24 3.434 24 5.457z" />
-                  </svg>
+                  <GmailIcon />
                   {t("gmail")}
                 </a>
                 <a
@@ -84,7 +79,7 @@ export default function SupportPage() {
                   rel="noopener noreferrer"
                   target="_blank"
                 >
-                  <Mail className="h-4 w-4 text-blue-400" />
+                  <OutlookIcon />
                   {t("outlook")}
                 </a>
               </div>

@@ -98,7 +98,8 @@ final class ModeChangeToastManager {
         // Close any existing toast first (prevents stacking on rapid presses)
         dismiss()
 
-        logger.info("📢 Showing mode change toast: \(modeName, privacy: .public)")
+        // No mode name here: it is user-typed (issue #804). The caller logs the modeId.
+        logger.info("📢 Showing mode change toast")
 
         // Build the SwiftUI view
         let toastView = ModeChangeToast(modeName: modeName)

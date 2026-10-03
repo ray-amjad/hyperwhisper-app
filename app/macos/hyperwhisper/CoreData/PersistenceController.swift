@@ -954,7 +954,7 @@ class PersistenceController: ObservableObject {
             mode.postProcessingMode = offRawValue
             result.disabledModeNames.append(name)
             // Greppable support-visibility line (there is no UI signal for a silent repair).
-            AppLogger.coreData.info("PP disabled for Mode \"\(name, privacy: .public)\": \(reason, privacy: .public)")
+            AppLogger.coreData.info("PP disabled for Mode · modeId=\(mode.id?.uuidString ?? "nil", privacy: .public) · preset=\(PresetType.reportingValue(for: mode), privacy: .public): \(reason, privacy: .public)")
         }
 
         do {

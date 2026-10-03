@@ -262,6 +262,7 @@
     "title": "HyperWhisper letöltése",
     "countdownText": "Indulás {seconds} múlva...",
     "downloadStarted": "Ellenőrizd a Letöltések mappát",
+    "mobileNote": "A HyperWhisper asztali alkalmazás. Töltsd le Mac, Windows vagy Linux számítógépedre.",
     "downloadNow": "Letöltés most",
     "downloadAgain": "Letöltés újra",
     "selectArchitecture": "Válaszd ki az architektúrát",
