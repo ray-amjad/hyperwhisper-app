@@ -1359,10 +1359,18 @@ public partial class MainWindow : Window
     private static readonly Uri TraySupportUri = new("https://hyperwhisper.com/support");
     private static readonly Uri TrayFeedbackUri = new("https://hyperwhisper.userjot.com");
 
+    /// <summary>
+    /// Tray Help, Support and Feedback. UiStatus drops a write equal to its current value, so the
+    /// shell-status hook toasts only the first of two identical failures; the explicit toast covers
+    /// every click, and QueueErrorToast coalesces it with the hook's into one (#1262).
+    /// </summary>
     private void OpenTrayUri(Uri uri)
     {
         if (uri != TrayHelpUri && uri != TraySupportUri && uri != TrayFeedbackUri) return;
-        if (!TryOpenInBrowser(uri)) _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed"));
+        if (TryOpenInBrowser(uri)) return;
+        var message = L("linux.error.tray_link_failed");
+        _viewModel.Status.Failure("tray.link_failed", message);
+        QueueErrorToast(() => ("tray.link_failed", message));
     }
     private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
