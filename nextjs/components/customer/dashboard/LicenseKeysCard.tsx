@@ -63,7 +63,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                   <AnimatePresence initial={false} mode="popLayout">
                     <m.span
                       key={isShown ? "hide" : "show"}
-                      className="inline-flex"
+                      className="flex"
                       {...ICON_SWAP}
                     >
                       {isShown ? (
@@ -87,7 +87,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                   <AnimatePresence initial={false} mode="popLayout">
                     <m.span
                       key={isCopied ? "copied" : "copy"}
-                      className="inline-flex"
+                      className="flex"
                       {...ICON_SWAP}
                     >
                       {isCopied ? (
