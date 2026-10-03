@@ -788,7 +788,10 @@ public partial class MainWindow : Window
         _settings.Set("onboarding.skipped", skipped);
         var saved = _settings.Save();
         if (saved.IsSuccess) return true;
-        _viewModel.Status.Failure(saved.Error!.Code, L("linux.onboarding.save_failed"));
+        var (code, message) = (saved.Error!.Code, L("linux.onboarding.save_failed"));
+        _viewModel.Status.Failure(code, message);
+        // UiStatus drops an equal write, so a repeated failure must raise its own toast (#1266).
+        QueueErrorToast(() => (code, message));
         return false;
     }
 
@@ -1151,7 +1154,11 @@ public partial class MainWindow : Window
     private void DismissCancelFromOverlay() => _interaction.DismissCancelConfirmation();
 
     private void OnInteractionFailed(object? sender, PlatformError error)
-        => _viewModel.Status.Failure(error.Code, error.Message);
+    {
+        _viewModel.Status.Failure(error.Code, error.Message);
+        // A repeat is an equal write that UiStatus drops, so toast per failure (#1266).
+        QueueErrorToast(() => (error.Code, error.Message));
+    }
 
     // =====================================================================================
     // THE ERROR TOAST
@@ -1362,7 +1369,11 @@ public partial class MainWindow : Window
     private void OpenTrayUri(Uri uri)
     {
         if (uri != TrayHelpUri && uri != TraySupportUri && uri != TrayFeedbackUri) return;
-        if (!TryOpenInBrowser(uri)) _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed"));
+        if (TryOpenInBrowser(uri)) return;
+        var message = L("linux.error.tray_link_failed");
+        _viewModel.Status.Failure("tray.link_failed", message);
+        // The second failed click is an equal write that UiStatus drops, so toast per click (#1266).
+        QueueErrorToast(() => ("tray.link_failed", message));
     }
     private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
