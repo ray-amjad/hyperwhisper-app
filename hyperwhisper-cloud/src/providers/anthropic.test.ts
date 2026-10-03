@@ -736,8 +736,10 @@ describe('streamAnthropicChat idle timeout', () => {
     expect(elapsedMs).toBeGreaterThan(IDLE_MS * 3);
   }, 10_000);
 
-  test('the default idle bound fires before Bun.serve drops the client (10 s default idleTimeout)', () => {
-    expect(ANTHROPIC_STREAM_IDLE_TIMEOUT_MS).toBeLessThan(10_000);
+  // That it fires before Bun.serve's idleTimeout drops the client is pinned in
+  // src/index.test.ts, which already loads the server export (#1252).
+  test('the default idle bound stays 8 s', () => {
+    expect(ANTHROPIC_STREAM_IDLE_TIMEOUT_MS).toBe(8_000);
   });
 });
 
