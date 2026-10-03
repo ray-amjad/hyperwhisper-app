@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
+import { ICON_SWAP } from "@/lib/icon-swap";
 
 /**
  * Windowed list of page numbers to render in the pager: always page 1,
@@ -515,38 +517,53 @@ export default function CustomersClient() {
                                     ? "Account Key copied"
                                     : "Copy Account Key"
                                 }
-                                className="group inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-gray-300 transition-colors hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-200"
+                                className="group relative inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-gray-300 transition-colors hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-200"
                               >
                                 <code>{license.key.slice(0, 8)}...</code>
-                                {copiedKey === license.key ? (
-                                  <svg
-                                    className="h-3.5 w-3.5 text-emerald-400"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={2.5}
-                                    stroke="currentColor"
+                                <AnimatePresence
+                                  initial={false}
+                                  mode="popLayout"
+                                >
+                                  <m.span
+                                    key={
+                                      copiedKey === license.key
+                                        ? "copied"
+                                        : "copy"
+                                    }
+                                    className="inline-flex"
+                                    {...ICON_SWAP}
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M4.5 12.75l6 6 9-13.5"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    className="h-3.5 w-3.5 text-gray-500 transition-colors group-hover:text-blue-300"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={1.8}
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m11.25 5.5h-1.875a1.125 1.125 0 01-1.125-1.125v-1.875M18 14.25v-3.75"
-                                    />
-                                  </svg>
-                                )}
+                                    {copiedKey === license.key ? (
+                                      <svg
+                                        className="h-3.5 w-3.5 text-emerald-400"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={2.5}
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M4.5 12.75l6 6 9-13.5"
+                                        />
+                                      </svg>
+                                    ) : (
+                                      <svg
+                                        className="h-3.5 w-3.5 text-gray-500 transition-colors group-hover:text-blue-300"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth={1.8}
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m11.25 5.5h-1.875a1.125 1.125 0 01-1.125-1.125v-1.875M18 14.25v-3.75"
+                                        />
+                                      </svg>
+                                    )}
+                                  </m.span>
+                                </AnimatePresence>
                               </button>
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
                                 license.status === "revoked"

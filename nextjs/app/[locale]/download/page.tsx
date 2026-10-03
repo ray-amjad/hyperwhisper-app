@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
+import { AnimatePresence, m } from "framer-motion";
 import { Download, Copy, Check, Terminal, CheckCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { ICON_SWAP } from "@/lib/icon-swap";
 import { isRecord } from "@/src/lib/type-guards";
 
 type Platform = "mac" | "windows" | "linux";
@@ -364,18 +366,25 @@ export default function DownloadPage() {
                   variant="flat"
                   onClick={handleCopyCommand}
                 >
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <m.span
+                      key={copied ? "copied" : "copy"}
+                      className="inline-flex mr-1"
+                      {...ICON_SWAP}
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </m.span>
+                  </AnimatePresence>
                   {copied ? (
-                    <>
-                      <Check className="w-4 h-4 text-green-400 mr-1" />
-                      <span className="text-green-400 text-xs">
-                        {t("copied")}
-                      </span>
-                    </>
+                    <span className="text-green-400 text-xs">
+                      {t("copied")}
+                    </span>
                   ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-1" />
-                      <span className="text-xs">{t("copy")}</span>
-                    </>
+                    <span className="text-xs">{t("copy")}</span>
                   )}
                 </Button>
               </div>
