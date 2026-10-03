@@ -323,6 +323,176 @@ internal static class Program
                 AssertNoInlining(typeof(MainViewModel), "CaptureApplicationContextAsync");
                 AssertNoInlining(typeof(HyperWhisper.Views.Pages.HomePage), "LoadStatsBarAsync");
                 AssertNoInlining(typeof(HyperWhisper.Views.Pages.HomePage), "DetachStatsViewModel");
+                AssertNoInlining(typeof(PromptBuilder), "GatherContext");
+                AssertNoInlining(typeof(PromptBuilder), "ReadHwAppType");
+            });
+
+            // #960. A field typed from HyperWhisper.AppClassification puts that
+            // assembly into its class's LAYOUT, and the CLR loads the layout for
+            // every method that stores, passes or tests an instance — even a null
+            // one. ApplicationContext.AppType was an auto-property, so its backing
+            // field made a blocked DLL fail every recording start, guard or not.
+            Run("Recording-path types hold no field typed from HyperWhisper.AppClassification", () =>
+            {
+                var optional = typeof(AppType).Assembly;
+                Assert(optional.GetName().Name == OptionalAssemblyGuard.AppClassificationAssembly,
+                    "AppType moved out of the guarded optional assembly; update this test");
+
+                // A field names the optional assembly when its type does, or when
+                // any generic argument or element type does: AppType?,
+                // (AppType, string), AppType[] and List<AppType> all count.
+                bool NamesOptional(Type type)
+                {
+                    if (type.HasElementType)
+                    {
+                        return NamesOptional(type.GetElementType()!);
+                    }
+
+                    return !type.IsGenericParameter &&
+                        (type.Assembly == optional ||
+                         (type.IsGenericType && type.GetGenericArguments().Any(NamesOptional)));
+                }
+
+                // Positive control: the detector must see every wrapped shape, or
+                // the scan below passes as a silent no-op.
+                Assert(NamesOptional(typeof(AppType)), "the detector missed AppType");
+                Assert(NamesOptional(typeof(AppType?)), "the detector missed AppType?");
+                Assert(NamesOptional(typeof(AppType[])), "the detector missed AppType[]");
+                Assert(NamesOptional(typeof(List<AppType>)), "the detector missed List<AppType>");
+                Assert(NamesOptional(typeof((AppType, string))), "the detector missed (AppType, string)");
+                Assert(!NamesOptional(typeof(int)), "the detector flagged int");
+                Assert(!NamesOptional(typeof(string)), "the detector flagged string");
+                Assert(!NamesOptional(typeof(Services.ApplicationContext)),
+                    "the detector flagged ApplicationContext itself");
+
+                // What the scan covers, exactly: the 6 root types below, their
+                // base types up to object, their nested types at any depth (async
+                // state machines and closure display classes hoist locals into
+                // fields), and every struct from this assembly that one of those
+                // holds BY VALUE, because a struct field is part of the holder's
+                // layout. It does NOT follow a reference-typed field into the
+                // type it points at: that walks the whole object graph, and a
+                // reference field's type is not part of the holder's layout.
+                // No nested type is exempt, so a hit here is a real leak. The
+                // methods that name AppType (ApplicationContextService.GatherContext
+                // and PromptBuilder's NoInlining readers) are synchronous and
+                // capture no AppType in a closure, so they hoist nothing.
+                const BindingFlags allFields = BindingFlags.Instance | BindingFlags.Static |
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+                const BindingFlags allNested = BindingFlags.Public | BindingFlags.NonPublic;
+                var appAssembly = typeof(MainViewModel).Assembly;
+                var scanned = new HashSet<Type>();
+                var pending = new Stack<Type>(new[]
+                {
+                    typeof(Services.ApplicationContext),
+                    typeof(ApplicationContextService),
+                    typeof(MainViewModel),
+                    typeof(HyperWhisper.Utilities.PromptBuilder),
+                    typeof(HyperWhisper.Services.PostProcessingService),
+                    typeof(HyperWhisper.Services.Transcription.TranscriptionOrchestrator),
+                });
+                var leaks = new List<string>();
+                while (pending.Count > 0)
+                {
+                    var type = pending.Pop();
+                    if (type == typeof(object) || !scanned.Add(type))
+                    {
+                        continue;
+                    }
+
+                    if (type.BaseType != null)
+                    {
+                        pending.Push(type.BaseType);
+                    }
+
+                    foreach (var nested in type.GetNestedTypes(allNested))
+                    {
+                        pending.Push(nested);
+                    }
+
+                    foreach (var field in type.GetFields(allFields))
+                    {
+                        if (NamesOptional(field.FieldType))
+                        {
+                            leaks.Add($"{type.FullName}.{field.Name}");
+                        }
+                        else if (field.FieldType.IsValueType && !field.FieldType.IsEnum &&
+                                 field.FieldType.Assembly == appAssembly)
+                        {
+                            pending.Push(field.FieldType);
+                        }
+                    }
+                }
+
+                Assert(scanned.Any(type => type.IsNested && type.DeclaringType == typeof(MainViewModel) &&
+                        type.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false)),
+                    "the scan reached no compiler-generated type nested in MainViewModel");
+                Assert(leaks.Count == 0,
+                    $"a recording-path type has a field typed from {optional.GetName().Name} " +
+                    $"({string.Join(", ", leaks)}); a blocked DLL would fail every method " +
+                    "that touches it (#960)");
+
+                Assert(new Services.ApplicationContext().AppType == AppType.Other,
+                    "a fresh ApplicationContext no longer defaults to AppType.Other");
+                foreach (var appType in Enum.GetValues<AppType>())
+                {
+                    Assert(new Services.ApplicationContext { AppType = appType }.AppType == appType,
+                        $"ApplicationContext.AppType did not round-trip {appType}");
+                }
+            });
+
+            // #960. When HyperWhisper.AppClassification cannot load, PromptBuilder
+            // must still build the recording path's prompt: no fresh context and
+            // AppType Other. OptionalAssemblyGuard.RunGuarded<T> takes the
+            // availability answer, so this drives PromptBuilder's own boundary
+            // methods down the degraded path without blocking the real assembly.
+            Run("PromptBuilder degrades to AppType Other when HyperWhisper.AppClassification is unavailable", () =>
+            {
+                var failures = 0;
+                Action<string, Exception, string> Record = (_, _, _) => failures++;
+                var code = new Services.ApplicationContext { AppType = AppType.Code };
+
+                var gathers = 0;
+                Services.ApplicationContext? CountedGather()
+                {
+                    gathers++;
+                    return PromptBuilder.GatherContext();
+                }
+
+                // The same calls PromptBuilder hands to OptionalAssemblyGuard.TryRun,
+                // through its RunGuarded<T> seam with the availability answer forced.
+                Assert(OptionalAssemblyGuard.RunGuarded(
+                        false, OptionalAssemblyGuard.AppClassificationAssembly, PromptBuilder.AppTypeStage,
+                        () => PromptBuilder.ReadHwAppType(code), uniffi.hyperwhisper_core.HwAppType.Other, Record) ==
+                    uniffi.hyperwhisper_core.HwAppType.Other,
+                    "an unavailable classifier assembly did not degrade the app type to Other");
+                Assert(OptionalAssemblyGuard.RunGuarded<Services.ApplicationContext?>(
+                        false, OptionalAssemblyGuard.AppClassificationAssembly, PromptBuilder.GatherContextStage,
+                        CountedGather, null, Record) == null && gathers == 0,
+                    "an unavailable classifier assembly still gathered a fresh context");
+                Assert(PromptBuilder.TryReadHwAppType(null) == uniffi.hyperwhisper_core.HwAppType.Other,
+                    "a missing context did not give AppType Other");
+
+                Assert(OptionalAssemblyGuard.RunGuarded(
+                        true, OptionalAssemblyGuard.AppClassificationAssembly, PromptBuilder.AppTypeStage,
+                        () => PromptBuilder.ReadHwAppType(code), uniffi.hyperwhisper_core.HwAppType.Other, Record) ==
+                    uniffi.hyperwhisper_core.HwAppType.Code,
+                    "an available classifier assembly lost the context's app type");
+                Assert(PromptBuilder.TryReadHwAppType(code) == uniffi.hyperwhisper_core.HwAppType.Code,
+                    "the guarded prompt path lost the context's app type on a machine that loads the assembly");
+                Assert(failures == 0, "a degraded read reported a load failure it never had");
+
+                // The generic seam itself: the work's value when it completes, the
+                // fallback when the assembly is unavailable or the work hits a load
+                // failure, and the failure goes to the reporter.
+                Assert(OptionalAssemblyGuard.RunGuarded(true, "HyperWhisper.Fake", "smoke", () => 7, -1, Record) == 7,
+                    "RunGuarded<T> lost the work's value");
+                Assert(OptionalAssemblyGuard.RunGuarded(false, "HyperWhisper.Fake", "smoke", () => 7, -1, Record) == -1,
+                    "RunGuarded<T> ignored an unavailable assembly");
+                Assert(OptionalAssemblyGuard.RunGuarded<int>(
+                        true, "HyperWhisper.Fake", "smoke",
+                        () => throw new FileLoadException("blocked"), -1, Record) == -1 && failures == 1,
+                    "RunGuarded<T> did not fall back and report a load failure");
             });
 
             Run("ApplicationContextService exception evidence is privacy-safe", () =>

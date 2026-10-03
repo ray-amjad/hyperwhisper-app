@@ -60,7 +60,22 @@ public class ApplicationContext
     public string? TextFormat { get; init; }
 
     /// <summary>Deterministic app classification used for app-aware formatting.</summary>
-    public AppType AppType { get; init; } = AppType.Other;
+    /// <remarks>
+    /// Warning: keep the backing field an <c>int</c> (#960). An auto-property puts
+    /// <c>AppType</c> into this class's LAYOUT, and the CLR loads the layout for any
+    /// method that stores, passes or tests an <c>ApplicationContext</c> — even a
+    /// null one. A blocked HyperWhisper.AppClassification.dll then fails every
+    /// recording start. Only a caller of this getter or init needs the assembly.
+    /// </remarks>
+    public AppType AppType
+    {
+        get => (AppType)_appType;
+        init => _appType = (int)value;
+    }
+
+    // `(int)AppType.Other` is a compile-time constant, so the constructor names no
+    // optional type. Other is not 0 in the enum, so the initializer is required.
+    private int _appType = (int)AppType.Other;
 
     /// <summary>Confidence for AppType: strong, medium, weak, unknown.</summary>
     public string AppTypeConfidence { get; init; } = "unknown";

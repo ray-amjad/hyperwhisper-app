@@ -96,8 +96,17 @@ internal static class OptionalAssemblyGuard
     internal static OptionalAssemblyOutcome TryRun(string simpleName, string stage, Action work) =>
         RunGuarded(IsAvailable(simpleName), simpleName, stage, work, MarkUnavailable);
 
-    /// <summary>The asynchronous form of <see cref="TryRun"/>.</summary>
-    /// <remarks>Warning: see <see cref="TryRun"/> about <c>NoInlining</c>.</remarks>
+    /// <summary>
+    /// Returns what <paramref name="work"/> returns when <paramref name="simpleName"/>
+    /// loads, and <paramref name="fallback"/> when it does not or when the work hits
+    /// a load failure.
+    /// </summary>
+    /// <remarks>Warning: see <see cref="TryRun(string, string, Action)"/> about <c>NoInlining</c>.</remarks>
+    internal static T TryRun<T>(string simpleName, string stage, Func<T> work, T fallback) =>
+        RunGuarded(IsAvailable(simpleName), simpleName, stage, work, fallback, MarkUnavailable);
+
+    /// <summary>The asynchronous form of <see cref="TryRun(string, string, Action)"/>.</summary>
+    /// <remarks>Warning: see <see cref="TryRun(string, string, Action)"/> about <c>NoInlining</c>.</remarks>
     internal static Task<OptionalAssemblyOutcome> TryRunAsync(
         string simpleName,
         string stage,
@@ -134,7 +143,28 @@ internal static class OptionalAssemblyGuard
         }
     }
 
-    /// <summary>The asynchronous form of <see cref="RunGuarded"/>.</summary>
+    /// <summary>
+    /// The value-returning form of
+    /// <see cref="RunGuarded(bool, string, string, Action, Action{string, Exception, string})"/>:
+    /// the work's result when it completes, otherwise <paramref name="fallback"/>.
+    /// </summary>
+    internal static T RunGuarded<T>(
+        bool isAvailable,
+        string simpleName,
+        string stage,
+        Func<T> work,
+        T fallback,
+        Action<string, Exception, string> onLoadFailure)
+    {
+        var result = fallback;
+        RunGuarded(isAvailable, simpleName, stage, () => result = work(), onLoadFailure);
+        return result;
+    }
+
+    /// <summary>
+    /// The asynchronous form of
+    /// <see cref="RunGuarded(bool, string, string, Action, Action{string, Exception, string})"/>.
+    /// </summary>
     internal static async Task<OptionalAssemblyOutcome> RunGuardedAsync(
         bool isAvailable,
         string simpleName,
