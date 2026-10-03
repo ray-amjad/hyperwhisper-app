@@ -127,10 +127,13 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   // Match all pathnames except for:
-  // - API routes (/api/*)
-  // - Raw model inventory endpoint (/models)
-  // - Next.js internal files (/_next/*)
+  // - API routes (/api and /api/*)
+  // - Raw model inventory endpoint (/models and /models/*)
+  // - Next.js internals (/_next and /_next/*)
+  // - Vercel internals (/_vercel and /_vercel/*)
+  // - Documentation (/docs and /docs/* only)
   // - Static files with extensions (*.*)
-  // - Documentation (/docs/*)
-  matcher: ["/((?!api|models(?:/|$)|_next|_vercel|docs|.*\\..*).*)"],
+  // Each prefix is anchored with (?:/|$), so /docsx or /apix still goes
+  // through the locale proxy and 404s (#1125).
+  matcher: ["/((?!(?:api|models|_next|_vercel|docs)(?:/|$)|.*\\..*).*)"],
 };
