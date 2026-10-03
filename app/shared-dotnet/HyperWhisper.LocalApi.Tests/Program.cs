@@ -64,8 +64,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("transcription failure code and message reach the wire", PortableTranscriptionFailuresReachTheWire)
     ,("exactly one default mode, and its name is fixed", DefaultModeInvariant)
     ,("SIGTERM and SIGINT end a process hosting the Local API", SignalsEndTheProcess)
-    ,("/recordings filters, counts and pages in SQL with the old match rule", RecordingsQueryRunsInSql)
-    ,("/recordings reads since and until as UTC in every time zone", RecordingsSinceUntilAreUtc)
+    ,("/recordings filters, counts and pages in SQL with the old match rule", () => InTokyo(RecordingsQueryRunsInSql))
+    ,("/recordings reads since and until as UTC in every time zone", () => InTokyo(RecordingsSinceUntilAreUtc))
 };
 foreach (var test in tests)
 {
@@ -634,8 +634,8 @@ static async Task RecordingsQueryRunsInSql()
 
 // Issue #1196. History dates are stored in UTC, so `since`/`until` must be read
 // as UTC too. Parsing with AssumeUniversal alone gave local clock digits, and
-// on a UTC+9 machine `since=00:00Z` filtered from 09:00 UTC. Run this under
-// `TZ=Asia/Tokyo` to see the shift; under `TZ=UTC` it passes either way.
+// on a UTC+9 machine `since=00:00Z` filtered from 09:00 UTC. Under UTC it
+// passes either way, and CI runs with TZ unset, so InTokyo forces the zone.
 static async Task RecordingsSinceUntilAreUtc()
 {
     using var paths = new TempPaths();
@@ -671,6 +671,26 @@ static async Task RecordingsSinceUntilAreUtc()
         var actual = await Texts(query);
         Assert(actual.SequenceEqual(expected),
             $"/recordings?{query} under {TimeZoneInfo.Local.Id}: [{string.Join('|', actual)}], expected [{string.Join('|', expected)}]");
+    }
+}
+
+// Runs a #1196 test with the process local zone forced to UTC+9, whatever TZ
+// the caller has, so the UTC-parse checks can never pass vacuously under UTC.
+static async Task InTokyo(Func<Task> test)
+{
+    var previous = Environment.GetEnvironmentVariable("TZ");
+    Environment.SetEnvironmentVariable("TZ", "Asia/Tokyo");
+    TimeZoneInfo.ClearCachedData();
+    try
+    {
+        Assert(TimeZoneInfo.Local.BaseUtcOffset == TimeSpan.FromHours(9),
+            $"could not force the local zone to Asia/Tokyo: it is {TimeZoneInfo.Local.Id} {TimeZoneInfo.Local.BaseUtcOffset}");
+        await test();
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("TZ", previous);
+        TimeZoneInfo.ClearCachedData();
     }
 }
 
