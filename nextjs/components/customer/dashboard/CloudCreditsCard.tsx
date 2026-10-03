@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { usePostHog } from "posthog-js/react";
 
 import CloudCreditsCardView, {
   type CloudCreditsTierView,
@@ -15,6 +14,7 @@ import {
   validateCreditPurchaseAmount,
 } from "@/app/api/checkout/credits/validation";
 import { watchForAbandonedRedirect } from "@/src/lib/abandoned-redirect";
+import { loadPostHog } from "@/src/lib/posthog-client";
 import {
   createBuyCreditsHandler,
   type BuyCreditsTier,
@@ -59,7 +59,6 @@ export default function CloudCreditsCard({
   // they already exist, already translated, in all 40 files under `messages/`.
   // #737 asked for a new key; this declines that and adds none.
   const tBuyCredits = useTranslations("buyCredits");
-  const posthog = usePostHog();
   // loadingTier holds the dollar amount of the in-flight checkout, or the
   // sentinel "custom" while the custom-amount checkout is being created.
   const [loadingTier, setLoadingTier] = useState<BuyCreditsTier | null>(null);
@@ -105,13 +104,15 @@ export default function CloudCreditsCard({
     navigate: (destination) => {
       window.location.href = destination;
     },
-    // `usePostHog` is typed non-nullable but the provider is not mounted when
-    // `NEXT_PUBLIC_POSTHOG_KEY` is absent, so the value really can be missing
-    // at runtime — the same guard as `app/[locale]/purchase-success/page.tsx`.
+    // `loadPostHog` answers null when `NEXT_PUBLIC_POSTHOG_KEY` is absent. The
+    // report is async now (#918), so the seam's try/catch no longer sees a
+    // stubbed `captureException` throw; the `.catch` here stands in for it.
     // The properties come from the seam, which keeps the licence key out of
     // them: this app's PostHog init has no redaction (#739).
     reportError: (thrown, properties) => {
-      if (posthog) posthog.captureException(thrown, properties);
+      void loadPostHog()
+        .then((posthog) => posthog?.captureException(thrown, properties))
+        .catch(() => {});
     },
     setBusy: setLoadingTier,
     setError,

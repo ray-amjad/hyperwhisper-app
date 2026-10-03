@@ -5,14 +5,13 @@ import { m } from "framer-motion";
 import { Button } from "@heroui/button";
 import { CheckCircle, ArrowRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { usePostHog } from "posthog-js/react";
 import { useTranslations } from "next-intl";
 
 import { Link } from "@/src/i18n/navigation";
+import { loadPostHog } from "@/src/lib/posthog-client";
 
 function PurchaseSuccessContent() {
   const searchParams = useSearchParams();
-  const posthog = usePostHog();
   const t = useTranslations("purchaseSuccess");
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
   const [eventCaptured, setEventCaptured] = useState(false);
@@ -33,13 +32,22 @@ function PurchaseSuccessContent() {
     }
   }, [searchParams]);
 
-  // Separate effect to capture purchase event only when PostHog is ready
+  // Separate effect to capture the purchase once PostHog is loaded and
+  // initialised. `loadPostHog` answers null when no key is set.
   useEffect(() => {
-    if (checkoutId && posthog && !eventCaptured) {
+    if (!checkoutId || eventCaptured) return;
+    let cancelled = false;
+
+    void loadPostHog().then((posthog) => {
+      if (cancelled || !posthog) return;
       posthog.capture("purchase_completed", { session_id: checkoutId });
       setEventCaptured(true);
-    }
-  }, [checkoutId, posthog, eventCaptured]);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutId, eventCaptured]);
 
   const steps = [
     { title: t("step1Title"), description: t("step1Desc") },
