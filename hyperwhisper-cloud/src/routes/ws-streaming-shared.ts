@@ -323,6 +323,48 @@ function errorName(error: unknown): string {
   return error instanceof Error ? error.name.slice(0, 64) : typeof error;
 }
 
+// Every live session past its API-key check, keyed by its shutdown handler.
+// `gracefulShutdown` (index.ts) ends them all on SIGTERM, because Bun runs no
+// socket `close` handler on `process.exit` and `endSession` is the only place a
+// live session is billed (#1235). An entry removes itself in `endSession`.
+const activeSessions = new Set<() => Promise<void>>();
+/** Set once by `endActiveStreamingSessions`; no live session opens after it. */
+let machineShuttingDown = false;
+
+/**
+ * End every open live session for a machine shutdown: bill it and log
+ * `session_end` now, close the vendor socket, and close the client with 1012
+ * (Service Restart) so the native clients reconnect to another machine.
+ *
+ * Call it BEFORE `drainPendingDeductions`, so the drain awaits these charges.
+ * It does not wait for a vendor's trailing final — the whole grace period is 5 s.
+ * Resolves to the number of sessions ended.
+ */
+export async function endActiveStreamingSessions(): Promise<number> {
+  // Latch first: the machine keeps accepting upgrades during the drain, and a
+  // preflight already awaiting auth can open after this snapshot. Every session
+  // whose `onOpen` runs from now on is refused with 1012 before it can meter.
+  machineShuttingDown = true;
+  const sessions = [...activeSessions];
+  // Settled, not `Promise.all`: one session's fault must not reject this and
+  // make `gracefulShutdown` skip the drains and the exit.
+  const results = await Promise.allSettled(sessions.map((shutdown) => shutdown()));
+  let ended = 0;
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      ended += 1;
+    } else {
+      console.error('ws_streaming.shutdown_session_failed', { errorName: errorName(result.reason) });
+    }
+  }
+  return ended;
+}
+
+/** Test-only: bun runs every test file in one process, and the latch is module state. */
+export function resetStreamingShutdownForTests(): void {
+  machineShuttingDown = false;
+}
+
 function decodeUpstreamFrame(raw: unknown): string {
   // `event.data` is typed `any` by the WebSocket lib and a vendor can deliver a
   // frame as a string or as binary. Coerce explicitly rather than asserting.
@@ -386,9 +428,16 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     });
   }
 
-  async function endSession(): Promise<void> {
+  /**
+   * `notifyClient: false` is the shutdown path. It skips `session_complete`:
+   * every native client reads that frame as the end of the session even before
+   * the user asked to stop, so it would finish the dictation instead of
+   * reconnecting on the 1012 close that follows.
+   */
+  async function endSession(options: { notifyClient?: boolean } = {}): Promise<void> {
     if (sessionEnded) return;
     sessionEnded = true;
+    activeSessions.delete(shutdownSession);
 
     if (pingInterval) {
       clearInterval(pingInterval);
@@ -411,7 +460,7 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     const costUsd = Math.min(meteredCostUsd, reservedCostUsd);
     const creditsUsed = creditsForCost(costUsd);
 
-    if (clientSocket) {
+    if (clientSocket && options.notifyClient !== false) {
       sendToClient(clientSocket, {
         type: 'session_complete',
         duration_seconds: totalDurationSeconds,
@@ -453,6 +502,18 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     if (upstreamWs && upstreamWs.readyState <= WebSocket.OPEN) {
       upstreamWs.close(1000, reason);
     }
+  }
+
+  /** The machine is shutting down: see {@link endActiveStreamingSessions}. */
+  async function shutdownSession(): Promise<void> {
+    const ended = endSession({ notifyClient: false });
+    // Client first, so the upstream close handler finds it already closed and
+    // cannot overwrite the 1012 with its own 1000.
+    if (clientSocket && clientSocket.readyState === 1) {
+      clientSocket.close(1012, 'Service restart');
+    }
+    closeUpstream('Server shutting down');
+    await ended;
   }
 
   /** Forward one already-vetted PCM chunk and meter it. */
@@ -618,7 +679,19 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
         return;
       }
 
+      if (machineShuttingDown) {
+        // Opened after shutdown began, so it would miss the snapshot and be
+        // dropped unbilled by the exit. Refuse it before any upstream socket or
+        // metering exists; 1012 sends the client to another machine. Nothing
+        // was metered, so there is nothing to bill and no later `endSession`.
+        sessionEnded = true;
+        log('refused_shutting_down');
+        ws.close(1012, 'Service restart');
+        return;
+      }
+
       log('session_start', { language: language || 'auto', hasVocabulary: Boolean(vocabulary) });
+      activeSessions.add(shutdownSession);
 
       upstreamWs = protocols === undefined
         ? new WebSocket(upstreamUrl)

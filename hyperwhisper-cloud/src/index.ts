@@ -15,6 +15,7 @@ import {
   wsStreamingGeminiTranscribeRoute,
 } from './routes/ws-streaming-gemini-transcribe';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
+import { endActiveStreamingSessions } from './routes/ws-streaming-shared';
 import { drainPendingDeductions } from './middleware/credits';
 import { drainPendingLatencyReports } from './lib/latency-report';
 
@@ -113,6 +114,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
     machineId: process.env.FLY_MACHINE_ID || 'local',
     shutdownAt: new Date().toISOString(),
   });
+
+  // A live streaming session is billed only when it ends, and Bun runs no
+  // socket close handler on process.exit. End them first, so their charges
+  // are already in flight when the deduction drain below awaits them.
+  const endedSessions = await endActiveStreamingSessions();
+  if (endedSessions > 0) {
+    console.log('machine.shutdown_ended_streaming_sessions', { count: endedSessions });
+  }
 
   // Both drains are fire-and-forget writes made after the response is flushed,
   // so they race the same SIGKILL. Run them together rather than in series —
