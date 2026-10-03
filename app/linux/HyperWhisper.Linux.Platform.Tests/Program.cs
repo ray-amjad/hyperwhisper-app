@@ -31,6 +31,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("global shortcut capability probe is content-free and closes sources", ShortcutCapabilityProbe),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
+    ("X11 shortcut released modifier-first fires again", X11ModifierFirstRelease),
     ("X11 maps multi-modifier-only shortcuts in either order", X11MultiModifierShortcut),
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
     ("X11 XGrabKey host integration", X11GrabIntegration),
@@ -440,6 +441,21 @@ static async Task X11ModifierShortcut()
     Assert.Equal(2, events);
     Assert.Equal(8, connection.Grabs.Count);
     Assert.True(connection.Grabs.All(value => value.Modifiers is 0 or 2 or 16 or 18));
+}
+
+static async Task X11ModifierFirstRelease()
+{
+    var connection = new FakeX11Connection(new X11HotkeyEvent(65, 5, true),
+        new X11HotkeyEvent(65, 0, false), new X11HotkeyEvent(65, 5, true));
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add("down:" + args.Name);
+    service.ShortcutReleased += (_, args) => events.Add("up:" + args.Name);
+    service.RegisterShortcuts([new NamedShortcut("streaming",
+        new(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Space")))]);
+    Assert.Success(service.Start());
+    await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2)); await Task.Delay(30);
+    Assert.Equal("down:streaming,up:streaming,down:streaming", string.Join(',', events));
 }
 
 static Task X11MultiModifierShortcut()
