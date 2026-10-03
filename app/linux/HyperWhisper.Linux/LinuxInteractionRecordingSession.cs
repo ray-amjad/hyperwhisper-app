@@ -77,14 +77,17 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
             or TranscriptionWorkflowState.Retrying;
     public bool IsStreaming => _streaming;
-    /// <summary>Raised when <see cref="IsStreaming"/> flips; Home's record row follows it (#1187).</summary>
-    public event EventHandler? StreamingChanged;
+    /// <summary>A live stream started and no stop or cancel has begun; Home's record row follows it (#1187).
+    /// Narrower than IsStreaming, which stays true through finalization and after a failed start.</summary>
+    public bool IsLiveCaptureActive => Volatile.Read(ref _liveCaptureActive);
+    public event EventHandler? LiveCaptureChanged;
+    private bool _liveCaptureActive;
 
-    private void SetStreaming(bool value)
+    private void SetLiveCapture(bool value)
     {
-        if (_streaming == value) return;
-        _streaming = value;
-        StreamingChanged?.Invoke(this, EventArgs.Empty);
+        if (Volatile.Read(ref _liveCaptureActive) == value) return;
+        Volatile.Write(ref _liveCaptureActive, value);
+        LiveCaptureChanged?.Invoke(this, EventArgs.Empty);
     }
     /// <summary>PrepareAudio ran and no restore has taken it yet; true even before IsActive (#1038).</summary>
     public bool HasAudioToRestore => Volatile.Read(ref _audioPrepared) != 0;
@@ -149,7 +152,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         else if (_mode.EnableScreenOCR)
             await ReportAsync(DiagnosticComponent.Portal, DiagnosticOutcome.Succeeded);
 
-        SetStreaming(kind == InteractionRecordingKind.Streaming);
+        _streaming = kind == InteractionRecordingKind.Streaming;
         if (_streaming)
         {
             BeginLiveDelivery();
@@ -185,6 +188,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
         _viewModel.Status.Success(_streaming ? "Live transcription recording…" : "Recording…");
+        if (_streaming) SetLiveCapture(true);
         return PlatformResult.Success();
     }
 
@@ -240,6 +244,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
+        SetLiveCapture(false);
         if (!IsActive) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
         await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
         _overlay.Transcribing();
@@ -340,6 +345,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask CancelAsync(CancellationToken cancellationToken = default)
     {
+        SetLiveCapture(false);
         await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Cancelled);
         _overlay.Cancelled();
         try
@@ -564,7 +570,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
         try { liveDelivery?.Cancel(); } catch (ObjectDisposedException) { }
         liveDelivery?.Dispose();
-        SetStreaming(false);
+        _streaming = false;
+        SetLiveCapture(false);
         _liveTranscript = null;
         _context = null;
         _mode = null;

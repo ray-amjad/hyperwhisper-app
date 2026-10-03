@@ -63,7 +63,7 @@ public partial class MainWindow : Window
     private LinuxOnboardingViewModel? _onboarding;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
-    /// <summary>Home's record row shows Stop + Cancel: batch CanStop, or a live stream the workflow never sees (#1187).</summary>
+    /// <summary>Home's record row shows Stop + Cancel: batch CanStop, or live capture the workflow never sees (#1187).</summary>
     public static readonly StyledProperty<bool> IsHomeRecordingActiveProperty =
         AvaloniaProperty.Register<MainWindow, bool>(nameof(IsHomeRecordingActive));
     public bool IsHomeRecordingActive { get => GetValue(IsHomeRecordingActiveProperty); private set => SetValue(IsHomeRecordingActiveProperty, value); }
@@ -223,7 +223,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
         _viewModel.Status.PropertyChanged += OnShellStatusChanged;
         _interaction.OperationFailed += OnInteractionFailed;
-        _recordingSession.StreamingChanged += OnStreamingChanged;
+        _recordingSession.LiveCaptureChanged += OnLiveCaptureChanged;
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
@@ -326,7 +326,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
-        _recordingSession.StreamingChanged -= OnStreamingChanged;
+        _recordingSession.LiveCaptureChanged -= OnLiveCaptureChanged;
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
@@ -2747,10 +2747,10 @@ public partial class MainWindow : Window
             _viewModel.Home.ToggleGettingStartedStep("recording");
     }
 
-    private void OnStreamingChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
+    private void OnLiveCaptureChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(UpdateHomeRecordingActive);
 
     private void UpdateHomeRecordingActive() =>
-        IsHomeRecordingActive = _recordingSession.IsStreaming || _viewModel.Recording?.CanStop == true;
+        IsHomeRecordingActive = _recordingSession.IsLiveCaptureActive || _viewModel.Recording?.CanStop == true;
 
     private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
     private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();
