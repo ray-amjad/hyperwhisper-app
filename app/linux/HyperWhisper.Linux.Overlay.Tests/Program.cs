@@ -13,6 +13,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming connection states remain explicit", StreamingStatesAreExplicit),
     ("completion outcomes are distinct and transient", CompletionOutcomesAreDistinct),
     ("cancel confirmation resumes the active recording", CancelConfirmationResumes),
+    ("audio level ticks cannot hide a pending cancel confirmation", CancelConfirmationSurvivesLevelTicks),
+    ("mode change during a cancel confirmation resumes the confirmation", ModeChangeResumesCancelConfirmation),
     ("mode changes replace and resume recording", ModeChangeResumesRecording),
     ("errors are normalized and auto-hide", ErrorsAreNormalized),
     ("expired feedback cannot overwrite its replacement", ExpiredFeedbackCannotOverwriteReplacement),
@@ -120,6 +122,68 @@ static Task CancelConfirmationResumes()
     fixture.Controller.DismissCancelConfirmation();
     Assert(fixture.ViewModel.IsRecording, "dismissed confirmation did not resume recording");
     return Task.CompletedTask;
+}
+
+static Task CancelConfirmationSurvivesLevelTicks()
+{
+    var now = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
+    using var fixture = OverlayFixture.Create(() => now);
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    now = now.AddSeconds(20);
+    fixture.Controller.TickDuration();
+    fixture.Controller.ShowCancelConfirmation();
+    Assert(fixture.ViewModel.IsCancelConfirmation, "cancel confirmation was not shown");
+    // About 1 s of recorder level ticks, plus a duration tick, while the user decides (#1245).
+    for (var tick = 0; tick < 50; tick++)
+    {
+        fixture.Controller.UpdateAudioLevel(.05f + tick % 5 * .01f);
+        Assert(fixture.ViewModel.IsCancelConfirmation, $"level tick {tick} painted over the cancel confirmation");
+    }
+    now = now.AddSeconds(1);
+    fixture.Controller.TickDuration();
+    Assert(fixture.ViewModel.IsCancelConfirmation, "duration tick painted over the cancel confirmation");
+    fixture.Controller.UpdateAudioLevel(.2f);
+    fixture.Controller.DismissCancelConfirmation();
+    Assert(fixture.ViewModel.IsRecording, "dismissed confirmation did not resume recording");
+    Assert(fixture.ViewModel.AudioLevel > .6 && fixture.ViewModel.AudioLevel < .7,
+        "resumed recording did not show the latest level");
+    fixture.Controller.UpdateAudioLevel(.1f);
+    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.AudioLevel > .3 && fixture.ViewModel.AudioLevel < .35,
+        "level ticks did not drive the waveform after the confirmation was dismissed");
+
+    // A recording that ends with the confirmation still up must not leave the next one frozen.
+    fixture.Controller.ShowCancelConfirmation();
+    fixture.Controller.Hide();
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    fixture.Controller.UpdateAudioLevel(.2f);
+    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.AudioLevel > .6,
+        "a confirmation left pending by the last recording froze the next one");
+    return Task.CompletedTask;
+}
+
+static async Task ModeChangeResumesCancelConfirmation()
+{
+    using var fixture = OverlayFixture.Create();
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    fixture.Controller.ShowCancelConfirmation();
+    fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Coding"));
+    Assert(fixture.ViewModel.State == LinuxRecordingOverlayState.ModeChanged, "mode toast was not shown");
+    fixture.Controller.UpdateAudioLevel(.2f);
+    fixture.Delay.CompleteLatest();
+    await WaitUntil(() => fixture.ViewModel.State != LinuxRecordingOverlayState.ModeChanged);
+    Assert(fixture.ViewModel.IsCancelConfirmation, "mode toast resumed to Recording over a pending cancel confirmation");
+    fixture.Controller.DismissCancelConfirmation();
+    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.ModeText == "Coding",
+        "dismissed confirmation did not resume the recording in the new mode");
+
+    // Dismissed while the toast is still up: the toast must not bring the confirmation back.
+    fixture.Controller.ShowCancelConfirmation();
+    fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Draft"));
+    fixture.Controller.DismissCancelConfirmation();
+    Assert(fixture.ViewModel.IsRecording, "dismiss during the mode toast did not resume recording");
+    fixture.Delay.CompleteLatest();
+    await Task.Delay(50);
+    Assert(fixture.ViewModel.IsRecording, "a stale mode toast brought back a dismissed cancel confirmation");
 }
 
 static async Task ModeChangeResumesRecording()
