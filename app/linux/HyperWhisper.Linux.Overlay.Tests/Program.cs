@@ -14,7 +14,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("completion outcomes are distinct and transient", CompletionOutcomesAreDistinct),
     ("cancel confirmation resumes the active recording", CancelConfirmationResumes),
     ("audio level ticks cannot hide a pending cancel confirmation", CancelConfirmationSurvivesLevelTicks),
-    ("mode change during a cancel confirmation resumes the confirmation", ModeChangeResumesCancelConfirmation),
+    ("mode change during a cancel confirmation keeps the confirmation up", ModeChangeKeepsCancelConfirmation),
+    ("audio level and connection ticks cannot cut a mode toast short", ModeToastSurvivesLevelTicks),
+    ("a duration tick queued before a cancel confirmation cannot paint over it", QueuedDurationTickCannotCoverConfirmation),
+    ("a mode toast expiry queued before a cancel confirmation cannot paint over it", QueuedToastExpiryCannotCoverConfirmation),
     ("mode changes replace and resume recording", ModeChangeResumesRecording),
     ("errors are normalized and auto-hide", ErrorsAreNormalized),
     ("expired feedback cannot overwrite its replacement", ExpiredFeedbackCannotOverwriteReplacement),
@@ -161,29 +164,102 @@ static Task CancelConfirmationSurvivesLevelTicks()
     return Task.CompletedTask;
 }
 
-static async Task ModeChangeResumesCancelConfirmation()
+static async Task ModeChangeKeepsCancelConfirmation()
 {
     using var fixture = OverlayFixture.Create();
     fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
     fixture.Controller.ShowCancelConfirmation();
     fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Coding"));
-    Assert(fixture.ViewModel.State == LinuxRecordingOverlayState.ModeChanged, "mode toast was not shown");
+    // The toast would hide the Yes/No buttons while the session still holds the prompt open.
+    Assert(fixture.ViewModel.IsCancelConfirmation, "a mode change hid a pending cancel confirmation");
     fixture.Controller.UpdateAudioLevel(.2f);
     fixture.Delay.CompleteLatest();
-    await WaitUntil(() => fixture.ViewModel.State != LinuxRecordingOverlayState.ModeChanged);
-    Assert(fixture.ViewModel.IsCancelConfirmation, "mode toast resumed to Recording over a pending cancel confirmation");
+    await Task.Delay(50);
+    Assert(fixture.ViewModel.IsCancelConfirmation, "the cancel confirmation did not stay up after a mode change");
     fixture.Controller.DismissCancelConfirmation();
     Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.ModeText == "Coding",
         "dismissed confirmation did not resume the recording in the new mode");
 
-    // Dismissed while the toast is still up: the toast must not bring the confirmation back.
-    fixture.Controller.ShowCancelConfirmation();
+    // A toast shown before the confirmation, and a dismissal after it, must not bring either back.
     fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Draft"));
+    fixture.Controller.ShowCancelConfirmation();
+    Assert(fixture.ViewModel.IsCancelConfirmation, "cancel confirmation did not replace the mode toast");
     fixture.Controller.DismissCancelConfirmation();
-    Assert(fixture.ViewModel.IsRecording, "dismiss during the mode toast did not resume recording");
     fixture.Delay.CompleteLatest();
     await Task.Delay(50);
-    Assert(fixture.ViewModel.IsRecording, "a stale mode toast brought back a dismissed cancel confirmation");
+    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.ModeText == "Draft",
+        "a stale mode toast changed the resumed recording");
+}
+
+static async Task ModeToastSurvivesLevelTicks()
+{
+    using var fixture = OverlayFixture.Create();
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Coding"));
+    for (var tick = 0; tick < 50; tick++)
+    {
+        fixture.Controller.UpdateAudioLevel(.05f + tick % 5 * .01f);
+        Assert(fixture.ViewModel.IsModeChanged, $"level tick {tick} cut the mode toast short");
+    }
+    fixture.Controller.TickDuration();
+    Assert(fixture.ViewModel.IsModeChanged, "duration tick cut the mode toast short");
+    fixture.Controller.UpdateAudioLevel(.2f);
+    fixture.Delay.CompleteLatest();
+    await WaitUntil(() => fixture.ViewModel.IsRecording);
+    Assert(fixture.ViewModel.ModeText == "Coding" && fixture.ViewModel.AudioLevel > .6 && fixture.ViewModel.AudioLevel < .7,
+        "recording did not resume with the new mode and the latest level");
+
+    fixture.Controller.ShowStreaming(LinuxOverlayModeLabel.Create("Live"));
+    fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Notes"));
+    fixture.Controller.UpdateStreamingConnection(LinuxStreamingOverlayConnectionState.Connected);
+    fixture.Controller.UpdateAudioLevel(.2f);
+    Assert(fixture.ViewModel.IsModeChanged, "a streaming tick cut the mode toast short");
+    fixture.Delay.CompleteLatest();
+    await WaitUntil(() => fixture.ViewModel.IsStreaming);
+    Assert(fixture.ViewModel.Snapshot.StreamingConnection == LinuxStreamingOverlayConnectionState.Connected,
+        "streaming did not resume with the connection state that changed during the toast");
+}
+
+static Task QueuedDurationTickCannotCoverConfirmation()
+{
+    var viewModel = new LinuxRecordingOverlayViewModel();
+    var dispatcher = new QueueingDispatcher();
+    using var controller = new LinuxRecordingOverlayController(viewModel, dispatcher, new FakeSurface(),
+        new FakeDelay(), () => DateTimeOffset.UtcNow, false, TestText.Get);
+    controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    // The duration Timer runs on the threadpool, so its paint waits in the UI queue...
+    dispatcher.Inline = false;
+    controller.TickDuration();
+    Assert(dispatcher.Pending == 1, "duration tick did not post a paint");
+    // ...while Cancel, on the UI thread, paints the confirmation at once.
+    dispatcher.Inline = true;
+    controller.ShowCancelConfirmation();
+    Assert(viewModel.IsCancelConfirmation, "cancel confirmation was not shown");
+    dispatcher.Drain();
+    Assert(viewModel.IsCancelConfirmation, "a queued duration tick painted Recording over the cancel confirmation");
+    return Task.CompletedTask;
+}
+
+static async Task QueuedToastExpiryCannotCoverConfirmation()
+{
+    var viewModel = new LinuxRecordingOverlayViewModel();
+    var dispatcher = new QueueingDispatcher();
+    var delay = new FakeDelay();
+    using var controller = new LinuxRecordingOverlayController(viewModel, dispatcher, new FakeSurface(),
+        delay, () => DateTimeOffset.UtcNow, false, TestText.Get);
+    controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Coding"));
+    dispatcher.Inline = false;
+    delay.CompleteLatest();
+    await WaitUntil(() => dispatcher.Pending == 1);
+    dispatcher.Inline = true;
+    controller.ShowCancelConfirmation();
+    Assert(viewModel.IsCancelConfirmation, "cancel confirmation was not shown");
+    dispatcher.Drain();
+    Assert(viewModel.IsCancelConfirmation, "a queued mode-toast expiry painted over the cancel confirmation");
+    controller.DismissCancelConfirmation();
+    dispatcher.Drain();
+    Assert(viewModel.IsRecording && viewModel.ModeText == "Coding", "dismiss did not resume the recording");
 }
 
 static async Task ModeChangeResumesRecording()
@@ -488,6 +564,28 @@ static class TestText
 sealed class ImmediateDispatcher : ILinuxOverlayDispatcher
 {
     public void Post(Action action) => action();
+}
+
+/// <summary>Inline mimics a post from the UI thread; queued mimics a post from the threadpool.</summary>
+sealed class QueueingDispatcher : ILinuxOverlayDispatcher
+{
+    private readonly Queue<Action> _queue = new();
+    public volatile bool Inline = true;
+    public int Pending { get { lock (_queue) return _queue.Count; } }
+    public void Post(Action action)
+    {
+        if (Inline) { action(); return; }
+        lock (_queue) _queue.Enqueue(action);
+    }
+    public void Drain()
+    {
+        while (true)
+        {
+            Action action;
+            lock (_queue) { if (!_queue.TryDequeue(out action!)) return; }
+            action();
+        }
+    }
 }
 
 sealed class ThrowingDispatcher : ILinuxOverlayDispatcher
