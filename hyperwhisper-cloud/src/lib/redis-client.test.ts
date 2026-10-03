@@ -1,11 +1,11 @@
 // UPSTASH REDIS CLIENT FACTORY
 //
 // `./redis` is replaced process-wide by `mock.module` in a dozen suites, so
-// this suite imports `./redis-client` directly. Nothing mocks it, and it never
-// builds a real client: `makeClient` is a recording stand-in.
+// this suite imports `./redis-client` directly. Nothing mocks it. Every test but
+// the last passes a recording `makeClient`; the last builds a real, idle client.
 
 import { describe, expect, test } from 'bun:test';
-import type { Redis } from '@upstash/redis';
+import { Redis } from '@upstash/redis';
 import { createRedisGetter, type RedisClientFactory } from './redis-client';
 
 const MISSING_ENV = 'UPSTASH_REDIS_CLOUD_URL and UPSTASH_REDIS_CLOUD_TOKEN are required';
@@ -58,5 +58,14 @@ describe('createRedisGetter', () => {
     );
     get();
     expect(calls).toEqual([{ url: 'https://cloud.example', token: 'cloud-test-value' }]);
+  });
+
+  test('the default factory builds a real @upstash/redis client from the CLOUD pair', () => {
+    // Constructing the client sends nothing; only a command would reach the network.
+    const get = createRedisGetter({
+      UPSTASH_REDIS_CLOUD_URL: 'https://cloud.example',
+      UPSTASH_REDIS_CLOUD_TOKEN: 'cloud-test-value',
+    });
+    expect(get()).toBeInstanceOf(Redis);
   });
 });
