@@ -46,6 +46,22 @@ export default function DownloadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
+  // Flips true two frames after loading ends, so the content paints at its
+  // hidden/dimmed opacity first and the CSS transition has a start value.
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      setRevealed(false);
+
+      return;
+    }
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => setRevealed(true));
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [loading]);
 
   /**
    * Fetches and parses the appcast.xml file on component mount
@@ -229,14 +245,6 @@ export default function DownloadsPage() {
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center text-gray-400 py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4" />
-            <p className="text-lg">Loading versions...</p>
-          </div>
-        )}
-
         {/* Error State */}
         {error && (
           <div className="text-center">
@@ -250,10 +258,45 @@ export default function DownloadsPage() {
           </div>
         )}
 
-        {/* Versions List */}
-        {!loading && !error && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+        {/* Versions List: skeleton and content share one slot and cross-fade.
+            A platform switch keeps the previous list mounted, dimmed. */}
+        {!error && (
+          <div className="t-skel grid mb-12">
+            <div
+              aria-hidden
+              className={`t-skel-skeleton [grid-area:1/1] pointer-events-none grid grid-cols-1 md:grid-cols-2 gap-4 transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                loading && versions.length === 0
+                  ? "opacity-100 blur-[0px]"
+                  : "opacity-0 blur-[2px]"
+              }`}
+            >
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Card
+                  key={i}
+                  className="bg-gray-900/50 backdrop-blur-xl border-gray-800 h-full"
+                >
+                  <CardBody className="p-6 space-y-4">
+                    {["w-32", "w-40", "w-24", "w-28"].map((w) => (
+                      <div
+                        key={w}
+                        className={`h-4 bg-white/10 rounded ${w} animate-pulse motion-reduce:animate-none`}
+                      />
+                    ))}
+                    <div className="h-10 bg-white/10 rounded animate-pulse motion-reduce:animate-none" />
+                  </CardBody>
+                </Card>
+              ))}
+            </div>
+            <div
+              aria-busy={loading}
+              className={`t-skel-content [grid-area:1/1] grid grid-cols-1 md:grid-cols-2 gap-4 content-start transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
+                !loading && revealed
+                  ? "opacity-100 blur-[0px]"
+                  : versions.length > 0
+                    ? "opacity-40 blur-[2px]"
+                    : "opacity-0 blur-[2px]"
+              }`}
+            >
               {versions.map((version, index) => (
                 <Card
                   key={version.buildNumber}
@@ -343,7 +386,7 @@ export default function DownloadsPage() {
                 </Card>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
