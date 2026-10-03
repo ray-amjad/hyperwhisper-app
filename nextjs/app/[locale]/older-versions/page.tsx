@@ -46,6 +46,9 @@ export default function DownloadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>("mac");
+  // The platform `versions` was fetched for; a switch keeps the old list on
+  // screen until the new feed lands, so its labels must not follow the toggle.
+  const [listPlatform, setListPlatform] = useState<Platform>("mac");
   // Flips true two frames after loading ends, so the content paints at its
   // hidden/dimmed opacity first and the CSS transition has a start value.
   const [revealed, setRevealed] = useState(false);
@@ -149,6 +152,7 @@ export default function DownloadsPage() {
 
         if (ignore) return;
         setVersions(Array.from(versionMap.values()));
+        setListPlatform(selectedPlatform);
         setLoading(false);
       } catch (err) {
         // Ignore aborts triggered by cleanup / a newer platform selection.
@@ -202,9 +206,9 @@ export default function DownloadsPage() {
    */
   const isLatestVersion = (index: number) => index === 0;
 
-  const platformLabel = selectedPlatform === "mac" ? "macOS" : "Windows";
+  const platformLabel = listPlatform === "mac" ? "macOS" : "Windows";
   const downloadLabel =
-    selectedPlatform === "mac" ? "Download DMG" : "Download EXE";
+    listPlatform === "mac" ? "Download DMG" : "Download EXE";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/10 to-gray-900 px-6 py-20">
@@ -289,6 +293,7 @@ export default function DownloadsPage() {
             </div>
             <div
               aria-busy={loading}
+              inert={loading}
               className={`t-skel-content [grid-area:1/1] grid grid-cols-1 md:grid-cols-2 gap-4 content-start transition-[opacity,filter] duration-[400ms] ease-in-out motion-reduce:transition-none ${
                 !loading && revealed
                   ? "opacity-100 blur-[0px]"
