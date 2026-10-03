@@ -161,7 +161,7 @@ public partial class MainWindow : Window
             _cloudAccount,
             _platformServices.DeviceIdentity,
             Environment.MachineName,
-            OpenAccountUri,
+            OpenCloudAccountUri,
             _platformServices.TextInjection,
             ModelReadinessComposition.Create(
                 _modelManager,
@@ -2363,6 +2363,7 @@ public partial class MainWindow : Window
         if (copied.IsFailure)
         {
             _viewModel.Account.Status.Failure(copied.Error!.Code, copied.Error.Message);
+            ShowAccountClickFailure(copied.Error);
             return;
         }
         ShowCopiedGlyph("AccountKeyCopyGlyph");
@@ -5138,6 +5139,22 @@ public partial class MainWindow : Window
     private static bool HasVisibleControl(string name, Visual root)
         => root.GetLogicalDescendants().OfType<Control>().Any(control => control.Name == name && control.IsVisible);
 
+    /// <summary>
+    /// Get Credits and Manage account report a failure only through Account.Status, which nothing
+    /// on the Cloud page binds, so the button looked dead (#1188). The toast is raised here, per
+    /// click, rather than from Account.Status.PropertyChanged: UiStatus.Set drops a write equal to
+    /// the current value, so a second identical failure would raise no notification and no toast.
+    /// </summary>
+    private PlatformResult OpenCloudAccountUri(Uri uri)
+    {
+        var result = OpenAccountUri(uri);
+        if (result.IsFailure) ShowAccountClickFailure(result.Error!);
+        return result;
+    }
+
+    private void ShowAccountClickFailure(PlatformError error)
+        => QueueErrorToast(() => (error.Code, error.Message));
+
     private PlatformResult OpenAccountUri(Uri uri)
     {
         if (uri != CloudAccountLinks.Purchase && uri != CloudAccountLinks.ManageAccount)
@@ -5150,7 +5167,8 @@ public partial class MainWindow : Window
         }
         catch
         {
-            return PlatformResult.Failure("account.link_failed", L("linux.error.account_link_failed"));
+            // The URL follows the localized sentence so the user can still reach the page (#1188).
+            return PlatformResult.Failure("account.link_failed", $"{L("linux.error.account_link_failed")} {uri.AbsoluteUri}");
         }
     }
 
