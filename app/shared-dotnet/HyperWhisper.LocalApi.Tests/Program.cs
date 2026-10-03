@@ -608,6 +608,7 @@ static async Task RecordingsQueryRunsInSql()
         ("日本", null, null, 50, 1),
         ("kis", null, null, 50, 1),           // dotless ı is not i under OrdinalIgnoreCase
         (" abc", null, null, 50, 1),          // the term is not trimmed: only "raw ABC"
+        ("\0", null, null, 50, 0),            // SQLite cuts a LIKE pattern at NUL, so "%\0%" must not become "%" (#1198)
         ("   ", null, null, 3, texts.Length + 2),
         (null, "2026-01-01T02:00:00Z", "2026-01-01T04:00:00Z", 50, 3), // since/until are inclusive
         ("abc", "2026-01-01T01:00:00Z", "2026-01-01T02:00:00Z", 50, 2),
