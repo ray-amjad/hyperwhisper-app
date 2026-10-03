@@ -201,3 +201,123 @@ pub trait KeyValueStore: Send + Sync {
     fn set(&self, key: String, value: String);
     fn delete(&self, key: String);
 }
+
+#[cfg(test)]
+mod tests {
+    //! The text exports above are one-line forwards to `hw_text`. These pin
+    //! that each one reaches the right leaf function with its arguments in the
+    //! right order, and that `CursorContext` maps each variant to its twin.
+    use super::*;
+
+    #[test]
+    fn only_mid_sentence_lowercases_a_leading_capital() {
+        assert_eq!(
+            apply_autocapitalize("Hello there".to_string(), CursorContext::MidSentence),
+            "hello there"
+        );
+        assert_eq!(
+            apply_autocapitalize("Hello there".to_string(), CursorContext::StartOfSentence),
+            "Hello there"
+        );
+        assert_eq!(
+            apply_autocapitalize("Hello there".to_string(), CursorContext::Unknown),
+            "Hello there"
+        );
+    }
+
+    #[test]
+    fn the_trailing_space_depends_on_the_mode_language() {
+        assert_eq!(
+            append_trailing_space("Hello".to_string(), "en".to_string()),
+            "Hello "
+        );
+        // Latin text in a Japanese mode: the mode's language decides, not the
+        // script, so no space is added.
+        assert_eq!(
+            append_trailing_space("Hello".to_string(), "ja".to_string()),
+            "Hello"
+        );
+    }
+
+    #[test]
+    fn the_script_probes_tell_cjk_from_thai_from_latin() {
+        assert!(contains_cjk("你好世界".to_string()));
+        assert!(!contains_cjk("สวัสดีครับ".to_string()));
+        assert!(is_continuous_script("สวัสดีครับ".to_string()));
+        assert!(!is_continuous_script("hello world".to_string()));
+        assert!(is_no_space_language("ja".to_string()));
+        assert!(!is_no_space_language("en".to_string()));
+    }
+
+    #[test]
+    fn a_hardened_replacement_takes_the_word_then_the_replacement() {
+        assert_eq!(
+            apply_hardened_replacement(
+                "ask chat gpt and Chat GPT".to_string(),
+                "chat gpt".to_string(),
+                "ChatGPT".to_string(),
+            ),
+            "ask ChatGPT and ChatGPT"
+        );
+    }
+
+    #[test]
+    fn the_wrapper_helpers_differ_on_unwrapped_text() {
+        let wrapped = "noise <<CLEANED>> Hello world <<END>> tail".to_string();
+        assert_eq!(extract_cleaned_from_wrapped(wrapped.clone()), "Hello world");
+        assert_eq!(strip_wrapper_markers(wrapped), "Hello world");
+        // No start marker: extraction finds nothing, stripping keeps the text.
+        assert_eq!(
+            extract_cleaned_from_wrapped("Hello world<<END>>".to_string()),
+            ""
+        );
+        assert_eq!(
+            strip_wrapper_markers("Hello world<<END>>".to_string()),
+            "Hello world"
+        );
+    }
+
+    #[test]
+    fn a_streaming_buffer_loses_everything_up_to_the_start_marker() {
+        assert_eq!(
+            sanitize_streaming_buffer("preamble<<CLEANED>>Hello<<END>>".to_string()),
+            "Hello"
+        );
+    }
+
+    #[test]
+    fn only_a_single_trailing_period_is_removed() {
+        assert_eq!(remove_trailing_period("Done.".to_string()), "Done");
+        assert_eq!(remove_trailing_period("Wait...".to_string()), "Wait...");
+    }
+
+    #[test]
+    fn filler_words_are_removed_only_for_english() {
+        assert_eq!(
+            remove_filler_words("um I think so".to_string(), Some("en".to_string())),
+            "I think so"
+        );
+        assert_eq!(
+            remove_filler_words("um I think so".to_string(), Some("de".to_string())),
+            "um I think so"
+        );
+        assert_eq!(
+            remove_filler_words("um I think so".to_string(), None),
+            "um I think so"
+        );
+    }
+
+    #[test]
+    fn a_spoken_new_line_becomes_a_paragraph_break() {
+        assert_eq!(
+            process_voice_commands("first new line second".to_string()),
+            "first \n\n second"
+        );
+    }
+
+    #[test]
+    fn finalizing_collapses_runs_of_blank_lines() {
+        let out = finalize_streaming_text("one\n\n\n\ntwo".to_string());
+        assert_eq!(out, "one\n\ntwo");
+    }
+}
