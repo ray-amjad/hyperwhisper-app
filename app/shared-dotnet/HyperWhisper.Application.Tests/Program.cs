@@ -382,6 +382,25 @@ try
         "durable audio importer accepted or deleted a normalizer path outside app-owned storage");
     File.Delete(externalNormalized);
 
+    // #1190: a sidebar click during a recording reset the status bar to "Ready" under a live overlay.
+    var recordingActive = false;
+    using (var recordingShell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(
+        database, reloadedSettings, isRecordingActive: () => recordingActive))
+    {
+        await recordingShell.InitializeAsync();
+        recordingActive = true;
+        recordingShell.Status.Success("Recording…");
+        foreach (var page in new[] { "home", "history", "vocabulary", "modes", "settings", "backup" })
+        {
+            recordingShell.Navigate(page);
+            Assert(recordingShell.Status.Message == "Recording…" && recordingShell.CurrentPage != null,
+                $"navigating to {page} during a recording replaced the recording status with '{recordingShell.Status.Message}'");
+        }
+        recordingActive = false;
+        recordingShell.Navigate("home");
+        Assert(recordingShell.Status.Message == "Ready", "navigation while idle no longer resets the status to Ready");
+    }
+
     using (var shell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(
         database, reloadedSettings, localWhisperRuntimeStatus: "Local Whisper (Vulkan; no CPU fallback)"))
     {
