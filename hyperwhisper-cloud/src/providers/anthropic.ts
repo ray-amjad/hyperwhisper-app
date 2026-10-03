@@ -133,10 +133,11 @@ export async function requestAnthropicChat(
 
 /**
  * Inter-chunk idle bound for the /assistant stream (#1112). Chosen when Bun's
- * 10 s default idleTimeout still cut the client; src/index.ts now sets
- * SERVER_IDLE_TIMEOUT_SECONDS (60 s, #1252), and 8 s stays well under it. It
- * ends a stalled upstream cleanly (abort, [DONE], idle-timeout log, bill the
- * tokens seen) long before Bun or Fly's 60 s proxy limit cuts the client.
+ * 10 s default idleTimeout still cut the client. src/index.ts now raises Bun's
+ * limit to SERVER_IDLE_TIMEOUT_SECONDS (Bun's maximum, #1252), but on Fly the
+ * proxy still cuts a connection that sends no bytes for 60 s. This bound sits
+ * well under both, so it ends a stalled upstream cleanly (abort, [DONE],
+ * idle-timeout log, bill the tokens seen) before anything cuts the client.
  */
 export const ANTHROPIC_STREAM_IDLE_TIMEOUT_MS = 8_000;
 
