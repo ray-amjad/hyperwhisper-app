@@ -46,6 +46,9 @@ public interface IInteractionRecordingSession
 {
     bool IsActive { get; }
     bool IsStreaming => false;
+    /// <summary>A session is held that only Stop or Cancel may end. Wider than IsActive: a live
+    /// stream whose worker already ended (connection lost) is held but not active (#1246).</summary>
+    bool HasOpenSession => IsActive;
     ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
         CancellationToken cancellationToken = default);
@@ -173,7 +176,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         var previous = _configuration;
         _started = false;
         _heldActions.Clear();
-        var armSessionCancel = _recording.IsActive && configuration.SessionCancelShortcut is not null;
+        var armSessionCancel = _recording.HasOpenSession && configuration.SessionCancelShortcut is not null;
         var desiredBindings = Bindings(configuration, armSessionCancel);
         var registered = _shortcuts.RegisterShortcuts(desiredBindings);
         var registrationFailure = FirstRegistrationFailure(desiredBindings, registered);
@@ -331,15 +334,15 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             case ToggleActionName:
                 if (IsStreamingStartPending())
                     RaiseFailure(new PlatformError("interaction.batch_while_streaming_starting", "Batch recording cannot start while live transcription is connecting."));
-                else if (!_recording.IsActive) Dispatch(token => StartCoreAsync(InteractionRecordingKind.Batch, token));
+                else if (!_recording.HasOpenSession) Dispatch(token => StartCoreAsync(InteractionRecordingKind.Batch, token));
                 else if (!_recording.IsStreaming) Dispatch(StopCoreAsync);
                 else RaiseFailure(new PlatformError("interaction.batch_while_streaming", "Use the live-transcription shortcut to stop live transcription."));
                 break;
             case StreamingActionName:
                 HandleStreamingShortcut();
                 break;
-            case CancelActionName when _recording.IsActive:
-            case SessionCancelActionName when _recording.IsActive:
+            case CancelActionName when _recording.HasOpenSession:
+            case SessionCancelActionName when _recording.HasOpenSession:
                 Dispatch(CancelCoreAsync);
                 break;
             case ChangeModeActionName:
@@ -363,9 +366,9 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             _pushToTalk.ResetToIdle();
             RaiseFailure(new PlatformError("interaction.batch_while_streaming_starting", "Push-to-talk cannot start while live transcription is connecting."));
         }
-        else if (_started && !_heldActions.Contains(ToggleActionName) && !_recording.IsActive)
+        else if (_started && !_heldActions.Contains(ToggleActionName) && !_recording.HasOpenSession)
             Dispatch(token => StartCoreAsync(InteractionRecordingKind.Batch, token));
-        else if (_recording.IsActive) _pushToTalk.ResetToIdle();
+        else if (_recording.HasOpenSession) _pushToTalk.ResetToIdle();
     }
 
     private void OnPushToTalkReleased(object? sender, EventArgs args)
@@ -448,7 +451,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
                 "Enable live transcription before starting a streaming session."));
             return;
         }
-        if (_recording.IsActive) return;
+        if (_recording.HasOpenSession) return;
         _textInjection.CaptureTarget();
         _textInjection.StartSession();
         try
@@ -485,7 +488,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             pending.Cancel();
             return;
         }
-        if (_recording.IsActive)
+        if (_recording.HasOpenSession)
         {
             if (_recording.IsStreaming) Dispatch(StopCoreAsync);
             else RaiseFailure(new PlatformError("interaction.streaming_while_batch", "Live transcription cannot start while batch recording is active."));
@@ -527,7 +530,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     {
         DisarmSessionCancel();
         DisarmDurationLimit();
-        if (!_recording.IsActive) return;
+        if (!_recording.HasOpenSession) return;
         InteractionStopOutcome outcome;
         try
         {

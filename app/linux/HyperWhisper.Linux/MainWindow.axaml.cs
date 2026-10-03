@@ -186,7 +186,7 @@ public partial class MainWindow : Window
             _platformServices.GlobalShortcuts, _platformServices.PushToTalk,
             _platformServices.TextInjection, _recordingSession, new AvaloniaUiDispatcher());
         _trayActions = new LinuxTrayActionHandler(
-            () => _recordingSession.IsActive,
+            () => _recordingSession.HasOpenSession,
             () => _viewModel.Recording?.IsImporting == true,
             _interaction.StartRecordingAsync,
             _interaction.StopRecordingAsync,

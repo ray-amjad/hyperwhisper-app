@@ -77,6 +77,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
             or TranscriptionWorkflowState.Retrying;
     public bool IsStreaming => _streaming;
+    /// <summary>A live stream that lost its connection is no longer active but is still held
+    /// until Stop or Cancel clears it, so Stop must reach it (#1246).</summary>
+    public bool HasOpenSession => IsActive || IsLiveCaptureActive;
     /// <summary>A live stream started and no stop or cancel has begun; Home's record row follows it (#1187).
     /// Narrower than IsStreaming, which stays true through finalization and after a failed start.</summary>
     public bool IsLiveCaptureActive => Volatile.Read(ref _liveCaptureActive);
@@ -244,8 +247,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
+        var open = HasOpenSession;
         SetLiveCapture(false);
-        if (!IsActive) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        if (!open) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
         await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
         _overlay.Transcribing();
         try
