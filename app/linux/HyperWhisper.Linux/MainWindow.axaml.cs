@@ -3305,8 +3305,13 @@ public partial class MainWindow : Window
             // both apps have. They bind past Home's own context to the shell.
             // The audio-input combo is deliberately NOT checked: it hides itself when the machine
             // reports no capture device, which is the normal state on a headless test box.
-            if (!HasVisibleControl("HomeStopRecordingButton")
-                || !HasVisibleControl("HomeCancelRecordingButton")
+            // Issue #1187: while not recording the row offers Start, enabled, and no Stop or Cancel.
+            // Stop and Cancel must still be in the tree, hidden, so the Recording state can show them.
+            if (_viewModel.Recording is not { CanStop: false, CanCancel: false }
+                || !HasVisibleControl("HomeRecordStartButton")
+                || !this.GetLogicalDescendants().OfType<Control>().Any(c => c.Name == "HomeRecordStartButton" && c.IsEnabled)
+                || !HasControl("HomeStopRecordingButton") || HasVisibleControl("HomeStopRecordingButton")
+                || !HasControl("HomeCancelRecordingButton") || HasVisibleControl("HomeCancelRecordingButton")
                 || !HasVisibleControl("HomeAudioFileInput")
                 || !HasVisibleControl("HomeTranscribeFileButton")) return 9;
 
