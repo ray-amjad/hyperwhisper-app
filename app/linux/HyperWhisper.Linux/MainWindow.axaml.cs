@@ -656,8 +656,8 @@ public partial class MainWindow : Window
     }
 
     private void OnOpenLogs(object? sender, RoutedEventArgs e) => OpenFixedLocation(_platformServices.Paths.LogsDirectory);
-    private void OnOpenSupport(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://hyperwhisper.com/support"));
-    private void OnOpenSpeedComparison(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://www.hyperwhisper.com/en/latency"));
+    private void OnOpenSupport(object? sender, RoutedEventArgs e) => OpenSafeUri(TraySupportUri);
+    private void OnOpenSpeedComparison(object? sender, RoutedEventArgs e) => OpenSafeUri(SpeedComparisonUri);
 
     /// <summary>
     /// Windows closes its General page with settings.version.detail. The section view model only
@@ -835,10 +835,32 @@ public partial class MainWindow : Window
         catch { _viewModel.About?.Status.Failure("about.open_logs_failed", L("linux.error.open_logs_failed")); }
     }
 
+    private static readonly Uri SpeedComparisonUri = new("https://www.hyperwhisper.com/en/latency");
+    private static readonly Uri LocalApiDocsUri = new("https://hyperwhisper.com/docs/api-reference/local-api/overview");
+    private static readonly Uri LocalApiMcpGuideUri = new("https://hyperwhisper.com/docs/api-reference/local-api/mcp-setup");
+
+    /// <summary>
+    /// The About and Local API page links. They have their own allow-list: routing them through
+    /// OpenAccountUri, which accepts only the 2 Cloud account links, rejected every click (#1259).
+    /// About.Status is bound nowhere, so a failure is a toast, raised per click as in OpenCloudAccountUri.
+    /// </summary>
     private void OpenSafeUri(Uri uri)
     {
-        var result = OpenAccountUri(uri);
-        if (result.IsFailure) _viewModel.About?.Status.Failure(result.Error!.Code, result.Error.Message);
+        var allowed = uri == TraySupportUri || uri == SpeedComparisonUri
+            || uri == LocalApiDocsUri || uri == LocalApiMcpGuideUri;
+        if (allowed && TryOpenInBrowser(uri)) return;
+        var message = $"{L("linux.error.tray_link_failed")} {uri.AbsoluteUri}";
+        QueueErrorToast(() => ("link.open_failed", message));
+    }
+
+    private static bool TryOpenInBrowser(Uri uri)
+    {
+        try
+        {
+            _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+            return true;
+        }
+        catch { return false; }
     }
 
     private async void OnLocalApiSettingsChanged(object? sender, EventArgs e)
@@ -1332,8 +1354,7 @@ public partial class MainWindow : Window
     private void OpenTrayUri(Uri uri)
     {
         if (uri != TrayHelpUri && uri != TraySupportUri && uri != TrayFeedbackUri) return;
-        try { _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
-        catch { _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed")); }
+        if (!TryOpenInBrowser(uri)) _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed"));
     }
     private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
@@ -2110,10 +2131,10 @@ public partial class MainWindow : Window
     }
 
     private void OnOpenLocalApiDocs(object? sender, RoutedEventArgs e)
-        => OpenSafeUri(new Uri("https://hyperwhisper.com/docs/api-reference/local-api/overview"));
+        => OpenSafeUri(LocalApiDocsUri);
 
     private void OnOpenLocalApiMcpGuide(object? sender, RoutedEventArgs e)
-        => OpenSafeUri(new Uri("https://hyperwhisper.com/docs/api-reference/local-api/mcp-setup"));
+        => OpenSafeUri(LocalApiMcpGuideUri);
 
     /// <summary>Opens the folder holding the discovery file, as the Windows Show button does.</summary>
     private void OnShowLocalApiPortFile(object? sender, RoutedEventArgs e)
@@ -5156,16 +5177,9 @@ public partial class MainWindow : Window
         if (uri != CloudAccountLinks.Purchase && uri != CloudAccountLinks.ManageAccount)
             return PlatformResult.Failure("account.link_rejected", L("linux.error.account_link_rejected"));
 
-        try
-        {
-            _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
-            return PlatformResult.Success();
-        }
-        catch
-        {
-            // The URL follows the localized sentence so the user can still reach the page (#1188).
-            return PlatformResult.Failure("account.link_failed", $"{L("linux.error.account_link_failed")} {uri.AbsoluteUri}");
-        }
+        if (TryOpenInBrowser(uri)) return PlatformResult.Success();
+        // The URL follows the localized sentence so the user can still reach the page (#1188).
+        return PlatformResult.Failure("account.link_failed", $"{L("linux.error.account_link_failed")} {uri.AbsoluteUri}");
     }
 
     private FilePickerFileType CreateUniversalBackupFileType() => new(L("linux.picker.universal_backup"))
