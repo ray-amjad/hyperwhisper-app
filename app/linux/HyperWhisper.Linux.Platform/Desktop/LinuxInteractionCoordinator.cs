@@ -470,7 +470,9 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         }
         finally
         {
-            if (!_recording.IsActive)
+            // HasOpenSession, not IsActive: a live stream whose worker ended between a successful
+            // start and here is still held, and Stop or Cancel ends its injection session (#1246).
+            if (!_recording.HasOpenSession)
             {
                 _textInjection.EndSession();
                 _ = await _textInjection.RestoreClipboardImmediatelyAsync(CancellationToken.None);
@@ -560,7 +562,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         }
         finally
         {
-            if (cancelled || !_recording.IsActive) CompleteCancellation();
+            if (cancelled || !_recording.HasOpenSession) CompleteCancellation();
         }
     }
 
@@ -703,19 +705,22 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             {
                 if (_disposed || generation != _durationGeneration) return;
             }
-            if (!_recording.IsActive)
+            if (!_recording.HasOpenSession)
             {
                 DisarmDurationLimit();
                 return;
             }
-            var limitError = _recording.IsStreaming
-                ? new PlatformError(
-                    "interaction.streaming_duration_limit_reached",
-                    "Streaming reached the 20-minute safety limit.")
-                : new PlatformError(
-                    "interaction.recording_duration_limit_reached",
-                    "Recording stopped after reaching the 20-minute safety limit.");
-            RaiseFailure(limitError);
+            // A held live stream (#1246) is ended through the same Stop path, so the limit still
+            // bounds the session and the Escape grab. It gets no limit message: nothing has been
+            // streaming since the connection was lost, and Stop reports the stream's own failure.
+            if (_recording.IsActive)
+                RaiseFailure(_recording.IsStreaming
+                    ? new PlatformError(
+                        "interaction.streaming_duration_limit_reached",
+                        "Streaming reached the 20-minute safety limit.")
+                    : new PlatformError(
+                        "interaction.recording_duration_limit_reached",
+                        "Recording stopped after reaching the 20-minute safety limit."));
             await StopCoreAsync(CancellationToken.None);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
