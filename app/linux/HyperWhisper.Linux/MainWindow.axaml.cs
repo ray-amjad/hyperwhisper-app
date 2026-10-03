@@ -285,7 +285,7 @@ public partial class MainWindow : Window
         _closing = true;
         CommitPendingSettingsEdits();
         _lifetime.Cancel();
-        if (!_recordingSession.IsActive && !_recordingSession.HasAudioToRestore && _localApiHost is null
+        if (!_recordingSession.HasOpenSession && !_recordingSession.HasAudioToRestore && _localApiHost is null
             && _storageMaintenance is not { IsCompleted: false }) return;
         e.Cancel = true;
         try
@@ -294,7 +294,9 @@ public partial class MainWindow : Window
             // still resolving credentials has already muted and boosted them. A transcription in flight
             // holds the coordinator lock and only restores when it ends (#1038).
             await _recordingSession.RestoreAudioEnvironmentForShutdownAsync();
-            if (_recordingSession.IsActive)
+            // HasOpenSession, not IsActive: a live stream held after its connection was lost (#1246)
+            // still has a Processing history row, an injection session and a clipboard to restore.
+            if (_recordingSession.HasOpenSession)
             {
                 // Confirm, not Cancel: a batch recording past 15 s would only SHOW the cancel prompt.
                 // Unbounded, so the cancel still restores the clipboard and ends the session; the audio
@@ -803,7 +805,8 @@ public partial class MainWindow : Window
         if (_onboarding is null || !_onboarding.IsTestReady) return;
         try
         {
-            if (_recordingSession.IsActive)
+            // HasOpenSession: a held live stream (#1246) is stopped too, not left showing "recording".
+            if (_recordingSession.HasOpenSession)
             {
                 _onboarding.SetTestStatus(L("linux.onboarding.test.transcribing"));
                 await _interaction.StopRecordingAsync(_lifetime.Token);
