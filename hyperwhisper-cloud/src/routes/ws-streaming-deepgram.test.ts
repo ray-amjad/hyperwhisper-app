@@ -31,6 +31,7 @@ const {
   minimumStreamingCredits,
   wsStreamingPreflight,
 } = await import('./ws-streaming-deepgram');
+const { endActiveStreamingSessions } = await import('./ws-streaming-shared');
 
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
@@ -845,6 +846,69 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
       expect(licenseCharges).toHaveLength(1);
       expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Client disconnected' }]);
+    });
+  });
+
+  describe('machine shutdown (#1235)', () => {
+    // A session opened by an earlier test and never closed is still registered.
+    // Settle those first, so each test counts only the sessions it opens.
+    async function settleLeftoverSessions(): Promise<void> {
+      await endActiveStreamingSessions();
+      await drainPendingDeductions(2000);
+      licenseCharges.length = 0;
+    }
+
+    test('bills an open session, logs session_end, and closes the client with 1012 without finishing it', async () => {
+      await settleLeftoverSessions();
+      const harness = openSession();
+      for (let second = 0; second < 60; second += 1) {
+        harness.events.onMessage(binaryMessage(audioFrame(1)));
+      }
+      expect(harness.upstream.audioFramesForwarded).toBe(60);
+
+      let ending: Promise<number> = Promise.resolve(-1);
+      const { entries, serialised } = captureStreamingLogs(() => {
+        ending = endActiveStreamingSessions();
+      });
+      expect(await ending).toBe(1);
+      expect(await drainPendingDeductions(2000)).toBe(1);
+
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.metadata.audio_duration_seconds).toBe(60);
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeDeepgramTranscriptionCost(60)));
+      const sessionEnds = entries.filter((entry) => entry.event === 'ws_streaming.session_end');
+      expect(sessionEnds).toHaveLength(1);
+      expect(sessionEnds[0]!.details).toMatchObject({ durationSeconds: 60 });
+      for (const line of serialised) expect(line).not.toContain('key-1234-abcd');
+
+      // 1012 Service Restart is non-terminal in all three clients, so they
+      // reconnect. session_complete would make them finish the dictation.
+      expect(harness.client.closes).toEqual([{ code: 1012, reason: 'Service restart' }]);
+      expect(harness.client.messagesOfType('session_complete')).toEqual([]);
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Server shutting down' }]);
+
+      // The socket handlers that follow must not post a second charge.
+      harness.upstream.emit('close', { code: 1000, reason: '' });
+      await harness.events.onClose();
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toHaveLength(1);
+      expect(harness.client.closes).toHaveLength(1);
+      expect(harness.client.messagesOfType('session_complete')).toEqual([]);
+
+      // ...and the session left the set.
+      expect(await endActiveStreamingSessions()).toBe(0);
+    });
+
+    test('a session the client already closed is not ended again at shutdown', async () => {
+      await settleLeftoverSessions();
+      const harness = openSession();
+      harness.events.onMessage(binaryMessage(audioFrame(5)));
+      await harness.endSession();
+      expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
+
+      expect(await endActiveStreamingSessions()).toBe(0);
+      await drainPendingDeductions(2000);
+      expect(licenseCharges).toHaveLength(1);
     });
   });
 });

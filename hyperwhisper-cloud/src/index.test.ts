@@ -50,8 +50,44 @@ const originalPort = process.env.PORT;
 delete process.env.PORT;
 
 const server = (await import('./index')).default;
-const { deductCredits } = await import('./middleware/credits');
+const { deductCredits, drainPendingDeductions } = await import('./middleware/credits');
 const { reportLatencySamples } = await import('./lib/latency-report');
+const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
+const { endActiveStreamingSessions } = await import('./routes/ws-streaming-shared');
+
+/** Just enough upstream socket for a Deepgram session that is already open. */
+class OpenUpstreamSocket {
+  static readonly OPEN = 1;
+  readyState = 1;
+  bufferedAmount = 0;
+  addEventListener(): void {}
+  send(): void {}
+  close(): void { this.readyState = 3; }
+}
+
+/** Open a live Deepgram session and stream `seconds` of 16 kHz mono PCM into it. */
+function openLiveSession(seconds: number): { closes: number[] } {
+  const client = { readyState: 1, closes: [] as number[], send() {}, close(code?: number) { this.readyState = 3; this.closes.push(code ?? 0); } };
+  const auth = { identifier: 'HW-ROUTINE-FIXTURE', credits: 1000, licenseKey: 'HW-ROUTINE-FIXTURE' };
+  const vars: Record<string, unknown> = { wsAuth: auth, wsClientIP: '203.0.113.1' };
+  const context = { get: (key: string) => vars[key], req: { url: 'http://transcribe.test/ws/streaming-deepgram?account_key=x' } };
+  const originalWebSocket = globalThis.WebSocket;
+  const originalKey = process.env.DEEPGRAM_API_KEY;
+  globalThis.WebSocket = OpenUpstreamSocket as unknown as typeof WebSocket;
+  process.env.DEEPGRAM_API_KEY = 'not-a-real-key';
+  try {
+    const events = createStreamingEvents(context as never);
+    events.onOpen(new Event('open'), client);
+    for (let second = 0; second < seconds; second += 1) {
+      events.onMessage({ data: new ArrayBuffer(32_000) } as never);
+    }
+  } finally {
+    globalThis.WebSocket = originalWebSocket;
+    if (originalKey === undefined) delete process.env.DEEPGRAM_API_KEY;
+    else process.env.DEEPGRAM_API_KEY = originalKey;
+  }
+  return client;
+}
 
 const originalFetch = globalThis.fetch;
 const originalExit = process.exit;
@@ -347,11 +383,17 @@ describe('graceful shutdown', () => {
     // tick as the signal, so both flags are still false when it lands.
     let deductionReachedApi = false;
     let reportReachedApi = false;
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const liveChargeSeconds: unknown[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       await delay(40);
       if (url.includes('/api/license/credits')) {
-        deductionReachedApi = true;
+        const body = JSON.parse(String(init?.body)) as { metadata: Record<string, unknown> };
+        if (body.metadata.endpoint === '/ws/streaming-deepgram') {
+          liveChargeSeconds.push(body.metadata.audio_duration_seconds);
+        } else {
+          deductionReachedApi = true;
+        }
         return jsonOk({});
       }
       if (url.includes('/api/internal/latency')) {
@@ -360,6 +402,16 @@ describe('graceful shutdown', () => {
       }
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
+
+    // A live session another suite left open would be ended too; settle those
+    // first so the counts below are this test's alone.
+    await endActiveStreamingSessions();
+    await drainPendingDeductions(2000);
+    deductionReachedApi = false;
+    liveChargeSeconds.length = 0;
+    // A live session is billed only when it ends (#1235). Its charge must be in
+    // flight BEFORE the drain starts, or the 40 ms write loses to the exit.
+    const liveClient = openLiveSession(60);
 
     void deductCredits(
       { identifier: 'HW-ROUTINE-FIXTURE', credits: 10, licenseKey: 'HW-ROUTINE-FIXTURE' },
@@ -379,13 +431,19 @@ describe('graceful shutdown', () => {
 
     expect(deductionReachedApi).toBe(true);
     expect(reportReachedApi).toBe(true);
+    expect(liveChargeSeconds).toEqual([60]);
+    expect(liveClient.closes).toEqual([1012]);
     expect(code).toBe(0);
 
     expect(logEvents).toContain('machine.shutdown');
     expect(logPayloads.find((entry) => entry.event === 'machine.shutdown')!.args[1])
       .toMatchObject({ signal: 'SIGTERM' });
-    expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_drained_deductions')!.args[1])
+    expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_ended_streaming_sessions')!.args[1])
       .toEqual({ count: 1 });
+    expect(logEvents.indexOf('machine.shutdown_ended_streaming_sessions'))
+      .toBeLessThan(logEvents.indexOf('machine.shutdown_drained_deductions'));
+    expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_drained_deductions')!.args[1])
+      .toEqual({ count: 2 });
     expect(logPayloads.find((entry) => entry.event === 'machine.shutdown_drained_latency_reports')!.args[1])
       .toEqual({ count: 1 });
   });
