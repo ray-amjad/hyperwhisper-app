@@ -2,11 +2,31 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 import { useUser } from "./UserContext";
 
 interface UserSidebarProps {
   locale: string;
+}
+
+/** A sidebar link that was clicked, and the path that was showing then. */
+export interface PendingNav {
+  href: string;
+  from: string;
+}
+
+/**
+ * The href that carries the active pill (#915). `pathname` only changes once
+ * a navigation commits, so a clicked link reads active while its navigation
+ * is pending. The pending entry stops counting as soon as the path moves
+ * away from where the click happened.
+ */
+export function activeNavHref(
+  pathname: string,
+  pending: PendingNav | null,
+): string {
+  return pending && pending.from === pathname ? pending.href : pathname;
 }
 
 /**
@@ -19,6 +39,12 @@ interface UserSidebarProps {
 export default function UserSidebar({ locale }: UserSidebarProps) {
   const pathname = usePathname();
   const { isAdmin } = useUser();
+  const [pending, setPending] = useState<PendingNav | null>(null);
+
+  // Drop a click once its navigation commits, so a later Back to the old
+  // path cannot light the old click again.
+  if (pending && pending.from !== pathname) setPending(null);
+  const activeHref = activeNavHref(pathname, pending);
 
   const navItems = [
     {
@@ -112,16 +138,21 @@ export default function UserSidebar({ locale }: UserSidebarProps) {
       <nav className="p-4">
         <ul className="space-y-2">
           {visibleItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = activeHref === item.href;
             return (
               <li key={item.name}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 motion-reduce:transition-none ${
                     isActive
                       ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                       : "text-gray-400 hover:bg-white/5 hover:text-white"
                   }`}
+                  // Fires only for an in-app navigation, never for a
+                  // modifier, middle or new-tab click.
+                  onNavigate={() =>
+                    setPending({ href: item.href, from: pathname })
+                  }
                 >
                   {item.icon}
                   <span className="font-medium">{item.name}</span>
