@@ -164,7 +164,7 @@ static Task CancelConfirmationSurvivesLevelTicks()
     return Task.CompletedTask;
 }
 
-static async Task ModeChangeKeepsCancelConfirmation()
+static Task ModeChangeKeepsCancelConfirmation()
 {
     using var fixture = OverlayFixture.Create();
     fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
@@ -172,23 +172,24 @@ static async Task ModeChangeKeepsCancelConfirmation()
     fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Coding"));
     // The toast would hide the Yes/No buttons while the session still holds the prompt open.
     Assert(fixture.ViewModel.IsCancelConfirmation, "a mode change hid a pending cancel confirmation");
+    // No toast was shown, so no toast expiry may be waiting to repaint over the confirmation later.
+    Assert(fixture.Delay.PendingCount == 0, "a mode change during a cancel confirmation scheduled a toast expiry");
     fixture.Controller.UpdateAudioLevel(.2f);
-    fixture.Delay.CompleteLatest();
-    await Task.Delay(50);
     Assert(fixture.ViewModel.IsCancelConfirmation, "the cancel confirmation did not stay up after a mode change");
     fixture.Controller.DismissCancelConfirmation();
     Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.ModeText == "Coding",
         "dismissed confirmation did not resume the recording in the new mode");
 
-    // A toast shown before the confirmation, and a dismissal after it, must not bring either back.
+    // A toast shown before the confirmation must not expire into it, or into the resumed recording.
     fixture.Controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Draft"));
+    Assert(fixture.ViewModel.IsModeChanged && fixture.Delay.PendingCount == 1, "the mode toast did not start its expiry");
     fixture.Controller.ShowCancelConfirmation();
     Assert(fixture.ViewModel.IsCancelConfirmation, "cancel confirmation did not replace the mode toast");
+    Assert(fixture.Delay.PendingCount == 0, "the replaced mode toast kept its expiry running under the cancel confirmation");
     fixture.Controller.DismissCancelConfirmation();
-    fixture.Delay.CompleteLatest();
-    await Task.Delay(50);
-    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.ModeText == "Draft",
-        "a stale mode toast changed the resumed recording");
+    Assert(fixture.ViewModel.IsRecording && fixture.ViewModel.ModeText == "Draft" && fixture.Delay.PendingCount == 0,
+        "dismissed confirmation did not resume the recording, or left a toast expiry pending");
+    return Task.CompletedTask;
 }
 
 static async Task ModeToastSurvivesLevelTicks()
@@ -645,11 +646,18 @@ sealed class FakeDelay : ILinuxOverlayDelay
         return completion.Task;
     }
 
-    public void CompleteLatest()
+    /// <summary>Delays not yet completed or cancelled, so a test can tell "no expiry scheduled" from "expiry ran".</summary>
+    public int PendingCount
+    {
+        get { lock (_gate) return _pending.Count(item => !item.Task.IsCompleted); }
+    }
+
+    /// <summary>Returns false when no delay was pending, i.e. the call completed nothing.</summary>
+    public bool CompleteLatest()
     {
         TaskCompletionSource? completion;
         lock (_gate) completion = _pending.LastOrDefault(item => !item.Task.IsCompleted);
-        completion?.TrySetResult();
+        return completion?.TrySetResult() ?? false;
     }
 }
 
