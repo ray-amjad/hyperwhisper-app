@@ -267,6 +267,7 @@
     "title": "Download HyperWhisper",
     "countdownText": "Starting in {seconds}...",
     "downloadStarted": "Check your Downloads folder",
+    "mobileNote": "HyperWhisper is a desktop app. Download it on your Mac, Windows or Linux computer.",
     "downloadNow": "Download Now",
     "downloadAgain": "Download Again",
     "selectArchitecture": "Select your architecture",

@@ -262,6 +262,7 @@
     "title": "הורדת HyperWhisper",
     "countdownText": "מתחיל בעוד {seconds}...",
     "downloadStarted": "בדקו את תיקיית ההורדות",
+    "mobileNote": "HyperWhisper היא אפליקציה למחשב. הורידו אותה למחשב Mac, Windows או Linux.",
     "downloadNow": "להוריד עכשיו",
     "downloadAgain": "להוריד שוב",
     "selectArchitecture": "בחרו ארכיטקטורה",

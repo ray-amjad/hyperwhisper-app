@@ -262,6 +262,7 @@
     "title": "Λήψη HyperWhisper",
     "countdownText": "Ξεκινά σε {seconds}...",
     "downloadStarted": "Ελέγξτε τον φάκελο Λήψεις",
+    "mobileNote": "Το HyperWhisper είναι εφαρμογή για υπολογιστή. Κατεβάστε το στον υπολογιστή σας με Mac, Windows ή Linux.",
     "downloadNow": "Λήψη τώρα",
     "downloadAgain": "Λήψη ξανά",
     "selectArchitecture": "Επιλέξτε αρχιτεκτονική",

@@ -262,6 +262,7 @@
     "title": "Laadi HyperWhisper alla",
     "countdownText": "Algab {seconds} pärast...",
     "downloadStarted": "Kontrolli kausta Downloads",
+    "mobileNote": "HyperWhisper on töölauarakendus. Laadi see alla oma Mac-, Windows- või Linux-arvutisse.",
     "downloadNow": "Laadi alla nüüd",
     "downloadAgain": "Laadi uuesti",
     "selectArchitecture": "Vali arhitektuur",

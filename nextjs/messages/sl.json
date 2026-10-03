@@ -262,6 +262,7 @@
     "title": "Prenesi HyperWhisper",
     "countdownText": "Začne se čez {seconds}...",
     "downloadStarted": "Preverite mapo Downloads",
+    "mobileNote": "HyperWhisper je namizna aplikacija. Prenesite jo v svoj računalnik Mac, Windows ali Linux.",
     "downloadNow": "Prenesi zdaj",
     "downloadAgain": "Prenesi znova",
     "selectArchitecture": "Izberite arhitekturo",

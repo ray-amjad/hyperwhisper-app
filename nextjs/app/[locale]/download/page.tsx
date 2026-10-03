@@ -278,10 +278,7 @@ export default function DownloadPage() {
 
           {/* Countdown or status message */}
           {isMobile ? (
-            <p className="text-lg text-gray-400">
-              HyperWhisper is a desktop app. Download it on your Mac, Windows or
-              Linux computer.
-            </p>
+            <p className="text-lg text-gray-400">{t("mobileNote")}</p>
           ) : selectedPlatform === "windows" ? (
             <p className="text-lg text-gray-400">{t("selectArchitecture")}</p>
           ) : selectedPlatform === "linux" ? (

@@ -262,6 +262,7 @@
     "title": "Download HyperWhisper",
     "countdownText": "Start over {seconds}...",
     "downloadStarted": "Controleer je Downloads-map",
+    "mobileNote": "HyperWhisper is een desktop-app. Download hem op je Mac-, Windows- of Linux-computer.",
     "downloadNow": "Nu downloaden",
     "downloadAgain": "Opnieuw downloaden",
     "selectArchitecture": "Selecteer je architectuur",

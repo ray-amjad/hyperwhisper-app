@@ -262,6 +262,7 @@
     "title": "Изтеглете HyperWhisper",
     "countdownText": "Започва след {seconds}...",
     "downloadStarted": "Проверете папката Downloads",
+    "mobileNote": "HyperWhisper е настолно приложение. Изтеглете го на своя компютър с Mac, Windows или Linux.",
     "downloadNow": "Изтеглете сега",
     "downloadAgain": "Изтеглете отново",
     "selectArchitecture": "Изберете архитектура",
