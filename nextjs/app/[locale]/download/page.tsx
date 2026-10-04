@@ -239,6 +239,7 @@ export default function DownloadPage() {
 
           <div className="inline-flex items-center gap-2 bg-gray-800/70 border border-gray-700 rounded-full px-2 py-1 mb-6">
             <Button
+              aria-pressed={selectedPlatform === "mac"}
               className={`text-sm px-4 py-2 rounded-full ${
                 selectedPlatform === "mac"
                   ? "bg-purple-600 text-white"
@@ -251,6 +252,7 @@ export default function DownloadPage() {
               macOS
             </Button>
             <Button
+              aria-pressed={selectedPlatform === "windows"}
               className={`text-sm px-4 py-2 rounded-full ${
                 selectedPlatform === "windows"
                   ? "bg-purple-600 text-white"
@@ -263,6 +265,7 @@ export default function DownloadPage() {
               Windows
             </Button>
             <Button
+              aria-pressed={selectedPlatform === "linux"}
               className={`text-sm px-4 py-2 rounded-full ${
                 selectedPlatform === "linux"
                   ? "bg-purple-600 text-white"

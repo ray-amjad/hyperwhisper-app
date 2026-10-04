@@ -279,8 +279,17 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-6">
         <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-widest text-gray-500">Metric</span>
-          <div className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+          <span
+            className="text-xs uppercase tracking-widest text-gray-500"
+            id="latency-metric-label"
+          >
+            Metric
+          </span>
+          <div
+            aria-labelledby="latency-metric-label"
+            className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1"
+            role="group"
+          >
             {METRICS.map((entry) => (
               <button
                 key={entry.key}
@@ -300,10 +309,17 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-widest text-gray-500">
+          <span
+            className="text-xs uppercase tracking-widest text-gray-500"
+            id="latency-bucket-label"
+          >
             Clip length
           </span>
-          <div className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+          <div
+            aria-labelledby="latency-bucket-label"
+            className="flex flex-wrap gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1"
+            role="group"
+          >
             {DURATION_BUCKETS.map((entry) => (
               <button
                 key={entry}
