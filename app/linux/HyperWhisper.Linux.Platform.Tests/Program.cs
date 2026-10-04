@@ -124,6 +124,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("streaming parec asks for a 100 ms fragment only when opted in", StreamingParecLatencyArguments),
     ("streaming audio groups reads into 100 ms chunks and flushes the tail", StreamingAudioGroupsHundredMillisecondChunks),
+    ("streaming audio level survives a clipped -32768 sample", StreamingAudioLevelSurvivesClipping),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
     ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
@@ -2069,6 +2070,23 @@ static async Task StreamingAudioGroupsHundredMillisecondChunks()
     Assert.Equal("3200,3200,1600", string.Join(',', chunks.Select(chunk => chunk.Length)));
     Assert.SequenceEqual(pcm, chunks.SelectMany(chunk => chunk).ToArray());
     Assert.Equal(4800, PulseStreamingAudioCapture.ChunkBytes(new WaveFormat(24000, 16, 1)));
+}
+
+static async Task StreamingAudioLevelSurvivesClipping()
+{
+    // Math.Abs(short.MinValue) throws; a clipped microphone used to end live capture.
+    var pcm = Enumerable.Repeat(new byte[] { 0x00, 0x80 }, 3200).SelectMany(sample => sample).ToArray();
+    using var capture = new PulseStreamingAudioCapture(new FakeStreamingAudioSourceFactory(new FakeStreamingAudioSource(new MemoryStream(pcm))));
+    var chunks = 0; var levels = new List<float>(); PlatformError? error = null;
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    capture.AudioChunkAvailable += (_, _) => chunks++;
+    capture.AudioLevelChanged += (_, level) => levels.Add(level);
+    capture.CaptureStopped += (_, value) => { error = value; stopped.TrySetResult(); };
+    Assert.Success(capture.Start(new AudioRecordingOptions("default")));
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.True(error is null);
+    Assert.Equal(2, chunks);
+    Assert.True(levels.Count == 2 && levels.All(level => level == 1f));
 }
 
 static async Task StreamingAudioBlockedStop()

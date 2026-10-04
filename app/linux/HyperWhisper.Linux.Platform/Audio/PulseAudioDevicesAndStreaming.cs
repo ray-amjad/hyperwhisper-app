@@ -220,7 +220,7 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
                     var copied = Math.Min(read - offset, chunkBytes - filled);
                     Buffer.BlockCopy(buffer, offset, pending, filled, copied);
                     offset += copied; filled += copied;
-                    if (filled == chunkBytes) { Emit(pending, filled); pending = new byte[chunkBytes]; filled = 0; }
+                    if (filled == chunkBytes) { var full = pending; pending = new byte[chunkBytes]; filled = 0; Emit(full, full.Length); }
                 }
             }
         }
@@ -265,6 +265,6 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
     private void Raise<T>(EventHandler<T>? handlers, T value)
     { if (handlers is null) return; foreach (EventHandler<T> handler in handlers.GetInvocationList()) try { handler(this, value); } catch { } }
     private static float Level(ReadOnlySpan<byte> pcm)
-    { long sum = 0; var samples = pcm.Length / 2; for (var i = 0; i < samples * 2; i += 2) sum += Math.Abs((short)(pcm[i] | pcm[i + 1] << 8)); return samples == 0 ? 0 : Math.Clamp((float)sum / samples / short.MaxValue, 0, 1); }
+    { long sum = 0; var samples = pcm.Length / 2; for (var i = 0; i < samples * 2; i += 2) sum += Math.Abs((int)(short)(pcm[i] | pcm[i + 1] << 8)); return samples == 0 ? 0 : Math.Clamp((float)sum / samples / short.MaxValue, 0, 1); }
     public void Dispose() { if (_disposed) return; _disposed = true; Stop(); AudioChunkAvailable = null; AudioLevelChanged = null; CaptureStopped = null; }
 }
