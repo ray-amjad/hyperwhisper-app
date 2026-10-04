@@ -190,9 +190,17 @@ export default function SignInClient() {
           ) : (
           <>
 
-          {/* Tab Switcher */}
-          <div className="flex rounded-lg bg-white/5 border border-white/10 p-1 mb-6">
+          {/* Tab Switcher. A single-choice group of toggle buttons (#1311): the
+              active method is exposed by aria-pressed, not only its colour.
+              Not role="tablist", which would need arrow-key roving focus and
+              aria-controls panels. */}
+          <div
+            aria-label="Sign-in method"
+            className="flex rounded-lg bg-white/5 border border-white/10 p-1 mb-6"
+            role="group"
+          >
             <button
+              aria-pressed={activeTab === "license-key"}
               type="button"
               onClick={() => setActiveTab("license-key")}
               className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
@@ -204,6 +212,7 @@ export default function SignInClient() {
               Account Key
             </button>
             <button
+              aria-pressed={activeTab === "email"}
               type="button"
               onClick={() => setActiveTab("email")}
               className={`flex-1 py-2 px-3 rounded-sm text-sm font-medium transition-all duration-200 ${
