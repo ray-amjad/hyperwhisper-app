@@ -122,7 +122,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse guard stays armed while a second service raises", PulseGuardStaysArmedWhileASecondServiceRaises),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
-    ("streaming parec asks for a 100 ms fragment only when opted in", StreamingParecLatencyArguments),
+    ("streaming parec asks for a 20 ms fragment only when opted in", StreamingParecLatencyArguments),
     ("streaming audio groups reads into 100 ms chunks and flushes the tail", StreamingAudioGroupsHundredMillisecondChunks),
     ("streaming audio level survives a clipped -32768 sample", StreamingAudioLevelSurvivesClipping),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -2049,7 +2049,7 @@ static Task StreamingParecLatencyArguments()
         new ChildProcessStreamingAudioSourceFactory(launcher, parec, pwRecord, lowLatency).Open(new AudioRecordingOptions("mic"));
         return launcher.Requests.Single().Arguments;
     }
-    Assert.Equal("--raw --format=s16le --rate=16000 --channels=1 --latency-msec=100 --device=mic",
+    Assert.Equal("--raw --format=s16le --rate=16000 --channels=1 --latency-msec=20 --device=mic",
         string.Join(' ', ArgumentsFor("/usr/bin/parec", null, lowLatency: true)));
     Assert.True(!ArgumentsFor("/usr/bin/parec", null, lowLatency: false).Any(argument => argument.StartsWith("--latency")));
     Assert.True(!ArgumentsFor(null, "/usr/bin/pw-record", lowLatency: true).Any(argument => argument.StartsWith("--latency")));
