@@ -96,7 +96,7 @@ export default function DevicesClient() {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
           <p className="text-red-300">{error}</p>
         </div>
       )}
