@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { api } from "@/lib/trpc/client";
 import { formatDate, formatDateTime } from "@/lib/format-date";
 
@@ -198,6 +198,9 @@ function DeviceRow({
     { licenseKeyId: row.licenseKeyId, days },
     { enabled: expanded }
   );
+  // The row click stays for the mouse; this id lets the disclosure button
+  // point aria-controls at the devices row it opens (#1307).
+  const panelId = useId();
 
   return (
     <>
@@ -206,12 +209,24 @@ function DeviceRow({
         className="hover:bg-white/5 transition-colors cursor-pointer"
       >
         <td className="px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-sm font-medium">
+          {/* A real button, so the disclosure is in the Tab order, opens on
+              Enter / Space and announces its state (#1307). It stops the
+              click so the row's own onClick does not toggle a second time. */}
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={expanded ? panelId : undefined}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+            className="flex items-center gap-3 text-left rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+          >
+            <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-sm font-medium">
               {row.email[0].toUpperCase()}
-            </div>
+            </span>
             <span className="text-gray-300">{row.email}</span>
-          </div>
+          </button>
         </td>
         <td className="px-6 py-4">
           <code className="text-gray-400 text-sm bg-white/5 px-2 py-1 rounded">
@@ -242,7 +257,7 @@ function DeviceRow({
         </td>
       </tr>
       {expanded && (
-        <tr>
+        <tr id={panelId}>
           <td colSpan={3} className="px-6 py-4 bg-white/[0.02]">
             {isLoading ? (
               <div className="space-y-2">
