@@ -127,7 +127,7 @@ internal sealed class ChildProcessStreamingAudioSourceFactory : IStreamingAudioS
     private readonly string? _parec;
     private readonly string? _pwRecord;
     private readonly bool _lowLatency;
-    // #1015: live capture opts in to a 20 ms parec fragment; keep-warm only drains, so it keeps the server default.
+    // #1015: live capture opts in to a 100 ms parec fragment; keep-warm only drains, so it keeps the server default.
     public ChildProcessStreamingAudioSourceFactory(bool lowLatency = false) : this(new LinuxChildProcessLauncher(),
         CommandClipboardBackend.FindExecutable("parec"), CommandClipboardBackend.FindExecutable("pw-record"), lowLatency) { }
     internal ChildProcessStreamingAudioSourceFactory(IChildProcessLauncher launcher, string? parec, string? pwRecord, bool lowLatency = false)
@@ -144,9 +144,11 @@ internal sealed class ChildProcessStreamingAudioSourceFactory : IStreamingAudioS
             ? new List<string> { "--raw", "--format=s16le", $"--rate={options.SampleRate}", $"--channels={options.ChannelCount}" }
             : ["--raw", "--format", "s16", "--rate", options.SampleRate.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--channels", options.ChannelCount.ToString(System.Globalization.CultureInfo.InvariantCulture)];
-        // #1015: without it PulseAudio hands parec a 2 s fragment and live audio arrives in 2 s bursts. pw-record is not
+        // #1015: without it PulseAudio hands parec a 2 s fragment and live audio arrives in 2 s bursts. 100 ms, not less:
+        // one read is one chunk and the live controller holds 128 chunks (~12.8 s) while the socket opens; it also
+        // matches the Windows head's 100 ms chunks, the core's OpenAI commit minimum. pw-record is not
         // fragment-bound (it flushes every 4 KiB of stdout), so it gets no flag.
-        if (_lowLatency && _parec is not null) arguments.Add("--latency-msec=20");
+        if (_lowLatency && _parec is not null) arguments.Add("--latency-msec=100");
         if (explicitDevice) arguments.Add(_parec is not null ? $"--device={options.DeviceId}" : $"--target={options.DeviceId}");
         if (_parec is null) arguments.Add("-");
         var started = _launcher.Start(new ChildProcessStartRequest
