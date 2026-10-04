@@ -1,5 +1,7 @@
 "use client";
 
+import "@/styles/globals.css";
+
 import { useEffect } from "react";
 
 // Catches what app/[locale]/error.tsx cannot: a throw in a layout, such as
@@ -28,10 +30,22 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body>
-        <h2>Something went wrong.</h2>
-        {/* retry re-fetches the failed server render; reset would replay it */}
-        <button onClick={() => retry()}>Try again</button>
+      <head>
+        <title>Something went wrong | HyperWhisper</title>
+      </head>
+      <body className="min-h-screen bg-black text-white font-sans antialiased">
+        <div className="flex flex-col items-center gap-4 py-24 text-center">
+          <h2 className="text-2xl font-semibold">Something went wrong.</h2>
+          {/* A plain button: the HeroUI provider lives in the layout that threw.
+              retry re-fetches the failed server render; reset would replay it */}
+          <button
+            className="rounded-lg bg-purple-600 px-4 py-2 font-medium text-white cursor-pointer transition-[background-color,transform] duration-150 hover:bg-purple-500 active:scale-[0.96]"
+            type="button"
+            onClick={() => retry()}
+          >
+            Try again
+          </button>
+        </div>
       </body>
     </html>
   );
