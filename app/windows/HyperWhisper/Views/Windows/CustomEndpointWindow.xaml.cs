@@ -226,6 +226,7 @@ public partial class CustomEndpointWindow : Window
     private void UrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         ModelFetchErrorText.Visibility = Visibility.Collapsed;
+        TestInput_Changed(sender, e);
     }
 
     private void RefreshModels_Click(object sender, RoutedEventArgs e)
@@ -328,14 +329,18 @@ public partial class CustomEndpointWindow : Window
 
         TestingPanel.Visibility = Visibility.Collapsed;
 
-        if (result.success)
+        // The user edited the form (or switched tab) while the test was pending:
+        // the verdict is still recorded, but it does not describe this form.
+        var showResult = FormMatchesLastTest();
+
+        if (showResult && result.success)
         {
             TestSuccessPanel.Visibility = Visibility.Visible;
             TestResultPanel.Visibility = Visibility.Visible;
             TestResultPanel.Background = FindResource("SuccessBackgroundBrush") as System.Windows.Media.Brush;
             TestResultText.Text = $"Response: {result.message}";
         }
-        else
+        else if (showResult)
         {
             TestFailPanel.Visibility = Visibility.Visible;
             TestResultPanel.Visibility = Visibility.Visible;
@@ -353,6 +358,24 @@ public partial class CustomEndpointWindow : Window
         TestFailPanel.Visibility = Visibility.Collapsed;
         TestingPanel.Visibility = Visibility.Collapsed;
         TestResultPanel.Visibility = Visibility.Collapsed;
+    }
+
+    // A shown result describes the Base URL, model and key it was run against
+    // (#1295). Hide it once the form no longer holds those values. Skipped while
+    // a test is pending (its arrival re-checks) and before any test, which also
+    // covers TextChanged firing during InitializeComponent and OnLoaded.
+    private void TestInput_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isTesting || _lastTest == null) return;
+        // A model-list refresh empties the combo before it reselects; wait for that.
+        if (sender == ModelCombo && ModelCombo.SelectedItem == null) return;
+        if (!FormMatchesLastTest()) ClearTestResult();
+    }
+
+    private bool FormMatchesLastTest()
+    {
+        var (url, model) = GetEndpointUrlAndModel();
+        return TestOutcomeFor(url, model, ApiKeyBox.Password) != null;
     }
 
     // =========================================================================
