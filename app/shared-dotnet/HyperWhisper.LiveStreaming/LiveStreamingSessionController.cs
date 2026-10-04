@@ -54,6 +54,7 @@ public sealed class SharedCoreLiveCloudTranscriber(LiveCloudTranscriptionService
 public sealed class LiveStreamingSessionController : IAsyncDisposable
 {
     private const int ChannelCapacity = 128;
+    private const string BufferFullCode = "streaming_audio_buffer_full";
     private readonly object _gate = new();
     private readonly IStreamingAudioCapture _capture;
     private readonly ILiveTranscriber _transcriber;
@@ -62,6 +63,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
     private CancellationTokenRegistration _externalCancellation;
     private Task<LiveStreamingSessionOutcome>? _completion;
     private PlatformError? _captureFailure;
+    private bool _audioCompleted;
     private bool _starting;
     private bool _workerCompleted;
     private bool _disposed;
@@ -115,6 +117,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
             _externalCancellation = default;
             previousCancellation = _sessionCancellation;
             _captureFailure = null;
+            _audioCompleted = false;
             _workerCompleted = false;
             channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(ChannelCapacity)
             {
@@ -266,12 +269,15 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         LiveTranscriptionResult transcription;
+        LiveTranscriptionFailure? transportFailure = null;
         try
         {
             var reconnects = 0;
             while (true)
             {
                 transcription = await _transcriber.TranscribeAsync(config, audio, cancellationToken).ConfigureAwait(false);
+                if (transcription.Failure is { Code: not LiveTranscriptionFailureCode.Cancelled } attemptFailure)
+                    transportFailure = attemptFailure;
                 if (transcription.IsSuccess || !CanReconnect(transcription.Failure) || reconnects >= 2
                     || !_capture.IsCapturing || cancellationToken.IsCancellationRequested)
                     break;
@@ -301,6 +307,14 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
 
         PlatformError? failure;
         lock (_gate) failure = _captureFailure;
+        // #1253: nothing but the transport drains the buffer, so a full buffer beside a
+        // transport failure is that failure's symptom. Report the cause: "connection
+        // failed" tells the user what to fix, "audio could not be consumed" does not.
+        if (failure?.Code == BufferFullCode && transportFailure is not null && !transcription.IsSuccess)
+        {
+            failure = null;
+            transcription = transcription with { Failure = transportFailure };
+        }
         return new LiveStreamingSessionOutcome(transcription, failure, _capture.Duration);
     }
 
@@ -342,8 +356,11 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         {
             lock (_gate)
             {
+                // A completed channel refuses a late chunk by design (Stop, a capture
+                // failure, the worker ending); only a full one is a buffer failure.
+                if (_audioCompleted) return;
                 _captureFailure ??= new PlatformError(
-                    "streaming_audio_buffer_full", "Live audio could not be consumed quickly enough.");
+                    BufferFullCode, "Live audio could not be consumed quickly enough.");
             }
             CancelTransport();
         }
@@ -370,7 +387,11 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
     private void CompleteAudio()
     {
         Channel<ReadOnlyMemory<byte>>? audio;
-        lock (_gate) audio = _audio;
+        lock (_gate)
+        {
+            audio = _audio;
+            _audioCompleted = true;
+        }
         audio?.Writer.TryComplete();
     }
 
