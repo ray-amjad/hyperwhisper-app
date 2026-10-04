@@ -123,6 +123,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
     ("streaming parec asks for a 20 ms fragment only when opted in", StreamingParecLatencyArguments),
+    ("streaming pw-record passes --raw only when its help lists it", StreamingPwRecordRawArguments),
     ("streaming audio groups reads into 100 ms chunks and flushes the tail", StreamingAudioGroupsHundredMillisecondChunks),
     ("streaming audio level survives a clipped -32768 sample", StreamingAudioLevelSurvivesClipping),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
@@ -2053,6 +2054,35 @@ static Task StreamingParecLatencyArguments()
         string.Join(' ', ArgumentsFor("/usr/bin/parec", null, lowLatency: true)));
     Assert.True(!ArgumentsFor("/usr/bin/parec", null, lowLatency: false).Any(argument => argument.StartsWith("--latency")));
     Assert.True(!ArgumentsFor(null, "/usr/bin/pw-record", lowLatency: true).Any(argument => argument.StartsWith("--latency")));
+    return Task.CompletedTask;
+}
+
+static Task StreamingPwRecordRawArguments()
+{
+    // #1278: pw-record 0.3.65 (Debian 12) has no --raw, prints its usage and exits, so live audio was silent.
+    string ArgumentsFor(Func<string, bool>? hasRaw)
+    {
+        var launcher = new RecordingChildProcessLauncher();
+        new ChildProcessStreamingAudioSourceFactory(launcher, null, "/usr/bin/pw-record", true, hasRaw).Open(new AudioRecordingOptions("mic"));
+        return string.Join(' ', launcher.Requests.Single().Arguments);
+    }
+    Assert.Equal("--raw --format s16 --rate 16000 --channels 1 --target=mic -", ArgumentsFor(_ => true));
+    Assert.Equal("--format s16 --rate 16000 --channels 1 --target=mic -", ArgumentsFor(_ => false));
+    var directory = Directory.CreateTempSubdirectory("hw-pwrecord-");
+    try
+    {
+        string Script(string name, string body)
+        {
+            var path = Path.Combine(directory.FullName, name);
+            File.WriteAllText(path, "#!/bin/sh\n" + body + "\n");
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            return path;
+        }
+        Assert.True(!ChildProcessStreamingAudioSourceFactory.PwRecordHasRaw(Script("old", "echo '      --format   Sample format'")));
+        Assert.True(ChildProcessStreamingAudioSourceFactory.PwRecordHasRaw(Script("new", "echo '  -a, --raw   RAW mode'")));
+        Assert.True(ChildProcessStreamingAudioSourceFactory.PwRecordHasRaw(Path.Combine(directory.FullName, "absent")));
+    }
+    finally { directory.Delete(true); }
     return Task.CompletedTask;
 }
 

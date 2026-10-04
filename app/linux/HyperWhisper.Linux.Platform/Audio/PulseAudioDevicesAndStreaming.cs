@@ -127,11 +127,27 @@ internal sealed class ChildProcessStreamingAudioSourceFactory : IStreamingAudioS
     private readonly string? _parec;
     private readonly string? _pwRecord;
     private readonly bool _lowLatency;
+    private readonly Lazy<bool> _pwRecordRaw;
     // #1015: live capture opts in to a 20 ms parec fragment; keep-warm only drains, so it keeps the server default.
     public ChildProcessStreamingAudioSourceFactory(bool lowLatency = false) : this(new LinuxChildProcessLauncher(),
-        CommandClipboardBackend.FindExecutable("parec"), CommandClipboardBackend.FindExecutable("pw-record"), lowLatency) { }
-    internal ChildProcessStreamingAudioSourceFactory(IChildProcessLauncher launcher, string? parec, string? pwRecord, bool lowLatency = false)
-    { _launcher = launcher; _parec = parec; _pwRecord = pwRecord; _lowLatency = lowLatency; }
+        CommandClipboardBackend.FindExecutable("parec"), CommandClipboardBackend.FindExecutable("pw-record"), lowLatency, PwRecordHasRaw) { }
+    internal ChildProcessStreamingAudioSourceFactory(IChildProcessLauncher launcher, string? parec, string? pwRecord, bool lowLatency = false,
+        Func<string, bool>? pwRecordHasRaw = null)
+    {
+        _launcher = launcher; _parec = parec; _pwRecord = pwRecord; _lowLatency = lowLatency;
+        _pwRecordRaw = new(() => pwRecord is null || pwRecordHasRaw is null || pwRecordHasRaw(pwRecord));
+    }
+    // #1278: pw-record 0.3.65 (Debian 12) has no --raw and exits on it, but writes headerless PCM to `-` without it;
+    // 1.4 without --raw writes an AU header. So ask the binary once. A probe that fails keeps --raw.
+    internal static bool PwRecordHasRaw(string pwRecord)
+    {
+        try
+        {
+            var help = ExternalProcessRunner.RunAsync(pwRecord, ["--help"], null, CancellationToken.None, TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+            return help.ExitCode != 0 || Encoding.UTF8.GetString(help.Output).Contains("--raw", StringComparison.Ordinal);
+        }
+        catch (Exception) { return true; }
+    }
     public bool IsAvailable => _parec is not null || _pwRecord is not null;
     public string Backend => _parec is not null ? "parec" : _pwRecord is not null ? "pw-record" : "none";
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options)
@@ -142,8 +158,9 @@ internal sealed class ChildProcessStreamingAudioSourceFactory : IStreamingAudioS
             && !string.Equals(options.DeviceId, "default", StringComparison.OrdinalIgnoreCase);
         var arguments = _parec is not null
             ? new List<string> { "--raw", "--format=s16le", $"--rate={options.SampleRate}", $"--channels={options.ChannelCount}" }
-            : ["--raw", "--format", "s16", "--rate", options.SampleRate.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            : ["--format", "s16", "--rate", options.SampleRate.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--channels", options.ChannelCount.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        if (_parec is null && _pwRecordRaw.Value) arguments.Insert(0, "--raw");
         // #1015: without it PulseAudio hands parec a 2 s fragment and live audio arrives in 2 s bursts. The fragment size
         // does not set the chunk size: PulseStreamingAudioCapture regroups the reads into 100 ms chunks, and a 20 ms
         // fragment lets each chunk leave within 20 ms of filling. pw-record is not fragment-bound (it flushes every
