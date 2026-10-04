@@ -278,6 +278,7 @@ public partial class CustomEndpointWindow : Window
             // Show textbox as fallback
             ModelCombo.Visibility = Visibility.Collapsed;
             ModelTextBox.Visibility = Visibility.Visible;
+            HideStaleTestResult();
             return;
         }
 
@@ -304,6 +305,7 @@ public partial class CustomEndpointWindow : Window
         ModelCombo.Visibility = Visibility.Visible;
         ModelTextBox.Visibility = Visibility.Collapsed;
         ModelFetchErrorText.Visibility = Visibility.Collapsed;
+        HideStaleTestResult();
     }
 
     // =========================================================================
@@ -366,9 +368,17 @@ public partial class CustomEndpointWindow : Window
     // covers TextChanged firing during InitializeComponent and OnLoaded.
     private void TestInput_Changed(object sender, RoutedEventArgs e)
     {
-        if (_isTesting || _lastTest == null) return;
         // A model-list refresh empties the combo before it reselects; wait for that.
         if (sender == ModelCombo && ModelCombo.SelectedItem == null) return;
+        HideStaleTestResult();
+    }
+
+    // Also called by FetchModelsAsync once it has applied a fetched list: it
+    // swaps which model control is visible, and that swap fires no event, so the
+    // per-control events above can read the model from the control being hidden.
+    private void HideStaleTestResult()
+    {
+        if (_isTesting || _lastTest == null) return;
         if (!FormMatchesLastTest()) ClearTestResult();
     }
 
