@@ -23,6 +23,8 @@ interface LicenseKeysCardProps {
 export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // The row whose last copy was refused (#872). Cleared by the next copy click.
+  const [copyFailedKey, setCopyFailedKey] = useState<string | null>(null);
 
   const maskLicenseKey = (key: string) => {
     const segments = key.split("-");
@@ -31,9 +33,15 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
   };
 
   const copyToClipboard = async (key: string) => {
-    await navigator.clipboard.writeText(key);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+    setCopyFailedKey(null);
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch {
+      // Insecure context, denied permission or an unfocused document (#872).
+      setCopyFailedKey(key);
+    }
   };
 
   const toggleShowKey = (id: string) => {
@@ -48,6 +56,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
           const isActive = license.status === "granted";
           const isShown = showKeys[license.id];
           const isCopied = copiedKey === license.key;
+          const copyFailed = copyFailedKey === license.key;
 
           return (
             <div key={license.id} className="flex items-center justify-between gap-3">
@@ -80,7 +89,9 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                   </AnimatePresence>
                 </button>
                 <button
-                  onClick={() => copyToClipboard(license.key)}
+                  onClick={() => {
+                    void copyToClipboard(license.key);
+                  }}
                   className="relative p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors shrink-0"
                   title="Copy to clipboard"
                 >
@@ -102,6 +113,15 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                     </m.span>
                   </AnimatePresence>
                 </button>
+                <span
+                  aria-live="polite"
+                  className="text-xs text-red-400 empty:hidden"
+                  role="status"
+                >
+                  {copyFailed
+                    ? "Copy failed — reveal the key and copy it by hand"
+                    : null}
+                </span>
               </div>
               <span
                 className={`px-2 py-1 text-xs font-medium rounded shrink-0 ${
