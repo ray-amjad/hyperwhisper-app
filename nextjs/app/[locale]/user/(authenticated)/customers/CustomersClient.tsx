@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
+import { errorSentence } from "@/lib/trpc/input-error";
 import { formatDate } from "@/lib/format-date";
 import { ICON_SWAP } from "@/lib/icon-swap";
 
@@ -38,6 +39,13 @@ function getPageNumbers(
 }
 
 const CREDITS_PER_MINUTE = 6.3;
+
+// #1155: shown in place of a zod input failure's serialized issue array.
+const INVALID_EMAIL = "Enter a valid email address.";
+const INVALID_AMOUNT =
+  "Enter a credit amount above 0 and no more than 1,000,000.";
+const INVALID_INPUT =
+  "That request was not valid. Refresh the page and try again.";
 
 function formatCredits(credits: number) {
   return credits.toLocaleString("en-US", {
@@ -330,7 +338,7 @@ export default function CustomersClient() {
             </button>
           </form>
           {grantMutation.error && (
-            <p className="text-red-300 text-sm">{grantMutation.error.message}</p>
+            <p className="text-red-300 text-sm">{errorSentence(grantMutation.error, INVALID_EMAIL)}</p>
           )}
           {grantResult && (
             <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
@@ -459,7 +467,7 @@ export default function CustomersClient() {
                               </p>
                               {updateEmailMutation.error && (
                                 <p className="text-red-300 text-xs">
-                                  {updateEmailMutation.error.message}
+                                  {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
                                 </p>
                               )}
                             </form>
@@ -792,7 +800,7 @@ export default function CustomersClient() {
               <>
                 {refundMutation.error && (
                   <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-                    <p className="text-red-300 text-sm">{refundMutation.error.message}</p>
+                    <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
                   </div>
                 )}
                 <div className="flex gap-3 pt-2">
@@ -903,7 +911,7 @@ export default function CustomersClient() {
 
               {/* Error */}
               {addCreditsMutation.error && (
-                <p className="text-red-300 text-sm">{addCreditsMutation.error.message}</p>
+                <p className="text-red-300 text-sm">{errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}</p>
               )}
 
               {/* Actions */}
