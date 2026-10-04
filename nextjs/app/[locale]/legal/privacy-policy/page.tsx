@@ -72,8 +72,8 @@ export default function PrivacyPolicyPage() {
             Resend
           </a>
           , which receives the recipient address and the message content in
-          order to deliver them. For license key and Account Key emails, that
-          content includes the key itself.
+          order to deliver them. For license key, Account Key, and sign-in
+          link emails, that content includes the key or the sign-in link.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
