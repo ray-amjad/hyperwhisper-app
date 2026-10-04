@@ -253,8 +253,12 @@ public partial class CustomEndpointWindow : Window
         if (models.Count == 0)
         {
             var providerName = TabOllama.IsChecked == true ? "Ollama" : "LMStudio";
-            ModelFetchErrorText.Text = $"Could not fetch models. Ensure {providerName} is running.";
-            ModelFetchErrorText.Visibility = Visibility.Visible;
+            // Skip the warning if the user replaced the Base URL while this fetch was pending.
+            if (UrlTextBox.Text.Trim() == baseUrl)
+            {
+                ModelFetchErrorText.Text = $"Could not fetch models. Ensure {providerName} is running.";
+                ModelFetchErrorText.Visibility = Visibility.Visible;
+            }
 
             // Show textbox as fallback
             ModelCombo.Visibility = Visibility.Collapsed;
