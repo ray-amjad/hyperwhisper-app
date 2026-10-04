@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
@@ -54,7 +55,6 @@ public sealed class SharedCoreLiveCloudTranscriber(LiveCloudTranscriptionService
 public sealed class LiveStreamingSessionController : IAsyncDisposable
 {
     private const int ChannelCapacity = 128;
-    private const string BufferFullCode = "streaming_audio_buffer_full";
     private readonly object _gate = new();
     private readonly IStreamingAudioCapture _capture;
     private readonly ILiveTranscriber _transcriber;
@@ -64,6 +64,8 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
     private Task<LiveStreamingSessionOutcome>? _completion;
     private PlatformError? _captureFailure;
     private bool _audioCompleted;
+    private volatile bool _attemptReadAudio;
+    private bool _bufferFilledUnread;
     private bool _starting;
     private bool _workerCompleted;
     private bool _disposed;
@@ -118,6 +120,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
             previousCancellation = _sessionCancellation;
             _captureFailure = null;
             _audioCompleted = false;
+            _bufferFilledUnread = false;
             _workerCompleted = false;
             channel = Channel.CreateBounded<ReadOnlyMemory<byte>>(new BoundedChannelOptions(ChannelCapacity)
             {
@@ -175,7 +178,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         RaiseConnectionState(LiveStreamingConnectionState.Connecting);
         var worker = CompleteSessionAsync(
             request.Config,
-            channel.Reader.ReadAllAsync(sessionCancellation.Token),
+            TrackReads(channel.Reader.ReadAllAsync(sessionCancellation.Token)),
             sessionCancellation.Token);
         _ = RelayCompletionAsync(worker, completionSource);
         lock (_gate)
@@ -275,7 +278,9 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
             var reconnects = 0;
             while (true)
             {
+                _attemptReadAudio = false;
                 transcription = await _transcriber.TranscribeAsync(config, audio, cancellationToken).ConfigureAwait(false);
+                _attemptReadAudio = false;
                 if (transcription.Failure is { Code: not LiveTranscriptionFailureCode.Cancelled } attemptFailure)
                     transportFailure = attemptFailure;
                 if (transcription.IsSuccess || !CanReconnect(transcription.Failure) || reconnects >= 2
@@ -306,15 +311,18 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         }
 
         PlatformError? failure;
-        lock (_gate) failure = _captureFailure;
-        // #1253: nothing but the transport drains the buffer, so a full buffer beside a
-        // transport failure is that failure's symptom. Report the cause: "connection
-        // failed" tells the user what to fix, "audio could not be consumed" does not.
-        if (failure?.Code == BufferFullCode && transportFailure is not null && !transcription.IsSuccess)
-        {
-            failure = null;
-            transcription = transcription with { Failure = transportFailure };
-        }
+        bool filledUnread;
+        lock (_gate) (failure, filledUnread) = (_captureFailure, _bufferFilledUnread);
+        // #1253: the buffer filled while no transport attempt was reading it (connect
+        // hanging, back-off, or the worker already failed). That is a connection
+        // fault, not slow consumption: report the last real transport failure, or the
+        // service's own connect timeout when the connect never got that far.
+        if (filledUnread && failure is null && !transcription.IsSuccess)
+            transcription = transcription with
+            {
+                Failure = transportFailure ?? new LiveTranscriptionFailure(
+                    LiveTranscriptionFailureCode.Timeout, "The streaming connection timed out.", config.Provider),
+            };
         return new LiveStreamingSessionOutcome(transcription, failure, _capture.Duration);
     }
 
@@ -359,10 +367,23 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
                 // A completed channel refuses a late chunk by design (Stop, a capture
                 // failure, the worker ending); only a full one is a buffer failure.
                 if (_audioCompleted) return;
-                _captureFailure ??= new PlatformError(
-                    BufferFullCode, "Live audio could not be consumed quickly enough.");
+                if (!_attemptReadAudio) _bufferFilledUnread = true;
+                else _captureFailure ??= new PlatformError(
+                    "streaming_audio_buffer_full", "Live audio could not be consumed quickly enough.");
             }
             CancelTransport();
+        }
+    }
+
+    /// <summary>Marks the current transport attempt as one that is draining the buffer.</summary>
+    private async IAsyncEnumerable<ReadOnlyMemory<byte>> TrackReads(
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var chunk in audio.WithCancellation(cancellationToken).ConfigureAwait(false))
+        {
+            _attemptReadAudio = true;
+            yield return chunk;
         }
     }
 
