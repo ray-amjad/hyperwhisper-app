@@ -50,10 +50,16 @@ export default function DevicesClient() {
         </div>
         <div className="flex items-center gap-2">
           {/* Time Range Selector */}
-          <div className="flex bg-white/5 rounded-lg border border-white/10 overflow-hidden">
+          <div
+            role="group"
+            aria-label="Time range"
+            className="flex bg-white/5 rounded-lg border border-white/10 overflow-hidden"
+          >
             {TIME_RANGES.map((range) => (
               <button
                 key={range.value}
+                type="button"
+                aria-pressed={days === range.value}
                 onClick={() => setDays(range.value)}
                 className={`px-3 py-2 text-sm transition-colors ${
                   days === range.value
