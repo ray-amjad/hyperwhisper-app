@@ -14,7 +14,7 @@ On macOS and Windows the setting has two options:
 - **Off** — HyperWhisper does not change your audio (default).
 - **Mute Audio** — HyperWhisper mutes the system output during a recording, then restores it.
 
-Linux has a third option. See [Lower other audio (Linux)](#lower-other-audio-linux) below.
+Linux shows the same two options. It also keeps a third policy from older versions. See [Lower other audio (Linux)](#lower-other-audio-linux) below.
 
 ## Turn it on
 
@@ -48,13 +48,13 @@ Linux has a third option. See [Lower other audio (Linux)](#lower-other-audio-lin
   <Tab title="Linux">
     <Steps>
       <Step title="Open Settings">
-        Open the main window. Click **Settings**, then scroll to **Audio and desktop**.
+        Open the main window. Click **Settings**, then select **Sound** from the sidebar.
       </Step>
-      <Step title="Find “Other-audio policy”">
-        Find the **Other-audio policy** picker.
+      <Step title="Find “Media control”">
+        Find the **Media control** setting.
       </Step>
-      <Step title="Choose a policy">
-        Select `mute` to mute the output, or `duck` to lower it. Select `unchanged` to leave your audio alone. Then click **Save settings**.
+      <Step title="Choose Mute audio">
+        Select **Mute audio**. HyperWhisper now mutes the system output during a recording, then restores it. Linux saves the change automatically.
       </Step>
     </Steps>
   </Tab>
@@ -66,7 +66,7 @@ Linux has a third option. See [Lower other audio (Linux)](#lower-other-audio-lin
 
 ## Lower other audio (Linux)
 
-Linux gives three policies instead of two:
+Linux stores the setting as one of three policies. **Off** stores `unchanged` and **Mute audio** stores `mute`. The third policy, `duck`, has no item in the picker. Older Linux versions offered it, and a settings file that already holds `duck` still uses it. The picker then shows **Off**, but HyperWhisper keeps `duck` until you select an item.
 
 | Policy | What HyperWhisper does |
 |---|---|

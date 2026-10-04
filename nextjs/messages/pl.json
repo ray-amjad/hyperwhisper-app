@@ -262,6 +262,7 @@
     "title": "Pobierz HyperWhisper",
     "countdownText": "Start za {seconds}...",
     "downloadStarted": "Sprawdź folder Pobrane",
+    "mobileNote": "HyperWhisper to aplikacja na komputer. Pobierz ją na swój komputer z systemem Mac, Windows lub Linux.",
     "downloadNow": "Pobierz teraz",
     "downloadAgain": "Pobierz ponownie",
     "selectArchitecture": "Wybierz architekturę",

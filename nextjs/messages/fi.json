@@ -262,6 +262,7 @@
     "title": "Lataa HyperWhisper",
     "countdownText": "Käynnistyy {seconds} kuluttua...",
     "downloadStarted": "Tarkista Lataukset-kansio",
+    "mobileNote": "HyperWhisper on työpöytäsovellus. Lataa se Mac-, Windows- tai Linux-tietokoneellesi.",
     "downloadNow": "Lataa nyt",
     "downloadAgain": "Lataa uudelleen",
     "selectArchitecture": "Valitse arkkitehtuuri",

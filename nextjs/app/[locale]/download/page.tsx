@@ -9,6 +9,7 @@ import { Download, Copy, Check, Terminal, CheckCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ICON_SWAP } from "@/lib/icon-swap";
+import { isMobileDevice } from "@/src/lib/mobile-device";
 import { isRecord } from "@/src/lib/type-guards";
 
 type Platform = "mac" | "windows" | "linux";
@@ -63,8 +64,24 @@ export default function DownloadPage() {
   });
   const [copied, setCopied] = useState(false);
   const [linuxLatest, setLinuxLatest] = useState<LinuxLatest | null>(null);
+  // null until the mount effect has looked at the device. The countdown waits
+  // for `false`, so a phone never gets a timer, not even for the first render.
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
 
   const currentState = downloadState[selectedPlatform];
+
+  // A phone or tablet cannot run the desktop app, so it gets no auto-download
+  // (#1099). This ignores ?platform= on purpose: a phone opening
+  // /download?platform=mac must not download the DMG either.
+  useEffect(() => {
+    setIsMobile(
+      isMobileDevice(
+        navigator.userAgent ?? "",
+        navigator.platform ?? "",
+        navigator.maxTouchPoints ?? 0,
+      ),
+    );
+  }, []);
 
   // Detect user's OS on mount and set platform accordingly
   // URL query param takes precedence over OS detection
@@ -145,6 +162,9 @@ export default function DownloadPage() {
   useEffect(() => {
     // Windows and Linux use explicit download buttons, no auto-download.
     if (selectedPlatform !== "mac") return;
+    // Only a device known to be a desktop counts down; a phone or tablet, and
+    // a render before detection, never does.
+    if (isMobile !== false) return;
 
     const { countdown, started } = currentState;
 
@@ -167,7 +187,12 @@ export default function DownloadPage() {
       // Countdown finished, trigger download
       triggerDownload(selectedPlatform);
     }
-  }, [currentState.countdown, currentState.started, selectedPlatform]);
+  }, [
+    currentState.countdown,
+    currentState.started,
+    selectedPlatform,
+    isMobile,
+  ]);
 
   // No `started` guard here: the countdown effect already stops once `started`
   // is set, so it fires this once, and a click on "Download again" must re-run it.
@@ -252,7 +277,9 @@ export default function DownloadPage() {
           </div>
 
           {/* Countdown or status message */}
-          {selectedPlatform === "windows" ? (
+          {isMobile ? (
+            <p className="text-lg text-gray-400">{t("mobileNote")}</p>
+          ) : selectedPlatform === "windows" ? (
             <p className="text-lg text-gray-400">{t("selectArchitecture")}</p>
           ) : selectedPlatform === "linux" ? (
             <p className="text-lg text-gray-400">

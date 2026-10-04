@@ -262,6 +262,7 @@
     "title": "Atsisiųsti HyperWhisper",
     "countdownText": "Pradžia po {seconds}...",
     "downloadStarted": "Patikrinkite Downloads aplanką",
+    "mobileNote": "HyperWhisper yra stalinio kompiuterio programa. Atsisiųskite ją į savo Mac, Windows arba Linux kompiuterį.",
     "downloadNow": "Atsisiųsti dabar",
     "downloadAgain": "Atsisiųsti dar kartą",
     "selectArchitecture": "Pasirinkite architektūrą",

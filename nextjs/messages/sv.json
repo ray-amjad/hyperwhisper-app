@@ -262,6 +262,7 @@
     "title": "Ladda ner HyperWhisper",
     "countdownText": "Startar om {seconds}...",
     "downloadStarted": "Kontrollera mappen Hämtade filer",
+    "mobileNote": "HyperWhisper är en skrivbordsapp. Ladda ner den på din Mac-, Windows- eller Linux-dator.",
     "downloadNow": "Ladda ner nu",
     "downloadAgain": "Ladda ner igen",
     "selectArchitecture": "Välj din arkitektur",

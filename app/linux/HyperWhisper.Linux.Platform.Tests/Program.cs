@@ -31,6 +31,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("global shortcut capability probe is content-free and closes sources", ShortcutCapabilityProbe),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
+    ("X11 shortcut released modifier-first fires again", X11ModifierFirstRelease),
     ("X11 maps multi-modifier-only shortcuts in either order", X11MultiModifierShortcut),
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
     ("X11 XGrabKey host integration", X11GrabIntegration),
@@ -44,6 +45,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("StatusNotifierItem helper exposes only fixed actions", StatusNotifierHelperManifest),
     ("StatusNotifierItem helper disconnect is observable", StatusNotifierDisconnect),
     ("StatusNotifierItem startup cancellation stops helper", StatusNotifierStartupCancellation),
+    ("StatusNotifierItem helper serves dbusmenu on a private bus", StatusNotifierHelperServesDbusmenu),
     ("event dispatch isolates failing subscribers", IsolatesSubscribers),
     ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
@@ -445,6 +447,21 @@ static async Task X11ModifierShortcut()
     Assert.True(connection.Grabs.All(value => value.Modifiers is 0 or 2 or 16 or 18));
 }
 
+static async Task X11ModifierFirstRelease()
+{
+    var connection = new FakeX11Connection(new X11HotkeyEvent(65, 5, true),
+        new X11HotkeyEvent(65, 0, false), new X11HotkeyEvent(65, 5, true));
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add("down:" + args.Name);
+    service.ShortcutReleased += (_, args) => events.Add("up:" + args.Name);
+    service.RegisterShortcuts([new NamedShortcut("streaming",
+        new(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Space")))]);
+    Assert.Success(service.Start());
+    await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2)); await Task.Delay(30);
+    Assert.Equal("down:streaming,up:streaming,down:streaming", string.Join(',', events));
+}
+
 static Task X11MultiModifierShortcut()
 {
     var mapped = X11ShortcutMapper.Map(new NamedShortcut("toggle",
@@ -618,6 +635,73 @@ static async Task StatusNotifierStartupCancellation()
         }
         finally { Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", prior); }
     });
+}
+
+// Runs the real helper against Assets/fake-status-notifier-watcher.py on a private
+// dbus-daemon. The watcher checks the group methods libdbusmenu-glib relies on
+// (#1265) and prints WATCHER|ok; EventGroup on item 5 must reach us as OpenHistory.
+static async Task StatusNotifierHelperServesDbusmenu()
+{
+    var python = CommandClipboardBackend.FindExecutable("python3");
+    var daemon = CommandClipboardBackend.FindExecutable("dbus-daemon");
+    var helper = Path.Combine(AppContext.BaseDirectory, "DesktopCompanions", "status-notifier.py");
+    var watcherScript = Path.Combine(AppContext.BaseDirectory, "Assets", "fake-status-notifier-watcher.py");
+    Assert.True(File.Exists(helper) && File.Exists(watcherScript));
+    if (python is null || daemon is null || !await PythonHasGiAsync(python))
+    {
+        Console.WriteLine("SKIP StatusNotifierItem helper serves dbusmenu: needs python3-gi and dbus-daemon");
+        return;
+    }
+    using var bus = Process.Start(new ProcessStartInfo(daemon, "--session --nofork --print-address")
+    { UseShellExecute = false, RedirectStandardOutput = true })
+        ?? throw new InvalidOperationException("dbus-daemon failed to start");
+    var priorAddress = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
+    var priorLocale = Environment.GetEnvironmentVariable("LC_ALL");
+    Process? watcher = null;
+    try
+    {
+        var address = (await bus.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)))?.Trim();
+        Assert.True(!string.IsNullOrEmpty(address));
+        Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", address);
+        Environment.SetEnvironmentVariable("LC_ALL", "C");
+        watcher = Process.Start(new ProcessStartInfo(python, watcherScript)
+        { UseShellExecute = false, RedirectStandardOutput = true })
+            ?? throw new InvalidOperationException("fake watcher failed to start");
+        Assert.Equal("WATCHER|ready", await watcher.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5)));
+
+        using var service = new LinuxStatusNotifierItemService(python, helper);
+        var actions = new System.Collections.Concurrent.ConcurrentQueue<StatusNotifierAction>();
+        var history = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.ActionRequested += (_, args) =>
+        {
+            actions.Enqueue(args.Action);
+            if (args.Action == StatusNotifierAction.OpenHistory) history.TrySetResult();
+        };
+        Assert.Success(await service.StartAsync());
+        Assert.Equal("WATCHER|ok", await watcher.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+        await history.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(
+            "Show,Hide,StartRecording,StopRecording,OpenHistory",
+            string.Join(",", actions));
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", priorAddress);
+        Environment.SetEnvironmentVariable("LC_ALL", priorLocale);
+        foreach (var process in new[] { watcher, bus })
+            if (process is { HasExited: false })
+                try { process.Kill(entireProcessTree: true); process.WaitForExit(2000); } catch { }
+        watcher?.Dispose();
+    }
+}
+
+static async Task<bool> PythonHasGiAsync(string python)
+{
+    using var probe = Process.Start(new ProcessStartInfo(python, "-c \"import gi; gi.require_version('Gio', '2.0'); from gi.repository import Gio\"")
+    { UseShellExecute = false, RedirectStandardError = true });
+    if (probe is null) return false;
+    await probe.WaitForExitAsync();
+    return probe.ExitCode == 0;
 }
 
 static async Task X11GrabIntegration()

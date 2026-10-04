@@ -262,6 +262,7 @@
     "title": "Baixar HyperWhisper",
     "countdownText": "Iniciando em {seconds}...",
     "downloadStarted": "Verifique sua pasta Downloads",
+    "mobileNote": "O HyperWhisper é um aplicativo para computador. Baixe-o no seu computador Mac, Windows ou Linux.",
     "downloadNow": "Baixar agora",
     "downloadAgain": "Baixar novamente",
     "selectArchitecture": "Selecione sua arquitetura",

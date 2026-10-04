@@ -62,7 +62,9 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
     /// SQLite LIKE folds ASCII case only, and under OrdinalIgnoreCase no
     /// non-ASCII character folds onto an ASCII one, so for an ASCII term LIKE
     /// is exact. A non-ASCII rune becomes <c>_</c> (any one character): a
-    /// superset that the in-memory check then narrows to the same rows.
+    /// superset that the in-memory check then narrows to the same rows. A term
+    /// holding NUL skips LIKE: SQLite cuts the pattern and the value there, so
+    /// <c>%\0%</c> matched every row (#1198); the in-memory check alone decides.
     /// </remarks>
     public async Task<(IReadOnlyList<Transcript> Page, int Total)> QueryPageAsync(
         string? search,
@@ -75,11 +77,12 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
         var rows = context.Transcripts.AsNoTracking();
         if (since is { } from) rows = rows.Where(item => item.Date >= from);
         if (until is { } to) rows = rows.Where(item => item.Date <= to);
-        var exactInSql = true;
-        if (!string.IsNullOrWhiteSpace(search))
+        var hasTerm = !string.IsNullOrWhiteSpace(search);
+        var exactInSql = !hasTerm || !search!.Contains('\0');
+        if (hasTerm && exactInSql)
         {
             var pattern = new System.Text.StringBuilder("%");
-            foreach (var rune in search.EnumerateRunes())
+            foreach (var rune in search!.EnumerateRunes())
             {
                 if (!rune.IsAscii) { exactInSql = false; pattern.Append('_'); continue; }
                 if (rune.Value is '%' or '_' or '\\') pattern.Append('\\');

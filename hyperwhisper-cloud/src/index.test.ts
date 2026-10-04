@@ -49,7 +49,10 @@ mock.module('./lib/redis', () => ({
 const originalPort = process.env.PORT;
 delete process.env.PORT;
 
-const server = (await import('./index')).default;
+const { default: server, SERVER_IDLE_TIMEOUT_SECONDS } = await import('./index');
+const { INTERACTIONS_TIMEOUT_MS } = await import('./providers/gemini-transcribe');
+const { LLM_REQUEST_TIMEOUT_MS } = await import('./providers/llm-fetch');
+const { ANTHROPIC_STREAM_IDLE_TIMEOUT_MS } = await import('./providers/anthropic');
 const { deductCredits, drainPendingDeductions } = await import('./middleware/credits');
 const { reportLatencySamples } = await import('./lib/latency-report');
 const { createStreamingEvents } = await import('./routes/ws-streaming-deepgram');
@@ -362,6 +365,21 @@ describe('the exported Bun server', () => {
   test('exports hono/bun\'s websocket handler so the live routes can upgrade', () => {
     expect(server.websocket).toBe(honoBunWebsocket);
     expect(typeof server.fetch).toBe('function');
+  });
+
+  // #1252: Bun's 10 s default cut every silent request before a vendor bound
+  // could fire. idleTimeout is in SECONDS; the vendor bounds are in ms.
+  // google-chirp's 300 s BATCH_POLL_DEADLINE_MS is above Bun's 255 s maximum;
+  // in production Fly's 60 s no-bytes proxy limit binds first anyway.
+  test('idleTimeout is Bun\'s maximum and outlasts the per-call vendor bounds', () => {
+    expect(server.idleTimeout).toBe(SERVER_IDLE_TIMEOUT_SECONDS);
+    expect(server.idleTimeout).toBe(255);
+    expect(server.idleTimeout).toBeGreaterThan(INTERACTIONS_TIMEOUT_MS / 1000);
+    expect(server.idleTimeout).toBeGreaterThan(LLM_REQUEST_TIMEOUT_MS / 1000);
+  });
+
+  test('the /assistant stream idle bound fires before Bun drops the client', () => {
+    expect(ANTHROPIC_STREAM_IDLE_TIMEOUT_MS).toBeLessThan(server.idleTimeout * 1000);
   });
 });
 

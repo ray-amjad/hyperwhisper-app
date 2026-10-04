@@ -262,6 +262,7 @@
     "title": "Скачать HyperWhisper",
     "countdownText": "Запуск через {seconds}...",
     "downloadStarted": "Проверьте папку Downloads",
+    "mobileNote": "HyperWhisper — это приложение для компьютера. Скачайте его на свой компьютер с Mac, Windows или Linux.",
     "downloadNow": "Скачать сейчас",
     "downloadAgain": "Скачать снова",
     "selectArchitecture": "Выберите архитектуру",
