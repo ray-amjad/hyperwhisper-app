@@ -202,7 +202,8 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
     }
     // #1015: parec splits each fragment over 2-4 pipe reads, and the live controller buffers 128 CHUNKS while its
     // socket opens. One chunk per 100 ms of audio, as on the Windows head, keeps that buffer at ~12.8 s.
-    internal static int ChunkBytes(WaveFormat format) => Math.Max(format.BlockAlign, format.BytesPerSecond / 10 / format.BlockAlign * format.BlockAlign);
+    // Whole frames, at least 1 byte: it multiplies by BlockAlign rather than divides, as WaveFormat.FragmentBytes does.
+    internal static int ChunkBytes(WaveFormat format) => Math.Max(1, Math.Max(1, format.SampleRate / 10) * format.BlockAlign);
     private async Task CaptureLoopAsync(IStreamingAudioSource source, int chunkBytes, CancellationToken token)
     {
         PlatformError? error = null;
