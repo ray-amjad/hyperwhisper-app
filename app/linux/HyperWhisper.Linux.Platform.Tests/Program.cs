@@ -122,6 +122,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse guard stays armed while a second service raises", PulseGuardStaysArmedWhileASecondServiceRaises),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
+    ("streaming parec asks for a 100 ms fragment only when opted in", StreamingParecLatencyArguments),
+    ("streaming audio groups reads into 100 ms chunks and flushes the tail", StreamingAudioGroupsHundredMillisecondChunks),
+    ("streaming audio level survives a clipped -32768 sample", StreamingAudioLevelSurvivesClipping),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
     ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
@@ -2037,6 +2040,55 @@ static async Task StreamingAudioCapture()
     Assert.True(capture.Duration > TimeSpan.Zero);
 }
 
+static Task StreamingParecLatencyArguments()
+{
+    // #1015: with no latency flag PulseAudio gives parec a 2 s fragment, so live audio arrived in 2 s bursts.
+    IReadOnlyList<string> ArgumentsFor(string? parec, string? pwRecord, bool lowLatency)
+    {
+        var launcher = new RecordingChildProcessLauncher();
+        new ChildProcessStreamingAudioSourceFactory(launcher, parec, pwRecord, lowLatency).Open(new AudioRecordingOptions("mic"));
+        return launcher.Requests.Single().Arguments;
+    }
+    Assert.Equal("--raw --format=s16le --rate=16000 --channels=1 --latency-msec=100 --device=mic",
+        string.Join(' ', ArgumentsFor("/usr/bin/parec", null, lowLatency: true)));
+    Assert.True(!ArgumentsFor("/usr/bin/parec", null, lowLatency: false).Any(argument => argument.StartsWith("--latency")));
+    Assert.True(!ArgumentsFor(null, "/usr/bin/pw-record", lowLatency: true).Any(argument => argument.StartsWith("--latency")));
+    return Task.CompletedTask;
+}
+
+static async Task StreamingAudioGroupsHundredMillisecondChunks()
+{
+    // #1015: the live controller buffers 128 chunks, so a chunk per pipe read shrank the connect-time buffer.
+    var pcm = Enumerable.Range(0, 8000).Select(index => (byte)index).ToArray();
+    using var capture = new PulseStreamingAudioCapture(new FakeStreamingAudioSourceFactory(new FakeStreamingAudioSource(new MemoryStream(pcm))));
+    var chunks = new List<byte[]>();
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    capture.AudioChunkAvailable += (_, value) => chunks.Add(value.ToArray());
+    capture.CaptureStopped += (_, _) => stopped.TrySetResult();
+    Assert.Success(capture.Start(new AudioRecordingOptions("default")));
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal("3200,3200,1600", string.Join(',', chunks.Select(chunk => chunk.Length)));
+    Assert.SequenceEqual(pcm, chunks.SelectMany(chunk => chunk).ToArray());
+    Assert.Equal(4800, PulseStreamingAudioCapture.ChunkBytes(new WaveFormat(24000, 16, 1)));
+}
+
+static async Task StreamingAudioLevelSurvivesClipping()
+{
+    // Math.Abs(short.MinValue) throws; a clipped microphone used to end live capture.
+    var pcm = Enumerable.Repeat(new byte[] { 0x00, 0x80 }, 3200).SelectMany(sample => sample).ToArray();
+    using var capture = new PulseStreamingAudioCapture(new FakeStreamingAudioSourceFactory(new FakeStreamingAudioSource(new MemoryStream(pcm))));
+    var chunks = 0; var levels = new List<float>(); PlatformError? error = null;
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    capture.AudioChunkAvailable += (_, _) => chunks++;
+    capture.AudioLevelChanged += (_, level) => levels.Add(level);
+    capture.CaptureStopped += (_, value) => { error = value; stopped.TrySetResult(); };
+    Assert.Success(capture.Start(new AudioRecordingOptions("default")));
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.True(error is null);
+    Assert.Equal(2, chunks);
+    Assert.True(levels.Count == 2 && levels.All(level => level == 1f));
+}
+
 static async Task StreamingAudioBlockedStop()
 {
     var stream = new BlockingAudioStream();
@@ -3180,6 +3232,13 @@ sealed class FakeStreamingAudioSourceFactory(FakeStreamingAudioSource source) : 
     public string Backend => "fake";
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options) =>
         PlatformResult<IStreamingAudioSource>.Success(source);
+}
+
+sealed class RecordingChildProcessLauncher : IChildProcessLauncher
+{
+    public List<ChildProcessStartRequest> Requests { get; } = [];
+    public PlatformResult<IChildProcess> Start(ChildProcessStartRequest request)
+    { Requests.Add(request); return PlatformResult<IChildProcess>.Failure("test_not_started", "Recorded only."); }
 }
 
 sealed class FakeStreamingAudioSource(Stream output) : IStreamingAudioSource
