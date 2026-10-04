@@ -213,14 +213,14 @@ function DeviceRow({
               Enter / Space and announces its state (#1307). It stops the
               click so the row's own onClick does not toggle a second time. */}
           <button
-            type="button"
-            aria-expanded={expanded}
             aria-controls={expanded ? panelId : undefined}
+            aria-expanded={expanded}
+            className="flex items-center gap-3 text-left rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
+            type="button"
             onClick={(event) => {
               event.stopPropagation();
               onToggle();
             }}
-            className="flex items-center gap-3 text-left rounded focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2"
           >
             <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-sm font-medium">
               {row.email[0].toUpperCase()}
