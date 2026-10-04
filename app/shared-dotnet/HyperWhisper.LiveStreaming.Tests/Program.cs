@@ -21,6 +21,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a chunk after the audio completed is not a full buffer", LateChunkAfterStop),
     ("a buffer that fills during a hanging connect reports the timeout", HangingConnectFillsBuffer),
     ("a full buffer after a working reconnect is still a full buffer", BufferFullAfterReconnect),
+    ("a buffer that fills during the reconnect back-off reports the network failure", BackOffFillKeepsNetworkFailure),
+    ("a user cancel during the reconnect back-off still cancels", BackOffUserCancel),
     ("synchronous capture callbacks do not deadlock start", SynchronousCaptureCallbacks),
     ("controller safely restarts after completed session", RestartAfterCompletion),
     ("immediate transcriber completion cannot run under state lock", ImmediateCompletion),
@@ -375,6 +377,50 @@ static async Task BufferFullAfterReconnect()
     var result = await controller.Completion!.WaitAsync(TimeSpan.FromSeconds(2));
     Equal("streaming_audio_buffer_full", result.CaptureFailure!.Code);
     Equal(LiveTranscriptionFailureCode.Cancelled, result.Transcription.Failure!.Code);
+}
+
+// #1253: attempt 1 fails with a reconnectable Network failure and the buffer fills
+// during the back-off delay. The controller's own cancel must not escape as a
+// cancelled completion; the outcome reports the Network failure.
+static async Task BackOffFillKeepsNetworkFailure()
+{
+    using var capture = new FakeCapture();
+    var transcriber = new ReconnectOnceTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    var reconnecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    controller.ConnectionStateChanged += (_, state) =>
+    {
+        if (state == LiveStreamingConnectionState.Reconnecting) reconnecting.TrySetResult();
+    };
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    for (var i = 0; i < 140; i++) capture.Emit([1, 0]);
+    var result = await controller.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Equal(1, transcriber.Calls);
+    Equal<string?>(null, result.CaptureFailure?.Code);
+    Equal(LiveTranscriptionFailureCode.Network, result.Transcription.Failure!.Code);
+    Equal("temporary", result.Transcription.Failure.Message);
+}
+
+// A user cancel during the back-off keeps its behaviour: the completion is cancelled.
+static async Task BackOffUserCancel()
+{
+    using var capture = new FakeCapture();
+    var transcriber = new ReconnectOnceTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    var reconnecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    controller.ConnectionStateChanged += (_, state) =>
+    {
+        if (state == LiveStreamingConnectionState.Reconnecting) reconnecting.TrySetResult();
+    };
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    var cancelled = false;
+    try { await controller.CancelAsync().WaitAsync(TimeSpan.FromSeconds(2)); }
+    catch (OperationCanceledException) { cancelled = true; }
+    True(cancelled);
+    True(controller.Completion!.IsCanceled);
+    Equal(1, transcriber.Calls);
 }
 
 static async Task LateChunkAfterStop()

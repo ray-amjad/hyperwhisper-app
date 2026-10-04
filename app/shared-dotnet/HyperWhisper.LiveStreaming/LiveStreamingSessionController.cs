@@ -288,7 +288,16 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
                     break;
                 reconnects++;
                 RaiseConnectionState(LiveStreamingConnectionState.Reconnecting);
-                await Task.Delay(TimeSpan.FromMilliseconds(250 * reconnects), cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(250 * reconnects), cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (BufferFilledUnread())
+                {
+                    // #1253: our own buffer-full cancel, not the user's: end with the
+                    // last transport failure below. A user cancel still propagates.
+                    break;
+                }
                 RaiseConnectionState(LiveStreamingConnectionState.Connecting);
             }
             RaiseConnectionState(transcription.IsSuccess
@@ -324,6 +333,11 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
                     LiveTranscriptionFailureCode.Timeout, "The streaming connection timed out.", config.Provider),
             };
         return new LiveStreamingSessionOutcome(transcription, failure, _capture.Duration);
+    }
+
+    private bool BufferFilledUnread()
+    {
+        lock (_gate) return _bufferFilledUnread;
     }
 
     /// <summary>
