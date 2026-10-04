@@ -51,7 +51,10 @@ export default function UserDashboardClient({
           </div>
         </div>
       ) : error ? (
-        <div className="bg-white/5 rounded-xl border border-white/10 p-5">
+        <div
+          className="bg-white/5 rounded-xl border border-white/10 p-5"
+          role="alert"
+        >
           <p className="text-red-400 text-sm">{error.message}</p>
         </div>
       ) : data?.licenses && data.licenses.length > 0 ? (

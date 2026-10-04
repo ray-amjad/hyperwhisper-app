@@ -338,7 +338,9 @@ export default function CustomersClient() {
             </button>
           </form>
           {grantMutation.error && (
-            <p className="text-red-300 text-sm">{errorSentence(grantMutation.error, INVALID_EMAIL)}</p>
+            <p className="text-red-300 text-sm" role="alert">
+              {errorSentence(grantMutation.error, INVALID_EMAIL)}
+            </p>
           )}
           {grantResult && (
             <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
@@ -351,7 +353,7 @@ export default function CustomersClient() {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+        <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg" role="alert">
           <p className="text-red-300">{error}</p>
         </div>
       )}
@@ -466,7 +468,10 @@ export default function CustomersClient() {
                                 to the new address.
                               </p>
                               {updateEmailMutation.error && (
-                                <p className="text-red-300 text-xs">
+                                <p
+                                  className="text-red-300 text-xs"
+                                  role="alert"
+                                >
                                   {errorSentence(updateEmailMutation.error, INVALID_EMAIL)}
                                 </p>
                               )}
@@ -799,7 +804,10 @@ export default function CustomersClient() {
             ) : (
               <>
                 {refundMutation.error && (
-                  <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                  <div
+                    className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg"
+                    role="alert"
+                  >
                     <p className="text-red-300 text-sm">{errorSentence(refundMutation.error, INVALID_INPUT)}</p>
                   </div>
                 )}
@@ -911,7 +919,9 @@ export default function CustomersClient() {
 
               {/* Error */}
               {addCreditsMutation.error && (
-                <p className="text-red-300 text-sm">{errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}</p>
+                <p className="text-red-300 text-sm" role="alert">
+                  {errorSentence(addCreditsMutation.error, INVALID_AMOUNT)}
+                </p>
               )}
 
               {/* Actions */}
