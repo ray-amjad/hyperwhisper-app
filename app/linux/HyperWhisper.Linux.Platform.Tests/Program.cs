@@ -136,6 +136,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("interaction suppresses repeats and emits content-free mode changes", InteractionActionPrivacy),
     ("streaming startup is cancellable and excludes batch starts", StreamingStartupCancellation),
     ("batch and streaming shortcuts refuse the opposite active kind", InteractionKindMutualExclusion),
+    ("Stop ends a live stream held after its connection was lost", InteractionStopEndsHeldStream),
+    ("shortcuts stop or cancel a held live stream and never start over it", InteractionShortcutsRespectHeldStream),
+    ("duration limit ends a held live stream without a false limit message", InteractionDurationLimitEndsHeldStream),
+    ("a stream held during start keeps its injection session until Stop", InteractionStartKeepsHeldStreamSession),
     ("interaction accepts unassigned and multi-modifier shortcuts", InteractionFlexibleShortcutValidation),
     ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
     ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
@@ -2289,6 +2293,112 @@ static Task InteractionKindMutualExclusion()
     return Task.CompletedTask;
 }
 
+// #1246: the live worker ended (connection lost), so IsActive is false, but the session is still
+// held. Stop must reach the session's stop path, not return early and leave it open.
+static async Task InteractionStopEndsHeldStream()
+{
+    var recording = new FakeInteractionRecordingSession { Streaming = true, Held = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    await coordinator.StopRecordingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.True(!recording.HasOpenSession);
+    await coordinator.StopRecordingAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(0, recording.StartCalls);
+}
+
+static Task InteractionShortcutsRespectHeldStream()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession { Streaming = true, Held = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording,
+        new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    var failures = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => failures.Add(error);
+    shortcuts.Emit(LinuxInteractionCoordinator.ToggleActionName, true);
+    Assert.Equal("interaction.batch_while_streaming", failures.Single().Code);
+    shortcuts.Emit(LinuxInteractionCoordinator.StreamingActionName, true);
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(0, recording.StartCalls);
+    Assert.True(!recording.HasOpenSession);
+
+    recording.Streaming = true;
+    recording.Held = true;
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, true);
+    Assert.Equal(1, recording.CancelCalls);
+    Assert.True(!recording.HasOpenSession);
+    Assert.Equal(0, recording.StartCalls);
+    return Task.CompletedTask;
+}
+
+// #1246: the worker ended after a lost connection, so IsActive is false but the stream is held and
+// Escape is still grabbed. The limit must end it through Stop, and must not claim it hit the limit.
+static async Task InteractionDurationLimitEndsHeldStream()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession();
+    var scheduler = new FakeInteractionDurationScheduler();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording,
+        new ImmediateUiDispatcher(), scheduler, TimeSpan.FromMilliseconds(25));
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    var errors = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => errors.Add(error);
+    await coordinator.StartStreamingAsync();
+    Assert.True(shortcuts.Current.Any(item => item.Name == LinuxInteractionCoordinator.SessionCancelActionName));
+    recording.Active = false;
+    recording.Held = true;
+
+    scheduler.Advance(TimeSpan.FromMilliseconds(25));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.True(!recording.HasOpenSession);
+    Assert.Equal(0, errors.Count);
+    Assert.True(shortcuts.Current.All(item => item.Name != LinuxInteractionCoordinator.SessionCancelActionName));
+    scheduler.Advance(TimeSpan.FromMinutes(1));
+    Assert.Equal(1, recording.StopCalls);
+}
+
+// #1246: the worker ends between a successful start and the start's cleanup. The stream is held, so
+// the injection session and the clipboard belong to its Stop, not to the failed-start cleanup.
+static async Task InteractionStartKeepsHeldStreamSession()
+{
+    var injection = new FakeInteractionTextInjection();
+    var recording = new FakeInteractionRecordingSession { WorkerEndsOnStart = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(), injection, recording,
+        new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    await coordinator.StartStreamingAsync();
+    Assert.True(!recording.IsActive && recording.HasOpenSession);
+    Assert.Equal(0, injection.EndSessionCalls);
+    Assert.Equal(0, injection.RestoreClipboardImmediatelyCalls);
+
+    await coordinator.StopRecordingAsync();
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(1, injection.EndSessionCalls);
+}
+
 static Task InteractionFlexibleShortcutValidation()
 {
     using var coordinator = new LinuxInteractionCoordinator(
@@ -3314,6 +3424,10 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     public bool IsActive => Active;
     public bool Streaming { get; set; }
     public bool IsStreaming => Streaming;
+    public bool Held { get; set; }
+    public bool HasOpenSession => Active || Held;
+    /// <summary>A streaming start succeeds but the worker is already gone, leaving the stream held.</summary>
+    public bool WorkerEndsOnStart { get; set; }
     public int StartCalls { get; private set; }
     public int StopCalls { get; private set; }
     public int CancelCalls { get; private set; }
@@ -3324,17 +3438,17 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     public ValueTask<PlatformResult> StartAsync(
         InteractionRecordingKind kind,
         CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; StartKinds.Add(kind); Streaming = kind == InteractionRecordingKind.Streaming; Active = StartResult.IsSuccess; return ValueTask.FromResult(StartResult); }
+    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; StartKinds.Add(kind); Streaming = kind == InteractionRecordingKind.Streaming; Active = StartResult.IsSuccess && !WorkerEndsOnStart; Held = StartResult.IsSuccess && WorkerEndsOnStart && Streaming; return ValueTask.FromResult(StartResult); }
     public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
+    { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; Held = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; return ValueTask.CompletedTask; }
+    { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; Held = false; return ValueTask.CompletedTask; }
     public ValueTask<bool> RequestCancelAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         CancelRequestCalls++;
         if (DeferCancelRequest) return ValueTask.FromResult(false);
-        CancelCalls++; Active = false;
+        CancelCalls++; Active = false; Held = false;
         return ValueTask.FromResult(true);
     }
 }
@@ -3401,6 +3515,7 @@ sealed class FakeInteractionDurationScheduler : IInteractionDurationScheduler
 sealed class FakeInteractionTextInjection : ITextInjectionService
 {
     public int EndSessionCalls { get; private set; }
+    public int RestoreClipboardImmediatelyCalls { get; private set; }
     public bool IsCapturedTargetAvailable => true;
     public void CaptureTarget() { }
     public void StartSession() { }
@@ -3408,7 +3523,7 @@ sealed class FakeInteractionTextInjection : ITextInjectionService
     public void CancelPendingClipboardRestore() { }
     public void ScheduleClipboardRestore(TimeSpan delay) { }
     public ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(PlatformResult.Success()); }
+    { cancellationToken.ThrowIfCancellationRequested(); RestoreClipboardImmediatelyCalls++; return ValueTask.FromResult(PlatformResult.Success()); }
     public ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(PlatformResult.Success()); }
     public ValueTask<TextInjectionOutcome> InjectTranscriptAsync(string text, CancellationToken cancellationToken = default)
