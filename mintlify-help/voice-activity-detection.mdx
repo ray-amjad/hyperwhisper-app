@@ -32,7 +32,7 @@ HyperWhisper sends recordings shorter than 30 seconds to the provider without a 
     HyperWhisper joins all of the speech segments into one trimmed audio file. It removes each gap between segments that is longer than 200 ms. This includes the silence at the start, the silence at the end, and the pauses in the middle.
   </Step>
   <Step title="Validate the result">
-    HyperWhisper makes sure that the trimmed file passes the minimum quality checks (see [Validation & Quality Checks](#validation-quality-checks) below). If the file fails a check, HyperWhisper uses the original audio.
+    HyperWhisper makes sure that the trimmed file passes the minimum quality checks (see [Validation & Quality Checks](#validation-&-quality-checks) below). If the file fails a check, HyperWhisper uses the original audio.
   </Step>
   <Step title="Prepare for upload">
     If the trimmed file is 25 MB or larger, HyperWhisper converts it to M4A to make the upload smaller. HyperWhisper sends files smaller than 25 MB as WAV. Imported files that are already in a compressed format (M4A, MP3, and other compressed formats) are not encoded again, because a second encode lowers the quality.
