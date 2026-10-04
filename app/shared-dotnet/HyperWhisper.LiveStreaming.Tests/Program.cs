@@ -17,6 +17,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("external cancellation cancels rather than commits", ExternalCancellation),
     ("capture failures remain visible beside provider outcome", CaptureFailure),
     ("bounded audio backpressure fails closed", AudioBackpressure),
+    ("a network failure is not reported as a full audio buffer", NetworkFailureBeatsFullBuffer),
+    ("a chunk after the audio completed is not a full buffer", LateChunkAfterStop),
     ("synchronous capture callbacks do not deadlock start", SynchronousCaptureCallbacks),
     ("controller safely restarts after completed session", RestartAfterCompletion),
     ("immediate transcriber completion cannot run under state lock", ImmediateCompletion),
@@ -321,6 +323,41 @@ static async Task AudioBackpressure()
     Equal(LiveTranscriptionFailureCode.Cancelled, result.Transcription.Failure!.Code);
 }
 
+// #1253: the transport ends with a Network failure while capture keeps running, so
+// nothing drains the channel and it fills before the worker stops capture.
+static async Task NetworkFailureBeatsFullBuffer()
+{
+    using var capture = new FakeCapture();
+    await using var controller = new LiveStreamingSessionController(capture, new NetworkFailureTranscriber());
+    controller.ConnectionStateChanged += (_, state) =>
+    {
+        if (state == LiveStreamingConnectionState.Error)
+            for (var i = 0; i < 140; i++) capture.Emit([1, 0]);
+    };
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await controller.Completion!.WaitAsync(TimeSpan.FromSeconds(2));
+    var result = await controller.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    Equal<string?>(null, result.CaptureFailure?.Code);
+    Equal(LiveTranscriptionFailureCode.Network, result.Transcription.Failure!.Code);
+    Equal("connection lost", result.CaptureFailure?.Message ?? result.Transcription.Failure.Message);
+}
+
+static async Task LateChunkAfterStop()
+{
+    using var capture = new FakeCapture();
+    var transcriber = new GatedTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    capture.Emit([1, 0]);
+    var stop = controller.StopAsync();
+    await transcriber.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    capture.Emit([2, 0]);
+    transcriber.Release.TrySetResult();
+    var result = await stop.WaitAsync(TimeSpan.FromSeconds(2));
+    Equal<string?>(null, result.CaptureFailure?.Code);
+    True(result.IsSuccess);
+}
+
 static async Task SynchronousCaptureCallbacks()
 {
     using var capture = new FakeCapture { EmitAndStopDuringStart = true };
@@ -535,6 +572,34 @@ sealed class BlockingTranscriber : ILiveCloudTranscriber
             return new(null, new LiveTranscriptionFailure(
                 LiveTranscriptionFailureCode.Cancelled, "cancelled", config.Provider), 0, 0);
         }
+    }
+}
+
+sealed class NetworkFailureTranscriber : ILiveCloudTranscriber
+{
+    public Task<LiveTranscriptionResult> TranscribeAsync(
+        LiveTranscriptionConfig config,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LiveTranscriptionResult(null, new LiveTranscriptionFailure(
+            LiveTranscriptionFailureCode.Network, "connection lost", config.Provider, IsTerminal: true), 0, 0));
+}
+
+sealed class GatedTranscriber : ILiveCloudTranscriber
+{
+    public TaskCompletionSource Drained { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public async Task<LiveTranscriptionResult> TranscribeAsync(
+        LiveTranscriptionConfig config,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        CancellationToken cancellationToken = default)
+    {
+        var chunks = 0;
+        await foreach (var _ in audio) chunks++;
+        Drained.TrySetResult();
+        await Release.Task;
+        return new("gated final", null, chunks, 1);
     }
 }
 
