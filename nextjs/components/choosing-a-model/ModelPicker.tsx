@@ -328,6 +328,7 @@ export default function ModelPicker({ measured, regions }: Props) {
               {(["macos", "windows"] as const).map((option) => (
                 <button
                   key={option}
+                  aria-pressed={platform === option}
                   className={`flex-1 rounded-sm px-3 py-1.5 text-sm transition ${
                     platform === option
                       ? "bg-purple-600 text-white"
@@ -357,6 +358,7 @@ export default function ModelPicker({ measured, regions }: Props) {
               {LANGUAGE_OPTIONS.map((option) => (
                 <button
                   key={option.id}
+                  aria-pressed={language === option.id}
                   className={`rounded-full border px-3 py-1 text-xs transition ${
                     language === option.id
                       ? "border-purple-500/60 bg-purple-600/20 text-white"
