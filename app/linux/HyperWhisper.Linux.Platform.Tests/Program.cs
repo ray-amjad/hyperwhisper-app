@@ -122,6 +122,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse guard stays armed while a second service raises", PulseGuardStaysArmedWhileASecondServiceRaises),
     ("streaming audio emits copied chunks safely", StreamingAudioCapture),
     ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
+    ("streaming parec asks for a 20 ms fragment only when opted in", StreamingParecLatencyArguments),
     ("private credential fallback is owner-only", PrivateCredentialFallback),
     ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
@@ -2037,6 +2038,22 @@ static async Task StreamingAudioCapture()
     Assert.True(capture.Duration > TimeSpan.Zero);
 }
 
+static Task StreamingParecLatencyArguments()
+{
+    // #1015: with no latency flag PulseAudio gives parec a 2 s fragment, so live audio arrived in 2 s bursts.
+    IReadOnlyList<string> ArgumentsFor(string? parec, string? pwRecord, bool lowLatency)
+    {
+        var launcher = new RecordingChildProcessLauncher();
+        new ChildProcessStreamingAudioSourceFactory(launcher, parec, pwRecord, lowLatency).Open(new AudioRecordingOptions("mic"));
+        return launcher.Requests.Single().Arguments;
+    }
+    Assert.Equal("--raw --format=s16le --rate=16000 --channels=1 --latency-msec=20 --device=mic",
+        string.Join(' ', ArgumentsFor("/usr/bin/parec", null, lowLatency: true)));
+    Assert.True(!ArgumentsFor("/usr/bin/parec", null, lowLatency: false).Any(argument => argument.StartsWith("--latency")));
+    Assert.True(!ArgumentsFor(null, "/usr/bin/pw-record", lowLatency: true).Any(argument => argument.StartsWith("--latency")));
+    return Task.CompletedTask;
+}
+
 static async Task StreamingAudioBlockedStop()
 {
     var stream = new BlockingAudioStream();
@@ -3180,6 +3197,13 @@ sealed class FakeStreamingAudioSourceFactory(FakeStreamingAudioSource source) : 
     public string Backend => "fake";
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options) =>
         PlatformResult<IStreamingAudioSource>.Success(source);
+}
+
+sealed class RecordingChildProcessLauncher : IChildProcessLauncher
+{
+    public List<ChildProcessStartRequest> Requests { get; } = [];
+    public PlatformResult<IChildProcess> Start(ChildProcessStartRequest request)
+    { Requests.Add(request); return PlatformResult<IChildProcess>.Failure("test_not_started", "Recorded only."); }
 }
 
 sealed class FakeStreamingAudioSource(Stream output) : IStreamingAudioSource
