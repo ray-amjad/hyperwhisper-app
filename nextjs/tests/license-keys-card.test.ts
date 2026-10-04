@@ -57,6 +57,15 @@ const dispatcher = {
 
     return [slots[index] as S, set];
   },
+  useRef<T>(initial: T) {
+    const index = cursor++;
+
+    if (slots.length <= index) slots.push({ current: initial });
+
+    return slots[index] as { current: T };
+  },
+  // Effects never run here: the card is called as a plain function, not mounted.
+  useEffect() {},
 };
 
 interface Element {
@@ -207,6 +216,32 @@ test("a successful copy after a refused one clears the message", async () => {
 
   assert.ok(!markup.includes(FAILURE));
   assert.ok(markup.includes("M5 13l4 4L19 7"));
+});
+
+test("a second copy keeps its tick for its own full 2 s", async () => {
+  stubWriteText(async () => {});
+  await clickCopy();
+
+  mock.timers.tick(1800);
+  await clickCopy();
+
+  // t = 2.0 s: the first copy's timer would have fired here.
+  mock.timers.tick(200);
+
+  let markup = renderToStaticMarkup(
+    (await renderCard()) as unknown as React.ReactElement,
+  );
+
+  assert.ok(markup.includes("M5 13l4 4L19 7"), "the first copy's timer cut the second tick short");
+
+  // t = 3.8 s: the second copy's own 2 s are up.
+  mock.timers.tick(1800);
+
+  markup = renderToStaticMarkup(
+    (await renderCard()) as unknown as React.ReactElement,
+  );
+
+  assert.ok(!markup.includes("M5 13l4 4L19 7"), "the second tick never cleared");
 });
 
 test("a refused copy after a successful one drops the tick", async () => {

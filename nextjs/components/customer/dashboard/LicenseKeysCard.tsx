@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
 
 import { ICON_SWAP } from "@/lib/icon-swap";
@@ -25,6 +25,15 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // The row whose last copy was refused (#872). Cleared by the next copy click.
   const [copyFailedKey, setCopyFailedKey] = useState<string | null>(null);
+  // One tick-reset timer at a time, so an earlier copy's timer never cuts a
+  // later copy's tick short (as CustomersClient's copyKey does).
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const maskLicenseKey = (key: string) => {
     const segments = key.split("-");
@@ -34,14 +43,16 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
 
   const copyToClipboard = async (key: string) => {
     setCopyFailedKey(null);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = null;
     try {
       await navigator.clipboard.writeText(key);
       setCopiedKey(key);
-      setTimeout(() => setCopiedKey(null), 2000);
+      copyTimerRef.current = setTimeout(() => setCopiedKey(null), 2000);
     } catch {
       // Insecure context, denied permission or an unfocused document (#872).
-      // Drop an earlier success's tick so it never sits beside the failure; that
-      // success's pending timer only nulls copiedKey again, which is harmless.
+      // Drop an earlier success's tick so it never sits beside the failure; its
+      // pending timer was already cleared above.
       setCopiedKey(null);
       setCopyFailedKey(key);
     }
