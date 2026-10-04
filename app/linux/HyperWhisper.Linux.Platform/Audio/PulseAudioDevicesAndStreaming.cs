@@ -260,11 +260,9 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
     {
         var chunk = length == pcm.Length ? pcm : pcm.AsSpan(0, length).ToArray();
         Raise(AudioChunkAvailable, (ReadOnlyMemory<byte>)chunk);
-        Raise(AudioLevelChanged, Level(chunk));
+        Raise(AudioLevelChanged, PulseAudioRecorder.CalculateLevel(chunk));
     }
     private void Raise<T>(EventHandler<T>? handlers, T value)
     { if (handlers is null) return; foreach (EventHandler<T> handler in handlers.GetInvocationList()) try { handler(this, value); } catch { } }
-    private static float Level(ReadOnlySpan<byte> pcm)
-    { long sum = 0; var samples = pcm.Length / 2; for (var i = 0; i < samples * 2; i += 2) sum += Math.Abs((int)(short)(pcm[i] | pcm[i + 1] << 8)); return samples == 0 ? 0 : Math.Clamp((float)sum / samples / short.MaxValue, 0, 1); }
     public void Dispose() { if (_disposed) return; _disposed = true; Stop(); AudioChunkAvailable = null; AudioLevelChanged = null; CaptureStopped = null; }
 }
