@@ -113,6 +113,9 @@ export default function FAQSection() {
                   openIndex === index ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 }`}
                 id={`faq-panel-${key}`}
+                // A closed panel is 0px tall but its links are still in the
+                // Tab order; inert takes them out until the panel opens.
+                inert={openIndex !== index}
               >
                 {/* overflow-hidden is load-bearing: it takes this grid item out of
                     automatic-minimum-size sizing, which is what lets the 0fr track
