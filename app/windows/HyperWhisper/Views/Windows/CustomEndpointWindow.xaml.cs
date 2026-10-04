@@ -211,6 +211,13 @@ public partial class CustomEndpointWindow : Window
     // MODEL FETCHING
     // =========================================================================
 
+    // A fetch warning describes the Base URL that was fetched; once the user
+    // edits that URL, it no longer applies.
+    private void UrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ModelFetchErrorText.Visibility = Visibility.Collapsed;
+    }
+
     private void RefreshModels_Click(object sender, RoutedEventArgs e)
     {
         _ = FetchModelsAsync();
