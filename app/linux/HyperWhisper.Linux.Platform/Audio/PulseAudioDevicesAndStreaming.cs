@@ -144,10 +144,9 @@ internal sealed class ChildProcessStreamingAudioSourceFactory : IStreamingAudioS
             ? new List<string> { "--raw", "--format=s16le", $"--rate={options.SampleRate}", $"--channels={options.ChannelCount}" }
             : ["--raw", "--format", "s16", "--rate", options.SampleRate.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--channels", options.ChannelCount.ToString(System.Globalization.CultureInfo.InvariantCulture)];
-        // #1015: without it PulseAudio hands parec a 2 s fragment and live audio arrives in 2 s bursts. 100 ms, not less:
-        // one read is one chunk and the live controller holds 128 chunks (~12.8 s) while the socket opens; it also
-        // matches the Windows head's 100 ms chunks, the core's OpenAI commit minimum. pw-record is not
-        // fragment-bound (it flushes every 4 KiB of stdout), so it gets no flag.
+        // #1015: without it PulseAudio hands parec a 2 s fragment and live audio arrives in 2 s bursts. 100 ms matches
+        // the 100 ms chunks PulseStreamingAudioCapture regroups the reads into, so a smaller fragment would only add
+        // wakeups. pw-record is not fragment-bound (it flushes every 4 KiB of stdout), so it gets no flag.
         if (_lowLatency && _parec is not null) arguments.Add("--latency-msec=100");
         if (explicitDevice) arguments.Add(_parec is not null ? $"--device={options.DeviceId}" : $"--target={options.DeviceId}");
         if (_parec is null) arguments.Add("-");
@@ -221,17 +220,17 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
                     var copied = Math.Min(read - offset, chunkBytes - filled);
                     Buffer.BlockCopy(buffer, offset, pending, filled, copied);
                     offset += copied; filled += copied;
-                    if (filled == chunkBytes) { Raise(AudioChunkAvailable, (ReadOnlyMemory<byte>)pending.ToArray()); filled = 0; }
+                    if (filled == chunkBytes) { Emit(pending, filled); pending = new byte[chunkBytes]; filled = 0; }
                 }
-                Raise(AudioLevelChanged, Level(buffer.AsSpan(0, read)));
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch { if (!token.IsCancellationRequested) error = new("audio_capture_failed", "Streaming audio capture stopped unexpectedly."); }
         finally
         {
-            // Stop waits for this loop, so the tail reaches the controller before it completes the audio channel.
-            if (filled > 0) Raise(AudioChunkAvailable, (ReadOnlyMemory<byte>)pending.AsSpan(0, filled).ToArray());
+            // The last partial chunk. On a normal Stop the controller completes its audio channel only after Stop
+            // returned, so this tail still reaches the transcriber.
+            if (filled > 0) Emit(pending, filled);
             try { await source.DisposeAsync().ConfigureAwait(false); } catch { }
             lock (_gate)
             {
@@ -256,6 +255,12 @@ public sealed class PulseStreamingAudioCapture : IStreamingAudioCapture
         {
             if (task?.IsCompleted != false) { _task = null; _cancellation?.Dispose(); _cancellation = null; IsCapturing = false; }
         }
+    }
+    private void Emit(byte[] pcm, int length)
+    {
+        var chunk = length == pcm.Length ? pcm : pcm.AsSpan(0, length).ToArray();
+        Raise(AudioChunkAvailable, (ReadOnlyMemory<byte>)chunk);
+        Raise(AudioLevelChanged, Level(chunk));
     }
     private void Raise<T>(EventHandler<T>? handlers, T value)
     { if (handlers is null) return; foreach (EventHandler<T> handler in handlers.GetInvocationList()) try { handler(this, value); } catch { } }
