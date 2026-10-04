@@ -15,7 +15,7 @@
  * screen reader announces the status region.
  */
 import assert from "node:assert/strict";
-import test, { afterEach, beforeEach } from "node:test";
+import test, { afterEach, beforeEach, mock } from "node:test";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -132,12 +132,20 @@ function stubWriteText(writeText: (text: string) => Promise<void>) {
 }
 
 beforeEach(() => {
+  // The card's 2 s tick-reset timer must not fire into a later test's slots,
+  // nor hold the process open: fake setTimeout and drop pending timers after.
+  // Node 22 reads `{ apis }`; an array is ignored and mocks every timer,
+  // setImmediate too. The installed @types/node still types the array form.
+  mock.timers.enable({ apis: ["setTimeout"] } as unknown as Parameters<
+    typeof mock.timers.enable
+  >[0]);
   slots = [];
   rejections.length = 0;
   process.on("unhandledRejection", onRejection);
 });
 
 afterEach(() => {
+  mock.timers.reset();
   process.off("unhandledRejection", onRejection);
 
   if (originalNavigator) {
@@ -199,4 +207,22 @@ test("a successful copy after a refused one clears the message", async () => {
 
   assert.ok(!markup.includes(FAILURE));
   assert.ok(markup.includes("M5 13l4 4L19 7"));
+});
+
+test("a refused copy after a successful one drops the tick", async () => {
+  stubWriteText(async () => {});
+  await clickCopy();
+
+  // Within the 2 s the tick would otherwise stay up.
+  stubWriteText(async () => {
+    throw new Error("denied");
+  });
+  await clickCopy();
+
+  const markup = renderToStaticMarkup(
+    (await renderCard()) as unknown as React.ReactElement,
+  );
+
+  assert.ok(markup.includes(FAILURE), "the failure message was not rendered");
+  assert.ok(!markup.includes("M5 13l4 4L19 7"), "the earlier tick sat beside the failure");
 });

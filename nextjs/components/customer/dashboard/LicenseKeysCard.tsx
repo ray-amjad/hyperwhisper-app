@@ -40,6 +40,9 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
       setTimeout(() => setCopiedKey(null), 2000);
     } catch {
       // Insecure context, denied permission or an unfocused document (#872).
+      // Drop an earlier success's tick so it never sits beside the failure; that
+      // success's pending timer only nulls copiedKey again, which is harmless.
+      setCopiedKey(null);
       setCopyFailedKey(key);
     }
   };
