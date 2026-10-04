@@ -2,7 +2,10 @@
 
 import "@/styles/globals.css";
 
+import clsx from "clsx";
 import { useEffect } from "react";
+
+import { fontSans } from "@/config/fonts";
 
 // Catches what app/[locale]/error.tsx cannot: a throw in a layout, such as
 // getMessages() in app/[locale]/layout.tsx. Unlike not-found.tsx, this file
@@ -33,7 +36,14 @@ export default function GlobalError({
       <head>
         <title>Something went wrong | HyperWhisper</title>
       </head>
-      <body className="min-h-screen bg-black text-white font-sans antialiased">
+      {/* font-sans reads --font-sans, which fontSans.variable defines. The locale
+          layout sets it on a wrapper div this file replaces, so set it here. */}
+      <body
+        className={clsx(
+          "min-h-screen bg-black text-white font-sans antialiased",
+          fontSans.variable,
+        )}
+      >
         <div className="flex flex-col items-center gap-4 py-24 text-center">
           <h2 className="text-2xl font-semibold">Something went wrong.</h2>
           {/* A plain button: the HeroUI provider lives in the layout that threw.
