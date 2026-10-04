@@ -353,3 +353,74 @@ test("#1147: the custom-amount field is named by the visible amount heading and 
   assert.equal(input["aria-label"], undefined);
   assert.equal(input.placeholder, "buyCredits.customPlaceholder");
 });
+
+/**
+ * #969 ADDS the amount-group pins. The $5 / $10 / Custom cards are a
+ * single-choice group that showed the chosen card by border colour only. Each
+ * card now carries `aria-pressed`, and the grid is a `role="group"` named by
+ * the visible "Choose an amount" heading (`aria-labelledby`). The cards stay
+ * toggle buttons, not `role="radio"` (that needs arrow-key roving focus).
+ * Whether Chromium computes the group name and the [pressed] state is the
+ * verify round's job.
+ */
+
+/** The opening tag of the element that holds the amount cards. */
+function amountGroupTag(): string {
+  const tag = /<div[^>]*\srole="group"[^>]*>/.exec(markup)?.[0];
+
+  assert.ok(tag, "no role=group element in the markup");
+
+  return tag;
+}
+
+/** Each amount card's text and `aria-pressed` value, in document order. */
+function amountCards(): Array<{ text: string; pressed: string | null }> {
+  const start = markup.indexOf(amountGroupTag());
+  const buttons = Array.from(
+    markup.slice(start).matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g),
+  );
+
+  return buttons.map((m) => ({
+    text: m[2].replace(/<[^>]+>/g, ""),
+    pressed: /\saria-pressed="([^"]+)"/.exec(m[1])?.[1] ?? null,
+  }));
+}
+
+test("#969: the amount cards are a group named by the Choose an amount heading", async () => {
+  await renderEmailInput();
+  const amountId = idOfText("span", "buyCredits.amountLabel");
+  const tag = amountGroupTag();
+
+  assert.ok(amountId, "the Choose an amount heading has no id");
+  assert.equal(/\saria-labelledby="([^"]+)"/.exec(tag)?.[1], amountId);
+  assert.equal(
+    Array.from(markup.matchAll(/\srole="group"/g)).length,
+    1,
+    "expected exactly one group",
+  );
+});
+
+test("#969: on load only the $5 card is pressed", async () => {
+  await renderEmailInput();
+  const cards = amountCards();
+
+  assert.equal(cards.length >= 3, true, "expected the $5, $10 and Custom cards");
+  assert.deepEqual(
+    cards.slice(0, 3).map((c) => c.pressed),
+    ["true", "false", "false"],
+  );
+  assert.match(cards[0].text, /^\$5/);
+  assert.match(cards[1].text, /^\$10/);
+  assert.match(cards[2].text, /^buyCredits\.custom/);
+});
+
+test("#969: after a click on Custom only the Custom card is pressed", async () => {
+  await renderEmailInput({ custom: true });
+  const cards = amountCards();
+
+  assert.deepEqual(
+    cards.slice(0, 3).map((c) => c.pressed),
+    ["false", "false", "true"],
+  );
+  assert.match(cards[2].text, /^buyCredits\.custom/);
+});

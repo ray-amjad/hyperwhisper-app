@@ -193,12 +193,20 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
               >
                 {t("amountLabel")}
               </span>
-              <div className="grid grid-cols-3 gap-3">
+              {/* A single-choice group of toggle buttons (#969): the chosen card is
+                  exposed by aria-pressed, not only its border colour. Not
+                  role="radio", which would need arrow-key roving focus. */}
+              <div
+                aria-labelledby={amountLabelId}
+                className="grid grid-cols-3 gap-3"
+                role="group"
+              >
                 {PRESETS.map((value) => {
                   const selected = !isCustom && amount === value;
                   return (
                     <button
                       key={value}
+                      aria-pressed={selected}
                       type="button"
                       onClick={() => selectPreset(value)}
                       className={`rounded-2xl py-4 text-center transition cursor-pointer border ${
@@ -219,6 +227,7 @@ export default function CreditsPurchase({ locale }: { locale: string }) {
                   );
                 })}
                 <button
+                  aria-pressed={isCustom}
                   type="button"
                   onClick={() => setIsCustom(true)}
                   className={`rounded-2xl py-4 text-center transition cursor-pointer border ${
