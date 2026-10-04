@@ -46,7 +46,8 @@
                 <StackPanel Margin="0,0,0,16">
                     <TextBlock x:Name="UrlLabel" Text="Base URL" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
-                    <TextBox x:Name="UrlTextBox"/>
+                    <TextBox x:Name="UrlTextBox"
+                             TextChanged="UrlTextBox_TextChanged"/>
                     <TextBlock x:Name="UrlHintText" Text="Base URL of your local server"
                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                 </StackPanel>

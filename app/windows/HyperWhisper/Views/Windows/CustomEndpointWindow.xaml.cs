@@ -18,6 +18,10 @@ public partial class CustomEndpointWindow : Window
     private bool _isLoading = true;
     private bool _isTesting;
 
+    // Bumped by every model fetch and every tab switch. A fetch that returns
+    // after either has happened is stale and leaves the UI to its successor.
+    private int _fetchGeneration;
+
     /// <summary>
     /// The last Test Connection outcome, together with the exact configuration
     /// it was measured against.
@@ -158,6 +162,12 @@ public partial class CustomEndpointWindow : Window
         ClearTestResult();
         UpdateTabUI();
 
+        // The new tab owns the model area: drop any pending fetch, its spinner
+        // and its warning. The fetch started below shows its own spinner.
+        _fetchGeneration++;
+        FetchingPanel.Visibility = Visibility.Collapsed;
+        ModelFetchErrorText.Visibility = Visibility.Collapsed;
+
         // Fetch models for LMStudio/Ollama
         if (TabLMStudio.IsChecked == true || TabOllama.IsChecked == true)
         {
@@ -211,6 +221,13 @@ public partial class CustomEndpointWindow : Window
     // MODEL FETCHING
     // =========================================================================
 
+    // A fetch warning describes the Base URL that was fetched; once the user
+    // edits that URL, it no longer applies.
+    private void UrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ModelFetchErrorText.Visibility = Visibility.Collapsed;
+    }
+
     private void RefreshModels_Click(object sender, RoutedEventArgs e)
     {
         _ = FetchModelsAsync();
@@ -221,6 +238,7 @@ public partial class CustomEndpointWindow : Window
         var baseUrl = UrlTextBox.Text.Trim();
         if (string.IsNullOrEmpty(baseUrl)) return;
 
+        var generation = ++_fetchGeneration;
         FetchingPanel.Visibility = Visibility.Visible;
         ModelFetchErrorText.Visibility = Visibility.Collapsed;
         ModelCombo.Items.Clear();
@@ -241,13 +259,20 @@ public partial class CustomEndpointWindow : Window
             return;
         }
 
+        // A newer fetch or a tab switch happened while this one was pending.
+        if (generation != _fetchGeneration) return;
+
         FetchingPanel.Visibility = Visibility.Collapsed;
 
         if (models.Count == 0)
         {
             var providerName = TabOllama.IsChecked == true ? "Ollama" : "LMStudio";
-            ModelFetchErrorText.Text = $"Could not fetch models. Ensure {providerName} is running.";
-            ModelFetchErrorText.Visibility = Visibility.Visible;
+            // Skip the warning if the user replaced the Base URL while this fetch was pending.
+            if (UrlTextBox.Text.Trim() == baseUrl)
+            {
+                ModelFetchErrorText.Text = $"Could not fetch models. Ensure {providerName} is running.";
+                ModelFetchErrorText.Visibility = Visibility.Visible;
+            }
 
             // Show textbox as fallback
             ModelCombo.Visibility = Visibility.Collapsed;
