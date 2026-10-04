@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none prose-invert">
       <p className="text-sm text-gray-400 italic mb-8">
-        Last Updated: September 26, 2026
+        Last Updated: October 4, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -62,6 +62,18 @@ export default function PrivacyPolicyPage() {
           hours, and an hourly summary of requests per IP address and whether
           each one was allowed, which has no automatic deletion period today.
           Neither holds your email address, browser user agent, or country.
+          Our transactional emails are delivered by{" "}
+          <a
+            className="text-blue-400 hover:underline"
+            href="https://resend.com/legal/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Resend
+          </a>
+          , which receives the recipient address and the message content in
+          order to deliver them. For license key, Account Key, and sign-in
+          link emails, that content includes the key or the sign-in link.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
@@ -715,7 +727,7 @@ export default function PrivacyPolicyPage() {
 
       <h2>International Transfers</h2>
       <p>
-        Our payment and licensing providers, and Upstash, may process limited
+        Our payment and licensing providers, Upstash, and Resend may process limited
         personal information in multiple countries, including the United
         Kingdom, the European Economic Area, and the United States. Upstash
         hosts our rate-limit store. It also holds a one-hour cache, keyed by
