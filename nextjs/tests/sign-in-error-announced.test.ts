@@ -48,8 +48,11 @@ interface ModuleMocker {
 
 const moduleMock = mock as unknown as ModuleMocker;
 
-/** Which failure the next render drives. `null` renders the untouched form. */
-let scenario: "license-key" | "email" | null = null;
+/**
+ * Which failure the next render drives. `null` renders the untouched form;
+ * `"email-tab"` (#1311) only fires the Email tab button's `onClick`.
+ */
+let scenario: "license-key" | "email" | "email-tab" | null = null;
 /** Steps already fired in this render, so the settle re-render is inert. */
 let switchedTab = false;
 let submitted = false;
@@ -71,7 +74,7 @@ function fireScenario(type: unknown, rawProps: unknown): void {
   if (type === "input") lastInputId = props.id;
 
   if (
-    scenario === "email" &&
+    (scenario === "email" || scenario === "email-tab") &&
     !switchedTab &&
     type === "button" &&
     props.children === "Email"
@@ -219,4 +222,74 @@ test("a failed magic-link send marks #email invalid and described", async () => 
 
   assert.match(input, /aria-invalid="true"/);
   assert.match(input, /aria-describedby="email-error"/);
+});
+
+/**
+ * #1311 ADDS the sign-in method switcher pins. The Account Key / Email buttons
+ * showed the active method by background colour only. Each button now carries
+ * `aria-pressed`, and the wrapper is a `role="group"` named "Sign-in method"
+ * (`aria-label`: the page is English-only, hard-coded copy). The buttons stay
+ * toggle buttons, not `role="tab"` (that needs arrow-key roving focus and
+ * `aria-controls` panels). Whether Chromium computes the group name and the
+ * [pressed] state is the verify round's job.
+ */
+
+/** The opening tag of the switcher, the one `role="group"` element. */
+function switcherTag(html: string): string {
+  const tag = /<div[^>]*\srole="group"[^>]*>/.exec(html)?.[0];
+
+  assert.ok(tag, "no role=group element in the markup");
+
+  return tag;
+}
+
+/** Each switcher button's text and `aria-pressed` value, in document order. */
+function switcherButtons(
+  html: string,
+): Array<{ text: string; pressed: string | null }> {
+  const start = html.indexOf(switcherTag(html));
+  const end = html.indexOf("</div>", start);
+  const buttons = Array.from(
+    html.slice(start, end).matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g),
+  );
+
+  return buttons.map((m) => ({
+    text: m[2].replace(/<[^>]+>/g, ""),
+    pressed: /\saria-pressed="([^"]+)"/.exec(m[1])?.[1] ?? null,
+  }));
+}
+
+test("#1311: the method switcher is a group named Sign-in method", async () => {
+  const html = await render(null);
+  const tag = switcherTag(html);
+
+  assert.equal(/\saria-label="([^"]+)"/.exec(tag)?.[1], "Sign-in method");
+  assert.equal(
+    Array.from(html.matchAll(/\srole="group"/g)).length,
+    1,
+    "expected exactly one group",
+  );
+});
+
+test("#1311: on load only Account Key is pressed", async () => {
+  const buttons = switcherButtons(await render(null));
+
+  assert.deepEqual(buttons, [
+    { text: "Account Key", pressed: "true" },
+    { text: "Email", pressed: "false" },
+  ]);
+});
+
+test("#1311: after a click on Email only Email is pressed", async () => {
+  const html = await render("email-tab");
+  const buttons = switcherButtons(html);
+
+  assert.deepEqual(buttons, [
+    { text: "Account Key", pressed: "false" },
+    { text: "Email", pressed: "true" },
+  ]);
+  // The click really switched the panel, and drove no submit.
+  assert.match(html, /id="email"/);
+  assert.doesNotMatch(html, /id="license-key"/);
+  assert.doesNotMatch(html, /role="alert"/);
 });
