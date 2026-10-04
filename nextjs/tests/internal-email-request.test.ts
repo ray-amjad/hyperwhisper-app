@@ -53,25 +53,30 @@ test("rejects malformed JSON", async () => {
   });
 });
 
-test("logs a malformed body with the pathname and a reason, never the email", async () => {
-  // A bare email is not JSON, and V8 quotes the whole input in its SyntaxError
-  // message. Prove that here, so the no-leak check below can never go vacuous.
-  const body = "leak@example.com";
-  assert.throws(() => JSON.parse(body), (err: Error) => err.message.includes(body));
-
+async function captureWarnings<T>(run: () => Promise<T>) {
   const warnings: unknown[][] = [];
   const realWarn = console.warn;
   console.warn = (...args: unknown[]) => {
     warnings.push(args);
   };
   try {
-    assert.deepEqual(await errorFrom(body), {
-      status: 400,
-      body: { error: "Invalid JSON body" },
-    });
+    return { result: await run(), warnings };
   } finally {
     console.warn = realWarn;
   }
+}
+
+test("logs a malformed body with the pathname and a reason, never the email", async () => {
+  // A bare email is not JSON, and V8 quotes the whole input in its SyntaxError
+  // message. Prove that here, so the no-leak check below can never go vacuous.
+  const body = "leak@example.com";
+  assert.throws(() => JSON.parse(body), (err: Error) => err.message.includes(body));
+
+  const { result, warnings } = await captureWarnings(() => errorFrom(body));
+  assert.deepEqual(result, {
+    status: 400,
+    body: { error: "Invalid JSON body" },
+  });
 
   assert.equal(warnings.length, 1);
   assert.deepEqual(warnings[0][1], {
@@ -87,19 +92,6 @@ test("logs a malformed body with the pathname and a reason, never the email", as
   assert.ok(!logged.includes(body), logged);
   assert.ok(!logged.includes(INTERNAL_SECRET), logged);
 });
-
-async function captureWarnings<T>(run: () => Promise<T>) {
-  const warnings: unknown[][] = [];
-  const realWarn = console.warn;
-  console.warn = (...args: unknown[]) => {
-    warnings.push(args);
-  };
-  try {
-    return { result: await run(), warnings };
-  } finally {
-    console.warn = realWarn;
-  }
-}
 
 // A missing or mistyped email is the same wire-format disagreement as an
 // unparseable body (#1226): one warning with the pathname and the type only.
