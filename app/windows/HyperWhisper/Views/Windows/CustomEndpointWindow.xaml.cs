@@ -18,6 +18,10 @@ public partial class CustomEndpointWindow : Window
     private bool _isLoading = true;
     private bool _isTesting;
 
+    // Bumped by every model fetch and every tab switch. A fetch that returns
+    // after either has happened is stale and leaves the UI to its successor.
+    private int _fetchGeneration;
+
     /// <summary>
     /// The last Test Connection outcome, together with the exact configuration
     /// it was measured against.
@@ -158,6 +162,12 @@ public partial class CustomEndpointWindow : Window
         ClearTestResult();
         UpdateTabUI();
 
+        // The new tab owns the model area: drop any pending fetch, its spinner
+        // and its warning. The fetch started below shows its own spinner.
+        _fetchGeneration++;
+        FetchingPanel.Visibility = Visibility.Collapsed;
+        ModelFetchErrorText.Visibility = Visibility.Collapsed;
+
         // Fetch models for LMStudio/Ollama
         if (TabLMStudio.IsChecked == true || TabOllama.IsChecked == true)
         {
@@ -228,6 +238,7 @@ public partial class CustomEndpointWindow : Window
         var baseUrl = UrlTextBox.Text.Trim();
         if (string.IsNullOrEmpty(baseUrl)) return;
 
+        var generation = ++_fetchGeneration;
         FetchingPanel.Visibility = Visibility.Visible;
         ModelFetchErrorText.Visibility = Visibility.Collapsed;
         ModelCombo.Items.Clear();
@@ -247,6 +258,9 @@ public partial class CustomEndpointWindow : Window
             FetchingPanel.Visibility = Visibility.Collapsed;
             return;
         }
+
+        // A newer fetch or a tab switch happened while this one was pending.
+        if (generation != _fetchGeneration) return;
 
         FetchingPanel.Visibility = Visibility.Collapsed;
 
