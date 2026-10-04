@@ -290,9 +290,14 @@ export default function DownloadPage() {
               <CheckCircle className="w-5 h-5 text-green-500" />
               <span>{t("downloadStarted")}</span>
             </div>
-          ) : (
+          ) : isMobile === false ? (
             <p className="text-lg text-gray-400">
               {t("countdownText", { seconds: currentState.countdown })}
+            </p>
+          ) : (
+            // Device not detected yet: hold the line's height, promise nothing
+            <p aria-hidden="true" className="text-lg text-gray-400">
+              {"\u00A0"}
             </p>
           )}
         </div>
