@@ -21,6 +21,14 @@ export async function parseInternalEmailRequest(
     const body: unknown = await request.json();
     let email = isRecord(body) && typeof body.email === "string" ? body.email : "";
     if (!email) {
+      // Same "our services disagree about the wire format" event as the catch
+      // branch below (#851 / #1226). A mis-keyed body still carries an address,
+      // so log only the pathname and the type of `email`, never a body value.
+      console.warn("internal email request: email missing", {
+        path: request.nextUrl.pathname,
+        emailType: isRecord(body) ? typeof body.email : "no-body-object",
+      });
+
       return {
         response: NextResponse.json(
           { error: "email is required" },

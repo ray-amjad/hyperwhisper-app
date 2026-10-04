@@ -88,18 +88,61 @@ test("logs a malformed body with the pathname and a reason, never the email", as
   assert.ok(!logged.includes(INTERNAL_SECRET), logged);
 });
 
-for (const [name, body] of [
-  ["missing", {}],
-  ["non-string", { email: 123 }],
-  ["empty", { email: "" }],
+async function captureWarnings<T>(run: () => Promise<T>) {
+  const warnings: unknown[][] = [];
+  const realWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+  try {
+    return { result: await run(), warnings };
+  } finally {
+    console.warn = realWarn;
+  }
+}
+
+// A missing or mistyped email is the same wire-format disagreement as an
+// unparseable body (#1226): one warning with the pathname and the type only.
+for (const [name, body, emailType] of [
+  ["missing", "{}", "undefined"],
+  ["mis-keyed", JSON.stringify({ Email: "leak@example.com" }), "undefined"],
+  ["non-string", JSON.stringify({ email: 123 }), "number"],
+  ["empty", JSON.stringify({ email: "" }), "string"],
+  ["null", JSON.stringify({ email: null }), "object"],
+  ["string-body", JSON.stringify("leak@example.com"), "no-body-object"],
+  ["null-body", "null", "no-body-object"],
 ] as const) {
-  test(`rejects the ${name} email value`, async () => {
-    assert.deepEqual(await errorFrom(JSON.stringify(body)), {
+  test(`rejects the ${name} email value and logs it without the body`, async () => {
+    const { result, warnings } = await captureWarnings(() => errorFrom(body));
+
+    assert.deepEqual(result, {
       status: 400,
       body: { error: "email is required" },
     });
+    assert.equal(warnings.length, 1);
+    assert.deepEqual(warnings[0], [
+      "internal email request: email missing",
+      { path: "/api/internal/test", emailType },
+    ]);
+    // inspect, not JSON.stringify, matching the malformed-body case above.
+    const logged = warnings
+      .map((args) => args.map((arg) => inspect(arg, { depth: null })).join(" "))
+      .join("\n");
+    assert.ok(!logged.includes("leak@example.com"), logged);
+    assert.ok(!logged.includes(INTERNAL_SECRET), logged);
   });
 }
+
+test("does not log a valid email request", async () => {
+  const { result, warnings } = await captureWarnings(() =>
+    parseInternalEmailRequest(
+      request(JSON.stringify({ email: "user@example.com" })),
+    ),
+  );
+
+  assert.deepEqual(result, { email: "user@example.com" });
+  assert.equal(warnings.length, 0);
+});
 
 test("keeps the whitespace-only email compatibility behavior", async () => {
   const result = await parseInternalEmailRequest(
